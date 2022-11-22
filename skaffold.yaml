@@ -1,0 +1,12 @@
+apiVersion: skaffold/v2beta28
+kind: Config
+build:
+  artifacts:
+    - image: registry.cn-hangzhou.aliyuncs.com/coscene/
+      context: .
+profiles:
+  - name: azure-dev-east-us
+    build:
+      artifacts:
+        - image: coseus.azurecr.io/honeybee
+          context: .

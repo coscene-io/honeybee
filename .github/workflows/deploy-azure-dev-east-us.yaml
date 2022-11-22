@@ -1,0 +1,51 @@
+name: Deploy to azure-dev-east-us
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deployment:
+    runs-on: ubuntu-20.04
+    environment: azure-dev-east-us
+    env:
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Set up kubernetes tools
+        uses: coscene-io/setup-cd-tools@v2.0.0
+        with:
+          kubectl: '1.22.2'
+          kustomize: '4.5.4'
+          skaffold: '1.38.0'
+
+      - uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: azure/aks-set-context@v2
+        with:
+          resource-group: 'Dev-EUS'
+          cluster-name: 'Dev-EUS'
+          admin: true
+
+      - name: Login to Docker Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
+          password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
+
+      - name: Skaffold build
+        run: |
+          skaffold build -p azure-dev-east-us -t latest
