@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 2
+          lfs: true
 
       - name: Set up kubernetes tools
         uses: coscene-io/setup-cd-tools@v2.0.0
