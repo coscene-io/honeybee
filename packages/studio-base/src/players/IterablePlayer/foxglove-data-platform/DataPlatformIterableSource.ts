@@ -94,10 +94,23 @@ export class DataPlatformIterableSource implements IIterableSource {
             end: params.end,
           };
 
-    const [coverage, rawTopics] = await Promise.all([
-      this._consoleApi.coverage(apiParams),
-      this._consoleApi.topics({ ...apiParams, includeSchemas: true }),
-    ]);
+    // const [coverage, rawTopics] = await Promise.all([
+    //   this._consoleApi.coverage(apiParams),
+    //   this._consoleApi.topics({ ...apiParams, includeSchemas: true }),
+    // ]);
+    const rawTopics = await this._consoleApi.topics({ ...apiParams, includeSchemas: true });
+    const coverage = [
+      {
+        deviceId: "dev_CJGWd2UaK1MFq3yF",
+        start: "2022-06-03T05:19:30.994Z",
+        end: "2022-06-03T05:20:00.994Z",
+        status: "imported",
+      },
+    ];
+    // const [coverage, rawTopics] = await Promise.all([
+    //   this._consoleApi.coverage(apiParams),
+    //   this._consoleApi.topics({ ...apiParams, includeSchemas: true }),
+    // ]);
 
     if (rawTopics.length === 0 || coverage.length === 0) {
       throw new Error(
@@ -124,9 +137,21 @@ export class DataPlatformIterableSource implements IIterableSource {
       );
     }
 
-    const device = await this._consoleApi.getDevice(
-      params.type === "by-device" ? params.deviceId : coverageStart?.deviceId ?? "",
-    );
+    // const device = await this._consoleApi.getDevice(
+    //   params.type === "by-device" ? params.deviceId : coverageStart?.deviceId ?? "",
+    // );
+    const device = {
+      id: "dev_CJGWd2UaK1MFq3yF",
+      name: "Robo Arm 1",
+      serialNumber: undefined,
+      orgId: "94912def-10f3-4b04-873c-e984dacb5baa",
+      createdAt: "2022-04-24T05:50:31.960Z",
+      updatedAt: "2022-04-24T05:50:31.960Z",
+      deletedAt: undefined,
+    };
+    // await this._consoleApi.getDevice(
+    //   params.type === "by-device" ? params.deviceId : coverageStart?.deviceId ?? "",
+    // );
 
     if (!params.start || isLessThan(params.start, coverageStartTime)) {
       log.debug("Increased start time from", params.start, "to", coverageStartTime);

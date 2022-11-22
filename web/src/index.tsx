@@ -13,7 +13,9 @@ import { AppSetting } from "@foxglove/studio-base";
 import VersionBanner from "./VersionBanner";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
-const log = Logger.getLogger(__filename);
+// const log = Logger.getLogger(__filename);
+const log = console;
+
 log.debug("initializing");
 
 window.onerror = (...args) => {
