@@ -10,11 +10,11 @@ import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/play
 import { Player } from "@foxglove/studio-base/players/types";
 
 class FoxgloveDataPlatformDataSourceFactory implements IDataSourceFactory {
-  public id = "foxglove-data-platform";
+  public id = "coscene-data-platform";
   public type: IDataSourceFactory["type"] = "connection";
   public displayName = "Foxglove Data Platform";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
-  public hidden = true;
+  public hidden = false;
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const consoleApi = args.consoleApi;
@@ -26,7 +26,7 @@ class FoxgloveDataPlatformDataSourceFactory implements IDataSourceFactory {
       sourceType: "foxgloveDataPlatform",
       initArgs: {
         api: {
-          baseUrl: consoleApi.getBaseUrl(),
+          baseUrl: "http://localhost:8080", // consoleApi.getBaseUrl(),
           auth: consoleApi.getAuthHeader(),
         },
         params: args.params,
