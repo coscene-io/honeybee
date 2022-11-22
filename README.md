@@ -80,9 +80,10 @@ Note: All contributors must agree to our [Contributor License Agreement](https:/
 
 **Getting started:**
 
-1. Clone repo
-1. Run `corepack enable` and `yarn install`
-1. Launch the development environment:
+1. Install git-lfs: `brew install git-lfs` (macOS) or `sudo apt-get install git-lfs` (Linux)
+2. Clone repo
+3. Run `corepack enable` and `yarn install`
+4. Launch the development environment:
 
 ```sh
 # To launch the desktop app (run both scripts concurrently):
