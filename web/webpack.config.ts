@@ -40,6 +40,9 @@ const devServerConfig: WebpackConfiguration = {
     //  "[WDS] Disconnected!"
     // Since we are only connecting to localhost, DNS rebinding attacks are not a concern during dev
     allowedHosts: "all",
+    proxy: {
+      "/v1/data": "http://192.168.50.209:9901",
+    },
   },
 
   plugins: [new CleanWebpackPlugin()],
