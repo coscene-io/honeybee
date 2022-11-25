@@ -6,12 +6,12 @@ import { useMemo, useState } from "react";
 
 import {
   IDataSourceFactory,
-  Ros1LocalBagDataSourceFactory,
-  Ros2LocalBagDataSourceFactory,
+  // Ros1LocalBagDataSourceFactory,
+  // Ros2LocalBagDataSourceFactory,
   RosbridgeDataSourceFactory,
-  Ros1RemoteBagDataSourceFactory,
+  // Ros1RemoteBagDataSourceFactory,
   FoxgloveDataPlatformDataSourceFactory,
-  FoxgloveWebSocketDataSourceFactory,
+  // FoxgloveWebSocketDataSourceFactory,
   UlogLocalDataSourceFactory,
   McapLocalDataSourceFactory,
   SampleNuscenesDataSourceFactory,
@@ -22,23 +22,23 @@ import {
   ConsoleApi,
 } from "@foxglove/studio-base";
 
-import Ros1UnavailableDataSourceFactory from "./dataSources/Ros1UnavailableDataSourceFactory";
-import Ros2UnavailableDataSourceFactory from "./dataSources/Ros2UnavailableDataSourceFactory";
-import VelodyneUnavailableDataSourceFactory from "./dataSources/VelodyneUnavailableDataSourceFactory";
+// import Ros1UnavailableDataSourceFactory from "./dataSources/Ros1UnavailableDataSourceFactory";
+// import Ros2UnavailableDataSourceFactory from "./dataSources/Ros2UnavailableDataSourceFactory";
+// import VelodyneUnavailableDataSourceFactory from "./dataSources/VelodyneUnavailableDataSourceFactory";
 import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
 
 export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration }): JSX.Element {
   const dataSources: IDataSourceFactory[] = useMemo(() => {
     const sources = [
-      new Ros1UnavailableDataSourceFactory(),
-      new Ros1LocalBagDataSourceFactory(),
-      new Ros1RemoteBagDataSourceFactory(),
-      new Ros2UnavailableDataSourceFactory(),
-      new Ros2LocalBagDataSourceFactory(),
+      // new Ros1UnavailableDataSourceFactory(),
+      // new Ros1LocalBagDataSourceFactory(),
+      // new Ros1RemoteBagDataSourceFactory(),
+      // new Ros2UnavailableDataSourceFactory(),
+      // new Ros2LocalBagDataSourceFactory(),
       new RosbridgeDataSourceFactory(),
-      new FoxgloveWebSocketDataSourceFactory(),
+      // new FoxgloveWebSocketDataSourceFactory(),
       new UlogLocalDataSourceFactory(),
-      new VelodyneUnavailableDataSourceFactory(),
+      // new VelodyneUnavailableDataSourceFactory(),
       new FoxgloveDataPlatformDataSourceFactory(),
       new SampleNuscenesDataSourceFactory(),
       new McapLocalDataSourceFactory(),
