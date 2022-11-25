@@ -12,7 +12,7 @@ import { Player } from "@foxglove/studio-base/players/types";
 class FoxgloveDataPlatformDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-data-platform";
   public type: IDataSourceFactory["type"] = "connection";
-  public displayName = "Foxglove Data Platform";
+  public displayName = "Coscene Data Platform";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
 

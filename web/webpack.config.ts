@@ -116,7 +116,7 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
     <head>
       <meta charset="utf-8">
       <meta name="apple-mobile-web-app-capable" content="yes">
-      <meta property="og:title" content="Foxglove Studio"/>
+      <meta property="og:title" content="Coscene"/>
       <meta property="og:description" content="Open source visualization and debugging tool for robotics"/>
       <meta property="og:type" content="website"/>
       <meta property="og:image" content="https://foxglove.dev/images/og-image.jpeg"/>
@@ -126,7 +126,7 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
       <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
       <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
       <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
-      <title>Foxglove Studio</title>
+      <title>Coscene</title>
     </head>
     <script>
       global = globalThis;
