@@ -35,7 +35,10 @@ const log = Logger.getLogger(__filename);
  * This scopes the required interface to a small subset of ConsoleApi to make it easier to mock/stub
  * for tests.
  */
-export type DataPlatformInterableSourceConsoleApi = Pick<ConsoleApi, "topics" | "getDevice">;
+export type DataPlatformInterableSourceConsoleApi = Pick<
+  ConsoleApi,
+  "topics" | "getDevice" | "getAuthHeader"
+>;
 
 type DataPlatformSourceParameters = {
   revisionName: string;
@@ -334,9 +337,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   if (!api) {
     throw new Error("api is required for data platfomr");
   }
-
-  // eslint-disable-next-line no-restricted-syntax
-  console.log("params", params, api);
 
   const revisionName = params.revisionName ?? "";
   const filename = params.filename ?? "";
