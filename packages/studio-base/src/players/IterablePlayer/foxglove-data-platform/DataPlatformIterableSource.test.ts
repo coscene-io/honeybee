@@ -42,6 +42,9 @@ describe("DataPlatformIterableSource", () => {
           name: "my device",
         };
       },
+      async getAuthHeader(): ReturnType<ConsoleApi["getAuthHeader"]> {
+        return "Authorization";
+      },
     };
 
     const source = new DataPlatformIterableSource({
