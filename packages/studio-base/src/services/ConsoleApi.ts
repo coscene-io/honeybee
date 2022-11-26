@@ -98,9 +98,9 @@ type TopicResponse = {
 type RawTopicResponse = Omit<TopicResponse, "schema"> & { schema?: string };
 
 type topicInterfaceReturns = {
-  beginTime: number;
+  startTime: number;
   endTime: number;
-  metaData: RawTopicResponse[];
+  topics: RawTopicResponse[];
 };
 
 type customTopicResponse = {
@@ -314,7 +314,7 @@ class ConsoleApi {
       includeSchemas: params.includeSchemas ?? false ? "true" : "false",
     });
 
-    const metaData = topics.metaData.map((topic) => {
+    const metaData = topics.topics.map((topic) => {
       if (topic.schema == undefined) {
         return topic as Omit<RawTopicResponse, "schema">;
       }
@@ -325,7 +325,7 @@ class ConsoleApi {
 
     return {
       // ...topics,
-      start: toRFC3339String(timestampToTime(topics.beginTime)),
+      start: toRFC3339String(timestampToTime(topics.startTime)),
       end: toRFC3339String(timestampToTime(topics.endTime)),
       metaData,
     };
