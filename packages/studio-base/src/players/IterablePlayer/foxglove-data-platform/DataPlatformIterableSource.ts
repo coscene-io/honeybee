@@ -3,19 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { captureException } from "@sentry/core";
-import { isEqual, maxBy, minBy } from "lodash";
+import { isEqual } from "lodash";
 
 import Logger from "@foxglove/log";
 import { parseChannel } from "@foxglove/mcap-support";
-import {
-  clampTime,
-  fromRFC3339String,
-  isGreaterThan,
-  isLessThan,
-  add as addTime,
-  compare,
-  Time,
-} from "@foxglove/rostime";
+import { clampTime, fromRFC3339String, add as addTime, compare, Time } from "@foxglove/rostime";
 import {
   PlayerProblem,
   Topic,
@@ -24,7 +16,6 @@ import {
 } from "@foxglove/studio-base/players/types";
 import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/ConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
-import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 import {
   IIterableSource,
@@ -44,14 +35,12 @@ const log = Logger.getLogger(__filename);
  * This scopes the required interface to a small subset of ConsoleApi to make it easier to mock/stub
  * for tests.
  */
-export type DataPlatformInterableSourceConsoleApi = Pick<
-  ConsoleApi,
-  "coverage" | "topics" | "getDevice" | "stream"
->;
+export type DataPlatformInterableSourceConsoleApi = Pick<ConsoleApi, "topics" | "getDevice">;
 
-type DataPlatformSourceParameters =
-  | { type: "by-device"; deviceId: string; start: Time; end: Time }
-  | { type: "by-import"; importId: string; start?: Time; end?: Time };
+type DataPlatformSourceParameters = {
+  revisionName: string;
+  filename: string;
+};
 
 type DataPlatformIterableSourceOptions = {
   api: DataPlatformInterableSourceConsoleApi;
@@ -63,6 +52,8 @@ export class DataPlatformIterableSource implements IIterableSource {
 
   private _knownTopicNames: string[] = [];
   private _params: DataPlatformSourceParameters;
+  private _start?: Time;
+  private _end?: Time;
 
   /**
    * Cached readers for each schema so we don't have to re-parse definitions on each stream request.
@@ -79,67 +70,22 @@ export class DataPlatformIterableSource implements IIterableSource {
   }
 
   public async initialize(): Promise<Initalization> {
-    const params = this._params;
+    const apiParams = {
+      revisionName: this._params.revisionName,
+      filename: this._params.filename,
+    };
 
-    const apiParams =
-      params.type === "by-device"
-        ? {
-            deviceId: params.deviceId,
-            start: params.start,
-            end: params.end,
-          }
-        : {
-            importId: params.importId,
-            start: params.start,
-            end: params.end,
-          };
+    // get topics
+    const originalTopics = await this._consoleApi.topics({ ...apiParams, includeSchemas: true });
 
-    // const [coverage, rawTopics] = await Promise.all([
-    //   this._consoleApi.coverage(apiParams),
-    //   this._consoleApi.topics({ ...apiParams, includeSchemas: true }),
-    // ]);
-    const rawTopics = await this._consoleApi.topics({ ...apiParams, includeSchemas: true });
-    const coverage = [
-      {
-        deviceId: "dev_CJGWd2UaK1MFq3yF",
-        start: "2022-06-03T05:19:30.994Z",
-        end: "2022-06-03T05:20:00.994Z",
-        status: "imported",
-      },
-    ];
-    // const [coverage, rawTopics] = await Promise.all([
-    //   this._consoleApi.coverage(apiParams),
-    //   this._consoleApi.topics({ ...apiParams, includeSchemas: true }),
-    // ]);
+    const rawTopics = originalTopics.metaData;
 
-    if (rawTopics.length === 0 || coverage.length === 0) {
-      throw new Error(
-        params.type === "by-device"
-          ? `No data available for ${params.deviceId} between ${formatTimeRaw(
-              params.start,
-            )} and ${formatTimeRaw(params.end)}.`
-          : `No data available for ${params.importId}`,
-      );
-    }
+    const coverageStart = originalTopics.start;
+    const coverageEnd = originalTopics.end;
 
-    this._coverage = coverage;
+    const coverageStartTime = fromRFC3339String(coverageStart)!;
+    const coverageEndTime = fromRFC3339String(coverageEnd)!;
 
-    // Truncate start/end time to coverage range
-    const coverageStart = minBy(coverage, (c) => c.start);
-    const coverageEnd = maxBy(coverage, (c) => c.end);
-    const coverageStartTime = coverageStart ? fromRFC3339String(coverageStart.start) : undefined;
-    const coverageEndTime = coverageEnd ? fromRFC3339String(coverageEnd.end) : undefined;
-    if (!coverageStartTime || !coverageEndTime) {
-      throw new Error(
-        `Invalid coverage response, start: ${coverage[0]!.start}, end: ${
-          coverage[coverage.length - 1]!.end
-        }`,
-      );
-    }
-
-    // const device = await this._consoleApi.getDevice(
-    //   params.type === "by-device" ? params.deviceId : coverageStart?.deviceId ?? "",
-    // );
     const device = {
       id: "dev_CJGWd2UaK1MFq3yF",
       name: "Robo Arm 1",
@@ -149,18 +95,15 @@ export class DataPlatformIterableSource implements IIterableSource {
       updatedAt: "2022-04-24T05:50:31.960Z",
       deletedAt: undefined,
     };
-    // await this._consoleApi.getDevice(
-    //   params.type === "by-device" ? params.deviceId : coverageStart?.deviceId ?? "",
-    // );
 
-    if (!params.start || isLessThan(params.start, coverageStartTime)) {
-      log.debug("Increased start time from", params.start, "to", coverageStartTime);
-      params.start = coverageStartTime;
-    }
-    if (!params.end || isGreaterThan(params.end, coverageEndTime)) {
-      log.debug("Reduced end time from", params.end, "to", coverageEndTime);
-      params.end = coverageEndTime;
-    }
+    this._start = coverageStartTime;
+    this._end = coverageEndTime;
+
+    const params = {
+      ...this._params,
+      start: coverageStartTime,
+      end: coverageEndTime,
+    };
 
     const topics: Topic[] = [];
     const topicStats = new Map<string, TopicStats>();
@@ -250,7 +193,10 @@ export class DataPlatformIterableSource implements IIterableSource {
   ): AsyncIterableIterator<Readonly<IteratorResult>> {
     log.debug("message iterator", args);
 
-    const api = this._consoleApi;
+    if (!this._start || !this._end) {
+      throw new Error("DataPlatformIterableSource not initialized");
+    }
+
     const parsedChannelsByTopic = this._parsedChannelsByTopic;
 
     // Data platform treats topic array length 0 as "all topics". Until that is changed, we filter out
@@ -269,32 +215,16 @@ export class DataPlatformIterableSource implements IIterableSource {
       return;
     }
 
-    if (!this._params.start || !this._params.end) {
-      log.debug("source needs to be initialized");
-      return;
-    }
-
-    const streamStart = args.start ?? this._params.start;
-    const streamEnd = clampTime(args.end ?? this._params.end, this._params.start, this._params.end);
+    const streamStart = args.start ?? this._start;
+    const streamEnd = clampTime(args.end ?? this._end, this._start, this._end);
 
     if (args.consumptionType === "full") {
-      const streamByParams: StreamParams =
-        this._params.type === "by-device"
-          ? {
-              deviceId: this._params.deviceId,
-              topics: args.topics,
-              start: streamStart,
-              end: streamEnd,
-            }
-          : {
-              importId: this._params.importId,
-              topics: args.topics,
-              start: streamStart,
-              end: streamEnd,
-            };
+      const streamByParams: StreamParams = {
+        start: streamStart,
+        end: streamEnd,
+      };
 
       const stream = streamMessages({
-        api,
         parsedChannelsByTopic,
         params: streamByParams,
       });
@@ -312,23 +242,12 @@ export class DataPlatformIterableSource implements IIterableSource {
     let localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
 
     for (;;) {
-      const streamByParams: StreamParams =
-        this._params.type === "by-device"
-          ? {
-              deviceId: this._params.deviceId,
-              topics: args.topics,
-              start: localStart,
-              end: localEnd,
-            }
-          : {
-              importId: this._params.importId,
-              topics: args.topics,
-              start: localStart,
-              end: localEnd,
-            };
+      const streamByParams: StreamParams = {
+        start: localStart,
+        end: localEnd,
+      };
 
       const stream = streamMessages({
-        api,
         parsedChannelsByTopic,
         params: streamByParams,
       });
@@ -386,27 +305,16 @@ export class DataPlatformIterableSource implements IIterableSource {
       return [];
     }
 
-    const streamByParams: StreamParams =
-      this._params.type === "by-device"
-        ? {
-            deviceId: this._params.deviceId,
-            topics,
-            start: time,
-            end: time,
-          }
-        : {
-            importId: this._params.importId,
-            topics,
-            start: time,
-            end: time,
-          };
+    const streamByParams: StreamParams = {
+      start: time,
+      end: time,
+    };
 
     streamByParams.replayPolicy = "lastPerChannel";
     streamByParams.replayLookbackSeconds = 30 * 60;
 
     const messages: MessageEvent<unknown>[] = [];
     for await (const block of streamMessages({
-      api: this._consoleApi,
       parsedChannelsByTopic: this._parsedChannelsByTopic,
       signal: abortSignal,
       params: streamByParams,
@@ -427,21 +335,24 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("api is required for data platfomr");
   }
 
-  const start = params.start;
-  const end = params.end;
-  const deviceId = params.deviceId;
-  const importId = params.importId;
+  // eslint-disable-next-line no-restricted-syntax
+  console.log("params", params, api);
 
-  const startTime = start ? fromRFC3339String(start) : undefined;
-  const endTime = end ? fromRFC3339String(end) : undefined;
+  const revisionName = params.revisionName ?? "";
+  const filename = params.filename ?? "";
 
-  if (!(importId || (deviceId && startTime && endTime))) {
-    throw new Error("invalid args");
+  if (!revisionName) {
+    throw new Error("revisionName is required for data platform source");
   }
 
-  const dpSourceParams: DataPlatformSourceParameters = importId
-    ? { type: "by-import", importId, start: startTime, end: endTime }
-    : { type: "by-device", deviceId: deviceId!, start: startTime!, end: endTime! };
+  if (!filename) {
+    throw new Error("filename is required for data platform source");
+  }
+
+  const dpSourceParams: DataPlatformSourceParameters = {
+    revisionName,
+    filename,
+  };
 
   const consoleApi = new ConsoleApi(api.baseUrl);
   if (api.auth) {

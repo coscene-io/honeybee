@@ -5,6 +5,7 @@
 import * as base64 from "@protobufjs/base64";
 
 import { add, fromNanoSec, Time, toRFC3339String, toSec } from "@foxglove/rostime";
+import { timestampToTime } from "@foxglove/studio-base/util/time";
 
 type User = {
   id: string;
@@ -85,7 +86,20 @@ type TopicResponse = {
   schema?: Uint8Array;
   version: string;
 };
+
 type RawTopicResponse = Omit<TopicResponse, "schema"> & { schema?: string };
+
+type topicInterfaceReturns = {
+  beginTime: number;
+  endTime: number;
+  metaData: RawTopicResponse[];
+};
+
+type customTopicResponse = {
+  start: string;
+  end: string;
+  metaData: TopicResponse[];
+};
 
 type CoverageResponse = {
   deviceId: string;
@@ -111,13 +125,10 @@ export type ConsoleApiLayout = {
   data?: Record<string, unknown>;
 };
 
-export type DataPlatformRequestArgs =
-  | { deviceId: string; start: Time; end: Time }
-  | { importId: string; start?: Time; end?: Time };
-
-function optionalToRFC3339String(time: Time | undefined): string | undefined {
-  return time ? toRFC3339String(time) : undefined;
-}
+export type DataPlatformRequestArgs = {
+  revisionName: string;
+  filename: string;
+};
 
 type ApiResponse<T> = { status: number; json: T };
 
@@ -286,25 +297,16 @@ class ConsoleApi {
     return (await this.delete(`/v1/layouts/${id}`)).status === 200;
   }
 
-  public async coverage(params: DataPlatformRequestArgs): Promise<CoverageResponse[]> {
-    return await this.get<CoverageResponse[]>("/v1/data/coverage", {
-      ...params,
-      start: optionalToRFC3339String(params.start),
-      end: optionalToRFC3339String(params.end),
-    });
-  }
-
   public async topics(
     params: DataPlatformRequestArgs & { includeSchemas?: boolean },
-  ): Promise<readonly TopicResponse[]> {
-    return (
-      await this.get<RawTopicResponse[]>("/v1/data/topics", {
-        ...params,
-        start: optionalToRFC3339String(params.start),
-        end: optionalToRFC3339String(params.end),
-        includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-      })
-    ).map((topic) => {
+  ): Promise<customTopicResponse> {
+    const topics = await this.get<topicInterfaceReturns>("/v1/data/getMetadata", {
+      revisionName: params.revisionName,
+      filename: params.filename,
+      includeSchemas: params.includeSchemas ?? false ? "true" : "false",
+    });
+
+    const metaData = topics.metaData.map((topic) => {
       if (topic.schema == undefined) {
         return topic as Omit<RawTopicResponse, "schema">;
       }
@@ -312,24 +314,14 @@ class ConsoleApi {
       base64.decode(topic.schema, decodedSchema, 0);
       return { ...topic, schema: decodedSchema };
     });
-  }
 
-  public async stream(
-    params: DataPlatformRequestArgs & {
-      topics: readonly string[];
-      outputFormat?: "bag1" | "mcap0";
-      replayPolicy?: "lastPerChannel" | "";
-      replayLookbackSeconds?: number;
-    },
-  ): Promise<{ link: string }> {
-    return await this.post<{ link: string }>("/v1/data/stream", {
-      ...params,
-      start: optionalToRFC3339String(params.start),
-      end: optionalToRFC3339String(params.end),
-    });
+    return {
+      // ...topics,
+      start: toRFC3339String(timestampToTime(topics.beginTime)),
+      end: toRFC3339String(timestampToTime(topics.endTime)),
+      metaData,
+    };
   }
-
-  /// ----- private
 
   private async request<T>(
     url: string,
