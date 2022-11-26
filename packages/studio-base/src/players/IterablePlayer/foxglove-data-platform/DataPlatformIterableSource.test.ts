@@ -2,8 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { toRFC3339String } from "@foxglove/rostime";
-import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/ConsoleApi";
+import ConsoleApi from "@foxglove/studio-base/services/ConsoleApi";
 
 import {
   DataPlatformInterableSourceConsoleApi,
@@ -21,36 +20,21 @@ jest.mock("./streamMessages", () => ({
 describe("DataPlatformIterableSource", () => {
   it("should correctly play into next coverage region", async () => {
     const stubApi: DataPlatformInterableSourceConsoleApi = {
-      async coverage(): Promise<CoverageResponse[]> {
-        return [
-          {
-            deviceId: "device-id",
-            start: toRFC3339String({ sec: 0, nsec: 0 }),
-            end: toRFC3339String({ sec: 5, nsec: 0 }),
-          },
-          {
-            deviceId: "device-id",
-            start: toRFC3339String({ sec: 5, nsec: 1 }),
-            end: toRFC3339String({ sec: 10, nsec: 0 }),
-          },
-          {
-            deviceId: "device-id",
-            start: toRFC3339String({ sec: 20, nsec: 0 }),
-            end: toRFC3339String({ sec: 25, nsec: 0 }),
-          },
-        ];
-      },
       async topics(): ReturnType<ConsoleApi["topics"]> {
-        return [
-          {
-            topic: "foo",
-            version: "1",
-            schemaEncoding: "jsonschema",
-            schemaName: "",
-            encoding: "json",
-            schema: new Uint8Array(),
-          },
-        ];
+        return {
+          start: "2022-06-03T05:19:30.999000000Z",
+          end: "2022-06-03T05:19:35.999000000Z",
+          metaData: [
+            {
+              topic: "foo",
+              version: "1",
+              schemaEncoding: "jsonschema",
+              schemaName: "",
+              encoding: "json",
+              schema: new Uint8Array(),
+            },
+          ],
+        };
       },
       async getDevice(id: string): ReturnType<ConsoleApi["getDevice"]> {
         return {
@@ -58,20 +42,14 @@ describe("DataPlatformIterableSource", () => {
           name: "my device",
         };
       },
-      async stream(): Promise<{ link: string }> {
-        return {
-          link: "http://example.com/stream",
-        };
-      },
     };
 
     const source = new DataPlatformIterableSource({
       api: stubApi,
       params: {
-        type: "by-device",
-        deviceId: "device-id",
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 40, nsec: 0 },
+        revisionName:
+          "warehouses/1c593c01-eaa3-4b85-82ed-277494820866/projects/66364b66-0439-47c3-931d-c622a0e57177/records/445b7d55-eeb7-41c0-bbc2-329aa8867038/revisions/61e11ed356d789547c4a2286106a8bcd98709b351561628670fc34963fb9e559",
+        filename: "kisstti11.bag",
       },
     });
 
