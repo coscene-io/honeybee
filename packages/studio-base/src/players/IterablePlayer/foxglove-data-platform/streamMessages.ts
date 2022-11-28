@@ -196,7 +196,7 @@ export async function* streamMessages({
           // Include the version of studio in the request Useful when scraping logs to determine what
           // versions of the app are making requests.
           "fg-user-agent": FOXGLOVE_USER_AGENT,
-          Authorization: `Bearer ${params.authHeader}`,
+          Authorization: `${params.authHeader}`,
         },
       },
     );

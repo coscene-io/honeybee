@@ -42,7 +42,7 @@ describe("DataPlatformIterableSource", () => {
           name: "my device",
         };
       },
-      async getAuthHeader(): ReturnType<ConsoleApi["getAuthHeader"]> {
+      getAuthHeader(): ReturnType<ConsoleApi["getAuthHeader"]> {
         return "Authorization";
       },
     };
@@ -69,30 +69,18 @@ describe("DataPlatformIterableSource", () => {
       [
         expect.objectContaining({
           params: {
-            deviceId: "device-id",
-            start: { sec: 0, nsec: 0 },
-            end: { sec: 5, nsec: 0 },
-            topics: ["foo"],
-          },
-        }),
-      ],
-      [
-        expect.objectContaining({
-          params: {
-            deviceId: "device-id",
-            start: { sec: 5, nsec: 1 },
-            end: { sec: 10, nsec: 1 },
-            topics: ["foo"],
-          },
-        }),
-      ],
-      [
-        expect.objectContaining({
-          params: {
-            deviceId: "device-id",
-            start: { sec: 20, nsec: 0 },
-            end: { sec: 25, nsec: 0 },
-            topics: ["foo"],
+            authHeader: "Authorization",
+            end: {
+              nsec: 999000000,
+              sec: 1654233575,
+            },
+            filename: "kisstti11.bag",
+            revisionName:
+              "warehouses/1c593c01-eaa3-4b85-82ed-277494820866/projects/66364b66-0439-47c3-931d-c622a0e57177/records/445b7d55-eeb7-41c0-bbc2-329aa8867038/revisions/61e11ed356d789547c4a2286106a8bcd98709b351561628670fc34963fb9e559",
+            start: {
+              nsec: 999000000,
+              sec: 1654233570,
+            },
           },
         }),
       ],
