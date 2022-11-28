@@ -218,6 +218,8 @@ export class DataPlatformIterableSource implements IIterableSource {
       return;
     }
 
+    // console.log("this._consoleApi", this._consoleApi.getAuthHeader());
+
     const streamStart = args.start ?? this._start;
     const streamEnd = clampTime(args.end ?? this._end, this._start, this._end);
 
@@ -225,6 +227,9 @@ export class DataPlatformIterableSource implements IIterableSource {
       const streamByParams: StreamParams = {
         start: streamStart,
         end: streamEnd,
+        authHeader: this._consoleApi.getAuthHeader(),
+        revisionName: this._params.revisionName,
+        filename: this._params.filename,
       };
 
       const stream = streamMessages({
@@ -248,6 +253,9 @@ export class DataPlatformIterableSource implements IIterableSource {
       const streamByParams: StreamParams = {
         start: localStart,
         end: localEnd,
+        authHeader: this._consoleApi.getAuthHeader(),
+        revisionName: this._params.revisionName,
+        filename: this._params.filename,
       };
 
       const stream = streamMessages({
@@ -311,6 +319,9 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamByParams: StreamParams = {
       start: time,
       end: time,
+      authHeader: this._consoleApi.getAuthHeader(),
+      revisionName: this._params.revisionName,
+      filename: this._params.filename,
     };
 
     streamByParams.replayPolicy = "lastPerChannel";
