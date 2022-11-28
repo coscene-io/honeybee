@@ -30,6 +30,9 @@ export type ParsedChannelAndEncodings = {
 export type StreamParams = {
   start: Time;
   end: Time;
+  filename: string;
+  revisionName: string;
+  authHeader?: string;
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
 };
@@ -74,6 +77,10 @@ export async function* streamMessages({
 
   if (controller.signal.aborted) {
     return;
+  }
+
+  if (!params.authHeader) {
+    throw new Error("Missing auth header");
   }
 
   let totalMessages = 0;
@@ -181,7 +188,7 @@ export async function* streamMessages({
     const response = await fetch(
       `/v1/data/getStreams?start=${toRFC3339String(params.start)}&end=${toRFC3339String(
         params.end,
-      )}&recordId=warehouses%2F7d58a141-3cdd-457e-bef2-cac3556b70fd%2Fprojects%2F1b864a55-47d7-4e30-8a24-770ec022c8ec%2Frecords%2F82e6b158-d77f-43a6-98c5-6bf15a96c296&revisionName=warehouses%2F7d58a141-3cdd-457e-bef2-cac3556b70fd%2Fprojects%2F1b864a55-47d7-4e30-8a24-770ec022c8ec%2Frecords%2F82e6b158-d77f-43a6-98c5-6bf15a96c296%2Frevisions%2F78ca39accb7d201ba3e296e76a7e910f09c5bf07a8634827b4a68e6190bb7986`,
+      )}&revisionName=${params.revisionName}&filename=${params.filename}`,
       {
         signal: controller.signal,
         cache: "no-cache",
@@ -189,7 +196,7 @@ export async function* streamMessages({
           // Include the version of studio in the request Useful when scraping logs to determine what
           // versions of the app are making requests.
           "fg-user-agent": FOXGLOVE_USER_AGENT,
-          Authorization: `Bearer eyJraWQiOiI2YmE0N2Y0My02MWZkLTRlOGYtODhjMy05MTZjZTU3YjZlY2IiLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI4OTNmNDdkNy0wMDFhLTQ1YjctOWFmZS03NWVkZWE5MTM4M2UiLCJpc3MiOiJodHRwczovL2FwaS5jb3NjZW5lLmRldi9zdXBlcnRva2Vucy1zZXJ2ZXIvYXV0aCIsImV4cCI6MTY2OTQ3NDQwNSwiaWF0IjoxNjY5NDUyNzc0LCJvcmdJZCI6IjNkZDc2ZmYyLTgzOWQtNDlhMy04MmFmLTY2MzQyMmI2OWIwMSJ9.BdU5WUSo48pYg46GXubeOT2mtedqeZ34UHF8POcrcihKogDnVTqce7SpWJbNqJzbNtYyFc8TW0m8p0RY6ofa699EYVc5cilH_OnHV_g1ShardctSJSsVfnkH2z-h4iIzqX8SSk4Ob8P3bqWpsrmTx1nXosW13r3qXiOlT6sT0f5JwEBRBmw993taduk8a12OVkNBrCn-Rgz_HT7Wao8NS9lLSpf3knr1xGCqpEE5zY5DgASqTRccHSSy5kq6NdzxIzNHY2NtDCt0DPXJivW8WgjknNx-cgIAEIbHk-l571NG_CNGnNGk8YUDVZwmj9thAoVnvPbkxjKv95Nv2ueGHA`,
+          Authorization: `Bearer ${params.authHeader}`,
         },
       },
     );
