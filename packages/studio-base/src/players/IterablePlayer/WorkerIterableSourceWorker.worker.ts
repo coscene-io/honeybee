@@ -28,7 +28,7 @@ const RegisteredSourceModuleLoaders: Record<string, SourceFn> = {
   rosdb3: async () => await import("./rosdb3/RosDb3IterableSource"),
   ulog: async () => await import("./ulog/UlogIterableSource"),
   foxgloveDataPlatform: async () =>
-    await import("./foxglove-data-platform/DataPlatformIterableSource"),
+    await import("./coScene-data-platform/DataPlatformIterableSource"),
 };
 
 export type WorkerIterableSourceWorkerArgs = {

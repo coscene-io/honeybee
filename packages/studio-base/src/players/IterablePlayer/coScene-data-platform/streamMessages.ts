@@ -8,9 +8,8 @@ import { isEqual } from "lodash";
 
 import Logger from "@foxglove/log";
 import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/mcap-support";
-import { fromNanoSec } from "@foxglove/rostime";
+import { fromNanoSec, toRFC3339String, Time } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
-import ConsoleApi, { DataPlatformRequestArgs } from "@foxglove/studio-base/services/ConsoleApi";
 
 const log = Logger.getLogger(__filename);
 
@@ -28,8 +27,12 @@ export type ParsedChannelAndEncodings = {
 /**
  * Parameters for stream requests
  */
-export type StreamParams = DataPlatformRequestArgs & {
-  topics: readonly string[];
+export type StreamParams = {
+  start: Time;
+  end: Time;
+  filename: string;
+  revisionName: string;
+  authHeader?: string;
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
 };
@@ -38,18 +41,12 @@ export type StreamParams = DataPlatformRequestArgs & {
  * The console api methods used by streamMessages. This scopes the required interface to a small
  * subset of ConsoleApi to make it easier to mock/stub for tests.
  */
-interface StreamMessageApi {
-  stream: ConsoleApi["stream"];
-}
 
 export async function* streamMessages({
-  api,
   signal,
   parsedChannelsByTopic,
   params,
 }: {
-  api: StreamMessageApi;
-
   /**
    * An AbortSignal allowing the stream request to be canceled. When the signal is aborted, the
    * function may return successfully (possibly after yielding any remaining messages), or it may
@@ -78,12 +75,12 @@ export async function* streamMessages({
   log.debug("streamMessages", params);
   const startTimer = performance.now();
 
-  const { link: mcapUrl } = await api.stream({
-    ...params,
-    outputFormat: "mcap0",
-  });
   if (controller.signal.aborted) {
     return;
+  }
+
+  if (!params.authHeader) {
+    throw new Error("Missing auth header");
   }
 
   let totalMessages = 0;
@@ -188,19 +185,25 @@ export async function* streamMessages({
 
   try {
     // Since every request is signed with a new token, there's no benefit to caching.
-    const response = await fetch(mcapUrl, {
-      signal: controller.signal,
-      cache: "no-cache",
-      headers: {
-        // Include the version of studio in the request Useful when scraping logs to determine what
-        // versions of the app are making requests.
-        "fg-user-agent": FOXGLOVE_USER_AGENT,
+    const response = await fetch(
+      `/v1/data/getStreams?start=${toRFC3339String(params.start)}&end=${toRFC3339String(
+        params.end,
+      )}&revisionName=${params.revisionName}&filename=${params.filename}`,
+      {
+        signal: controller.signal,
+        cache: "no-cache",
+        headers: {
+          // Include the version of studio in the request Useful when scraping logs to determine what
+          // versions of the app are making requests.
+          "fg-user-agent": FOXGLOVE_USER_AGENT,
+          Authorization: `${params.authHeader}`,
+        },
       },
-    });
+    );
     if (response.status === 404) {
       return;
     } else if (response.status !== 200) {
-      log.error(`${response.status} response for`, mcapUrl, response);
+      log.error(`${response.status} response for`, response);
       throw new Error(`Unexpected response status ${response.status}`);
     }
     if (!response.body) {
