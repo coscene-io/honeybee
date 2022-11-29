@@ -64,3 +64,9 @@ export function getTimestampForMessage(message: unknown): Time | undefined {
 
   return undefined;
 }
+
+export const timestampToTime = (timestamp: number): Time => {
+  const sec = Math.floor(timestamp / 1000);
+  const nsec = (timestamp % 1000) * 1000000;
+  return { sec, nsec };
+};

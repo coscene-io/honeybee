@@ -14,6 +14,7 @@ import VersionBanner from "./VersionBanner";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
 const log = Logger.getLogger(__filename);
+
 log.debug("initializing");
 
 window.onerror = (...args) => {
