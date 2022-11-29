@@ -9,12 +9,12 @@ import {
 import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 
-class FoxgloveDataPlatformDataSourceFactory implements IDataSourceFactory {
-  public id = "foxglove-data-platform";
+class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
+  public id = "coscene-data-platform";
   public type: IDataSourceFactory["type"] = "connection";
-  public displayName = "Foxglove Data Platform";
+  public displayName = "Coscene Data Platform";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
-  public hidden = true;
+  public hidden = false;
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const consoleApi = args.consoleApi;
@@ -26,8 +26,8 @@ class FoxgloveDataPlatformDataSourceFactory implements IDataSourceFactory {
       sourceType: "foxgloveDataPlatform",
       initArgs: {
         api: {
-          baseUrl: consoleApi.getBaseUrl(),
-          auth: consoleApi.getAuthHeader(),
+          baseUrl: "http://localhost:8080", // consoleApi.getBaseUrl(),
+          auth: `Bearer ${localStorage.getItem("coScene_org_jwt")}`,
         },
         params: args.params,
       },
@@ -51,4 +51,4 @@ class FoxgloveDataPlatformDataSourceFactory implements IDataSourceFactory {
   }
 }
 
-export default FoxgloveDataPlatformDataSourceFactory;
+export default CoSceneDataPlatformDataSourceFactory;
