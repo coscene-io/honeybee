@@ -173,9 +173,9 @@ export default function HelpSidebar({
                 </div>
               );
             })}
-            <Typography variant="caption">
+            {/* <Typography variant="caption">
               Foxglove Studio version {FOXGLOVE_STUDIO_VERSION}
-            </Typography>
+            </Typography> */}
           </Stack>
         ) : (
           <Stack gap={0.5}>
