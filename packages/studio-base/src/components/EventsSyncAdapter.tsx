@@ -95,6 +95,10 @@ export function EventsSyncAdapter(): ReactNull {
     // Compare start and end time to avoid a redundant fetch as the
     // datasource bootstraps through the state where they are not
     // completely determined.
+
+    console.log("urlState:-----", urlState);
+    console.log("currentUserPresent", currentUserPresent);
+
     if (
       currentUserPresent &&
       startTime &&
