@@ -11,9 +11,9 @@ type User = {
   id: string;
   email: string;
   orgId: string;
-  orgDisplayName: string | null;
+  orgDisplayName: string | null; // eslint-disable-line no-restricted-syntax
   orgSlug: string;
-  orgPaid: boolean | null;
+  orgPaid: boolean | null; // eslint-disable-line no-restricted-syntax
 };
 
 type SigninArgs = {
