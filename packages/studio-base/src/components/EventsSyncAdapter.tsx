@@ -96,8 +96,10 @@ export function EventsSyncAdapter(): ReactNull {
     // datasource bootstraps through the state where they are not
     // completely determined.
 
-    console.log("urlState:-----", urlState);
-    console.log("currentUserPresent", currentUserPresent);
+    // console.log("urlState:-----", urlState);
+    // console.log("currentUserPresent", currentUserPresent);
+    // await consoleApi.getTestEvents();
+    // console.log("secound: consoleApi.getTestEvents();");
 
     if (
       currentUserPresent &&

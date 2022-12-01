@@ -8,7 +8,7 @@ import { renderHook } from "@testing-library/react-hooks";
 import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 import CurrentUserContext, { User } from "@foxglove/studio-base/context/CurrentUserContext";
 import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/RemoteLayoutStorageContext";
-import ConsoleApi from "@foxglove/studio-base/services/ConsoleApi";
+import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
 import ConsoleApiRemoteLayoutStorageProvider from "./ConsoleApiRemoteLayoutStorageProvider";
 

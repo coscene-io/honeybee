@@ -2,6 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { ListEventsRequest } from "@coscene-io/coscene/proto/v1alpha2";
+import { eventClient } from "@coscene-io/coscene/queries";
 import * as base64 from "@protobufjs/base64";
 
 import { add, fromNanoSec, Time, toRFC3339String, toSec } from "@foxglove/rostime";
@@ -228,6 +230,22 @@ class CoSceneConsoleApi {
   }): Promise<ConsoleEvent> {
     const rawEvent = await this.post<ConsoleEvent>(`/beta/device-events`, params);
     return rawEvent;
+  }
+
+  public async getTestEvents(): Promise<number> {
+    // console.log("getTestEvents");
+    const listEventsRequest = new ListEventsRequest()
+      .setParent(
+        "warehouses/7d58a141-3cdd-457e-bef2-cac3556b70fd/projects/9c18ddba-41d0-4634-8a08-86f6cc1d4145",
+      )
+      .setOrderBy("create_time desc")
+      .setFilter('record.id="83b2124b-3f1a-482b-aa55-e548c13212e3"')
+      .setPageSize(10);
+
+    const eventList = await eventClient.listEvents(listEventsRequest);
+    console.log(eventList.getEventsList().toString());
+
+    return 1;
   }
 
   public async getEvents(params: {
