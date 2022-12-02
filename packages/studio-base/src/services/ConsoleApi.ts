@@ -361,10 +361,11 @@ class ConsoleApi {
     this._responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
-        throw new Error("Not logged in. Log in to your Foxglove account and try again.");
+        window.location.replace("/");
+        throw new Error("Not logged in. Log in to your coScene account and try again.");
       } else if (res.status === 403) {
         throw new Error(
-          "Unauthorized. Check that you are logged in to the correct Foxglove organization.",
+          "Unauthorized. Check that you are logged in to the correct coScene organization.",
         );
       }
       const json = (await res.json().catch((err) => {

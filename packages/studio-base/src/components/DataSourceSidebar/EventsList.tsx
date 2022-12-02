@@ -37,13 +37,6 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
     borderBottom: `1px solid ${theme.palette.divider}`,
   },
-  grid: {
-    display: "grid",
-    flexShrink: 1,
-    gridTemplateColumns: "auto 1fr",
-    overflowY: "auto",
-    padding: theme.spacing(1),
-  },
   root: {
     backgroundColor: theme.palette.background.paper,
     maxHeight: "100%",
@@ -150,7 +143,7 @@ export function EventsList(): JSX.Element {
           </Typography>
         </Stack>
       )}
-      <div className={classes.grid}>
+      <div>
         {timestampedEvents.map((event) => {
           return (
             <EventView

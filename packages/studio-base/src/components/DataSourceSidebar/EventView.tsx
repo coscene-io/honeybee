@@ -65,6 +65,22 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
         borderBottomLeftRadius: theme.shape.borderRadius,
       },
     },
+    eventBox: {
+      display: "flex",
+      cursor: "pointer",
+      flexDirection: "column",
+      padding: "8px",
+    },
+    eventTitle: {
+      padding: "5px 0",
+    },
+    grid: {
+      display: "grid",
+      flexShrink: 1,
+      gridTemplateColumns: "auto 1fr",
+      overflowY: "auto",
+      // padding: theme.spacing(1),
+    },
   }),
 );
 
@@ -117,28 +133,70 @@ function EventViewComponent(params: {
 
   return (
     <div
-      data-testid="sidebar-event"
-      className={cx(classes.event, {
-        [classes.eventSelected]: isSelected,
-        [classes.eventHovered]: isHovered,
-      })}
+      className={classes.eventBox}
       onClick={() => onClick(event)}
       onMouseEnter={() => onHoverStart(event)}
       onMouseLeave={() => onHoverEnd(event)}
     >
-      {/* {fields.map(([key, value]) => (
-        <Fragment key={key}>
-          <div className={classes.eventMetadata}>
-            <HighlightedText text={key ?? ""} highlight={filter} />
-          </div>
-          <div className={classes.eventMetadata}>
-            <HighlightedText text={value ?? ""} highlight={filter} />
-          </div>
-        </Fragment>
-      ))} */}
-      {/* <Fragment key={event.getName()}>{event.getDisplayName()}</Fragment> */}
-      {event.event.getDisplayName()}
-      <div className={classes.spacer} />
+      <div className={classes.eventTitle}>{event.event.getDisplayName()}</div>
+      <div className={classes.grid}>
+        <div
+          data-testid="sidebar-event"
+          className={cx(classes.event, {
+            [classes.eventSelected]: isSelected,
+            [classes.eventHovered]: isHovered,
+          })}
+        >
+          <Fragment key="triggerTime">
+            <div className={classes.eventMetadata}>
+              <HighlightedText text="Trigger Time" highlight={filter} />
+            </div>
+            <div className={classes.eventMetadata}>
+              <HighlightedText
+                text={event.event.getTriggerTime()?.toDate().toISOString().toString() ?? ""}
+                highlight={filter}
+              />
+            </div>
+          </Fragment>
+
+          <Fragment key="duration">
+            <div className={classes.eventMetadata}>
+              <HighlightedText text="Duration" highlight={filter} />
+            </div>
+            <div className={classes.eventMetadata}>
+              <HighlightedText
+                text={`${event.event.getDuration().toString()} s`}
+                highlight={filter}
+              />
+            </div>
+          </Fragment>
+
+          <Fragment key="description">
+            <div className={classes.eventMetadata}>
+              <HighlightedText text="Description" highlight={filter} />
+            </div>
+            <div className={classes.eventMetadata}>
+              <HighlightedText text={event.event.getDescription()} highlight={filter} />
+            </div>
+          </Fragment>
+
+          {event.event
+            .getCustomizedFieldsMap()
+            .toArray()
+            .map(([key, value]: string[]) => (
+              <Fragment key={key}>
+                <div className={classes.eventMetadata}>
+                  <HighlightedText text={key ?? ""} highlight={filter} />
+                </div>
+                <div className={classes.eventMetadata}>
+                  <HighlightedText text={value ?? ""} highlight={filter} />
+                </div>
+              </Fragment>
+            ))}
+
+          <div className={classes.spacer} />
+        </div>
+      </div>
     </div>
   );
 }

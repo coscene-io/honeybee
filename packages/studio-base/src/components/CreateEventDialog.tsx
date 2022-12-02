@@ -20,7 +20,9 @@ import {
   IconButton,
   ButtonGroup,
 } from "@mui/material";
+import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import { countBy } from "lodash";
+import { string } from "mathjs";
 import { KeyboardEvent, useCallback } from "react";
 import { useAsyncFn } from "react-use";
 import { keyframes } from "tss-react";
@@ -94,14 +96,18 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
   const refreshEvents = useEvents(selectRefreshEvents);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const [event, setEvent] = useImmer<{
+    eventName: string;
     startTime: undefined | Date;
     duration: undefined | number;
     durationUnit: "sec" | "nsec";
+    description: undefined | string;
     metadataEntries: KeyValue[];
   }>({
+    eventName: "",
     startTime: currentTime ? toDate(currentTime) : undefined,
     duration: 0,
     durationUnit: "sec",
+    description: "",
     metadataEntries: [{ key: "", value: "" }],
   });
 
@@ -146,24 +152,42 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
       filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
     );
 
-    console.log("urlState", urlState);
+    const newEvent = new Event();
 
-    // const newEvent = new Event()
+    newEvent.setDisplayName(event.eventName);
+    const timestamp = new Timestamp();
 
-    // await consoleApi.createEvent({
-    //   deviceId,
-    //   timestamp: event.startTime.toISOString(),
-    //   durationNanos: toNanoSec(
-    //     event.durationUnit === "sec"
-    //       ? { sec: event.duration, nsec: 0 }
-    //       : { sec: 0, nsec: event.duration },
-    //   ).toString(),
-    //   metadata: keyedMetadata,
-    // });
+    timestamp.fromDate(event.startTime);
+
+    newEvent.setTriggerTime(timestamp);
+
+    if (event.durationUnit === "sec") {
+      newEvent.setDuration(event.duration);
+    } else {
+      newEvent.setDuration(event.duration / 1e9);
+    }
+
+    if (event.description) {
+      newEvent.setDescription(event.description);
+    }
+
+    Object.keys(keyedMetadata).forEach((key) => {
+      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
+    });
+
+    const recordName = (urlState?.parameters?.recordName ?? "").split("/records/");
+
+    const parent = recordName[0] ?? "";
+
+    await consoleApi.createEvent({
+      event: newEvent,
+      parent,
+      recordName: urlState!.parameters!.recordName!,
+    });
 
     onClose();
     refreshEvents();
-  }, [consoleApi, deviceId, event, onClose, refreshEvents]);
+  }, [consoleApi, urlState, event, onClose, refreshEvents]);
 
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: KeyboardEvent) => {
@@ -200,6 +224,20 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
       <Stack paddingX={3} paddingTop={2}>
         <Typography variant="h2">Create event</Typography>
+      </Stack>
+      <Stack paddingX={3} paddingTop={2}>
+        <TextField
+          id="event-name"
+          label="Event Name"
+          multiline
+          maxRows={1}
+          value={event.eventName}
+          onChange={(val) => {
+            setEvent((old) => ({ ...old, eventName: val.target.value }));
+          }}
+          fullWidth
+          variant="standard"
+        />
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
         <div className={classes.grid}>
@@ -253,6 +291,22 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
         </div>
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
+        <div>
+          <TextField
+            id="description"
+            label="Description"
+            multiline
+            rows={2}
+            value={event.description}
+            onChange={(val) => {
+              setEvent((old) => ({ ...old, description: val.target.value }));
+            }}
+            fullWidth
+            variant="standard"
+          />
+        </div>
+      </Stack>
+      <Stack paddingX={3} paddingTop={2}>
         <FormLabel>Metadata</FormLabel>
         <div className={classes.grid}>
           {event.metadataEntries.map(({ key, value }, index) => {
@@ -301,7 +355,7 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
           variant="contained"
           size="large"
           onClick={createEvent}
-          disabled={!canSubmit || createdEvent.loading}
+          disabled={!canSubmit || createdEvent.loading || !event.eventName}
         >
           {createdEvent.loading && (
             <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />

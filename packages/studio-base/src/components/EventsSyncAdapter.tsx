@@ -58,6 +58,11 @@ function positionEvents(
   // };
 
   return events.map((event) => {
+    // console.log(
+    //   "event.getTriggerTime()!.getSeconds()",
+    //   event.getTriggerTime()!.getSeconds() * 1e8 + event.getTriggerTime()!.getNanos(),
+    // );
+
     const eventStartTime = fromNanoSec(
       BigInt(event.getTriggerTime()!.getSeconds() * 1e9 + event.getTriggerTime()!.getNanos()),
     );

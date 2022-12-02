@@ -235,16 +235,16 @@ class CoSceneConsoleApi {
   public async createEvent({
     event,
     parent,
-    recordId,
+    recordName,
   }: {
     event: Event;
     parent: string;
-    recordId: string;
+    recordName: string;
   }): Promise<Event> {
     const createEventRequest = new CreateEventRequest();
     createEventRequest.setParent(parent);
     createEventRequest.setEvent(event);
-    createEventRequest.setRecord(recordId);
+    createEventRequest.setRecord(recordName);
 
     const newEvent = await eventClient.createEvent(createEventRequest);
 
@@ -266,7 +266,6 @@ class CoSceneConsoleApi {
       .setPageSize(999);
 
     const events = await eventClient.listEvents(listEventsRequest);
-    // console.log(eventList.getEventsList().toString());
 
     return events.getEventsList();
   }
