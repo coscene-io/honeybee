@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
@@ -80,10 +81,12 @@ const useStyles = makeStyles<void, "toggleButton">()((theme, _params, classes) =
 type KeyValue = { key: string; value: string };
 
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 
 export function CreateEventDialog(props: { deviceId: string; onClose: () => void }): JSX.Element {
   const { deviceId, onClose } = props;
+  const urlState = useMessagePipeline(selectUrlState);
 
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
@@ -142,16 +145,22 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
     const keyedMetadata = Object.fromEntries(
       filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
     );
-    await consoleApi.createEvent({
-      deviceId,
-      timestamp: event.startTime.toISOString(),
-      durationNanos: toNanoSec(
-        event.durationUnit === "sec"
-          ? { sec: event.duration, nsec: 0 }
-          : { sec: 0, nsec: event.duration },
-      ).toString(),
-      metadata: keyedMetadata,
-    });
+
+    console.log("urlState", urlState);
+
+    // const newEvent = new Event()
+
+    // await consoleApi.createEvent({
+    //   deviceId,
+    //   timestamp: event.startTime.toISOString(),
+    //   durationNanos: toNanoSec(
+    //     event.durationUnit === "sec"
+    //       ? { sec: event.duration, nsec: 0 }
+    //       : { sec: 0, nsec: event.duration },
+    //   ).toString(),
+    //   metadata: keyedMetadata,
+    // });
+
     onClose();
     refreshEvents();
   }, [consoleApi, deviceId, event, onClose, refreshEvents]);

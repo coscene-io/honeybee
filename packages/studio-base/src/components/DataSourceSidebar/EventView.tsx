@@ -109,11 +109,11 @@ function EventViewComponent(params: {
     params;
   const { classes, cx } = useStyles();
 
-  const fields = compact([
-    ["timestamp", formattedTime],
-    Number(event.event.durationNanos) > 0 && ["duration", formatEventDuration(event.event)],
-    ...Object.entries(event.event.metadata),
-  ]);
+  // const fields = compact([
+  //   ["timestamp", formattedTime],
+  //   Number(event.event.durationNanos) > 0 && ["duration", formatEventDuration(event.event)],
+  //   ...Object.entries(event.event.metadata),
+  // ]);
 
   return (
     <div
@@ -126,7 +126,7 @@ function EventViewComponent(params: {
       onMouseEnter={() => onHoverStart(event)}
       onMouseLeave={() => onHoverEnd(event)}
     >
-      {fields.map(([key, value]) => (
+      {/* {fields.map(([key, value]) => (
         <Fragment key={key}>
           <div className={classes.eventMetadata}>
             <HighlightedText text={key ?? ""} highlight={filter} />
@@ -135,7 +135,9 @@ function EventViewComponent(params: {
             <HighlightedText text={value ?? ""} highlight={filter} />
           </div>
         </Fragment>
-      ))}
+      ))} */}
+      {/* <Fragment key={event.getName()}>{event.getDisplayName()}</Fragment> */}
+      {event.event.getDisplayName()}
       <div className={classes.spacer} />
     </div>
   );

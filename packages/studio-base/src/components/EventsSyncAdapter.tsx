@@ -2,13 +2,21 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import { useEffect, useMemo } from "react";
 import { useAsyncFn } from "react-use";
 import { useDebounce } from "use-debounce";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
-import { areEqual as areEqualTimes, subtract, Time, toSec } from "@foxglove/rostime";
+import {
+  areEqual as areEqualTimes,
+  subtract,
+  Time,
+  toSec,
+  fromNanoSec,
+  add,
+} from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -32,22 +40,43 @@ const HOVER_TOLERANCE = 0.01;
 const log = Logger.getLogger(__filename);
 
 function positionEvents(
-  events: ConsoleEvent[],
+  events: Event[],
   startTime: Time,
   endTime: Time,
 ): TimelinePositionedEvent[] {
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
 
+  // const startTime = fromNanoSec(BigInt(event.timestampNanos));
+  // const endTime = add(startTime, fromNanoSec(BigInt(event.durationNanos)));
+  // return {
+  //   ...event,
+  //   endTime,
+  //   endTimeInSeconds: toSec(endTime),
+  //   startTime,
+  //   startTimeInSeconds: toSec(startTime),
+  // };
+
   return events.map((event) => {
-    const startPosition = scale(event.startTimeInSeconds, startSecs, endSecs, 0, 1);
-    const endPosition = scale(event.endTimeInSeconds, startSecs, endSecs, 0, 1);
+    const eventStartTime = fromNanoSec(
+      BigInt(event.getTriggerTime()!.getSeconds() * 1e9 + event.getTriggerTime()!.getNanos()),
+    );
+    const eventEndTime = add(eventStartTime, fromNanoSec(BigInt(event.getDuration() * 1e9)));
+
+    const startTimeInSeconds = toSec(eventStartTime);
+    const endTimeInSeconds = toSec(eventEndTime);
+
+    const startPosition = scale(startTimeInSeconds, startSecs, endSecs, 0, 1);
+    const endPosition = scale(endTimeInSeconds, startSecs, endSecs, 0, 1);
+
     return {
       event,
+      startTime: eventStartTime,
+      endTime: eventEndTime,
       endPosition,
       startPosition,
-      time: event.startTimeInSeconds,
-      secondsSinceStart: event.startTimeInSeconds - startSecs,
+      time: startTimeInSeconds,
+      secondsSinceStart: startTimeInSeconds - startSecs,
     };
   });
 }
@@ -66,7 +95,7 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
  * Syncs events from server and syncs hovered event with hovered time.
  */
 export function EventsSyncAdapter(): ReactNull {
-  const { currentUser } = useCurrentUser();
+  // const { currentUser } = useCurrentUser();
   const urlState = useMessagePipeline(selectUrlState);
   const consoleApi = useConsoleApi();
   const setEvents = useEvents(selectSetEvents);
@@ -76,9 +105,9 @@ export function EventsSyncAdapter(): ReactNull {
   const endTime = useMessagePipeline(selectEndTime);
   const events = useEvents(selectEvents);
   const eventFetchCount = useEvents(selectEventFetchCount);
-  const filter = useEvents(selectEventFilter);
+  // const filter = useEvents(selectEventFilter);
 
-  const [debouncedFilter] = useDebounce(filter, 300);
+  // const [debouncedFilter] = useDebounce(filter, 300);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -88,52 +117,64 @@ export function EventsSyncAdapter(): ReactNull {
     return toSec(subtract(endTime, startTime));
   }, [endTime, startTime]);
 
-  const currentUserPresent = currentUser != undefined;
+  // const currentUserPresent = currentUser != undefined;
 
   // Sync events with console API.
   const [_events, syncEvents] = useAsyncFn(async () => {
     // Compare start and end time to avoid a redundant fetch as the
     // datasource bootstraps through the state where they are not
     // completely determined.
+    // if (
+    //   currentUserPresent &&
+    //   startTime &&
+    //   endTime &&
+    //   !areEqualTimes(startTime, endTime) &&
+    //   urlState?.sourceId === "foxglove-data-platform" &&
+    //   urlState.parameters != undefined
+    // ) {
+    //   const queryParams = urlState.parameters as { deviceId: string; start: string; end: string };
+    //   setEvents({ loading: true });
+    //   try {
+    //     const fetchedEvents = await consoleApi.getEvents({
+    //       ...queryParams,
+    //       query: debouncedFilter,
+    //     });
+    //     const positionedEvents = positionEvents(fetchedEvents, startTime, endTime);
+    //     setEvents({ loading: false, value: positionedEvents });
+    //   } catch (error) {
+    //     log.error(error);
+    //     setEvents({ loading: false, error });
+    //   }
+    // } else {
+    //   setEvents({ loading: false });
+    // }
 
-    // console.log("urlState:-----", urlState);
-    // console.log("currentUserPresent", currentUserPresent);
-    // await consoleApi.getTestEvents();
-    // console.log("secound: consoleApi.getTestEvents();");
+    const recordName = (urlState?.parameters?.recordName ?? "").split("/records/");
 
-    if (
-      currentUserPresent &&
-      startTime &&
-      endTime &&
-      !areEqualTimes(startTime, endTime) &&
-      urlState?.sourceId === "foxglove-data-platform" &&
-      urlState.parameters != undefined
-    ) {
-      const queryParams = urlState.parameters as { deviceId: string; start: string; end: string };
-      setEvents({ loading: true });
+    const parent = recordName[0] ?? "";
+
+    const recordId = recordName.pop() ?? "";
+
+    if (parent && recordId && startTime && endTime) {
       try {
-        const fetchedEvents = await consoleApi.getEvents({
-          ...queryParams,
-          query: debouncedFilter,
-        });
-        const positionedEvents = positionEvents(fetchedEvents, startTime, endTime);
-        setEvents({ loading: false, value: positionedEvents });
+        const eventList = await consoleApi.getCosEvents({ parent, recordId });
+        setEvents({ loading: false, value: positionEvents(eventList, startTime, endTime) });
       } catch (error) {
         log.error(error);
         setEvents({ loading: false, error });
       }
-    } else {
-      setEvents({ loading: false });
     }
+
+    // console.log("eventList", eventList[0]?.toObject());
   }, [
     consoleApi,
-    currentUserPresent,
-    debouncedFilter,
+    // currentUserPresent,
+    // debouncedFilter,
     endTime,
     setEvents,
     startTime,
     urlState?.parameters,
-    urlState?.sourceId,
+    // urlState?.sourceId,
   ]);
 
   useEffect(() => {

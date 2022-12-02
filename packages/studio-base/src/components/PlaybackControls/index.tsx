@@ -166,15 +166,13 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            {currentUser && deviceId && (
-              <HoverableIconButton
-                size="small"
-                title="Create event"
-                icon={<EventOutlinedIcon />}
-                activeIcon={<EventIcon />}
-                onClick={toggleCreateEventDialog}
-              />
-            )}
+            <HoverableIconButton
+              size="small"
+              title="Create event"
+              icon={<EventOutlinedIcon />}
+              activeIcon={<EventIcon />}
+              onClick={toggleCreateEventDialog}
+            />
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
@@ -215,8 +213,8 @@ export default function PlaybackControls(props: {
             <PlaybackSpeedControls />
           </Stack>
         </Stack>
-        {createEventDialogOpen && deviceId && (
-          <CreateEventDialog deviceId={deviceId} onClose={toggleCreateEventDialog} />
+        {createEventDialogOpen && (
+          <CreateEventDialog deviceId="" onClose={toggleCreateEventDialog} />
         )}
       </div>
     </>

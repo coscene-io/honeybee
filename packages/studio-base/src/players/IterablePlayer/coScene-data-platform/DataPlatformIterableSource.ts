@@ -45,6 +45,7 @@ export type DataPlatformInterableSourceConsoleApi = Pick<
 type DataPlatformSourceParameters = {
   revisionName: string;
   filename: string;
+  recordName: string;
 };
 
 type DataPlatformIterableSourceOptions = {
@@ -353,6 +354,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
 
   const revisionName = params.revisionName ?? "";
   const filename = params.filename ?? "";
+  const recordName = params.recordName ?? "";
 
   if (!revisionName) {
     throw new Error("revisionName is required for data platform source");
@@ -362,9 +364,14 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("filename is required for data platform source");
   }
 
+  if (!recordName) {
+    throw new Error("recordName is required for data platform source");
+  }
+
   const dpSourceParams: DataPlatformSourceParameters = {
     revisionName,
     filename,
+    recordName,
   };
 
   const consoleApi = new CoSceneConsoleApi(api.baseUrl);
