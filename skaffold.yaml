@@ -39,4 +39,4 @@ profiles:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "azureDev"
-              
+  - name: aliyun-staging-cn-hangzhou
