@@ -10,3 +10,4 @@ profiles:
       artifacts:
         - image: coseus.azurecr.io/honeybee
           context: .
+  - name: aliyun-staging-cn-hangzhou
