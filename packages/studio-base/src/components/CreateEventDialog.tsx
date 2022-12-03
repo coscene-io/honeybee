@@ -22,7 +22,6 @@ import {
 } from "@mui/material";
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import { countBy } from "lodash";
-import { string } from "mathjs";
 import { KeyboardEvent, useCallback } from "react";
 import { useAsyncFn } from "react-use";
 import { keyframes } from "tss-react";
@@ -30,7 +29,7 @@ import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
 import Log from "@foxglove/log";
-import { toDate, toNanoSec } from "@foxglove/rostime";
+import { toDate } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -86,8 +85,8 @@ const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activ
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 
-export function CreateEventDialog(props: { deviceId: string; onClose: () => void }): JSX.Element {
-  const { deviceId, onClose } = props;
+export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
+  const { onClose } = props;
   const urlState = useMessagePipeline(selectUrlState);
 
   const { classes } = useStyles();
@@ -273,9 +272,9 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
                   <ToggleButton className={classes.toggleButton} tabIndex={-1} value="sec">
                     sec
                   </ToggleButton>
-                  <ToggleButton className={classes.toggleButton} tabIndex={-1} value="nsec">
+                  {/* <ToggleButton className={classes.toggleButton} tabIndex={-1} value="nsec">
                     nsec
-                  </ToggleButton>
+                  </ToggleButton> */}
                 </ToggleButtonGroup>
               ),
             }}

@@ -2,14 +2,27 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { alpha } from "@mui/material";
-import { compact } from "lodash";
-import { Fragment } from "react";
+import { Event } from "@coscene-io/coscene/proto/v1alpha2";
+import DeleteIcon from "@mui/icons-material/Delete";
+import MoreIcon from "@mui/icons-material/More";
+import ShareIcon from "@mui/icons-material/Share";
+import { alpha, Alert, TextField } from "@mui/material";
+import Snackbar from "@mui/material/Snackbar";
+import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
+import { Fragment, useEffect, useState } from "react";
+import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
+import { toRFC3339String, fromDate } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
+import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
-import { ConsoleEvent } from "@foxglove/studio-base/services/ConsoleApi";
+import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 
 const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
   (theme, _params, classes) => ({
@@ -73,6 +86,12 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
     },
     eventTitle: {
       padding: "5px 0",
+      display: "flex",
+      justifyContent: "space-between",
+    },
+    eventTitleIcons: {
+      display: "flex",
+      gap: "5px",
     },
     grid: {
       display: "grid",
@@ -84,52 +103,130 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
   }),
 );
 
-function formatEventDuration(event: ConsoleEvent) {
-  if (event.durationNanos === "0") {
-    // instant
-    return "-";
-  }
-
-  if (!event.durationNanos) {
-    return "";
-  }
-
-  const intDuration = BigInt(event.durationNanos);
-
-  if (intDuration >= BigInt(1e9)) {
-    return `${Number(intDuration / BigInt(1e9))}s`;
-  }
-
-  if (intDuration >= BigInt(1e6)) {
-    return `${Number(intDuration / BigInt(1e6))}ms`;
-  }
-
-  if (intDuration >= BigInt(1e3)) {
-    return `${Number(intDuration / BigInt(1e3))}µs`;
-  }
-
-  return `${event.durationNanos}ns`;
-}
+const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 function EventViewComponent(params: {
   event: TimelinePositionedEvent;
   filter: string;
-  formattedTime: string;
   isHovered: boolean;
   isSelected: boolean;
   onClick: (event: TimelinePositionedEvent) => void;
   onHoverStart: (event: TimelinePositionedEvent) => void;
   onHoverEnd: (event: TimelinePositionedEvent) => void;
 }): JSX.Element {
-  const { event, filter, formattedTime, isHovered, isSelected, onClick, onHoverStart, onHoverEnd } =
-    params;
+  const { event, filter, isHovered, isSelected, onClick, onHoverStart, onHoverEnd } = params;
+  const urlState = useMessagePipeline(selectUrlState);
   const { classes, cx } = useStyles();
+  const consoleApi = useConsoleApi();
+  const refreshEvents = useEvents(selectRefreshEvents);
+  const [open, setOpen] = useState(false);
+  const { formatTime } = useAppTimeFormat();
+  // const [newDesc, setNewDesc] = useState("");
+  const [toastInfo, setToastInfo] = useState<{
+    message: string;
+    type: "success" | "error";
+  }>({
+    message: "",
+    type: "success",
+  });
 
-  // const fields = compact([
-  //   ["timestamp", formattedTime],
-  //   Number(event.event.durationNanos) > 0 && ["duration", formatEventDuration(event.event)],
-  //   ...Object.entries(event.event.metadata),
-  // ]);
+  const handleClose = (
+    _event: globalThis.Event | React.SyntheticEvent<unknown, globalThis.Event>,
+    reason?: string,
+  ) => {
+    if (reason === "clickaway") {
+      return;
+    }
+
+    setOpen(false);
+  };
+
+  const [deletedEvent, deleteEvent] = useAsyncFn(async () => {
+    await consoleApi.deleteEvent({ eventName: event.event.getName() });
+    setOpen(true);
+    setToastInfo({
+      message: "Event deleted",
+      type: "success",
+    });
+    refreshEvents();
+  }, [consoleApi, event, refreshEvents]);
+
+  const [updatedEventDesc, updateEventDesc] = useAsyncFn(
+    async (desc: string) => {
+      const fieldMask = new FieldMask();
+      fieldMask.addPaths("description");
+      await consoleApi.updateEvent({
+        event: new Event().setName(event.event.getName()).setDescription(desc),
+        updateMask: fieldMask,
+      });
+      // await consoleApi.deleteEvent({ eventName: event.event.getName() });
+      setOpen(true);
+      setToastInfo({
+        message: "Events have been updated",
+        type: "success",
+      });
+      refreshEvents();
+    },
+    [consoleApi, event, refreshEvents],
+  );
+
+  useEffect(() => {
+    if (deletedEvent.error) {
+      setToastInfo({
+        message: "Error deleting event",
+        type: "error",
+      });
+      setOpen(true);
+    }
+
+    if (updatedEventDesc.error) {
+      setToastInfo({
+        message: "Error updating event",
+        type: "error",
+      });
+      setOpen(true);
+    }
+  }, [deletedEvent, updatedEventDesc]);
+
+  const handleShareEvent = async () => {
+    const link = window.location.href;
+    const copyLink = link.replace(
+      /time=.+Z&|time=.+Z$/,
+      `time=${encodeURIComponent(
+        toRFC3339String(fromDate(event.event.getTriggerTime()!.toDate())),
+      )}&`,
+    );
+
+    await navigator.clipboard.writeText(copyLink);
+
+    setOpen(true);
+    setToastInfo({
+      message: "Copied event to clipboard",
+      type: "success",
+    });
+  };
+
+  const handleEventDetail = () => {
+    const warehouseSlug = urlState?.parameters?.warehouseSlug;
+    const projectSlug = urlState?.parameters?.projectSlug;
+
+    if (window.location.origin.includes("localhost")) {
+      window.open(
+        `https://home.coscene.dev/${warehouseSlug}/${projectSlug}/events/${event.event
+          .getName()
+          .split("/")
+          .pop()}`,
+      );
+    } else {
+      window.open(
+        `${window.location.origin}/${warehouseSlug}/${projectSlug}/events/${event.event
+          .getName()
+          .split("/")
+          .pop()}`,
+      );
+    }
+  };
 
   return (
     <div
@@ -138,7 +235,19 @@ function EventViewComponent(params: {
       onMouseEnter={() => onHoverStart(event)}
       onMouseLeave={() => onHoverEnd(event)}
     >
-      <div className={classes.eventTitle}>{event.event.getDisplayName()}</div>
+      <div className={classes.eventTitle}>
+        <div>{event.event.getDisplayName()}</div>
+        <div
+          className={classes.eventTitleIcons}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <ShareIcon fontSize="small" onClick={handleShareEvent} />
+          <MoreIcon fontSize="small" onClick={handleEventDetail} />
+          <DeleteIcon fontSize="small" onClick={deleteEvent} />
+        </div>
+      </div>
       <div className={classes.grid}>
         <div
           data-testid="sidebar-event"
@@ -153,7 +262,7 @@ function EventViewComponent(params: {
             </div>
             <div className={classes.eventMetadata}>
               <HighlightedText
-                text={event.event.getTriggerTime()?.toDate().toISOString().toString() ?? ""}
+                text={formatTime(fromDate(event.event.getTriggerTime()!.toDate()))}
                 highlight={filter}
               />
             </div>
@@ -175,8 +284,28 @@ function EventViewComponent(params: {
             <div className={classes.eventMetadata}>
               <HighlightedText text="Description" highlight={filter} />
             </div>
-            <div className={classes.eventMetadata}>
-              <HighlightedText text={event.event.getDescription()} highlight={filter} />
+            <div
+              className={classes.eventMetadata}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              <TextField
+                hiddenLabel
+                id="filled-hidden-label-small"
+                defaultValue={event.event.getDescription()}
+                variant="filled"
+                size="small"
+                fullWidth
+                onBlur={async (e) => {
+                  await updateEventDesc(e.target.value);
+                }}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter") {
+                    (e.target as HTMLElement).blur();
+                  }
+                }}
+              />
             </div>
           </Fragment>
 
@@ -197,6 +326,11 @@ function EventViewComponent(params: {
           <div className={classes.spacer} />
         </div>
       </div>
+      <Snackbar open={open} autoHideDuration={6000} onClose={handleClose}>
+        <Alert onClose={handleClose} severity={toastInfo.type} style={{ width: "100%" }}>
+          {toastInfo.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }

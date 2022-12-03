@@ -5,24 +5,15 @@
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import { useEffect, useMemo } from "react";
 import { useAsyncFn } from "react-use";
-import { useDebounce } from "use-debounce";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
-import {
-  areEqual as areEqualTimes,
-  subtract,
-  Time,
-  toSec,
-  fromNanoSec,
-  add,
-} from "@foxglove/rostime";
+import { subtract, Time, toSec, fromNanoSec, add } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   EventsStore,
   TimelinePositionedEvent,
@@ -33,7 +24,6 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { ConsoleEvent } from "@foxglove/studio-base/services/ConsoleApi";
 
 const HOVER_TOLERANCE = 0.01;
 
@@ -47,22 +37,7 @@ function positionEvents(
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
 
-  // const startTime = fromNanoSec(BigInt(event.timestampNanos));
-  // const endTime = add(startTime, fromNanoSec(BigInt(event.durationNanos)));
-  // return {
-  //   ...event,
-  //   endTime,
-  //   endTimeInSeconds: toSec(endTime),
-  //   startTime,
-  //   startTimeInSeconds: toSec(startTime),
-  // };
-
   return events.map((event) => {
-    // console.log(
-    //   "event.getTriggerTime()!.getSeconds()",
-    //   event.getTriggerTime()!.getSeconds() * 1e8 + event.getTriggerTime()!.getNanos(),
-    // );
-
     const eventStartTime = fromNanoSec(
       BigInt(event.getTriggerTime()!.getSeconds() * 1e9 + event.getTriggerTime()!.getNanos()),
     );
@@ -87,7 +62,6 @@ function positionEvents(
 }
 
 const selectEventFetchCount = (store: EventsStore) => store.eventFetchCount;
-const selectEventFilter = (store: EventsStore) => store.filter;
 const selectEvents = (store: EventsStore) => store.events;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectSetEvents = (store: EventsStore) => store.setEvents;
@@ -129,30 +103,6 @@ export function EventsSyncAdapter(): ReactNull {
     // Compare start and end time to avoid a redundant fetch as the
     // datasource bootstraps through the state where they are not
     // completely determined.
-    // if (
-    //   currentUserPresent &&
-    //   startTime &&
-    //   endTime &&
-    //   !areEqualTimes(startTime, endTime) &&
-    //   urlState?.sourceId === "foxglove-data-platform" &&
-    //   urlState.parameters != undefined
-    // ) {
-    //   const queryParams = urlState.parameters as { deviceId: string; start: string; end: string };
-    //   setEvents({ loading: true });
-    //   try {
-    //     const fetchedEvents = await consoleApi.getEvents({
-    //       ...queryParams,
-    //       query: debouncedFilter,
-    //     });
-    //     const positionedEvents = positionEvents(fetchedEvents, startTime, endTime);
-    //     setEvents({ loading: false, value: positionedEvents });
-    //   } catch (error) {
-    //     log.error(error);
-    //     setEvents({ loading: false, error });
-    //   }
-    // } else {
-    //   setEvents({ loading: false });
-    // }
 
     const recordName = (urlState?.parameters?.recordName ?? "").split("/records/");
 
@@ -162,25 +112,14 @@ export function EventsSyncAdapter(): ReactNull {
 
     if (parent && recordId && startTime && endTime) {
       try {
-        const eventList = await consoleApi.getCosEvents({ parent, recordId });
+        const eventList = await consoleApi.getEvents({ parent, recordId });
         setEvents({ loading: false, value: positionEvents(eventList, startTime, endTime) });
       } catch (error) {
         log.error(error);
         setEvents({ loading: false, error });
       }
     }
-
-    // console.log("eventList", eventList[0]?.toObject());
-  }, [
-    consoleApi,
-    // currentUserPresent,
-    // debouncedFilter,
-    endTime,
-    setEvents,
-    startTime,
-    urlState?.parameters,
-    // urlState?.sourceId,
-  ]);
+  }, [consoleApi, endTime, setEvents, startTime, urlState?.parameters]);
 
   useEffect(() => {
     syncEvents().catch((error) => log.error(error));

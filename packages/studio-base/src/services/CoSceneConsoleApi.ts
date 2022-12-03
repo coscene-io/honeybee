@@ -2,11 +2,19 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ListEventsRequest, CreateEventRequest, Event } from "@coscene-io/coscene/proto/v1alpha2";
+import {
+  ListEventsRequest,
+  CreateEventRequest,
+  Event,
+  DeleteEventRequest,
+  UpdateEventRequest,
+} from "@coscene-io/coscene/proto/v1alpha2";
 import { eventClient } from "@coscene-io/coscene/queries";
 import * as base64 from "@protobufjs/base64";
+import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
+import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 
-import { add, fromNanoSec, Time, toRFC3339String, toSec } from "@foxglove/rostime";
+import { Time, toRFC3339String } from "@foxglove/rostime";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 
 type User = {
@@ -67,8 +75,6 @@ export type ConsoleEvent = {
   timestampNanos: string;
   updatedAt: string;
 };
-
-type EventsResponse = ConsoleEvent[];
 
 type TokenArgs = {
   deviceCode: string;
@@ -222,16 +228,6 @@ class CoSceneConsoleApi {
     return await this.get<DeviceResponse>(`/v1/devices/${id}`);
   }
 
-  // public async createEvent(params: {
-  //   deviceId: string;
-  //   timestamp: string;
-  //   durationNanos: string;
-  //   metadata: Record<string, string>;
-  // }): Promise<ConsoleEvent> {
-  //   const rawEvent = await this.post<ConsoleEvent>(`/beta/device-events`, params);
-  //   return rawEvent;
-  // }
-
   public async createEvent({
     event,
     parent,
@@ -251,14 +247,13 @@ class CoSceneConsoleApi {
     return newEvent;
   }
 
-  public async getCosEvents({
+  public async getEvents({
     parent,
     recordId,
   }: {
     parent: string;
     recordId: string;
   }): Promise<Event[]> {
-    // console.log("getTestEvents");
     const listEventsRequest = new ListEventsRequest()
       .setParent(parent)
       .setOrderBy("create_time desc")
@@ -270,24 +265,28 @@ class CoSceneConsoleApi {
     return events.getEventsList();
   }
 
-  public async getEvents(params: {
-    deviceId: string;
-    start: string;
-    end: string;
-    query?: string;
-  }): Promise<EventsResponse> {
-    const rawEvents = await this.get<EventsResponse>(`/beta/device-events`, params);
-    return rawEvents.map((event) => {
-      const startTime = fromNanoSec(BigInt(event.timestampNanos));
-      const endTime = add(startTime, fromNanoSec(BigInt(event.durationNanos)));
-      return {
-        ...event,
-        endTime,
-        endTimeInSeconds: toSec(endTime),
-        startTime,
-        startTimeInSeconds: toSec(startTime),
-      };
-    });
+  public async deleteEvent({
+    eventName,
+  }: {
+    eventName: string;
+  }): Promise<google_protobuf_empty_pb.Empty> {
+    const deleteEventRequest = new DeleteEventRequest().setName(eventName);
+
+    return await eventClient.deleteEvent(deleteEventRequest);
+  }
+
+  public async updateEvent({
+    event,
+    updateMask,
+  }: {
+    event: Event;
+    updateMask: FieldMask;
+  }): Promise<void> {
+    const req = new UpdateEventRequest();
+    req.setEvent(event);
+    req.setUpdateMask(updateMask);
+
+    await eventClient.updateEvent(req);
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {

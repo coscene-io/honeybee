@@ -150,7 +150,6 @@ export function EventsList(): JSX.Element {
               key={event.event.getName()}
               event={event}
               filter={filter}
-              formattedTime={event.formattedTime}
               // When hovering within the event list only show hover state on directly
               // hovered event.
               isHovered={
