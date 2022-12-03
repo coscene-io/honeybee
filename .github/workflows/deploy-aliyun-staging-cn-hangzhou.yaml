@@ -11,7 +11,7 @@ env:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, web]
+    runs-on: [self-hosted]
     environment: aliyun-staging-cn-hangzhou
     env:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
