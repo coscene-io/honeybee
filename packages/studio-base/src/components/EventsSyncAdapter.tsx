@@ -74,7 +74,6 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
  * Syncs events from server and syncs hovered event with hovered time.
  */
 export function EventsSyncAdapter(): ReactNull {
-  // const { currentUser } = useCurrentUser();
   const urlState = useMessagePipeline(selectUrlState);
   const consoleApi = useConsoleApi();
   const setEvents = useEvents(selectSetEvents);
@@ -84,9 +83,6 @@ export function EventsSyncAdapter(): ReactNull {
   const endTime = useMessagePipeline(selectEndTime);
   const events = useEvents(selectEvents);
   const eventFetchCount = useEvents(selectEventFetchCount);
-  // const filter = useEvents(selectEventFilter);
-
-  // const [debouncedFilter] = useDebounce(filter, 300);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {

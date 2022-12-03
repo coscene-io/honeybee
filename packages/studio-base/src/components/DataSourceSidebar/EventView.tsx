@@ -160,7 +160,6 @@ function EventViewComponent(params: {
         event: new Event().setName(event.event.getName()).setDescription(desc),
         updateMask: fieldMask,
       });
-      // await consoleApi.deleteEvent({ eventName: event.event.getName() });
       setOpen(true);
       setToastInfo({
         message: "Events have been updated",
