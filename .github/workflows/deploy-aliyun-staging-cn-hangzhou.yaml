@@ -1,0 +1,39 @@
+name: Deploy to aliyun-staging-cn-hangzhou
+on:
+  push:
+    branches:
+      - releases
+  workflow_dispatch:
+
+env:
+  http_proxy: http://gfw:7890
+  https_proxy: http://gfw:7890
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, web]
+    environment: aliyun-staging-cn-hangzhou
+    env:
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+          lfs: true
+
+      - name: Setup CD workspace
+        uses: coscene-io/setup-cd-workspace-all-in-one@v0.0.7
+        with:
+          cloud-provider: AliCloud
+          acr-login-registry: ${{ env.REPOSITORY }}
+          acr-username: ${{ secrets.ACR_USERNAME }}
+          acr-password: ${{ secrets.ACR_PASSWORD }}
+          alicloud-ack-access-key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
+          alicloud-ack-access-key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+          alicloud-ack-cluster-id: ${{ secrets.ACK_CLUSTER_ID }}
+          need-cd-tools: true
+
+      - name: Skaffold build
+        run: |
+          skaffold build -p aliyun-staging-cn-hangzhou
