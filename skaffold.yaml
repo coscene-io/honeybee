@@ -1,6 +1,19 @@
 apiVersion: skaffold/v2beta28
 kind: Config
 build:
+  tagPolicy:
+    # e.g: 2022-12-05_v22.48.0-8-g295c572a
+    # e.g: 2022-12-05-78c7d2b
+    customTemplate:
+      template: "{{.FOO}}-{{.BAR}}"
+      components:
+        - name: FOO
+          dateTime:
+            format: "2006-01-02"
+            timezone: "UTC"
+        - name: BAR
+          gitCommit:
+            ignoreChanges: true
   artifacts:
     - image: registry.cn-hangzhou.aliyuncs.com/coscene/
       context: .
