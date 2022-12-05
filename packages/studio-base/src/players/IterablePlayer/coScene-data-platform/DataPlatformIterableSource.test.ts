@@ -46,7 +46,7 @@ describe("DataPlatformIterableSource", () => {
         return "Authorization";
       },
       getStreamUrl(a: string, b: string): ReturnType<CoSceneConsoleApi["getStreamUrl"]> {
-        return 'aaa' + a + b
+        return "aaa" + a + b;
       },
     };
 
