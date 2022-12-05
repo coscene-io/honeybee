@@ -7,6 +7,8 @@ ARG BUF_TOKEN \
 
 COPY . ./
 
+ENV PROJECT_ENV=$PROJECT_ENV
+
 RUN corepack enable
 RUN yarn install --immutable
 
