@@ -39,7 +39,7 @@ const log = Logger.getLogger(__filename);
  */
 export type DataPlatformInterableSourceConsoleApi = Pick<
   CoSceneConsoleApi,
-  "topics" | "getDevice" | "getAuthHeader"
+  "topics" | "getDevice" | "getAuthHeader" | "getStreamUrl"
 >;
 
 type DataPlatformSourceParameters = {

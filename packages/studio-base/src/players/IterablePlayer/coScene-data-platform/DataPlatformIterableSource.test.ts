@@ -45,6 +45,9 @@ describe("DataPlatformIterableSource", () => {
       getAuthHeader(): ReturnType<CoSceneConsoleApi["getAuthHeader"]> {
         return "Authorization";
       },
+      getStreamUrl(a: string, b: string): ReturnType<CoSceneConsoleApi["getStreamUrl"]> {
+        return 'aaa' + a + b
+      },
     };
 
     const source = new DataPlatformIterableSource({
