@@ -341,6 +341,7 @@ class CoSceneConsoleApi {
     const topics = await this.get<topicInterfaceReturns>("/v1/data/getMetadata", {
       revisionName: params.revisionName,
       includeSchemas: params.includeSchemas ?? false ? "true" : "false",
+      access_token: this._authHeader,
     });
 
     const metaData = topics.topics.map((topic) => {
@@ -377,9 +378,6 @@ class CoSceneConsoleApi {
       // versions of the app are making requests.
       "fg-user-agent": FOXGLOVE_USER_AGENT,
     };
-    if (this._authHeader != undefined) {
-      headers["Authorization"] = this._authHeader;
-    }
     const fullConfig: RequestInit = {
       ...config,
       credentials: "include",
