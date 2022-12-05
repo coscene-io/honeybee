@@ -4,10 +4,33 @@ build:
   artifacts:
     - image: registry.cn-hangzhou.aliyuncs.com/coscene/
       context: .
+      docker:
+        dockerfile: Dockerfile
+        buildArgs:
+          BUF_TOKEN: "{{.BUF_TOKEN}}"
+          GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
+          ENV: "production"
+
 profiles:
   - name: azure-dev-east-us
     build:
       artifacts:
         - image: coseus.azurecr.io/honeybee
           context: .
+          docker:
+            dockerfile: Dockerfile.gfw
+            buildArgs:
+              BUF_TOKEN: "{{.BUF_TOKEN}}"
+              GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
+              ENV: "azureDev"
   - name: aliyun-staging-cn-hangzhou
+    build:
+      artifacts:
+        - image: registry.cn-hangzhou.aliyuncs.com/coscene/
+          context: .
+          docker:
+            dockerfile: Dockerfile
+            buildArgs:
+              BUF_TOKEN: "{{.BUF_TOKEN}}"
+              GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
+              ENV: "production"

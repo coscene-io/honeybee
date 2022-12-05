@@ -14,6 +14,7 @@ jobs:
     runs-on: [self-hosted]
     environment: aliyun-staging-cn-hangzhou
     env:
+      BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
     steps:
       - name: Checkout
