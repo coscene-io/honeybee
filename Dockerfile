@@ -3,7 +3,7 @@ FROM node:16 as build
 WORKDIR /src
 ARG BUF_TOKEN \
   GH_PACKAGES_ORG_TOKEN \
-  ENV
+  PROJECT_ENV
 
 COPY . ./
 
