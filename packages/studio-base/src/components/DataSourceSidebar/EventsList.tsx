@@ -37,13 +37,6 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
     borderBottom: `1px solid ${theme.palette.divider}`,
   },
-  grid: {
-    display: "grid",
-    flexShrink: 1,
-    gridTemplateColumns: "auto 1fr",
-    overflowY: "auto",
-    padding: theme.spacing(1),
-  },
   root: {
     backgroundColor: theme.palette.background.paper,
     maxHeight: "100%",
@@ -75,7 +68,7 @@ export function EventsList(): JSX.Element {
   const timestampedEvents = useMemo(
     () =>
       (events.value ?? []).map((event) => {
-        return { ...event, formattedTime: formatTime(event.event.startTime) };
+        return { ...event, formattedTime: formatTime(event.startTime) };
       }),
     [events, formatTime],
   );
@@ -86,14 +79,14 @@ export function EventsList(): JSX.Element {
 
   const onClick = useCallback(
     (event: TimelinePositionedEvent) => {
-      if (event.event.id === selectedEventId) {
+      if (event.event.getName() === selectedEventId) {
         selectEvent(undefined);
       } else {
-        selectEvent(event.event.id);
+        selectEvent(event.event.getName());
       }
 
       if (seek) {
-        seek(event.event.startTime);
+        seek(event.startTime);
       }
     },
     [seek, selectEvent, selectedEventId],
@@ -150,22 +143,21 @@ export function EventsList(): JSX.Element {
           </Typography>
         </Stack>
       )}
-      <div className={classes.grid}>
+      <div>
         {timestampedEvents.map((event) => {
           return (
             <EventView
-              key={event.event.id}
+              key={event.event.getName()}
               event={event}
               filter={filter}
-              formattedTime={event.formattedTime}
               // When hovering within the event list only show hover state on directly
               // hovered event.
               isHovered={
                 hoveredEvent
-                  ? event.event.id === hoveredEvent.event.id
-                  : eventsAtHoverValue[event.event.id] != undefined
+                  ? event.event.getName() === hoveredEvent.event.getName()
+                  : eventsAtHoverValue[event.event.getName()] != undefined
               }
-              isSelected={event.event.id === selectedEventId}
+              isSelected={event.event.getName() === selectedEventId}
               onClick={onClick}
               onHoverStart={onHoverStart}
               onHoverEnd={onHoverEnd}
