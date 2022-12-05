@@ -18,7 +18,7 @@ profiles:
         - image: coseus.azurecr.io/honeybee
           context: .
           docker:
-            dockerfile: Dockerfile.gfw
+            dockerfile: Dockerfile
             buildArgs:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
