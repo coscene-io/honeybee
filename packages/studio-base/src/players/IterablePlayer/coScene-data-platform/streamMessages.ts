@@ -30,7 +30,6 @@ export type ParsedChannelAndEncodings = {
 export type StreamParams = {
   start: Time;
   end: Time;
-  filename: string;
   revisionName: string;
   authHeader?: string;
   replayPolicy?: "lastPerChannel" | "";
@@ -185,24 +184,21 @@ export async function* streamMessages({
 
   try {
     // Since every request is signed with a new token, there's no benefit to caching.
-    const response = await fetch(
-      `/v1/data/getStreams?revisionName=${params.revisionName}&filename=${params.filename}`,
-      {
-        method: "POST",
-        signal: controller.signal,
-        cache: "no-cache",
-        headers: {
-          // Include the version of studio in the request Useful when scraping logs to determine what
-          // versions of the app are making requests.
-          "fg-user-agent": FOXGLOVE_USER_AGENT,
-          Authorization: `${params.authHeader}`,
-        },
-        body: JSON.stringify({
-          start: toRFC3339String(params.start),
-          end: toRFC3339String(params.end),
-        }),
+    const response = await fetch(`/v1/data/getStreams?revisionName=${params.revisionName}`, {
+      method: "POST",
+      signal: controller.signal,
+      cache: "no-cache",
+      headers: {
+        // Include the version of studio in the request Useful when scraping logs to determine what
+        // versions of the app are making requests.
+        "fg-user-agent": FOXGLOVE_USER_AGENT,
+        Authorization: `${params.authHeader}`,
       },
-    );
+      body: JSON.stringify({
+        start: toRFC3339String(params.start),
+        end: toRFC3339String(params.end),
+      }),
+    });
     if (response.status === 404) {
       return;
     } else if (response.status !== 200) {
