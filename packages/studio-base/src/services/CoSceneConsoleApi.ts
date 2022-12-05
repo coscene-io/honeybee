@@ -378,9 +378,6 @@ class CoSceneConsoleApi {
       // versions of the app are making requests.
       "fg-user-agent": FOXGLOVE_USER_AGENT,
     };
-    // if (this._authHeader != undefined) {
-    //   headers["Authorization"] = this._authHeader;
-    // }
     const fullConfig: RequestInit = {
       ...config,
       credentials: "include",
