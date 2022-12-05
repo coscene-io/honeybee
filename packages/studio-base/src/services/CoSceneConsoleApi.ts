@@ -135,7 +135,6 @@ export type ConsoleApiLayout = {
 
 export type DataPlatformRequestArgs = {
   revisionName: string;
-  filename: string;
 };
 
 type ApiResponse<T> = { status: number; json: T };
@@ -341,7 +340,6 @@ class CoSceneConsoleApi {
   ): Promise<customTopicResponse> {
     const topics = await this.get<topicInterfaceReturns>("/v1/data/getMetadata", {
       revisionName: params.revisionName,
-      filename: params.filename,
       includeSchemas: params.includeSchemas ?? false ? "true" : "false",
     });
 
