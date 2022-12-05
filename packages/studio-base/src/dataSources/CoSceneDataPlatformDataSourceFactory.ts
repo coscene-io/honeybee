@@ -26,7 +26,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       sourceType: "foxgloveDataPlatform",
       initArgs: {
         api: {
-          baseUrl: "http://localhost:8080", // consoleApi.getBaseUrl(),
+          baseUrl: window.location.origin,
           auth: `Bearer ${localStorage.getItem("coScene_org_jwt")}`,
         },
         params: args.params,

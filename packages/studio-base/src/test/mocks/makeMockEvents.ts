@@ -37,5 +37,5 @@ export function makeMockEvents(
       endPosition: idx / count + 0.1,
       secondsSinceStart: toSec(startTime),
     };
-  });
+  }) as any;
 }

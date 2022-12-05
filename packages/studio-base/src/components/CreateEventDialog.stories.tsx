@@ -36,11 +36,11 @@ export default {
 };
 
 export function Empty(): JSX.Element {
-  return <CreateEventDialog deviceId="dummyDevice" onClose={() => undefined} />;
+  return <CreateEventDialog onClose={() => undefined} />;
 }
 
 export const Normal: Story = () => {
-  return <CreateEventDialog deviceId="dummyDevice" onClose={() => {}} />;
+  return <CreateEventDialog onClose={() => {}} />;
 };
 
 Normal.play = async () => {
@@ -67,7 +67,7 @@ Normal.play = async () => {
 };
 
 export const WithDuplicates: Story = () => {
-  return <CreateEventDialog deviceId="dummyDevice" onClose={() => {}} />;
+  return <CreateEventDialog onClose={() => {}} />;
 };
 
 WithDuplicates.play = async () => {

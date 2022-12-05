@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
@@ -19,6 +20,7 @@ import {
   IconButton,
   ButtonGroup,
 } from "@mui/material";
+import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import { countBy } from "lodash";
 import { KeyboardEvent, useCallback } from "react";
 import { useAsyncFn } from "react-use";
@@ -27,7 +29,7 @@ import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
 import Log from "@foxglove/log";
-import { toDate, toNanoSec } from "@foxglove/rostime";
+import { toDate } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -80,10 +82,12 @@ const useStyles = makeStyles<void, "toggleButton">()((theme, _params, classes) =
 type KeyValue = { key: string; value: string };
 
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 
-export function CreateEventDialog(props: { deviceId: string; onClose: () => void }): JSX.Element {
-  const { deviceId, onClose } = props;
+export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
+  const { onClose } = props;
+  const urlState = useMessagePipeline(selectUrlState);
 
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
@@ -91,14 +95,18 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
   const refreshEvents = useEvents(selectRefreshEvents);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const [event, setEvent] = useImmer<{
+    eventName: string;
     startTime: undefined | Date;
     duration: undefined | number;
     durationUnit: "sec" | "nsec";
+    description: undefined | string;
     metadataEntries: KeyValue[];
   }>({
+    eventName: "",
     startTime: currentTime ? toDate(currentTime) : undefined,
     duration: 0,
     durationUnit: "sec",
+    description: "",
     metadataEntries: [{ key: "", value: "" }],
   });
 
@@ -142,19 +150,43 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
     const keyedMetadata = Object.fromEntries(
       filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
     );
-    await consoleApi.createEvent({
-      deviceId,
-      timestamp: event.startTime.toISOString(),
-      durationNanos: toNanoSec(
-        event.durationUnit === "sec"
-          ? { sec: event.duration, nsec: 0 }
-          : { sec: 0, nsec: event.duration },
-      ).toString(),
-      metadata: keyedMetadata,
+
+    const newEvent = new Event();
+
+    newEvent.setDisplayName(event.eventName);
+    const timestamp = new Timestamp();
+
+    timestamp.fromDate(event.startTime);
+
+    newEvent.setTriggerTime(timestamp);
+
+    if (event.durationUnit === "sec") {
+      newEvent.setDuration(event.duration);
+    } else {
+      newEvent.setDuration(event.duration / 1e9);
+    }
+
+    if (event.description) {
+      newEvent.setDescription(event.description);
+    }
+
+    Object.keys(keyedMetadata).forEach((key) => {
+      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
+
+    const recordName = (urlState?.parameters?.recordName ?? "").split("/records/");
+
+    const parent = recordName[0] ?? "";
+
+    await consoleApi.createEvent({
+      event: newEvent,
+      parent,
+      recordName: urlState!.parameters!.recordName!,
+    });
+
     onClose();
     refreshEvents();
-  }, [consoleApi, deviceId, event, onClose, refreshEvents]);
+  }, [consoleApi, urlState, event, onClose, refreshEvents]);
 
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: KeyboardEvent) => {
@@ -193,6 +225,20 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
         <Typography variant="h2">Create event</Typography>
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
+        <TextField
+          id="event-name"
+          label="Event Name"
+          multiline
+          maxRows={1}
+          value={event.eventName}
+          onChange={(val) => {
+            setEvent((old) => ({ ...old, eventName: val.target.value }));
+          }}
+          fullWidth
+          variant="standard"
+        />
+      </Stack>
+      <Stack paddingX={3} paddingTop={2}>
         <div className={classes.grid}>
           <FormControl>
             <FormLabel>Start Time</FormLabel>
@@ -226,9 +272,9 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
                   <ToggleButton className={classes.toggleButton} tabIndex={-1} value="sec">
                     sec
                   </ToggleButton>
-                  <ToggleButton className={classes.toggleButton} tabIndex={-1} value="nsec">
+                  {/* <ToggleButton className={classes.toggleButton} tabIndex={-1} value="nsec">
                     nsec
-                  </ToggleButton>
+                  </ToggleButton> */}
                 </ToggleButtonGroup>
               ),
             }}
@@ -241,6 +287,22 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
               <AddIcon />
             </IconButton>
           </ButtonGroup>
+        </div>
+      </Stack>
+      <Stack paddingX={3} paddingTop={2}>
+        <div>
+          <TextField
+            id="description"
+            label="Description"
+            multiline
+            rows={2}
+            value={event.description}
+            onChange={(val) => {
+              setEvent((old) => ({ ...old, description: val.target.value }));
+            }}
+            fullWidth
+            variant="standard"
+          />
         </div>
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
@@ -292,7 +354,7 @@ export function CreateEventDialog(props: { deviceId: string; onClose: () => void
           variant="contained"
           size="large"
           onClick={createEvent}
-          disabled={!canSubmit || createdEvent.loading}
+          disabled={!canSubmit || createdEvent.loading || !event.eventName}
         >
           {createdEvent.loading && (
             <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />

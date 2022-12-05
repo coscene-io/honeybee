@@ -7,6 +7,7 @@ import { isEmpty } from "lodash";
 import { Fragment } from "react";
 import { makeStyles } from "tss-react/mui";
 
+import { fromNanoSec, add } from "@foxglove/rostime";
 import { subtract as subtractTimes, toSec, Time } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
@@ -67,19 +68,25 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
 
   if (!isEmpty(hoveredEvents)) {
     Object.values(hoveredEvents).forEach(({ event }) => {
+      const eventStartTime = fromNanoSec(
+        BigInt(event.getTriggerTime()!.getSeconds() * 1e9 + event.getTriggerTime()!.getNanos()),
+      );
+      const eventEndTime = add(startTime, fromNanoSec(BigInt(event.getDuration() * 1e9)));
+
       tooltipItems.push({
         type: "item",
         title: "Start",
-        value: formatTime(event.startTime),
+        value: formatTime(eventStartTime),
       });
       tooltipItems.push({
         type: "item",
         title: "End",
-        value: formatTime(event.endTime),
+        value: formatTime(eventEndTime),
       });
-      if (!isEmpty(event.metadata)) {
-        Object.entries(event.metadata).forEach(([metaKey, metaValue]) => {
-          tooltipItems.push({ type: "item", title: metaKey, value: metaValue });
+
+      if (!isEmpty(event.getCustomizedFieldsMap())) {
+        event.getCustomizedFieldsMap().forEach((val, key) => {
+          tooltipItems.push({ type: "item", title: key, value: val });
         });
       }
       tooltipItems.push({ type: "divider" });
