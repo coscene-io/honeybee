@@ -9,7 +9,7 @@ build:
         buildArgs:
           BUF_TOKEN: "{{.BUF_TOKEN}}"
           GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
-          ENV: "production"
+          PROJECT_ENV: "production"
 
 profiles:
   - name: azure-dev-east-us
@@ -22,7 +22,7 @@ profiles:
             buildArgs:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
-              ENV: "azureDev"
+              PROJECT_ENV: "azureDev"
   - name: aliyun-staging-cn-hangzhou
     build:
       artifacts:
@@ -33,4 +33,4 @@ profiles:
             buildArgs:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
-              ENV: "production"
+              PROJECT_ENV: "production"
