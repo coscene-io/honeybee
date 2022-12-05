@@ -10,7 +10,6 @@ import { StoreApi, useStore } from "zustand";
 
 import { Time } from "@foxglove/rostime";
 import useGuaranteedContext from "@foxglove/studio-base/hooks/useGuaranteedContext";
-import { ConsoleEvent } from "@foxglove/studio-base/services/ConsoleApi";
 
 /**
  * Represents an event including its fractional position on the timeline.
