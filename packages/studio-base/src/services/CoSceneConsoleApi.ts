@@ -361,6 +361,13 @@ class CoSceneConsoleApi {
     };
   }
 
+  public getStreamUrl(
+    revisionName: string,
+    authHeader: string,
+  ): string {
+    return `${this._baseUrl}/v1/data/getStreams?revisionName=${revisionName}&access_token=${authHeader}`
+  }
+
   private async request<T>(
     url: string,
     config?: RequestInit,

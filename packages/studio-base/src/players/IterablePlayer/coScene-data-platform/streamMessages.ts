@@ -40,12 +40,17 @@ export type StreamParams = {
  * The console api methods used by streamMessages. This scopes the required interface to a small
  * subset of ConsoleApi to make it easier to mock/stub for tests.
  */
+interface StreamMessageApi {
+  getStreamUrl: ConsoleApi["getStreamUrl"];
+}
 
 export async function* streamMessages({
+  api,
   signal,
   parsedChannelsByTopic,
   params,
 }: {
+  api: StreamMessageApi;
   /**
    * An AbortSignal allowing the stream request to be canceled. When the signal is aborted, the
    * function may return successfully (possibly after yielding any remaining messages), or it may
@@ -185,7 +190,7 @@ export async function* streamMessages({
   try {
     // Since every request is signed with a new token, there's no benefit to caching.
     const response = await fetch(
-      `/v1/data/getStreams?revisionName=${params.revisionName}&access_token=${params.authHeader}`,
+      api.getStreamUrl(params.revisionName, params.authHeader),
       {
         method: "POST",
         signal: controller.signal,
