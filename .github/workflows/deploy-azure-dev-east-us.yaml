@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-20.04
     environment: azure-dev-east-us
     env:
+      BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
     steps:
       - name: Checkout
@@ -31,8 +32,8 @@ jobs:
           acr-login-registry: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}
           acr-username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
           acr-password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
-          azure-aks-resource-group: 'Dev-EUS'
-          azure-aks-cluster-name: 'Dev-EUS'
+          azure-aks-resource-group: "Dev-EUS"
+          azure-aks-cluster-name: "Dev-EUS"
           need-cd-tools: true
 
       - name: Skaffold build

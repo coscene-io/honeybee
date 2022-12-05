@@ -9,6 +9,17 @@ import {
 import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 
+const getApiAddress = (env: "production" | "azureDev"): string => {
+  switch (env) {
+    case "production":
+      return "https://xviz.coscene.cn";
+    case "azureDev":
+      return "https://xviz.coscene.dev";
+    default:
+      return "https://xviz.coscene.dev";
+  }
+};
+
 class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-data-platform";
   public type: IDataSourceFactory["type"] = "connection";
@@ -26,7 +37,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       sourceType: "foxgloveDataPlatform",
       initArgs: {
         api: {
-          baseUrl: window.location.origin,
+          baseUrl: getApiAddress(process.env.PROJECT_ENV as "production" | "azureDev"),
           auth: `Bearer ${localStorage.getItem("coScene_org_jwt")}`,
         },
         params: args.params,
