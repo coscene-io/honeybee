@@ -64,9 +64,9 @@ function EventTick({ event }: { event: TimelinePositionedEvent }): JSX.Element {
     <div
       className={cx(classes.tick, {
         [classes.tickHovered]: hoveredEvent
-          ? event.event.id === hoveredEvent.event.id
-          : eventsAtHoverValue[event.event.id] != undefined,
-        [classes.tickSelected]: selectedEventId === event.event.id,
+          ? event.event.getName() === hoveredEvent.event.getName()
+          : eventsAtHoverValue[event.event.getName()] != undefined,
+        [classes.tickSelected]: selectedEventId === event.event.getName(),
       })}
       style={{ left, right }}
     />
@@ -82,7 +82,7 @@ export function EventsOverlay(): JSX.Element {
   return (
     <div className={classes.root}>
       {(events.value ?? []).map((event) => (
-        <MemoEventTick key={event.event.id} event={event} />
+        <MemoEventTick key={event.event.getName()} event={event} />
       ))}
     </div>
   );

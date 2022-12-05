@@ -8,7 +8,7 @@
 // See typings/index.d.ts for additional included references
 /// <reference types="./typings" />
 
-export { default as ConsoleApi } from "@foxglove/studio-base/services/ConsoleApi";
+export { default as ConsoleApi } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 export {
   default as DialogHostIdContext,
   useDialogHostId,

@@ -2,19 +2,18 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import { useEffect, useMemo } from "react";
 import { useAsyncFn } from "react-use";
-import { useDebounce } from "use-debounce";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
-import { areEqual as areEqualTimes, subtract, Time, toSec } from "@foxglove/rostime";
+import { subtract, Time, toSec, fromNanoSec, add } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   EventsStore,
   TimelinePositionedEvent,
@@ -25,14 +24,13 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { ConsoleEvent } from "@foxglove/studio-base/services/ConsoleApi";
 
 const HOVER_TOLERANCE = 0.01;
 
 const log = Logger.getLogger(__filename);
 
 function positionEvents(
-  events: ConsoleEvent[],
+  events: Event[],
   startTime: Time,
   endTime: Time,
 ): TimelinePositionedEvent[] {
@@ -40,20 +38,30 @@ function positionEvents(
   const endSecs = toSec(endTime);
 
   return events.map((event) => {
-    const startPosition = scale(event.startTimeInSeconds, startSecs, endSecs, 0, 1);
-    const endPosition = scale(event.endTimeInSeconds, startSecs, endSecs, 0, 1);
+    const eventStartTime = fromNanoSec(
+      BigInt(event.getTriggerTime()!.getSeconds() * 1e9 + event.getTriggerTime()!.getNanos()),
+    );
+    const eventEndTime = add(eventStartTime, fromNanoSec(BigInt(event.getDuration() * 1e9)));
+
+    const startTimeInSeconds = toSec(eventStartTime);
+    const endTimeInSeconds = toSec(eventEndTime);
+
+    const startPosition = scale(startTimeInSeconds, startSecs, endSecs, 0, 1);
+    const endPosition = scale(endTimeInSeconds, startSecs, endSecs, 0, 1);
+
     return {
       event,
+      startTime: eventStartTime,
+      endTime: eventEndTime,
       endPosition,
       startPosition,
-      time: event.startTimeInSeconds,
-      secondsSinceStart: event.startTimeInSeconds - startSecs,
+      time: startTimeInSeconds,
+      secondsSinceStart: startTimeInSeconds - startSecs,
     };
   });
 }
 
 const selectEventFetchCount = (store: EventsStore) => store.eventFetchCount;
-const selectEventFilter = (store: EventsStore) => store.filter;
 const selectEvents = (store: EventsStore) => store.events;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectSetEvents = (store: EventsStore) => store.setEvents;
@@ -66,7 +74,6 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
  * Syncs events from server and syncs hovered event with hovered time.
  */
 export function EventsSyncAdapter(): ReactNull {
-  const { currentUser } = useCurrentUser();
   const urlState = useMessagePipeline(selectUrlState);
   const consoleApi = useConsoleApi();
   const setEvents = useEvents(selectSetEvents);
@@ -76,9 +83,6 @@ export function EventsSyncAdapter(): ReactNull {
   const endTime = useMessagePipeline(selectEndTime);
   const events = useEvents(selectEvents);
   const eventFetchCount = useEvents(selectEventFetchCount);
-  const filter = useEvents(selectEventFilter);
-
-  const [debouncedFilter] = useDebounce(filter, 300);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -88,47 +92,30 @@ export function EventsSyncAdapter(): ReactNull {
     return toSec(subtract(endTime, startTime));
   }, [endTime, startTime]);
 
-  const currentUserPresent = currentUser != undefined;
+  // const currentUserPresent = currentUser != undefined;
 
   // Sync events with console API.
   const [_events, syncEvents] = useAsyncFn(async () => {
     // Compare start and end time to avoid a redundant fetch as the
     // datasource bootstraps through the state where they are not
     // completely determined.
-    if (
-      currentUserPresent &&
-      startTime &&
-      endTime &&
-      !areEqualTimes(startTime, endTime) &&
-      urlState?.sourceId === "foxglove-data-platform" &&
-      urlState.parameters != undefined
-    ) {
-      const queryParams = urlState.parameters as { deviceId: string; start: string; end: string };
-      setEvents({ loading: true });
+
+    const recordName = (urlState?.parameters?.recordName ?? "").split("/records/");
+
+    const parent = recordName[0] ?? "";
+
+    const recordId = recordName.pop() ?? "";
+
+    if (parent && recordId && startTime && endTime) {
       try {
-        const fetchedEvents = await consoleApi.getEvents({
-          ...queryParams,
-          query: debouncedFilter,
-        });
-        const positionedEvents = positionEvents(fetchedEvents, startTime, endTime);
-        setEvents({ loading: false, value: positionedEvents });
+        const eventList = await consoleApi.getEvents({ parent, recordId });
+        setEvents({ loading: false, value: positionEvents(eventList, startTime, endTime) });
       } catch (error) {
         log.error(error);
         setEvents({ loading: false, error });
       }
-    } else {
-      setEvents({ loading: false });
     }
-  }, [
-    consoleApi,
-    currentUserPresent,
-    debouncedFilter,
-    endTime,
-    setEvents,
-    startTime,
-    urlState?.parameters,
-    urlState?.sourceId,
-  ]);
+  }, [consoleApi, endTime, setEvents, startTime, urlState?.parameters]);
 
   useEffect(() => {
     syncEvents().catch((error) => log.error(error));

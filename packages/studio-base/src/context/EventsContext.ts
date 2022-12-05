@@ -2,11 +2,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import { createContext } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { DeepReadonly } from "ts-essentials";
 import { StoreApi, useStore } from "zustand";
 
+import { Time } from "@foxglove/rostime";
 import useGuaranteedContext from "@foxglove/studio-base/hooks/useGuaranteedContext";
 import { ConsoleEvent } from "@foxglove/studio-base/services/ConsoleApi";
 
@@ -15,7 +17,11 @@ import { ConsoleEvent } from "@foxglove/studio-base/services/ConsoleApi";
  */
 export type TimelinePositionedEvent = {
   /** The event. */
-  event: ConsoleEvent;
+  event: Event;
+
+  startTime: Time;
+
+  endTime: Time;
 
   /** The end position of the event, as a value 0-1 relative to the timeline. */
   endPosition: number;

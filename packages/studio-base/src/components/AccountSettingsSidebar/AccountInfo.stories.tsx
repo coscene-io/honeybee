@@ -3,7 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
-import ConsoleApi, { User } from "@foxglove/studio-base/services/ConsoleApi";
+// import ConsoleApi, { User } from "@foxglove/studio-base/services/ConsoleApi";
+import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
 import AccountInfo from "./AccountInfo";
 

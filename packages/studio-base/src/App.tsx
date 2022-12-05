@@ -41,7 +41,7 @@ import LayoutManagerProvider from "./providers/LayoutManagerProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
 import UserProfileLocalStorageProvider from "./providers/UserProfileLocalStorageProvider";
 import { LaunchPreference } from "./screens/LaunchPreference";
-import ConsoleApi from "./services/ConsoleApi";
+import ConsoleApi from "./services/CoSceneConsoleApi";
 import { ExtensionLoader } from "./services/ExtensionLoader";
 import { ILayoutStorage } from "./services/ILayoutStorage";
 import URDFAssetLoader from "./services/URDFAssetLoader";

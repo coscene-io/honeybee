@@ -186,10 +186,9 @@ export async function* streamMessages({
   try {
     // Since every request is signed with a new token, there's no benefit to caching.
     const response = await fetch(
-      `/v1/data/getStreams?start=${toRFC3339String(params.start)}&end=${toRFC3339String(
-        params.end,
-      )}&revisionName=${params.revisionName}&filename=${params.filename}`,
+      `/v1/data/getStreams?revisionName=${params.revisionName}&filename=${params.filename}`,
       {
+        method: "POST",
         signal: controller.signal,
         cache: "no-cache",
         headers: {
@@ -198,6 +197,10 @@ export async function* streamMessages({
           "fg-user-agent": FOXGLOVE_USER_AGENT,
           Authorization: `${params.authHeader}`,
         },
+        body: JSON.stringify({
+          start: toRFC3339String(params.start),
+          end: toRFC3339String(params.end),
+        }),
       },
     );
     if (response.status === 404) {

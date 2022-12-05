@@ -4,8 +4,8 @@
 
 import { filterMap } from "@foxglove/den/collection";
 import Logger from "@foxglove/log";
+import ConsoleApi, { ConsoleApiLayout } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import ConsoleApi, { ConsoleApiLayout } from "@foxglove/studio-base/services/ConsoleApi";
 import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/ILayoutStorage";
 import {
   IRemoteLayoutStorage,

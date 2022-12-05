@@ -41,7 +41,11 @@ const devServerConfig: WebpackConfiguration = {
     // Since we are only connecting to localhost, DNS rebinding attacks are not a concern during dev
     allowedHosts: "all",
     proxy: {
-      "/v1/data": "http://192.168.50.209:8080",
+      "/v1/data": {
+        target: "https://xviz.coscene.dev",
+        secure: false,
+        changeOrigin: true,
+      },
     },
   },
 

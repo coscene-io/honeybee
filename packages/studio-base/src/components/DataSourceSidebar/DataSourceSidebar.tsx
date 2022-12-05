@@ -150,7 +150,7 @@ export default function DataSourceSidebar(props: Props): JSX.Element {
                 textColor="inherit"
               >
                 <StyledTab disableRipple label="Topics" value={0} />
-                {showEventsTab && <StyledTab disableRipple label="Events" value={1} />}
+                <StyledTab disableRipple label="Events" value={1} />
                 <StyledTab
                   disableRipple
                   label={

@@ -28,7 +28,7 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
         })),
 
       setEventsAtHoverValue: (eventsAtHoverValue: TimelinePositionedEvent[]) =>
-        set({ eventsAtHoverValue: keyBy(eventsAtHoverValue, (event) => event.event.id) }),
+        set({ eventsAtHoverValue: keyBy(eventsAtHoverValue, (event) => event.event.getName()) }),
 
       setGlobalBounds: (
         newBounds:
@@ -48,7 +48,7 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
           set({
             hoveredEvent,
             hoverValue: {
-              componentId: `event_${hoveredEvent.event.id}`,
+              componentId: `event_${hoveredEvent.event.getName()}`,
               type: "PLAYBACK_SECONDS",
               value: hoveredEvent.secondsSinceStart,
             },

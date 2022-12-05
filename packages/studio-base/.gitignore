@@ -1,2 +1,4 @@
 # Webpack build output
 /assets
+.yalc
+yalc.lock

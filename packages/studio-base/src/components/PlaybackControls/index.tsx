@@ -37,7 +37,6 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
@@ -57,14 +56,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const selectDeviceId = (ctx: MessagePipelineContext) => {
-  if (ctx.playerState.urlState?.sourceId === "foxglove-data-platform") {
-    return ctx.playerState.urlState.parameters?.deviceId;
-  } else {
-    return undefined;
-  }
-};
-
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 
 export default function PlaybackControls(props: {
@@ -81,8 +72,6 @@ export default function PlaybackControls(props: {
   const { classes } = useStyles();
   const [repeat, setRepeat] = useState(false);
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(false);
-  const { currentUser } = useCurrentUser();
-  const deviceId = useMessagePipeline(selectDeviceId);
 
   const toggleRepeat = useCallback(() => {
     setRepeat((old) => !old);
@@ -166,15 +155,13 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            {currentUser && deviceId && (
-              <HoverableIconButton
-                size="small"
-                title="Create event"
-                icon={<EventOutlinedIcon />}
-                activeIcon={<EventIcon />}
-                onClick={toggleCreateEventDialog}
-              />
-            )}
+            <HoverableIconButton
+              size="small"
+              title="Create event"
+              icon={<EventOutlinedIcon />}
+              activeIcon={<EventIcon />}
+              onClick={toggleCreateEventDialog}
+            />
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
@@ -215,9 +202,7 @@ export default function PlaybackControls(props: {
             <PlaybackSpeedControls />
           </Stack>
         </Stack>
-        {createEventDialogOpen && deviceId && (
-          <CreateEventDialog deviceId={deviceId} onClose={toggleCreateEventDialog} />
-        )}
+        {createEventDialogOpen && <CreateEventDialog onClose={toggleCreateEventDialog} />}
       </div>
     </>
   );
