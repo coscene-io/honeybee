@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { PanelsState } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { defaultPlaybackConfig } from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
 
 /**
  * This is loaded when the user has no layout selected on application launch
