@@ -388,7 +388,6 @@ class CoSceneConsoleApi {
     };
     const fullConfig: RequestInit = {
       ...config,
-      credentials: "include",
       headers: { ...headers, ...config?.headers },
     };
 
