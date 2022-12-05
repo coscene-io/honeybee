@@ -233,6 +233,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       };
 
       const stream = streamMessages({
+        api: this._consoleApi,
         parsedChannelsByTopic,
         params: streamByParams,
       });
@@ -258,6 +259,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       };
 
       const stream = streamMessages({
+        api: this._consoleApi,
         parsedChannelsByTopic,
         params: streamByParams,
       });
@@ -327,6 +329,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 
     const messages: MessageEvent<unknown>[] = [];
     for await (const block of streamMessages({
+      api: this._consoleApi,
       parsedChannelsByTopic: this._parsedChannelsByTopic,
       signal: abortSignal,
       params: streamByParams,
