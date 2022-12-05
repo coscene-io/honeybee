@@ -10,6 +10,7 @@ import Logger from "@foxglove/log";
 import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/mcap-support";
 import { fromNanoSec, toRFC3339String, Time } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
+import CoSceneConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
 const log = Logger.getLogger(__filename);
 
@@ -38,10 +39,10 @@ export type StreamParams = {
 
 /**
  * The console api methods used by streamMessages. This scopes the required interface to a small
- * subset of ConsoleApi to make it easier to mock/stub for tests.
+ * subset of CoSceneConsoleApi to make it easier to mock/stub for tests.
  */
 interface StreamMessageApi {
-  getStreamUrl: ConsoleApi["getStreamUrl"];
+  getStreamUrl: CoSceneConsoleApi["getStreamUrl"];
 }
 
 export async function* streamMessages({
