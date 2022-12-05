@@ -16,7 +16,7 @@ const getApiAddress = (env: "production" | "azureDev"): string => {
     case "azureDev":
       return "https://xviz.coscene.dev";
     default:
-      return "https://xviz.coscene.dev";
+      return "http://localhost:8080";
   }
 };
 

@@ -44,7 +44,6 @@ export type DataPlatformInterableSourceConsoleApi = Pick<
 
 type DataPlatformSourceParameters = {
   revisionName: string;
-  filename: string;
   recordName: string;
 };
 
@@ -78,7 +77,6 @@ export class DataPlatformIterableSource implements IIterableSource {
   public async initialize(): Promise<Initalization> {
     const apiParams = {
       revisionName: this._params.revisionName,
-      filename: this._params.filename,
     };
 
     // get topics
@@ -232,7 +230,6 @@ export class DataPlatformIterableSource implements IIterableSource {
         end: streamEnd,
         authHeader: this._consoleApi.getAuthHeader(),
         revisionName: this._params.revisionName,
-        filename: this._params.filename,
       };
 
       const stream = streamMessages({
@@ -258,7 +255,6 @@ export class DataPlatformIterableSource implements IIterableSource {
         end: localEnd,
         authHeader: this._consoleApi.getAuthHeader(),
         revisionName: this._params.revisionName,
-        filename: this._params.filename,
       };
 
       const stream = streamMessages({
@@ -324,7 +320,6 @@ export class DataPlatformIterableSource implements IIterableSource {
       end: time,
       authHeader: this._consoleApi.getAuthHeader(),
       revisionName: this._params.revisionName,
-      filename: this._params.filename,
     };
 
     streamByParams.replayPolicy = "lastPerChannel";
@@ -353,15 +348,10 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   }
 
   const revisionName = params.revisionName ?? "";
-  const filename = params.filename ?? "";
   const recordName = params.recordName ?? "";
 
   if (!revisionName) {
     throw new Error("revisionName is required for data platform source");
-  }
-
-  if (!filename) {
-    throw new Error("filename is required for data platform source");
   }
 
   if (!recordName) {
@@ -370,7 +360,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
 
   const dpSourceParams: DataPlatformSourceParameters = {
     revisionName,
-    filename,
     recordName,
   };
 
