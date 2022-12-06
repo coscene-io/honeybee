@@ -16,13 +16,11 @@ build:
             ignoreChanges: true
   artifacts:
     - image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee
-      context: .
-      docker:
-        dockerfile: Dockerfile
-        buildArgs:
-          BUF_TOKEN: "{{.BUF_TOKEN}}"
-          GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
-          PROJECT_ENV: "production"
+      custom:
+        buildCommand: docker buildx build --build-arg BUF_TOKEN={{.BUF_TOKEN}} --build-arg GH_PACKAGES_ORG_TOKEN={{.GH_PACKAGES_ORG_TOKEN}} --build-arg PROJECT_ENV=production --file Dockerfile --tag $IMAGE --push $BUILD_CONTEXT
+        dependencies:
+          paths:
+          - .
   local:
     useBuildkit: true
     tryImportMissing: true
