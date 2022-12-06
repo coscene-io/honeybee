@@ -100,6 +100,7 @@ export class BlockLoader {
   }
 
   public setTopics(topics: Set<string>): void {
+    debugger;
     if (isEqual(topics, this.topics)) {
       return;
     }
@@ -156,7 +157,7 @@ export class BlockLoader {
 
   private async load(args: { progress: LoadArgs["progress"] }): Promise<void> {
     const topics = this.topics;
-
+    debugger;
     // Ignore changing the blocks if the topic list is empty
     if (topics.size === 0) {
       args.progress(this.calculateProgress(topics));
@@ -226,6 +227,8 @@ export class BlockLoader {
 
       const cursorStartTime = this.blockIdToStartTime(blockId);
       const cursorEndTime = clampTime(this.blockIdToEndTime(endBlockId), this.start, this.end);
+
+      debugger;
 
       const iteratorArgs: MessageIteratorArgs = {
         topics: Array.from(topicsToFetch),

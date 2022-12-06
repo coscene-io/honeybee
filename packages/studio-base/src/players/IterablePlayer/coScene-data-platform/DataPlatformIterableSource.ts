@@ -225,6 +225,7 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamEnd = clampTime(args.end ?? this._end, this._start, this._end);
 
     if (args.consumptionType === "full") {
+      debugger;
       const streamByParams: StreamParams = {
         start: streamStart,
         end: streamEnd,
