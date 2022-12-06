@@ -5,6 +5,8 @@ ARG BUF_TOKEN \
   GH_PACKAGES_ORG_TOKEN \
   PROJECT_ENV
 
+ENV NODE_OPTIONS=--max_old_space_size=6144
+
 COPY . ./
 
 RUN corepack enable
