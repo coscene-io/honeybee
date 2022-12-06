@@ -6,6 +6,7 @@ ARG BUF_TOKEN \
   PROJECT_ENV
 
 ENV NODE_OPTIONS=--max_old_space_size=6144
+RUN DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
 
 COPY . ./
 
