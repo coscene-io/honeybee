@@ -899,6 +899,7 @@ export default class UserNodePlayer implements Player {
     subscriptions: SubscribePayload[],
     state: ProtectedState,
   ): void {
+    debugger;
     const nodeSubscriptions: Record<string, SubscribePayload> = {};
     const realTopicSubscriptions: SubscribePayload[] = [];
 
@@ -908,6 +909,7 @@ export default class UserNodePlayer implements Player {
     for (const subscription of subscriptions) {
       const inputs = state.inputsByOutputTopic.get(subscription.topic);
       if (!inputs) {
+        console.log("!inputs subscription", subscription);
         nodeSubscriptions[subscription.topic] = subscription;
         realTopicSubscriptions.push(subscription);
         continue;
@@ -920,6 +922,7 @@ export default class UserNodePlayer implements Player {
 
       nodeSubscriptions[subscription.topic] = subscription;
       for (const inputTopic of inputs) {
+        console.log("const inputTopic of inputs", subscription);
         realTopicSubscriptions.push({
           topic: inputTopic,
           preloadType: subscription.preloadType ?? "partial",
