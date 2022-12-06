@@ -282,8 +282,6 @@ export class IterablePlayer implements Player {
     this._subscriptions = newSubscriptions;
     this._metricsCollector.setSubscriptions(newSubscriptions);
 
-    debugger;
-
     console.log("this._subscriptions", this._subscriptions);
 
     const allTopics = new Set(this._subscriptions.map((subscription) => subscription.topic));
