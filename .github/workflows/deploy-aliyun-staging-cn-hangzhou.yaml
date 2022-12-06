@@ -18,12 +18,6 @@ jobs:
       BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
     steps:
-      - name: cleanup
-        run: |
-          which yarn
-          yarn --version
-          yarn cache clean
-
       - name: Checkout
         uses: actions/checkout@v3
         with:
