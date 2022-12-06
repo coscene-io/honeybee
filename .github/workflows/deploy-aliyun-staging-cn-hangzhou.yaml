@@ -36,6 +36,13 @@ jobs:
           alicloud-ack-cluster-id: ${{ secrets.ACK_CLUSTER_ID }}
           need-cd-tools: true
 
+      - name: Testing Environment
+        run: |
+          node -v
+          which node
+          corepack enable
+          yarn cache clean
+
       - name: Set up Docker Context for Buildx
         run: docker context create builders
 
