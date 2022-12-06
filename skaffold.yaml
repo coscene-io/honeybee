@@ -15,7 +15,7 @@ build:
           gitCommit:
             ignoreChanges: true
   artifacts:
-    - image: registry.cn-hangzhou.aliyuncs.com/coscene/
+    - image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee
       context: .
       docker:
         dockerfile: Dockerfile
@@ -23,6 +23,9 @@ build:
           BUF_TOKEN: "{{.BUF_TOKEN}}"
           GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
           PROJECT_ENV: "production"
+  local:
+    useBuildkit: true
+    tryImportMissing: true
 
 profiles:
   - name: azure-dev-east-us
@@ -36,14 +39,4 @@ profiles:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "azureDev"
-  - name: aliyun-staging-cn-hangzhou
-    build:
-      artifacts:
-        - image: registry.cn-hangzhou.aliyuncs.com/coscene/
-          context: .
-          docker:
-            dockerfile: Dockerfile
-            buildArgs:
-              BUF_TOKEN: "{{.BUF_TOKEN}}"
-              GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
-              PROJECT_ENV: "production"
+              

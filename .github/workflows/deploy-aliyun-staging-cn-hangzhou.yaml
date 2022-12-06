@@ -27,7 +27,7 @@ jobs:
         uses: coscene-io/setup-cd-workspace-all-in-one@v0.0.7
         with:
           cloud-provider: AliCloud
-          acr-login-registry: ${{ env.REPOSITORY }}
+          acr-login-registry: registry.cn-hangzhou.aliyuncs.com/coscene
           acr-username: ${{ secrets.ACR_USERNAME }}
           acr-password: ${{ secrets.ACR_PASSWORD }}
           alicloud-ack-access-key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
