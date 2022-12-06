@@ -18,6 +18,12 @@ jobs:
       BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
     steps:
+      - name: cleanup
+        run: |
+          which yarn
+          yarn --version
+          yarn cache clean
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -45,10 +51,10 @@ jobs:
           version: latest
           endpoint: builders
           driver-opts: |
-              env.http_proxy=${{ env.http_proxy }}
-              env.https_proxy=${{ env.http_proxy }}
-              env.BUILDKIT_STEP_LOG_MAX_SIZE=-1
-              env.BUILDKIT_STEP_LOG_MAX_SPEED=-1
+            env.http_proxy=${{ env.http_proxy }}
+            env.https_proxy=${{ env.http_proxy }}
+            env.BUILDKIT_STEP_LOG_MAX_SIZE=-1
+            env.BUILDKIT_STEP_LOG_MAX_SPEED=-1
 
       - name: Skaffold build
         run: |
