@@ -52,4 +52,5 @@ jobs:
 
       - name: Skaffold build
         run: |
+          rm -rf /root/.cache
           skaffold build -p aliyun-staging-cn-hangzhou
