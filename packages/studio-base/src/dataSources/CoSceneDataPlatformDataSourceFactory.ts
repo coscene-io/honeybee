@@ -12,9 +12,9 @@ import { Player } from "@foxglove/studio-base/players/types";
 const getApiAddress = (env: "production" | "azureDev"): string => {
   switch (env) {
     case "production":
-      return "https://xviz.coscene.cn";
+      return "https://honeybee.coscene.cn";
     case "azureDev":
-      return "https://xviz.coscene.dev";
+      return "https://honeybee.coscene.dev";
     default:
       return "http://localhost:8080";
   }
