@@ -11,6 +11,7 @@ RUN corepack enable
 RUN yarn config set httpProxy http://gfw:7890
 RUN yarn config set httpsProxy http://gfw:7890
 RUN yarn set version berry
+RUN yarn cache clean
 RUN yarn install
 
 ENV FOXGLOVE_DISABLE_SIGN_IN=true
