@@ -1,5 +1,5 @@
 # Build stage
-FROM node:16 as build
+FROM node:18-bullseye as build
 WORKDIR /src
 ARG BUF_TOKEN \
   GH_PACKAGES_ORG_TOKEN \
