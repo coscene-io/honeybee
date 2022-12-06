@@ -24,6 +24,11 @@ jobs:
           fetch-depth: 2
           lfs: true
 
+      - name: Setup Node env
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18.x"
+
       - name: Setup CD workspace
         uses: coscene-io/setup-cd-workspace-all-in-one@v0.0.7
         with:
