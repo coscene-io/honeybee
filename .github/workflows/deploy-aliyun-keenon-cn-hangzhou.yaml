@@ -48,7 +48,7 @@ jobs:
   sync:
     runs-on: self-hosted
     needs: build
-    environment: aliyun-keenon-cn-hangzhou
+    environment: azure-dev-east-us
     env:
       http_proxy: http://gfw:7890
       https_proxy: http://gfw:7890
