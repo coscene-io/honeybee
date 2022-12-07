@@ -26,6 +26,7 @@ profiles:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "azureDev"
+              ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"
   - name: aliyun-staging-cn-hangzhou
     build:
       artifacts:
@@ -37,6 +38,7 @@ profiles:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "production"
+              ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"
   - name: aliyun-keenon-cn-hangzhou
     build:
       artifacts:
@@ -48,3 +50,4 @@ profiles:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "keenon"
+              ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"

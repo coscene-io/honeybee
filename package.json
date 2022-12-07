@@ -27,7 +27,7 @@
     "web:build:dev": "webpack --mode development --progress --config web/webpack.config.ts",
     "web:build:prod": "webpack --mode production --progress --config web/webpack.config.ts",
     "web:serve": "webpack serve --mode development --progress --config web/webpack.config.ts",
-    "web:serve:local": "webpack serve --mode development --progress --config web/webpack.config.ts --env FOXGLOVE_BACKEND=local PROJECT_ENV=${PROJECT_ENV}",
+    "web:serve:local": "webpack serve --mode development --progress --config web/webpack.config.ts --env FOXGLOVE_BACKEND=local PROJECT_ENV=azureDev",
     "benchmark:serve": "webpack serve --mode development --progress --config benchmark/webpack.config.ts",
     "benchmark:build:prod": "webpack --mode production --progress --config benchmark/webpack.config.ts",
     "license-check": "ts-node ci/license-check.ts",
