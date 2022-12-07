@@ -105,10 +105,10 @@ export function MessagePipelineProvider({
     };
   }, [debouncedPlayerSetSubscriptions]);
 
-  useEffect(
-    () => debouncedPlayerSetSubscriptions(subscriptions),
-    [debouncedPlayerSetSubscriptions, subscriptions],
-  );
+  useEffect(() => {
+    debugger;
+    return debouncedPlayerSetSubscriptions(subscriptions);
+  }, [debouncedPlayerSetSubscriptions, subscriptions]);
   useEffect(() => player?.setPublishers(publishers), [player, publishers]);
 
   // Slow down the message pipeline framerate to the given FPS if it is set to less than 60

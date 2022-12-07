@@ -224,28 +224,28 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamStart = args.start ?? this._start;
     const streamEnd = clampTime(args.end ?? this._end, this._start, this._end);
 
-    if (args.consumptionType === "full") {
-      const streamByParams: StreamParams = {
-        start: streamStart,
-        end: streamEnd,
-        authHeader: this._consoleApi.getAuthHeader(),
-        revisionName: this._params.revisionName,
-      };
+    // if (args.consumptionType === "full") {
+    //   const streamByParams: StreamParams = {
+    //     start: streamStart,
+    //     end: streamEnd,
+    //     authHeader: this._consoleApi.getAuthHeader(),
+    //     revisionName: this._params.revisionName,
+    //   };
 
-      const stream = streamMessages({
-        api: this._consoleApi,
-        parsedChannelsByTopic,
-        params: streamByParams,
-      });
+    //   const stream = streamMessages({
+    //     api: this._consoleApi,
+    //     parsedChannelsByTopic,
+    //     params: streamByParams,
+    //   });
 
-      for await (const messages of stream) {
-        for (const message of messages) {
-          yield { type: "message-event", msgEvent: message };
-        }
-      }
+    //   for await (const messages of stream) {
+    //     for (const message of messages) {
+    //       yield { type: "message-event", msgEvent: message };
+    //     }
+    //   }
 
-      return;
-    }
+    //   return;
+    // }
 
     let localStart = streamStart;
     let localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);

@@ -884,6 +884,7 @@ export default class UserNodePlayer implements Player {
   }
 
   public setSubscriptions(subscriptions: SubscribePayload[]): void {
+    debugger;
     this._subscriptions = subscriptions;
     this._protectedState
       .runExclusive(async (state) => {
@@ -899,7 +900,6 @@ export default class UserNodePlayer implements Player {
     subscriptions: SubscribePayload[],
     state: ProtectedState,
   ): void {
-    debugger;
     const nodeSubscriptions: Record<string, SubscribePayload> = {};
     const realTopicSubscriptions: SubscribePayload[] = [];
 
@@ -907,7 +907,9 @@ export default class UserNodePlayer implements Player {
     // the map of output topics -> inputs. Add these required input topics to the set of topic
     // subscriptions to the underlying player.
     for (const subscription of subscriptions) {
+      debugger;
       const inputs = state.inputsByOutputTopic.get(subscription.topic);
+      console.log("inputsByOutputTopic", inputs);
       if (!inputs) {
         console.log("!inputs subscription", subscription);
         nodeSubscriptions[subscription.topic] = subscription;
