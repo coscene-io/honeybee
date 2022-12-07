@@ -3,12 +3,13 @@ FROM node:16 as build
 WORKDIR /src
 ARG BUF_TOKEN \
   GH_PACKAGES_ORG_TOKEN \
-  PROJECT_ENV
+  PROJECT_ENV \
+  ROLLBAR_ACCESS_TOKEN
 
 COPY . ./
 
 RUN corepack enable
-RUN yarn install --immutable
+RUN yarn install
 
 ENV FOXGLOVE_DISABLE_SIGN_IN=true
 RUN yarn run web:build:prod
