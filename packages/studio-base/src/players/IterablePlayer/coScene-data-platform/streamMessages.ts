@@ -35,6 +35,7 @@ export type StreamParams = {
   authHeader?: string;
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
+  topics: string[];
 };
 
 /**
@@ -202,6 +203,7 @@ export async function* streamMessages({
       body: JSON.stringify({
         start: toRFC3339String(params.start),
         end: toRFC3339String(params.end),
+        topics: params.topics,
       }),
     });
     if (response.status === 404) {
