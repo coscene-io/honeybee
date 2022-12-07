@@ -17,7 +17,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-20.04
-    environment: aliyun-keenon-cn-hangzhou
+    environment: azure-dev-east-us
     env:
       BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
