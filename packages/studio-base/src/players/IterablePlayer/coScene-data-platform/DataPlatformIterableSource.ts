@@ -225,32 +225,28 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamEnd = clampTime(args.end ?? this._end, this._start, this._end);
 
     if (args.consumptionType === "full") {
+      const streamByParams: StreamParams = {
+        start: streamStart,
+        end: streamEnd,
+        authHeader: this._consoleApi.getAuthHeader(),
+        revisionName: this._params.revisionName,
+        topics: args.topics,
+      };
+
+      const stream = streamMessages({
+        api: this._consoleApi,
+        parsedChannelsByTopic,
+        params: streamByParams,
+      });
+
+      for await (const messages of stream) {
+        for (const message of messages) {
+          yield { type: "message-event", msgEvent: message };
+        }
+      }
+
       return;
     }
-
-    // 某些topic需要请求整个bag完整的数据， 目前不支持getStreams中带topic，所以暂时注释掉 @junhui.li
-    // if (args.consumptionType === "full") {
-    //   const streamByParams: StreamParams = {
-    //     start: streamStart,
-    //     end: streamEnd,
-    //     authHeader: this._consoleApi.getAuthHeader(),
-    //     revisionName: this._params.revisionName,
-    //   };
-
-    //   const stream = streamMessages({
-    //     api: this._consoleApi,
-    //     parsedChannelsByTopic,
-    //     params: streamByParams,
-    //   });
-
-    //   for await (const messages of stream) {
-    //     for (const message of messages) {
-    //       yield { type: "message-event", msgEvent: message };
-    //     }
-    //   }
-
-    //   return;
-    // }
 
     let localStart = streamStart;
     let localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
@@ -261,6 +257,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         end: localEnd,
         authHeader: this._consoleApi.getAuthHeader(),
         revisionName: this._params.revisionName,
+        topics: args.topics,
       };
 
       const stream = streamMessages({
@@ -327,6 +324,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       end: time,
       authHeader: this._consoleApi.getAuthHeader(),
       revisionName: this._params.revisionName,
+      topics,
     };
 
     streamByParams.replayPolicy = "lastPerChannel";

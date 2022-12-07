@@ -35,6 +35,7 @@ export type StreamParams = {
   authHeader?: string;
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
+  topics: string[];
 };
 
 /**
