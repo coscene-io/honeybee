@@ -53,7 +53,19 @@ jobs:
       http_proxy: http://gfw:7890
       https_proxy: http://gfw:7890
     steps:
-      - name: Login to Docker Registry
+      - name: Login to Azure Docker Registry
+        uses: coscene-io/setup-cd-workspace-all-in-one@v0.0.7
+        with:
+          cloud-provider: Azure
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          acr-login-registry: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}
+          acr-username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
+          acr-password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
+          azure-aks-resource-group: "Dev-EUS"
+          azure-aks-cluster-name: "Dev-EUS"
+      - name: Login to AliCloud Docker Registry
         uses: docker/login-action@v2
         with:
           registry: registry.cn-hangzhou.aliyuncs.com
