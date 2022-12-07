@@ -14,18 +14,6 @@ build:
         - name: BAR
           gitCommit:
             ignoreChanges: true
-  artifacts:
-    - image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee
-      # custom:
-      #   buildCommand: docker buildx build --build-arg HTTP_PROXY=http://gfw:7890 --build-arg HTTPS_PROXY=http://gfw:7890 --build-arg http_proxy=http://gfw:7890 --build-arg https_proxy=http://gfw:7890 --build-arg BUF_TOKEN={{.BUF_TOKEN}} --build-arg GH_PACKAGES_ORG_TOKEN={{.GH_PACKAGES_ORG_TOKEN}} --build-arg PROJECT_ENV=production --file Dockerfile --tag $IMAGE --push $BUILD_CONTEXT
-      context: .
-      docker:
-        dockerfile: Dockerfile
-        buildArgs:
-          BUF_TOKEN: "{{.BUF_TOKEN}}"
-          GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
-          PROJECT_ENV: "production"
-
 profiles:
   - name: azure-dev-east-us
     build:
@@ -39,3 +27,24 @@ profiles:
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "azureDev"
   - name: aliyun-staging-cn-hangzhou
+    build:
+      artifacts:
+        - image: coseus.azurecr.io/honeybee
+          context: .
+          docker:
+            dockerfile: Dockerfile
+            buildArgs:
+              BUF_TOKEN: "{{.BUF_TOKEN}}"
+              GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
+              PROJECT_ENV: "production"
+  - name: aliyun-keenon-cn-hangzhou
+    build:
+      artifacts:
+        - image: coseus.azurecr.io/honeybee
+          context: .
+          docker:
+            dockerfile: Dockerfile
+            buildArgs:
+              BUF_TOKEN: "{{.BUF_TOKEN}}"
+              GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
+              PROJECT_ENV: "keenon"

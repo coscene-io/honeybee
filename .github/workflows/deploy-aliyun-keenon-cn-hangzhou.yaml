@@ -2,12 +2,12 @@
 # we can only build the image on the GitHub runner,
 # and then synchronize it to the Alibaba ACR service.
 # And this is a way to save self-hosted runner resources.
-name: Deploy to aliyun-staging-cn-hangzhou
+name: Deploy to aliyun-keenon-cn-hangzhou
 
 on:
   push:
-    branches:
-      - releases
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
   workflow_dispatch:
 
 permissions:
@@ -17,7 +17,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-20.04
-    environment: aliyun-staging-cn-hangzhou
+    environment: aliyun-keenon-cn-hangzhou
     env:
       BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
@@ -44,11 +44,11 @@ jobs:
 
       - name: Skaffold build
         run: |
-          skaffold build -p aliyun-staging-cn-hangzhou -t staging-latest
+          skaffold build -p aliyun-keenon-cn-hangzhou -t keenon-latest
   sync:
     runs-on: self-hosted
     needs: build
-    environment: aliyun-staging-cn-hangzhou
+    environment: aliyun-keenon-cn-hangzhou
     env:
       http_proxy: http://gfw:7890
       https_proxy: http://gfw:7890
@@ -67,8 +67,8 @@ jobs:
             env.https_proxy=${{ env.http_proxy }}
       - name: Push image to AliCloud
         env:
-          SRC: coseus.azurecr.io/honeybee:staging-latest
-          DST: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:staging-latest
+          SRC: coseus.azurecr.io/honeybee:keenon-latest
+          DST: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:keenon-latest
         run: |
           docker pull $SRC
           docker tag $SRC $DST
