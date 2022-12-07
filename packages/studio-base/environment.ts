@@ -43,7 +43,7 @@ export function buildEnvironmentDefaults(
     SLACK_INVITE_URL: "https://foxglove.dev/join-slack",
     FOXGLOVE_ENABLE_DIALOG_AUTH: process.env.FOXGLOVE_ENABLE_DIALOG_AUTH ?? null, // eslint-disable-line no-restricted-syntax
     PROJECT_ENV: process.env.PROJECT_ENV ?? null, // eslint-disable-line no-restricted-syntax
-    NPM_PACKAGE_VERSION: JSON.stringify(NPM_PACKAGE_VERSION),
+    NPM_PACKAGE_VERSION,
     ROLLBAR_ACCESS_TOKEN: process.env.ROLLBAR_ACCESS_TOKEN ?? null, // eslint-disable-line no-restricted-syntax
   };
 }
