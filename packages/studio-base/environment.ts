@@ -1,6 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { version as NPM_PACKAGE_VERSION } from "./package.json";
 
 function serverURLsForBackend(backend: string): { api: string; console: string } {
   if (backend === "local") {
@@ -42,5 +43,7 @@ export function buildEnvironmentDefaults(
     SLACK_INVITE_URL: "https://foxglove.dev/join-slack",
     FOXGLOVE_ENABLE_DIALOG_AUTH: process.env.FOXGLOVE_ENABLE_DIALOG_AUTH ?? null, // eslint-disable-line no-restricted-syntax
     PROJECT_ENV: process.env.PROJECT_ENV ?? null, // eslint-disable-line no-restricted-syntax
+    NPM_PACKAGE_VERSION: JSON.stringify(NPM_PACKAGE_VERSION),
+    ROLLBAR_ACCESS_TOKEN: process.env.ROLLBAR_ACCESS_TOKEN ?? null, // eslint-disable-line no-restricted-syntax
   };
 }
