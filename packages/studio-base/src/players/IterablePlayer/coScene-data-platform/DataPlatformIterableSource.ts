@@ -224,6 +224,10 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamStart = args.start ?? this._start;
     const streamEnd = clampTime(args.end ?? this._end, this._start, this._end);
 
+    if (args.consumptionType === "full") {
+      return;
+    }
+
     // if (args.consumptionType === "full") {
     //   const streamByParams: StreamParams = {
     //     start: streamStart,
