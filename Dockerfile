@@ -8,8 +8,6 @@ ARG BUF_TOKEN \
 COPY . ./
 
 RUN corepack enable
-RUN yarn config set httpProxy http://gfw:7890
-RUN yarn config set httpsProxy http://gfw:7890
 RUN yarn install
 
 ENV FOXGLOVE_DISABLE_SIGN_IN=true
