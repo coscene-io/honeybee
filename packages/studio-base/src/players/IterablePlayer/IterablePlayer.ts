@@ -19,12 +19,13 @@ import {
   toRFC3339String,
 } from "@foxglove/rostime";
 import { MessageEvent, ParameterValue } from "@foxglove/studio";
-import NoopMetricsCollector from "@foxglove/studio-base/players/NoopMetricsCollector";
+import { CoSceneNoopMetricsCollector } from "@foxglove/studio-base/players/NoopMetricsCollector";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import {
   AdvertiseOptions,
   Player,
-  PlayerMetricsCollectorInterface,
+  // PlayerMetricsCollectorInterface,
+  CoScenePlayerMetricsCollectorInterface,
   PlayerState,
   Progress,
   PublishPayload,
@@ -66,7 +67,7 @@ const MAX_BLOCKS = 400;
 const SEEK_ON_START_NS = BigInt(99 * 1e6);
 
 type IterablePlayerOptions = {
-  metricsCollector?: PlayerMetricsCollectorInterface;
+  metricsCollector?: CoScenePlayerMetricsCollectorInterface;
 
   source: IIterableSource;
 
@@ -131,7 +132,7 @@ export class IterablePlayer implements Player {
     PlayerCapabilities.playbackControl,
   ];
   private _profile: string | undefined;
-  private _metricsCollector: PlayerMetricsCollectorInterface;
+  private _metricsCollector: CoScenePlayerMetricsCollectorInterface;
   private _subscriptions: SubscribePayload[] = [];
   private _allTopics: Set<string> = new Set();
   private _partialTopics: Set<string> = new Set();
@@ -179,7 +180,7 @@ export class IterablePlayer implements Player {
     this._bufferedSource = new BufferedIterableSource(source);
     this._name = name;
     this._urlParams = urlParams;
-    this._metricsCollector = metricsCollector ?? new NoopMetricsCollector();
+    this._metricsCollector = metricsCollector ?? new CoSceneNoopMetricsCollector();
     this._metricsCollector.playerConstructed();
     this._enablePreload = enablePreload ?? true;
     this._sourceId = sourceId;
@@ -216,7 +217,7 @@ export class IterablePlayer implements Player {
       }
       this._untilTime = clampTime(opt.untilTime, this._start, this._end);
     }
-    this._metricsCollector.play(this._speed);
+    this._metricsCollector.play();
     this._isPlaying = true;
 
     // If we are idling we can start playing, if we have a next state queued we let that state
@@ -243,7 +244,6 @@ export class IterablePlayer implements Player {
   public setPlaybackSpeed(speed: number): void {
     delete this._lastRangeMillis;
     this._speed = speed;
-    this._metricsCollector.setSpeed(speed);
 
     // Queue event state update to update speed in player state to UI
     this._queueEmitState();
@@ -269,7 +269,6 @@ export class IterablePlayer implements Player {
       return;
     }
 
-    this._metricsCollector.seek(targetTime);
     this._seekTarget = targetTime;
     this._untilTime = undefined;
 
@@ -280,7 +279,6 @@ export class IterablePlayer implements Player {
   public setSubscriptions(newSubscriptions: SubscribePayload[]): void {
     log.debug("set subscriptions", newSubscriptions);
     this._subscriptions = newSubscriptions;
-    this._metricsCollector.setSubscriptions(newSubscriptions);
 
     const allTopics = new Set(this._subscriptions.map((subscription) => subscription.topic));
     const partialTopics = new Set(
@@ -991,7 +989,6 @@ export class IterablePlayer implements Player {
 
   private async _stateClose() {
     this._isPlaying = false;
-    this._metricsCollector.close();
     await this._blockLoader?.stopLoading();
     await this._blockLoadingProcess;
     await this._bufferedSource.stopProducer();

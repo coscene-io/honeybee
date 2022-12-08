@@ -13,6 +13,7 @@
 import { Time } from "@foxglove/rostime";
 import {
   PlayerMetricsCollectorInterface,
+  CoScenePlayerMetricsCollectorInterface,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
 
@@ -60,6 +61,18 @@ export default class NoopMetricsCollector implements PlayerMetricsCollectorInter
     // no-op
   }
   public recordDataProviderStall(): void {
+    // no-op
+  }
+}
+
+export class CoSceneNoopMetricsCollector implements CoScenePlayerMetricsCollectorInterface {
+  public playerConstructed(): void {
+    // no-op
+  }
+  public play(): void {
+    // no-op
+  }
+  public pause(): void {
     // no-op
   }
 }

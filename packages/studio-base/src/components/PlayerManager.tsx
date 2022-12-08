@@ -25,7 +25,7 @@ import { useLatest, useMountedState } from "react-use";
 import { useShallowMemo } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
-import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+// import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 import {
   LayoutState,
@@ -34,16 +34,20 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import { useNativeWindow } from "@foxglove/studio-base/context/NativeWindowContext";
-import PlayerSelectionContext, {
+import {
   DataSourceArgs,
-  IDataSourceFactory,
-  PlayerSelection,
+  // IDataSourceFactory,
+  CoSceneIDataSourceFactory,
+  // PlayerSelection,
+  CoScenePlayerSelection,
+  CoScenePlayerSelectionContext,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useUserNodeState } from "@foxglove/studio-base/context/UserNodeStateContext";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import useIndexedDbRecents from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 import useWarnImmediateReRender from "@foxglove/studio-base/hooks/useWarnImmediateReRender";
-import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
+// import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
+import CoSceneAnalyticsMetricsCollector from "@foxglove/studio-base/players/CoSceneAnalyticsMetricsCollector";
 import UserNodePlayer from "@foxglove/studio-base/players/UserNodePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import { UserNodes } from "@foxglove/studio-base/types/panels";
@@ -54,7 +58,7 @@ const EMPTY_USER_NODES: UserNodes = Object.freeze({});
 const EMPTY_GLOBAL_VARIABLES: GlobalVariables = Object.freeze({});
 
 type PlayerManagerProps = {
-  playerSources: IDataSourceFactory[];
+  playerSources: CoSceneIDataSourceFactory[];
 };
 
 const userNodesSelector = (state: LayoutState) =>
@@ -80,8 +84,9 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
 
   const isMounted = useMountedState();
 
-  const analytics = useAnalytics();
-  const metricsCollector = useMemo(() => new AnalyticsMetricsCollector(analytics), [analytics]);
+  // const analytics = useAnalytics();
+  // const metricsCollector = useMemo(() => new AnalyticsMetricsCollector(analytics), [analytics]);
+  const coSceneMetricsCollector = useMemo(() => new CoSceneAnalyticsMetricsCollector(), []);
 
   // When we implement per-data-connector UI settings we will move this into the foxglove data platform source.
   const consoleApi = useContext(ConsoleApiContext);
@@ -131,13 +136,13 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
         return;
       }
 
-      metricsCollector.setProperty("player", sourceId);
+      // metricsCollector.setProperty("player", sourceId);
 
       // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {
         const newPlayer = foundSource.initialize({
           consoleApi,
-          metricsCollector,
+          metricsCollector: coSceneMetricsCollector,
         });
 
         setBasePlayer(newPlayer);
@@ -175,7 +180,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
           case "connection": {
             const newPlayer = foundSource.initialize({
               consoleApi,
-              metricsCollector,
+              metricsCollector: coSceneMetricsCollector,
               params: args.params,
             });
             setBasePlayer(newPlayer);
@@ -212,7 +217,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
               const newPlayer = foundSource.initialize({
                 file: multiFile ? undefined : file,
                 files: multiFile ? fileList : undefined,
-                metricsCollector,
+                metricsCollector: coSceneMetricsCollector,
               });
 
               // If we are selecting a single file, the desktop environment might have features to
@@ -247,7 +252,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
 
               const newPlayer = foundSource.initialize({
                 file,
-                metricsCollector,
+                metricsCollector: coSceneMetricsCollector,
               });
 
               setBasePlayer(newPlayer);
@@ -270,7 +275,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
     },
     [
       playerSources,
-      metricsCollector,
+      coSceneMetricsCollector,
       enqueueSnackbar,
       consoleApi,
       layoutStorage,
@@ -317,7 +322,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
     });
   }, [recents]);
 
-  const value: PlayerSelection = {
+  const value: CoScenePlayerSelection = {
     selectSource,
     selectRecent,
     availableSources: playerSources,
@@ -326,11 +331,11 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
 
   return (
     <>
-      <PlayerSelectionContext.Provider value={value}>
+      <CoScenePlayerSelectionContext.Provider value={value}>
         <MessagePipelineProvider player={player} globalVariables={globalVariablesRef.current}>
           {children}
         </MessagePipelineProvider>
-      </PlayerSelectionContext.Provider>
+      </CoScenePlayerSelectionContext.Provider>
     </>
   );
 }
