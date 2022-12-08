@@ -5,8 +5,11 @@
 import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
-} from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import {
+  CoSceneIterablePlayer,
+  WorkerIterableSource,
+} from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 
 const getApiAddress = (env: "production" | "azureDev"): string => {
@@ -53,7 +56,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       }
     }
 
-    return new IterablePlayer({
+    return new CoSceneIterablePlayer({
       metricsCollector: args.metricsCollector,
       source,
       sourceId: this.id,

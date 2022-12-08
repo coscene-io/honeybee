@@ -5,20 +5,21 @@
 import { useMemo, useState } from "react";
 
 import {
-  IDataSourceFactory,
+  // IDataSourceFactory,
+  CoSceneIDataSourceFactory,
   // Ros1LocalBagDataSourceFactory,
   // Ros2LocalBagDataSourceFactory,
-  RosbridgeDataSourceFactory,
+  // RosbridgeDataSourceFactory,
   // Ros1RemoteBagDataSourceFactory,
   // FoxgloveDataPlatformDataSourceFactory,
   CoSceneDataPlatformDataSourceFactory,
   // FoxgloveWebSocketDataSourceFactory,
-  UlogLocalDataSourceFactory,
-  McapLocalDataSourceFactory,
-  SampleNuscenesDataSourceFactory,
+  // UlogLocalDataSourceFactory,
+  // McapLocalDataSourceFactory,
+  // SampleNuscenesDataSourceFactory,
   IAppConfiguration,
   IdbExtensionLoader,
-  McapRemoteDataSourceFactory,
+  // McapRemoteDataSourceFactory,
   App,
   ConsoleApi,
 } from "@foxglove/studio-base";
@@ -29,22 +30,22 @@ import {
 import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
 
 export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration }): JSX.Element {
-  const dataSources: IDataSourceFactory[] = useMemo(() => {
+  const dataSources: CoSceneIDataSourceFactory[] = useMemo(() => {
     const sources = [
       // new Ros1UnavailableDataSourceFactory(),
       // new Ros1LocalBagDataSourceFactory(),
       // new Ros1RemoteBagDataSourceFactory(),
       // new Ros2UnavailableDataSourceFactory(),
       // new Ros2LocalBagDataSourceFactory(),
-      new RosbridgeDataSourceFactory(),
+      // new RosbridgeDataSourceFactory(),
       // new FoxgloveWebSocketDataSourceFactory(),
-      new UlogLocalDataSourceFactory(),
+      // new UlogLocalDataSourceFactory(),
       // new VelodyneUnavailableDataSourceFactory(),
       // new FoxgloveDataPlatformDataSourceFactory(),
       new CoSceneDataPlatformDataSourceFactory(),
-      new SampleNuscenesDataSourceFactory(),
-      new McapLocalDataSourceFactory(),
-      new McapRemoteDataSourceFactory(),
+      // new SampleNuscenesDataSourceFactory(),
+      // new McapLocalDataSourceFactory(),
+      // new McapRemoteDataSourceFactory(),
     ];
 
     return sources;

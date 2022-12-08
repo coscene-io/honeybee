@@ -325,3 +325,14 @@ export interface PlayerMetricsCollectorInterface {
   recordUncachedRangeRequest(): void;
   recordTimeToFirstMsgs(): void;
 }
+
+export interface CoScenePlayerMetricsCollectorInterface {
+  // Statistics on the number of visits
+  playerConstructed(): void;
+
+  // Statistical playback time
+  play(): void;
+
+  // Statistical playback time
+  pause(): void;
+}

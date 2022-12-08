@@ -12,7 +12,7 @@ import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import {
   IDataSourceFactory,
   usePlayerSelection,
-} from "@foxglove/studio-base/context/PlayerSelectionContext";
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 import Connection from "./Connection";

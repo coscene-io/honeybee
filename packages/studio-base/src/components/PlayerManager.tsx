@@ -25,7 +25,12 @@ import { useLatest, useMountedState } from "react-use";
 import { useShallowMemo } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
-import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+// import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import PlayerSelectionContext, {
+  DataSourceArgs,
+  IDataSourceFactory,
+  PlayerSelection,
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 import {
   LayoutState,
@@ -34,16 +39,12 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import { useNativeWindow } from "@foxglove/studio-base/context/NativeWindowContext";
-import PlayerSelectionContext, {
-  DataSourceArgs,
-  IDataSourceFactory,
-  PlayerSelection,
-} from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useUserNodeState } from "@foxglove/studio-base/context/UserNodeStateContext";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import useIndexedDbRecents from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 import useWarnImmediateReRender from "@foxglove/studio-base/hooks/useWarnImmediateReRender";
-import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
+// import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
+import CoSceneAnalyticsMetricsCollector from "@foxglove/studio-base/players/CoSceneAnalyticsMetricsCollector";
 import UserNodePlayer from "@foxglove/studio-base/players/UserNodePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import { UserNodes } from "@foxglove/studio-base/types/panels";
@@ -80,8 +81,8 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
 
   const isMounted = useMountedState();
 
-  const analytics = useAnalytics();
-  const metricsCollector = useMemo(() => new AnalyticsMetricsCollector(analytics), [analytics]);
+  // const analytics = useAnalytics();
+  const metricsCollector = useMemo(() => new CoSceneAnalyticsMetricsCollector(), []);
 
   // When we implement per-data-connector UI settings we will move this into the foxglove data platform source.
   const consoleApi = useContext(ConsoleApiContext);
@@ -131,7 +132,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
         return;
       }
 
-      metricsCollector.setProperty("player", sourceId);
+      // metricsCollector.setProperty("player", sourceId);
 
       // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {

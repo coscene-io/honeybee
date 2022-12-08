@@ -10,7 +10,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import {
   IDataSourceFactory,
   usePlayerSelection,
-} from "@foxglove/studio-base/context/PlayerSelectionContext";
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 
 import View from "./View";
 
