@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { IncCounterRequest } from "@coscene-io/coscene/proto/v1alpha1";
 import {
   ListEventsRequest,
   CreateEventRequest,
@@ -9,7 +10,8 @@ import {
   DeleteEventRequest,
   UpdateEventRequest,
 } from "@coscene-io/coscene/proto/v1alpha2";
-import { eventClient } from "@coscene-io/coscene/queries";
+import { eventClient, metricClient } from "@coscene-io/coscene/queries";
+import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
@@ -137,15 +139,35 @@ export type DataPlatformRequestArgs = {
   revisionName: string;
 };
 
+export enum MetricType {
+  RecordPlaysTotal = "honeybee_record_plays_total",
+  RecordPlaysEveryFiveSecondsTotal = "honeybee_record_plays_every_five_seconds_total",
+}
+
+export type CoSceneContext = {
+  currentWarehouseId?: string;
+  currentWarehouseDisplayName?: string;
+  currentWarehouseSlug?: string;
+  currentProjectId?: string;
+  currentProjectSlug?: string;
+  currentProjectDisplayName?: string;
+  currentOrganizationId?: string;
+  currentOrganizationDisplayName?: string;
+  currentRecordId?: string;
+  isCurrentProjectArchived?: boolean;
+};
+
 type ApiResponse<T> = { status: number; json: T };
 
 class CoSceneConsoleApi {
   private _baseUrl: string;
   private _authHeader?: string;
   private _responseObserver: undefined | ((response: Response) => void);
+  private _coSceneContext: CoSceneContext;
 
-  public constructor(baseUrl: string) {
+  public constructor(baseUrl: string, coSceneContext?: CoSceneContext) {
     this._baseUrl = baseUrl;
+    this._coSceneContext = coSceneContext ?? {};
   }
 
   public getBaseUrl(): string {
@@ -286,6 +308,32 @@ class CoSceneConsoleApi {
     req.setUpdateMask(updateMask);
 
     await eventClient.updateEvent(req);
+  }
+
+  public async sendIncCounter({
+    name,
+    desc = "",
+    tag = new Map(),
+  }: {
+    name: MetricType;
+    desc?: string;
+    tag?: Map<string, string>;
+  }): Promise<void> {
+    const req = new IncCounterRequest();
+    const metric = new Metric();
+    metric.setName(name);
+    metric.setDescription(desc);
+    for (const [key, value] of tag.entries()) {
+      metric.getLabelsMap().set(key, value);
+    }
+
+    if (this._coSceneContext.currentOrganizationId) {
+      const orgId = this._coSceneContext.currentOrganizationId.split("/").pop();
+      metric.getLabelsMap().set("org_id", orgId ? orgId : "");
+    }
+
+    req.setCounter(metric);
+    await metricClient.incCounter(req);
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {

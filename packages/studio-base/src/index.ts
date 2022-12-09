@@ -9,6 +9,7 @@
 /// <reference types="./typings" />
 
 export { default as ConsoleApi } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+export type { CoSceneContext } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 export {
   default as DialogHostIdContext,
   useDialogHostId,

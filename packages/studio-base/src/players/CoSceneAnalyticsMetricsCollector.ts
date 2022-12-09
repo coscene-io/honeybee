@@ -2,36 +2,46 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import Log from "@foxglove/log";
 import { CoScenePlayerMetricsCollectorInterface } from "@foxglove/studio-base/players/types";
-
-const log = Log.getLogger(__filename);
+import CoSceneConsoleApi, { MetricType } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
 export default class CoSceneAnalyticsMetricsCollector
   implements CoScenePlayerMetricsCollectorInterface
 {
   private _timeStatistics: number = 0;
   private _playing: boolean = false;
+  private _consoleApi: CoSceneConsoleApi | undefined;
 
-  public constructor() {
-    log.debug("New CoSceneAnalyticsMetricsCollector");
+  public constructor(consoleApi: CoSceneConsoleApi | undefined) {
     this._timeStatistics = 0;
-    setTimeout(() => {
-      console.log(this._playing);
-    }, 1000);
+    this._consoleApi = consoleApi;
+    setInterval(async () => {
+      if (this._playing) {
+        this._timeStatistics += 0.1;
+        if (~~(this._timeStatistics * 10) % 50 === 0) {
+          if (this._consoleApi) {
+            await this._consoleApi.sendIncCounter({
+              name: MetricType.RecordPlaysEveryFiveSecondsTotal,
+            });
+          }
+        }
+      }
+    }, 100);
   }
 
-  public playerConstructed(): void {
-    console.log("playerConstructed");
+  public async playerConstructed(): Promise<void> {
+    if (this._consoleApi) {
+      await this._consoleApi.sendIncCounter({
+        name: MetricType.RecordPlaysTotal,
+      });
+    }
   }
 
   public play(): void {
-    console.log("is playing");
     this._playing = true;
   }
 
   public pause(): void {
-    console.log("no playing");
     this._playing = false;
   }
 }

@@ -82,10 +82,14 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
   const isMounted = useMountedState();
 
   // const analytics = useAnalytics();
-  const metricsCollector = useMemo(() => new CoSceneAnalyticsMetricsCollector(), []);
 
   // When we implement per-data-connector UI settings we will move this into the foxglove data platform source.
   const consoleApi = useContext(ConsoleApiContext);
+
+  const metricsCollector = useMemo(
+    () => new CoSceneAnalyticsMetricsCollector(consoleApi),
+    [consoleApi],
+  );
 
   const layoutStorage = useLayoutManager();
   const { setSelectedLayoutId } = useCurrentLayoutActions();
