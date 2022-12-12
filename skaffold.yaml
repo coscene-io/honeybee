@@ -51,7 +51,7 @@ profiles:
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "keenon"
               ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"
-   - name: aliyun-gaussian-cn-hangzhou
+  - name: aliyun-gaussian-cn-hangzhou
     build:
       artifacts:
         - image: coseus.azurecr.io/honeybee
