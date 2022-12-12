@@ -17,7 +17,6 @@ import useLinkedGlobalVariables from "@foxglove/studio-base/panels/ThreeDimensio
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 import Variable from "./Variable";
-import helpContent from "./index.help.md";
 
 const ANIMATION_RESET_DELAY_MS = 1500;
 
@@ -66,7 +65,6 @@ export default function VariablesSidebar(): ReactElement {
     <SidebarContent
       title="Variables"
       disablePadding
-      helpContent={helpContent}
       trailingItems={[
         <IconButton
           data-testid="add-variable-button"
