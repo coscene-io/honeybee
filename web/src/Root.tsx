@@ -5,22 +5,25 @@
 import { useMemo, useState } from "react";
 
 import {
-  IDataSourceFactory,
+  // IDataSourceFactory,
+  CoSceneIDataSourceFactory,
   // Ros1LocalBagDataSourceFactory,
   // Ros2LocalBagDataSourceFactory,
-  RosbridgeDataSourceFactory,
   RemoteDataSourceFactory,
+  // RosbridgeDataSourceFactory,
   // Ros1RemoteBagDataSourceFactory,
   // FoxgloveDataPlatformDataSourceFactory,
   CoSceneDataPlatformDataSourceFactory,
   // FoxgloveWebSocketDataSourceFactory,
-  UlogLocalDataSourceFactory,
-  McapLocalDataSourceFactory,
-  SampleNuscenesDataSourceFactory,
+  // UlogLocalDataSourceFactory,
+  // McapLocalDataSourceFactory,
+  // SampleNuscenesDataSourceFactory,
   IAppConfiguration,
   IdbExtensionLoader,
+  // McapRemoteDataSourceFactory,
   App,
   ConsoleApi,
+  CoSceneContext,
 } from "@foxglove/studio-base";
 
 // import Ros1UnavailableDataSourceFactory from "./dataSources/Ros1UnavailableDataSourceFactory";
@@ -28,8 +31,19 @@ import {
 // import VelodyneUnavailableDataSourceFactory from "./dataSources/VelodyneUnavailableDataSourceFactory";
 import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
 
+export const getApiAddress = (env: "production" | "azureDev"): string => {
+  switch (env) {
+    case "production":
+      return "https://honeybee.coscene.cn";
+    case "azureDev":
+      return "https://honeybee.coscene.dev";
+    default:
+      return "http://localhost:8080";
+  }
+};
+
 export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration }): JSX.Element {
-  const dataSources: IDataSourceFactory[] = useMemo(() => {
+  const dataSources: CoSceneIDataSourceFactory[] = useMemo(() => {
     const sources = [
       // new Ros1UnavailableDataSourceFactory(),
       // new Ros1LocalBagDataSourceFactory(),
@@ -40,15 +54,15 @@ export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration
       // new Ros1RemoteBagDataSourceFactory(),
       // new Ros2UnavailableDataSourceFactory(),
       // new Ros2LocalBagDataSourceFactory(),
-      new RosbridgeDataSourceFactory(),
+      // new RosbridgeDataSourceFactory(),
       // new FoxgloveWebSocketDataSourceFactory(),
-      new UlogLocalDataSourceFactory(),
+      // new UlogLocalDataSourceFactory(),
       // new VelodyneUnavailableDataSourceFactory(),
       // new FoxgloveDataPlatformDataSourceFactory(),
       new CoSceneDataPlatformDataSourceFactory(),
-      new SampleNuscenesDataSourceFactory(),
-      new McapLocalDataSourceFactory(),
-      new RemoteDataSourceFactory(),
+      // new SampleNuscenesDataSourceFactory(),
+      // new McapLocalDataSourceFactory(),
+      // new RemoteDataSourceFactory(),
     ];
 
     return sources;
@@ -59,7 +73,15 @@ export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration
     new IdbExtensionLoader("org"),
     new IdbExtensionLoader("local"),
   ]);
-  const consoleApi = useMemo(() => new ConsoleApi(process.env.FOXGLOVE_API_URL ?? ""), []);
+
+  const consoleApi = useMemo(
+    () =>
+      new ConsoleApi(
+        getApiAddress(process.env.PROJECT_ENV as "production" | "azureDev"),
+        JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}") as CoSceneContext,
+      ),
+    [],
+  );
 
   // Enable dialog auth in development since using cookie auth does not work between
   // localhost and the hosted dev deployment due to browser cookie/host security.

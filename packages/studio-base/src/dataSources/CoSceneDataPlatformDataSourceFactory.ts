@@ -5,11 +5,14 @@
 import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
-} from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import {
+  CoSceneIterablePlayer,
+  WorkerIterableSource,
+} from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 
-const getApiAddress = (env: "production" | "azureDev"): string => {
+export const getApiAddress = (env: "production" | "azureDev"): string => {
   switch (env) {
     case "production":
       return "https://honeybee.coscene.cn";
@@ -41,6 +44,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
           auth: `Bearer ${localStorage.getItem("coScene_org_jwt")}`,
         },
         params: args.params,
+        coSceneContext: JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
       },
     });
 
@@ -53,7 +57,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       }
     }
 
-    return new IterablePlayer({
+    return new CoSceneIterablePlayer({
       metricsCollector: args.metricsCollector,
       source,
       sourceId: this.id,

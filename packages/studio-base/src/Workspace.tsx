@@ -57,6 +57,10 @@ import { StudioLogsSettingsSidebar } from "@foxglove/studio-base/components/Stud
 import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
 import VariablesSidebar from "@foxglove/studio-base/components/VariablesSidebar";
 import { useAssets } from "@foxglove/studio-base/context/AssetsContext";
+import {
+  IDataSourceFactory,
+  usePlayerSelection,
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 import {
   LayoutState,
@@ -66,10 +70,6 @@ import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import LinkHandlerContext from "@foxglove/studio-base/context/LinkHandlerContext";
 import { useNativeAppMenu } from "@foxglove/studio-base/context/NativeAppMenuContext";
-import {
-  IDataSourceFactory,
-  usePlayerSelection,
-} from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspace, WorkspaceContext } from "@foxglove/studio-base/context/WorkspaceContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import useAddPanel from "@foxglove/studio-base/hooks/useAddPanel";

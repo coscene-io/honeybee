@@ -11,8 +11,8 @@ import FoxgloveLogoText from "@foxglove/studio-base/components/FoxgloveLogoText"
 import Stack from "@foxglove/studio-base/components/Stack";
 import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 import { OpenDialogViews } from "./types";
