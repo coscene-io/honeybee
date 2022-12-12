@@ -29,10 +29,7 @@ import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import AccountSettings from "@foxglove/studio-base/components/AccountSettingsSidebar/AccountSettings";
 import { DataSourceSidebar } from "@foxglove/studio-base/components/DataSourceSidebar";
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
-import ExtensionsSidebar from "@foxglove/studio-base/components/ExtensionsSidebar";
-import HelpSidebar, {
-  MESSAGE_PATH_SYNTAX_HELP_INFO,
-} from "@foxglove/studio-base/components/HelpSidebar";
+import { MESSAGE_PATH_SYNTAX_HELP_INFO } from "@foxglove/studio-base/components/HelpSidebar";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import LayoutBrowser from "@foxglove/studio-base/components/LayoutBrowser";
 import {
@@ -44,7 +41,6 @@ import MultiProvider from "@foxglove/studio-base/components/MultiProvider";
 import { OpenDialog, OpenDialogViews } from "@foxglove/studio-base/components/OpenDialog";
 import PanelLayout from "@foxglove/studio-base/components/PanelLayout";
 import PanelList from "@foxglove/studio-base/components/PanelList";
-import panelsHelpContent from "@foxglove/studio-base/components/PanelList/index.help.md";
 import PanelSettings from "@foxglove/studio-base/components/PanelSettings";
 import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls";
 import Preferences from "@foxglove/studio-base/components/Preferences";
@@ -132,11 +128,7 @@ function AddPanel() {
   const selectedLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
 
   return (
-    <SidebarContent
-      disablePadding={selectedLayoutId != undefined}
-      title="Add panel"
-      helpContent={panelsHelpContent}
-    >
+    <SidebarContent disablePadding={selectedLayoutId != undefined} title="Add panel">
       {selectedLayoutId == undefined ? (
         <Typography color="text.secondary">
           <Link onClick={openLayoutBrowser}>Select a layout</Link> to get started!
@@ -523,7 +515,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
         { iconName: "PanelSettings", title: "Panel settings", component: PanelSettings },
       ],
       ["variables", { iconName: "Variable2", title: "Variables", component: VariablesSidebar }],
-      ["extensions", { iconName: "AddIn", title: "Extensions", component: ExtensionsSidebar }],
     ]);
 
     if (enableStudioLogsSidebar) {
@@ -535,7 +526,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     }
 
     const bottomItems = new Map<SidebarItemKey, SidebarItem>([
-      ["help", { iconName: "QuestionCircle", title: "Help", component: HelpSidebar }],
+      // ["help", { iconName: "QuestionCircle", title: "Help", component: HelpSidebar }],
     ]);
 
     if (supportsAccountSettings) {

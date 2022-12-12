@@ -2,17 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import AddIcon from "@mui/icons-material/Add";
-import {
-  IconButton,
-  Tab,
-  Tabs,
-  styled as muiStyled,
-  Divider,
-  Box,
-  CircularProgress,
-} from "@mui/material";
-import { useState, PropsWithChildren, useEffect, useMemo } from "react";
+import { Tab, Tabs, styled as muiStyled, Divider, Box } from "@mui/material";
+import { useState, PropsWithChildren, useEffect } from "react";
 
 import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
 import {
@@ -28,9 +19,9 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { DataSourceInfoView } from "../DataSourceInfoView";
 import { ProblemsList } from "./ProblemsList";
 import { TopicList } from "./TopicList";
-import helpContent from "./help.md";
 
 type Props = {
+  // eslint-disable-next-line react/no-unused-prop-types
   onSelectDataSourceAction: () => void;
 };
 
@@ -90,8 +81,9 @@ const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
   playerState.urlState?.sourceId;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 
+// Temporarily not open to select the back end, delete the prop too much impact temporarily disabled @junhui.Li
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function DataSourceSidebar(props: Props): JSX.Element {
-  const { onSelectDataSourceAction } = props;
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const { currentUser } = useCurrentUser();
@@ -100,13 +92,6 @@ export default function DataSourceSidebar(props: Props): JSX.Element {
   const [activeTab, setActiveTab] = useState(0);
 
   const showEventsTab = currentUser != undefined && playerSourceId === "foxglove-data-platform";
-
-  const isLoading = useMemo(
-    () =>
-      playerPresence === PlayerPresence.INITIALIZING ||
-      playerPresence === PlayerPresence.RECONNECTING,
-    [playerPresence],
-  );
 
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
@@ -117,27 +102,7 @@ export default function DataSourceSidebar(props: Props): JSX.Element {
   }, [playerPresence, showEventsTab, selectedEventId]);
 
   return (
-    <SidebarContent
-      overflow="auto"
-      title="Data source"
-      helpContent={helpContent}
-      disablePadding
-      trailingItems={[
-        isLoading && (
-          <Stack key="loading" alignItems="center" justifyContent="center" padding={1}>
-            <CircularProgress size={18} variant="indeterminate" />
-          </Stack>
-        ),
-        <IconButton
-          key="add-connection"
-          color="primary"
-          title="New connection"
-          onClick={onSelectDataSourceAction}
-        >
-          <AddIcon />
-        </IconButton>,
-      ].filter(Boolean)}
-    >
+    <SidebarContent overflow="auto" title="Data source" disablePadding>
       <Stack fullHeight>
         <DataSourceInfoView />
         {playerPresence !== PlayerPresence.NOT_PRESENT && (
