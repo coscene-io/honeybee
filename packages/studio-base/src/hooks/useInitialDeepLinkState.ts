@@ -9,10 +9,10 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 

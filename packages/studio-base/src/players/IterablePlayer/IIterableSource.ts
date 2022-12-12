@@ -5,6 +5,7 @@
 import { Time } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 import { PlayerProblem, Topic, TopicStats } from "@foxglove/studio-base/players/types";
+import { CoSceneContext } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 export type Initalization = {
@@ -183,4 +184,5 @@ export type IterableSourceInitializeArgs = {
     baseUrl: string;
     auth?: string;
   };
+  coSceneContext?: CoSceneContext;
 };

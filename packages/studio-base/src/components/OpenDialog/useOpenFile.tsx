@@ -8,7 +8,7 @@ import { useCallback, useMemo } from "react";
 import {
   IDataSourceFactory,
   usePlayerSelection,
-} from "@foxglove/studio-base/context/PlayerSelectionContext";
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
 
 export function useOpenFile(sources: IDataSourceFactory[]): () => Promise<void> {

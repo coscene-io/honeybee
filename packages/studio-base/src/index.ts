@@ -9,6 +9,7 @@
 /// <reference types="./typings" />
 
 export { default as ConsoleApi } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+export type { CoSceneContext } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 export {
   default as DialogHostIdContext,
   useDialogHostId,
@@ -26,6 +27,7 @@ export type { INativeAppMenu, NativeAppMenuEvent } from "./context/NativeAppMenu
 export { default as NativeWindowContext } from "./context/NativeWindowContext";
 export type { INativeWindow } from "./context/NativeWindowContext";
 export type { IDataSourceFactory } from "./context/PlayerSelectionContext";
+export type { IDataSourceFactory as CoSceneIDataSourceFactory } from "./context/CoScenePlayerSelectionContext";
 export { default as installDevtoolsFormatters } from "./util/installDevtoolsFormatters";
 export { default as overwriteFetch } from "./util/overwriteFetch";
 export { default as waitForFonts } from "./util/waitForFonts";
