@@ -20,11 +20,6 @@ import { DataSourceInfoView } from "../DataSourceInfoView";
 import { ProblemsList } from "./ProblemsList";
 import { TopicList } from "./TopicList";
 
-type Props = {
-  // eslint-disable-next-line react/no-unused-prop-types
-  onSelectDataSourceAction: () => void;
-};
-
 const StyledTab = muiStyled(Tab)(({ theme }) => ({
   minHeight: "auto",
   minWidth: theme.spacing(8),
@@ -83,7 +78,7 @@ const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 
 // Temporarily not open to select the back end, delete the prop too much impact temporarily disabled @junhui.Li
 
-export default function DataSourceSidebar(props: Props): JSX.Element {
+export default function DataSourceSidebar(): JSX.Element {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const { currentUser } = useCurrentUser();
@@ -92,11 +87,6 @@ export default function DataSourceSidebar(props: Props): JSX.Element {
   const [activeTab, setActiveTab] = useState(0);
 
   const showEventsTab = currentUser != undefined && playerSourceId === "foxglove-data-platform";
-
-  useEffect(() => {
-    console.debug("DataSourceSidebar", props);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
