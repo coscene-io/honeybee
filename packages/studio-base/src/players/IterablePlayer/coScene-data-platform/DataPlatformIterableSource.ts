@@ -344,7 +344,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 }
 
 export function initialize(args: IterableSourceInitializeArgs): DataPlatformIterableSource {
-  const { api, params } = args;
+  const { api, params, coSceneContext } = args;
   if (!params) {
     throw new Error("params is required for data platform source");
   }
@@ -369,7 +369,8 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     recordName,
   };
 
-  const consoleApi = new CoSceneConsoleApi(api.baseUrl);
+  const consoleApi = new CoSceneConsoleApi(api.baseUrl, coSceneContext);
+
   if (api.auth) {
     consoleApi.setAuthHeader(api.auth);
   }

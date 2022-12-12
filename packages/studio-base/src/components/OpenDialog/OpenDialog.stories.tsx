@@ -4,7 +4,7 @@
 
 import PlayerSelectionContext, {
   PlayerSelection,
-} from "@foxglove/studio-base/context/PlayerSelectionContext";
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 
 import OpenDialog from "./OpenDialog";
 
