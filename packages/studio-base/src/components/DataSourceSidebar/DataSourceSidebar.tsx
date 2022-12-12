@@ -82,7 +82,7 @@ const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 
 // Temporarily not open to select the back end, delete the prop too much impact temporarily disabled @junhui.Li
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 export default function DataSourceSidebar(props: Props): JSX.Element {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
@@ -92,6 +92,11 @@ export default function DataSourceSidebar(props: Props): JSX.Element {
   const [activeTab, setActiveTab] = useState(0);
 
   const showEventsTab = currentUser != undefined && playerSourceId === "foxglove-data-platform";
+
+  useEffect(() => {
+    console.debug("DataSourceSidebar", props);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
