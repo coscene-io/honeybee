@@ -12,12 +12,16 @@ import {
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 
-export const getApiAddress = (env: "production" | "azureDev"): string => {
+const getApiAddress = (env: "production" | "azureDev" | "keenon" | "gaussian"): string => {
   switch (env) {
     case "production":
       return "https://honeybee.coscene.cn";
     case "azureDev":
       return "https://honeybee.coscene.dev";
+    case "keenon":
+      return "https://honeybee.keenon.coscene.cn";
+    case "gaussian":
+      return "https://honeybee.gaussian.coscene.cn";
     default:
       return "http://localhost:8080";
   }
