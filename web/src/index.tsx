@@ -86,6 +86,7 @@ async function main() {
   const appConfiguration = new LocalStorageAppConfiguration({
     defaults: {
       [AppSetting.SHOW_DEBUG_PANELS]: isDevelopment,
+      [AppSetting.HIDE_SIGN_IN_PROMPT]: true,
     },
   });
 

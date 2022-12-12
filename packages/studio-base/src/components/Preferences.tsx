@@ -5,8 +5,6 @@
 import Brightness5Icon from "@mui/icons-material/Brightness5";
 import ComputerIcon from "@mui/icons-material/Computer";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
-import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlined";
-import WebIcon from "@mui/icons-material/Web";
 import {
   Autocomplete,
   Checkbox,
@@ -28,12 +26,10 @@ import { makeStyles } from "tss-react/mui";
 import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
-import { ExperimentalFeatureSettings } from "@foxglove/studio-base/components/ExperimentalFeatureSettings";
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
-import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
@@ -222,47 +218,6 @@ function TimeFormat(): React.ReactElement {
   );
 }
 
-function LaunchDefault(): React.ReactElement {
-  const { classes } = useStyles();
-  const [preference, setPreference] = useAppConfigurationValue<string | undefined>(
-    AppSetting.LAUNCH_PREFERENCE,
-  );
-  let sanitizedPreference: LaunchPreferenceValue;
-  switch (preference) {
-    case LaunchPreferenceValue.WEB:
-    case LaunchPreferenceValue.DESKTOP:
-    case LaunchPreferenceValue.ASK:
-      sanitizedPreference = preference;
-      break;
-    default:
-      sanitizedPreference = LaunchPreferenceValue.WEB;
-  }
-
-  return (
-    <Stack>
-      <FormLabel>Open links in:</FormLabel>
-      <ToggleButtonGroup
-        color="primary"
-        size="small"
-        fullWidth
-        exclusive
-        value={sanitizedPreference}
-        onChange={(_, value?: string) => value != undefined && void setPreference(value)}
-      >
-        <ToggleButton value={LaunchPreferenceValue.WEB} className={classes.toggleButton}>
-          <WebIcon /> Web app
-        </ToggleButton>
-        <ToggleButton value={LaunchPreferenceValue.DESKTOP} className={classes.toggleButton}>
-          <ComputerIcon /> Desktop app
-        </ToggleButton>
-        <ToggleButton value={LaunchPreferenceValue.ASK} className={classes.toggleButton}>
-          <QuestionAnswerOutlinedIcon /> Ask each time
-        </ToggleButton>
-      </ToggleButtonGroup>
-    </Stack>
-  );
-}
-
 function MessageFramerate(): React.ReactElement {
   const [messageRate, setMessageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
   const options = useMemo(
@@ -337,21 +292,12 @@ function RosPackagePath(): React.ReactElement {
 }
 
 export default function Preferences(): React.ReactElement {
-  const [crashReportingEnabled, setCrashReportingEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.CRASH_REPORTING_ENABLED,
-  );
-  const [telemetryEnabled, setTelemetryEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.TELEMETRY_ENABLED,
-  );
-
   // automatic updates are a desktop-only setting
   //
   // electron-updater does not provide a way to detect if we are on a supported update platform
   // so we hard-code linux as an _unsupported_ auto-update platform since we cannot auto-update
   // with our .deb package install method on linux.
   const supportsAppUpdates = isDesktopApp() && OsContextSingleton?.platform !== "linux";
-
-  const { classes } = useStyles();
 
   return (
     <SidebarContent title="Preferences">
@@ -378,11 +324,6 @@ export default function Preferences(): React.ReactElement {
                 <AutoUpdate />
               </div>
             )}
-            {!isDesktopApp() && (
-              <div>
-                <LaunchDefault />
-              </div>
-            )}
           </Stack>
         </section>
 
@@ -394,51 +335,6 @@ export default function Preferences(): React.ReactElement {
             <div>
               <RosPackagePath />
             </div>
-          </Stack>
-        </section>
-
-        <section>
-          <Typography component="h2" variant="h5" gutterBottom color="primary">
-            Privacy
-          </Typography>
-          <Stack gap={2}>
-            <Typography color="text.secondary">
-              Changes will take effect the next time Foxglove Studio is launched.
-            </Typography>
-            <FormControlLabel
-              className={classes.formControlLabel}
-              control={
-                <Checkbox
-                  className={classes.checkbox}
-                  checked={telemetryEnabled ?? true}
-                  onChange={(_event, checked) => void setTelemetryEnabled(checked)}
-                />
-              }
-              label="Send anonymized usage data to help us improve Foxglove Studio"
-            />
-            <FormControlLabel
-              className={classes.formControlLabel}
-              control={
-                <Checkbox
-                  className={classes.checkbox}
-                  checked={crashReportingEnabled ?? true}
-                  onChange={(_event, checked) => void setCrashReportingEnabled(checked)}
-                />
-              }
-              label="Send anonymized crash reports"
-            />
-          </Stack>
-        </section>
-
-        <section>
-          <Typography component="h2" variant="h5" gutterBottom color="primary">
-            Experimental features
-          </Typography>
-          <Stack gap={1}>
-            <Typography color="text.secondary">
-              These features are unstable and not recommended for daily use.
-            </Typography>
-            <ExperimentalFeatureSettings />
           </Stack>
         </section>
       </Stack>
