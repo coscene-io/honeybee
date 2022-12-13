@@ -40,6 +40,9 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       return;
     }
 
+    console.log("process.env.PROJECT_ENV", process.env.PROJECT_ENV);
+    console.log("process.env.VITE_APP_BASE_API_URL", process.env.VITE_APP_BASE_API_URL);
+
     const source = new WorkerIterableSource({
       sourceType: "foxgloveDataPlatform",
       initArgs: {
