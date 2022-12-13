@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Skeleton, Typography } from "@mui/material";
+import { Skeleton, Typography, Breadcrumbs, Link } from "@mui/material";
 import { MutableRefObject, useEffect, useRef } from "react";
 import { makeStyles } from "tss-react/mui";
 
@@ -19,8 +19,6 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { formatDate, formatDuration } from "@foxglove/studio-base/util/formatTime";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formatTimeRaw, isAbsoluteTime } from "@foxglove/studio-base/util/time";
-
-import { MultilineMiddleTruncate } from "./MultilineMiddleTruncate";
 
 const useStyles = makeStyles()({
   numericValue: {
@@ -49,21 +47,6 @@ function DataSourceInfoContent(props: {
         <Typography display="block" variant="overline" color="text.secondary">
           Current source
         </Typography>
-        {playerPresence === PlayerPresence.INITIALIZING ? (
-          <Typography variant="inherit">
-            <Skeleton animation="wave" width="40%" />
-          </Typography>
-        ) : playerPresence === PlayerPresence.RECONNECTING ? (
-          <Typography variant="inherit">Waiting for connection…</Typography>
-        ) : playerName ? (
-          <Typography variant="inherit" component="span">
-            <MultilineMiddleTruncate text={playerName} />
-          </Typography>
-        ) : (
-          <Typography className={classes.numericValue} variant="inherit">
-            &mdash;
-          </Typography>
-        )}
       </Stack>
 
       <Stack>

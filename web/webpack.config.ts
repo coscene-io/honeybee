@@ -42,7 +42,7 @@ const devServerConfig: WebpackConfiguration = {
     allowedHosts: "all",
     proxy: {
       "/v1/data": {
-        target: "https://honeybee.coscene.dev",
+        target: "http://192.168.50.209:9901",
         secure: false,
         changeOrigin: true,
       },
