@@ -26,6 +26,7 @@ profiles:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "azureDev"
+              VITE_APP_BASE_API_URL: "https://api.coscene.dev"
               ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"
   - name: aliyun-staging-cn-hangzhou
     build:
@@ -38,6 +39,7 @@ profiles:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "production"
+              VITE_APP_BASE_API_URL: "https://api.coscene.cn"
               ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"
   - name: aliyun-keenon-cn-hangzhou
     build:
@@ -50,6 +52,7 @@ profiles:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "keenon"
+              VITE_APP_BASE_API_URL: "https://api.keenon.coscene.cn"
               ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"
   - name: aliyun-gaussian-cn-hangzhou
     build:
@@ -62,4 +65,5 @@ profiles:
               BUF_TOKEN: "{{.BUF_TOKEN}}"
               GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
               PROJECT_ENV: "gaussian"
+              VITE_APP_BASE_API_URL: "https://api.gaussian.coscene.cn"
               ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"
