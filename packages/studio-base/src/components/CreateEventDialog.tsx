@@ -174,14 +174,14 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
 
-    const recordName = (urlState?.parameters?.recordName ?? "").split("/records/");
+    const parent = `warehouses/${urlState?.parameters?.warehousesId}/projects/${urlState?.parameters?.projectId}`;
 
-    const parent = recordName[0] ?? "";
+    const recordName = `${parent}/records/${urlState?.parameters?.recordsId}`;
 
     await consoleApi.createEvent({
       event: newEvent,
       parent,
-      recordName: urlState!.parameters!.recordName!,
+      recordName,
     });
 
     onClose();
