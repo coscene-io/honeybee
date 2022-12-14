@@ -21,6 +21,7 @@ build:
       docker:
         dockerfile: Dockerfile
         buildArgs:
+          CURRENT_IMAGE_TAG: '{{.IMAGE_TAG}}'
           BUF_TOKEN: "{{.BUF_TOKEN}}"
           GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
   local:
@@ -40,4 +41,3 @@ profiles:
         tryImportMissing: false
   - name: aliyun-staging-cn-hangzhou
   - name: aliyun-keenon-cn-hangzhou
-  - name: aliyun-gaussian-cn-hangzhou
