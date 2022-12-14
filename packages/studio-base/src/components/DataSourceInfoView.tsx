@@ -2,8 +2,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { Skeleton, Typography, Breadcrumbs, Link } from "@mui/material";
 import { MutableRefObject, useEffect, useRef } from "react";
+import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import { Time } from "@foxglove/rostime";
@@ -13,6 +15,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import Timestamp from "@foxglove/studio-base/components/Timestamp";
+import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { subtractTimes } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/typescript/userUtils/time";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
@@ -28,18 +31,68 @@ const useStyles = makeStyles()({
 
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
-const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 function DataSourceInfoContent(props: {
   durationRef: MutableRefObject<ReactNull | HTMLDivElement>;
   endTimeRef: MutableRefObject<ReactNull | HTMLDivElement>;
-  playerName?: string;
   playerPresence: PlayerPresence;
   startTime?: Time;
 }): JSX.Element {
-  const { durationRef, endTimeRef, playerName, playerPresence, startTime } = props;
+  const { durationRef, endTimeRef, playerPresence, startTime } = props;
   const { classes } = useStyles();
+  const consoleApi = useConsoleApi();
+  const urlState = useMessagePipeline(selectUrlState);
+
+  const [state, fetch] = useAsyncFn(
+    async ({
+      warehousesId,
+      projectId,
+      recordsId,
+    }: {
+      warehousesId: string;
+      projectId: string;
+      recordsId: string;
+    }) => {
+      const recordName = `warehouses/${warehousesId}/projects/${projectId}/records/${recordsId}`;
+      return await consoleApi.getRecord({ recordName });
+    },
+  );
+
+  useEffect(() => {
+    if (
+      urlState?.parameters?.warehousesId &&
+      urlState.parameters.projectId &&
+      urlState.parameters.recordsId
+    ) {
+      fetch({
+        warehousesId: urlState.parameters.warehousesId,
+        projectId: urlState.parameters.projectId,
+        recordsId: urlState.parameters.recordsId,
+      }).catch((err) => {
+        console.error("Error fetching record", err);
+      });
+    }
+  }, [urlState?.parameters, fetch]);
+
+  const projectHref =
+    process.env.NODE_ENV === "development"
+      ? `https://home.coscene.dev/${urlState?.parameters?.warehousesSlug}/${urlState?.parameters?.projectSlug}`
+      : `/${urlState?.parameters?.warehousesSlug}/${urlState?.parameters?.projectSlug}`;
+  const recordHref = `${projectHref}/records/${urlState?.parameters?.recordsId}`;
+
+  const breadcrumbs = [
+    <Link href={projectHref} underline="hover" key="1" color="inherit">
+      {urlState?.parameters?.projectSlug}
+    </Link>,
+    <Link href={recordHref} underline="hover" key="2" color="inherit">
+      {state.value?.getTitle()}
+    </Link>,
+    <Typography key="3" color="text.primary">
+      Current
+    </Typography>,
+  ];
 
   return (
     <Stack gap={1.5} paddingX={2} paddingBottom={2}>
@@ -47,6 +100,20 @@ function DataSourceInfoContent(props: {
         <Typography display="block" variant="overline" color="text.secondary">
           Current source
         </Typography>
+      </Stack>
+
+      <Stack>
+        {playerPresence === PlayerPresence.INITIALIZING ? (
+          <Skeleton animation="wave" width="50%" />
+        ) : urlState?.parameters?.projectSlug && urlState.parameters.warehousesSlug ? (
+          <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+            {breadcrumbs}
+          </Breadcrumbs>
+        ) : (
+          <Typography className={classes.numericValue} variant="inherit">
+            &mdash;
+          </Typography>
+        )}
       </Stack>
 
       <Stack>
@@ -100,7 +167,6 @@ const EmDash = "\u2014";
 export function DataSourceInfoView(): JSX.Element {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
-  const playerName = useMessagePipeline(selectPlayerName);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const durationRef = useRef<HTMLDivElement>(ReactNull);
   const endTimeRef = useRef<HTMLDivElement>(ReactNull);
@@ -133,7 +199,6 @@ export function DataSourceInfoView(): JSX.Element {
     <MemoDataSourceInfoContent
       durationRef={durationRef}
       endTimeRef={endTimeRef}
-      playerName={playerName}
       playerPresence={playerPresence}
       startTime={startTime}
     />
