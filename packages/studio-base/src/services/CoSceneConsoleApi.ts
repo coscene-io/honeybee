@@ -9,8 +9,10 @@ import {
   Event,
   DeleteEventRequest,
   UpdateEventRequest,
+  GetRecordRequest,
+  Record as CoSceneRecord,
 } from "@coscene-io/coscene/proto/v1alpha2";
-import { eventClient, metricClient } from "@coscene-io/coscene/queries";
+import { eventClient, metricClient, recordClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
@@ -249,93 +251,6 @@ class CoSceneConsoleApi {
     return await this.get<DeviceResponse>(`/v1/devices/${id}`);
   }
 
-  public async createEvent({
-    event,
-    parent,
-    recordName,
-  }: {
-    event: Event;
-    parent: string;
-    recordName: string;
-  }): Promise<Event> {
-    const createEventRequest = new CreateEventRequest();
-    createEventRequest.setParent(parent);
-    createEventRequest.setEvent(event);
-    createEventRequest.setRecord(recordName);
-
-    const newEvent = await eventClient.createEvent(createEventRequest);
-
-    return newEvent;
-  }
-
-  public async getEvents({
-    parent,
-    recordId,
-  }: {
-    parent: string;
-    recordId: string;
-  }): Promise<Event[]> {
-    const listEventsRequest = new ListEventsRequest()
-      .setParent(parent)
-      .setOrderBy("create_time desc")
-      .setFilter(`record.id="${recordId}"`)
-      .setPageSize(999);
-
-    const events = await eventClient.listEvents(listEventsRequest);
-
-    return events.getEventsList();
-  }
-
-  public async deleteEvent({
-    eventName,
-  }: {
-    eventName: string;
-  }): Promise<google_protobuf_empty_pb.Empty> {
-    const deleteEventRequest = new DeleteEventRequest().setName(eventName);
-
-    return await eventClient.deleteEvent(deleteEventRequest);
-  }
-
-  public async updateEvent({
-    event,
-    updateMask,
-  }: {
-    event: Event;
-    updateMask: FieldMask;
-  }): Promise<void> {
-    const req = new UpdateEventRequest();
-    req.setEvent(event);
-    req.setUpdateMask(updateMask);
-
-    await eventClient.updateEvent(req);
-  }
-
-  public async sendIncCounter({
-    name,
-    desc = "",
-    tag = new Map(),
-  }: {
-    name: MetricType;
-    desc?: string;
-    tag?: Map<string, string>;
-  }): Promise<void> {
-    const req = new IncCounterRequest();
-    const metric = new Metric();
-    metric.setName(name);
-    metric.setDescription(desc);
-    for (const [key, value] of tag.entries()) {
-      metric.getLabelsMap().set(key, value);
-    }
-
-    if (this._coSceneContext.currentOrganizationId) {
-      const orgId = this._coSceneContext.currentOrganizationId.split("/").pop();
-      metric.getLabelsMap().set("org_id", orgId ? orgId : "");
-    }
-
-    req.setCounter(metric);
-    await metricClient.incCounter(req);
-  }
-
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
     return await this.get<ConsoleApiLayout[]>("/v1/layouts", {
       includeData: options.includeData ? "true" : "false",
@@ -490,6 +405,101 @@ class CoSceneConsoleApi {
       { method: "DELETE" },
       { allowedStatuses: [404] },
     );
+  }
+
+  // coScene-----------------------------------------------------------
+  public async createEvent({
+    event,
+    parent,
+    recordName,
+  }: {
+    event: Event;
+    parent: string;
+    recordName: string;
+  }): Promise<Event> {
+    const createEventRequest = new CreateEventRequest();
+    createEventRequest.setParent(parent);
+    createEventRequest.setEvent(event);
+    createEventRequest.setRecord(recordName);
+
+    const newEvent = await eventClient.createEvent(createEventRequest);
+
+    return newEvent;
+  }
+
+  public async getEvents({
+    parent,
+    recordId,
+  }: {
+    parent: string;
+    recordId: string;
+  }): Promise<Event[]> {
+    const listEventsRequest = new ListEventsRequest()
+      .setParent(parent)
+      .setOrderBy("create_time desc")
+      .setFilter(`record.id="${recordId}"`)
+      .setPageSize(999);
+
+    const events = await eventClient.listEvents(listEventsRequest);
+
+    return events.getEventsList();
+  }
+
+  public async deleteEvent({
+    eventName,
+  }: {
+    eventName: string;
+  }): Promise<google_protobuf_empty_pb.Empty> {
+    const deleteEventRequest = new DeleteEventRequest().setName(eventName);
+
+    return await eventClient.deleteEvent(deleteEventRequest);
+  }
+
+  public async updateEvent({
+    event,
+    updateMask,
+  }: {
+    event: Event;
+    updateMask: FieldMask;
+  }): Promise<void> {
+    const req = new UpdateEventRequest();
+    req.setEvent(event);
+    req.setUpdateMask(updateMask);
+
+    await eventClient.updateEvent(req);
+  }
+
+  public async sendIncCounter({
+    name,
+    desc = "",
+    tag = new Map(),
+  }: {
+    name: MetricType;
+    desc?: string;
+    tag?: Map<string, string>;
+  }): Promise<void> {
+    const req = new IncCounterRequest();
+    const metric = new Metric();
+    metric.setName(name);
+    metric.setDescription(desc);
+    for (const [key, value] of tag.entries()) {
+      metric.getLabelsMap().set(key, value);
+    }
+
+    if (this._coSceneContext.currentOrganizationId) {
+      const orgId = this._coSceneContext.currentOrganizationId.split("/").pop();
+      metric.getLabelsMap().set("org_id", orgId ? orgId : "");
+    }
+
+    req.setCounter(metric);
+    await metricClient.incCounter(req);
+  }
+
+  public async getRecord({ recordName }: { recordName: string }): Promise<CoSceneRecord> {
+    const req = new GetRecordRequest();
+    req.setName(recordName);
+
+    return await recordClient.getRecord(req);
   }
 }
 
