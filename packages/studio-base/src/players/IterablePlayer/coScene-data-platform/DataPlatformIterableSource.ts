@@ -90,16 +90,6 @@ export class DataPlatformIterableSource implements IIterableSource {
     const coverageStartTime = fromRFC3339String(coverageStart)!;
     const coverageEndTime = fromRFC3339String(coverageEnd)!;
 
-    const device = {
-      id: "dev_CJGWd2UaK1MFq3yF",
-      name: "Robo Arm 1",
-      serialNumber: undefined,
-      orgId: "94912def-10f3-4b04-873c-e984dacb5baa",
-      createdAt: "2022-04-24T05:50:31.960Z",
-      updatedAt: "2022-04-24T05:50:31.960Z",
-      deletedAt: undefined,
-    };
-
     this._start = coverageStartTime;
     this._end = coverageEndTime;
 
@@ -188,7 +178,6 @@ export class DataPlatformIterableSource implements IIterableSource {
       profile,
       problems,
       publishersByTopic: new Map(),
-      name: `${device.name} (${device.id})`,
     };
   }
 
@@ -353,20 +342,43 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("api is required for data platfomr");
   }
 
-  const revisionName = params.revisionName ?? "";
-  const recordName = params.recordName ?? "";
+  // const revisionName = params.revisionName ?? "";
+  // const recordName = params.recordName ?? "";
 
-  if (!revisionName) {
-    throw new Error("revisionName is required for data platform source");
+  const projectId = params.projectId ?? "";
+  const projectSlug = params.projectSlug ?? "";
+  const warehousesId = params.warehousesId ?? "";
+  const warehousesSlug = params.warehousesSlug ?? "";
+  const recordsId = params.recordsId ?? "";
+  const revisionsId = params.revisionsId ?? "";
+
+  if (!projectId) {
+    throw new Error("projectId is required for data platform source");
   }
 
-  if (!recordName) {
-    throw new Error("recordName is required for data platform source");
+  if (!projectSlug) {
+    throw new Error("projectSlug is required for data platform source");
+  }
+
+  if (!warehousesId) {
+    throw new Error("warehousesId is required for data platform source");
+  }
+
+  if (!warehousesSlug) {
+    throw new Error("warehousesSlug is required for data platform source");
+  }
+
+  if (!recordsId) {
+    throw new Error("recordsId is required for data platform source");
+  }
+
+  if (!revisionsId) {
+    throw new Error("revisionsId is required for data platform source");
   }
 
   const dpSourceParams: DataPlatformSourceParameters = {
-    revisionName,
-    recordName,
+    revisionName: `warehouses/${warehousesId}/projects/${projectId}/records/${recordsId}/revisions/${revisionsId}`,
+    recordName: `warehouses/${warehousesId}/projects/${projectId}/records/${recordsId}/revisions/${recordsId}`,
   };
 
   const consoleApi = new CoSceneConsoleApi(api.baseUrl, coSceneContext);
