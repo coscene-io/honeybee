@@ -270,27 +270,6 @@ function AutoUpdate(): React.ReactElement {
   );
 }
 
-function RosPackagePath(): React.ReactElement {
-  const [rosPackagePath, setRosPackagePath] = useAppConfigurationValue<string>(
-    AppSetting.ROS_PACKAGE_PATH,
-  );
-
-  const rosPackagePathPlaceholder = useMemo(
-    () => OsContextSingleton?.getEnvVar("ROS_PACKAGE_PATH"),
-    [],
-  );
-
-  return (
-    <TextField
-      fullWidth
-      label="ROS_PACKAGE_PATH"
-      placeholder={rosPackagePathPlaceholder}
-      value={rosPackagePath ?? ""}
-      onChange={(event) => void setRosPackagePath(event.target.value)}
-    />
-  );
-}
-
 export default function Preferences(): React.ReactElement {
   // automatic updates are a desktop-only setting
   //
@@ -324,17 +303,6 @@ export default function Preferences(): React.ReactElement {
                 <AutoUpdate />
               </div>
             )}
-          </Stack>
-        </section>
-
-        <section>
-          <Typography component="h2" variant="h5" gutterBottom color="primary">
-            ROS
-          </Typography>
-          <Stack gap={1}>
-            <div>
-              <RosPackagePath />
-            </div>
           </Stack>
         </section>
       </Stack>

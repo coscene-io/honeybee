@@ -51,7 +51,6 @@ import { SignInFormModal } from "@foxglove/studio-base/components/SignInFormModa
 import Stack from "@foxglove/studio-base/components/Stack";
 import { StudioLogsSettingsSidebar } from "@foxglove/studio-base/components/StudioLogsSettingsSidebar";
 import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
-import VariablesSidebar from "@foxglove/studio-base/components/VariablesSidebar";
 import { useAssets } from "@foxglove/studio-base/context/AssetsContext";
 import {
   IDataSourceFactory,
@@ -512,7 +511,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
         "panel-settings",
         { iconName: "PanelSettings", title: "Panel settings", component: PanelSettings },
       ],
-      ["variables", { iconName: "Variable2", title: "Variables", component: VariablesSidebar }],
     ]);
 
     if (enableStudioLogsSidebar) {
