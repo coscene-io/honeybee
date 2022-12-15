@@ -5,7 +5,7 @@
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { Skeleton, Typography, Breadcrumbs, Link } from "@mui/material";
 import { MutableRefObject, useEffect, useRef } from "react";
-import { useAsyncFn } from "react-use";
+import { useAsyncFn, useTitle } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import { Time } from "@foxglove/rostime";
@@ -59,6 +59,8 @@ function DataSourceInfoContent(props: {
       return await consoleApi.getRecord({ recordName });
     },
   );
+
+  useTitle(`coScene ${state.value?.getTitle() ?? ""}`);
 
   useEffect(() => {
     if (
