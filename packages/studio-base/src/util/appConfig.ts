@@ -1,4 +1,4 @@
-const cosConfig: any = window.cosConfig ?? {};
+const cosConfig = window.cosConfig ?? {};
 export const APP_CONFIG = {
   VITE_APP_BASE_API_PORT:
     cosConfig.VITE_APP_BASE_API_PORT ?? process.env.VITE_APP_BASE_API_PORT ?? "443",
