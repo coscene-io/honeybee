@@ -1784,9 +1784,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/coscene@npm:0.2.35-rc1":
-  version: 0.2.35-rc1
-  resolution: "@coscene-io/coscene@npm:0.2.35-rc1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.35-rc1%2F63c9ebba341e5f369ea3e8113eb47cb78dc14ff9"
+"@coscene-io/coscene@npm:0.2.35":
+  version: 0.2.35
+  resolution: "@coscene-io/coscene@npm:0.2.35::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.35%2Fbabbe84e341aa97ecf437ee8fef1f1cbbf544cf7"
   dependencies:
     "@coscene-io/cosceneapis": ^0.0.100
     "@coscene-io/semantic-lib": ^0.0.70
@@ -1800,7 +1800,7 @@ __metadata:
     react-query: ^3.39.2
     react-router-dom: ^6.3.0
     recoil: ^0.7.4
-  checksum: fd057c917ee9b66d43382545062464dc13d57a2b5ab5b24b796d4b52a3549a14c02406a1ec0b524556c749e96d2b72cae2eaaaaf05b14fda9ded9efcfabdfcd9
+  checksum: c05e94b68eef47970aed113f9f734b0965e484a2c56b59f1bbf637f6e1272bcf0ec44245007aa35ff1abde74b4a689a6d4f9649af73ec8881198566b0b8464c5
   languageName: node
   linkType: hard
 
@@ -2657,7 +2657,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@foxglove/studio-base@workspace:packages/studio-base"
   dependencies:
-    "@coscene-io/coscene": 0.2.35-rc1
+    "@coscene-io/coscene": 0.2.35
     "@emotion/cache": 11.10.5
     "@emotion/react": 11.7.1
     "@emotion/styled": 11.6.0
