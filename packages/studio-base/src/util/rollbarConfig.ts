@@ -1,12 +1,13 @@
 import { Configuration } from "rollbar";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 export const ROLLBAR_CONFIG: Configuration = {
-  accessToken: process.env.ROLLBAR_ACCESS_TOKEN,
+  accessToken: APP_CONFIG.VITE_APP_ROLLBAR_ACCESS_TOKEN,
   captureUncaught: true,
   captureUnhandledRejections: true,
   enabled: window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1",
   payload: {
-    environment: process.env.PROJECT_ENV,
+    environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
     host: window.location.hostname,
     client: {
       javascript: {
