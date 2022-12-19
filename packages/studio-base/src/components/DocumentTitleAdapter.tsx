@@ -19,12 +19,12 @@ export default function DocumentTitleAdapter(): JSX.Element {
 
   useEffect(() => {
     if (!playerName) {
-      window.document.title = "Coscene";
+      window.document.title = "coScene";
       return;
     }
     window.document.title = navigator.userAgent.includes("Mac")
       ? playerName
-      : `${playerName} – Coscene`;
+      : `${playerName} – coScene`;
   }, [playerName]);
 
   return <></>;
