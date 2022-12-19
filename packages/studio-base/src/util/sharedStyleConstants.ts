@@ -13,5 +13,5 @@ export const fonts = {
   SANS_SERIF: "'Inter'",
   SANS_SERIF_FEATURE_SETTINGS:
     // enable font features https://rsms.me/inter/lab
-    "'cv08', 'cv10', 'tnum'",
+    "",
 };
