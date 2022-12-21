@@ -100,9 +100,9 @@ export function EventsSyncAdapter(): ReactNull {
     // datasource bootstraps through the state where they are not
     // completely determined.
 
-    const parent = `warehouses/${urlState?.parameters?.warehousesId}/projects/${urlState?.parameters?.projectId}`;
+    const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
 
-    const recordId = urlState?.parameters?.recordsId;
+    const recordId = urlState?.parameters?.recordId;
 
     if (parent && recordId && startTime && endTime) {
       try {

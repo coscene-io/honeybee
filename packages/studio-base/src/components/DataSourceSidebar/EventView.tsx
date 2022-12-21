@@ -207,19 +207,19 @@ function EventViewComponent(params: {
   };
 
   const handleEventDetail = () => {
-    const warehousesSlug = urlState?.parameters?.warehousesSlug;
+    const warehouseSlug = urlState?.parameters?.warehouseSlug;
     const projectSlug = urlState?.parameters?.projectSlug;
 
     if (window.location.origin.includes("localhost")) {
       window.open(
-        `https://home.coscene.dev/${warehousesSlug}/${projectSlug}/events/${event.event
+        `https://home.coscene.dev/${warehouseSlug}/${projectSlug}/events/${event.event
           .getName()
           .split("/")
           .pop()}`,
       );
     } else {
       window.open(
-        `${window.location.origin}/${warehousesSlug}/${projectSlug}/events/${event.event
+        `${window.location.origin}/${warehouseSlug}/${projectSlug}/events/${event.event
           .getName()
           .split("/")
           .pop()}`,
