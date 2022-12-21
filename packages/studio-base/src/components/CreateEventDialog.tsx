@@ -174,9 +174,9 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
 
-    const parent = `warehouses/${urlState?.parameters?.warehousesId}/projects/${urlState?.parameters?.projectId}`;
+    const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
 
-    const recordName = `${parent}/records/${urlState?.parameters?.recordsId}`;
+    const recordName = `${parent}/records/${urlState?.parameters?.recordId}`;
 
     await consoleApi.createEvent({
       event: newEvent,
