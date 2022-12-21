@@ -28,8 +28,9 @@ import {
 // import Ros1UnavailableDataSourceFactory from "./dataSources/Ros1UnavailableDataSourceFactory";
 // import Ros2UnavailableDataSourceFactory from "./dataSources/Ros2UnavailableDataSourceFactory";
 // import VelodyneUnavailableDataSourceFactory from "./dataSources/VelodyneUnavailableDataSourceFactory";
-import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+
+import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
 
 export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration }): JSX.Element {
   const dataSources: CoSceneIDataSourceFactory[] = useMemo(() => {
