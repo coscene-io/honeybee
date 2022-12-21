@@ -45,6 +45,13 @@ import ConsoleApi from "./services/CoSceneConsoleApi";
 import { ExtensionLoader } from "./services/ExtensionLoader";
 import { ILayoutStorage } from "./services/ILayoutStorage";
 import URDFAssetLoader from "./services/URDFAssetLoader";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { CsWebClient } from "@coscene-io/coscene/queries";
+
+CsWebClient.init({
+  hostname: APP_CONFIG.VITE_APP_BASE_API_URL,
+  port: APP_CONFIG.VITE_APP_BASE_API_PORT,
+});
 
 type AppProps = {
   deepLinks: string[];

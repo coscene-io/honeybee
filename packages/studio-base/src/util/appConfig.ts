@@ -1,3 +1,16 @@
+declare global {
+  interface Window {
+    cosConfig: {
+      VITE_APP_BASE_API_PORT?: string;
+      VITE_APP_BASE_API_URL?: string;
+      VITE_APP_PROJECT_ENV?: string;
+      VITE_APP_ROLLBAR_ACCESS_TOKEN?: string;
+      VITE_APP_IMAGE_TAG?: string;
+      CS_HONEYBEE_BASE_URL?: string;
+    };
+  }
+}
+
 const cosConfig = window.cosConfig ?? {};
 export const APP_CONFIG = {
   VITE_APP_BASE_API_PORT:
