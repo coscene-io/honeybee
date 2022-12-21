@@ -9,7 +9,7 @@ declare global {
       VITE_APP_BASE_API_URL?: string;
       VITE_APP_PROJECT_ENV?: string;
       VITE_APP_ROLLBAR_ACCESS_TOKEN?: string;
-      VITE_APP_IMAGE_TAG?: string;
+      IMAGE_TAG?: string;
       CS_HONEYBEE_BASE_URL?: string;
     };
   }
@@ -28,6 +28,7 @@ export const APP_CONFIG = {
   VITE_APP_ROLLBAR_ACCESS_TOKEN: cosConfig.VITE_APP_ROLLBAR_ACCESS_TOKEN ?? "",
   CS_HONEYBEE_BASE_URL:
     cosConfig.CS_HONEYBEE_BASE_URL ?? process.env.CS_HONEYBEE_BASE_URL ?? "http://localhost:8080",
+  IMAGE_TAG: process.env.IMAGE_TAG,
   LAST_BUILD_TIME: process.env.LAST_BUILD_TIME,
   NPM_PACKAGE_VERSION: process.env.NPM_PACKAGE_VERSION,
 };

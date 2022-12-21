@@ -45,7 +45,8 @@ export function buildEnvironmentDefaults(
     VITE_APP_PROJECT_ENV: process.env.VITE_APP_PROJECT_ENV ?? null, // eslint-disable-line no-restricted-syntax
     VITE_APP_BASE_API_URL: process.env.VITE_APP_BASE_API_URL ?? null, // eslint-disable-line no-restricted-syntax
     CS_HONEYBEE_BASE_URL: process.env.CS_HONEYBEE_BASE_URL ?? null, // eslint-disable-line no-restricted-syntax
-    NPM_PACKAGE_VERSION,
+    IMAGE_TAG: process.env.IMAGE_TAG ?? null, // eslint-disable-line no-restricted-syntax
     LAST_BUILD_TIME: new Date().toISOString(),
+    NPM_PACKAGE_VERSION,
   };
 }
