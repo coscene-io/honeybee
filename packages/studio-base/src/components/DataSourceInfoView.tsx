@@ -47,15 +47,15 @@ function DataSourceInfoContent(props: {
 
   const [state, fetch] = useAsyncFn(
     async ({
-      warehousesId,
+      warehouseId,
       projectId,
-      recordsId,
+      recordId,
     }: {
-      warehousesId: string;
+      warehouseId: string;
       projectId: string;
-      recordsId: string;
+      recordId: string;
     }) => {
-      const recordName = `warehouses/${warehousesId}/projects/${projectId}/records/${recordsId}`;
+      const recordName = `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
       return await consoleApi.getRecord({ recordName });
     },
   );
@@ -64,14 +64,14 @@ function DataSourceInfoContent(props: {
 
   useEffect(() => {
     if (
-      urlState?.parameters?.warehousesId &&
+      urlState?.parameters?.warehouseId &&
       urlState.parameters.projectId &&
-      urlState.parameters.recordsId
+      urlState.parameters.recordId
     ) {
       fetch({
-        warehousesId: urlState.parameters.warehousesId,
+        warehouseId: urlState.parameters.warehouseId,
         projectId: urlState.parameters.projectId,
-        recordsId: urlState.parameters.recordsId,
+        recordId: urlState.parameters.recordId,
       }).catch((err) => {
         console.error("Error fetching record", err);
       });
@@ -80,9 +80,9 @@ function DataSourceInfoContent(props: {
 
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://home.coscene.dev/${urlState?.parameters?.warehousesSlug}/${urlState?.parameters?.projectSlug}`
-      : `/${urlState?.parameters?.warehousesSlug}/${urlState?.parameters?.projectSlug}`;
-  const recordHref = `${projectHref}/records/${urlState?.parameters?.recordsId}`;
+      ? `https://home.coscene.dev/${urlState?.parameters?.warehouseSlug}/${urlState?.parameters?.projectSlug}`
+      : `/${urlState?.parameters?.warehouseSlug}/${urlState?.parameters?.projectSlug}`;
+  const recordHref = `${projectHref}/records/${urlState?.parameters?.recordId}`;
 
   const breadcrumbs = [
     <Link href={projectHref} underline="hover" key="1" color="inherit">
@@ -107,7 +107,7 @@ function DataSourceInfoContent(props: {
       <Stack>
         {playerPresence === PlayerPresence.INITIALIZING ? (
           <Skeleton animation="wave" width="50%" />
-        ) : urlState?.parameters?.projectSlug && urlState.parameters.warehousesSlug ? (
+        ) : urlState?.parameters?.projectSlug && urlState.parameters.warehouseSlug ? (
           <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
             {breadcrumbs}
           </Breadcrumbs>

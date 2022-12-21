@@ -347,10 +347,10 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
 
   const projectId = params.projectId ?? "";
   const projectSlug = params.projectSlug ?? "";
-  const warehousesId = params.warehousesId ?? "";
-  const warehousesSlug = params.warehousesSlug ?? "";
-  const recordsId = params.recordsId ?? "";
-  const revisionsId = params.revisionsId ?? "";
+  const warehouseId = params.warehouseId ?? "";
+  const warehouseSlug = params.warehouseSlug ?? "";
+  const recordId = params.recordId ?? "";
+  const revisionId = params.revisionId ?? "";
 
   if (!projectId) {
     throw new Error("projectId is required for data platform source");
@@ -360,25 +360,25 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("projectSlug is required for data platform source");
   }
 
-  if (!warehousesId) {
-    throw new Error("warehousesId is required for data platform source");
+  if (!warehouseId) {
+    throw new Error("warehouseId is required for data platform source");
   }
 
-  if (!warehousesSlug) {
-    throw new Error("warehousesSlug is required for data platform source");
+  if (!warehouseSlug) {
+    throw new Error("warehouseSlug is required for data platform source");
   }
 
-  if (!recordsId) {
-    throw new Error("recordsId is required for data platform source");
+  if (!recordId) {
+    throw new Error("recordId is required for data platform source");
   }
 
-  if (!revisionsId) {
-    throw new Error("revisionsId is required for data platform source");
+  if (!revisionId) {
+    throw new Error("revisionId is required for data platform source");
   }
 
   const dpSourceParams: DataPlatformSourceParameters = {
-    revisionName: `warehouses/${warehousesId}/projects/${projectId}/records/${recordsId}/revisions/${revisionsId}`,
-    recordName: `warehouses/${warehousesId}/projects/${projectId}/records/${recordsId}/revisions/${recordsId}`,
+    revisionName: `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}/revisions/${revisionId}`,
+    recordName: `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}/revisions/${recordId}`,
   };
 
   const consoleApi = new CoSceneConsoleApi(api.baseUrl, coSceneContext);
