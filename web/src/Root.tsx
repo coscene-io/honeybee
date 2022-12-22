@@ -28,18 +28,9 @@ import {
 // import Ros1UnavailableDataSourceFactory from "./dataSources/Ros1UnavailableDataSourceFactory";
 // import Ros2UnavailableDataSourceFactory from "./dataSources/Ros2UnavailableDataSourceFactory";
 // import VelodyneUnavailableDataSourceFactory from "./dataSources/VelodyneUnavailableDataSourceFactory";
-import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
-export const getApiAddress = (env: "production" | "azureDev"): string => {
-  switch (env) {
-    case "production":
-      return "https://honeybee.coscene.cn";
-    case "azureDev":
-      return "https://honeybee.coscene.dev";
-    default:
-      return "http://localhost:8080";
-  }
-};
+import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
 
 export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration }): JSX.Element {
   const dataSources: CoSceneIDataSourceFactory[] = useMemo(() => {
@@ -72,7 +63,7 @@ export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration
   const consoleApi = useMemo(
     () =>
       new ConsoleApi(
-        getApiAddress(process.env.PROJECT_ENV as "production" | "azureDev"),
+        APP_CONFIG.CS_HONEYBEE_BASE_URL,
         JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}") as CoSceneContext,
       ),
     [],
