@@ -14,6 +14,9 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  PROFILE: aliyun-keenon-cn-hangzhou
+
 jobs:
   build:
     runs-on: ubuntu-20.04
@@ -21,7 +24,6 @@ jobs:
     env:
       BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
-      ROLLBAR_ACCESS_TOKEN: ${{ secrets.ROLLBAR_ACCESS_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -29,8 +31,8 @@ jobs:
           fetch-depth: 2
           lfs: true
 
-      - name: Setup CD workspace
-        uses: coscene-io/setup-cd-workspace-all-in-one@v0.0.7
+      - name: Setup CD workspace all in one
+        uses: coscene-io/setup-cd-workspace-all-in-one@v1.1.0
         with:
           cloud-provider: Azure
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -39,45 +41,81 @@ jobs:
           acr-login-registry: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}
           acr-username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
           acr-password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
-          azure-aks-resource-group: "Dev-EUS"
-          azure-aks-cluster-name: "Dev-EUS"
+          azure-aks-resource-group: 'Dev-EUS'
+          azure-aks-cluster-name: 'Dev-EUS'
           need-cd-tools: true
 
-      - name: Skaffold build
-        run: |
-          skaffold build -p aliyun-keenon-cn-hangzhou -t keenon-latest
-  sync:
-    runs-on: self-hosted
-    needs: build
-    environment: aliyun-keenon-cn-hangzhou
-    steps:
-      - name: Login to Azure Docker Registry
-        uses: docker/login-action@v2
-        with:
-          registry: coseus.azurecr.io
-          username: ${{ secrets.ACR_ADMIN_USERNAME }}
-          password: ${{ secrets.ACR_ADMIN_PASSWORD }}
-      - name: Login to AliCloud Docker Registry
-        uses: docker/login-action@v2
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+
+      - name: Build and push images
+        id: build-and-push
+        run: |
+          result=$(skaffold build -p aliyun-keenon-cn-hangzhou -q | jq '.builds[0].tag')
+          withoutRegistry=${result#*:}
+          withoutDigest=${withoutRegistry%@*}
+          echo "TAG=${withoutDigest}" >> $GITHUB_OUTPUT
+    outputs:
+      tag: ${{ steps.build-and-push.outputs.TAG }}
+
+  copy-image-to-aliyun:
+    environment: aliyun-keenon-cn-hangzhou
+    runs-on: [ self-hosted ]
+    needs: build
+    steps:
+      - name: Skopeo Copy
+        uses: coscene-io/skopeo-copy-action@v1.0.0
         env:
           http_proxy: http://gfw:7890
           https_proxy: http://gfw:7890
         with:
-          driver-opts: |
-            env.http_proxy=${{ env.http_proxy }}
-            env.https_proxy=${{ env.http_proxy }}
-      - name: Push image to AliCloud
+          src-image: coseus.azurecr.io/honeybee:${{ needs.build.outputs.tag }}
+          dst-image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:${{ needs.build.outputs.tag }}
+          src-creds: ${{ secrets.ACR_ADMIN_USERNAME }}:${{ secrets.ACR_ADMIN_PASSWORD }}
+          dst-creds: ${{ secrets.ACR_USERNAME }}:${{ secrets.ACR_PASSWORD }}
+
+  sync-fallback:
+    environment: aliyun-keenon-cn-hangzhou
+    runs-on: ubuntu-latest
+    needs: [ build, copy-image-to-aliyun ]
+    steps:
+      - name: Skopeo Copy
+        if: needs.copy-image-to-aliyun.result == 'failure'
+        uses: coscene-io/skopeo-copy-action@v1.0.0
+        with:
+          src-image: coseus.azurecr.io/honeybee:${{ needs.build.outputs.tag }}
+          dst-image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:${{ needs.build.outputs.tag }}
+          src-creds: ${{ secrets.ACR_ADMIN_USERNAME }}:${{ secrets.ACR_ADMIN_PASSWORD }}
+          dst-creds: ${{ secrets.ACR_USERNAME }}:${{ secrets.ACR_PASSWORD }}
+
+  callout:
+    runs-on: ubuntu-latest
+    needs: [ build, copy-image-to-aliyun, sync-fallback ]
+    steps:
+      - name: Add summary
+        if: needs.build.result == 'success'
         env:
-          SRC: coseus.azurecr.io/honeybee:keenon-latest
-          DST: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:keenon-latest
+          tag: ${{ needs.build.outputs.tag }}
         run: |
-          docker pull $SRC
-          docker tag $SRC $DST
-          docker push $DST
-          echo "mirror $SRC to $DST" >> $GITHUB_STEP_SUMMARY
+          echo '## Image Summary :rocket:' >> $GITHUB_STEP_SUMMARY
+          echo "GITHUB_EVENT_NAME: $GITHUB_EVENT_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "GITHUB_ACTOR: $GITHUB_ACTOR" >> $GITHUB_STEP_SUMMARY
+          echo "GITHUB_REF: $GITHUB_REF" >> $GITHUB_STEP_SUMMARY
+          echo "Azure image: coseus.azurecr.io/honeybee:$tag" >> $GITHUB_STEP_SUMMARY
+          echo "AliCloud image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:$tag" >> $GITHUB_STEP_SUMMARY
+      - name: Notification to Feishu
+        uses: foxundermoon/feishu-action@v2
+        if: needs.build.result == 'success'
+        env:
+          tag: ${{ needs.build.outputs.tag }}
+        with:
+          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_IMAGE_BROADCAST }}
+          msg_type: text
+          content: |
+            text: |
+              A new version of Honeybee Web image has been published to ${{ env.PROFILE }}.
+              GitHubEvent: ${{ github.event_name }}
+              committer: ${{ github.actor }}
+              baseRef: ${{ github.ref }}
+              Azure image: coseus.azurecr.io/honeybee:${{ env.tag }}
+              AliCloud image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:${{ env.tag }}

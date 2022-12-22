@@ -12,7 +12,7 @@ import {
   GetRecordRequest,
   Record as CoSceneRecord,
 } from "@coscene-io/coscene/proto/v1alpha2";
-import { eventClient, metricClient, recordClient } from "@coscene-io/coscene/queries";
+import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
@@ -430,7 +430,7 @@ class CoSceneConsoleApi {
     createEventRequest.setEvent(event);
     createEventRequest.setRecord(recordName);
 
-    const newEvent = await eventClient.createEvent(createEventRequest);
+    const newEvent = await CsWebClient.getEventClient().createEvent(createEventRequest);
 
     return newEvent;
   }
@@ -448,7 +448,7 @@ class CoSceneConsoleApi {
       .setFilter(`record.id="${recordId}"`)
       .setPageSize(999);
 
-    const events = await eventClient.listEvents(listEventsRequest);
+    const events = await CsWebClient.getEventClient().listEvents(listEventsRequest);
 
     return events.getEventsList();
   }
@@ -460,7 +460,7 @@ class CoSceneConsoleApi {
   }): Promise<google_protobuf_empty_pb.Empty> {
     const deleteEventRequest = new DeleteEventRequest().setName(eventName);
 
-    return await eventClient.deleteEvent(deleteEventRequest);
+    return await CsWebClient.getEventClient().deleteEvent(deleteEventRequest);
   }
 
   public async updateEvent({
@@ -474,7 +474,7 @@ class CoSceneConsoleApi {
     req.setEvent(event);
     req.setUpdateMask(updateMask);
 
-    await eventClient.updateEvent(req);
+    await CsWebClient.getEventClient().updateEvent(req);
   }
 
   public async sendIncCounter({
@@ -500,14 +500,14 @@ class CoSceneConsoleApi {
     }
 
     req.setCounter(metric);
-    await metricClient.incCounter(req);
+    await CsWebClient.getMetricClient().incCounter(req);
   }
 
   public async getRecord({ recordName }: { recordName: string }): Promise<CoSceneRecord> {
     const req = new GetRecordRequest();
     req.setName(recordName);
 
-    return await recordClient.getRecord(req);
+    return await CsWebClient.getRecordClient().getRecord(req);
   }
 }
 
