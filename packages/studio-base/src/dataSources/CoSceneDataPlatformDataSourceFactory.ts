@@ -11,21 +11,7 @@ import {
   WorkerIterableSource,
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
-
-const getApiAddress = (env: "production" | "azureDev" | "keenon" | "gaussian"): string => {
-  switch (env) {
-    case "production":
-      return "https://honeybee.coscene.cn";
-    case "azureDev":
-      return "https://honeybee.coscene.dev";
-    case "keenon":
-      return "https://honeybee.keenon.coscene.cn";
-    case "gaussian":
-      return "https://honeybee.gaussian.coscene.cn";
-    default:
-      return "http://localhost:8080";
-  }
-};
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-data-platform";
@@ -44,7 +30,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       sourceType: "foxgloveDataPlatform",
       initArgs: {
         api: {
-          baseUrl: getApiAddress(process.env.PROJECT_ENV as "production" | "azureDev"),
+          baseUrl: APP_CONFIG.CS_HONEYBEE_BASE_URL,
           auth: `Bearer ${localStorage.getItem("coScene_org_jwt")}`,
         },
         params: args.params,
