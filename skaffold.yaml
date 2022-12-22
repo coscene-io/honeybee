@@ -1,5 +1,4 @@
-# since skaffold v2.0.3
-apiVersion: skaffold/v4beta1
+apiVersion: skaffold/v2beta28
 kind: Config
 build:
   tagPolicy:
@@ -15,29 +14,56 @@ build:
         - name: BAR
           gitCommit:
             ignoreChanges: true
-  artifacts:
-    - image: coseus.azurecr.io/honeybee
-      context: .
-      docker:
-        dockerfile: Dockerfile
-        buildArgs:
-          BUF_TOKEN: "{{.BUF_TOKEN}}"
-          GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
-          CURRENT_IMAGE_TAG: "{{.IMAGE_TAG}}"
-  local:
-    useBuildkit: true
-    tryImportMissing: true
 profiles:
-  - name: local
-    build:
-      local:
-        push: false
-        useBuildkit: false
-        tryImportMissing: false
   - name: azure-dev-east-us
     build:
-      local:
-        useBuildkit: true
-        tryImportMissing: false
+      artifacts:
+        - image: coseus.azurecr.io/honeybee
+          context: .
+          docker:
+            dockerfile: Dockerfile
+            buildArgs:
+              BUF_TOKEN: "{{.BUF_TOKEN}}"
+              GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
+              PROJECT_ENV: "azureDev"
+              VITE_APP_BASE_API_URL: "https://api.coscene.dev"
+              ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"
   - name: aliyun-staging-cn-hangzhou
+    build:
+      artifacts:
+        - image: coseus.azurecr.io/honeybee
+          context: .
+          docker:
+            dockerfile: Dockerfile
+            buildArgs:
+              BUF_TOKEN: "{{.BUF_TOKEN}}"
+              GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
+              PROJECT_ENV: "production"
+              VITE_APP_BASE_API_URL: "https://api.coscene.cn"
+              ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"
   - name: aliyun-keenon-cn-hangzhou
+    build:
+      artifacts:
+        - image: coseus.azurecr.io/honeybee
+          context: .
+          docker:
+            dockerfile: Dockerfile
+            buildArgs:
+              BUF_TOKEN: "{{.BUF_TOKEN}}"
+              GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
+              PROJECT_ENV: "keenon"
+              VITE_APP_BASE_API_URL: "https://api.keenon.coscene.cn"
+              ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"
+  - name: aliyun-gaussian-cn-hangzhou
+    build:
+      artifacts:
+        - image: coseus.azurecr.io/honeybee
+          context: .
+          docker:
+            dockerfile: Dockerfile
+            buildArgs:
+              BUF_TOKEN: "{{.BUF_TOKEN}}"
+              GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
+              PROJECT_ENV: "gaussian"
+              VITE_APP_BASE_API_URL: "https://api.gaussian.coscene.cn"
+              ROLLBAR_ACCESS_TOKEN: "{{.ROLLBAR_ACCESS_TOKEN}}"

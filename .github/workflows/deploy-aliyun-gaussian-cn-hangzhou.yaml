@@ -2,7 +2,7 @@
 # we can only build the image on the GitHub runner,
 # and then synchronize it to the Alibaba ACR service.
 # And this is a way to save self-hosted runner resources.
-name: Deploy to aliyun-keenon-cn-hangzhou
+name: Deploy to aliyun-gaussian-cn-hangzhou
 
 on:
   push:
@@ -45,11 +45,11 @@ jobs:
 
       - name: Skaffold build
         run: |
-          skaffold build -p aliyun-keenon-cn-hangzhou -t keenon-latest
+          skaffold build -p aliyun-gaussian-cn-hangzhou -t gaussian-latest
   sync:
     runs-on: self-hosted
     needs: build
-    environment: aliyun-keenon-cn-hangzhou
+    environment: aliyun-gaussian-cn-hangzhou
     steps:
       - name: Login to Azure Docker Registry
         uses: docker/login-action@v2
@@ -74,8 +74,8 @@ jobs:
             env.https_proxy=${{ env.http_proxy }}
       - name: Push image to AliCloud
         env:
-          SRC: coseus.azurecr.io/honeybee:keenon-latest
-          DST: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:keenon-latest
+          SRC: coseus.azurecr.io/honeybee:gaussian-latest
+          DST: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:gaussian-latest
         run: |
           docker pull $SRC
           docker tag $SRC $DST
