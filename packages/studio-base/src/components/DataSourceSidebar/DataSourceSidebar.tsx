@@ -3,6 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Tab, Tabs, styled as muiStyled, Divider, Box } from "@mui/material";
+import Button from "@mui/material/Button";
+import Menu from "@mui/material/Menu";
+import { useTheme } from "@mui/material/styles";
 import { useState, PropsWithChildren, useEffect } from "react";
 
 import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
@@ -51,21 +54,22 @@ const ProblemCount = muiStyled("div")(({ theme }) => ({
 const TabPanel = (
   props: PropsWithChildren<{
     index: number;
+    menuValue?: number;
     value: number;
   }>,
 ): JSX.Element => {
-  const { children, value, index, ...other } = props;
+  const { children, value, index, menuValue, ...other } = props;
 
   return (
     <Box
       role="tabpanel"
-      hidden={value !== index}
+      hidden={value !== index && menuValue !== index}
       id={`tabpanel-${index}`}
       aria-labelledby={`tab-${index}`}
       flex="auto"
       {...other}
     >
-      {value === index && <>{children}</>}
+      {(value === index || index === menuValue) && <>{children}</>}
     </Box>
   );
 };
@@ -85,8 +89,19 @@ export default function DataSourceSidebar(): JSX.Element {
   const playerSourceId = useMessagePipeline(selectPlayerSourceId);
   const selectedEventId = useEvents(selectSelectedEventId);
   const [activeTab, setActiveTab] = useState(0);
+  const [moreActiveTab, setMoreActiveTab] = useState(-1);
+  const theme = useTheme();
 
   const showEventsTab = currentUser != undefined && playerSourceId === "foxglove-data-platform";
+
+  const [anchorEl, setAnchorEl] = React.useState<undefined | HTMLElement>(undefined);
+  const open = Boolean(anchorEl);
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(undefined);
+  };
 
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
@@ -106,23 +121,61 @@ export default function DataSourceSidebar(): JSX.Element {
             <Stack flex={1}>
               <StyledTabs
                 value={activeTab}
-                onChange={(_ev, newValue: number) => setActiveTab(newValue)}
+                onChange={(_ev, newValue: number) => {
+                  setActiveTab(newValue);
+                  setMoreActiveTab(-1);
+                }}
                 textColor="inherit"
               >
                 <StyledTab disableRipple label="Topics" value={0} />
                 <StyledTab disableRipple label="Events" value={1} />
-                <StyledTab
-                  disableRipple
-                  label={
-                    <Stack direction="row" alignItems="baseline" gap={1}>
-                      Problems
-                      {playerProblems.length > 0 && (
-                        <ProblemCount>{playerProblems.length}</ProblemCount>
-                      )}
-                    </Stack>
-                  }
-                  value={2}
-                />
+                <Button
+                  id="basic-button"
+                  aria-controls={open ? "basic-menu" : undefined}
+                  aria-haspopup="true"
+                  aria-expanded={open ? "true" : undefined}
+                  onClick={handleClick}
+                  style={{
+                    color:
+                      activeTab === 2 ? theme.palette.text.primary : theme.palette.text.secondary,
+                  }}
+                >
+                  More
+                </Button>
+                <Menu
+                  id="basic-menu"
+                  anchorEl={anchorEl}
+                  open={open}
+                  onClose={handleClose}
+                  MenuListProps={{
+                    "aria-labelledby": "basic-button",
+                  }}
+                >
+                  <StyledTab
+                    label={
+                      <Stack
+                        direction="row"
+                        style={{
+                          color:
+                            moreActiveTab === 3
+                              ? theme.palette.text.primary
+                              : theme.palette.text.secondary,
+                        }}
+                        alignItems="baseline"
+                        gap={1}
+                      >
+                        Problems
+                        {playerProblems.length > 0 && (
+                          <ProblemCount>{playerProblems.length}</ProblemCount>
+                        )}
+                      </Stack>
+                    }
+                    onChange={() => {
+                      setActiveTab(2);
+                      setMoreActiveTab(3);
+                    }}
+                  />
+                </Menu>
               </StyledTabs>
               <Divider />
               <TabPanel value={activeTab} index={0}>
@@ -131,7 +184,7 @@ export default function DataSourceSidebar(): JSX.Element {
               <TabPanel value={activeTab} index={1}>
                 <EventsList />
               </TabPanel>
-              <TabPanel value={activeTab} index={2}>
+              <TabPanel value={activeTab} menuValue={moreActiveTab} index={3}>
                 <ProblemsList problems={playerProblems} />
               </TabPanel>
             </Stack>
