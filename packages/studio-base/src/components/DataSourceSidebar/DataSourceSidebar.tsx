@@ -106,6 +106,7 @@ export default function DataSourceSidebar(): JSX.Element {
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
       setActiveTab(2);
+      setMoreActiveTab(3);
     } else if (showEventsTab && selectedEventId != undefined) {
       setActiveTab(1);
     }
