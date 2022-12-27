@@ -9,14 +9,16 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  PROFILE: azure-dev-east-us
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-20.04
     environment: azure-dev-east-us
     env:
       BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
-      ROLLBAR_ACCESS_TOKEN: ${{ secrets.ROLLBAR_ACCESS_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -24,7 +26,33 @@ jobs:
           fetch-depth: 2
           lfs: true
 
-      - name: Setup CD workspace
+      - name: Setup CD workspace all in one
+        uses: coscene-io/setup-cd-workspace-all-in-one@v1.1.0
+        with:
+          cloud-provider: Azure
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          acr-login-registry: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}
+          acr-username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
+          acr-password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
+          azure-aks-resource-group: 'Dev-EUS'
+          azure-aks-cluster-name: 'Dev-EUS'
+          need-cd-tools: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push images
+        run: |
+          skaffold build -p azure-dev-east-us -t latest
+
+  deploy:
+    needs: build
+    environment: azure-dev-east-us
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup CD workspace all in one
         uses: coscene-io/setup-cd-workspace-all-in-one@v0.0.7
         with:
           cloud-provider: Azure
@@ -34,28 +62,93 @@ jobs:
           acr-login-registry: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}
           acr-username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
           acr-password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
-          azure-aks-resource-group: "Dev-EUS"
-          azure-aks-cluster-name: "Dev-EUS"
+          azure-aks-resource-group: 'Dev-EUS'
+          azure-aks-cluster-name: 'Dev-EUS'
           need-cd-tools: true
-
-      - name: Skaffold build
-        run: |
-          skaffold build -p azure-dev-east-us -t latest
-
       - name: Setup helmfile
         uses: mamezou-tech/setup-helmfile@v1.1.0
         with:
           helmfile-version: "v0.148.1"
           helm-version: "v3.10.2"
           additional-helm-plugins: https://github.com/aslafy-z/helm-git --version 0.14.0
-
-      - name: Helm add coScene repo
+      - name: Helm Add coScene Repo
         env:
           REPOSITORY_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
         run: |
           helm repo add coscene git+https://$REPOSITORY_TOKEN@github.com/coscene-io/chart@\?ref=main
-          helm repo update
-
-      - name: Helm upgrade
+      - name: Helm Upgrade
         run: |
           helm upgrade -n coscene --reuse-values coscene coscene/coscene --set honeybee.rollout=$GITHUB_SHA
+      - name: Notification to Feishu
+        uses: foxundermoon/feishu-action@v2
+        with:
+          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_RHODE_ISLAND }}
+          msg_type: text
+          content: |
+            text: |
+              A new version of Honeybee Web has been deployed to ${{ env.PROFILE }}.
+              GitHubEvent: ${{ github.event_name }}
+              committer: ${{ github.actor }}
+              baseRef: ${{ github.ref }}
+
+  copy-image-to-aliyun:
+    runs-on: [ self-hosted ]
+    environment: azure-dev-east-us
+    needs: build
+    steps:
+      - name: Skopeo Copy
+        uses: coscene-io/skopeo-copy-action@v1.0.0
+        env:
+          http_proxy: http://gfw:7890
+          https_proxy: http://gfw:7890
+        with:
+          src-image: coseus.azurecr.io/honeybee:latest
+          dst-image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:latest
+          src-creds: ${{ secrets.ACR_ADMIN_USERNAME }}:${{ secrets.ACR_ADMIN_PASSWORD }}
+          dst-creds: ${{ secrets.ACR_USERNAME }}:${{ secrets.ACR_PASSWORD }}
+
+  sync-fallback:
+    environment: azure-dev-east-us
+    runs-on: ubuntu-latest
+    needs: [ build, copy-image-to-aliyun ]
+    steps:
+      - name: Skopeo Copy
+        if: needs.copy-image-to-aliyun.result == 'failure'
+        uses: coscene-io/skopeo-copy-action@v1.0.0
+        with:
+          src-image: coseus.azurecr.io/honeybee:latest
+          dst-image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:latest
+          src-creds: ${{ secrets.ACR_ADMIN_USERNAME }}:${{ secrets.ACR_ADMIN_PASSWORD }}
+          dst-creds: ${{ secrets.ACR_USERNAME }}:${{ secrets.ACR_PASSWORD }}
+
+  callout:
+    runs-on: ubuntu-latest
+    needs: [ build, copy-image-to-aliyun, sync-fallback ]
+    steps:
+      - name: Add summary
+        if: needs.build.result == 'success'
+        env:
+          tag: latest
+        run: |
+          echo '## Image Summary :rocket:' >> $GITHUB_STEP_SUMMARY
+          echo "GITHUB_EVENT_NAME: $GITHUB_EVENT_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "GITHUB_ACTOR: $GITHUB_ACTOR" >> $GITHUB_STEP_SUMMARY
+          echo "GITHUB_REF: $GITHUB_REF" >> $GITHUB_STEP_SUMMARY
+          echo "Azure image: coseus.azurecr.io/honeybee:$tag" >> $GITHUB_STEP_SUMMARY
+          echo "AliCloud image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:$tag" >> $GITHUB_STEP_SUMMARY
+      - name: Notification to Feishu
+        uses: foxundermoon/feishu-action@v2
+        if: needs.build.result == 'success'
+        env:
+          tag: latest
+        with:
+          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_IMAGE_BROADCAST }}
+          msg_type: text
+          content: |
+            text: |
+              A new version of Honeybee Web image has been published to ${{ env.PROFILE }}.
+              GitHubEvent: ${{ github.event_name }}
+              committer: ${{ github.actor }}
+              baseRef: ${{ github.ref }}
+              Azure image: coseus.azurecr.io/honeybee:${{ env.tag }}
+              AliCloud image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:${{ env.tag }}
