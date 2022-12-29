@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useMemo, useState } from "react";
+import { useFavicon } from "react-use";
 
 import {
   // IDataSourceFactory,
@@ -33,6 +34,19 @@ import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
 
 export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration }): JSX.Element {
+  let favicon = "";
+  switch (APP_CONFIG.VITE_APP_PROJECT_ENV) {
+    case "local":
+      favicon = "/logo-light.svg";
+      break;
+    case "keenon":
+      favicon = "/viz/keenon_favicon.svg";
+      break;
+    default:
+      favicon = "/viz/logo-light.svg";
+  }
+
+  useFavicon(favicon);
   const dataSources: CoSceneIDataSourceFactory[] = useMemo(() => {
     const sources = [
       // new Ros1UnavailableDataSourceFactory(),
