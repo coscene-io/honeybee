@@ -123,6 +123,7 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
       <meta property="og:title" content="coScene"/>
       <meta property="og:description" content="Open source visualization and debugging tool for robotics"/>
       <meta property="og:type" content="website"/>
+      <script src="/viz/cos-config.js" type="text/javascript"></script>
       <title>coScene</title>
     </head>
     <script>
