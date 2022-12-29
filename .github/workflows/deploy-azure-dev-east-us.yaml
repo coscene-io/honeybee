@@ -91,39 +91,9 @@ jobs:
               committer: ${{ github.actor }}
               baseRef: ${{ github.ref }}
 
-  copy-image-to-aliyun:
-    runs-on: [ self-hosted ]
-    environment: azure-dev-east-us
-    needs: build
-    steps:
-      - name: Skopeo Copy
-        uses: coscene-io/skopeo-copy-action@v1.0.0
-        env:
-          http_proxy: http://gfw:7890
-          https_proxy: http://gfw:7890
-        with:
-          src-image: coseus.azurecr.io/honeybee:latest
-          dst-image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:latest
-          src-creds: ${{ secrets.ACR_ADMIN_USERNAME }}:${{ secrets.ACR_ADMIN_PASSWORD }}
-          dst-creds: ${{ secrets.ACR_USERNAME }}:${{ secrets.ACR_PASSWORD }}
-
-  sync-fallback:
-    environment: azure-dev-east-us
-    runs-on: ubuntu-latest
-    needs: [ build, copy-image-to-aliyun ]
-    steps:
-      - name: Skopeo Copy
-        if: needs.copy-image-to-aliyun.result == 'failure'
-        uses: coscene-io/skopeo-copy-action@v1.0.0
-        with:
-          src-image: coseus.azurecr.io/honeybee:latest
-          dst-image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee:latest
-          src-creds: ${{ secrets.ACR_ADMIN_USERNAME }}:${{ secrets.ACR_ADMIN_PASSWORD }}
-          dst-creds: ${{ secrets.ACR_USERNAME }}:${{ secrets.ACR_PASSWORD }}
-
   callout:
     runs-on: ubuntu-latest
-    needs: [ build, copy-image-to-aliyun, sync-fallback ]
+    needs: [ build ]
     steps:
       - name: Add summary
         if: needs.build.result == 'success'
