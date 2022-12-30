@@ -35,13 +35,17 @@ import {
 import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import { useUserProfileStorage } from "@foxglove/studio-base/context/UserProfileStorageContext";
 import { LinkedGlobalVariables } from "@foxglove/studio-base/panels/ThreeDimensionalViz/Interactions/useLinkedGlobalVariables";
-import { defaultLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutKeenon";
+import {
+  gs75Layout,
+  gs50Layout,
+} from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutGaussian";
+import { keenonDefaultLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutKeenon";
 import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
 import { LayoutID } from "@foxglove/studio-base/services/ConsoleApi";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/ILayoutManager";
 import { PanelConfig, UserNodes, PlaybackConfig } from "@foxglove/studio-base/types/panels";
-import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
 const log = Logger.getLogger(__filename);
@@ -253,11 +257,6 @@ export default function CurrentLayoutProvider({
 
   // Load initial state by re-selecting the last selected layout from the UserProfile.
   useAsync(async () => {
-    // Don't restore the layout if there's one specified in the app state url.
-    if (windowAppURLState()?.layoutId) {
-      return;
-    }
-
     // Retreive the selected layout id from the user's profile. If there's no layout specified
     // or we can't load it then save and select a default layout.
     const { currentLayoutId } = await getUserProfile();
@@ -265,12 +264,45 @@ export default function CurrentLayoutProvider({
     if (layout) {
       await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
     } else {
-      const newLayout = await layoutManager.saveNewLayout({
-        name: "Default",
-        data: defaultLayout,
-        permission: "CREATOR_WRITE",
-      });
-      await setSelectedLayoutId(newLayout.id);
+      if (APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon") {
+        const defaultLayout = await layoutManager.saveNewLayout({
+          name: "default",
+          data: keenonDefaultLayout,
+          permission: "CREATOR_WRITE",
+        });
+
+        await setSelectedLayoutId(defaultLayout.id);
+      } else if (APP_CONFIG.VITE_APP_PROJECT_ENV === "gaussian") {
+        const newGs50Layout = await layoutManager.saveNewLayout({
+          name: "50 Layout",
+          data: gs50Layout,
+          permission: "CREATOR_WRITE",
+        });
+
+        const newGs75Layout = await layoutManager.saveNewLayout({
+          name: "75 Layout",
+          data: gs75Layout,
+          permission: "CREATOR_WRITE",
+        });
+
+        await setSelectedLayoutId(newGs50Layout.id);
+        await setSelectedLayoutId(newGs75Layout.id);
+      } else {
+        const newLayout = await layoutManager.saveNewLayout({
+          name: "KN Layout",
+          data: keenonDefaultLayout,
+          permission: "CREATOR_WRITE",
+        });
+
+        const newGs50Layout = await layoutManager.saveNewLayout({
+          name: "GS Layout",
+          data: gs50Layout,
+          permission: "CREATOR_WRITE",
+        });
+
+        await setSelectedLayoutId(newLayout.id);
+        await setSelectedLayoutId(newGs50Layout.id);
+      }
     }
   }, [getUserProfile, layoutManager, setSelectedLayoutId]);
 
