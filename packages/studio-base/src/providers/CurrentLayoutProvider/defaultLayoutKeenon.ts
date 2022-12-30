@@ -8,7 +8,7 @@ import { PanelsState } from "@foxglove/studio-base/context/CurrentLayoutContext/
  * This is loaded when the user has no layout selected on application launch
  * to avoid presenting the user with a blank layout.
  */
-export const defaultLayout: PanelsState = {
+export const keenonDefaultLayout: PanelsState = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
