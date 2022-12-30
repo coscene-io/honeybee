@@ -81,6 +81,7 @@ jobs:
     environment: aliyun-staging-cn-hangzhou
     runs-on: ubuntu-latest
     needs: [ build, copy-image-to-aliyun ]
+    if: always()
     steps:
       - name: Skopeo Copy
         if: needs.copy-image-to-aliyun.result == 'failure'
