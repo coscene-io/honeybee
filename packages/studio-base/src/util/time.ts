@@ -77,6 +77,6 @@ export const formateTimeToReadableFormat = (time: Time): string => {
   const s = Math.floor(time.sec % 60);
 
   return `${h < 10 ? 0 : ""}${h}:${m < 10 ? 0 : ""}${m}:${s < 10 ? 0 : ""}${s}.${
-    Math.floor(time.sec / 1e7) < 10 ? 0 : ""
-  }${Math.floor(time.sec / 1e7)}`;
+    Math.floor(time.nsec / 1e7) < 10 ? 0 : ""
+  }${Math.floor(time.nsec / 1e7)}`;
 };
