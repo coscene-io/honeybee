@@ -70,3 +70,13 @@ export const timestampToTime = (timestamp: number): Time => {
   const nsec = (timestamp % 1000) * 1000000;
   return { sec, nsec };
 };
+
+export const formateTimeToReadableFormat = (time: Time): string => {
+  const h = Math.floor(time.sec / 3600);
+  const m = Math.floor((time.sec % 3600) / 60);
+  const s = Math.floor(time.sec % 60);
+
+  return `${h < 10 ? 0 : ""}${h}:${m < 10 ? 0 : ""}${m}:${s < 10 ? 0 : ""}${s}.${
+    Math.floor(time.sec / 1e7) < 10 ? 0 : ""
+  }${Math.floor(time.sec / 1e7)}`;
+};
