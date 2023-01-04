@@ -19,6 +19,7 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
+import { formateTimeToReadableFormat } from "@foxglove/studio-base/util/time";
 
 export type PlaybackControlsTooltipItem =
   | { type: "divider" }
@@ -105,7 +106,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
   tooltipItems.push({
     type: "item",
     title: "Elapsed",
-    value: `${toSec(timeFromStart).toFixed(9)} sec`,
+    value: formateTimeToReadableFormat(timeFromStart),
   });
 
   return (
