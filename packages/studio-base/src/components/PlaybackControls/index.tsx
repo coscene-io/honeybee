@@ -55,6 +55,12 @@ const useStyles = makeStyles()((theme) => ({
     borderTop: `1px solid ${theme.palette.divider}`,
     zIndex: 100000,
   },
+  createMoment: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: 0,
+  },
 }));
 
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
@@ -74,7 +80,7 @@ export default function PlaybackControls(props: {
   const [repeat, setRepeat] = useState(false);
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(false);
 
-  const [createEventShortcutKeys] = useKeyboardJs("ctrl > n");
+  const [createEventShortcutKeys] = useKeyboardJs("alt > m");
 
   const toggleRepeat = useCallback(() => {
     setRepeat((old) => !old);
@@ -171,7 +177,7 @@ export default function PlaybackControls(props: {
               activeIcon={<EventIcon />}
               onClick={toggleCreateEventDialog}
             >
-              Create moment (Control+N)
+              <p className={classes.createMoment}>Create moment (⎇ / ⌥ + M)</p>
             </HoverableIconButton>
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
           </Stack>
