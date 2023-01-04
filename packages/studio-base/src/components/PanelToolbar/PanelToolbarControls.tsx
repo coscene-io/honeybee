@@ -156,7 +156,7 @@ const PanelToolbarControlsComponent = forwardRef<HTMLDivElement, PanelToolbarCon
             ],
           }}
         >
-          {settingsButton}
+          <div>{settingsButton}</div>
         </Tooltip>
       );
     }

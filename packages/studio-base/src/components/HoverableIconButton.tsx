@@ -10,10 +10,12 @@ type Props = {
   activeIcon?: React.ReactNode;
   color?: IconButtonProps["color"];
   activeColor?: IconButtonProps["color"];
+  children?: React.ReactNode;
 } & Omit<IconButtonProps, "children" | "color">;
 
 const HoverableIconButton = forwardRef<HTMLButtonElement, Props>((props, ref) => {
-  const { icon, activeIcon, color, activeColor, onMouseLeave, onMouseEnter, ...rest } = props;
+  const { icon, activeIcon, color, activeColor, onMouseLeave, onMouseEnter, children, ...rest } =
+    props;
 
   const [hovered, setHovered] = useState(false);
 
@@ -56,6 +58,7 @@ const HoverableIconButton = forwardRef<HTMLButtonElement, Props>((props, ref) =>
       color={activeColor != undefined ? (hovered ? activeColor : color) : color}
     >
       {activeIcon != undefined ? (hovered ? activeIcon : icon) : icon}
+      {children}
     </IconButton>
   );
 });
