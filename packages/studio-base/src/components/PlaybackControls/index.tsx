@@ -21,7 +21,8 @@ import {
   Previous20Filled,
   Previous20Regular,
 } from "@fluentui/react-icons";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import useKeyboardJs from "react-use/lib/useKeyboardJs";
 import { makeStyles } from "tss-react/mui";
 
 import { compare, Time } from "@foxglove/rostime";
@@ -72,6 +73,8 @@ export default function PlaybackControls(props: {
   const { classes } = useStyles();
   const [repeat, setRepeat] = useState(false);
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(false);
+
+  const [createEventShortcutKeys] = useKeyboardJs("ctrl > n");
 
   const toggleRepeat = useCallback(() => {
     setRepeat((old) => !old);
@@ -145,6 +148,12 @@ export default function PlaybackControls(props: {
     setCreateEventDialogOpen((open) => !open);
   }, []);
 
+  useEffect(() => {
+    if (createEventShortcutKeys) {
+      toggleCreateEventDialog();
+    }
+  }, [toggleCreateEventDialog, createEventShortcutKeys]);
+
   const disableControls = presence === PlayerPresence.ERROR;
 
   return (
@@ -157,11 +166,13 @@ export default function PlaybackControls(props: {
           <Stack direction="row" flex={1} gap={0.5}>
             <HoverableIconButton
               size="small"
-              title="Create event"
+              title="Create moment"
               icon={<EventOutlinedIcon />}
               activeIcon={<EventIcon />}
               onClick={toggleCreateEventDialog}
-            />
+            >
+              Create moment (Control+N)
+            </HoverableIconButton>
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>

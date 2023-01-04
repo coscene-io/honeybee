@@ -1784,10 +1784,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/coscene@npm:0.2.46":
-  version: 0.2.46
-  resolution: "@coscene-io/coscene@npm:0.2.46::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.46%2F522d797db3a57cb07a620857609801fa660045ad"
+"@coscene-io/coscene@npm:0.2.47":
+  version: 0.2.47
+  resolution: "@coscene-io/coscene@npm:0.2.47::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.47%2F4840f3b0d3efc0007d85630eb6cfb2d1aa89789c"
   dependencies:
+    "@coscene-io/cosceneapis": ^0.0.112
     "@coscene-io/cosceneapis": ^0.0.112
     "@coscene-io/semantic-lib": ^0.0.70
     ahooks: ^3.7.0
@@ -1800,10 +1801,13 @@ __metadata:
     react-query: ^3.39.2
     react-router-dom: ^6.3.0
     recoil: ^0.7.4
-  checksum: 791cecf79eb001063f8103d176ba56a61e5fd86b2bfcef5c5cf4f87c55f7e30a3bb0186e81f35c3c585cb3abba573ed22433a7a20e0223638da9a66b05adbb7e
+  checksum: 3c606b3b2844c07724bd1dfbc85c5c761bb5fa28d91a056860c184431bd585dac42c601c51132370f6209de13e1eae687a96e3506e7dd0b8cdc572ec24bb0fda
   languageName: node
   linkType: hard
 
+"@coscene-io/cosceneapis@npm:^0.0.112":
+  version: 0.0.112
+  resolution: "@coscene-io/cosceneapis@npm:0.0.112::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.112%2F22a82dda40ab69ae1d9333076a14aa445f1fc9c6"
 "@coscene-io/cosceneapis@npm:^0.0.112":
   version: 0.0.112
   resolution: "@coscene-io/cosceneapis@npm:0.0.112::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.112%2F22a82dda40ab69ae1d9333076a14aa445f1fc9c6"
@@ -1815,6 +1819,7 @@ __metadata:
     "@types/google-protobuf": 3.15.6
     google-protobuf: 3.20.1
     grpc-web: 1.4.0
+  checksum: 70bd2d913306f434b880427a99aee909c3ce35d1846627ec2aeedfa206c19a6af2f324a3da36b49726062b043fdc443da70c48ffcaa0e645e48fbfd344b71539
   checksum: 70bd2d913306f434b880427a99aee909c3ce35d1846627ec2aeedfa206c19a6af2f324a3da36b49726062b043fdc443da70c48ffcaa0e645e48fbfd344b71539
   languageName: node
   linkType: hard
@@ -2657,7 +2662,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@foxglove/studio-base@workspace:packages/studio-base"
   dependencies:
-    "@coscene-io/coscene": 0.2.46
+    "@coscene-io/coscene": 0.2.47
     "@emotion/cache": 11.10.5
     "@emotion/react": 11.7.1
     "@emotion/styled": 11.6.0
@@ -2721,6 +2726,7 @@ __metadata:
     "@types/gl-matrix": 3.2.0
     "@types/google-protobuf": 3.15.6
     "@types/hammerjs": 2.0.41
+    "@types/keyboardjs": ^2.5.0
     "@types/leaflet": 1.9.0
     "@types/memoize-weak": "workspace:*"
     "@types/moment-duration-format": 2.2.3
@@ -2781,6 +2787,7 @@ __metadata:
     intervals-fn: 3.0.3
     jest-diff: 29.3.1
     jszip: 3.10.0
+    keyboardjs: 2.7.0
     leaflet: 1.9.2
     lodash: 4.17.21
     mathjs: 10.1.1
@@ -6019,6 +6026,13 @@ __metadata:
   version: 0.0.29
   resolution: "@types/json5@npm:0.0.29"
   checksum: e60b153664572116dfea673c5bda7778dbff150498f44f998e34b5886d8afc47f16799280e4b6e241c0472aef1bc36add771c569c68fc5125fc2ae519a3eb9ac
+  languageName: node
+  linkType: hard
+
+"@types/keyboardjs@npm:^2.5.0":
+  version: 2.5.0
+  resolution: "@types/keyboardjs@npm:2.5.0"
+  checksum: 9d5ed542b24ab036c48a4f3c42b054f14793153a829ae0fb036a34f1558fe323ec80b26933a0fa06f1a42c00e2c6a1f1f51c4585b31fa6fb5dfb454616687353
   languageName: node
   linkType: hard
 
@@ -16867,6 +16881,13 @@ __metadata:
   version: 3.1.0
   resolution: "junk@npm:3.1.0"
   checksum: 6c4d68e8f8bc25b546baed802cd0e7be6a971e92f1e885c92cbfe98946d5690b961a32f8e7909e77765d3204c3e556d13c17f73e31697ffae1db07a58b9e68c0
+  languageName: node
+  linkType: hard
+
+"keyboardjs@npm:2.7.0":
+  version: 2.7.0
+  resolution: "keyboardjs@npm:2.7.0"
+  checksum: 1e349d07e43c7c76654f676acf33e04ac07642ae09102440faa75d9951bd6519295dfc3572b0786650bebd3a173274e76dfb67e40279716d62267d07f815d70a
   languageName: node
   linkType: hard
 
