@@ -8,7 +8,7 @@ import { Fragment } from "react";
 import { makeStyles } from "tss-react/mui";
 
 import { fromNanoSec, add } from "@foxglove/rostime";
-import { subtract as subtractTimes, toSec, Time } from "@foxglove/rostime";
+import { subtract as subtractTimes, Time } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
