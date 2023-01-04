@@ -315,7 +315,6 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                 <TextField
                   fullWidth
                   value={key}
-                  autoFocus={index === 0}
                   placeholder="Key (string)"
                   error={hasDuplicate}
                   onKeyDown={onMetaDataKeyDown}
