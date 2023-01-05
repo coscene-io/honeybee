@@ -10,10 +10,17 @@ import ReactDOM from "react-dom";
 
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base";
+import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
 import { ROLLBAR_CONFIG } from "@foxglove/studio-base/util/rollbarConfig";
 
 import VersionBanner from "./VersionBanner";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
+
+bcInstance.listenBroadcastMessage((msg) => {
+  if (msg.data === LOGOUT_MESSAGE) {
+    window.location.href = '/login';
+  }
+});
 
 const log = Logger.getLogger(__filename);
 
