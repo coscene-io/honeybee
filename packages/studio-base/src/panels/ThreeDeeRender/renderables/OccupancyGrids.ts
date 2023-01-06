@@ -21,6 +21,7 @@ import {
 } from "../normalizeMessages";
 import { ColorRGBA, OccupancyGrid, OCCUPANCY_GRID_DATATYPES } from "../ros";
 import { BaseSettings } from "../settings";
+import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
 
 export type LayerSettingsOccupancyGrid = BaseSettings & {
   frameLocked: boolean;
@@ -74,12 +75,10 @@ export class OccupancyGridRenderable extends Renderable<OccupancyGridUserData> {
 }
 
 export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
-  private static geometry: THREE.PlaneGeometry | undefined;
-
   public constructor(renderer: Renderer) {
     super("foxglove.OccupancyGrids", renderer);
 
-    renderer.addDatatypeSubscriptions(OCCUPANCY_GRID_DATATYPES, this.handleOccupancyGrid);
+    renderer.addSchemaSubscriptions(OCCUPANCY_GRID_DATATYPES, this.handleOccupancyGrid);
   }
 
   public override settingsNodes(): SettingsTreeEntry[] {
@@ -87,30 +86,31 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
     const handler = this.handleSettingsAction;
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
-      if (OCCUPANCY_GRID_DATATYPES.has(topic.schemaName)) {
-        const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsOccupancyGrid>;
-
-        // prettier-ignore
-        const fields: SettingsTreeFields = {
-          minColor: { label: "Min Color", input: "rgba", value: config.minColor ?? DEFAULT_MIN_COLOR_STR },
-          maxColor: { label: "Max Color", input: "rgba", value: config.maxColor ?? DEFAULT_MAX_COLOR_STR },
-          unknownColor: { label: "Unknown Color", input: "rgba", value: config.unknownColor ?? DEFAULT_UNKNOWN_COLOR_STR },
-          invalidColor: { label: "Invalid Color", input: "rgba", value: config.invalidColor ?? DEFAULT_INVALID_COLOR_STR },
-          frameLocked: { label: "Frame lock", input: "boolean", value: config.frameLocked ?? false },
-        };
-
-        entries.push({
-          path: ["topics", topic.name],
-          node: {
-            label: topic.name,
-            icon: "Cells",
-            fields,
-            visible: config.visible ?? DEFAULT_SETTINGS.visible,
-            order: topic.name.toLocaleLowerCase(),
-            handler,
-          },
-        });
+      if (!topicIsConvertibleToSchema(topic, OCCUPANCY_GRID_DATATYPES)) {
+        continue;
       }
+      const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsOccupancyGrid>;
+
+      // prettier-ignore
+      const fields: SettingsTreeFields = {
+        minColor: { label: "Min Color", input: "rgba", value: config.minColor ?? DEFAULT_MIN_COLOR_STR },
+        maxColor: { label: "Max Color", input: "rgba", value: config.maxColor ?? DEFAULT_MAX_COLOR_STR },
+        unknownColor: { label: "Unknown Color", input: "rgba", value: config.unknownColor ?? DEFAULT_UNKNOWN_COLOR_STR },
+        invalidColor: { label: "Invalid Color", input: "rgba", value: config.invalidColor ?? DEFAULT_INVALID_COLOR_STR },
+        frameLocked: { label: "Frame Lock", input: "boolean", value: config.frameLocked ?? false },
+      };
+
+      entries.push({
+        path: ["topics", topic.name],
+        node: {
+          label: topic.name,
+          icon: "Cells",
+          fields,
+          visible: config.visible ?? DEFAULT_SETTINGS.visible,
+          order: topic.name.toLocaleLowerCase(),
+          handler,
+        },
+      });
     }
     return entries;
   }
@@ -163,7 +163,11 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
       const settings = { ...DEFAULT_SETTINGS, ...userSettings };
 
       const texture = createTexture(occupancyGrid);
-      const mesh = createMesh(topic, texture, settings);
+      const geometry = this.renderer.sharedGeometry.getGeometry(
+        this.constructor.name,
+        createGeometry,
+      );
+      const mesh = createMesh(topic, geometry, texture, settings);
       const material = mesh.material as THREE.MeshBasicMaterial;
       const pickingMaterial = mesh.userData.pickingMaterial as THREE.ShaderMaterial;
 
@@ -227,17 +231,13 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
 
     renderable.scale.set(resolution * width, resolution * height, 1);
   }
-
-  public static Geometry(): THREE.PlaneGeometry {
-    if (!OccupancyGrids.geometry) {
-      OccupancyGrids.geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
-      OccupancyGrids.geometry.translate(0.5, 0.5, 0);
-      OccupancyGrids.geometry.computeBoundingSphere();
-    }
-    return OccupancyGrids.geometry;
-  }
 }
-
+function createGeometry(): THREE.PlaneGeometry {
+  const geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+  geometry.translate(0.5, 0.5, 0);
+  geometry.computeBoundingSphere();
+  return geometry;
+}
 function invalidOccupancyGridError(
   renderer: Renderer,
   renderable: OccupancyGridRenderable,
@@ -271,13 +271,14 @@ function createTexture(occupancyGrid: OccupancyGrid): THREE.DataTexture {
 
 function createMesh(
   topic: string,
+  geometry: THREE.PlaneGeometry,
   texture: THREE.DataTexture,
   settings: LayerSettingsOccupancyGrid,
 ): THREE.Mesh {
   // Create the texture, material, and mesh
   const pickingMaterial = createPickingMaterial(texture);
   const material = createMaterial(texture, topic, settings);
-  const mesh = new THREE.Mesh(OccupancyGrids.Geometry(), material);
+  const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   // This overrides the picking material used for `mesh`. See Picker.ts

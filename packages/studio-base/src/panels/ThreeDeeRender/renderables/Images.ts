@@ -24,7 +24,6 @@ import { toNanoSec } from "@foxglove/rostime";
 import { CameraCalibration, CompressedImage, RawImage } from "@foxglove/schemas";
 import { SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
 import type { RosValue } from "@foxglove/studio-base/players/types";
-import { MutablePoint } from "@foxglove/studio-base/types/Messages";
 
 import { BaseUserData, Renderable } from "../Renderable";
 import type { Renderer } from "../Renderer";
@@ -46,8 +45,10 @@ import {
   CAMERA_INFO_DATATYPES,
 } from "../ros";
 import { BaseSettings, PRECISION_DISTANCE, SelectEntry } from "../settings";
+import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
 import { makePose } from "../transforms";
 import { CameraInfoUserData } from "./Cameras";
+import { projectPixel } from "./projections";
 
 const log = Logger.getLogger(__filename);
 void log;
@@ -57,6 +58,7 @@ type AnyImage = RosImage | RosCompressedImage | RawImage | CompressedImage;
 export type LayerSettingsImage = BaseSettings & {
   cameraInfoTopic: string | undefined;
   distance: number;
+  planarProjectionFactor: number;
   color: string;
 };
 
@@ -65,12 +67,14 @@ const CREATE_BITMAP_ERR = "CreateBitmap";
 
 const DEFAULT_IMAGE_WIDTH = 512;
 const DEFAULT_DISTANCE = 1;
+const DEFAULT_PLANAR_PROJECTION_FACTOR = 0;
 
 const DEFAULT_SETTINGS: LayerSettingsImage = {
   visible: false,
   frameLocked: true,
   cameraInfoTopic: undefined,
   distance: DEFAULT_DISTANCE,
+  planarProjectionFactor: DEFAULT_PLANAR_PROJECTION_FACTOR,
   color: "#ffffff",
 };
 
@@ -110,22 +114,19 @@ export class Images extends SceneExtension<ImageRenderable> {
   public constructor(renderer: Renderer) {
     super("foxglove.Images", renderer);
 
-    renderer.addDatatypeSubscriptions(ROS_IMAGE_DATATYPES, this.handleRosRawImage);
-    renderer.addDatatypeSubscriptions(
-      ROS_COMPRESSED_IMAGE_DATATYPES,
-      this.handleRosCompressedImage,
-    );
+    renderer.addSchemaSubscriptions(ROS_IMAGE_DATATYPES, this.handleRosRawImage);
+    renderer.addSchemaSubscriptions(ROS_COMPRESSED_IMAGE_DATATYPES, this.handleRosCompressedImage);
     // Unconditionally subscribe to CameraInfo messages so the `foxglove.Cameras` extension will
     // always receive them and parse into camera models. This extension reuses the parsed camera
     // models from `foxglove.Cameras`
-    renderer.addDatatypeSubscriptions(CAMERA_INFO_DATATYPES, {
+    renderer.addSchemaSubscriptions(CAMERA_INFO_DATATYPES, {
       handler: this.handleRosCameraInfo,
       forced: true,
     });
 
-    renderer.addDatatypeSubscriptions(RAW_IMAGE_DATATYPES, this.handleRawImage);
-    renderer.addDatatypeSubscriptions(COMPRESSED_IMAGE_DATATYPES, this.handleCompressedImage);
-    renderer.addDatatypeSubscriptions(CAMERA_CALIBRATION_DATATYPES, {
+    renderer.addSchemaSubscriptions(RAW_IMAGE_DATATYPES, this.handleRawImage);
+    renderer.addSchemaSubscriptions(COMPRESSED_IMAGE_DATATYPES, this.handleCompressedImage);
+    renderer.addSchemaSubscriptions(CAMERA_CALIBRATION_DATATYPES, {
       handler: this.handleCameraCalibration,
       forced: true,
     });
@@ -137,43 +138,47 @@ export class Images extends SceneExtension<ImageRenderable> {
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
       if (
-        ROS_IMAGE_DATATYPES.has(topic.schemaName) ||
-        ROS_COMPRESSED_IMAGE_DATATYPES.has(topic.schemaName) ||
-        RAW_IMAGE_DATATYPES.has(topic.schemaName) ||
-        COMPRESSED_IMAGE_DATATYPES.has(topic.schemaName)
+        !(
+          topicIsConvertibleToSchema(topic, ROS_IMAGE_DATATYPES) ||
+          topicIsConvertibleToSchema(topic, ROS_COMPRESSED_IMAGE_DATATYPES) ||
+          topicIsConvertibleToSchema(topic, RAW_IMAGE_DATATYPES) ||
+          topicIsConvertibleToSchema(topic, COMPRESSED_IMAGE_DATATYPES)
+        )
       ) {
-        const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsImage>;
-
-        // Build a list of all matching CameraInfo topics
-        const bestCameraInfoOptions: SelectEntry[] = [];
-        const otherCameraInfoOptions: SelectEntry[] = [];
-        for (const cameraInfoTopic of this.cameraInfoTopics) {
-          if (cameraInfoTopicMatches(topic.name, cameraInfoTopic)) {
-            bestCameraInfoOptions.push({ label: cameraInfoTopic, value: cameraInfoTopic });
-          } else {
-            otherCameraInfoOptions.push({ label: cameraInfoTopic, value: cameraInfoTopic });
-          }
-        }
-        const cameraInfoOptions = [...bestCameraInfoOptions, ...otherCameraInfoOptions];
-
-        // prettier-ignore
-        const fields: SettingsTreeFields = {
-          cameraInfoTopic: { label: "Camera Info", input: "select", options: cameraInfoOptions, value: config.cameraInfoTopic },
-          distance: { label: "Distance", input: "number", placeholder: String(DEFAULT_DISTANCE), step: 0.1, precision: PRECISION_DISTANCE, value: config.distance },
-          color: { label: "Color", input: "rgba", value: config.color },
-        };
-
-        entries.push({
-          path: ["topics", topic.name],
-          node: {
-            icon: "ImageProjection",
-            fields,
-            visible: config.visible ?? DEFAULT_SETTINGS.visible,
-            order: topic.name.toLocaleLowerCase(),
-            handler,
-          },
-        });
+        continue;
       }
+      const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsImage>;
+
+      // Build a list of all matching CameraInfo topics
+      const bestCameraInfoOptions: SelectEntry[] = [];
+      const otherCameraInfoOptions: SelectEntry[] = [];
+      for (const cameraInfoTopic of this.cameraInfoTopics) {
+        if (cameraInfoTopicMatches(topic.name, cameraInfoTopic)) {
+          bestCameraInfoOptions.push({ label: cameraInfoTopic, value: cameraInfoTopic });
+        } else {
+          otherCameraInfoOptions.push({ label: cameraInfoTopic, value: cameraInfoTopic });
+        }
+      }
+      const cameraInfoOptions = [...bestCameraInfoOptions, ...otherCameraInfoOptions];
+
+      // prettier-ignore
+      const fields: SettingsTreeFields = {
+        cameraInfoTopic: { label: "Camera Info", input: "select", options: cameraInfoOptions, value: config.cameraInfoTopic },
+        distance: { label: "Distance", input: "number", placeholder: String(DEFAULT_DISTANCE), step: 0.1, precision: PRECISION_DISTANCE, value: config.distance },
+        planarProjectionFactor: { label: "Planar Projection Factor", input: "number", placeholder: String(DEFAULT_PLANAR_PROJECTION_FACTOR), min: 0, max: 1, step: 0.1, precision: 2, value: config.planarProjectionFactor },
+        color: { label: "Color", input: "rgba", value: config.color },
+      };
+
+      entries.push({
+        path: ["topics", topic.name],
+        node: {
+          icon: "ImageProjection",
+          fields,
+          visible: config.visible ?? DEFAULT_SETTINGS.visible,
+          order: topic.name.toLocaleLowerCase(),
+          handler,
+        },
+      });
     }
     return entries;
   }
@@ -317,7 +322,8 @@ export class Images extends SceneExtension<ImageRenderable> {
     const newSettings = { ...DEFAULT_SETTINGS, ...settings };
     const geometrySettingsEqual =
       newSettings.cameraInfoTopic === prevSettings.cameraInfoTopic &&
-      newSettings.distance === prevSettings.distance;
+      newSettings.distance === prevSettings.distance &&
+      newSettings.planarProjectionFactor === prevSettings.planarProjectionFactor;
     const materialSettingsEqual = newSettings.color === prevSettings.color;
     const topic = renderable.userData.topic;
 
@@ -356,8 +362,7 @@ export class Images extends SceneExtension<ImageRenderable> {
         // log.debug(
         //   `Constructing geometry for ${cameraModel.width}x${cameraModel.height} camera image on "${topic}"`,
         // );
-        const distance = renderable.userData.settings.distance;
-        const geometry = createGeometry(cameraModel, distance);
+        const geometry = createGeometry(cameraModel, renderable.userData.settings);
         renderable.userData.geometry = geometry;
         if (renderable.userData.mesh) {
           renderable.remove(renderable.userData.mesh);
@@ -509,7 +514,10 @@ function createMaterial(
   });
 }
 
-function createGeometry(cameraModel: PinholeCameraModel, depth: number): THREE.PlaneGeometry {
+function createGeometry(
+  cameraModel: PinholeCameraModel,
+  settings: LayerSettingsImage,
+): THREE.PlaneGeometry {
   const WIDTH_SEGMENTS = 10;
   const HEIGHT_SEGMENTS = 10;
 
@@ -542,8 +550,7 @@ function createGeometry(cameraModel: PinholeCameraModel, depth: number): THREE.P
 
       pixel.x = ix * segmentWidth;
       pixel.y = iy * segmentHeight;
-      cameraModel.projectPixelTo3dRay(p, cameraModel.rectifyPixel(pixel, pixel));
-      multiplyScalar(p, depth);
+      projectPixel(p, pixel, cameraModel, settings);
 
       vertices[vOffset + 0] = p.x;
       vertices[vOffset + 1] = p.y;
@@ -560,12 +567,6 @@ function createGeometry(cameraModel: PinholeCameraModel, depth: number): THREE.P
   geometry.attributes.uv!.needsUpdate = true;
 
   return geometry;
-}
-
-function multiplyScalar(vec: MutablePoint, scalar: number): void {
-  vec.x *= scalar;
-  vec.y *= scalar;
-  vec.z *= scalar;
 }
 
 export function cameraInfoTopicMatches(topic: string, cameraInfoTopic: string): boolean {

@@ -17,6 +17,7 @@ import { SettingsTreeEntry, SettingsTreeNodeWithActionHandler } from "../Setting
 import { rgbaToCssString, rgbaToLinear, stringToRgba } from "../color";
 import { normalizePose, normalizeTime, normalizeByteArray } from "../normalizeMessages";
 import { BaseSettings } from "../settings";
+import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
 import {
   baseColorModeSettingsNode,
   ColorModeSettings,
@@ -383,13 +384,12 @@ export class FoxgloveGridRenderable extends Renderable<FoxgloveGridUserData> {
 }
 
 export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
-  private static geometry: THREE.PlaneGeometry | undefined;
   private fieldsByTopic = new Map<string, string[]>();
 
   public constructor(renderer: Renderer) {
     super("foxglove.Grid", renderer);
 
-    renderer.addDatatypeSubscriptions(GRID_DATATYPES, this.handleFoxgloveGrid);
+    renderer.addSchemaSubscriptions(GRID_DATATYPES, this.handleFoxgloveGrid);
   }
 
   public override settingsNodes(): SettingsTreeEntry[] {
@@ -397,28 +397,29 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
     const handler = this.handleSettingsAction;
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
-      if (GRID_DATATYPES.has(topic.schemaName)) {
-        const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsFoxgloveGrid>;
-
-        const node = baseColorModeSettingsNode(
-          this.fieldsByTopic.get(topic.name) ?? [],
-          config,
-          topic,
-          DEFAULT_SETTINGS,
-          { supportsPackedRgbModes: false, supportsRgbaFieldsMode: true },
-        );
-        node.icon = "Cells";
-        node.fields.frameLocked = {
-          label: "Frame lock",
-          input: "boolean",
-          value: config.frameLocked ?? DEFAULT_SETTINGS.frameLocked,
-        };
-        (node as SettingsTreeNodeWithActionHandler).handler = handler;
-        entries.push({
-          path: ["topics", topic.name],
-          node,
-        });
+      if (!topicIsConvertibleToSchema(topic, GRID_DATATYPES)) {
+        continue;
       }
+      const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsFoxgloveGrid>;
+
+      const node = baseColorModeSettingsNode(
+        this.fieldsByTopic.get(topic.name) ?? [],
+        config,
+        topic,
+        DEFAULT_SETTINGS,
+        { supportsPackedRgbModes: false, supportsRgbaFieldsMode: true },
+      );
+      node.icon = "Cells";
+      node.fields.frameLocked = {
+        label: "Frame lock",
+        input: "boolean",
+        value: config.frameLocked ?? DEFAULT_SETTINGS.frameLocked,
+      };
+      (node as SettingsTreeNodeWithActionHandler).handler = handler;
+      entries.push({
+        path: ["topics", topic.name],
+        node,
+      });
     }
     return entries;
   }
@@ -491,7 +492,11 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
 
       // Check color
       const texture = createTexture(foxgloveGrid, settings);
-      const mesh = createMesh(topic, texture);
+      const geometry = this.renderer.sharedGeometry.getGeometry(
+        this.constructor.name,
+        createGridGeometry,
+      );
+      const mesh = createMesh(topic, texture, geometry);
       const material = mesh.material as GridShaderMaterial;
       const pickingMaterial = mesh.userData.pickingMaterial as THREE.ShaderMaterial;
 
@@ -606,15 +611,12 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
 
     renderable.syncPickingMaterial();
   }
-
-  public static Geometry(): THREE.PlaneGeometry {
-    if (!FoxgloveGrid.geometry) {
-      FoxgloveGrid.geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
-      FoxgloveGrid.geometry.translate(0.5, 0.5, 0);
-      FoxgloveGrid.geometry.computeBoundingSphere();
-    }
-    return FoxgloveGrid.geometry;
-  }
+}
+function createGridGeometry(): THREE.PlaneGeometry {
+  const geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+  geometry.translate(0.5, 0.5, 0);
+  geometry.computeBoundingSphere();
+  return geometry;
 }
 
 function invalidFoxgloveGridError(renderer: Renderer, topic: string, message: string): void {
@@ -647,11 +649,15 @@ function createTexture(foxgloveGrid: Grid, settings: GridColorModeSettings): THR
   return texture;
 }
 
-function createMesh(topic: string, texture: THREE.DataTexture): THREE.Mesh {
+function createMesh(
+  topic: string,
+  texture: THREE.DataTexture,
+  geometry: THREE.PlaneGeometry,
+): THREE.Mesh {
   // Create the texture, material, and mesh
   const material = createMaterial(texture, topic);
   const pickingMaterial = createPickingMaterial(material);
-  const mesh = new THREE.Mesh(FoxgloveGrid.Geometry(), material);
+  const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   // This overrides the picking material used for `mesh`. See Picker.ts

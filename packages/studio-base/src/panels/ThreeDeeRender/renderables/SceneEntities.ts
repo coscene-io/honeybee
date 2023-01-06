@@ -20,6 +20,7 @@ import {
 } from "@foxglove/schemas";
 import { SettingsTreeAction } from "@foxglove/studio";
 
+import { SELECTED_ID_VARIABLE } from "../Renderable";
 import { Renderer } from "../Renderer";
 import { PartialMessage, PartialMessageEvent, SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry, SettingsTreeNodeWithActionHandler } from "../SettingsManager";
@@ -33,17 +34,20 @@ import {
   normalizeByteArray,
 } from "../normalizeMessages";
 import { BaseSettings } from "../settings";
+import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
 import { makePose } from "../transforms";
 import { TopicEntities } from "./TopicEntities";
 import { PrimitivePool } from "./primitives/PrimitivePool";
 
 export type LayerSettingsEntity = BaseSettings & {
   color: string | undefined;
+  selectedIdVariable: string | undefined;
 };
 
 const DEFAULT_SETTINGS: LayerSettingsEntity = {
   visible: false,
   color: undefined,
+  selectedIdVariable: undefined,
 };
 
 export class FoxgloveSceneEntities extends SceneExtension<TopicEntities> {
@@ -52,29 +56,37 @@ export class FoxgloveSceneEntities extends SceneExtension<TopicEntities> {
   public constructor(renderer: Renderer) {
     super("foxglove.SceneEntities", renderer);
 
-    renderer.addDatatypeSubscriptions(SCENE_UPDATE_DATATYPES, this.handleSceneUpdate);
+    renderer.addSchemaSubscriptions(SCENE_UPDATE_DATATYPES, this.handleSceneUpdate);
   }
 
   public override settingsNodes(): SettingsTreeEntry[] {
     const configTopics = this.renderer.config.topics;
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
-      if (SCENE_UPDATE_DATATYPES.has(topic.schemaName)) {
-        const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsEntity>;
-
-        const node: SettingsTreeNodeWithActionHandler = {
-          label: topic.name,
-          icon: "Shapes",
-          order: topic.name.toLocaleLowerCase(),
-          fields: {
-            color: { label: "Color", input: "rgba", value: config.color },
-          },
-          visible: config.visible ?? DEFAULT_SETTINGS.visible,
-          handler: this.handleSettingsAction,
-        };
-
-        entries.push({ path: ["topics", topic.name], node });
+      if (!topicIsConvertibleToSchema(topic, SCENE_UPDATE_DATATYPES)) {
+        continue;
       }
+      const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsEntity>;
+
+      const node: SettingsTreeNodeWithActionHandler = {
+        label: topic.name,
+        icon: "Shapes",
+        order: topic.name.toLocaleLowerCase(),
+        fields: {
+          color: { label: "Color", input: "rgba", value: config.color },
+          selectedIdVariable: {
+            label: "Selection Variable",
+            input: "string",
+            help: "When selecting a SceneEntity, this global variable will be set to the entity ID",
+            value: config.selectedIdVariable,
+            placeholder: SELECTED_ID_VARIABLE,
+          },
+        },
+        visible: config.visible ?? DEFAULT_SETTINGS.visible,
+        handler: this.handleSettingsAction,
+      };
+
+      entries.push({ path: ["topics", topic.name], node });
     }
     return entries;
   }
@@ -125,13 +137,20 @@ export class FoxgloveSceneEntities extends SceneExtension<TopicEntities> {
     const sceneUpdates = messageEvent.message;
 
     for (const entityMsg of sceneUpdates.entities ?? []) {
-      const entity = normalizeSceneEntity(entityMsg);
-      this._getTopicEntities(topic).addOrUpdateEntity(entity, toNanoSec(messageEvent.receiveTime));
+      if (entityMsg) {
+        const entity = normalizeSceneEntity(entityMsg);
+        this._getTopicEntities(topic).addOrUpdateEntity(
+          entity,
+          toNanoSec(messageEvent.receiveTime),
+        );
+      }
     }
 
     for (const deletionMsg of sceneUpdates.deletions ?? []) {
-      const deletion = normalizeSceneEntityDeletion(deletionMsg);
-      this._getTopicEntities(topic).deleteEntities(deletion);
+      if (deletionMsg) {
+        const deletion = normalizeSceneEntityDeletion(deletionMsg);
+        this._getTopicEntities(topic).deleteEntities(deletion);
+      }
     }
   };
 
@@ -170,8 +189,7 @@ function normalizeSceneEntity(entity: PartialMessage<SceneEntity>): SceneEntity 
     id: entity.id ?? "",
     lifetime: normalizeTime(entity.lifetime),
     frame_locked: entity.frame_locked ?? false,
-    metadata:
-      entity.metadata?.map(({ key, value }) => ({ key: key ?? "", value: value ?? "" })) ?? [],
+    metadata: entity.metadata?.map((kv) => ({ key: kv?.key ?? "", value: kv?.value ?? "" })) ?? [],
     arrows: entity.arrows?.map(normalizeArrowPrimitive) ?? [],
     cubes: entity.cubes?.map(normalizeCubePrimitive) ?? [],
     spheres: entity.spheres?.map(normalizeSpherePrimitive) ?? [],
@@ -193,89 +211,95 @@ function normalizeSceneEntityDeletion(
   };
 }
 
-function normalizeArrowPrimitive(arrow: PartialMessage<ArrowPrimitive>): ArrowPrimitive {
+function normalizeArrowPrimitive(
+  arrow: PartialMessage<ArrowPrimitive> | undefined,
+): ArrowPrimitive {
   return {
-    pose: normalizePose(arrow.pose),
-    shaft_length: arrow.shaft_length ?? 0.8,
-    shaft_diameter: arrow.shaft_diameter ?? 0.1,
-    head_length: arrow.head_length ?? 0.2,
-    head_diameter: arrow.head_diameter ?? 0.2,
-    color: normalizeColorRGBA(arrow.color),
+    pose: normalizePose(arrow?.pose),
+    shaft_length: arrow?.shaft_length ?? 0.8,
+    shaft_diameter: arrow?.shaft_diameter ?? 0.1,
+    head_length: arrow?.head_length ?? 0.2,
+    head_diameter: arrow?.head_diameter ?? 0.2,
+    color: normalizeColorRGBA(arrow?.color),
   };
 }
 
-function normalizeCubePrimitive(cube: PartialMessage<CubePrimitive>): CubePrimitive {
+function normalizeCubePrimitive(cube: PartialMessage<CubePrimitive> | undefined): CubePrimitive {
   return {
-    pose: normalizePose(cube.pose),
-    size: normalizeVector3(cube.size),
-    color: normalizeColorRGBA(cube.color),
+    pose: normalizePose(cube?.pose),
+    size: normalizeVector3(cube?.size),
+    color: normalizeColorRGBA(cube?.color),
   };
 }
 
-function normalizeSpherePrimitive(sphere: PartialMessage<SpherePrimitive>): SpherePrimitive {
+function normalizeSpherePrimitive(
+  sphere: PartialMessage<SpherePrimitive> | undefined,
+): SpherePrimitive {
   return {
-    pose: normalizePose(sphere.pose),
-    size: normalizeVector3(sphere.size),
-    color: normalizeColorRGBA(sphere.color),
+    pose: normalizePose(sphere?.pose),
+    size: normalizeVector3(sphere?.size),
+    color: normalizeColorRGBA(sphere?.color),
   };
 }
 
 function normalizeCylinderPrimitive(
-  cylinder: PartialMessage<CylinderPrimitive>,
+  cylinder: PartialMessage<CylinderPrimitive> | undefined,
 ): CylinderPrimitive {
   return {
-    pose: normalizePose(cylinder.pose),
-    size: normalizeVector3(cylinder.size),
-    bottom_scale: cylinder.bottom_scale ?? 1,
-    top_scale: cylinder.top_scale ?? 1,
-    color: normalizeColorRGBA(cylinder.color),
+    pose: normalizePose(cylinder?.pose),
+    size: normalizeVector3(cylinder?.size),
+    bottom_scale: cylinder?.bottom_scale ?? 1,
+    top_scale: cylinder?.top_scale ?? 1,
+    color: normalizeColorRGBA(cylinder?.color),
   };
 }
 
-function normalizeLinePrimitive(line: PartialMessage<LinePrimitive>): LinePrimitive {
+function normalizeLinePrimitive(line: PartialMessage<LinePrimitive> | undefined): LinePrimitive {
   return {
-    type: line.type ?? LineType.LINE_STRIP,
-    pose: normalizePose(line.pose),
-    thickness: line.thickness ?? 0.05,
-    scale_invariant: line.scale_invariant ?? false,
-    points: line.points?.map(normalizeVector3) ?? [],
-    color: normalizeColorRGBA(line.color),
-    colors: normalizeColorRGBAs(line.colors),
-    indices: line.indices ?? [],
+    type: line?.type ?? LineType.LINE_STRIP,
+    pose: normalizePose(line?.pose),
+    thickness: line?.thickness ?? 0.05,
+    scale_invariant: line?.scale_invariant ?? false,
+    points: line?.points?.map(normalizeVector3) ?? [],
+    color: normalizeColorRGBA(line?.color),
+    colors: normalizeColorRGBAs(line?.colors),
+    indices: line?.indices?.map((idx) => idx ?? NaN) ?? [],
   };
 }
 
 function normalizeTriangleListPrimitive(
-  triangles: PartialMessage<TriangleListPrimitive>,
+  triangles: PartialMessage<TriangleListPrimitive> | undefined,
 ): TriangleListPrimitive {
   return {
-    pose: normalizePose(triangles.pose),
-    points: triangles.points?.map(normalizeVector3) ?? [],
-    color: normalizeColorRGBA(triangles.color),
-    colors: normalizeColorRGBAs(triangles.colors),
-    indices: triangles.indices ?? [],
+    pose: normalizePose(triangles?.pose),
+    points: triangles?.points?.map(normalizeVector3) ?? [],
+    color: normalizeColorRGBA(triangles?.color),
+    colors: normalizeColorRGBAs(triangles?.colors),
+    indices: triangles?.indices?.map((idx) => idx ?? NaN) ?? [],
   };
 }
 
-function normalizeTextPrimitive(text: PartialMessage<TextPrimitive>): TextPrimitive {
+function normalizeTextPrimitive(text: PartialMessage<TextPrimitive> | undefined): TextPrimitive {
   return {
-    pose: normalizePose(text.pose),
-    billboard: text.billboard ?? true,
-    font_size: text.font_size ?? (text.scale_invariant ?? false ? 16 : 0.25),
-    scale_invariant: text.scale_invariant ?? false,
-    color: normalizeColorRGBA(text.color),
-    text: text.text ?? "",
+    pose: normalizePose(text?.pose),
+    billboard: text?.billboard ?? true,
+    font_size: text?.font_size ?? (text?.scale_invariant ?? false ? 16 : 0.25),
+    scale_invariant: text?.scale_invariant ?? false,
+    color: normalizeColorRGBA(text?.color),
+    text: text?.text ?? "",
   };
 }
 
-function normalizeModelPrimitive(model: PartialMessage<ModelPrimitive>): ModelPrimitive {
+function normalizeModelPrimitive(
+  model: PartialMessage<ModelPrimitive> | undefined,
+): ModelPrimitive {
   return {
-    pose: normalizePose(model.pose),
-    scale: normalizeVector3(model.scale),
-    color: normalizeColorRGBA(model.color),
-    override_color: model.override_color ?? false,
-    url: model.url ?? "",
-    media_type: model.media_type ?? "",
-    data: normalizeByteArray(model.data),
+    pose: normalizePose(model?.pose),
+    scale: normalizeVector3(model?.scale),
+    color: normalizeColorRGBA(model?.color),
+    override_color: model?.override_color ?? false,
+    url: model?.url ?? "",
+    media_type: model?.media_type ?? "",
+    data: normalizeByteArray(model?.data),
   };
 }

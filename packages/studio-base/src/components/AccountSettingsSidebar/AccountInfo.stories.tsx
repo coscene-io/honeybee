@@ -4,6 +4,7 @@
 
 import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
+// import ConsoleApi, { User } from "@foxglove/studio-base/services/ConsoleApi";
 
 import AccountInfo from "./AccountInfo";
 
@@ -19,13 +20,23 @@ export default {
 };
 
 export const SignedIn = (): JSX.Element => {
+  const org: User["org"] = {
+    id: "fake-orgid",
+    slug: "fake-org",
+    displayName: "Fake Org",
+    isEnterprise: false,
+    allowsUploads: false,
+    supportsEdgeSites: false,
+  };
+
   const me = {
     id: "fake-userid",
-    orgId: "fake-orgid",
-    orgDisplayName: "Fake Org",
-    orgSlug: "fake-org",
+    orgId: org.id,
+    orgDisplayName: org.displayName,
+    orgSlug: org.slug,
     orgPaid: false,
     email: "foo@example.com",
+    org,
   };
 
   const fakeConsoleApi = new FakeConsoleApi();

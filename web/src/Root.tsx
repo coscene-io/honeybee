@@ -21,6 +21,7 @@ import {
   IAppConfiguration,
   IdbExtensionLoader,
   // McapRemoteDataSourceFactory,
+  // RemoteDataSourceFactory,
   App,
   ConsoleApi,
   CoSceneContext,
@@ -63,6 +64,7 @@ export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration
       // new SampleNuscenesDataSourceFactory(),
       // new McapLocalDataSourceFactory(),
       // new McapRemoteDataSourceFactory(),
+      // new RemoteDataSourceFactory(),
     ];
 
     return sources;
@@ -91,16 +93,19 @@ export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration
   const disableSignin = process.env.FOXGLOVE_DISABLE_SIGN_IN != undefined;
 
   return (
-    <App
-      disableSignin={disableSignin}
-      enableDialogAuth={enableDialogAuth}
-      enableLaunchPreferenceScreen
-      deepLinks={[window.location.href]}
-      dataSources={dataSources}
-      appConfiguration={appConfiguration}
-      layoutStorage={layoutStorage}
-      consoleApi={consoleApi}
-      extensionLoaders={extensionLoaders}
-    />
+    <>
+      <App
+        disableSignin={disableSignin}
+        enableDialogAuth={enableDialogAuth}
+        enableLaunchPreferenceScreen
+        deepLinks={[window.location.href]}
+        dataSources={dataSources}
+        appConfiguration={appConfiguration}
+        layoutStorage={layoutStorage}
+        consoleApi={consoleApi}
+        extensionLoaders={extensionLoaders}
+        enableGlobalCss
+      />
+    </>
   );
 }

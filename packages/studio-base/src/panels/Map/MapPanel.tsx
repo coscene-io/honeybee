@@ -18,13 +18,19 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useResizeDetector } from "react-resize-detector";
 import { useDebouncedCallback } from "use-debounce";
 
+import { filterMap } from "@foxglove/den/collection";
 import { toSec } from "@foxglove/rostime";
-import { MessageEvent, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
+import {
+  PanelExtensionContext,
+  MessageEvent,
+  SettingsTreeAction,
+  Topic,
+  Subscription,
+} from "@foxglove/studio";
 import Stack from "@foxglove/studio-base/components/Stack";
 import FilteredPointLayer, {
   POINT_MARKER_RADIUS,
 } from "@foxglove/studio-base/panels/Map/FilteredPointLayer";
-import { Topic } from "@foxglove/studio-base/players/types";
 import { FoxgloveMessages } from "@foxglove/studio-base/types/FoxgloveMessages";
 import { darkColor, lightColor, lineColors } from "@foxglove/studio-base/util/plotColors";
 
@@ -66,21 +72,20 @@ function isValidMapMessage(msgEvent: MessageEvent<unknown>): msgEvent is MapPane
   );
 }
 
-function topicMessageType(topic: Topic) {
-  switch (topic.schemaName) {
+function isSupportedSchema(schemaName: string) {
+  switch (schemaName) {
     case "sensor_msgs/NavSatFix":
     case "sensor_msgs/msg/NavSatFix":
     case "ros.sensor_msgs.NavSatFix":
     case "foxglove_msgs/LocationFix":
     case "foxglove_msgs/msg/LocationFix":
     case "foxglove.LocationFix":
-      return "navsat";
     case "foxglove_msgs/GeoJSON":
     case "foxglove_msgs/msg/GeoJSON":
     case "foxglove.GeoJSON":
-      return "geojson";
+      return true;
     default:
-      return undefined;
+      return false;
   }
 }
 
@@ -153,25 +158,46 @@ function MapPanel(props: MapPanelProps): JSX.Element {
 
   const [currentMap, setCurrentMap] = useState<LeafMap | undefined>(undefined);
 
-  const onResize = useCallback(() => {
-    currentMap?.invalidateSize();
-  }, [currentMap]);
-
   // Use a debounce and 0 refresh rate to avoid triggering a resize observation while handling
   // an existing resize observation.
   // https://github.com/maslianok/react-resize-detector/issues/45
-  const { ref: sizeRef } = useResizeDetector({
+  const {
+    width: panelWidth,
+    height: panelHeight,
+    ref: sizeRef,
+  } = useResizeDetector({
     refreshRate: 0,
     refreshMode: "debounce",
-    onResize,
   });
+
+  useEffect(() => {
+    // We depend on changes in the resized panel dimensions to tell the Leaflet map to
+    // recalculate its size. We do this inside a separate useEffect instead of directly
+    // in the map's change callbacks to avoid a react error from calling setState
+    // during a render.
+    void { panelWidth, panelHeight };
+    currentMap?.invalidateSize();
+  }, [panelWidth, panelHeight, currentMap]);
 
   // panel extensions must notify when they've completed rendering
   // onRender will setRenderDone to a done callback which we can invoke after we've rendered
   const [renderDone, setRenderDone] = useState<() => void>(() => () => {});
 
   const eligibleTopics = useMemo(() => {
-    return topics.filter(topicMessageType).map((topic) => topic.name);
+    return filterMap(topics, (topic) => {
+      if (isSupportedSchema(topic.schemaName)) {
+        return topic;
+      }
+
+      if (topic.convertibleTo) {
+        for (const schemaName of topic.convertibleTo) {
+          if (isSupportedSchema(schemaName)) {
+            return { name: topic.name, schemaName };
+          }
+        }
+      }
+      return undefined;
+    });
   }, [topics]);
 
   const settingsActionHandler = useCallback((action: SettingsTreeAction) => {
@@ -270,8 +296,20 @@ function MapPanel(props: MapPanelProps): JSX.Element {
 
   // Subscribe to eligible and enabled topics
   useEffect(() => {
-    const eligibleEnabled = difference(eligibleTopics, config.disabledTopics);
-    context.subscribe(eligibleEnabled);
+    const subscriptions: Subscription[] = [];
+    for (const topic of eligibleTopics) {
+      if (config.disabledTopics.includes(topic.name)) {
+        continue;
+      }
+
+      subscriptions.push({
+        topic: topic.name,
+        convertTo: topic.schemaName,
+        preload: true,
+      });
+    }
+
+    context.subscribe(subscriptions);
 
     const tree = buildSettingsTree(config, eligibleTopics);
     context.updatePanelSettingsEditor({
@@ -300,11 +338,11 @@ function MapPanel(props: MapPanelProps): JSX.Element {
       const allFrames = new FeatureGroup();
       const currentFrame = new FeatureGroup();
       const topicGroup = new LayerGroup([allFrames, currentFrame]);
-      topicLayerMap.set(topic, {
+      topicLayerMap.set(topic.name, {
         topicGroup,
         allFrames,
         currentFrame,
-        baseColor: config.topicColors[topic] ?? lineColors[i]!,
+        baseColor: config.topicColors[topic.name] ?? lineColors[i]!,
       });
       i = (i + 1) % lineColors.length;
     }
