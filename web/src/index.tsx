@@ -95,7 +95,11 @@ async function main() {
   installDevtoolsFormatters();
   overwriteFetch();
   // consider moving waitForFonts into App to display an app loading screen
-  await waitForFonts();
+  try {
+    await waitForFonts();
+  } catch (error) {
+    console.error(error);
+  }
 
   const { Root } = await import("./Root");
 

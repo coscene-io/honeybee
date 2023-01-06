@@ -56,14 +56,21 @@ type RpcUpdateEvent = {
 // to fix a crash a large portion of Windows users were seeing where the rendering thread would
 // crash in skia code related to DirectWrite font loading when the system display scaling is set
 // >100%. For more info on this crash, see util/waitForFonts.ts.
-async function loadDefaultFont(): Promise<FontFace> {
+async function loadDefaultFont(): Promise<FontFace | undefined> {
   const fontFace = new FontFace("IBM Plex Mono", `url(${PlexMono}) format('woff2')`);
   if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) {
     (self as unknown as WorkerGlobalScope).fonts.add(fontFace);
   } else {
     document.fonts.add(fontFace);
   }
-  return await fontFace.load();
+  let font = undefined;
+  try {
+    font = await fontFace.load();
+  } catch (error) {
+    console.error("Failed to load font", error);
+  }
+
+  return font;
 }
 
 // Immediately start font loading in the Worker thread. Each ChartJSManager we instantiate will
@@ -131,7 +138,9 @@ export default class ChartJsMux {
     // create a new chartjs instance
     // this must be done before sending any other rpc requests to the instance
     rpc.receive("initialize", (args: InitOpts) => {
-      args.fontLoaded = fontLoaded;
+      if (fontLoaded) {
+        args.fontLoaded = fontLoaded;
+      }
       const manager = new ChartJSManager(args);
       this._managers.set(args.id, manager);
       return manager.getScales();
