@@ -222,7 +222,7 @@ export function makeConfig(
       new CircularDependencyPlugin({
         exclude: /node_modules/,
         failOnError: true,
-      }) as WebpackPluginInstance,
+      }) as unknown as WebpackPluginInstance,
       new webpack.ProvidePlugin({
         // since we avoid "import React from 'react'" we shim here when used globally
         React: "react",
