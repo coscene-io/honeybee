@@ -6,30 +6,14 @@ import { useMemo, useState } from "react";
 import { useFavicon } from "react-use";
 
 import {
-  // IDataSourceFactory,
   CoSceneIDataSourceFactory,
-  // Ros1LocalBagDataSourceFactory,
-  // Ros2LocalBagDataSourceFactory,
-  RemoteDataSourceFactory,
-  // RosbridgeDataSourceFactory,
-  // Ros1RemoteBagDataSourceFactory,
-  // FoxgloveDataPlatformDataSourceFactory,
   CoSceneDataPlatformDataSourceFactory,
-  // FoxgloveWebSocketDataSourceFactory,
-  // UlogLocalDataSourceFactory,
-  // McapLocalDataSourceFactory,
-  // SampleNuscenesDataSourceFactory,
   IAppConfiguration,
   IdbExtensionLoader,
-  // McapRemoteDataSourceFactory,
   App,
   ConsoleApi,
   CoSceneContext,
 } from "@foxglove/studio-base";
-
-// import Ros1UnavailableDataSourceFactory from "./dataSources/Ros1UnavailableDataSourceFactory";
-// import Ros2UnavailableDataSourceFactory from "./dataSources/Ros2UnavailableDataSourceFactory";
-// import VelodyneUnavailableDataSourceFactory from "./dataSources/VelodyneUnavailableDataSourceFactory";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
@@ -49,26 +33,7 @@ export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration
 
   useFavicon(favicon);
   const dataSources: CoSceneIDataSourceFactory[] = useMemo(() => {
-    const sources = [
-      // new Ros1UnavailableDataSourceFactory(),
-      // new Ros1LocalBagDataSourceFactory(),
-      // new Ros2UnavailableDataSourceFactory(),
-      // new Ros2LocalBagDataSourceFactory(),
-      // new Ros1UnavailableDataSourceFactory(),
-      // new Ros1LocalBagDataSourceFactory(),
-      // new Ros1RemoteBagDataSourceFactory(),
-      // new Ros2UnavailableDataSourceFactory(),
-      // new Ros2LocalBagDataSourceFactory(),
-      // new RosbridgeDataSourceFactory(),
-      // new FoxgloveWebSocketDataSourceFactory(),
-      // new UlogLocalDataSourceFactory(),
-      // new VelodyneUnavailableDataSourceFactory(),
-      // new FoxgloveDataPlatformDataSourceFactory(),
-      new CoSceneDataPlatformDataSourceFactory(),
-      // new SampleNuscenesDataSourceFactory(),
-      // new McapLocalDataSourceFactory(),
-      // new RemoteDataSourceFactory(),
-    ];
+    const sources = [new CoSceneDataPlatformDataSourceFactory()];
 
     return sources;
   }, []);

@@ -4,7 +4,7 @@
 
 import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 // import ConsoleApi, { User } from "@foxglove/studio-base/services/ConsoleApi";
-import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import ConsoleApi, { User } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
 import AccountInfo from "./AccountInfo";
 

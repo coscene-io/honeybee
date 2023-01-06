@@ -18,7 +18,7 @@ import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguratio
 
 bcInstance.listenBroadcastMessage((msg) => {
   if (msg.data === LOGOUT_MESSAGE) {
-    window.location.href = '/login';
+    window.location.href = "/login";
   }
 });
 
