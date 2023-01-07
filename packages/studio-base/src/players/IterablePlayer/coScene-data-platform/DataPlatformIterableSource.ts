@@ -238,7 +238,7 @@ export class DataPlatformIterableSource implements IIterableSource {
     }
 
     let localStart = streamStart;
-    let localEnd = clampTime(addTime(localStart, { sec: 30, nsec: 0 }), streamStart, streamEnd);
+    let localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
 
     for (;;) {
       const streamByParams: StreamParams = {
@@ -293,7 +293,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       }
 
       localStart = clampTime(localStart, streamStart, streamEnd);
-      localEnd = clampTime(addTime(localStart, { sec: 30, nsec: 0 }), streamStart, streamEnd);
+      localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
     }
   }
 
