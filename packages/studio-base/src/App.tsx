@@ -49,6 +49,7 @@ import ConsoleApi from "./services/CoSceneConsoleApi";
 import { ExtensionLoader } from "./services/ExtensionLoader";
 import { ILayoutStorage } from "./services/ILayoutStorage";
 import URDFAssetLoader from "./services/URDFAssetLoader";
+import "./util/i18n";
 
 CsWebClient.init({
   hostname: APP_CONFIG.VITE_APP_BASE_API_URL,
