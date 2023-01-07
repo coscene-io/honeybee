@@ -15,8 +15,8 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
   public displayName = "Foxglove WebSocket";
   public iconName: IDataSourceFactory["iconName"] = "Flow";
   public description =
-    "Connect live to your custom data via an encoding-agnostic WebSocket connection. Using this data source usualy requires writing a custom server.";
-  public docsLink = "https://foxglove.dev/docs/studio/connection/foxglove-websocket";
+    "Connect live to your custom data via an encoding-agnostic WebSocket connection. Using this data source usually requires writing a custom server.";
+  public docsLinks = [{ url: "https://foxglove.dev/docs/studio/connection/foxglove-websocket" }];
 
   public formConfig = {
     fields: [

@@ -2,13 +2,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { PanelsState } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
 /**
  * This is loaded when the user has no layout selected on application launch
  * to avoid presenting the user with a blank layout.
  */
-export const gs50Layout: PanelsState = {
+export const gs50Layout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
@@ -810,7 +810,6 @@ export const gs50Layout: PanelsState = {
   },
   globalVariables: {},
   userNodes: {},
-  linkedGlobalVariables: [],
   playbackConfig: {
     speed: 1,
   },
@@ -841,7 +840,7 @@ export const gs50Layout: PanelsState = {
  * This is loaded when the user has no layout selected on application launch
  * to avoid presenting the user with a blank layout.
  */
-export const gs75Layout: PanelsState = {
+export const gs75Layout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
@@ -1643,7 +1642,6 @@ export const gs75Layout: PanelsState = {
   },
   globalVariables: {},
   userNodes: {},
-  linkedGlobalVariables: [],
   playbackConfig: {
     speed: 1,
   },

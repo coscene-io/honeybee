@@ -55,10 +55,25 @@ declare module "@foxglove/studio" {
      * i.e. `package.Message` in protobuf-like serialization or `pkg/Msg` in ROS systems.
      */
     schemaName: string;
+
+    /**
+     * Lists any additional schema names available for subscribers on the topic. When subscribing to
+     * a topic, the panel can request messages be automatically converted from schemaName into one
+     * of the convertibleTo schemas using the convertTo option.
+     */
+    convertibleTo?: readonly string[];
   };
 
   export type Subscription = {
     topic: string;
+
+    /**
+     * If a topic as additional schema names, specifying a schema name will convert messages on that
+     * topic to the convertTo schema using a registered message converter. MessageEvents for the
+     * subscription will contain the converted message and an originalMessageEvent field with the
+     * original message event.
+     */
+    convertTo?: string;
 
     /**
      * Setting preload to _true_ hints to the data source that it should attempt to load all available
@@ -102,6 +117,13 @@ declare module "@foxglove/studio" {
      * useful for statistics tracking and cache eviction.
      */
     sizeInBytes: number;
+
+    /**
+     * When subscribing to a topic using the `convertTo` option, the message event `message`
+     * contains the converted message and the originalMessageEvent field contains the original
+     * un-converted message event.
+     */
+    originalMessageEvent?: MessageEvent<unknown>;
   }>;
 
   export interface LayoutActions {
@@ -160,6 +182,12 @@ declare module "@foxglove/studio" {
      * support parameters through the Parameter Server <http://wiki.ros.org/Parameter%20Server>.
      */
     parameters?: ReadonlyMap<string, ParameterValue>;
+
+    /**
+     * Transient panel state shared between panels of the same type. This can be any data a
+     * panel author wishes to share between panels.
+     */
+    sharedPanelState?: Readonly<Record<string, unknown>>;
 
     /**
      * Map of current Studio variables. Variables are key/value pairs that are globally accessible
@@ -238,6 +266,12 @@ declare module "@foxglove/studio" {
      * @param value The new value of the parameter.
      */
     setParameter: (name: string, value: ParameterValue) => void;
+
+    /**
+     * Set the transient state shared by panels of the same type as the caller of this function.
+     * This will not be persisted in the layout.
+     */
+    setSharedPanelState: (state: undefined | Readonly<string, unknown>) => void;
 
     /**
      * Set the value of variable name to value.
@@ -338,8 +372,17 @@ declare module "@foxglove/studio" {
     // your panel.
     name: string;
 
-    // This function is invoked when your panel is initialized
-    initPanel: (context: PanelExtensionContext) => void;
+    /**
+     * This function is invoked when your panel is initialized
+     * @return: (optional) A function which is called when the panel is removed or replaced. Typically intended for cleanup logic to gracefully teardown your panel.
+     */
+    initPanel: (context: PanelExtensionContext) => void | (() => void);
+  };
+
+  export type RegisterMessageConverterArgs<Src> = {
+    fromSchemaName: string;
+    toSchemaName: string;
+    converter: (msg: Src) => unknown;
   };
 
   export interface ExtensionContext {
@@ -347,6 +390,8 @@ declare module "@foxglove/studio" {
     readonly mode: "production" | "development" | "test";
 
     registerPanel(params: ExtensionPanelRegistration): void;
+
+    registerMessageConverter<Src>(args: RegisterMessageConverterArgs<Src>): void;
   }
 
   export interface ExtensionActivate {

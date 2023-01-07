@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { toNanoSec, toSec } from "@foxglove/rostime";
 import { NumericType, PointCloud as FoxglovePointCloud } from "@foxglove/schemas";
 import { MessageEvent, SettingsTreeAction } from "@foxglove/studio";
+import { PointCloudRenderable } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/PointClouds";
 import type { RosObject } from "@foxglove/studio-base/players/types";
 import { VelodynePacket, VelodyneScan } from "@foxglove/studio-base/types/Messages";
 import {
@@ -22,6 +23,7 @@ import { Renderer } from "../Renderer";
 import { SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry, SettingsTreeNodeWithActionHandler } from "../SettingsManager";
 import { VELODYNE_SCAN_DATATYPES } from "../ros";
+import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
 import { makePose } from "../transforms";
 import {
   autoSelectColorField,
@@ -29,12 +31,15 @@ import {
   createInstancePickingMaterial,
   createPickingMaterial,
   createPoints,
-  DEFAULT_SETTINGS,
-  LayerSettingsPointCloudAndLaserScan,
-  PointCloudAndLaserScanRenderable,
+  DEFAULT_POINT_SETTINGS,
+  LayerSettingsPointExtension,
+  pointSettingsNode,
   pointCloudMaterial,
-  pointCloudSettingsNode,
-} from "./PointCloudsAndLaserScans";
+  POINT_CLOUD_REQUIRED_FIELDS,
+} from "./pointExtensionUtils";
+
+type LayerSettingsVelodyneScans = LayerSettingsPointExtension;
+const DEFAULT_SETTINGS = DEFAULT_POINT_SETTINGS;
 
 export function pointFieldDataTypeToNumericType(type: PointFieldDataType): NumericType {
   switch (type) {
@@ -117,14 +122,14 @@ class VelodyneCloudConverter {
   }
 }
 
-export class VelodyneScans extends SceneExtension<PointCloudAndLaserScanRenderable> {
+export class VelodyneScans extends SceneExtension<PointCloudRenderable> {
   private _pointCloudFieldsByTopic = new Map<string, string[]>();
   private _velodyneCloudConverter = new VelodyneCloudConverter();
 
   public constructor(renderer: Renderer) {
     super("foxglove.VelodyneScans", renderer);
 
-    renderer.addDatatypeSubscriptions(VELODYNE_SCAN_DATATYPES, this.handleVelodyneScan);
+    renderer.addSchemaSubscriptions(VELODYNE_SCAN_DATATYPES, this.handleVelodyneScan);
   }
 
   public override settingsNodes(): SettingsTreeEntry[] {
@@ -132,18 +137,20 @@ export class VelodyneScans extends SceneExtension<PointCloudAndLaserScanRenderab
     const handler = this.handleSettingsAction;
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
-      if (VELODYNE_SCAN_DATATYPES.has(topic.schemaName)) {
-        const config = (configTopics[topic.name] ??
-          {}) as Partial<LayerSettingsPointCloudAndLaserScan>;
-        const node: SettingsTreeNodeWithActionHandler = pointCloudSettingsNode(
-          this._pointCloudFieldsByTopic,
-          config,
-          topic,
-          "velodynescan",
-        );
-        node.handler = handler;
-        entries.push({ path: ["topics", topic.name], node });
+      if (!topicIsConvertibleToSchema(topic, VELODYNE_SCAN_DATATYPES)) {
+        continue;
       }
+      const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsVelodyneScans>;
+      const messageFields =
+        this._pointCloudFieldsByTopic.get(topic.name) ?? POINT_CLOUD_REQUIRED_FIELDS;
+      const node: SettingsTreeNodeWithActionHandler = pointSettingsNode(
+        topic,
+        messageFields,
+        config,
+      );
+      node.handler = handler;
+      node.icon = "Points";
+      entries.push({ path: ["topics", topic.name], node });
     }
     return entries;
   }
@@ -161,17 +168,15 @@ export class VelodyneScans extends SceneExtension<PointCloudAndLaserScanRenderab
     const renderable = this.renderables.get(topicName);
     if (renderable) {
       const prevSettings = this.renderer.config.topics[topicName] as
-        | Partial<LayerSettingsPointCloudAndLaserScan>
+        | Partial<LayerSettingsVelodyneScans>
         | undefined;
       const settings = { ...DEFAULT_SETTINGS, ...prevSettings };
-      if (renderable.userData.pointCloud) {
-        renderable.updatePointCloud(
-          renderable.userData.pointCloud,
-          renderable.userData.originalMessage,
-          settings,
-          renderable.userData.receiveTime,
-        );
-      }
+      renderable.updatePointCloud(
+        renderable.userData.pointCloud,
+        renderable.userData.originalMessage,
+        settings,
+        renderable.userData.receiveTime,
+      );
     }
   };
 
@@ -202,7 +207,7 @@ export class VelodyneScans extends SceneExtension<PointCloudAndLaserScanRenderab
     if (!renderable) {
       // Set the initial settings from default values merged with any user settings
       const userSettings = this.renderer.config.topics[topic] as
-        | Partial<LayerSettingsPointCloudAndLaserScan>
+        | Partial<LayerSettingsVelodyneScans>
         | undefined;
       const settings = { ...DEFAULT_SETTINGS, ...userSettings };
       if (settings.colorField == undefined) {
@@ -237,7 +242,7 @@ export class VelodyneScans extends SceneExtension<PointCloudAndLaserScanRenderab
       );
 
       const messageTime = toNanoSec(pointCloud.timestamp);
-      renderable = new PointCloudAndLaserScanRenderable(topic, this.renderer, {
+      renderable = new PointCloudRenderable(topic, this.renderer, {
         receiveTime,
         messageTime,
         frameId: this.renderer.normalizeFrameId(pointCloud.frame_id),

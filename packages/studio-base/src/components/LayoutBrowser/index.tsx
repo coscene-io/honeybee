@@ -35,7 +35,7 @@ import {
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { PanelsState } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import LayoutStorageDebuggingContext from "@foxglove/studio-base/context/LayoutStorageDebuggingContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
@@ -329,16 +329,15 @@ export default function LayoutBrowser({
     const name = `Unnamed layout ${moment(currentDateForStorybook).format("l")} at ${moment(
       currentDateForStorybook,
     ).format("LT")}`;
-    const panelState: Omit<PanelsState, "name" | "id"> = {
+    const layoutData: Omit<LayoutData, "name" | "id"> = {
       configById: {},
       globalVariables: {},
       userNodes: {},
-      linkedGlobalVariables: [],
       playbackConfig: defaultPlaybackConfig,
     };
     const newLayout = await layoutManager.saveNewLayout({
       name,
-      data: panelState as PanelsState,
+      data: layoutData as LayoutData,
       permission: "CREATOR_WRITE",
     });
     void onSelectLayout(newLayout);
@@ -358,8 +357,8 @@ export default function LayoutBrowser({
   const onShareLayout = useCallbackWithToast(
     async (item: Layout) => {
       const name = await prompt({
-        title: "Share a copy with your team",
-        subText: "Team layouts can be used and changed by other members of your team.",
+        title: "Share a copy with your organization",
+        subText: "Shared layouts can be used and changed by other members of your organization.",
         initialValue: item.name,
         label: "Layout name",
       });
@@ -390,7 +389,7 @@ export default function LayoutBrowser({
         const response = await confirm({
           title: `Update “${item.name}”?`,
           prompt:
-            "Your changes will overwrite this layout for all team members. This cannot be undone.",
+            "Your changes will overwrite this layout for all organization members. This cannot be undone.",
           ok: "Save",
         });
         if (response !== "ok") {
@@ -476,7 +475,7 @@ export default function LayoutBrowser({
           return;
         }
 
-        const data = parsedState as PanelsState;
+        const data = parsedState as LayoutData;
         const newLayout = await layoutManager.saveNewLayout({
           name: layoutName,
           data,
@@ -577,8 +576,8 @@ export default function LayoutBrowser({
         />
         {layoutManager.supportsSharing && (
           <LayoutSection
-            title="Team"
-            emptyText="Your organization doesn’t have any shared layouts yet. Share a personal layout to collaborate with other team members."
+            title="Organization"
+            emptyText="Your organization doesn’t have any shared layouts yet. Share a layout to collaborate with others."
             items={layouts.value?.shared}
             anySelectedModifiedLayouts={anySelectedModifiedLayouts}
             multiSelectedIds={state.selectedIds}

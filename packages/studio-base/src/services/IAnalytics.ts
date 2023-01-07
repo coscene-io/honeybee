@@ -10,6 +10,7 @@ enum AppEventCategory {
   PANELS = "PANELS",
   VARIABLES = "VARIABLES",
   EXTENSIONS = "EXTENSIONS",
+  EXPERIMENTAL_FEATURES = "EXPERIMENTAL_FEATURES",
 }
 
 enum AppEvent {
@@ -18,6 +19,7 @@ enum AppEvent {
   // Dialog events
   DIALOG_SELECT_VIEW = "DIALOG_SELECT_VIEW",
   DIALOG_CLOSE = "DIALOG_CLOSE",
+  DIALOG_CLICK_CTA = "DIALOG_CLICK_CTA",
 
   // Player events
   PLAYER_CONSTRUCTED = "PLAYER_CONSTRUCTED",
@@ -52,6 +54,9 @@ enum AppEvent {
   // Extension events
   EXTENSION_INSTALL = "EXTENSION_INSTALL",
   EXTENSION_UNINSTALL = "EXTENSION_UNINSTALL",
+
+  // Experimental features
+  EXPERIMENTAL_FEATURE_TOGGLE = "EXPERIMENTAL_FEATURE_TOGGLE",
 }
 
 /** https://develop.sentry.dev/sdk/event-payloads/breadcrumbs/#breadcrumb-types */
@@ -75,6 +80,7 @@ export function getEventCategory(event: AppEvent): AppEventCategory {
 
     case AppEvent.DIALOG_SELECT_VIEW:
     case AppEvent.DIALOG_CLOSE:
+    case AppEvent.DIALOG_CLICK_CTA:
       return AppEventCategory.DIALOG;
 
     case AppEvent.PLAYER_CONSTRUCTED:
@@ -110,6 +116,9 @@ export function getEventCategory(event: AppEvent): AppEventCategory {
     case AppEvent.EXTENSION_INSTALL:
     case AppEvent.EXTENSION_UNINSTALL:
       return AppEventCategory.EXTENSIONS;
+
+    case AppEvent.EXPERIMENTAL_FEATURE_TOGGLE:
+      return AppEventCategory.EXPERIMENTAL_FEATURES;
   }
 }
 
@@ -119,9 +128,8 @@ export function getEventBreadcrumbType(event: AppEvent): SentryBreadcrumbType {
       return SentryBreadcrumbType.DEFAULT;
 
     case AppEvent.DIALOG_SELECT_VIEW:
-      return SentryBreadcrumbType.TRANSACTION;
-
     case AppEvent.DIALOG_CLOSE:
+    case AppEvent.DIALOG_CLICK_CTA:
       return SentryBreadcrumbType.USER;
 
     case AppEvent.PLAYER_CONSTRUCTED:
@@ -158,6 +166,9 @@ export function getEventBreadcrumbType(event: AppEvent): SentryBreadcrumbType {
 
     case AppEvent.EXTENSION_INSTALL:
     case AppEvent.EXTENSION_UNINSTALL:
+      return SentryBreadcrumbType.USER;
+
+    case AppEvent.EXPERIMENTAL_FEATURE_TOGGLE:
       return SentryBreadcrumbType.USER;
   }
 }

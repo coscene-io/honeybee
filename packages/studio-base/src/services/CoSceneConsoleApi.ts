@@ -21,13 +21,21 @@ import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 
-type User = {
+export type User = {
   id: string;
   email: string;
   orgId: string;
   orgDisplayName: string | null; // eslint-disable-line no-restricted-syntax
   orgSlug: string;
   orgPaid: boolean | null; // eslint-disable-line no-restricted-syntax
+  org: {
+    id: string;
+    slug: string;
+    displayName: string;
+    isEnterprise: boolean;
+    allowsUploads: boolean;
+    supportsEdgeSites: boolean;
+  };
 };
 
 type SigninArgs = {
@@ -354,10 +362,10 @@ class CoSceneConsoleApi {
     this._responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
-        throw new Error("Not logged in. Log in to your Foxglove account and try again.");
+        throw new Error("Not logged in. Please log in again.");
       } else if (res.status === 403) {
         throw new Error(
-          "Unauthorized. Check that you are logged in to the correct Foxglove organization.",
+          "Unauthorized. Please check if you are logged in and have permission to access.",
         );
       }
       const json = (await res.json().catch((err) => {

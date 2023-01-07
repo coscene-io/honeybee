@@ -11,7 +11,6 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { setWarningCallback } from "@fluentui/react";
 import { useTheme } from "@mui/material";
 import { flatten } from "lodash";
 import { ComponentProps, ReactNode, useLayoutEffect, useRef, useState } from "react";
@@ -20,7 +19,6 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { Mosaic, MosaicNode, MosaicWindow } from "react-mosaic-component";
 
 import { useShallowMemo } from "@foxglove/hooks";
-import Logger from "@foxglove/log";
 import { MessageEvent } from "@foxglove/studio";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import SettingsTreeEditor from "@foxglove/studio-base/components/SettingsTreeEditor";
@@ -36,13 +34,12 @@ import PanelCatalogContext, {
   PanelCatalog,
   PanelInfo,
 } from "@foxglove/studio-base/context/PanelCatalogContext";
-import { usePanelSettingsEditorStore } from "@foxglove/studio-base/context/PanelSettingsEditorContext";
+import { usePanelStateStore } from "@foxglove/studio-base/context/PanelStateContext";
 import {
   UserNodeStateProvider,
   useUserNodeState,
 } from "@foxglove/studio-base/context/UserNodeStateContext";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import { LinkedGlobalVariables } from "@foxglove/studio-base/panels/ThreeDimensionalViz/Interactions/useLinkedGlobalVariables";
 import { Diagnostic, UserNodeLog } from "@foxglove/studio-base/players/UserNodePlayer/types";
 import {
   Topic,
@@ -54,26 +51,17 @@ import {
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import ExtensionCatalogProvider from "@foxglove/studio-base/providers/ExtensionCatalogProvider";
 import HelpInfoProvider from "@foxglove/studio-base/providers/HelpInfoProvider";
-import { PanelSettingsEditorContextProvider } from "@foxglove/studio-base/providers/PanelSettingsEditorContextProvider";
+import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import { SavedProps, UserNodes } from "@foxglove/studio-base/types/panels";
-
-const log = Logger.getLogger(__filename);
 
 function noop() {}
 
 type Frame = {
   [topic: string]: MessageEvent<unknown>[];
 };
-
-setWarningCallback((msg) => {
-  if (msg.endsWith("was not registered.")) {
-    return;
-  }
-  log.warn(`[FluentUI] ${msg}`);
-});
 
 export type Fixture = {
   frame?: Frame;
@@ -85,7 +73,6 @@ export type Fixture = {
   datatypes?: RosDatatypes;
   globalVariables?: GlobalVariables;
   layout?: MosaicNode<string>;
-  linkedGlobalVariables?: LinkedGlobalVariables;
   userNodes?: UserNodes;
   userNodeDiagnostics?: { [nodeId: string]: readonly Diagnostic[] };
   userNodeFlags?: { id: string };
@@ -184,7 +171,7 @@ function PanelWrapper({
   children?: ReactNode;
   includeSettings?: boolean;
 }): JSX.Element {
-  const settings = usePanelSettingsEditorStore((store) => Object.values(store.settingsTrees)[0]);
+  const settings = usePanelStateStore((store) => Object.values(store.settingsTrees)[0]);
 
   return (
     <>
@@ -225,7 +212,6 @@ function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull
       globalVariables,
       userNodes,
       layout,
-      linkedGlobalVariables,
       userNodeDiagnostics,
       userNodeLogs,
       userNodeRosLib,
@@ -239,9 +225,6 @@ function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull
     }
     if (layout != undefined) {
       actions.changePanelLayout({ layout });
-    }
-    if (linkedGlobalVariables) {
-      actions.setLinkedGlobalVariables(linkedGlobalVariables);
     }
     if (userNodeDiagnostics) {
       for (const [nodeId, diagnostics] of Object.entries(userNodeDiagnostics)) {
@@ -346,7 +329,7 @@ export default function PanelSetup(props: Props): JSX.Element {
     <UserNodeStateProvider>
       <TimelineInteractionStateProvider>
         <MockCurrentLayoutProvider onAction={props.onLayoutAction}>
-          <PanelSettingsEditorContextProvider>
+          <PanelStateContextProvider>
             <ExtensionCatalogProvider loaders={[]}>
               <HelpInfoProvider>
                 <ThemeProvider isDark={theme.palette.mode === "dark"}>
@@ -354,7 +337,7 @@ export default function PanelSetup(props: Props): JSX.Element {
                 </ThemeProvider>
               </HelpInfoProvider>
             </ExtensionCatalogProvider>
-          </PanelSettingsEditorContextProvider>
+          </PanelStateContextProvider>
         </MockCurrentLayoutProvider>
       </TimelineInteractionStateProvider>
     </UserNodeStateProvider>

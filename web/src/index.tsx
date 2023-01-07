@@ -5,7 +5,7 @@
 import { Provider as RollbarProvider, ErrorBoundary } from "@rollbar/react";
 import * as Sentry from "@sentry/browser";
 import { BrowserTracing } from "@sentry/tracing";
-import { StrictMode } from "react";
+import { StrictMode, useEffect } from "react";
 import ReactDOM from "react-dom";
 
 import Logger from "@foxglove/log";
@@ -18,7 +18,7 @@ import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguratio
 
 bcInstance.listenBroadcastMessage((msg) => {
   if (msg.data === LOGOUT_MESSAGE) {
-    window.location.href = '/login';
+    window.location.href = "/login";
   }
 });
 
@@ -57,6 +57,14 @@ if (!rootEl) {
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
+function LogAfterRender(props: React.PropsWithChildren<unknown>): JSX.Element {
+  useEffect(() => {
+    // Integration tests look for this console log to indicate the app has rendered once
+    log.debug("App rendered");
+  }, []);
+  return <>{props.children}</>;
+}
+
 async function main() {
   const chromeMatch = navigator.userAgent.match(/Chrome\/(\d+)\./);
   const chromeVersion = chromeMatch ? parseInt(chromeMatch[1] ?? "", 10) : 0;
@@ -70,13 +78,14 @@ async function main() {
       isDismissable={canRenderApp}
     />
   );
-  const renderCallback = () => {
-    // Integration tests look for this console log to indicate the app has rendered once
-    log.debug("App rendered");
-  };
 
   if (!canRenderApp) {
-    ReactDOM.render(<StrictMode>{banner}</StrictMode>, rootEl, renderCallback);
+    ReactDOM.render(
+      <StrictMode>
+        <LogAfterRender>{banner}</LogAfterRender>
+      </StrictMode>,
+      rootEl,
+    );
     return;
   }
 
@@ -86,7 +95,11 @@ async function main() {
   installDevtoolsFormatters();
   overwriteFetch();
   // consider moving waitForFonts into App to display an app loading screen
-  await waitForFonts();
+  try {
+    await waitForFonts();
+  } catch (error) {
+    console.error(error);
+  }
 
   const { Root } = await import("./Root");
 
@@ -101,13 +114,14 @@ async function main() {
     <StrictMode>
       <RollbarProvider config={ROLLBAR_CONFIG}>
         <ErrorBoundary>
-          {banner}
-          <Root appConfiguration={appConfiguration} />
+          <LogAfterRender>
+            {banner}
+            <Root appConfiguration={appConfiguration} />
+          </LogAfterRender>
         </ErrorBoundary>
       </RollbarProvider>
     </StrictMode>,
     rootEl,
-    renderCallback,
   );
 }
 

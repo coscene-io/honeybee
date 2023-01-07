@@ -2,13 +2,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import EventEmitter, { EventNames, EventListener } from "eventemitter3";
+import EventEmitter from "eventemitter3";
 import { isEqual, partition } from "lodash";
 import { v4 as uuidv4 } from "uuid";
 
 import { MutexLocked } from "@foxglove/den/async";
 import Logger from "@foxglove/log";
-import { PanelsState } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { ISO8601Timestamp } from "@foxglove/studio-base/services/ConsoleApi";
 import {
   ILayoutManager,
@@ -144,15 +144,15 @@ export default class LayoutManager implements ILayoutManager {
     this.supportsSharing = remote != undefined;
   }
 
-  public on<E extends EventNames<LayoutManagerEventTypes>>(
+  public on<E extends EventEmitter.EventNames<LayoutManagerEventTypes>>(
     name: E,
-    listener: EventListener<LayoutManagerEventTypes, E>,
+    listener: EventEmitter.EventListener<LayoutManagerEventTypes, E>,
   ): void {
     this.emitter.on(name, listener);
   }
-  public off<E extends EventNames<LayoutManagerEventTypes>>(
+  public off<E extends EventEmitter.EventNames<LayoutManagerEventTypes>>(
     name: E,
-    listener: EventListener<LayoutManagerEventTypes, E>,
+    listener: EventEmitter.EventListener<LayoutManagerEventTypes, E>,
   ): void {
     this.emitter.off(name, listener);
   }
@@ -221,7 +221,7 @@ export default class LayoutManager implements ILayoutManager {
     permission,
   }: {
     name: string;
-    data: PanelsState;
+    data: LayoutData;
     permission: LayoutPermission;
   }): Promise<Layout> {
     const data = migratePanelsState(unmigratedData);
@@ -277,7 +277,7 @@ export default class LayoutManager implements ILayoutManager {
   }: {
     id: LayoutID;
     name: string | undefined;
-    data: PanelsState | undefined;
+    data: LayoutData | undefined;
   }): Promise<Layout> {
     const now = new Date().toISOString() as ISO8601Timestamp;
     const localLayout = await this.local.runExclusive(async (local) => await local.get(id));

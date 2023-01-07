@@ -16,7 +16,9 @@ import { makeStyles } from "tss-react/mui";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 const useStyles = makeStyles()({
   checkbox: {
@@ -49,11 +51,6 @@ const features: Feature[] = [
     description: <>Enable the Legacy Plot panel.</>,
   },
   {
-    key: AppSetting.ENABLE_LEGACY_3D_PANEL,
-    name: "Legacy 3D panel",
-    description: <>Enable the Legacy 3D panel.</>,
-  },
-  {
     key: AppSetting.ENABLE_MEMORY_USE_INDICATOR,
     name: "Memory use indicator",
     description: <>Show the app memory use in the sidebar.</>,
@@ -75,6 +72,7 @@ if (process.env.NODE_ENV === "development") {
 function ExperimentalFeatureItem(props: { feature: Feature }) {
   const { feature } = props;
   const { classes } = useStyles();
+  const analytics = useAnalytics();
 
   const [enabled, setEnabled] = useAppConfigurationValue<boolean>(feature.key);
   return (
@@ -84,7 +82,13 @@ function ExperimentalFeatureItem(props: { feature: Feature }) {
         <Checkbox
           className={classes.checkbox}
           checked={enabled ?? false}
-          onChange={(_, checked) => void setEnabled(checked)}
+          onChange={(_, checked) => {
+            void setEnabled(checked);
+            void analytics.logEvent(AppEvent.EXPERIMENTAL_FEATURE_TOGGLE, {
+              feature: feature.key,
+              checked,
+            });
+          }}
         />
       }
       label={

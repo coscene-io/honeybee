@@ -10,6 +10,8 @@ import type { Renderer } from "./Renderer";
 import type { BaseSettings } from "./settings";
 import type { Pose } from "./transforms";
 
+export const SELECTED_ID_VARIABLE = "selected_id";
+
 export type BaseUserData = {
   /** Timestamp when the associated `MessageEvent` was received */
   receiveTime: bigint;
@@ -23,6 +25,8 @@ export type BaseUserData = {
   settingsPath: ReadonlyArray<string>;
   /** User-customizable settings for this Renderable */
   settings: BaseSettings;
+  /** Topic that the Renderable belongs to, if applicable*/
+  topic?: string;
 };
 
 /**
@@ -61,16 +65,44 @@ export class Renderable<TUserData extends BaseUserData = BaseUserData> extends T
   }
 
   /**
-   * Return a Plain Old JavaScript Object (POJO) representation of this Renderable
+   * A unique identifier for this Renderable, taken from the associated message.
+   */
+  public idFromMessage(): number | string | undefined {
+    return undefined;
+  }
+
+  /**
+   * The name of the variable that will be set to `idFromMessage()` on user selection.
+   */
+  public selectedIdVariable(): string | undefined {
+    return undefined;
+  }
+
+  /**
+   * Return a Plain Old JavaScript Object (POJO) representation of this Renderable.
    */
   public details(): Record<string, RosValue> {
     return {};
   }
 
   /**
+   * Return topic if one exists on the userData.
+   */
+  // eslint-disable-next-line no-restricted-syntax
+  public get topic(): TUserData["topic"] {
+    return this.userData.topic;
+  }
+
+  /**
+   * Return pose as defined in userData
+   */
+  // eslint-disable-next-line no-restricted-syntax
+  public get pose(): Pose {
+    return this.userData.pose;
+  }
+  /**
    * Return a Plain Old JavaScript Object (POJO) representation of a specific
    * visual instance rendered by this Renderable.
-   * @param instanceId
    */
   public instanceDetails(instanceId: number): Record<string, RosValue> | undefined {
     void instanceId;

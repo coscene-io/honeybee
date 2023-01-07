@@ -4,22 +4,21 @@
 
 import { createContext, useContext } from "react";
 
-import { PanelsState } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import {
-  Player,
-  CoScenePlayerMetricsCollectorInterface,
-} from "@foxglove/studio-base/players/types";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { Player } from "@foxglove/studio-base/players/types";
+import CoSceneAnalyticsMetricsCollector from "@foxglove/studio-base/players/CoSceneAnalyticsMetricsCollector";
 import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
 
 export type DataSourceFactoryInitializeArgs = {
-  metricsCollector: CoScenePlayerMetricsCollectorInterface;
+  metricsCollector: CoSceneAnalyticsMetricsCollector;
   file?: File;
   files?: File[];
   params?: Record<string, string | undefined>;
   consoleApi?: ConsoleApi;
 };
 
-export type DataSourceFactoryType = "file" | "remote-file" | "connection" | "sample";
+export type DataSourceFactoryType = "file" | "connection" | "sample";
 
 export type Field = {
   id: string;
@@ -39,17 +38,22 @@ export type Field = {
 
 export interface IDataSourceFactory {
   id: string;
+
+  // A list of alternate ids used to identify this factory
+  // https://github.com/foxglove/studio/issues/4937
+  legacyIds?: string[];
+
   type: DataSourceFactoryType;
   displayName: string;
   iconName?: RegisteredIconNames;
   description?: string;
-  docsLink?: string;
+  docsLinks?: { label?: string; url: string }[];
   disabledReason?: string | JSX.Element;
   badgeText?: string;
   hidden?: boolean;
   warning?: string;
 
-  sampleLayout?: PanelsState;
+  sampleLayout?: LayoutData;
 
   formConfig?: {
     // Initialization args are populated with keys of the _id_ field
@@ -108,16 +112,16 @@ export interface PlayerSelection {
   recentSources: RecentSource[];
 }
 
-const CoScenePlayerSelectionContext = createContext<PlayerSelection>({
+const PlayerSelectionContext = createContext<PlayerSelection>({
   selectSource: () => {},
   selectRecent: () => {},
   availableSources: [],
   recentSources: [],
 });
-CoScenePlayerSelectionContext.displayName = "PlayerSelectionContext";
+PlayerSelectionContext.displayName = "PlayerSelectionContext";
 
 export function usePlayerSelection(): PlayerSelection {
-  return useContext(CoScenePlayerSelectionContext);
+  return useContext(PlayerSelectionContext);
 }
 
-export default CoScenePlayerSelectionContext;
+export default PlayerSelectionContext;
