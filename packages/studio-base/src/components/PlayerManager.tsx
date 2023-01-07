@@ -41,7 +41,7 @@ import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerCon
 import { useNativeWindow } from "@foxglove/studio-base/context/NativeWindowContext";
 import { useUserNodeState } from "@foxglove/studio-base/context/UserNodeStateContext";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import useIndexedDbRecents from "@foxglove/studio-base/hooks/useIndexedDbRecents";
+import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 import useWarnImmediateReRender from "@foxglove/studio-base/hooks/useWarnImmediateReRender";
 // import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import CoSceneAnalyticsMetricsCollector from "@foxglove/studio-base/players/CoSceneAnalyticsMetricsCollector";
@@ -130,7 +130,9 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
       // Clear any previous represented filename
       void nativeWindow?.setRepresentedFilename(undefined);
 
-      const foundSource = playerSources.find((source) => source.id === sourceId);
+      const foundSource = playerSources.find(
+        (source) => source.id === sourceId || source.legacyIds?.includes(sourceId),
+      );
       if (!foundSource) {
         enqueueSnackbar(`Unknown data source: ${sourceId}`, { variant: "warning" });
         return;
@@ -287,31 +289,10 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
   );
 
   // Select a recent entry by id
+  // necessary to pull out callback creation to avoid capturing the initial player in closure context
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const selectRecent = useCallback(
-    (recentId: string) => {
-      // find the recent from the list and initialize
-      const foundRecent = recents.find((value) => value.id === recentId);
-      if (!foundRecent) {
-        enqueueSnackbar(`Failed to restore recent: ${recentId}`, { variant: "error" });
-        return;
-      }
-
-      switch (foundRecent.type) {
-        case "connection": {
-          void selectSource(foundRecent.sourceId, {
-            type: "connection",
-            params: foundRecent.extra,
-          });
-          break;
-        }
-        case "file": {
-          void selectSource(foundRecent.sourceId, {
-            type: "file",
-            handle: foundRecent.handle,
-          });
-        }
-      }
-    },
+    createSelectRecentCallback(recents, selectSource, enqueueSnackbar),
     [recents, enqueueSnackbar, selectSource],
   );
 
@@ -338,4 +319,44 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
       </PlayerSelectionContext.Provider>
     </>
   );
+}
+
+/**
+ * This was moved out of the PlayerManager function due to a memory leak occurring in memoized state of Start.tsx
+ * that was retaining old player instances. Having this callback be defined within the PlayerManager makes it store the
+ * player at instantiation within the closure context. That callback is then stored in the memoized state with its closure context.
+ * The callback is updated when the player changes but part of the `Start.tsx` holds onto the formerly memoized state for an
+ * unknown reason.
+ * To make this function safe from storing old closure contexts in old memoized state in components where it
+ * is used, it has been moved out of the PlayerManager function.
+ */
+function createSelectRecentCallback(
+  recents: RecentRecord[],
+  selectSource: (sourceId: string, dataSourceArgs: DataSourceArgs) => Promise<void>,
+  enqueueSnackbar: ReturnType<typeof useSnackbar>["enqueueSnackbar"],
+) {
+  return (recentId: string) => {
+    // find the recent from the list and initialize
+    const foundRecent = recents.find((value) => value.id === recentId);
+    if (!foundRecent) {
+      enqueueSnackbar(`Failed to restore recent: ${recentId}`, { variant: "error" });
+      return;
+    }
+
+    switch (foundRecent.type) {
+      case "connection": {
+        void selectSource(foundRecent.sourceId, {
+          type: "connection",
+          params: foundRecent.extra,
+        });
+        break;
+      }
+      case "file": {
+        void selectSource(foundRecent.sourceId, {
+          type: "file",
+          handle: foundRecent.handle,
+        });
+      }
+    }
+  };
 }

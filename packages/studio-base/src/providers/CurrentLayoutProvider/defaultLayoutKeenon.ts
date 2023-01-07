@@ -2,13 +2,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { PanelsState } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
 /**
  * This is loaded when the user has no layout selected on application launch
  * to avoid presenting the user with a blank layout.
  */
-export const keenonDefaultLayout: PanelsState = {
+export const keenonDefaultLayout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
@@ -703,7 +703,6 @@ export const keenonDefaultLayout: PanelsState = {
   },
   globalVariables: {},
   userNodes: {},
-  linkedGlobalVariables: [],
   playbackConfig: {
     speed: 1,
   },

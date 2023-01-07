@@ -5,25 +5,24 @@
 import { useMemo, useEffect, useState } from "react";
 
 import {
+  App,
+  AppSetting,
+  ConsoleApi,
+  FoxgloveDataPlatformDataSourceFactory,
+  FoxgloveWebSocketDataSourceFactory,
+  IAppConfiguration,
   IDataSourceFactory,
+  IdbExtensionLoader,
+  McapLocalDataSourceFactory,
   Ros1LocalBagDataSourceFactory,
   Ros2LocalBagDataSourceFactory,
   RosbridgeDataSourceFactory,
-  VelodyneDataSourceFactory,
-  Ros1RemoteBagDataSourceFactory,
+  RemoteDataSourceFactory,
   Ros1SocketDataSourceFactory,
   Ros2SocketDataSourceFactory,
-  FoxgloveDataPlatformDataSourceFactory,
-  FoxgloveWebSocketDataSourceFactory,
-  UlogLocalDataSourceFactory,
-  McapLocalDataSourceFactory,
   SampleNuscenesDataSourceFactory,
-  McapRemoteDataSourceFactory,
-  IAppConfiguration,
-  AppSetting,
-  App,
-  ConsoleApi,
-  IdbExtensionLoader,
+  UlogLocalDataSourceFactory,
+  VelodyneDataSourceFactory,
 } from "@foxglove/studio-base";
 
 import { Desktop, NativeMenuBridge, Storage } from "../common/types";
@@ -47,7 +46,6 @@ export default function Root({
       new FoxgloveWebSocketDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
       new Ros1LocalBagDataSourceFactory(),
-      new Ros1RemoteBagDataSourceFactory(),
       new Ros2SocketDataSourceFactory(),
       new Ros2LocalBagDataSourceFactory(),
       new UlogLocalDataSourceFactory(),
@@ -55,7 +53,7 @@ export default function Root({
       new FoxgloveDataPlatformDataSourceFactory(),
       new SampleNuscenesDataSourceFactory(),
       new McapLocalDataSourceFactory(),
-      new McapRemoteDataSourceFactory(),
+      new RemoteDataSourceFactory(),
     ];
 
     return sources;
@@ -97,16 +95,19 @@ export default function Root({
   });
 
   return (
-    <App
-      enableDialogAuth
-      deepLinks={deepLinks}
-      dataSources={dataSources}
-      appConfiguration={appConfiguration}
-      consoleApi={consoleApi}
-      layoutStorage={layoutStorage}
-      extensionLoaders={extensionLoaders}
-      nativeAppMenu={nativeAppMenu}
-      nativeWindow={nativeWindow}
-    />
+    <>
+      <App
+        enableDialogAuth
+        deepLinks={deepLinks}
+        dataSources={dataSources}
+        appConfiguration={appConfiguration}
+        consoleApi={consoleApi}
+        layoutStorage={layoutStorage}
+        extensionLoaders={extensionLoaders}
+        nativeAppMenu={nativeAppMenu}
+        nativeWindow={nativeWindow}
+        enableGlobalCss
+      />
+    </>
   );
 }

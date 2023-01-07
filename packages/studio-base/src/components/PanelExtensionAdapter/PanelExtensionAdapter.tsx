@@ -29,6 +29,10 @@ import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import { useAppConfiguration } from "@foxglove/studio-base/context/AppConfigurationContext";
 import {
+  ExtensionCatalog,
+  useExtensionCatalog,
+} from "@foxglove/studio-base/context/ExtensionCatalogContext";
+import {
   useClearHoverValue,
   useHoverValue,
   useSetHoverValue,
@@ -40,7 +44,10 @@ import {
   PlayerCapabilities,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
-import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelSettingsEditorContextProvider";
+import {
+  usePanelSettingsTreeUpdate,
+  useSharedPanelState,
+} from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
 import { assertNever } from "@foxglove/studio-base/util/assertNever";
 
@@ -61,6 +68,10 @@ type PanelExtensionAdapterProps = {
 
 function selectContext(ctx: MessagePipelineContext) {
   return ctx;
+}
+
+function selectInstalledMessageConverters(state: ExtensionCatalog) {
+  return state.installedMessageConverters;
 }
 
 type RenderFn = NonNullable<PanelExtensionContext["onRender"]>;
@@ -92,16 +103,15 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
   const isMounted = useSynchronousMountedState();
   const [error, setError] = useState<Error | undefined>();
   const [watchedFields, setWatchedFields] = useState(new Set<keyof RenderState>());
+  const messageConverters = useExtensionCatalog(selectInstalledMessageConverters);
 
-  // When subscribing to preloaded topics we use this array to filter the raw blocks to include only
-  // the topics we subscribed to in the allFrames render state. Otherwise the panel would receive
-  // messages in allFrames for topics the panel did not subscribe to.
-  const [subscribedTopics, setSubscribedTopics] = useState<string[]>([]);
+  const [localSubscriptions, setLocalSubscriptions] = useState<Subscription[]>([]);
 
   const [appSettings, setAppSettings] = useState(new Map<string, AppSettingValue>());
   const [subscribedAppSettings, setSubscribedAppSettings] = useState<string[]>([]);
 
   const [renderFn, setRenderFn] = useState<RenderFn | undefined>();
+  const isPanelInitializedRef = useRef(false);
 
   const [slowRender, setSlowRender] = useState(false);
 
@@ -134,6 +144,8 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
   // initRenderStateBuilder render produces a function which computes the latest render state from a set of inputs
   // Spiritually its like a reducer
   const [buildRenderState, setBuildRenderState] = useState(() => initRenderStateBuilder());
+
+  const [sharedPanelState, setSharedPanelState] = useSharedPanelState();
 
   // Register handlers to update the app settings we subscribe to
   useEffect(() => {
@@ -177,20 +189,29 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
   // updates.
   const renderingRef = useRef<boolean>(false);
   useLayoutEffect(() => {
-    if (!renderFn) {
+    /**
+     * We need to check that the panel has been initialized because the renderFn function is being
+     * called between the initPanel's useLayoutEffect cleanup and initPanel being called
+     * again even if setRenderFn(undefined) is called in the cleanup function. This causes
+     * the old renderFn to be called in this effect and pauseFrame to happen, but it is never
+     * resumed, thus causing a 5 second delay in all panels in the layout to be loaded.
+     */
+    if (!renderFn || !isPanelInitializedRef.current) {
       return;
     }
 
     const renderState = buildRenderState({
-      watchedFields,
+      appSettings,
+      colorScheme,
+      currentFrame: messageEvents,
       globalVariables,
       hoverValue,
+      messageConverters,
       playerState,
-      colorScheme,
-      appSettings,
-      subscribedTopics,
-      currentFrame: messageEvents,
+      sharedPanelState,
       sortedTopics,
+      subscriptions: localSubscriptions,
+      watchedFields,
     });
 
     if (!renderState) {
@@ -224,19 +245,21 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
       setError(err);
     }
   }, [
+    appSettings,
+    buildRenderState,
+    colorScheme,
+    globalVariables,
+    hoverValue,
+    localSubscriptions,
+    messageConverters,
+    messageEvents,
     panelId,
     pauseFrame,
-    subscribedTopics,
-    watchedFields,
-    appSettings,
-    hoverValue,
     playerState,
-    messageEvents,
     renderFn,
-    colorScheme,
-    buildRenderState,
-    globalVariables,
+    sharedPanelState,
     sortedTopics,
+    watchedFields,
   ]);
 
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
@@ -321,13 +344,22 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
         }
       },
 
+      setSharedPanelState,
+
       watch: (field: keyof RenderState) => {
         if (!isMounted()) {
           return;
         }
         setWatchedFields((old) => {
-          old.add(field);
-          return new Set(old);
+          if (old.has(field)) {
+            // In React 18 we noticed that this setter function would be called in an infinite loop
+            // even though watch() was not called repeatedly. Adding this early return of the old
+            // value fixed the issue.
+            return old;
+          }
+          const newWatchedFields = new Set(old);
+          newWatchedFields.add(field);
+          return newWatchedFields;
         });
       },
 
@@ -335,23 +367,21 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
         if (!isMounted()) {
           return;
         }
-        const newSubscribedTopics: string[] = [];
         const subscribePayloads = topics.map<SubscribePayload>((item) => {
           if (typeof item === "string") {
-            newSubscribedTopics.push(item);
             // For backwards compatability with the topic-string-array api `subscribe(["/topic"])`
             // results in a topic subscription with full preloading
             return { topic: item, preloadType: "full" };
           }
 
-          newSubscribedTopics.push(item.topic);
           return {
             topic: item.topic,
+            convertTo: item.convertTo,
             preloadType: item.preload === true ? "full" : "partial",
           };
         });
 
-        setSubscribedTopics(newSubscribedTopics);
+        setLocalSubscriptions(subscribePayloads);
         setSubscriptions(panelId, subscribePayloads);
       },
 
@@ -412,7 +442,7 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
         if (!isMounted()) {
           return;
         }
-        setSubscribedTopics([]);
+        setLocalSubscriptions([]);
         setSubscriptions(panelId, []);
       },
 
@@ -443,6 +473,7 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
     seekPlayback,
     setGlobalVariables,
     setHoverValue,
+    setSharedPanelState,
     setSubscriptions,
     updatePanelSettingsTree,
   ]);
@@ -464,6 +495,9 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
 
     // Reset local state when the panel element is mounted or changes
     setRenderFn(undefined);
+    renderingRef.current = false;
+    setSlowRender(false);
+
     setBuildRenderState(() => initRenderStateBuilder());
 
     const panelElement = document.createElement("div");
@@ -473,7 +507,7 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
     panelContainerRef.current.appendChild(panelElement);
 
     log.info(`Init panel ${panelId}`);
-    initPanel({
+    const onUnmount = initPanel({
       panelElement,
       ...partialExtensionContext,
 
@@ -482,8 +516,13 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
         setRenderFn(() => renderFunction);
       },
     });
+    isPanelInitializedRef.current = true;
 
     return () => {
+      if (onUnmount) {
+        onUnmount();
+      }
+      isPanelInitializedRef.current = false;
       panelElement.remove();
       getMessagePipelineContext().setSubscriptions(panelId, []);
       getMessagePipelineContext().setPublishers(panelId, []);

@@ -63,11 +63,6 @@ export class TopicEntities extends Renderable<EntityTopicUserData> {
     super(name, renderer, userData);
   }
 
-  // eslint-disable-next-line no-restricted-syntax
-  public get topic(): string {
-    return this.userData.topic;
-  }
-
   public override dispose(): void {
     this.children.length = 0;
     this._deleteAllEntities();
@@ -154,7 +149,7 @@ export class TopicEntities extends Renderable<EntityTopicUserData> {
           renderables[primitiveType] = renderable;
           this.add(renderable);
         }
-        renderable.update(entity, this.userData.settings, receiveTime);
+        renderable.update(this.userData.topic, entity, this.userData.settings, receiveTime);
       } else if (renderable) {
         this.remove(renderable);
         delete renderables[primitiveType];

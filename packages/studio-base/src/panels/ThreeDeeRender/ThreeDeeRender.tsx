@@ -13,8 +13,8 @@ import {
   Paper,
   useTheme,
 } from "@mui/material";
-import { isEqual, cloneDeep, merge } from "lodash";
-import React, { useCallback, useLayoutEffect, useEffect, useState, useMemo, useRef } from "react";
+import { cloneDeep, isEqual, merge } from "lodash";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useLatest, useLongPress } from "react-use";
 import { DeepPartial } from "ts-essentials";
@@ -37,23 +37,28 @@ import {
 import PublishGoalIcon from "@foxglove/studio-base/components/PublishGoalIcon";
 import PublishPointIcon from "@foxglove/studio-base/components/PublishPointIcon";
 import PublishPoseEstimateIcon from "@foxglove/studio-base/components/PublishPoseEstimateIcon";
-import useCleanup from "@foxglove/studio-base/hooks/useCleanup";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 import { DebugGui } from "./DebugGui";
-import { Interactions, InteractionContextMenu, SelectionObject, TabType } from "./Interactions";
+import { InteractionContextMenu, Interactions, SelectionObject, TabType } from "./Interactions";
 import type { PickedRenderable } from "./Picker";
-import type { Renderable } from "./Renderable";
-import { Renderer, RendererConfig, RendererEvents, RendererSubscription } from "./Renderer";
+import { Renderable, SELECTED_ID_VARIABLE } from "./Renderable";
+import {
+  FollowMode,
+  Renderer,
+  RendererConfig,
+  RendererEvents,
+  RendererSubscription,
+} from "./Renderer";
 import { RendererContext, useRenderer, useRendererEvent } from "./RendererContext";
 import { Stats } from "./Stats";
 import { CameraState, DEFAULT_CAMERA_STATE, MouseEventObject } from "./camera";
 import {
-  PublishRos1Datatypes,
-  PublishRos2Datatypes,
   makePointMessage,
   makePoseEstimateMessage,
   makePoseMessage,
+  PublishRos1Datatypes,
+  PublishRos2Datatypes,
 } from "./publish";
 import { DEFAULT_PUBLISH_SETTINGS } from "./renderables/CoreSettings";
 import type { LayerSettingsTransform } from "./renderables/FrameAxes";
@@ -61,18 +66,19 @@ import { PublishClickEvent, PublishClickType } from "./renderables/PublishClickT
 
 const log = Logger.getLogger(__filename);
 
+type Shared3DPanelState = {
+  cameraState: CameraState;
+  followMode: FollowMode;
+  followTf: undefined | string;
+};
+
 const SHOW_DEBUG: true | false = false;
-const SELECTED_ID_VARIABLE = "selected_id";
+
 const PANEL_STYLE: React.CSSProperties = {
   width: "100%",
   height: "100%",
   display: "flex",
   position: "relative",
-};
-
-type SubscriptionWithOptions = Subscription & {
-  preload: boolean;
-  forced: boolean;
 };
 
 const PublishClickIcons: Record<PublishClickType, React.ReactNode> = {
@@ -145,7 +151,7 @@ function RendererOverlay(props: {
     () =>
       selectedRenderables.map((selection) => ({
         object: {
-          pose: selection.renderable.userData.pose,
+          pose: selection.renderable.pose,
           scale: selection.renderable.scale,
           color: undefined,
           interactionData: {
@@ -166,9 +172,9 @@ function RendererOverlay(props: {
       selectedRenderable
         ? {
             object: {
-              pose: selectedRenderable.renderable.userData.pose,
+              pose: selectedRenderable.renderable.pose,
               interactionData: {
-                topic: (selectedRenderable.renderable.userData as { topic?: string }).topic,
+                topic: selectedRenderable.renderable.topic,
                 highlighted: true,
                 originalMessage: selectedRenderable.renderable.details(),
                 instanceDetails:
@@ -410,14 +416,15 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   const [messages, setMessages] = useState<ReadonlyArray<MessageEvent<unknown>> | undefined>();
   const [currentTime, setCurrentTime] = useState<Time | undefined>();
   const [didSeek, setDidSeek] = useState<boolean>(false);
+  const [sharedPanelState, setSharedPanelState] = useState<undefined | Shared3DPanelState>();
 
   const renderRef = useRef({ needsRender: false });
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
 
-  const datatypeHandlers = useRendererProperty(
+  const schemaHandlers = useRendererProperty(
     renderer,
-    "datatypeHandlers",
-    "datatypeHandlersChanged",
+    "schemaHandlers",
+    "schemaHandlersChanged",
     () => new Map(),
   );
   const topicHandlers = useRendererProperty(
@@ -426,6 +433,9 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     "topicHandlersChanged",
     () => new Map(),
   );
+
+  // The frame we care about for syncing purposes can be either of these.
+  const effectiveRendererFrameId = renderer?.followFrameId ?? renderer?.renderFrameId;
 
   // Config cameraState
   useEffect(() => {
@@ -436,11 +446,19 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
         // non-follow mode playback
         renderer.setCameraState(newCameraState);
         setConfig((prevConfig) => ({ ...prevConfig, cameraState: newCameraState }));
+
+        if (config.scene.syncCamera === true) {
+          context.setSharedPanelState({
+            cameraState: newCameraState,
+            followMode: renderer.followMode,
+            followTf: effectiveRendererFrameId,
+          });
+        }
       }
     };
     renderer?.addListener("cameraMove", listener);
     return () => void renderer?.removeListener("cameraMove", listener);
-  }, [renderer]);
+  }, [config.scene.syncCamera, context, effectiveRendererFrameId, renderer]);
 
   // Handle user changes in the settings sidebar
   const actionHandler = useCallback(
@@ -449,8 +467,22 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
       // function has finished executing. This allows scene extensions that call
       // renderer.updateConfig to read out the new config value and configure their renderables
       // before the render occurs.
-      ReactDOM.unstable_batchedUpdates(() => renderer?.settings.handleAction(action)),
-    [renderer],
+      ReactDOM.unstable_batchedUpdates(() => {
+        if (renderer) {
+          const initialCameraState = renderer.getCameraState();
+          renderer.settings.handleAction(action);
+          const updatedCameraState = renderer.getCameraState();
+          // Communicate camera changes from settings to the global state if syncing.
+          if (updatedCameraState !== initialCameraState && config.scene.syncCamera === true) {
+            context.setSharedPanelState({
+              cameraState: updatedCameraState,
+              followMode: renderer.followMode,
+              followTf: renderer.followFrameId,
+            });
+          }
+        }
+      }),
+    [config.scene.syncCamera, context, renderer],
   );
 
   // Maintain the settings tree
@@ -468,7 +500,11 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   // Write to a global variable when the current selection changes
   const updateSelectedRenderable = useCallback(
     (selection: PickedRenderable | undefined) => {
-      const id = (selection?.renderable.details() as { id?: number | string } | undefined)?.id;
+      const id = selection?.renderable.idFromMessage();
+      const customVariable = selection?.renderable.selectedIdVariable();
+      if (customVariable) {
+        context.setVariable(customVariable, id ?? ReactNull);
+      }
       context.setVariable(SELECTED_ID_VARIABLE, id ?? ReactNull);
     },
     [context],
@@ -516,9 +552,6 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   );
   useEffect(() => throttledSave(config), [config, throttledSave]);
 
-  // Dispose of the renderer (and associated GPU resources) on teardown
-  useCleanup(() => renderer?.dispose());
-
   // Establish a connection to the message pipeline with context.watch and context.onRender
   useLayoutEffect(() => {
     context.onRender = (renderState: RenderState, done) => {
@@ -543,6 +576,8 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
         // the current frame, topics may not have changed
         setTopics(renderState.topics);
 
+        setSharedPanelState(renderState.sharedPanelState as Shared3DPanelState);
+
         // Watch for any changes in the map of observed parameters
         setParameters(renderState.parameters);
 
@@ -561,51 +596,53 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     context.watch("currentTime");
     context.watch("didSeek");
     context.watch("parameters");
+    context.watch("sharedPanelState");
     context.watch("variables");
     context.watch("topics");
-  }, [context]);
+  }, [context, renderer]);
 
   // Build a list of topics to subscribe to
-  const [topicsToSubscribe, setTopicsToSubscribe] = useState<SubscriptionWithOptions[] | undefined>(
-    undefined,
-  );
+  const [topicsToSubscribe, setTopicsToSubscribe] = useState<Subscription[] | undefined>(undefined);
   useEffect(() => {
-    const subscriptions = new Map<string, SubscriptionWithOptions>();
     if (!topics) {
       setTopicsToSubscribe(undefined);
       return;
     }
 
-    const updateSubscriptions = (topic: string, rendererSubscription: RendererSubscription) => {
-      let topicSubscription = subscriptions.get(topic);
-      if (!topicSubscription) {
-        topicSubscription = {
+    const newSubscriptions: Subscription[] = [];
+
+    const addSubscription = (
+      topic: string,
+      rendererSubscription: RendererSubscription,
+      convertTo?: string,
+    ) => {
+      if (rendererSubscription.forced === true || config.topics[topic]?.visible === true) {
+        newSubscriptions.push({
           topic,
-          forced: rendererSubscription.forced ?? false,
-          preload: rendererSubscription.preload ?? false,
-        };
-        subscriptions.set(topic, topicSubscription);
+          preload: rendererSubscription.preload,
+          convertTo,
+        });
       }
-      topicSubscription.preload ||= rendererSubscription.preload ?? false;
-      topicSubscription.forced ||= rendererSubscription.forced ?? false;
     };
 
     for (const topic of topics) {
       for (const rendererSubscription of topicHandlers.get(topic.name) ?? []) {
-        updateSubscriptions(topic.name, rendererSubscription);
+        addSubscription(topic.name, rendererSubscription);
       }
-      for (const rendererSubscription of datatypeHandlers.get(topic.schemaName) ?? []) {
-        updateSubscriptions(topic.name, rendererSubscription);
+      for (const rendererSubscription of schemaHandlers.get(topic.schemaName) ?? []) {
+        addSubscription(topic.name, rendererSubscription);
+      }
+      for (const schemaName of topic.convertibleTo ?? []) {
+        for (const rendererSubscription of schemaHandlers.get(schemaName) ?? []) {
+          addSubscription(topic.name, rendererSubscription, schemaName);
+        }
       }
     }
 
-    const newTopics = [...subscriptions.values()]
-      // Only subscribe if the subscription is forced or topic visibility has been toggled on
-      .filter((a) => a.forced || config.topics[a.topic]?.visible === true)
-      // Sort the list to make comparisons stable
-      .sort((a, b) => a.topic.localeCompare(b.topic));
-    setTopicsToSubscribe((prev) => (areSubscriptionsEqual(prev, newTopics) ? prev : newTopics));
-  }, [topics, config.topics, datatypeHandlers, topicHandlers]);
+    // Sort the list to make comparisons stable
+    newSubscriptions.sort((a, b) => a.topic.localeCompare(b.topic));
+    setTopicsToSubscribe((prev) => (isEqual(prev, newSubscriptions) ? prev : newSubscriptions));
+  }, [topics, config.topics, schemaHandlers, topicHandlers]);
 
   // Notify the extension context when our subscription list changes
   useEffect(() => {
@@ -628,7 +665,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     if (renderer && variables) {
       renderer.setVariables(variables);
     }
-  }, [variables, renderer, context]);
+  }, [variables, renderer]);
 
   // Keep the renderer currentTime up to date
   useEffect(() => {
@@ -674,6 +711,32 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
       renderRef.current.needsRender = true;
     }
   }, [cameraState, renderer]);
+
+  // Sync camera with shared state, if enabled.
+  useEffect(() => {
+    if (!renderer || sharedPanelState == undefined || config.scene.syncCamera !== true) {
+      return;
+    }
+
+    if (sharedPanelState.followMode !== renderer.followMode) {
+      renderer.setCameraSyncError(
+        `Follow mode must be ${sharedPanelState.followMode} to sync camera.`,
+      );
+    } else if (sharedPanelState.followTf !== effectiveRendererFrameId) {
+      renderer.setCameraSyncError(
+        `Display frame must be ${sharedPanelState.followTf} to sync camera.`,
+      );
+    } else {
+      const newCameraState = sharedPanelState.cameraState;
+      renderer.setCameraState(newCameraState);
+      renderRef.current.needsRender = true;
+      setConfig((prevConfig) => ({
+        ...prevConfig,
+        cameraState: newCameraState,
+      }));
+      renderer.setCameraSyncError(undefined);
+    }
+  }, [config.scene.syncCamera, effectiveRendererFrameId, renderer, sharedPanelState]);
 
   // Render a new frame if requested
   useEffect(() => {
@@ -754,9 +817,9 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   useEffect(() => {
     const onStart = () => setPublishActive(true);
     const onSubmit = (event: PublishClickEvent & { type: "foxglove.publish-submit" }) => {
-      const frameId = renderer?.fixedFrameId;
+      const frameId = renderer?.renderFrameId;
       if (frameId == undefined) {
-        log.warn("Unable to publish, fixedFrameId is not set");
+        log.warn("Unable to publish, renderFrameId is not set");
         return;
       }
       if (!context.publish) {
@@ -809,7 +872,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     context,
     latestPublishConfig,
     publishTopics,
-    renderer?.fixedFrameId,
+    renderer?.renderFrameId,
     renderer?.publishClickTool,
   ]);
 
@@ -823,13 +886,16 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   }, [publishActive, renderer]);
 
   const onTogglePerspective = useCallback(() => {
-    setConfig((prevConfig) => ({
-      ...prevConfig,
-      cameraState: { ...prevConfig.cameraState, perspective: !prevConfig.cameraState.perspective },
-    }));
-    // Wait for the setConfig to propagate to the renderer before updating the settings tree
-    setTimeout(() => renderer?.updateCoreSettings(), 0);
-  }, [renderer]);
+    const currentState = renderer?.getCameraState().perspective ?? false;
+    actionHandler({
+      action: "update",
+      payload: {
+        input: "boolean",
+        path: ["scene", "cameraState", "perspective"],
+        value: !currentState,
+      },
+    });
+  }, [actionHandler, renderer]);
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -895,21 +961,4 @@ function deepParseMessageEvents(
       (messageEvent as { message: unknown }).message = maybeLazy.toJSON!();
     }
   }
-}
-
-function areSubscriptionsEqual(
-  a: SubscriptionWithOptions[] | undefined,
-  b: SubscriptionWithOptions[],
-): boolean {
-  if (a == undefined || a.length !== b.length) {
-    return false;
-  }
-  for (let i = 0; i < a.length; i++) {
-    const aI = a[i]!;
-    const bI = b[i]!;
-    if (aI.topic !== bI.topic || aI.preload !== bI.preload || aI.forced !== bI.forced) {
-      return false;
-    }
-  }
-  return true;
 }
