@@ -12,13 +12,13 @@ export const gs50Layout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
-        perspective: true,
         distance: 15.817363727622583,
+        perspective: true,
         phi: 19.021889490112066,
-        thetaOffset: 13.407397645961483,
-        targetOffset: [-0.4518860022424427, 3.7828222993075973, -6.898921177407257e-16],
         target: [0, 0, 0],
+        targetOffset: [-0.4518860022424427, 3.7828222993075973, -6.898921177407257e-16],
         targetOrientation: [0, 0, 0, 1],
+        thetaOffset: 13.407397645961483,
         fovy: 45,
         near: 0.5,
         far: 5000,
@@ -736,6 +736,7 @@ export const gs50Layout: LayoutData = {
           position: [0, 0, 0],
           rotation: [0, 0, 0],
           order: 1,
+          frameId: "base_odom",
         },
       },
       publish: {
@@ -753,7 +754,12 @@ export const gs50Layout: LayoutData = {
       title: "Plot",
       paths: [
         {
-          value: "",
+          value: "/cmd_vel.linear.x",
+          enabled: true,
+          timestampMethod: "receiveTime",
+        },
+        {
+          value: "/cmd_vel.linear.y",
           enabled: true,
           timestampMethod: "receiveTime",
         },
@@ -778,7 +784,7 @@ export const gs50Layout: LayoutData = {
       ],
       showXAxisLabels: true,
       showYAxisLabels: true,
-      showLegend: false,
+      showLegend: true,
       legendDisplay: "floating",
       showPlotValuesInLegend: false,
       isSynced: true,
@@ -844,13 +850,13 @@ export const gs75Layout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
-        perspective: true,
         distance: 15.817363727622583,
+        perspective: true,
         phi: 19.021889490112066,
-        thetaOffset: 13.407397645961483,
-        targetOffset: [-0.4518860022424427, 3.7828222993075973, -6.898921177407257e-16],
         target: [0, 0, 0],
+        targetOffset: [-0.4518860022424427, 3.7828222993075973, -6.898921177407257e-16],
         targetOrientation: [0, 0, 0, 1],
+        thetaOffset: 13.407397645961483,
         fovy: 45,
         near: 0.5,
         far: 5000,
@@ -1568,6 +1574,7 @@ export const gs75Layout: LayoutData = {
           position: [0, 0, 0],
           rotation: [0, 0, 0],
           order: 1,
+          frameId: "base_odom",
         },
       },
       publish: {
@@ -1585,7 +1592,12 @@ export const gs75Layout: LayoutData = {
       title: "Plot",
       paths: [
         {
-          value: "",
+          value: "/cmd_vel.linear.x",
+          enabled: true,
+          timestampMethod: "receiveTime",
+        },
+        {
+          value: "/cmd_vel.linear.y",
           enabled: true,
           timestampMethod: "receiveTime",
         },
@@ -1610,7 +1622,7 @@ export const gs75Layout: LayoutData = {
       ],
       showXAxisLabels: true,
       showYAxisLabels: true,
-      showLegend: false,
+      showLegend: true,
       legendDisplay: "floating",
       showPlotValuesInLegend: false,
       isSynced: true,
