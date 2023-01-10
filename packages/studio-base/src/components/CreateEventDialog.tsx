@@ -227,7 +227,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       <Stack paddingX={3} paddingTop={2}>
         <TextField
           id="event-name"
-          label="Event Name"
+          label="Name"
           multiline
           maxRows={1}
           value={event.eventName}
