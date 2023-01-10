@@ -222,7 +222,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
       <Stack paddingX={3} paddingTop={2}>
-        <Typography variant="h2">Create event</Typography>
+        <Typography variant="h2">Create moment</Typography>
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
         <TextField
