@@ -129,7 +129,7 @@ export default function DataSourceSidebar(): JSX.Element {
                 textColor="inherit"
               >
                 <StyledTab disableRipple label="Topics" value={0} />
-                <StyledTab disableRipple label="Events" value={1} />
+                <StyledTab disableRipple label="Moment" value={1} />
                 <Button
                   id="basic-button"
                   aria-controls={open ? "basic-menu" : undefined}
