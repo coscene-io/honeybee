@@ -1785,15 +1785,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/coscene@npm:0.2.50":
-  version: 0.2.50
-  resolution: "@coscene-io/coscene@npm:0.2.50::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.50%2F0d2c7cf2dd52c4174aa274ff96f1e2f557573aa3"
+"@coscene-io/coscene@npm:0.2.56":
+  version: 0.2.56
+  resolution: "@coscene-io/coscene@npm:0.2.56::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.56%2F641b83d75de5849fd6701c22b0e922a289df5222"
   dependencies:
-    "@coscene-io/cosceneapis": ^0.0.112
+    "@coscene-io/cosceneapis": ^0.0.129
     "@coscene-io/semantic-lib": ^0.0.70
     ahooks: ^3.7.0
     antd: ^4.22.3
     axios: ^0.27.1
+    broadcast-channel: ^4.20.1
     daisyui: ^2.22.0
     google-protobuf: ^3.20.1
     grpc-web: ^1.3.1
@@ -1801,13 +1802,13 @@ __metadata:
     react-query: ^3.39.2
     react-router-dom: ^6.3.0
     recoil: ^0.7.4
-  checksum: d1cc4c0ff4ad4bfae549b058eb305b44a81e6dacd07522f674a660d13ead4eb34ffa5ba54b0bd32f4e9d576866b0521b0ef4f64375c45f8f330f92d9aa488b8f
+  checksum: f5738112b798392f261bdf9d23d801d9f4daa3bbd998bb433f214a6a9d3f6e27f0c0ac5b46b452a21508a40cfa8b910631ae7408fa6c4225d310b04f13d3a53d
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis@npm:^0.0.112":
-  version: 0.0.112
-  resolution: "@coscene-io/cosceneapis@npm:0.0.112::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.112%2F22a82dda40ab69ae1d9333076a14aa445f1fc9c6"
+"@coscene-io/cosceneapis@npm:^0.0.129":
+  version: 0.0.129
+  resolution: "@coscene-io/cosceneapis@npm:0.0.129::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.129%2F432d0b7fa71ce0be5b17dc9290f9782125041c29"
   dependencies:
     "@buf/grpc_web_coscene-io_argo-workflows-apis": 1.9.1
     "@buf/grpc_web_coscene-io_kubernetes-apis": 1.9.3
@@ -1816,7 +1817,7 @@ __metadata:
     "@types/google-protobuf": 3.15.6
     google-protobuf: 3.20.1
     grpc-web: 1.4.0
-  checksum: 70bd2d913306f434b880427a99aee909c3ce35d1846627ec2aeedfa206c19a6af2f324a3da36b49726062b043fdc443da70c48ffcaa0e645e48fbfd344b71539
+  checksum: 6bb73b8874c8c102578494dd8a5d63f4a2bf13fd8c7a3350089eded4450aa7684b834522dae7cc39693be20bb5aa06a320824b25410cf6f73e97c9be423f65e4
   languageName: node
   linkType: hard
 
@@ -2494,7 +2495,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@foxglove/studio-base@workspace:packages/studio-base"
   dependencies:
-    "@coscene-io/coscene": 0.2.50
+    "@coscene-io/coscene": 0.2.56
     "@emotion/cache": 11.10.5
     "@emotion/react": 11.7.1
     "@emotion/styled": 11.6.0
@@ -8680,7 +8681,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"broadcast-channel@npm:4.20.1":
+"broadcast-channel@npm:4.20.1, broadcast-channel@npm:^4.20.1":
   version: 4.20.1
   resolution: "broadcast-channel@npm:4.20.1"
   dependencies:
