@@ -162,7 +162,7 @@ function EventViewComponent(params: {
       });
       setOpen(true);
       setToastInfo({
-        message: "Events have been updated",
+        message: "Moment have been updated",
         type: "success",
       });
       refreshEvents();
@@ -201,7 +201,7 @@ function EventViewComponent(params: {
 
     setOpen(true);
     setToastInfo({
-      message: "Copied event to clipboard",
+      message: "Copied moment to clipboard",
       type: "success",
     });
   };

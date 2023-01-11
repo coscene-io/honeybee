@@ -358,7 +358,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
           {createdEvent.loading && (
             <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
           )}
-          Create Event
+          Create Moment
         </Button>
       </DialogActions>
       {duplicateKey && <Alert severity="error">Duplicate key {duplicateKey[0]}</Alert>}
