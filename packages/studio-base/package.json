@@ -113,6 +113,7 @@
     "@uiw/react-textarea-code-editor": "2.0.3",
     "amplitude-js": "8.21.2",
     "babel-jest": "27.5.1",
+    "broadcast-channel": "4.20.1",
     "browserify-zlib": "0.2.0",
     "chart.js": "3.7.0",
     "chartjs-plugin-annotation": "1.2.1",

@@ -2,7 +2,22 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { BroadcastChannelClient } from '@coscene-io/coscene/queries';
+import { BroadcastChannel } from "broadcast-channel";
+
+class BroadcastChannelClient {
+  private bc: BroadcastChannel;
+  constructor() {
+    this.bc = new BroadcastChannel("coScene");
+  }
+  public sendBroadcastMessage(message: any) {
+    this.bc.postMessage(message);
+  }
+  public listenBroadcastMessage(callback: (message: any) => void) {
+    this.bc.onmessage = (ev) => {
+      callback(ev);
+    };
+  }
+}
 
 export const bcInstance = new BroadcastChannelClient();
-export const LOGOUT_MESSAGE = 'logout';
+export const LOGOUT_MESSAGE = "logout";

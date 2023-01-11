@@ -17,7 +17,7 @@ import VersionBanner from "./VersionBanner";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
 bcInstance.listenBroadcastMessage((msg) => {
-  if (msg.data === LOGOUT_MESSAGE) {
+  if (msg === LOGOUT_MESSAGE) {
     window.location.href = "/login";
   }
 });
