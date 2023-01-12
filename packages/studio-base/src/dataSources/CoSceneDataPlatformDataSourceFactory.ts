@@ -31,7 +31,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       initArgs: {
         api: {
           baseUrl: APP_CONFIG.CS_HONEYBEE_BASE_URL,
-          auth: `Bearer ${localStorage.getItem("coScene_org_jwt")}`,
+          auth: `${localStorage.getItem("coScene_org_jwt")}`,
         },
         params: args.params,
         coSceneContext: JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
