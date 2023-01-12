@@ -12,13 +12,13 @@ export const gs50Layout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
-        distance: 15.817363727622583,
-        perspective: true,
-        phi: 19.021889490112066,
+        perspective: false,
+        distance: 6.961643604278333,
+        phi: 1.633190853614318,
+        thetaOffset: -71.10090305249724,
+        targetOffset: [0.887508166898859, -0.09296316673732324, 4.2045954223009594e-16],
         target: [0, 0, 0],
-        targetOffset: [-0.4518860022424427, 3.7828222993075973, -6.898921177407257e-16],
         targetOrientation: [0, 0, 0, 1],
-        thetaOffset: 13.407397645961483,
         fovy: 45,
         near: 0.5,
         far: 5000,
@@ -526,13 +526,13 @@ export const gs50Layout: LayoutData = {
           maxColor: "#d90e0e",
         },
         "/costmap_node/global_costmap/local_laser_static_map": {
-          visible: false,
+          visible: true,
         },
         "/costmap_node/global_costmap/mapping_map": {
           visible: true,
         },
         "/costmap_node/global_costmap/record_type_map": {
-          visible: false,
+          visible: true,
         },
         "/raw_scan_tracked_ogm": {
           visible: true,
@@ -721,6 +721,21 @@ export const gs50Layout: LayoutData = {
           type: "arrow",
           color: "#00FF00ff",
         },
+        "/map.png": {
+          visible: true,
+          colorField: "blue",
+          colorMode: "gradient",
+          colorMap: "turbo",
+          gradient: ["#0011ffff", "#ffffffff"],
+          minValue: -20,
+          maxValue: 1,
+        },
+        "/pointcloud7": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
       },
       layers: {
         "108784e4-993a-457b-9b7e-4bda09b3d80c": {
@@ -784,7 +799,7 @@ export const gs50Layout: LayoutData = {
       ],
       showXAxisLabels: true,
       showYAxisLabels: true,
-      showLegend: true,
+      showLegend: false,
       legendDisplay: "floating",
       showPlotValuesInLegend: false,
       isSynced: true,
@@ -850,13 +865,13 @@ export const gs75Layout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
-        distance: 15.817363727622583,
-        perspective: true,
-        phi: 19.021889490112066,
+        perspective: false,
+        distance: 6.961643604278333,
+        phi: 1.633190853614318,
+        thetaOffset: -71.10090305249724,
+        targetOffset: [0.887508166898859, -0.09296316673732324, 4.2045954223009594e-16],
         target: [0, 0, 0],
-        targetOffset: [-0.4518860022424427, 3.7828222993075973, -6.898921177407257e-16],
         targetOrientation: [0, 0, 0, 1],
-        thetaOffset: 13.407397645961483,
         fovy: 45,
         near: 0.5,
         far: 5000,
@@ -1364,13 +1379,13 @@ export const gs75Layout: LayoutData = {
           maxColor: "#d90e0e",
         },
         "/costmap_node/global_costmap/local_laser_static_map": {
-          visible: false,
+          visible: true,
         },
         "/costmap_node/global_costmap/mapping_map": {
           visible: true,
         },
         "/costmap_node/global_costmap/record_type_map": {
-          visible: false,
+          visible: true,
         },
         "/raw_scan_tracked_ogm": {
           visible: true,
@@ -1559,6 +1574,21 @@ export const gs75Layout: LayoutData = {
           type: "arrow",
           color: "#00FF00ff",
         },
+        "/map.png": {
+          visible: true,
+          colorField: "blue",
+          colorMode: "gradient",
+          colorMap: "turbo",
+          gradient: ["#0011ffff", "#ffffffff"],
+          minValue: -20,
+          maxValue: 1,
+        },
+        "/pointcloud7": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
       },
       layers: {
         "108784e4-993a-457b-9b7e-4bda09b3d80c": {
@@ -1622,7 +1652,7 @@ export const gs75Layout: LayoutData = {
       ],
       showXAxisLabels: true,
       showYAxisLabels: true,
-      showLegend: true,
+      showLegend: false,
       legendDisplay: "floating",
       showPlotValuesInLegend: false,
       isSynced: true,
