@@ -13,17 +13,17 @@ export const keenonDefaultLayout: LayoutData = {
     "3D!3me9aqv": {
       cameraState: {
         perspective: true,
-        distance: 22.650034325984734,
-        phi: 1.3886851178769857,
-        thetaOffset: -93.08666554917356,
-        targetOffset: [0.36727694720688536, 0.26534843185416623, -6.410308819688133e-16],
+        distance: 12.883341614682251,
+        phi: 0.00005729832627056611,
+        thetaOffset: -111.67729066471877,
+        targetOffset: [1.386388050497576, -0.04739030337816235, -6.104644794365336e-16],
         target: [0, 0, 0],
         targetOrientation: [0, 0, 0, 1],
         fovy: 45,
         near: 0.5,
         far: 5000,
       },
-      followMode: "follow-pose",
+      followMode: "follow-none",
       scene: {
         enableStats: false,
         transforms: {
@@ -604,6 +604,15 @@ export const keenonDefaultLayout: LayoutData = {
         "/schedule_path": {
           visible: true,
         },
+        "/map.png": {
+          visible: true,
+          colorField: "blue",
+          colorMode: "gradient",
+          colorMap: "turbo",
+          gradient: ["#0011fffF", "#ffffffff"],
+          minValue: -20,
+          maxValue: 1,
+        },
       },
       layers: {
         "108784e4-993a-457b-9b7e-4bda09b3d80c": {
@@ -619,6 +628,7 @@ export const keenonDefaultLayout: LayoutData = {
           rotation: [0, 0, 0],
           order: 1,
           color: "#a0a0a4ff",
+          frameId: "map",
         },
       },
       publish: {
