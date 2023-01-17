@@ -4,7 +4,6 @@
 
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import DeleteIcon from "@mui/icons-material/Delete";
-import MoreIcon from "@mui/icons-material/More";
 import ShareIcon from "@mui/icons-material/Share";
 import { alpha, Alert, TextField } from "@mui/material";
 import Snackbar from "@mui/material/Snackbar";
@@ -15,10 +14,6 @@ import { makeStyles } from "tss-react/mui";
 
 import { toRFC3339String, fromDate } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
-import {
-  MessagePipelineContext,
-  useMessagePipeline,
-} from "@foxglove/studio-base/components/MessagePipeline";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
@@ -104,7 +99,6 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
 );
 
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
-const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 function EventViewComponent(params: {
   event: TimelinePositionedEvent;
@@ -116,7 +110,6 @@ function EventViewComponent(params: {
   onHoverEnd: (event: TimelinePositionedEvent) => void;
 }): JSX.Element {
   const { event, filter, isHovered, isSelected, onClick, onHoverStart, onHoverEnd } = params;
-  const urlState = useMessagePipeline(selectUrlState);
   const { classes, cx } = useStyles();
   const consoleApi = useConsoleApi();
   const refreshEvents = useEvents(selectRefreshEvents);
@@ -206,27 +199,6 @@ function EventViewComponent(params: {
     });
   };
 
-  const handleEventDetail = () => {
-    const warehouseSlug = urlState?.parameters?.warehouseSlug;
-    const projectSlug = urlState?.parameters?.projectSlug;
-
-    if (window.location.origin.includes("localhost")) {
-      window.open(
-        `https://home.coscene.dev/${warehouseSlug}/${projectSlug}/events/${event.event
-          .getName()
-          .split("/")
-          .pop()}`,
-      );
-    } else {
-      window.open(
-        `${window.location.origin}/${warehouseSlug}/${projectSlug}/events/${event.event
-          .getName()
-          .split("/")
-          .pop()}`,
-      );
-    }
-  };
-
   return (
     <div
       className={classes.eventBox}
@@ -243,7 +215,6 @@ function EventViewComponent(params: {
           }}
         >
           <ShareIcon fontSize="small" onClick={handleShareEvent} />
-          <MoreIcon fontSize="small" onClick={handleEventDetail} />
           <DeleteIcon fontSize="small" onClick={deleteEvent} />
         </div>
       </div>
