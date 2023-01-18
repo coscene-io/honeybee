@@ -10,7 +10,7 @@ import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 const pid = "g39a9o8s2b@15d243d7126f1d1";
 
 const logger = (() => {
-  if (APP_CONFIG.VITE_APP_PROJECT_ENV && APP_CONFIG.VITE_APP_PROJECT_ENV !== "local") {
+  if (!APP_CONFIG.VITE_APP_PROJECT_ENV || APP_CONFIG.VITE_APP_PROJECT_ENV === "local") {
     return {};
   }
 
