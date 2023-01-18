@@ -1,6 +1,17 @@
 {
   "presets": [
-    ["@babel/preset-env", { "targets": { "node": "16" } }],
+    [
+      "@babel/preset-env",
+      {
+        "targets": {
+          "node": 18,
+          "chrome": 87,
+          "firefox": 78,
+          "safari": 14,
+          "edge": 88
+        }
+      }
+    ],
     "@babel/preset-typescript",
     "@babel/preset-react"
   ],
