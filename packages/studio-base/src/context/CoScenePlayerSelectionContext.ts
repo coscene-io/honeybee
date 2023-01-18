@@ -5,8 +5,8 @@
 import { createContext, useContext } from "react";
 
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { Player } from "@foxglove/studio-base/players/types";
 import CoSceneAnalyticsMetricsCollector from "@foxglove/studio-base/players/CoSceneAnalyticsMetricsCollector";
+import { Player } from "@foxglove/studio-base/players/types";
 import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
 
