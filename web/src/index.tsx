@@ -12,9 +12,12 @@ import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base";
 import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
 import { ROLLBAR_CONFIG } from "@foxglove/studio-base/util/rollbarConfig";
+import __browserLogger from "@foxglove/studio-base/util/browserLogger";
 
 import VersionBanner from "./VersionBanner";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
+
+export const __bl = __browserLogger?.__bl || {};
 
 bcInstance.listenBroadcastMessage((msg) => {
   if (msg === LOGOUT_MESSAGE) {

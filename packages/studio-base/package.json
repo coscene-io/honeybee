@@ -111,6 +111,7 @@
     "@types/uuid": "8.3.4",
     "@types/wicg-file-system-access": "2020.9.5",
     "@uiw/react-textarea-code-editor": "2.0.3",
+    "alife-logger": "1.8.30",
     "amplitude-js": "8.21.2",
     "babel-jest": "27.5.1",
     "broadcast-channel": "4.20.1",
