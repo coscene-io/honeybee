@@ -78,9 +78,6 @@ function DataSourceInfoContent(props: {
         <Typography display="block" variant="overline" color="text.secondary">
           Current source
         </Typography>
-      </Stack>
-
-      <Stack>
         {playerPresence === PlayerPresence.INITIALIZING ? (
           <Skeleton animation="wave" width="50%" />
         ) : urlState?.parameters?.projectSlug && urlState.parameters.warehouseSlug ? (
