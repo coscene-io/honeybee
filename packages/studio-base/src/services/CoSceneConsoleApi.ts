@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { IncCounterRequest } from "@coscene-io/coscene/proto/v1alpha1";
+import { IncCounterRequest, Project, GetProjectRequest } from "@coscene-io/coscene/proto/v1alpha1";
 import {
   ListEventsRequest,
   CreateEventRequest,
@@ -306,36 +306,6 @@ class CoSceneConsoleApi {
     return (await this.delete(`/v1/layouts/${id}`)).status === 200;
   }
 
-  public async topics(
-    params: DataPlatformRequestArgs & { includeSchemas?: boolean },
-  ): Promise<customTopicResponse> {
-    const topics = await this.get<topicInterfaceReturns>("/v1/data/getMetadata", {
-      revisionName: params.revisionName,
-      includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-      access_token: this._authHeader,
-    });
-
-    const metaData = topics.topics.map((topic) => {
-      if (topic.schema == undefined) {
-        return topic as Omit<RawTopicResponse, "schema">;
-      }
-      const decodedSchema = new Uint8Array(base64.length(topic.schema));
-      base64.decode(topic.schema, decodedSchema, 0);
-      return { ...topic, schema: decodedSchema };
-    });
-
-    return {
-      // ...topics,
-      start: toRFC3339String(timestampToTime(topics.startTime)),
-      end: toRFC3339String(timestampToTime(topics.endTime)),
-      metaData,
-    };
-  }
-
-  public getStreamUrl(revisionName: string, authHeader: string): string {
-    return `${this._baseUrl}/v1/data/getStreams?revisionName=${revisionName}&access_token=${authHeader}`;
-  }
-
   private async request<T>(
     url: string,
     config?: RequestInit,
@@ -416,6 +386,41 @@ class CoSceneConsoleApi {
   }
 
   // coScene-----------------------------------------------------------
+  public async topics(
+    params: DataPlatformRequestArgs & { includeSchemas?: boolean },
+  ): Promise<customTopicResponse> {
+    const topics = await this.get<topicInterfaceReturns>("/v1/data/getMetadata", {
+      revisionName: params.revisionName,
+      includeSchemas: params.includeSchemas ?? false ? "true" : "false",
+      access_token: this._authHeader?.replace(/(^\s*)|(\s*$)/g, ""),
+    });
+
+    const metaData = topics.topics.map((topic) => {
+      if (topic.schema == undefined) {
+        return topic as Omit<RawTopicResponse, "schema">;
+      }
+      const decodedSchema = new Uint8Array(base64.length(topic.schema));
+      base64.decode(topic.schema, decodedSchema, 0);
+      return { ...topic, schema: decodedSchema };
+    });
+
+    return {
+      // ...topics,
+      start: toRFC3339String(timestampToTime(topics.startTime)),
+      end: toRFC3339String(timestampToTime(topics.endTime)),
+      metaData,
+    };
+  }
+
+  public getStreamUrl(revisionName: string, authHeader: string): string {
+    return `${
+      this._baseUrl
+    }/v1/data/getStreams?revisionName=${revisionName}&access_token=${authHeader.replace(
+      /(^\s*)|(\s*$)/g,
+      "",
+    )}`;
+  }
+
   public async createEvent({
     event,
     parent,
@@ -508,6 +513,11 @@ class CoSceneConsoleApi {
     req.setName(recordName);
 
     return await CsWebClient.getRecordClient().getRecord(req);
+  }
+
+  public async getProject({ projectName }: { projectName: string }): Promise<Project> {
+    const req = new GetProjectRequest().setName(projectName);
+    return await CsWebClient.getProjectClient().getProject(req);
   }
 }
 
