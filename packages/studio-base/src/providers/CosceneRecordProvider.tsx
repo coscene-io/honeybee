@@ -6,16 +6,16 @@ import { Record } from "@coscene-io/coscene/proto/v1alpha2";
 import {
   CoSceneRecordContext,
   CoSceneRecordStore,
-  BagFiles,
+  BagFileInfo,
 } from "@foxglove/studio-base/context/CoSceneRecordContext";
 
 function createRecordStore() {
   return createStore<CoSceneRecordStore>((set) => ({
     record: { loading: false, value: new Record() },
-    recordBagMedia: { loading: false, value: {} },
+    recordBagFiles: { loading: false, value: [] },
     setRecord: (record: AsyncState<Record>) => set({ record: record }),
-    setRecordBagMedia: (recordBagMedia: AsyncState<BagFiles>) =>
-      set({ recordBagMedia: recordBagMedia }),
+    setRecordBagFiles: (recordBagFiles: AsyncState<BagFileInfo[]>) => set({ recordBagFiles }),
+    setCurrentBagFiles: (bagFiles: BagFileInfo[]) => set({ currentBagFiles: bagFiles }),
   }));
 }
 

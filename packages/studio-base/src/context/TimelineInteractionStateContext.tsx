@@ -16,6 +16,7 @@ import { DeepReadonly } from "ts-essentials";
 import { StoreApi, useStore } from "zustand";
 
 import { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
+import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import useGuaranteedContext from "@foxglove/studio-base/hooks/useGuaranteedContext";
 import type { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 
@@ -38,11 +39,16 @@ export type TimelineInteractionStateStore = DeepReadonly<{
   /** The events overlapping the current hover time, if any. */
   eventsAtHoverValue: Record<string, TimelinePositionedEvent>;
 
+  /** The bags overlapping the current hover time, if any. */
+  bagsAtHoverValue: Record<string, BagFileInfo>;
+
   /** Shared time bounds for synced plots, if any. */
   globalBounds: undefined | SyncBounds;
 
   /** The event directly hovered over by the user, if any. */
   hoveredEvent: undefined | TimelinePositionedEvent;
+
+  hoveredBag: undefined | BagFileInfo;
 
   /** The point in time hovered over by the user. */
   hoverValue: undefined | HoverValue;
@@ -52,6 +58,9 @@ export type TimelineInteractionStateStore = DeepReadonly<{
 
   /** Sets the events overlapping the current hover time. */
   setEventsAtHoverValue: (events: TimelinePositionedEvent[]) => void;
+
+  /** Sets the bags overlapping the current hover time. */
+  setBagsAtHoverValue: (bags: BagFileInfo[]) => void;
 
   /** Sets new global bounds. */
   setGlobalBounds: (
@@ -63,6 +72,8 @@ export type TimelineInteractionStateStore = DeepReadonly<{
 
   /** Sets or clears the directly hovered event. */
   setHoveredEvent: (hoveredEvent: undefined | TimelinePositionedEvent) => void;
+
+  setHoveredBag: (hoveredBag: undefined | BagFileInfo) => void;
 
   /** Sets the new hover value. */
   setHoverValue: (value: HoverValue) => void;

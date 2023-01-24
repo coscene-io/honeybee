@@ -418,7 +418,7 @@ function SidebarItems(props: { onSelectView: (newValue: OpenDialogViews) => void
           <Typography variant="h5" gutterBottom>
             {item.title}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography component="div" variant="body2" color="text.secondary">
             {item.text}
           </Typography>
           {item.actions != undefined && (

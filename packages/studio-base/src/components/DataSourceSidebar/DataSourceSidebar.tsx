@@ -22,6 +22,7 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { DataSourceInfoView } from "../DataSourceInfoView";
 import { ProblemsList } from "./ProblemsList";
 import { TopicList } from "./TopicList";
+import { Playlist } from "./Playlist";
 
 const StyledTab = muiStyled(Tab)(({ theme }) => ({
   minHeight: "auto",
@@ -105,8 +106,8 @@ export default function DataSourceSidebar(): JSX.Element {
 
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
-      setActiveTab(2);
-      setMoreActiveTab(3);
+      setActiveTab(3);
+      setMoreActiveTab(4);
     } else if (showEventsTab && selectedEventId != undefined) {
       setActiveTab(1);
     }
@@ -128,8 +129,9 @@ export default function DataSourceSidebar(): JSX.Element {
                 }}
                 textColor="inherit"
               >
-                <StyledTab disableRipple label="Topics" value={0} />
-                <StyledTab disableRipple label="Moment" value={1} />
+                <StyledTab disableRipple label="Playlist" value={0} />
+                <StyledTab disableRipple label="Topics" value={1} />
+                <StyledTab disableRipple label="Moment" value={2} />
                 <Button
                   id="basic-button"
                   aria-controls={open ? "basic-menu" : undefined}
@@ -138,7 +140,7 @@ export default function DataSourceSidebar(): JSX.Element {
                   onClick={handleClick}
                   style={{
                     color:
-                      activeTab === 2 ? theme.palette.text.primary : theme.palette.text.secondary,
+                      activeTab === 3 ? theme.palette.text.primary : theme.palette.text.secondary,
                   }}
                 >
                   More
@@ -172,20 +174,23 @@ export default function DataSourceSidebar(): JSX.Element {
                       </Stack>
                     }
                     onChange={() => {
-                      setActiveTab(2);
-                      setMoreActiveTab(3);
+                      setActiveTab(3);
+                      setMoreActiveTab(4);
                     }}
                   />
                 </Menu>
               </StyledTabs>
               <Divider />
               <TabPanel value={activeTab} index={0}>
-                <TopicList />
+                <Playlist />
               </TabPanel>
               <TabPanel value={activeTab} index={1}>
+                <TopicList />
+              </TabPanel>
+              <TabPanel value={activeTab} index={2}>
                 <EventsList />
               </TabPanel>
-              <TabPanel value={activeTab} menuValue={moreActiveTab} index={3}>
+              <TabPanel value={activeTab} menuValue={moreActiveTab} index={4}>
                 <ProblemsList problems={playerProblems} />
               </TabPanel>
             </Stack>
