@@ -120,7 +120,6 @@ export function Playlist(): JSX.Element {
           </Typography>
         </Stack>
       )}
-      {/* <div>{bagFiles}</div> */}
       <div>
         {bags.map((bag) => {
           return (
