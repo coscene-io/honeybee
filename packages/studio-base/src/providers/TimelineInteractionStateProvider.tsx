@@ -65,7 +65,7 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
       },
 
       setHoveredBag(hoveredBag: undefined | BagFileInfo) {
-        if (hoveredBag) {
+        if (hoveredBag && hoveredBag.secondsSinceStart) {
           set({
             hoveredBag,
             hoverValue: {
@@ -74,6 +74,8 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
               value: hoveredBag.secondsSinceStart,
             },
           });
+        } else {
+          set({ hoveredBag: undefined, hoverValue: undefined });
         }
       },
 

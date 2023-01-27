@@ -2599,6 +2599,7 @@ __metadata:
     cytoscape: 3.21.0
     cytoscape-dagre: 2.4.0
     dat.gui: 0.7.9
+    dayjs: 1.11.7
     esbuild-loader: 2.20.0
     eventemitter3: 5.0.0
     fake-indexeddb: 4.0.1
@@ -10652,7 +10653,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dayjs@npm:1.x, dayjs@npm:^1.9.1":
+"dayjs@npm:1.11.7, dayjs@npm:1.x, dayjs@npm:^1.9.1":
   version: 1.11.7
   resolution: "dayjs@npm:1.11.7"
   checksum: 5003a7c1dd9ed51385beb658231c3548700b82d3548c0cfbe549d85f2d08e90e972510282b7506941452c58d32136d6362f009c77ca55381a09c704e9f177ebb

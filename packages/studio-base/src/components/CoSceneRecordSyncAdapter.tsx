@@ -36,6 +36,13 @@ function positionBag(
 
   const bagFileInterval = bagFileMedia.getInterval();
 
+  if (!bagFileInterval) {
+    return {
+      name,
+      displayName,
+    };
+  }
+
   const bagFileStartTime = fromNanoSec(
     BigInt(
       bagFileInterval!.getStartTime()!.getSeconds() * 1e9 +
@@ -150,10 +157,13 @@ export function RecordsSyncAdapter(): ReactNull {
     if (hoverValue && timeRange != undefined && timeRange > 0) {
       const hoverPosition = scale(hoverValue.value, 0, timeRange, 0, 1);
       const hoveredBagFiles = (bagFiles.value ?? []).filter((bagFile) => {
-        return (
-          hoverPosition >= bagFile.startPosition * (1 - HOVER_TOLERANCE) &&
-          hoverPosition <= bagFile.endPosition * (1 + HOVER_TOLERANCE)
-        );
+        if (bagFile.startPosition && bagFile.endPosition) {
+          return (
+            hoverPosition >= bagFile.startPosition * (1 - HOVER_TOLERANCE) &&
+            hoverPosition <= bagFile.endPosition * (1 + HOVER_TOLERANCE)
+          );
+        }
+        return false;
       });
       setBagsAtHoverValue(hoveredBagFiles);
     } else {
@@ -166,7 +176,12 @@ export function RecordsSyncAdapter(): ReactNull {
     if (currentTime && bagFiles.value && bagFiles.value.length > 0) {
       const currentBagNames: BagFileInfo[] = [];
       bagFiles.value.forEach((ele) => {
-        if (compare(ele.startTime, currentTime) < 0 && compare(ele.endTime, currentTime) > 0) {
+        if (
+          ele.startTime &&
+          ele.endTime &&
+          compare(ele.startTime, currentTime) < 0 &&
+          compare(ele.endTime, currentTime) > 0
+        ) {
           currentBagNames.push(ele);
         }
       });

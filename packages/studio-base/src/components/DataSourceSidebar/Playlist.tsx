@@ -1,12 +1,4 @@
-import {
-  AppBar,
-  Box,
-  IconButton,
-  styled as muiStyled,
-  TextField,
-  Typography,
-  CircularProgress,
-} from "@mui/material";
+import { AppBar, IconButton, TextField, Typography, CircularProgress } from "@mui/material";
 import {
   CoSceneRecordStore,
   useRecord,
@@ -20,12 +12,20 @@ import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { BagView } from "./BagView";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 
 const selectBagFiles = (state: CoSceneRecordStore) => state.recordBagFiles;
 const selectCurrentBagFiles = (state: CoSceneRecordStore) => state.currentBagFiles;
 const selectBagsAtHoverValue = (store: TimelineInteractionStateStore) => store.bagsAtHoverValue;
+const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
+const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHoveredBag;
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 
 const useStyles = makeStyles()((theme) => ({
   appBar: {
@@ -41,6 +41,7 @@ const useStyles = makeStyles()((theme) => ({
   root: {
     backgroundColor: theme.palette.background.paper,
     maxHeight: "100%",
+    paddingBottom: "50px",
   },
 }));
 
@@ -48,16 +49,38 @@ export function Playlist(): JSX.Element {
   const [filterText, setFilterText] = useState<string>("");
   const bagFiles = useRecord(selectBagFiles);
   const currentBagFiles = useRecord(selectCurrentBagFiles);
+  const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
-  const hoveredBags = useTimelineInteractionState(selectBagsAtHoverValue);
+
+  const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);
+  const hoveredBag = useTimelineInteractionState(selectHoverBag);
+  const setHoveredBag = useTimelineInteractionState(selectSetHoverBag);
+
+  const bags = useMemo(() => bagFiles.value ?? [], [bagFiles]);
 
   const clearFilter = useCallback(() => {
     setFilterText("");
   }, [setFilterText]);
 
-  useEffect(() => {
-    console.log("hoveredBags", hoveredBags);
-  }, [hoveredBags]);
+  const onClick = useCallback(
+    (bag: BagFileInfo) => {
+      if (seek && bag.startTime) {
+        seek(bag.startTime);
+      }
+    },
+    [seek],
+  );
+
+  const onHoverEnd = useCallback(() => {
+    setHoveredBag(undefined);
+  }, [setHoveredBag]);
+
+  const onHoverStart = useCallback(
+    (bag: BagFileInfo) => {
+      setHoveredBag(bag);
+    },
+    [setHoveredBag],
+  );
 
   return (
     <Stack className={classes.root} fullHeight>
@@ -97,14 +120,28 @@ export function Playlist(): JSX.Element {
           </Typography>
         </Stack>
       )}
+      {/* <div>{bagFiles}</div> */}
       <div>
-        {(bagFiles.value || []).map((bagFile) => {
-          return <div key={bagFile.name}>{bagFile.displayName}</div>;
+        {bags.map((bag) => {
+          return (
+            <BagView
+              key={bag.name}
+              bag={bag}
+              filter={filterText}
+              isHovered={
+                (hoveredBag && hoveredBag.name === bag.name) ||
+                bagsAtHoverValue[bag.name] !== undefined
+              }
+              isCurrent={
+                currentBagFiles?.find((currentBag) => currentBag.name === bag.name) !== undefined
+              }
+              onClick={onClick}
+              onHoverStart={onHoverStart}
+              onHoverEnd={onHoverEnd}
+            />
+          );
         })}
       </div>
-
-      <div>currentBag: {currentBagFiles}</div>
-      {/* <div>hoveredBags: {hoveredBags["test"] !== undefined}</div> */}
     </Stack>
   );
 }
