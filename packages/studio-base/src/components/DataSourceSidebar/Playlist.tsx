@@ -90,7 +90,7 @@ export function Playlist(): JSX.Element {
           fullWidth
           value={filterText}
           onChange={(event) => setFilterText(event.currentTarget.value)}
-          placeholder="Search by key, value, or key:value"
+          placeholder="Search by name or time"
           InputProps={{
             startAdornment: <SearchIcon fontSize="small" />,
             endAdornment: filterText !== "" && (

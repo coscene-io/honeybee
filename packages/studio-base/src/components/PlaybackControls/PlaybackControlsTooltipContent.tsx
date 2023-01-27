@@ -8,7 +8,7 @@ import { Fragment } from "react";
 import { makeStyles } from "tss-react/mui";
 
 import { fromNanoSec, add } from "@foxglove/rostime";
-import { subtract as subtractTimes, Time } from "@foxglove/rostime";
+import { subtract as subtractTimes, Time, toDate } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -20,6 +20,7 @@ import {
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formateTimeToReadableFormat } from "@foxglove/studio-base/util/time";
+import dayjs from "dayjs";
 
 export type PlaybackControlsTooltipItem =
   | { type: "divider" }
@@ -50,12 +51,14 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const selectHoveredEvents = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
+const selectHoveredBags = (store: TimelineInteractionStateStore) => store.bagsAtHoverValue;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 
 export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNull | JSX.Element {
   const { stamp } = params;
   const { formatTime, timeFormat } = useAppTimeFormat();
   const hoveredEvents = useTimelineInteractionState(selectHoveredEvents);
+  const hoveredBags = useTimelineInteractionState(selectHoveredBags);
   const startTime = useMessagePipeline(selectStartTime);
   const { classes } = useStyles();
 
@@ -88,6 +91,34 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
       if (!isEmpty(event.getCustomizedFieldsMap())) {
         event.getCustomizedFieldsMap().forEach((val, key) => {
           tooltipItems.push({ type: "item", title: key, value: val });
+        });
+      }
+      tooltipItems.push({ type: "divider" });
+    });
+  }
+
+  if (!isEmpty(hoveredBags)) {
+    Object.values(hoveredBags).forEach((bag) => {
+      if (bag.startTime && bag.endTime) {
+        tooltipItems.push({
+          type: "item",
+          title: "Name",
+          value: bag.displayName,
+        });
+        tooltipItems.push({
+          type: "item",
+          title: "Start",
+          value: formatTime(bag.startTime),
+        });
+        tooltipItems.push({
+          type: "item",
+          title: "End",
+          value: formatTime(bag.endTime),
+        });
+        tooltipItems.push({
+          type: "item",
+          title: "Duration",
+          value: dayjs(toDate(subtractTimes(bag.endTime, bag.startTime))).format("mm[min]ss[s]"),
         });
       }
       tooltipItems.push({ type: "divider" });

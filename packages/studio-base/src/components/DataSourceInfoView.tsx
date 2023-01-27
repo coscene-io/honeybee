@@ -39,6 +39,7 @@ const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => player
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectRecord = (store: CoSceneRecordStore) => store.record;
 const selectProject = (store: CoSceneProjectStore) => store.project;
+const selectCurrentBagFiles = (state: CoSceneRecordStore) => state.currentBagFiles;
 
 function DataSourceInfoContent(props: {
   durationRef: MutableRefObject<ReactNull | HTMLDivElement>;
@@ -51,6 +52,7 @@ function DataSourceInfoContent(props: {
   const urlState = useMessagePipeline(selectUrlState);
   const record = useRecord(selectRecord);
   const project = useProject(selectProject);
+  const currentBagFiles = useRecord(selectCurrentBagFiles);
 
   useTitle(`coScene ${record.value?.getTitle() ?? ""}`);
 
@@ -68,7 +70,7 @@ function DataSourceInfoContent(props: {
       {record.value?.getTitle()}
     </Link>,
     <Typography key="3" color="text.primary">
-      Current
+      {(currentBagFiles || []).map((bag) => bag.displayName).join(", ")}
     </Typography>,
   ];
 

@@ -111,7 +111,9 @@ export function RecordsSyncAdapter(): ReactNull {
     if (
       urlState?.parameters?.warehouseId &&
       urlState?.parameters?.projectId &&
-      urlState?.parameters?.recordId
+      urlState?.parameters?.recordId &&
+      startTime &&
+      startTime.sec > 0
     ) {
       try {
         const recordName = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}/records/${urlState?.parameters?.recordId}`;
@@ -146,6 +148,8 @@ export function RecordsSyncAdapter(): ReactNull {
     urlState?.parameters?.warehouseId,
     urlState?.parameters?.projectId,
     urlState?.parameters?.recordId,
+    startTime,
+    endTime,
   ]);
 
   useEffect(() => {
@@ -157,7 +161,7 @@ export function RecordsSyncAdapter(): ReactNull {
     if (hoverValue && timeRange != undefined && timeRange > 0) {
       const hoverPosition = scale(hoverValue.value, 0, timeRange, 0, 1);
       const hoveredBagFiles = (bagFiles.value ?? []).filter((bagFile) => {
-        if (bagFile.startPosition && bagFile.endPosition) {
+        if (bagFile.startPosition !== undefined && bagFile.endPosition !== undefined) {
           return (
             hoverPosition >= bagFile.startPosition * (1 - HOVER_TOLERANCE) &&
             hoverPosition <= bagFile.endPosition * (1 + HOVER_TOLERANCE)

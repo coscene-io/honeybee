@@ -5,6 +5,7 @@ import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { subtract, toDate } from "@foxglove/rostime";
 import dayjs from "dayjs";
 import BarChartIcon from "@mui/icons-material/BarChart";
+import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 
 const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) => ({
   bagBox: {
@@ -107,14 +108,17 @@ function BagViewComponent(params: {
               [classes.hiddenBarChartIcon]: !isCurrent,
             })}
           />
-          {bag.displayName}
+          <HighlightedText text={bag.displayName} highlight={filter} />
         </span>
         <span
           className={cx(classes.bagStartTime, {
             [classes.isCurrentBag]: isCurrent || isHovered,
           })}
         >
-          {bag.startTime ? formatTime(bag.startTime) : ""}
+          <HighlightedText
+            text={bag.startTime ? formatTime(bag.startTime) : "-"}
+            highlight={filter}
+          />
         </span>
       </div>
       {bag.startTime && bag.endTime && (
@@ -123,7 +127,10 @@ function BagViewComponent(params: {
             [classes.isCurrentBag]: isCurrent || isHovered,
           })}
         >
-          {dayjs(toDate(subtract(bag.endTime, bag.startTime))).format("mm[min]ss[s]")}
+          <HighlightedText
+            text={dayjs(toDate(subtract(bag.endTime, bag.startTime))).format("mm[min]ss[s]")}
+            highlight={filter}
+          />
         </div>
       )}
     </div>
