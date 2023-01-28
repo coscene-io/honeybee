@@ -5,7 +5,7 @@
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { Skeleton, Typography, Breadcrumbs, Link } from "@mui/material";
 import { MutableRefObject, useEffect, useRef } from "react";
-import { useAsyncFn, useTitle } from "react-use";
+import { useTitle } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import { Time } from "@foxglove/rostime";
@@ -15,13 +15,17 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import Timestamp from "@foxglove/studio-base/components/Timestamp";
-import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { subtractTimes } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/typescript/userUtils/time";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { formatDate, formatDuration } from "@foxglove/studio-base/util/formatTime";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formatTimeRaw, isAbsoluteTime } from "@foxglove/studio-base/util/time";
+import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import {
+  CoSceneProjectStore,
+  useProject,
+} from "@foxglove/studio-base/context/CoSceneProjectContext";
 
 const useStyles = makeStyles()({
   numericValue: {
@@ -33,6 +37,9 @@ const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeD
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectRecord = (store: CoSceneRecordStore) => store.record;
+const selectProject = (store: CoSceneProjectStore) => store.project;
+const selectCurrentBagFiles = (state: CoSceneRecordStore) => state.currentBagFiles;
 
 function DataSourceInfoContent(props: {
   durationRef: MutableRefObject<ReactNull | HTMLDivElement>;
@@ -42,41 +49,12 @@ function DataSourceInfoContent(props: {
 }): JSX.Element {
   const { durationRef, endTimeRef, playerPresence, startTime } = props;
   const { classes } = useStyles();
-  const consoleApi = useConsoleApi();
   const urlState = useMessagePipeline(selectUrlState);
+  const record = useRecord(selectRecord);
+  const project = useProject(selectProject);
+  const currentBagFiles = useRecord(selectCurrentBagFiles);
 
-  const [state, fetch] = useAsyncFn(
-    async ({
-      warehouseId,
-      projectId,
-      recordId,
-    }: {
-      warehouseId: string;
-      projectId: string;
-      recordId: string;
-    }) => {
-      const recordName = `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
-      return await consoleApi.getRecord({ recordName });
-    },
-  );
-
-  useTitle(`coScene ${state.value?.getTitle() ?? ""}`);
-
-  useEffect(() => {
-    if (
-      urlState?.parameters?.warehouseId &&
-      urlState.parameters.projectId &&
-      urlState.parameters.recordId
-    ) {
-      fetch({
-        warehouseId: urlState.parameters.warehouseId,
-        projectId: urlState.parameters.projectId,
-        recordId: urlState.parameters.recordId,
-      }).catch((err) => {
-        console.error("Error fetching record", err);
-      });
-    }
-  }, [urlState?.parameters, fetch]);
+  useTitle(`coScene ${record.value?.getTitle() ?? ""}`);
 
   const projectHref =
     process.env.NODE_ENV === "development"
@@ -86,13 +64,13 @@ function DataSourceInfoContent(props: {
 
   const breadcrumbs = [
     <Link href={projectHref} underline="hover" key="1" color="inherit">
-      {urlState?.parameters?.projectSlug}
+      {project.value?.getDisplayName()}
     </Link>,
     <Link href={recordHref} underline="hover" key="2" color="inherit">
-      {state.value?.getTitle()}
+      {record.value?.getTitle()}
     </Link>,
     <Typography key="3" color="text.primary">
-      Current
+      {(currentBagFiles || []).map((bag) => bag.displayName).join(", ")}
     </Typography>,
   ];
 
@@ -102,9 +80,6 @@ function DataSourceInfoContent(props: {
         <Typography display="block" variant="overline" color="text.secondary">
           Current source
         </Typography>
-      </Stack>
-
-      <Stack>
         {playerPresence === PlayerPresence.INITIALIZING ? (
           <Skeleton animation="wave" width="50%" />
         ) : urlState?.parameters?.projectSlug && urlState.parameters.warehouseSlug ? (

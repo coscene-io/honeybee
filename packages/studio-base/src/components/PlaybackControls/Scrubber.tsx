@@ -28,6 +28,7 @@ import {
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import { EventsOverlay } from "./EventsOverlay";
+import { BagsOverlay } from "./BagsOverlay";
 import PlaybackBarHoverTicks from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
 import { ProgressPlot } from "./ProgressPlot";
@@ -216,6 +217,7 @@ export default function Scrubber(props: Props): JSX.Element {
             renderSlider={renderSlider}
           />
         </Stack>
+        <BagsOverlay />
         <EventsOverlay />
         <PlaybackBarHoverTicks componentId={hoverComponentId} />
       </Stack>
