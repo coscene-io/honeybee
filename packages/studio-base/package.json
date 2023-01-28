@@ -25,7 +25,7 @@
     "build:webpack": "cross-env TS_NODE_PROJECT=\"tsconfig.cli.json\" webpack --mode production --progress"
   },
   "devDependencies": {
-    "@coscene-io/coscene": "0.2.59",
+    "@coscene-io/coscene": "0.2.64",
     "@emotion/cache": "11.10.5",
     "@emotion/react": "11.7.1",
     "@emotion/styled": "11.6.0",
@@ -129,6 +129,7 @@
     "cytoscape": "3.21.0",
     "cytoscape-dagre": "2.4.0",
     "dat.gui": "0.7.9",
+    "dayjs": "1.11.7",
     "esbuild-loader": "2.20.0",
     "eventemitter3": "5.0.0",
     "fake-indexeddb": "4.0.1",

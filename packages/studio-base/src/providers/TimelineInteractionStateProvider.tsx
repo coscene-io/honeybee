@@ -13,13 +13,16 @@ import {
   SyncBounds,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { HoverValue } from "@foxglove/studio-base/types/hoverValue";
+import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
 
 function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStateStore> {
   return createStore((set) => {
     return {
       eventsAtHoverValue: {},
+      bagsAtHoverValue: {},
       globalBounds: undefined,
       hoveredEvent: undefined,
+      hoveredBag: undefined,
       hoverValue: undefined,
 
       clearHoverValue: (componentId: string) =>
@@ -29,6 +32,9 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
 
       setEventsAtHoverValue: (eventsAtHoverValue: TimelinePositionedEvent[]) =>
         set({ eventsAtHoverValue: keyBy(eventsAtHoverValue, (event) => event.event.getName()) }),
+
+      setBagsAtHoverValue: (bagsAtHoverValue: BagFileInfo[]) =>
+        set({ bagsAtHoverValue: keyBy(bagsAtHoverValue, (bag) => bag.name) }),
 
       setGlobalBounds: (
         newBounds:
@@ -55,6 +61,21 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
           });
         } else {
           set({ hoveredEvent: undefined, hoverValue: undefined });
+        }
+      },
+
+      setHoveredBag(hoveredBag: undefined | BagFileInfo) {
+        if (hoveredBag && hoveredBag.secondsSinceStart) {
+          set({
+            hoveredBag,
+            hoverValue: {
+              componentId: `bag_${hoveredBag.name}`,
+              type: "PLAYBACK_SECONDS",
+              value: hoveredBag.secondsSinceStart,
+            },
+          });
+        } else {
+          set({ hoveredBag: undefined, hoverValue: undefined });
         }
       },
 

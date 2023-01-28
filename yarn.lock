@@ -1785,12 +1785,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/coscene@npm:0.2.59":
-  version: 0.2.59
-  resolution: "@coscene-io/coscene@npm:0.2.59::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.59%2Fab31c713e9475271d47f09e1612b49af0318ab5f"
+"@coscene-io/coscene@npm:0.2.64":
+  version: 0.2.64
+  resolution: "@coscene-io/coscene@npm:0.2.64::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.64%2F00b5efb11d8708890adeeaa701562f9dc3a6ba68"
   dependencies:
     "@coscene-io/cosceneapis": ^0.0.135
-    "@coscene-io/semantic-lib": ^0.0.70
+    "@coscene-io/semantic-lib": ^0.0.91
     ahooks: ^3.7.0
     antd: ^4.22.3
     axios: ^0.27.1
@@ -1802,7 +1802,7 @@ __metadata:
     react-query: ^3.39.2
     react-router-dom: ^6.3.0
     recoil: ^0.7.4
-  checksum: cdfb287a12cee27723c2f876a2a741d544e9747e408a173cfb7a4dd6d8081aa1e9a2b1b14c591797419713bb58242315ecb49f32314fa1b08a453ee7ccdf57a3
+  checksum: 2a65176a090730c2c5f48f778b874cc268457baa9a13821fbc45d0f55e2df17ef8023a10427fe90e60b7f98174976b3363a2409ed6db44d1f8af3c85584266eb
   languageName: node
   linkType: hard
 
@@ -1821,10 +1821,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/semantic-lib@npm:^0.0.70":
-  version: 0.0.70
-  resolution: "@coscene-io/semantic-lib@npm:0.0.70::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fsemantic-lib%2F0.0.70%2F07f4a83a9323236b116b757e199e41d555d48dcf"
-  checksum: 53af235ce954930906713fa72d163023de78fe534ac9ac61837708106f07df5934dd172801b8b3c92023b756483ae2f6a692fc8de29c8cd6e930eca56a5d98d7
+"@coscene-io/semantic-lib@npm:^0.0.91":
+  version: 0.0.91
+  resolution: "@coscene-io/semantic-lib@npm:0.0.91::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fsemantic-lib%2F0.0.91%2Fcae3e2343979493f426e7fe52c83fc0e407a91fa"
+  checksum: 1963a42c74380bee59ec07f75f8f946b112002229e0afa9d1e167b00b0f6e1b8a3611c0ca5136552ed0d6bf12075974ab4b1b2aa9601bfbffa0696374d4eedba
   languageName: node
   linkType: hard
 
@@ -2495,7 +2495,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@foxglove/studio-base@workspace:packages/studio-base"
   dependencies:
-    "@coscene-io/coscene": 0.2.59
+    "@coscene-io/coscene": 0.2.64
     "@emotion/cache": 11.10.5
     "@emotion/react": 11.7.1
     "@emotion/styled": 11.6.0
@@ -2599,6 +2599,7 @@ __metadata:
     cytoscape: 3.21.0
     cytoscape-dagre: 2.4.0
     dat.gui: 0.7.9
+    dayjs: 1.11.7
     esbuild-loader: 2.20.0
     eventemitter3: 5.0.0
     fake-indexeddb: 4.0.1
@@ -10652,7 +10653,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dayjs@npm:1.x, dayjs@npm:^1.9.1":
+"dayjs@npm:1.11.7, dayjs@npm:1.x, dayjs@npm:^1.9.1":
   version: 1.11.7
   resolution: "dayjs@npm:1.11.7"
   checksum: 5003a7c1dd9ed51385beb658231c3548700b82d3548c0cfbe549d85f2d08e90e972510282b7506941452c58d32136d6362f009c77ca55381a09c704e9f177ebb
