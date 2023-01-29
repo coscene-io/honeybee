@@ -103,7 +103,8 @@ function LogList({ items }: Props): JSX.Element {
       scrollUpdateWasRequested: boolean;
     }) => {
       const isAtEnd =
-        scrollOffset + (outerRef.current?.offsetHeight ?? 0) === outerRef.current?.scrollHeight;
+        outerRef.current?.scrollHeight &&
+        outerRef.current?.scrollHeight - (scrollOffset + (outerRef.current?.offsetHeight ?? 0)) < 5;
       if (!scrollUpdateWasRequested && scrollDirection === "backward" && !isAtEnd) {
         setAutoscrollToEnd(false);
       } else if (scrollDirection === "forward" && isAtEnd) {
