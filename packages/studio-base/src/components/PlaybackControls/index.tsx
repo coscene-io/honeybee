@@ -151,6 +151,7 @@ export default function PlaybackControls(props: {
   );
 
   const toggleCreateEventDialog = useCallback(() => {
+    pause();
     setCreateEventDialogOpen((open) => !open);
   }, []);
 
