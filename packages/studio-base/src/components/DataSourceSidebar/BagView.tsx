@@ -116,7 +116,13 @@ function BagViewComponent(params: {
           })}
         >
           <HighlightedText
-            text={bag.startTime ? formatTime(bag.startTime) : "-"}
+            text={
+              bag.startTime
+                ? `${dayjs(toDate(bag.startTime)).format("YYYY-MM-DD")} ${formatTime(
+                    bag.startTime,
+                  )}`
+                : "-"
+            }
             highlight={filter}
           />
         </span>
