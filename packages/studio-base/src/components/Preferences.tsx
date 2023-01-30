@@ -20,7 +20,8 @@ import {
   ToggleButton,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo } from "react";
+import { MouseEvent, useCallback, useMemo, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { filterMap } from "@foxglove/den/collection";
@@ -34,8 +35,13 @@ import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
+import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
+import WebIcon from "@mui/icons-material/Web";
+import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlined";
+import { ExperimentalFeatureSettings } from "@foxglove/studio-base/components/ExperimentalFeatureSettings";
 
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
+const LANGUAGE_OPTIONS = ["en", "zh"];
 
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
@@ -78,6 +84,7 @@ function ColorSchemeSettings(): JSX.Element {
   const [colorScheme = "system", setColorScheme] = useAppConfigurationValue<string>(
     AppSetting.COLOR_SCHEME,
   );
+  const { t } = useTranslation("preferences");
 
   const handleChange = useCallback(
     (_event: MouseEvent<HTMLElement>, value?: string) => {
@@ -90,7 +97,7 @@ function ColorSchemeSettings(): JSX.Element {
 
   return (
     <Stack>
-      <FormLabel>Color scheme:</FormLabel>
+      <FormLabel>{t("colorScheme")}:</FormLabel>
       <ToggleButtonGroup
         color="primary"
         size="small"
@@ -100,13 +107,13 @@ function ColorSchemeSettings(): JSX.Element {
         onChange={handleChange}
       >
         <ToggleButton className={classes.toggleButton} value="dark">
-          <DarkModeIcon /> Dark
+          <DarkModeIcon /> {t("dark")}
         </ToggleButton>
         <ToggleButton className={classes.toggleButton} value="light">
-          <Brightness5Icon /> Light
+          <Brightness5Icon /> {t("light")}
         </ToggleButton>
         <ToggleButton className={classes.toggleButton} value="system">
-          <ComputerIcon /> Follow system
+          <ComputerIcon /> {t("followSystem")}
         </ToggleButton>
       </ToggleButtonGroup>
     </Stack>
@@ -118,6 +125,7 @@ function TimezoneSettings(): React.ReactElement {
 
   const { classes } = useStyles();
 
+  const { t } = useTranslation("preferences");
   const [timezone, setTimezone] = useAppConfigurationValue<string>(AppSetting.TIMEZONE);
   const detectItem: Option = useMemo(
     () => ({
@@ -162,7 +170,7 @@ function TimezoneSettings(): React.ReactElement {
   return (
     <FormControl fullWidth>
       <Typography color="text.secondary" marginBottom={0.5}>
-        Display timestamps in:
+        {t("displayTimestampsIn")}:
       </Typography>
       <Autocomplete
         options={[...fixedItems, ...timezoneItems]}
@@ -191,13 +199,15 @@ function TimezoneSettings(): React.ReactElement {
 function TimeFormat(): React.ReactElement {
   const { timeFormat, setTimeFormat } = useAppTimeFormat();
 
+  const { t } = useTranslation("preferences");
+
   const [timezone] = useAppConfigurationValue<string>(AppSetting.TIMEZONE);
 
   const exampleTime = { sec: 946713600, nsec: 0 };
 
   return (
     <Stack>
-      <FormLabel>Timestamp format:</FormLabel>
+      <FormLabel>{t("timestampFormat")}:</FormLabel>
       <ToggleButtonGroup
         color="primary"
         size="small"
@@ -218,7 +228,50 @@ function TimeFormat(): React.ReactElement {
   );
 }
 
-function MessageFramerate(): React.ReactElement {
+export function LaunchDefault(): React.ReactElement {
+  const { classes } = useStyles();
+  const { t } = useTranslation("preferences");
+  const [preference, setPreference] = useAppConfigurationValue<string | undefined>(
+    AppSetting.LAUNCH_PREFERENCE,
+  );
+  let sanitizedPreference: LaunchPreferenceValue;
+  switch (preference) {
+    case LaunchPreferenceValue.WEB:
+    case LaunchPreferenceValue.DESKTOP:
+    case LaunchPreferenceValue.ASK:
+      sanitizedPreference = preference;
+      break;
+    default:
+      sanitizedPreference = LaunchPreferenceValue.WEB;
+  }
+
+  return (
+    <Stack>
+      <FormLabel>{t("openLinksIn")}:</FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={sanitizedPreference}
+        onChange={(_, value?: string) => value != undefined && void setPreference(value)}
+      >
+        <ToggleButton value={LaunchPreferenceValue.WEB} className={classes.toggleButton}>
+          <WebIcon /> {t("webApp")}
+        </ToggleButton>
+        <ToggleButton value={LaunchPreferenceValue.DESKTOP} className={classes.toggleButton}>
+          <ComputerIcon /> {t("desktopApp")}
+        </ToggleButton>
+        <ToggleButton value={LaunchPreferenceValue.ASK} className={classes.toggleButton}>
+          <QuestionAnswerOutlinedIcon /> {t("askEachTime")}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}
+
+export function MessageFramerate(): React.ReactElement {
+  const { t } = useTranslation("preferences");
   const [messageRate, setMessageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
   const options = useMemo(
     () => MESSAGE_RATES.map((rate) => ({ key: rate, text: `${rate}`, data: rate })),
@@ -227,7 +280,7 @@ function MessageFramerate(): React.ReactElement {
 
   return (
     <Stack>
-      <FormLabel>Message rate (Hz):</FormLabel>
+      <FormLabel>{t("messageRate")} (Hz):</FormLabel>
       <Select
         value={messageRate ?? 60}
         fullWidth
@@ -270,7 +323,73 @@ function AutoUpdate(): React.ReactElement {
   );
 }
 
+export function RosPackagePath(): React.ReactElement {
+  const [rosPackagePath, setRosPackagePath] = useAppConfigurationValue<string>(
+    AppSetting.ROS_PACKAGE_PATH,
+  );
+
+  const rosPackagePathPlaceholder = useMemo(
+    () => OsContextSingleton?.getEnvVar("ROS_PACKAGE_PATH"),
+    [],
+  );
+
+  return (
+    <TextField
+      fullWidth
+      label="ROS_PACKAGE_PATH"
+      placeholder={rosPackagePathPlaceholder}
+      value={rosPackagePath ?? ""}
+      onChange={(event) => void setRosPackagePath(event.target.value)}
+    />
+  );
+}
+
+export function LanguageSettings(): React.ReactElement {
+  const { t, i18n } = useTranslation("preferences");
+  const [selectedLanguage, setSelectedLanguage] = useAppConfigurationValue<string>(
+    AppSetting.DEFAULT_LANGUAGE,
+  );
+  useEffect(() => {
+    if (selectedLanguage !== i18n.language) {
+      i18n.changeLanguage(selectedLanguage).catch((error: unknown) => {
+        console.error("Failed to switch languages", error);
+      });
+    }
+  }, [selectedLanguage, i18n]);
+  const options = useMemo(
+    () =>
+      LANGUAGE_OPTIONS.map((language) => ({ key: language, text: `${language}`, data: language })),
+    [],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>{t("language")}:</FormLabel>
+      <Select
+        value={selectedLanguage ?? "en"}
+        fullWidth
+        onChange={(event) => void setSelectedLanguage(event.target.value)}
+      >
+        {options.map((option) => (
+          <MenuItem key={option.key} value={option.key}>
+            {t(option.text)}
+          </MenuItem>
+        ))}
+      </Select>
+    </Stack>
+  );
+}
+
 export default function Preferences(): React.ReactElement {
+  const [crashReportingEnabled, setCrashReportingEnabled] = useAppConfigurationValue<boolean>(
+    AppSetting.CRASH_REPORTING_ENABLED,
+  );
+  const [telemetryEnabled, setTelemetryEnabled] = useAppConfigurationValue<boolean>(
+    AppSetting.TELEMETRY_ENABLED,
+  );
+  const { t } = useTranslation("preferences");
+  const { classes } = useStyles();
+
   // automatic updates are a desktop-only setting
   //
   // electron-updater does not provide a way to detect if we are on a supported update platform
@@ -279,11 +398,11 @@ export default function Preferences(): React.ReactElement {
   const supportsAppUpdates = isDesktopApp() && OsContextSingleton?.platform !== "linux";
 
   return (
-    <SidebarContent title="Preferences">
+    <SidebarContent title={t("preferences")}>
       <Stack gap={4}>
         <section>
           <Typography component="h2" variant="h5" gutterBottom color="primary">
-            General
+            {t("general")}
           </Typography>
           <Stack gap={2}>
             <div>
@@ -298,11 +417,71 @@ export default function Preferences(): React.ReactElement {
             <div>
               <MessageFramerate />
             </div>
+            <div>
+              <LanguageSettings />
+            </div>
             {supportsAppUpdates && (
               <div>
                 <AutoUpdate />
               </div>
             )}
+            {!isDesktopApp() && (
+              <div>
+                <LaunchDefault />
+              </div>
+            )}
+          </Stack>
+        </section>
+
+        <section>
+          <Typography component="h2" variant="h5" gutterBottom color="primary">
+            {t("ros")}
+          </Typography>
+          <Stack gap={1}>
+            <div>
+              <RosPackagePath />
+            </div>
+          </Stack>
+        </section>
+
+        <section>
+          <Typography component="h2" variant="h5" gutterBottom color="primary">
+            {t("privacy")}
+          </Typography>
+          <Stack gap={2}>
+            <Typography color="text.secondary">{t("privacyDescription")}</Typography>
+            <FormControlLabel
+              className={classes.formControlLabel}
+              control={
+                <Checkbox
+                  className={classes.checkbox}
+                  checked={telemetryEnabled ?? true}
+                  onChange={(_event, checked) => void setTelemetryEnabled(checked)}
+                />
+              }
+              label={t("sendAnonymizedUsageData")!}
+            />
+            <FormControlLabel
+              className={classes.formControlLabel}
+              control={
+                <Checkbox
+                  className={classes.checkbox}
+                  checked={crashReportingEnabled ?? true}
+                  onChange={(_event, checked) => void setCrashReportingEnabled(checked)}
+                />
+              }
+              label={t("sendAnonymizedCrashReports")!}
+            />
+          </Stack>
+        </section>
+
+        <section>
+          <Typography component="h2" variant="h5" gutterBottom color="primary">
+            {t("experimentalFeatures")}
+          </Typography>
+          <Stack gap={1}>
+            <Typography color="text.secondary">{t("experimentalFeaturesDescription")}</Typography>
+            <ExperimentalFeatureSettings />
           </Stack>
         </section>
       </Stack>
