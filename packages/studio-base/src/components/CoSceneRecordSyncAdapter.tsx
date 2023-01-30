@@ -84,12 +84,14 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectSetBagsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setBagsAtHoverValue;
+const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
 
 export function RecordsSyncAdapter(): ReactNull {
   const setRecord = useRecord(selectSetRecords);
   const setRecordBagFiles = useRecord(selectSetRecordBagFiles);
   const setBagsAtHoverValue = useTimelineInteractionState(selectSetBagsAtHoverValue);
   const setCurrentRecordBagFiles = useRecord(selectSetCurrentRecordBagFiles);
+  const hoveredBag = useTimelineInteractionState(selectHoverBag);
 
   const urlState = useMessagePipeline(selectUrlState);
   const consoleApi = useConsoleApi();
@@ -136,6 +138,10 @@ export function RecordsSyncAdapter(): ReactNull {
           }
         });
 
+        recordBagFiles.sort((a, b) =>
+          a.startTime && b.startTime ? compare(a.startTime, b.startTime) : 1,
+        );
+
         setRecordBagFiles({ loading: false, value: recordBagFiles });
       } catch (error) {
         setRecord({ loading: false, error });
@@ -169,7 +175,9 @@ export function RecordsSyncAdapter(): ReactNull {
         }
         return false;
       });
-      setBagsAtHoverValue(hoveredBagFiles);
+      if (hoveredBag === undefined) {
+        setBagsAtHoverValue(hoveredBagFiles);
+      }
     } else {
       setBagsAtHoverValue([]);
     }
