@@ -5,6 +5,7 @@
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { Skeleton, Typography, Breadcrumbs, Link } from "@mui/material";
 import { MutableRefObject, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useTitle } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
@@ -15,17 +16,17 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import Timestamp from "@foxglove/studio-base/components/Timestamp";
+import {
+  CoSceneProjectStore,
+  useProject,
+} from "@foxglove/studio-base/context/CoSceneProjectContext";
+import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { subtractTimes } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/typescript/userUtils/time";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { formatDate, formatDuration } from "@foxglove/studio-base/util/formatTime";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formatTimeRaw, isAbsoluteTime } from "@foxglove/studio-base/util/time";
-import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
-import {
-  CoSceneProjectStore,
-  useProject,
-} from "@foxglove/studio-base/context/CoSceneProjectContext";
 
 const useStyles = makeStyles()({
   numericValue: {
@@ -53,6 +54,7 @@ function DataSourceInfoContent(props: {
   const record = useRecord(selectRecord);
   const project = useProject(selectProject);
   const currentBagFiles = useRecord(selectCurrentBagFiles);
+  const { t } = useTranslation("dataSource");
 
   useTitle(`coScene ${record.value?.getTitle() ?? ""}`);
 
@@ -78,7 +80,7 @@ function DataSourceInfoContent(props: {
     <Stack gap={1.5} paddingX={2} paddingBottom={2}>
       <Stack>
         <Typography display="block" variant="overline" color="text.secondary">
-          Current source
+          {t("currentSource")}
         </Typography>
         {playerPresence === PlayerPresence.INITIALIZING ? (
           <Skeleton animation="wave" width="50%" />
@@ -95,7 +97,7 @@ function DataSourceInfoContent(props: {
 
       <Stack>
         <Typography variant="overline" color="text.secondary">
-          Start time
+          {t("startTime")}
         </Typography>
         {playerPresence === PlayerPresence.INITIALIZING ? (
           <Skeleton animation="wave" width="50%" />
@@ -110,7 +112,7 @@ function DataSourceInfoContent(props: {
 
       <Stack>
         <Typography variant="overline" color="text.secondary">
-          End time
+          {t("endTime")}
         </Typography>
         {playerPresence === PlayerPresence.INITIALIZING ? (
           <Skeleton animation="wave" width="50%" />
@@ -123,7 +125,7 @@ function DataSourceInfoContent(props: {
 
       <Stack>
         <Typography variant="overline" color="text.secondary">
-          Duration
+          {t("duration")}
         </Typography>
         {playerPresence === PlayerPresence.INITIALIZING ? (
           <Skeleton animation="wave" width={100} />

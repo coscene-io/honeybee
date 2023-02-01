@@ -22,6 +22,7 @@ import {
   useLayoutEffect,
   useContext,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
@@ -125,9 +126,10 @@ function AddPanel() {
   const addPanel = useAddPanel();
   const { openLayoutBrowser } = useWorkspace();
   const selectedLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
+  const { t } = useTranslation("addPanel");
 
   return (
-    <SidebarContent disablePadding={selectedLayoutId != undefined} title="Add panel">
+    <SidebarContent disablePadding={selectedLayoutId != undefined} title={t("addPanel")}>
       {selectedLayoutId == undefined ? (
         <Typography color="text.secondary">
           <Link onClick={openLayoutBrowser}>Select a layout</Link> to get started!
@@ -164,6 +166,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   const { availableSources, selectSource } = usePlayerSelection();
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems);
+  const { t } = useTranslation();
 
   // file types we support for drag/drop
   const allowedDropExtensions = useMemo(() => {

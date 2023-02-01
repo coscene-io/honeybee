@@ -19,6 +19,7 @@ import moment from "moment";
 import { useSnackbar } from "notistack";
 import path from "path";
 import { MouseEvent, useCallback, useContext, useEffect, useLayoutEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 import useAsyncFn from "react-use/lib/useAsyncFn";
 
@@ -69,6 +70,7 @@ export default function LayoutBrowser({
   const analytics = useAnalytics();
   const confirm = useConfirm();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
+  const { t } = useTranslation("layouts");
 
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const { setSelectedLayoutId } = useCurrentLayoutActions();
@@ -521,7 +523,7 @@ export default function LayoutBrowser({
 
   return (
     <SidebarContent
-      title="Layouts"
+      title={t("layouts")}
       disablePadding
       trailingItems={[
         (layouts.loading || state.busy || pendingMultiAction) && (
@@ -615,7 +617,7 @@ export default function LayoutBrowser({
                   await reloadLayouts();
                 }}
               >
-                Sync
+                {t("sync")}
               </Button>
 
               <Stack flex="auto" />
@@ -630,7 +632,7 @@ export default function LayoutBrowser({
                       }}
                     />
                   }
-                  label={layoutManager.isOnline ? "Online" : "Offline"}
+                  label={layoutManager.isOnline ? `${t("online")}` : `${t("offline")}`}
                 />
               </FormGroup>
             </Stack>

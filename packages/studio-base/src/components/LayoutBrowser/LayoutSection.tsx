@@ -60,6 +60,7 @@ export default function LayoutSection({
             </Typography>
           </Stack>
         )}
+        {console.log(items)}
         {items?.map((layout) => (
           <LayoutRow
             anySelectedModifiedLayouts={anySelectedModifiedLayouts}

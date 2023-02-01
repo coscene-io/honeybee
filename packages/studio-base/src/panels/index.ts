@@ -59,7 +59,7 @@ const builtin: PanelInfo[] = [
     settingsOnboardingTooltip: "Open settings to configure topics and layers.",
   },
   {
-    title: `Diagnostics – Detail (ROS)`,
+    title: `diagnosticsDetail`,
     type: "DiagnosticStatusPanel",
     description: "Display ROS DiagnosticArray messages for a specific hardware_id.",
     help: DiagnosticStatusPanelHelp,
@@ -67,7 +67,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./diagnostics/DiagnosticStatusPanel"),
   },
   {
-    title: `Diagnostics – Summary (ROS)`,
+    title: `diagnosticsSummary`,
     type: "DiagnosticSummary",
     description: "Display a summary of all ROS DiagnosticArray messages.",
     help: DiagnosticSummaryHelp,
@@ -75,7 +75,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./diagnostics/DiagnosticSummary"),
   },
   {
-    title: "Image",
+    title: "image",
     type: "ImageViewPanel",
     description: "Display annotated images.",
     help: ImageViewHelp,
@@ -83,7 +83,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Image"),
   },
   {
-    title: "Indicator",
+    title: "indicator",
     type: "Indicator",
     description: "Display a colored and/or textual indicator based on a threshold value.",
     help: IndicatorHelp,
@@ -91,7 +91,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Indicator"),
   },
   {
-    title: "Gauge",
+    title: "guage",
     type: "Gauge",
     description: "Display a colored gauge based on a continuous value.",
     help: GaugeHelp,
@@ -99,7 +99,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Gauge"),
   },
   {
-    title: "Teleop",
+    title: "teleop",
     type: "Teleop",
     description: "Teleoperate a robot over a live connection.",
     help: TeleopHelp,
@@ -107,7 +107,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Teleop"),
   },
   {
-    title: "Map",
+    title: "map",
     type: "map",
     description: "Display points on a map.",
     help: MapHelp,
@@ -115,7 +115,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Map"),
   },
   {
-    title: "Parameters",
+    title: "parameters",
     type: "Parameters",
     description: "Read and set parameters for a data source.",
     help: ParametersHelp,
@@ -123,7 +123,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Parameters"),
   },
   {
-    title: "Plot",
+    title: "plot",
     type: "Plot",
     description: "Plot numerical values over time or other values.",
     help: PlotHelp,
@@ -131,7 +131,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Plot"),
   },
   {
-    title: "Publish",
+    title: "publish",
     type: "Publish",
     description: "Publish messages to the data source (live connections only).",
     help: PublishHelp,
@@ -139,7 +139,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Publish"),
   },
   {
-    title: "Raw Messages",
+    title: "rawMessage",
     type: "RawMessages",
     description: "Inspect topic messages.",
     help: RawMessagesHelp,
@@ -147,7 +147,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./RawMessages"),
   },
   {
-    title: "Log",
+    title: "log",
     type: "RosOut",
     description: "Display logs by node and severity level.",
     help: LogHelp,
@@ -155,7 +155,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Log"),
   },
   {
-    title: "State Transitions",
+    title: "stateTransition",
     type: "StateTransitions",
     description: "Track when values change over time.",
     help: StateTransitionsHelp,
@@ -163,7 +163,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./StateTransitions"),
   },
   {
-    title: "Table",
+    title: "table",
     type: "Table",
     description: "Display topic messages in a tabular format.",
     help: TableHelp,
@@ -171,7 +171,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Table"),
   },
   {
-    title: "URDF Viewer",
+    title: "urdfViewer",
     type: "URDFViewer",
     description: "Visualize Unified Robot Description Format files.",
     help: URDFViewerHelp,
@@ -179,7 +179,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./URDFViewer"),
   },
   {
-    title: "Topic Graph",
+    title: "topicGraph",
     type: "TopicGraph",
     description: "Display a graph of active nodes, topics, and services.",
     help: TopicGraphHelp,
@@ -187,7 +187,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./TopicGraph"),
   },
   {
-    title: "Data Source Info",
+    title: "dataSourceInfo",
     type: "SourceInfo",
     description: "View details like topics and timestamps for the current data source.",
     help: DataSourceInfoHelp,
@@ -195,7 +195,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./DataSourceInfo"),
   },
   {
-    title: "Variable Slider",
+    title: "variableSilder",
     type: "GlobalVariableSliderPanel",
     description: "Update numerical variable values for a layout.",
     help: VariableSliderHelp,
@@ -203,7 +203,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./VariableSlider"),
   },
   {
-    title: "User Scripts",
+    title: "userScript",
     type: "NodePlayground",
     description:
       "Write custom data transformations in TypeScript. Previously known as Node Playground.",
@@ -212,7 +212,7 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./NodePlayground"),
   },
   {
-    title: "Tab",
+    title: "tab",
     type: TAB_PANEL_TYPE,
     description: "Group related panels into tabs.",
     help: TabHelp,
@@ -223,7 +223,7 @@ const builtin: PanelInfo[] = [
 
 const debug: PanelInfo[] = [
   {
-    title: "Studio - Playback Performance",
+    title: "studioPlaybackPerformance",
     type: "PlaybackPerformance",
     description: "Display playback and data-streaming performance statistics.",
     help: PlaybackPerformanceHelp,
@@ -233,7 +233,7 @@ const debug: PanelInfo[] = [
 
 const legacyPlot: PanelInfo[] = [
   {
-    title: "Legacy Plot",
+    title: "legacyPlot",
     type: "LegacyPlot",
     module: async () => await import("./LegacyPlot"),
   },

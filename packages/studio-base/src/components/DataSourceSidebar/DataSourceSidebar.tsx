@@ -7,6 +7,7 @@ import Button from "@mui/material/Button";
 import Menu from "@mui/material/Menu";
 import { useTheme } from "@mui/material/styles";
 import { useState, PropsWithChildren, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
 import {
@@ -20,9 +21,9 @@ import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsCont
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import { DataSourceInfoView } from "../DataSourceInfoView";
+import { Playlist } from "./Playlist";
 import { ProblemsList } from "./ProblemsList";
 import { TopicList } from "./TopicList";
-import { Playlist } from "./Playlist";
 
 const StyledTab = muiStyled(Tab)(({ theme }) => ({
   minHeight: "auto",
@@ -92,6 +93,7 @@ export default function DataSourceSidebar(): JSX.Element {
   const [activeTab, setActiveTab] = useState(0);
   const [moreActiveTab, setMoreActiveTab] = useState(-1);
   const theme = useTheme();
+  const { t } = useTranslation("dataSource");
 
   const showEventsTab = currentUser != undefined && playerSourceId === "foxglove-data-platform";
 
@@ -114,7 +116,7 @@ export default function DataSourceSidebar(): JSX.Element {
   }, [playerPresence, showEventsTab, selectedEventId]);
 
   return (
-    <SidebarContent overflow="auto" title="Data source" disablePadding>
+    <SidebarContent overflow="auto" title={t("dataSource")} disablePadding>
       <Stack fullHeight>
         <DataSourceInfoView />
         {playerPresence !== PlayerPresence.NOT_PRESENT && (

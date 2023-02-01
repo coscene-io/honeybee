@@ -4,6 +4,7 @@
 
 import { Link, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useUnmount } from "react-use";
 
 import { useConfigById } from "@foxglove/studio-base/PanelAPI";
@@ -44,6 +45,7 @@ export default function PanelSettings({
 }>): JSX.Element {
   const selectedLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const singlePanelId = useCurrentLayoutSelector(singlePanelIdSelector);
+  const { t } = useTranslation("panelSetting");
   const {
     selectedPanelIds: originalSelectedPanelIds,
     setSelectedPanelIds,
@@ -129,7 +131,7 @@ export default function PanelSettings({
 
   if (selectedLayoutId == undefined) {
     return (
-      <SidebarContent title="Panel settings">
+      <SidebarContent title={t("panelSettings")}>
         <Typography color="text.secondary">
           <Link onClick={openLayoutBrowser}>Select a layout</Link> to get started!
         </Typography>
@@ -139,8 +141,8 @@ export default function PanelSettings({
 
   if (selectedPanelId == undefined) {
     return (
-      <SidebarContent title="Panel settings">
-        <Typography color="text.secondary">Select a panel to edit its settings.</Typography>
+      <SidebarContent title={t("panelSettings")}>
+        <Typography color="text.secondary">{t("selectPanel")}</Typography>
       </SidebarContent>
     );
   }
@@ -153,8 +155,8 @@ export default function PanelSettings({
 
   if (!config) {
     return (
-      <SidebarContent title="Panel settings">
-        <Typography color="text.secondary">Loading panel settings...</Typography>
+      <SidebarContent title={t("panelSettings")}>
+        <Typography color="text.secondary">{t("loadingPanel")}</Typography>
       </SidebarContent>
     );
   }
@@ -179,7 +181,7 @@ export default function PanelSettings({
         <div>
           {settingsTree && <SettingsEditor key={selectedPanelId} settings={settingsTree} />}
           {!settingsTree && (
-            <Typography color="text.secondary">No additional settings available.</Typography>
+            <Typography color="text.secondary">{t("noSettingAvailable")}</Typography>
           )}
         </div>
       </Stack>
