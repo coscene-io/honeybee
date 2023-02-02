@@ -8,6 +8,8 @@ import { initReactI18next } from "react-i18next";
 
 import { translations } from "@foxglove/studio-base/locales";
 
+export const defaultNS = "general";
+
 const DETECTION_OPTIONS = {
   order: ["localStorage", "navigator"],
   caches: ["localStorage"],
@@ -20,6 +22,7 @@ i18n
     resources: translations,
     detection: DETECTION_OPTIONS,
     fallbackLng: "en",
+    defaultNS,
 
     interpolation: {
       escapeValue: false,

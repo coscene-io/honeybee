@@ -40,8 +40,10 @@ import WebIcon from "@mui/icons-material/Web";
 import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlined";
 import { ExperimentalFeatureSettings } from "@foxglove/studio-base/components/ExperimentalFeatureSettings";
 
+type LanguageOption = "en" | "zh";
+
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
-const LANGUAGE_OPTIONS = ["en", "zh"];
+const LANGUAGE_OPTIONS: LanguageOption[] = ["en", "zh"];
 
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
@@ -356,7 +358,7 @@ export function LanguageSettings(): React.ReactElement {
       });
     }
   }, [selectedLanguage, i18n]);
-  const options = useMemo(
+  const options: { key: LanguageOption; text: LanguageOption; data: LanguageOption }[] = useMemo(
     () =>
       LANGUAGE_OPTIONS.map((language) => ({ key: language, text: `${language}`, data: language })),
     [],
