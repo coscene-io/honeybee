@@ -20,17 +20,17 @@ export function buildSummarySettingsTree(
 
   return {
     general: {
-      label: "General",
+      label: "general",
       icon: "Settings",
       fields: {
         topicToRender: {
-          label: "Topic",
+          label: "topic",
           input: "select",
           value: topicToRender,
           error: topicError,
           options: topicOptions,
         },
-        sortByLevel: { label: "Sort By Level", input: "boolean", value: config.sortByLevel },
+        sortByLevel: { label: "sortByLevel", input: "boolean", value: config.sortByLevel },
       },
     },
   };
@@ -50,18 +50,18 @@ export function buildStatusPanelSettingsTree(
 
   return {
     general: {
-      label: "General",
+      label: "general",
       icon: "Settings",
       fields: {
         topicToRender: {
-          label: "Topic",
+          label: "topic",
           input: "select",
           value: topicToRender,
           error: topicError,
           options: topicOptions,
         },
         numericPrecision: {
-          label: "Numeric precision",
+          label: "numericPrecision",
           input: "number",
           min: 0,
           max: 17,

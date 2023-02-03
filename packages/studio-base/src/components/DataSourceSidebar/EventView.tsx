@@ -9,6 +9,7 @@ import { alpha, Alert, TextField } from "@mui/material";
 import Snackbar from "@mui/material/Snackbar";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 import { Fragment, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
@@ -115,6 +116,7 @@ function EventViewComponent(params: {
   const refreshEvents = useEvents(selectRefreshEvents);
   const [open, setOpen] = useState(false);
   const { formatTime } = useAppTimeFormat();
+  const { t } = useTranslation("dataSource");
   const [toastInfo, setToastInfo] = useState<{
     message: string;
     type: "success" | "error";
@@ -227,7 +229,7 @@ function EventViewComponent(params: {
         >
           <Fragment key="triggerTime">
             <div className={classes.eventMetadata}>
-              <HighlightedText text="Trigger Time" highlight={filter} />
+              <HighlightedText text={t("triggerTime")} highlight={filter} />
             </div>
             <div className={classes.eventMetadata}>
               <HighlightedText
@@ -239,7 +241,7 @@ function EventViewComponent(params: {
 
           <Fragment key="duration">
             <div className={classes.eventMetadata}>
-              <HighlightedText text="Duration" highlight={filter} />
+              <HighlightedText text={t("duration")} highlight={filter} />
             </div>
             <div className={classes.eventMetadata}>
               <HighlightedText
@@ -251,7 +253,7 @@ function EventViewComponent(params: {
 
           <Fragment key="description">
             <div className={classes.eventMetadata}>
-              <HighlightedText text="Description" highlight={filter} />
+              <HighlightedText text={t("description")} highlight={filter} />
             </div>
             <div
               className={classes.eventMetadata}

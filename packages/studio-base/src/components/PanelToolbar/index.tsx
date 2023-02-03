@@ -14,6 +14,7 @@
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import { styled as muiStyled, Typography } from "@mui/material";
 import { useContext, useMemo, CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
@@ -62,6 +63,7 @@ export default React.memo<Props>(function PanelToolbar({
   isUnknownPanel = false,
 }: Props) {
   const { isFullscreen, exitFullscreen } = useContext(PanelContext) ?? {};
+  const { t } = useTranslation("addPanel");
 
   const panelContext = useContext(PanelContext);
 
@@ -102,7 +104,7 @@ export default React.memo<Props>(function PanelToolbar({
       {children ??
         (panelContext != undefined && (
           <Typography noWrap variant="body2" color="text.secondary" flex="auto">
-            {panelContext.title}
+            {t(panelContext.title)}
           </Typography>
         ))}
       <PanelToolbarControls

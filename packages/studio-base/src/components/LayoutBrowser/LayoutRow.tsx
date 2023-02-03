@@ -27,6 +27,7 @@ import {
   useEffect,
   useRef,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 
 import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
@@ -150,6 +151,7 @@ export default React.memo(function LayoutRow({
   const confirm = useConfirm();
   const layoutDebug = useContext(LayoutStorageDebuggingContext);
   const layoutManager = useLayoutManager();
+  const { t } = useTranslation("layouts");
 
   const [editingName, setEditingName] = useState(false);
   const [nameFieldValue, setNameFieldValue] = useState("");
@@ -492,7 +494,7 @@ export default React.memo(function LayoutRow({
             noWrap
             style={{ display: editingName ? "none" : "block" }}
           >
-            {layout.name}
+            {t(layout.name)}
           </Typography>
         </ListItemText>
       </ListItemButton>

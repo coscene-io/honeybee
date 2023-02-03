@@ -135,18 +135,18 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
         order: 0,
         fields: {
           editable: {
-            label: "Editable",
+            label: "editable",
             input: "boolean",
             value: config.scene.transforms?.editable ?? DEFAULT_EDITABLE,
           },
           showLabel: {
-            label: "Labels",
+            label: "labels",
             input: "boolean",
             value: config.scene.transforms?.showLabel ?? true,
           },
           ...((config.scene.transforms?.showLabel ?? true) && {
             labelSize: {
-              label: "Label size",
+              label: "labelSize",
               input: "number",
               min: 0,
               step: 0.01,
@@ -155,13 +155,9 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
               value: config.scene.transforms?.labelSize,
             },
           }),
-          axisScale: fieldSize(
-            "Axis scale",
-            config.scene.transforms?.axisScale,
-            DEFAULT_AXIS_SCALE,
-          ),
+          axisScale: fieldSize("axisScale", config.scene.transforms?.axisScale, DEFAULT_AXIS_SCALE),
           lineWidth: {
-            label: "Line width",
+            label: "lineWidth",
             input: "number",
             min: 0,
             step: 0.5,
@@ -170,7 +166,7 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
             placeholder: String(DEFAULT_LINE_WIDTH_PX),
           },
           lineColor: {
-            label: "Line color",
+            label: "lineColor",
             input: "rgb",
             value: config.scene.transforms?.lineColor ?? DEFAULT_LINE_COLOR_STR,
           },

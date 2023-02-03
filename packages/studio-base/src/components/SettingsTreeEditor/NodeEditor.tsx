@@ -10,6 +10,7 @@ import ErrorIcon from "@mui/icons-material/Error";
 import { Divider, IconButton, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import memoizeWeak from "memoize-weak";
 import { ChangeEvent, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { DeepReadonly } from "ts-essentials";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
@@ -169,6 +170,7 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
   });
 
   const { classes, cx } = useStyles();
+  const { t } = useTranslation("addPanel");
 
   const theme = useTheme();
   const indent = props.path.length;
@@ -325,7 +327,10 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
               fontWeight={indent < 2 ? 600 : 400}
               color={visible ? "text.primary" : "text.disabled"}
             >
-              <HighlightedText text={settings.label ?? "General"} highlight={filter} />
+              <HighlightedText
+                text={settings.label ? t(settings.label) : "General"}
+                highlight={filter}
+              />
             </Typography>
           )}
         </div>

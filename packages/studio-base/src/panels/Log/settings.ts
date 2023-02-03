@@ -22,7 +22,7 @@ export function buildSettingsTree(
       fields: {
         topicToRender: {
           input: "select",
-          label: "Topic",
+          label: "topic",
           value: topicToRender,
           error: topicError,
           options: topicOptions,

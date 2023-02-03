@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Button, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
@@ -25,6 +26,7 @@ const useStyles = makeStyles()((theme) => ({
 export default function SigninForm(): JSX.Element {
   const { classes } = useStyles();
   const { signIn } = useCurrentUser();
+  const { t } = useTranslation("account");
 
   return (
     <div className={classes.root}>
@@ -33,17 +35,17 @@ export default function SigninForm(): JSX.Element {
       </div>
       <Typography variant="body1" component="div">
         <>
-          Create a Foxglove account to:
+          {t("intro")}
           <ul>
-            <li>Sync your layouts across multiple devices</li>
-            <li>Share your layouts with others</li>
-            <li>Manage and store your robotics data</li>
+            <li>{t("syncLayout")}</li>
+            <li>{t("shareLayout")}</li>
+            <li>{t("manageData")}</li>
           </ul>
         </>
       </Typography>
 
       <Button variant="contained" color="primary" onClick={signIn}>
-        Sign in
+        {t("signin")}
       </Button>
     </div>
   );
