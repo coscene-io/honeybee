@@ -131,7 +131,6 @@ export default function DataSourceSidebar(): JSX.Element {
                 }}
                 textColor="inherit"
               >
-                {/* TODO 哈哈哈哈 */}
                 <StyledTab disableRipple label={t("playlist")} value={0} />
                 <StyledTab disableRipple label={t("topics")} value={1} />
                 <StyledTab disableRipple label={t("moment")} value={2} />

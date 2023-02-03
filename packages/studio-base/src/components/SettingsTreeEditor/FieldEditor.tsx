@@ -388,7 +388,6 @@ function FieldInput({
 function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("addPanel");
-  console.log(field);
 
   if (field.input === "vec2") {
     const labels = field.labels ?? ["X", "Y"];
