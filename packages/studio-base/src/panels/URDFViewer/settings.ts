@@ -73,13 +73,13 @@ export function buildSettingsTree(
       icon: "Settings",
       fields: {
         assetId: {
-          label: "Asset",
+          label: "asset",
           input: "select",
           options: assetOptions,
           value: config.selectedAssetId,
         },
         opacity: {
-          label: "Opacity",
+          label: "opacity",
           input: "number",
           precision: 2,
           min: 0,
@@ -88,7 +88,7 @@ export function buildSettingsTree(
           value: config.opacity,
         },
         manualControl: {
-          label: "Manual Control",
+          label: "manualControl",
           input: "boolean",
           value: manualControl,
         },
@@ -96,7 +96,7 @@ export function buildSettingsTree(
           ? undefined
           : {
               input: "select",
-              label: "Topic",
+              label: "topic",
               value: config.jointStatesTopic,
               options: topicOptions,
             },

@@ -215,11 +215,14 @@ function DraggablePanelItem({
               <CardContent className={classes.cardContent}>
                 <Typography variant="subtitle2" gutterBottom>
                   <span data-testid={`panel-menu-item ${panel.title}`}>
-                    <TextHighlight targetStr={targetString} searchText={searchQuery} />
+                    <TextHighlight targetStr={t(targetString)} searchText={searchQuery} />
                   </span>
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  <TextHighlight targetStr={panel.description ?? ""} searchText={searchQuery} />
+                  <TextHighlight
+                    targetStr={panel.description ? t(panel.description) : ""}
+                    searchText={searchQuery}
+                  />
                 </Typography>
               </CardContent>
             </Stack>

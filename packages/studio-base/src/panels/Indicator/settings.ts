@@ -104,7 +104,7 @@ const memoizedCreateRuleNode = memoizeWeak(
       actions: actions.filter((action): action is SettingsTreeNodeAction => action !== false),
       fields: {
         operator: {
-          label: "Comparison",
+          label: "comparison",
           input: "select",
           value: rule.operator,
           options: [
@@ -116,17 +116,17 @@ const memoizedCreateRuleNode = memoizeWeak(
           ],
         },
         rawValue: {
-          label: "Compare with",
+          label: "comparisonWith",
           input: "string",
           value: rule.rawValue,
         },
         color: {
-          label: "Color",
+          label: "color",
           input: "rgb",
           value: rule.color,
         },
         label: {
-          label: "Label",
+          label: "label",
           input: "string",
           value: rule.label,
         },
@@ -146,13 +146,13 @@ export function useSettingsTree(
       error,
       fields: {
         path: {
-          label: "Data",
+          label: "data",
           input: "messagepath",
           value: path,
           error: pathParseError,
         },
         style: {
-          label: "Style",
+          label: "style",
           input: "select",
           value: style,
           options: [
@@ -168,7 +168,7 @@ export function useSettingsTree(
   const { fallbackColor, fallbackLabel } = config;
   const ruleSettings: SettingsTreeNode = useMemo(
     () => ({
-      label: "Rules (first matching rule wins)",
+      label: "rules",
       actions: [{ type: "action", id: "add-rule", label: "Add rule", icon: "Add" }],
       children: Object.fromEntries(
         rules
@@ -177,16 +177,16 @@ export function useSettingsTree(
             [
               "default",
               {
-                label: "Otherwise",
+                label: "otherwise",
                 fields: {
                   fallbackColor: {
-                    label: "Color",
+                    label: "color",
                     input: "rgb",
                     value: fallbackColor,
                     help: "Color to use when no other rules match",
                   },
                   fallbackLabel: {
-                    label: "Label",
+                    label: "label",
                     input: "string",
                     value: fallbackLabel,
                     help: "Label to use when no other rules match",

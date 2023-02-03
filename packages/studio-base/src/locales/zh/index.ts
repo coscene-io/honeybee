@@ -9,3 +9,7 @@ export { default as zhAddPanel } from "./addPanel";
 export { default as zhPanelSetting } from "./panelSetting";
 export { default as zhStudioLogsSettings } from "./studioLogSettings";
 export { default as zhAccount } from "./account";
+export { default as zhCommon } from "./common";
+export { default as zhDiagnostic } from "./diagnostic";
+export { default as zhPublish } from "./publish";
+export { default as zhUserScript } from "./userScript";

@@ -91,10 +91,10 @@ export class CoreSettings extends SceneExtension {
       {
         path: ["general"],
         node: {
-          label: "Frame",
+          label: "frame",
           fields: {
             followTf: {
-              label: "Display frame",
+              label: "displayFrame",
               help: "The coordinate frame to place the camera in. The camera position and orientation will be relative to the origin of this frame.",
               input: "select",
               options: followTfOptions,
@@ -102,7 +102,7 @@ export class CoreSettings extends SceneExtension {
               error: followTfError,
             },
             followMode: {
-              label: "Follow mode",
+              label: "followMode",
               help: "Change the camera behavior during playback to follow the display frame or not.",
               input: "select",
               options: followModeOptions,
@@ -116,21 +116,21 @@ export class CoreSettings extends SceneExtension {
       {
         path: ["scene"],
         node: {
-          label: "Scene",
+          label: "scene",
           actions: [{ type: "action", id: "reset-scene", label: "Reset" }],
           fields: {
             enableStats: {
-              label: "Render stats",
+              label: "renderStats",
               input: "boolean",
               value: config.scene.enableStats,
             },
             backgroundColor: {
-              label: "Background",
+              label: "background",
               input: "rgb",
               value: config.scene.backgroundColor,
             },
             labelScaleFactor: {
-              label: "Label scale",
+              label: "labelScale",
               help: "Scale factor to apply to all labels",
               input: "number",
               min: 0,
@@ -140,7 +140,7 @@ export class CoreSettings extends SceneExtension {
               placeholder: String(DEFAULT_LABEL_SCALE_FACTOR),
             },
             ignoreColladaUpAxis: {
-              label: "Ignore COLLADA <up_axis>",
+              label: "ignoreTag",
               help: "Match the behavior of rviz by ignoring the <up_axis> tag in COLLADA files",
               input: "boolean",
               value: config.scene.ignoreColladaUpAxis,
@@ -151,14 +151,14 @@ export class CoreSettings extends SceneExtension {
                   : undefined,
             },
             syncCamera: {
-              label: "Sync camera",
+              label: "syncCamera",
               input: "boolean",
               error: this.renderer.cameraSyncError(),
               value: config.scene.syncCamera ?? false,
               help: "Sync the camera with other panels that also have this setting enabled.",
             },
             meshUpAxis: {
-              label: "Mesh up axis",
+              label: "meshupAxis",
               help: "The direction to use as “up” when loading meshes without orientation info (STL and OBJ)",
               input: "select",
               value: config.scene.meshUpAxis ?? DEFAULT_MESH_UP_AXIS,
@@ -175,7 +175,7 @@ export class CoreSettings extends SceneExtension {
           },
           children: {
             cameraState: {
-              label: "View",
+              label: "view",
               actions: [{ type: "action", id: "reset-camera", label: "Reset" }],
               fields: {
                 distance: {
@@ -240,10 +240,10 @@ export class CoreSettings extends SceneExtension {
       {
         path: ["publish"],
         node: {
-          label: "Publish",
+          label: "publish",
           fields: {
             type: {
-              label: "Type",
+              label: "type",
               input: "select",
               value: publish.type,
               options: [
@@ -257,7 +257,7 @@ export class CoreSettings extends SceneExtension {
               help: "The type of message to publish when clicking in the scene",
             },
             topic: {
-              label: "Topic",
+              label: "topic",
               input: "string",
               value: {
                 point: publish.pointTopic,

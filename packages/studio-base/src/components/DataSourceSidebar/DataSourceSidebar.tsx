@@ -131,9 +131,10 @@ export default function DataSourceSidebar(): JSX.Element {
                 }}
                 textColor="inherit"
               >
-                <StyledTab disableRipple label="Playlist" value={0} />
-                <StyledTab disableRipple label="Topics" value={1} />
-                <StyledTab disableRipple label="Moment" value={2} />
+                {/* TODO 哈哈哈哈 */}
+                <StyledTab disableRipple label={t("playlist")} value={0} />
+                <StyledTab disableRipple label={t("topics")} value={1} />
+                <StyledTab disableRipple label={t("moment")} value={2} />
                 <Button
                   id="basic-button"
                   aria-controls={open ? "basic-menu" : undefined}
@@ -145,7 +146,7 @@ export default function DataSourceSidebar(): JSX.Element {
                       activeTab === 3 ? theme.palette.text.primary : theme.palette.text.secondary,
                   }}
                 >
-                  More
+                  {t("more")}
                 </Button>
                 <Menu
                   id="basic-menu"

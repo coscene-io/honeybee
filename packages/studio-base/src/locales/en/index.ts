@@ -9,3 +9,7 @@ export { default as enLayouts } from "./layouts";
 export { default as enAddPanel } from "./addPanel";
 export { default as enPanelSetting } from "./panelSetting";
 export { default as enAccount } from "./account";
+export { default as enCommon } from "./common";
+export { default as enDiagnostic } from "./diagnostic";
+export { default as enPublish } from "./publish";
+export { default as enUserScript } from "./userScript";

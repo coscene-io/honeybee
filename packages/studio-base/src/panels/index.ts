@@ -52,7 +52,7 @@ const builtin: PanelInfo[] = [
   {
     title: "3D",
     type: "3D",
-    description: "Display markers, camera images, meshes, URDFs, and more in a 3D scene.",
+    description: "threeDDescription",
     help: ThreeDeeRenderHelp,
     thumbnail: threeDeeRenderThumbnail,
     module: async () => await import("./ThreeDeeRender"),
@@ -61,7 +61,7 @@ const builtin: PanelInfo[] = [
   {
     title: `diagnosticsDetail`,
     type: "DiagnosticStatusPanel",
-    description: "Display ROS DiagnosticArray messages for a specific hardware_id.",
+    description: "diagnoticsDetailDesciption",
     help: DiagnosticStatusPanelHelp,
     thumbnail: diagnosticStatusThumbnail,
     module: async () => await import("./diagnostics/DiagnosticStatusPanel"),
@@ -69,7 +69,7 @@ const builtin: PanelInfo[] = [
   {
     title: `diagnosticsSummary`,
     type: "DiagnosticSummary",
-    description: "Display a summary of all ROS DiagnosticArray messages.",
+    description: "diagnosticsSummaryDecription",
     help: DiagnosticSummaryHelp,
     thumbnail: diagnosticSummaryThumbnail,
     module: async () => await import("./diagnostics/DiagnosticSummary"),
@@ -77,7 +77,7 @@ const builtin: PanelInfo[] = [
   {
     title: "image",
     type: "ImageViewPanel",
-    description: "Display annotated images.",
+    description: "Display annotated images",
     help: ImageViewHelp,
     thumbnail: imageViewThumbnail,
     module: async () => await import("./Image"),
@@ -85,7 +85,7 @@ const builtin: PanelInfo[] = [
   {
     title: "indicator",
     type: "Indicator",
-    description: "Display a colored and/or textual indicator based on a threshold value.",
+    description: "indicatorDescription",
     help: IndicatorHelp,
     thumbnail: indicatorThumbnail,
     module: async () => await import("./Indicator"),
@@ -93,7 +93,7 @@ const builtin: PanelInfo[] = [
   {
     title: "guage",
     type: "Gauge",
-    description: "Display a colored gauge based on a continuous value.",
+    description: "guageDescription",
     help: GaugeHelp,
     thumbnail: gaugeThumbnail,
     module: async () => await import("./Gauge"),
@@ -101,7 +101,7 @@ const builtin: PanelInfo[] = [
   {
     title: "teleop",
     type: "Teleop",
-    description: "Teleoperate a robot over a live connection.",
+    description: "teleopDescription",
     help: TeleopHelp,
     thumbnail: teleopThumbnail,
     module: async () => await import("./Teleop"),
@@ -109,7 +109,7 @@ const builtin: PanelInfo[] = [
   {
     title: "map",
     type: "map",
-    description: "Display points on a map.",
+    description: "mapDescription",
     help: MapHelp,
     thumbnail: mapThumbnail,
     module: async () => await import("./Map"),
@@ -117,7 +117,7 @@ const builtin: PanelInfo[] = [
   {
     title: "parameters",
     type: "Parameters",
-    description: "Read and set parameters for a data source.",
+    description: "parametersDescription",
     help: ParametersHelp,
     thumbnail: parametersThumbnail,
     module: async () => await import("./Parameters"),
@@ -125,7 +125,7 @@ const builtin: PanelInfo[] = [
   {
     title: "plot",
     type: "Plot",
-    description: "Plot numerical values over time or other values.",
+    description: "plotDescription",
     help: PlotHelp,
     thumbnail: plotThumbnail,
     module: async () => await import("./Plot"),
@@ -133,7 +133,7 @@ const builtin: PanelInfo[] = [
   {
     title: "publish",
     type: "Publish",
-    description: "Publish messages to the data source (live connections only).",
+    description: "publishDescription",
     help: PublishHelp,
     thumbnail: publishThumbnail,
     module: async () => await import("./Publish"),
@@ -141,7 +141,7 @@ const builtin: PanelInfo[] = [
   {
     title: "rawMessage",
     type: "RawMessages",
-    description: "Inspect topic messages.",
+    description: "rawMessageDescription",
     help: RawMessagesHelp,
     thumbnail: rawMessagesThumbnail,
     module: async () => await import("./RawMessages"),
@@ -149,7 +149,7 @@ const builtin: PanelInfo[] = [
   {
     title: "log",
     type: "RosOut",
-    description: "Display logs by node and severity level.",
+    description: "logDescription",
     help: LogHelp,
     thumbnail: logThumbnail,
     module: async () => await import("./Log"),
@@ -157,7 +157,7 @@ const builtin: PanelInfo[] = [
   {
     title: "stateTransition",
     type: "StateTransitions",
-    description: "Track when values change over time.",
+    description: "stateDescription",
     help: StateTransitionsHelp,
     thumbnail: stateTransitionsThumbnail,
     module: async () => await import("./StateTransitions"),
@@ -165,7 +165,7 @@ const builtin: PanelInfo[] = [
   {
     title: "table",
     type: "Table",
-    description: "Display topic messages in a tabular format.",
+    description: "tableDescription",
     help: TableHelp,
     thumbnail: tableThumbnail,
     module: async () => await import("./Table"),
@@ -173,7 +173,7 @@ const builtin: PanelInfo[] = [
   {
     title: "urdfViewer",
     type: "URDFViewer",
-    description: "Visualize Unified Robot Description Format files.",
+    description: "urdfDescription",
     help: URDFViewerHelp,
     thumbnail: URDFViewerThumbnail,
     module: async () => await import("./URDFViewer"),
@@ -181,7 +181,7 @@ const builtin: PanelInfo[] = [
   {
     title: "topicGraph",
     type: "TopicGraph",
-    description: "Display a graph of active nodes, topics, and services.",
+    description: "topicGraphDescription",
     help: TopicGraphHelp,
     thumbnail: topicGraphThumbnail,
     module: async () => await import("./TopicGraph"),
@@ -189,7 +189,7 @@ const builtin: PanelInfo[] = [
   {
     title: "dataSourceInfo",
     type: "SourceInfo",
-    description: "View details like topics and timestamps for the current data source.",
+    description: "dataSourceDesciption",
     help: DataSourceInfoHelp,
     thumbnail: dataSourceInfoThumbnail,
     module: async () => await import("./DataSourceInfo"),
@@ -197,7 +197,7 @@ const builtin: PanelInfo[] = [
   {
     title: "variableSilder",
     type: "GlobalVariableSliderPanel",
-    description: "Update numerical variable values for a layout.",
+    description: "variableDescription",
     help: VariableSliderHelp,
     thumbnail: variableSliderThumbnail,
     module: async () => await import("./VariableSlider"),
@@ -205,8 +205,7 @@ const builtin: PanelInfo[] = [
   {
     title: "userScript",
     type: "NodePlayground",
-    description:
-      "Write custom data transformations in TypeScript. Previously known as Node Playground.",
+    description: "userScriptDescription",
     help: NodePlaygroundHelp,
     thumbnail: nodePlaygroundThumbnail,
     module: async () => await import("./NodePlayground"),
@@ -214,7 +213,7 @@ const builtin: PanelInfo[] = [
   {
     title: "tab",
     type: TAB_PANEL_TYPE,
-    description: "Group related panels into tabs.",
+    description: "tabDescription",
     help: TabHelp,
     thumbnail: tabThumbnail,
     module: async () => await import("./Tab"),
@@ -225,7 +224,7 @@ const debug: PanelInfo[] = [
   {
     title: "studioPlaybackPerformance",
     type: "PlaybackPerformance",
-    description: "Display playback and data-streaming performance statistics.",
+    description: "studioDescription",
     help: PlaybackPerformanceHelp,
     module: async () => await import("./PlaybackPerformance"),
   },

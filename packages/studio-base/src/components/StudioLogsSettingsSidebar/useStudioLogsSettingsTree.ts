@@ -29,7 +29,7 @@ function useStudioLogsSettingsTree(): SettingsTree {
     // Root node of all other settings nodes
     const settingsRoot: SettingsTreeNodes = {
       Settings: {
-        label: "Settings",
+        label: "setting",
         icon: "Settings",
         fields: {
           level: {

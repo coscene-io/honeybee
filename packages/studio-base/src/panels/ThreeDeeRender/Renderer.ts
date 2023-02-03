@@ -639,7 +639,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
       path: ["topics"],
       node: {
         enableVisibilityFilter: true,
-        label: "Topics",
+        label: "topics",
         defaultExpansionState: "expanded",
         actions: [
           { id: "show-all", type: "action", label: "Show All" },

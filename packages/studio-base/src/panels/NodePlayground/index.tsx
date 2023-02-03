@@ -123,7 +123,7 @@ function buildSettingsTree(config: Config): SettingsTreeNodes {
       fields: {
         autoFormatOnSave: {
           input: "boolean",
-          label: "Auto-format on save",
+          label: "autoSave",
           value: config.autoFormatOnSave,
         },
       },

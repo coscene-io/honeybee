@@ -166,8 +166,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   const { availableSources, selectSource } = usePlayerSelection();
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems);
-  const { t } = useTranslation();
-
   // file types we support for drag/drop
   const allowedDropExtensions = useMemo(() => {
     const extensions = [".foxe", ".urdf", ".xacro"];
@@ -579,6 +577,12 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     () => getMessagePipeline().playerState.activeData ?? {},
     [getMessagePipeline],
   );
+  // TODO 删除token
+  localStorage.setItem(
+    "coScene_org_jwt",
+    "Bearer eyJraWQiOiI2YmE0N2Y0My02MWZkLTRlOGYtODhjMy05MTZjZTU3YjZlY2IiLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIzNzMwMzViNi0yNDcxLTRkNDAtOWE2Ny0zNjRmMDkxOTJhOWUiLCJpc3MiOiJodHRwczovL2FwaS5jb3NjZW5lLmRldi9zdXBlcnRva2Vucy1zZXJ2ZXIvYXV0aCIsImV4cCI6MTY3NTQ3ODYzOSwidXNlcklkIjoiMzczMDM1YjYtMjQ3MS00ZDQwLTlhNjctMzY0ZjA5MTkyYTllIiwiaWF0IjoxNjc1MzkyMjM4LCJvcmdJZCI6IjNkZDc2ZmYyLTgzOWQtNDlhMy04MmFmLTY2MzQyMmI2OWIwMSJ9.Urt6AAr_2NL77WKiEpw_TvDHW5seliEqrk8aTDscnJ1UmMYNlh1Acc_lNn0jrewzr5NphEk1V9yLG0Q2mdtvR0it6EiW7FMDUelrhS45L8EtuPAXKPBDWAkyop2OZAi4hvblOiO3_ynLndEJBfYs5s4zOuZDvihjYvQGTscpkVam6Q365c1al33hnOpILgLi2tP7XNN8SdHRS1HsPpD9KuiIOj_IJO6mpSBB48foMO3p2x8EH5SJ8GAa1sQwBREwrChE-j5mi44YTUw0xAFa8sUyQ5s2vf0rYjG4uL-pqv4iPtPLLKHkRidcbqktBYyy9cZSSLzd4NDRDSCaDhNlKw",
+  ); //转换成json字符串序列
+  console.log(localStorage);
 
   return (
     <MultiProvider

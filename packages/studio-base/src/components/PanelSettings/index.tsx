@@ -162,11 +162,10 @@ export default function PanelSettings({
   }
 
   const isSettingsTree = settingsTree != undefined;
-
   return (
     <SidebarContent
       disablePadding={isSettingsTree}
-      title={`${panelInfo.title} panel settings`}
+      title={`${t(panelInfo.title)}${t("panelSettings")}`}
       trailingItems={[
         <ActionMenu
           key={1}

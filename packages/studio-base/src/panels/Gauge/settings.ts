@@ -51,24 +51,24 @@ export function useSettingsTree(
       error,
       fields: {
         path: {
-          label: "Data",
+          label: "data",
           input: "messagepath",
           value: config.path,
           error: pathParseError,
           validTypes: supportedDataTypes,
         },
         minValue: {
-          label: "Minimum",
+          label: "minimum",
           input: "number",
           value: config.minValue,
         },
         maxValue: {
-          label: "Maximum",
+          label: "maxiMum",
           input: "number",
           value: config.maxValue,
         },
         colorMode: {
-          label: "Color mode",
+          label: "colorMode",
           input: "select",
           value: config.colorMode,
           options: [
@@ -78,7 +78,7 @@ export function useSettingsTree(
         },
         ...(config.colorMode === "colormap" && {
           colorMap: {
-            label: "Color map",
+            label: "colorMap",
             input: "select",
             value: config.colorMap,
             options: [
@@ -96,7 +96,7 @@ export function useSettingsTree(
           },
         }),
         reverse: {
-          label: "Reverse",
+          label: "reverse",
           input: "boolean",
           value: config.reverse,
         },
