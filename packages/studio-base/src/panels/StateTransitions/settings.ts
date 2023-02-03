@@ -13,10 +13,10 @@ import { StateTransitionConfig } from "./types";
 function buildSettingsTree(config: StateTransitionConfig): SettingsTreeNodes {
   return {
     general: {
-      label: "General",
+      label: "general",
       icon: "Settings",
       fields: {
-        isSynced: { label: "Sync with other plots", input: "boolean", value: config.isSynced },
+        isSynced: { label: "syncWithOtherPlots", input: "boolean", value: config.isSynced },
       },
     },
   };

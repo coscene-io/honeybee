@@ -33,6 +33,7 @@ import fuzzySort from "fuzzysort";
 import { countBy, isEmpty } from "lodash";
 import { useCallback, useEffect, useMemo } from "react";
 import { useDrag } from "react-dnd";
+import { useTranslation } from "react-i18next";
 import { MosaicDragType, MosaicPath } from "react-mosaic-component";
 import { makeStyles } from "tss-react/mui";
 
@@ -133,6 +134,8 @@ function DraggablePanelItem({
   mosaicId,
 }: PanelItemProps) {
   const { classes } = useStyles();
+  const { t } = useTranslation("addPanel");
+
   const scrollRef = React.useRef<HTMLElement>(ReactNull);
   const [, connectDragSource] = useDrag<unknown, MosaicDropResult, never>({
     type: MosaicDragType.WINDOW,
@@ -212,11 +215,14 @@ function DraggablePanelItem({
               <CardContent className={classes.cardContent}>
                 <Typography variant="subtitle2" gutterBottom>
                   <span data-testid={`panel-menu-item ${panel.title}`}>
-                    <TextHighlight targetStr={targetString} searchText={searchQuery} />
+                    <TextHighlight targetStr={t(targetString)} searchText={searchQuery} />
                   </span>
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  <TextHighlight targetStr={panel.description ?? ""} searchText={searchQuery} />
+                  <TextHighlight
+                    targetStr={panel.description ? t(panel.description) : ""}
+                    searchText={searchQuery}
+                  />
                 </Typography>
               </CardContent>
             </Stack>
@@ -254,7 +260,7 @@ function DraggablePanelItem({
               <ListItemText
                 primary={
                   <span data-testid={`panel-menu-item ${panel.title}`}>
-                    <TextHighlight targetStr={targetString} searchText={searchQuery} />
+                    <TextHighlight targetStr={t(targetString)} searchText={searchQuery} />
                   </span>
                 }
                 primaryTypographyProps={{ fontWeight: checked ? "bold" : undefined }}

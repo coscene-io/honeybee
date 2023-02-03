@@ -6,6 +6,7 @@ import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 import { AppBar, CircularProgress, IconButton, TextField, Typography } from "@mui/material";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import {
@@ -64,6 +65,7 @@ export function EventsList(): JSX.Element {
   const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
   const filter = useEvents(selectEventFilter);
   const setFilter = useEvents(selectSetEventFilter);
+  const { t } = useTranslation("dataSource");
 
   const timestampedEvents = useMemo(
     () =>
@@ -132,14 +134,14 @@ export function EventsList(): JSX.Element {
       {events.error && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
           <Typography align="center" color="error">
-            Error loading events.
+            {t("errorLoading")}
           </Typography>
         </Stack>
       )}
       {events.value && events.value.length === 0 && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
           <Typography align="center" color="text.secondary">
-            No Moments
+            {t("noMoment")}
           </Typography>
         </Stack>
       )}

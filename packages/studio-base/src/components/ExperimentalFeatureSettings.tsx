@@ -12,6 +12,7 @@
 //   You may not use this file except in compliance with the License.
 
 import { Checkbox, FormControlLabel, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
@@ -36,36 +37,36 @@ const useStyles = makeStyles()({
 type Feature = {
   key: AppSetting;
   name: string;
-  description: JSX.Element;
+  description: string;
 };
 
 const features: Feature[] = [
   {
     key: AppSetting.SHOW_DEBUG_PANELS,
-    name: "Studio debug panels",
-    description: <>Show Foxglove Studio debug panels in the &ldquo;Add panel&rdquo; list.</>,
+    name: "studioDebugPanels",
+    description: "studioDebugPanelsDescription",
   },
   {
     key: AppSetting.ENABLE_LEGACY_PLOT_PANEL,
-    name: "Legacy Plot panel",
-    description: <>Enable the Legacy Plot panel.</>,
+    name: "legacyPlotPanel",
+    description: "legacyPlotPanelDescription",
   },
   {
     key: AppSetting.ENABLE_MEMORY_USE_INDICATOR,
-    name: "Memory use indicator",
-    description: <>Show the app memory use in the sidebar.</>,
+    name: "memoryUseIndicator",
+    description: "memoryUseIndicatorDecription",
   },
   {
     key: AppSetting.ENABLE_PLOT_PANEL_SERIES_SETTINGS,
-    name: "Plot panel series in settings",
-    description: <>Allow editing plot panel data series in the sidebar.</>,
+    name: "plotPanelSeriesInSettings",
+    description: "plotPanelSeriesInSettingsDescription",
   },
 ];
 if (process.env.NODE_ENV === "development") {
   features.push({
     key: AppSetting.ENABLE_LAYOUT_DEBUGGING,
-    name: "Layout debugging",
-    description: <>Show extra controls for developing and debugging layout storage.</>,
+    name: "layoutDebugging",
+    description: "layoutDebuggingDescription",
   });
 }
 
@@ -73,6 +74,7 @@ function ExperimentalFeatureItem(props: { feature: Feature }) {
   const { feature } = props;
   const { classes } = useStyles();
   const analytics = useAnalytics();
+  const { t } = useTranslation("preferences");
 
   const [enabled, setEnabled] = useAppConfigurationValue<boolean>(feature.key);
   return (
@@ -93,9 +95,9 @@ function ExperimentalFeatureItem(props: { feature: Feature }) {
       }
       label={
         <Stack gap={0.25} paddingLeft={0.5}>
-          <Typography fontWeight={600}>{feature.name}</Typography>
+          <Typography fontWeight={600}>{t(feature.name)}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {feature.description}
+            <>{t(feature.description)}</>
           </Typography>
         </Stack>
       }

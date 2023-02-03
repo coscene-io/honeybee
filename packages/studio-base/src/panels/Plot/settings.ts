@@ -26,18 +26,18 @@ const makeSeriesNode = memoizeWeak((path: PlotPath, index: number): SettingsTree
     fields: {
       value: {
         input: "messagepath",
-        label: "Path",
+        label: "path",
         value: path.value,
         validTypes: plotableRosTypes,
       },
       color: {
         input: "rgb",
-        label: "Color",
+        label: "color",
         value: path.color ?? lineColors[index % lineColors.length],
       },
       timestampMethod: {
         input: "select",
-        label: "Timestamp",
+        label: "timeStamp",
         value: path.timestampMethod,
         options: [
           { label: "Receive Time", value: "receiveTime" },
@@ -53,7 +53,7 @@ const makeRootSeriesNode = memoizeWeak((paths: PlotPath[]): SettingsTreeNode => 
     paths.map((path, index) => [`${index}`, makeSeriesNode(path, index)]),
   );
   return {
-    label: "Series",
+    label: "series",
     children,
     actions: [{ type: "action", id: "add-series", label: "Add series" }],
   };
@@ -73,11 +73,11 @@ function buildSettingsTree(config: PlotConfig, enableSeries: boolean): SettingsT
 
   return {
     general: {
-      label: "General",
+      label: "general",
       icon: "Settings",
       fields: {
-        title: { label: "Title", input: "string", value: config.title, placeholder: "Plot" },
-        isSynced: { label: "Sync with other plots", input: "boolean", value: config.isSynced },
+        title: { label: "title", input: "string", value: config.title, placeholder: "Plot" },
+        isSynced: { label: "syncWithOtherPlots", input: "boolean", value: config.isSynced },
         legendDisplay: enableSeries
           ? undefined
           : {
@@ -104,7 +104,7 @@ function buildSettingsTree(config: PlotConfig, enableSeries: boolean): SettingsT
       defaultExpansionState: "collapsed",
       fields: {
         showYAxisLabels: {
-          label: "Show labels",
+          label: "showLabels",
           input: "boolean",
           value: config.showYAxisLabels,
         },
@@ -128,7 +128,7 @@ function buildSettingsTree(config: PlotConfig, enableSeries: boolean): SettingsT
       defaultExpansionState: "collapsed",
       fields: {
         showXAxisLabels: {
-          label: "Show labels",
+          label: "showLabels",
           input: "boolean",
           value: config.showXAxisLabels,
         },
@@ -146,7 +146,7 @@ function buildSettingsTree(config: PlotConfig, enableSeries: boolean): SettingsT
           placeholder: "auto",
         },
         followingViewWidth: {
-          label: "Range (seconds)",
+          label: "rangeSecond",
           input: "number",
           placeholder: "auto",
           value: config.followingViewWidth,

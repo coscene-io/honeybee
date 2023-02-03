@@ -15,6 +15,7 @@ import { Button, Typography, styled as muiStyled, OutlinedInput } from "@mui/mat
 import produce from "immer";
 import { set } from "lodash";
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useRethrow } from "@foxglove/hooks";
 import { SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
@@ -52,10 +53,10 @@ function buildSettingsTree(config: Config): SettingsTreeNodes {
     general: {
       icon: "Settings",
       fields: {
-        advancedView: { label: "Editing Mode", input: "boolean", value: config.advancedView },
-        buttonText: { label: "Button Title", input: "string", value: config.buttonText },
-        buttonTooltip: { label: "Button Tooltip", input: "string", value: config.buttonTooltip },
-        buttonColor: { label: "Button Color", input: "rgb", value: config.buttonColor },
+        advancedView: { label: "editingMode", input: "boolean", value: config.advancedView },
+        buttonText: { label: "buttonTitle", input: "string", value: config.buttonText },
+        buttonTooltip: { label: "buttonTooltip", input: "string", value: config.buttonTooltip },
+        buttonColor: { label: "buttonColor", input: "rgb", value: config.buttonColor },
       },
     },
   };
@@ -126,6 +127,8 @@ function parseInput(value: string): { error?: string; parsedObject?: unknown } {
 
 function Publish(props: Props) {
   const { topics, datatypes, capabilities } = useDataSourceInfo();
+  const { t } = useTranslation("publish");
+
   const {
     config: {
       topicName = "",
@@ -236,7 +239,7 @@ function Publish(props: Props) {
           <div>
             <Stack alignItems="baseline" gap={1} padding={0.5} direction="row" flexShrink={0}>
               <Typography color="text.secondary" variant="body2" component="label">
-                Topic:
+                {t("topic")}:
               </Typography>
               <Autocomplete
                 placeholder="Choose a topic"
@@ -251,7 +254,7 @@ function Publish(props: Props) {
             </Stack>
             <Stack alignItems="baseline" gap={1} padding={0.5} direction="row" flexShrink={0}>
               <Typography color="text.secondary" variant="body2" component="label">
-                Datatype:
+                {t("datatype")}:
               </Typography>
               <Autocomplete
                 clearOnFocus

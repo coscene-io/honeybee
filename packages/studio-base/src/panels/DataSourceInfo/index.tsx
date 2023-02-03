@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Box, Divider } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import CopyButton from "@foxglove/studio-base/components/CopyButton";
@@ -108,6 +109,7 @@ const MemoTopicRow = React.memo(TopicRow);
 
 function SourceInfo(): JSX.Element {
   const { classes } = useStyles();
+  const { t } = useTranslation("dataSource");
 
   const topics = useMessagePipeline(selectSortedTopics);
   const startTime = useMessagePipeline(selectStartTime);
@@ -117,7 +119,7 @@ function SourceInfo(): JSX.Element {
     return (
       <>
         <PanelToolbar helpContent={helpContent} />
-        <EmptyState>Waiting for data...</EmptyState>
+        <EmptyState>{t("waitData")}</EmptyState>
       </>
     );
   }
@@ -133,10 +135,10 @@ function SourceInfo(): JSX.Element {
       <table className={classes.table}>
         <thead>
           <tr>
-            <th>Topic Name</th>
-            <th>Datatype</th>
-            <th>Message count</th>
-            <th>Frequency</th>
+            <th>{t("topicName")}</th>
+            <th>{t("datatype")}</th>
+            <th>{t("messageCount")}</th>
+            <th>{t("frequency")}</th>
           </tr>
         </thead>
         <tbody>

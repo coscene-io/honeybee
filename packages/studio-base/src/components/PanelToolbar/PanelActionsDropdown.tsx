@@ -22,6 +22,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Divider, Menu, MenuItem } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { MosaicContext, MosaicNode, MosaicWindowContext } from "react-mosaic-component";
 import { makeStyles } from "tss-react/mui";
 
@@ -61,6 +62,8 @@ const useStyles = makeStyles()((theme) => ({
 
 export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
   const { classes, cx } = useStyles();
+  const { t } = useTranslation("addPanel");
+
   const [menuAnchorEl, setMenuAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const [subMenuAnchorEl, setSubmenuAnchorEl] = useState<undefined | HTMLElement>(undefined);
 
@@ -148,13 +151,13 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
       items.push(
         {
           key: "hsplit",
-          text: "Split horizontal",
+          text: "splitHorizontal",
           icon: <SplitHorizontal20Regular />,
           onClick: () => split(panelContext?.id, "column"),
         },
         {
           key: "vsplit",
-          text: "Split vertical",
+          text: "splitVertical",
           icon: <SplitVertical20Regular />,
           onClick: () => split(panelContext?.id, "row"),
         },
@@ -164,7 +167,7 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
     if (panelContext?.isFullscreen !== true) {
       items.push({
         key: "enter-fullscreen",
-        text: "Fullscreen",
+        text: "fullScreen",
         icon: <FullScreenMaximize20Regular />,
         onClick: enterFullscreen,
         "data-testid": "panel-menu-fullscreen",
@@ -175,7 +178,7 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
 
     items.push({
       key: "remove",
-      text: "Remove panel",
+      text: "removePanel",
       icon: <Delete20Regular />,
       onClick: close,
       "data-testid": "panel-menu-remove",
@@ -235,7 +238,7 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
           onMouseEnter={handleSubmenuMouseEnter}
         >
           <ShapeSubtract20Regular />
-          Change Panel
+          {t("changePanel")}
           <ChevronRightIcon className={classes.icon} fontSize="small" />
         </MenuItem>
         <ChangePanelMenu anchorEl={subMenuAnchorEl} onClose={handleSubmenuClose} tabId={tabId} />
@@ -255,7 +258,7 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
               data-testid={item["data-testid"]}
             >
               {item.icon}
-              {item.text}
+              {item.text && t(item.text)}
             </MenuItem>
           ),
         )}

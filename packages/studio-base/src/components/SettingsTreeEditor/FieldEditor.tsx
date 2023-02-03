@@ -16,6 +16,7 @@ import {
   TextField,
   ListProps,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { DeepReadonly } from "ts-essentials";
 import { makeStyles } from "tss-react/mui";
 import { v4 as uuid } from "uuid";
@@ -386,6 +387,7 @@ function FieldInput({
 
 function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.Element {
   const { classes } = useStyles();
+  const { t } = useTranslation("addPanel");
 
   if (field.input === "vec2") {
     const labels = field.labels ?? ["X", "Y"];
@@ -455,7 +457,7 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
           title={field.help ?? field.label}
           variant="subtitle2"
         >
-          {field.label}
+          {t(field.label)}
         </Typography>
       </>
     );

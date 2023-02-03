@@ -44,11 +44,11 @@ type Config = {
 
 function buildSettingsTree(config: Config, topics: readonly Topic[]): SettingsTreeNodes {
   const general: SettingsTreeNode = {
-    label: "General",
+    label: "general",
     fields: {
-      publishRate: { label: "Publish Rate", input: "number", value: config.publishRate },
+      publishRate: { label: "publishRate", input: "number", value: config.publishRate },
       topic: {
-        label: "Topic",
+        label: "topic",
         input: "autocomplete",
         value: config.topic,
         items: topics.map((t) => t.name),
@@ -56,51 +56,51 @@ function buildSettingsTree(config: Config, topics: readonly Topic[]): SettingsTr
     },
     children: {
       upButton: {
-        label: "Up Button",
+        label: "upButton",
         fields: {
           field: {
-            label: "Field",
+            label: "field",
             input: "select",
             value: config.upButton.field,
             options: geometryMsgOptions,
           },
-          value: { label: "Value", input: "number", value: config.upButton.value },
+          value: { label: "value", input: "number", value: config.upButton.value },
         },
       },
       downButton: {
-        label: "Down Button",
+        label: "downButton",
         fields: {
           field: {
-            label: "Field",
+            label: "field",
             input: "select",
             value: config.downButton.field,
             options: geometryMsgOptions,
           },
-          value: { label: "Value", input: "number", value: config.downButton.value },
+          value: { label: "value", input: "number", value: config.downButton.value },
         },
       },
       leftButton: {
-        label: "Left Button",
+        label: "leftButton",
         fields: {
           field: {
-            label: "Field",
+            label: "field",
             input: "select",
             value: config.leftButton.field,
             options: geometryMsgOptions,
           },
-          value: { label: "Value", input: "number", value: config.leftButton.value },
+          value: { label: "value", input: "number", value: config.leftButton.value },
         },
       },
       rightButton: {
-        label: "Right Button",
+        label: "rightButton",
         fields: {
           field: {
-            label: "Field",
+            label: "field",
             input: "select",
             value: config.rightButton.field,
             options: geometryMsgOptions,
           },
-          value: { label: "Value", input: "number", value: config.rightButton.value },
+          value: { label: "value", input: "number", value: config.rightButton.value },
         },
       },
     },

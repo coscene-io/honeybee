@@ -37,7 +37,7 @@ function buildSettingsTree(config: VariableSliderConfig): SettingsTreeNodes {
           value: config.sliderProps.step,
         },
         globalVariableName: {
-          label: "Variable name",
+          label: "variableName",
           input: "string",
           value: config.globalVariableName,
         },
