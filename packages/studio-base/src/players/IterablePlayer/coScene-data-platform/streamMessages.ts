@@ -8,7 +8,7 @@ import { isEqual } from "lodash";
 
 import Logger from "@foxglove/log";
 import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/mcap-support";
-import { fromNanoSec, toRFC3339String, Time } from "@foxglove/rostime";
+import { fromNanoSec, Time, toMillis } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
 import CoSceneConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
@@ -202,8 +202,8 @@ export async function* streamMessages({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        start: toRFC3339String(params.start),
-        end: toRFC3339String(params.end),
+        start: toMillis(params.start),
+        end: toMillis(params.end),
         topics: params.topics,
       }),
     });
