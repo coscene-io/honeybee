@@ -7,6 +7,4 @@ export default {
   sync: "Sync",
   online: "Online",
   offline: "Offline",
-  gsLayout: "GS Layout",
-  knLayout: "KN Layout",
 };
