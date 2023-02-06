@@ -24,7 +24,7 @@ export default {
   teleop: "Teleop",
   topicGraph: "Topic Graph",
   urdfViewer: "URDF Viewer",
-  variableSilder: "Variable Silder",
+  variableSlider: "Variable Slider",
   publish: "Publish",
   parameters: "Parameters",
   studioPlaybackPerformance: "Studio - Playback Performance",

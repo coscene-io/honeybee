@@ -100,52 +100,8 @@ type PanelItemProps = {
   mode?: "grid" | "list";
   panel: {
     type: string;
-    title:
-      | "studioPlaybackPerformance"
-      | "3D"
-      | "dataSourceInfo"
-      | "diagnosticsDetail"
-      | "gauge"
-      | "diagnosticsSummary"
-      | "image"
-      | "indicator"
-      | "log"
-      | "map"
-      | "parameters"
-      | "plot"
-      | "publish"
-      | "rawMessage"
-      | "stateTransition"
-      | "tab"
-      | "urdfViewer"
-      | "userScript"
-      | "variableSilder"
-      | "table"
-      | "teleop"
-      | "topicGraph";
-    description?:
-      | "threeDDescription"
-      | "diagnoticsDetailDesciption"
-      | "diagnosticsSummaryDecription"
-      | "imageDescription"
-      | "gaugeDescription"
-      | "indicatorDescription"
-      | "teleopDescription"
-      | "mapDescription"
-      | "parametersDescription"
-      | "plotDescription"
-      | "publishDescription"
-      | "rawMessageDescription"
-      | "logDescription"
-      | "stateDescription"
-      | "tableDescription"
-      | "urdfDescription"
-      | "topicGraphDescription"
-      | "dataSourceDescription"
-      | "variableDescription"
-      | "userScriptDescription"
-      | "tabDescription"
-      | "studioDescription";
+    title: string;
+    description?: string | undefined;
     config?: PanelConfig;
     relatedConfigs?: SavedProps;
     thumbnail?: string;
@@ -180,6 +136,167 @@ function DraggablePanelItem({
   const { classes } = useStyles();
   const { t } = useTranslation("addPanel");
 
+  const panelItemDisplay = (item: string): string => {
+    switch (item) {
+      case "setting":
+      case "level":
+      case "addPanel":
+      case "impExpSetting":
+      case "reset":
+      case "displayFrame":
+      case "followMode":
+      case "renderStats":
+      case "background":
+      case "labelScale":
+      case "ignoreTag":
+      case "syncCamera":
+      case "meshUpAxis":
+      case "view":
+      case "editable":
+      case "labels":
+      case "labelSize":
+      case "axisScale":
+      case "lineWidth":
+      case "lineColor":
+      case "addGrid":
+      case "addFormat":
+      case "type":
+      case "topic":
+      case "dataSourceInfo":
+      case "changePanel":
+      case "splitHorizontal":
+      case "splitVertical":
+      case "fullScreen":
+      case "removePanel":
+      case "diagnosticsDetail":
+      case "diagnosticsSummary":
+      case "general":
+      case "numericPrecision":
+      case "sortByLevel":
+      case "gauge":
+      case "data":
+      case "minimum":
+      case "maxiMum":
+      case "colorMode":
+      case "colorMap":
+      case "reverse":
+      case "image":
+      case "cameraTopic":
+      case "transformMarkers":
+      case "synchronizeTimestamps":
+      case "bilinearSmoothing":
+      case "flipHorizontal":
+      case "flipVertical":
+      case "rotation":
+      case "minimumValue":
+      case "maximumValue":
+      case "markers":
+      case "indicator":
+      case "indicatorPanelSettings":
+      case "style":
+      case "rules":
+      case "comparison":
+      case "comparisonWith":
+      case "color":
+      case "label":
+      case "otherwise":
+      case "legacyPlot":
+      case "legacyPlotPanelSettings":
+      case "log":
+      case "logPanelSettings":
+      case "map":
+      case "mapPanelSettings":
+      case "tileLayer":
+      case "followTopic":
+      case "topics":
+      case "parameters":
+      case "parametersPanelSettings":
+      case "plot":
+      case "plotPanelSettings":
+      case "title":
+      case "syncWithOtherPlots":
+      case "showLabels":
+      case "rangeSecond":
+      case "series":
+      case "path":
+      case "timeStamp":
+      case "publish":
+      case "publishPanelSettings":
+      case "editingMode":
+      case "buttonTitle":
+      case "buttonTooltip":
+      case "buttonColor":
+      case "rawMessage":
+      case "rawMessagePanelSettings":
+      case "stateTransition":
+      case "stateTransitionPanelSettings":
+      case "studioPlaybackPerformance":
+      case "studioPlaybackPerformancePanelSettings":
+      case "tab":
+      case "tabPanelSettings":
+      case "table":
+      case "tablePanelSettings":
+      case "teleop":
+      case "teleopPanelSettings":
+      case "publishRate":
+      case "upButton":
+      case "downButton":
+      case "leftButton":
+      case "rightButton":
+      case "field":
+      case "value":
+      case "topicGraph":
+      case "topicGraphPanelSettings":
+      case "urdfViewer":
+      case "urdfViewerPanelSettings":
+      case "asset":
+      case "opacity":
+      case "manualControl":
+      case "userScript":
+      case "userScriptPanelSettings":
+      case "autoSave":
+      case "variableSlider":
+      case "variableSliderPanelSettings":
+      case "variableName":
+      case "selectPanelLayout":
+      case "learnMore":
+      case "studioDescription":
+        return t(item);
+
+      default:
+        return item;
+    }
+  };
+
+  const panelDescriptionDisplay = (item: string): string => {
+    switch (item) {
+      case "threeDDescription":
+      case "diagnosticsDetailDescription":
+      case "diagnosticsSummaryDescription":
+      case "imageDescription":
+      case "gaugeDescription":
+      case "indicatorDescription":
+      case "teleopDescription":
+      case "mapDescription":
+      case "parametersDescription":
+      case "plotDescription":
+      case "publishDescription":
+      case "rawMessageDescription":
+      case "logDescription":
+      case "stateDescription":
+      case "tableDescription":
+      case "urdfDescription":
+      case "topicGraphDescription":
+      case "dataSourceDescription":
+      case "variableDescription":
+      case "userScriptDescription":
+      case "tabDescription":
+      case "studioDescription":
+        return t(item);
+      default:
+        return item;
+    }
+  };
   const scrollRef = React.useRef<HTMLElement>(ReactNull);
   const [, connectDragSource] = useDrag<unknown, MosaicDropResult, never>({
     type: MosaicDragType.WINDOW,
@@ -229,9 +346,12 @@ function DraggablePanelItem({
     [connectDragSource, scrollRef],
   );
 
-  const targetString = panel.extensionNamespace
-    ? `${panel.title} [${panel.extensionNamespace}]`
-    : panel.title;
+  const targetString = () => {
+    if (panel.extensionNamespace) {
+      return `${panel.title} [${panel.extensionNamespace}]`;
+    }
+    return panelItemDisplay(panel.title);
+  };
 
   const onClickWithStopPropagation = useCallback(
     (event: React.MouseEvent) => {
@@ -259,14 +379,12 @@ function DraggablePanelItem({
               <CardContent className={classes.cardContent}>
                 <Typography variant="subtitle2" gutterBottom>
                   <span data-testid={`panel-menu-item ${panel.title}`}>
-                    {/* TODO 检查 */}
-                    <TextHighlight targetStr={t(targetString)} searchText={searchQuery} />
-                    {console.log("targetString", targetString)}
+                    <TextHighlight targetStr={targetString()} searchText={searchQuery} />
                   </span>
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   <TextHighlight
-                    targetStr={panel.description ? t(panel.description) : ""}
+                    targetStr={panel.description ? panelDescriptionDisplay(panel.description) : ""}
                     searchText={searchQuery}
                   />
                 </Typography>
@@ -287,10 +405,10 @@ function DraggablePanelItem({
               {panel.thumbnail != undefined && <img src={panel.thumbnail} alt={panel.title} />}
               <Stack padding={1} gap={0.5}>
                 <Typography variant="body2" fontWeight="bold">
-                  {panel.title}
+                  {targetString()}
                 </Typography>
                 <Typography variant="body2" style={{ opacity: 0.6 }}>
-                  {panel.description}
+                  {panel.description ? panelDescriptionDisplay(panel.description) : ""}
                 </Typography>
               </Stack>
             </Stack>
@@ -306,8 +424,7 @@ function DraggablePanelItem({
               <ListItemText
                 primary={
                   <span data-testid={`panel-menu-item ${panel.title}`}>
-                    <TextHighlight targetStr={t(targetString)} searchText={searchQuery} />
-                    {console.log("des2222", targetString)}
+                    <TextHighlight targetStr={targetString()} searchText={searchQuery} />
                   </span>
                 }
                 primaryTypographyProps={{ fontWeight: checked ? "bold" : undefined }}

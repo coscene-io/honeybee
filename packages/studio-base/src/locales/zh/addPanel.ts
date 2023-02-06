@@ -16,7 +16,7 @@ export default {
   labelScale: "标签范围",
   ignoreTag: '忽视 COLLADA <up_axis>"',
   syncCamera: "同步相机",
-  meshupAxis: "向上轴",
+  meshUpAxis: "向上轴",
 
   view: "视图",
 
@@ -160,16 +160,16 @@ export default {
   userScriptPanelSettings: "用户脚本面板设置",
   autoSave: "自动保存格式化",
 
-  variableSilder: "可变滑块",
-  variableSilderPanelSettings: "可变滑块设置",
+  variableSlider: "可变滑块",
+  variableSliderPanelSettings: "可变滑块设置",
   variableName: "变量名",
 
   selectPanelLayout: "选择以下面板加入你的布局.",
   learnMore: "查看更多",
 
   threeDDescription: "在 3D 场景中显示标记、相机图像、网格、URDF 等。",
-  diagnoticsDetailDesciption: "显示特定 hardware_id 的 ROS DiagnosticArray 消息。",
-  diagnosticsSummaryDecription: "显示所有 ROS DiagnosticArray 消息的摘要。",
+  diagnosticsDetailDescription: "显示特定 hardware_id 的 ROS DiagnosticArray 消息。",
+  diagnosticsSummaryDescription: "显示所有 ROS DiagnosticArray 消息的摘要。",
   imageDescription: "显示带注释的图像。",
   gaugeDescription: "显示基于连续值的彩色仪表。",
   indicatorDescription: "根据阈值显示彩色和/或文本指示器。",

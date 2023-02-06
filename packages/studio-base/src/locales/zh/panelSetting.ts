@@ -24,7 +24,7 @@ export default {
   teleop: "远程操作",
   topicGraph: "主题图",
   urdfViewer: "URDF 查看器",
-  variableSilder: "可变滑块",
+  variableSlider: "可变滑块",
   publish: "发布",
   parameters: "参数",
   studioPlaybackPerformance: "Studio - 回放性能",

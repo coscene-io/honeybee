@@ -577,12 +577,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     () => getMessagePipeline().playerState.activeData ?? {},
     [getMessagePipeline],
   );
-  // TODO 删除
-  localStorage.setItem(
-    "coScene_org_jwt",
-    "Bearer eyJraWQiOiI2YmE0N2Y0My02MWZkLTRlOGYtODhjMy05MTZjZTU3YjZlY2IiLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIzNzMwMzViNi0yNDcxLTRkNDAtOWE2Ny0zNjRmMDkxOTJhOWUiLCJpc3MiOiJodHRwczovL2FwaS5jb3NjZW5lLmRldi9zdXBlcnRva2Vucy1zZXJ2ZXIvYXV0aCIsImV4cCI6MTY3NTQ5ODU5MCwidXNlcklkIjoiMzczMDM1YjYtMjQ3MS00ZDQwLTlhNjctMzY0ZjA5MTkyYTllIiwiaWF0IjoxNjc1NDEyMTg5LCJvcmdJZCI6IjNkZDc2ZmYyLTgzOWQtNDlhMy04MmFmLTY2MzQyMmI2OWIwMSJ9.FXgJyYulETh6Lta269DzCnAFdT1WKrVRhnuR8nEeFFM1-7hYxUcs6w_4AyAkCbxwEjYF9tvOaZefPkvwypCKJYW-_suwv4hOppTl_wIB4kdWEqyQ1z7FYIwPxuBVp6q1tWgM1W7nxsf3m__ORC88RpOpE7PFYeOXUvbFwZCUqR9npzBYUzQo4VznFS6lWJPinPgraeQ2yHso7nGSOXrWmvlr7G0lWxNR35gAlzW0G1tN5HJeHePKJr3cHyJz-_k5bdDLTO9pYV5WQkQPG3PcVXxH6K0erMF77UUZbSNKlN2FhTGqYNuyDf1WFiQxzwbdSKzrbyyFuyPD-FwwxB8VAg",
-  );
-  console.log(localStorage);
 
   return (
     <MultiProvider

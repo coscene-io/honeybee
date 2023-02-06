@@ -7,5 +7,5 @@ export default {
   syncLayout: "多个设备同步布局",
   shareLayout: "分享你的布局",
   manageData: "管理和存储机器人数据",
-  signin: "登录",
+  signIn: "登录",
 };

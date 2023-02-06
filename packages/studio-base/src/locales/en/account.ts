@@ -7,5 +7,5 @@ export default {
   syncLayout: "Sync your layouts across multiple devices",
   shareLayout: "Share your layouts with others",
   manageData: "Manage and store your robotics data",
-  signin: "Sign in",
+  signIn: "Sign in",
 };

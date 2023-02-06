@@ -19,7 +19,7 @@ export default {
   labelScale: "Label scale",
   ignoreTag: 'Ignore COLLADA <up_axis>"',
   syncCamera: "Sync Camera",
-  meshupAxis: "Mesh up axis",
+  meshUpAxis: "Mesh up axis",
 
   view: "View",
 
@@ -159,16 +159,16 @@ export default {
   userScriptPanelSettings: "userScript panel settings",
   autoSave: "Auto-format on save",
 
-  variableSilder: "Variable Silder",
-  variableSilderPanelSettings: "variableSilder panel settings",
+  variableSlider: "Variable Slider",
+  variableSliderPanelSettings: "variableSlider panel settings",
   variableName: "Variable name",
 
   selectPanelLayout: "Select a panel below to add it to your layout.",
   learnMore: "Learn more",
 
   threeDDescription: "Display markers, camera images, meshes, URDFs, and more in a 3D scene.",
-  diagnoticsDetailDesciption: "Display ROS DiagnosticArray messages for a specific hardware_id.",
-  diagnosticsSummaryDecription: "Display a summary of all ROS DiagnosticArray messages.",
+  diagnosticsDetailDescription: "Display ROS DiagnosticArray messages for a specific hardware_id.",
+  diagnosticsSummaryDescription: "Display a summary of all ROS DiagnosticArray messages.",
   imageDescription: "Display annotated images.",
   gaugeDescription: "Display a colored gauge based on a continuous value.",
   indicatorDescription: "Display a colored and/or textual indicator based on a threshold value.",

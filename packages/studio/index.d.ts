@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import addPanel from "@foxglove/studio-base/locales/en/addPanel";
+// import addPanel from "@foxglove/studio-base/locales/en/addPanel";
 
 declare module "@foxglove/studio" {
   // Valid types for parameter data (such as rosparams)
@@ -406,7 +406,44 @@ declare module "@foxglove/studio" {
     activate: ExtensionActivate;
   }
 
-  export type SettingsIcon = keyof typeof addPanel;
+  // export type SettingsIcon = keyof typeof addPanel;
+  export type SettingsIcon =
+    | "Add"
+    | "Background"
+    | "Camera"
+    | "Cells"
+    | "Check"
+    | "Circle"
+    | "Clock"
+    | "Collapse"
+    | "Cube"
+    | "Delete"
+    | "Expand"
+    | "Flag"
+    | "Folder"
+    | "FolderOpen"
+    | "Grid"
+    | "Hive"
+    | "ImageProjection"
+    | "Map"
+    | "Move"
+    | "MoveDown"
+    | "MoveUp"
+    | "NorthWest"
+    | "Note"
+    | "NoteFilled"
+    | "Points"
+    | "PrecisionManufacturing"
+    | "Radar"
+    | "Settings"
+    | "Shapes"
+    | "Share"
+    | "Star"
+    | "SouthEast"
+    | "Timeline"
+    | "Topic"
+    | "Walk"
+    | "World";
 
   /**
    * A settings tree field specifies the input type and the value of a field
