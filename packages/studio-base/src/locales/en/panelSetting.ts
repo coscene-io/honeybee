@@ -10,7 +10,7 @@ export default {
   dataSourceInfo: "Data Source Info",
   diagnosticsDetail: "Diagnostics – Detail (ROS)",
   diagnosticsSummary: "Diagnostics – Summary (ROS)",
-  guage: "Gauge",
+  gauge: "Gauge",
   image: "Image",
   indicator: "Indicator",
   legacyPlot: "Legacy Plot",

@@ -10,7 +10,7 @@ export default {
   dataSourceInfo: "数据源信息",
   diagnosticsDetail: "诊断 – 详情 (ROS)",
   diagnosticsSummary: "诊断 – 总结 (ROS)",
-  guage: "轨距",
+  gauge: "轨距",
   image: "图片",
   indicator: "指标",
   legacyPlot: "传统图表",

@@ -100,8 +100,52 @@ type PanelItemProps = {
   mode?: "grid" | "list";
   panel: {
     type: string;
-    title: string;
-    description?: string;
+    title:
+      | "studioPlaybackPerformance"
+      | "3D"
+      | "dataSourceInfo"
+      | "diagnosticsDetail"
+      | "gauge"
+      | "diagnosticsSummary"
+      | "image"
+      | "indicator"
+      | "log"
+      | "map"
+      | "parameters"
+      | "plot"
+      | "publish"
+      | "rawMessage"
+      | "stateTransition"
+      | "tab"
+      | "urdfViewer"
+      | "userScript"
+      | "variableSilder"
+      | "table"
+      | "teleop"
+      | "topicGraph";
+    description?:
+      | "threeDDescription"
+      | "diagnoticsDetailDesciption"
+      | "diagnosticsSummaryDecription"
+      | "imageDescription"
+      | "gaugeDescription"
+      | "indicatorDescription"
+      | "teleopDescription"
+      | "mapDescription"
+      | "parametersDescription"
+      | "plotDescription"
+      | "publishDescription"
+      | "rawMessageDescription"
+      | "logDescription"
+      | "stateDescription"
+      | "tableDescription"
+      | "urdfDescription"
+      | "topicGraphDescription"
+      | "dataSourceDescription"
+      | "variableDescription"
+      | "userScriptDescription"
+      | "tabDescription"
+      | "studioDescription";
     config?: PanelConfig;
     relatedConfigs?: SavedProps;
     thumbnail?: string;
@@ -215,7 +259,9 @@ function DraggablePanelItem({
               <CardContent className={classes.cardContent}>
                 <Typography variant="subtitle2" gutterBottom>
                   <span data-testid={`panel-menu-item ${panel.title}`}>
+                    {/* TODO 检查 */}
                     <TextHighlight targetStr={t(targetString)} searchText={searchQuery} />
+                    {console.log("targetString", targetString)}
                   </span>
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -261,6 +307,7 @@ function DraggablePanelItem({
                 primary={
                   <span data-testid={`panel-menu-item ${panel.title}`}>
                     <TextHighlight targetStr={t(targetString)} searchText={searchQuery} />
+                    {console.log("des2222", targetString)}
                   </span>
                 }
                 primaryTypographyProps={{ fontWeight: checked ? "bold" : undefined }}

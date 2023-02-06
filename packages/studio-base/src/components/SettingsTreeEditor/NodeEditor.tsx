@@ -19,6 +19,7 @@ import { filterMap } from "@foxglove/den/collection";
 import { SettingsTreeAction, SettingsTreeNode } from "@foxglove/studio";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import Stack from "@foxglove/studio-base/components/Stack";
+import addPanel from "@foxglove/studio-base/locales/en/addPanel";
 
 import { FieldEditor } from "./FieldEditor";
 import { NodeActionsMenu } from "./NodeActionsMenu";
@@ -268,6 +269,17 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
     [toggleEditing],
   );
 
+  const settingsLabelsDisplay = () => {
+    if (settings.label != undefined) {
+      if ((addPanel as { [string]: string })[settings.label]) {
+        return t(settings.label);
+      } else {
+        return settings.label;
+      }
+    }
+    return "General";
+  };
+
   return (
     <>
       <div className={cx(classes.nodeHeader, { [classes.nodeHeaderVisible]: visible })}>
@@ -327,10 +339,8 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
               fontWeight={indent < 2 ? 600 : 400}
               color={visible ? "text.primary" : "text.disabled"}
             >
-              <HighlightedText
-                text={settings.label ? t(settings.label) : "General"}
-                highlight={filter}
-              />
+              <HighlightedText text={settingsLabelsDisplay()} highlight={filter} />
+              {console.log("11111", settings.label)}
             </Typography>
           )}
         </div>

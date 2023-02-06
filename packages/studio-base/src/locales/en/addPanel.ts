@@ -56,7 +56,7 @@ export default {
   numericPrecision: "Numeric precision",
   sortByLevel: "Sort By Level",
 
-  guage: "Gauge",
+  gauge: "Gauge",
   data: "Data",
   minimum: "Minimum",
   maxiMum: "Maximum",
@@ -170,7 +170,7 @@ export default {
   diagnoticsDetailDesciption: "Display ROS DiagnosticArray messages for a specific hardware_id.",
   diagnosticsSummaryDecription: "Display a summary of all ROS DiagnosticArray messages.",
   imageDescription: "Display annotated images.",
-  guageDescription: "Display a colored gauge based on a continuous value.",
+  gaugeDescription: "Display a colored gauge based on a continuous value.",
   indicatorDescription: "Display a colored and/or textual indicator based on a threshold value.",
   teleopDescription: "Teleoperate a robot over a live connection.",
   mapDescription: "Display points on a map.",
@@ -183,7 +183,7 @@ export default {
   tableDescription: "Display topic messages in a tabular format.",
   urdfDescription: "Visualize Unified Robot Description Format files.",
   topicGraphDescription: "Display a graph of active nodes, topics, and services.",
-  dataSourceDesciption: "View details like topics and timestamps for the current data source.",
+  dataSourceDescription: "View details like topics and timestamps for the current data source.",
   variableDescription: "Update numerical variable values for a layout.",
   userScriptDescription:
     "Write custom data transformations in TypeScript. Previously known as Node Playground.",
