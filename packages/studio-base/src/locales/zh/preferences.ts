@@ -31,7 +31,7 @@ export default {
   legacyPlotPanel: "传统面板绘制",
   legacyPlotPanelDescription: "开启传统面板控制",
   memoryUseIndicator: "内存使用指示",
-  memoryUseIndicatorDecription: "在导航栏展示程序内存使用",
+  memoryUseIndicatorDescription: "在导航栏展示程序内存使用",
   plotPanelSeriesInSettings: "绘制面板序列设置",
   plotPanelSeriesInSettingsDescription: "允许编辑面板数据集",
   layoutDebugging: "布局调试",

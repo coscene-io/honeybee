@@ -36,8 +36,18 @@ const useStyles = makeStyles()({
 
 type Feature = {
   key: AppSetting;
-  name: string;
-  description: string;
+  name:
+    | "studioDebugPanels"
+    | "legacyPlotPanel"
+    | "memoryUseIndicator"
+    | "plotPanelSeriesInSettings"
+    | "layoutDebugging";
+  description:
+    | "studioDebugPanelsDescription"
+    | "legacyPlotPanelDescription"
+    | "memoryUseIndicatorDescription"
+    | "plotPanelSeriesInSettingsDescription"
+    | "layoutDebuggingDescription";
 };
 
 const features: Feature[] = [
@@ -54,7 +64,7 @@ const features: Feature[] = [
   {
     key: AppSetting.ENABLE_MEMORY_USE_INDICATOR,
     name: "memoryUseIndicator",
-    description: "memoryUseIndicatorDecription",
+    description: "memoryUseIndicatorDescription",
   },
   {
     key: AppSetting.ENABLE_PLOT_PANEL_SERIES_SETTINGS,

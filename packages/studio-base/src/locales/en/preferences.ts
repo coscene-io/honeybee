@@ -31,7 +31,7 @@ export default {
   legacyPlotPanel: "Legacy plot panels",
   legacyPlotPanelDescription: "Enable the Legacy Plot panel.",
   memoryUseIndicator: "Memory use indicator",
-  memoryUseIndicatorDecription: "Show the app memory use in the sidebar.",
+  memoryUseIndicatorDescription: "Show the app memory use in the sidebar.",
   plotPanelSeriesInSettings: "Plot panel series in settings",
   plotPanelSeriesInSettingsDescription: "Allow editing plot panel data series in the sidebar.",
   layoutDebugging: "Layout debugging",
