@@ -111,7 +111,7 @@ function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
     }
 
     // Wait until player is ready before we try to seek.
-    if (playerPresence !== PlayerPresence.PRESENT) {
+    if (playerPresence !== PlayerPresence.BUFFERING) {
       return;
     }
 
