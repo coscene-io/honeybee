@@ -5,6 +5,6 @@
 export default {
   layouts: "布局",
   sync: "同步",
-  online: "上线",
+  online: "在线",
   offline: "离线",
 };

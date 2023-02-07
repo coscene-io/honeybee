@@ -34,8 +34,8 @@ export default {
   hideAll: "隐藏全部",
 
   customLayers: "自定义图层",
-  addGrid: "添加表格",
-  addFormat: "添加集成机器人描述格式(URDP)",
+  addGrid: "添加网格",
+  addFormat: "统一机器人描述格式",
 
   publish: "发布",
   type: "类型",
@@ -47,8 +47,8 @@ export default {
 
   dataSourceInfo: "数据源信息",
   changePanel: "更改面板",
-  splitHorizontal: "水平分割 ",
-  splitVertical: "垂直分割",
+  splitHorizontal: "水平拆分 ",
+  splitVertical: "垂直拆分",
   fullScreen: "全屏",
   removePanel: "删除面板",
 
@@ -57,9 +57,9 @@ export default {
 
   general: "通用",
   numericPrecision: "数值精度",
-  sortByLevel: "等级排序",
+  sortByLevel: "按级别排序",
 
-  gauge: "轨距",
+  gauge: "仪表",
   data: "数据",
   minimum: "最小",
   maxiMum: "最大",
@@ -80,17 +80,17 @@ export default {
   markers: "标记",
 
   indicator: "指标",
-  indicatorPanelSettings: "面板指标设置",
+  indicatorPanelSettings: "指标面板设置",
   style: "风格",
-  rules: "规则（第一个匹配的规则获胜）",
+  rules: "以第一个匹配的规则为准",
   comparison: "对比",
   comparisonWith: "比较",
   color: "颜色",
   label: "标签",
 
-  otherwise: "更多",
+  otherwise: "否则",
 
-  legacyPlot: "传统图表",
+  legacyPlot: "遗留图",
   legacyPlotPanelSettings: "传统图表面板设置",
 
   log: "日志",
@@ -106,7 +106,7 @@ export default {
 
   plot: "图",
   plotPanelSettings: "图面板设置",
-  title: "主题",
+  title: "标题",
   syncWithOtherPlots: "同步其他图",
   showLabels: "展示标签",
   rangeSecond: "范围 (秒)",
@@ -138,7 +138,7 @@ export default {
   teleop: "远程操作",
   teleopPanelSettings: "远程操作面板设置",
 
-  publishRate: "发布速度",
+  publishRate: "发布频率",
   upButton: "上按钮",
   downButton: "下按钮",
   leftButton: "左按钮",
@@ -161,7 +161,7 @@ export default {
   autoSave: "自动保存格式化",
 
   variableSlider: "可变滑块",
-  variableSliderPanelSettings: "可变滑块设置",
+  variableSliderPanelSettings: "可变滑块面板设置",
   variableName: "变量名",
 
   selectPanelLayout: "选择以下面板加入你的布局.",
@@ -180,7 +180,7 @@ export default {
   publishDescription: "将消息发布到数据源（仅限实时连接）。",
   rawMessageDescription: "检查主题消息。",
   logDescription: "按节点和严重级别显示日志。",
-  stateDescription: "跟踪值随时间变化。",
+  stateDescription: "当值随时间变化时跟踪",
   tableDescription: "以表格格式显示主题消息。",
   urdfDescription: "可视化统一机器人描述格式文件。",
   topicGraphDescription: "显示活动节点、主题和服务的图表。",
