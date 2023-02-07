@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+// Generic global translation
 export default {
-  datatype: "数据类型",
-  topic: "主题",
+  foxglove: "Foxglove",
 };

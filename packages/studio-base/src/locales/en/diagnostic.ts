@@ -3,8 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export default {
+  messages: "messages",
   noDiagnostic: "No diagnostic node selected",
   waitDiagnosticFrom: "Waiting for diagnostics from",
   waitFor: "Waiting for",
-  messages: "messages",
 };

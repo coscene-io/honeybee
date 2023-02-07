@@ -70,7 +70,7 @@ export function SidebarContent({
           </div>
         )}
         <Typography component="h2" variant="h4" fontWeight={800} flex="auto">
-          {t(title)}
+          {title}
         </Typography>
         {trailingItemsWithHelp.length > 0 && (
           <Stack direction="row" alignItems="center">

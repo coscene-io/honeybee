@@ -61,7 +61,7 @@ const builtin: PanelInfo[] = [
   {
     title: `diagnosticsDetail`,
     type: "DiagnosticStatusPanel",
-    description: "diagnoticsDetailDesciption",
+    description: "diagnosticsDetailDescription",
     help: DiagnosticStatusPanelHelp,
     thumbnail: diagnosticStatusThumbnail,
     module: async () => await import("./diagnostics/DiagnosticStatusPanel"),
@@ -69,7 +69,7 @@ const builtin: PanelInfo[] = [
   {
     title: `diagnosticsSummary`,
     type: "DiagnosticSummary",
-    description: "diagnosticsSummaryDecription",
+    description: "diagnosticsSummaryDescription",
     help: DiagnosticSummaryHelp,
     thumbnail: diagnosticSummaryThumbnail,
     module: async () => await import("./diagnostics/DiagnosticSummary"),
@@ -91,9 +91,9 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./Indicator"),
   },
   {
-    title: "guage",
+    title: "gauge",
     type: "Gauge",
-    description: "guageDescription",
+    description: "gaugeDescription",
     help: GaugeHelp,
     thumbnail: gaugeThumbnail,
     module: async () => await import("./Gauge"),
@@ -189,13 +189,13 @@ const builtin: PanelInfo[] = [
   {
     title: "dataSourceInfo",
     type: "SourceInfo",
-    description: "dataSourceDesciption",
+    description: "dataSourceDescription",
     help: DataSourceInfoHelp,
     thumbnail: dataSourceInfoThumbnail,
     module: async () => await import("./DataSourceInfo"),
   },
   {
-    title: "variableSilder",
+    title: "variableSlider",
     type: "GlobalVariableSliderPanel",
     description: "variableDescription",
     help: VariableSliderHelp,
