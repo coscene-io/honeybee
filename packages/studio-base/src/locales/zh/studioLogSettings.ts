@@ -3,5 +3,5 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export default {
-  studioLogsSettings: "工作室日志设置",
+  studioLogsSettings: "Studio日志设置",
 };

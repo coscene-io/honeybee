@@ -46,6 +46,7 @@ export default function PanelSettings({
   const selectedLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const singlePanelId = useCurrentLayoutSelector(singlePanelIdSelector);
   const { t } = useTranslation("panelSetting");
+
   const {
     selectedPanelIds: originalSelectedPanelIds,
     setSelectedPanelIds,
@@ -83,6 +84,40 @@ export default function PanelSettings({
     () => (panelType != undefined ? panelCatalog.getPanelByType(panelType) : undefined),
     [panelCatalog, panelType],
   );
+
+  const displayPanelInfoTitle = (item: string | undefined): string | undefined => {
+    switch (item) {
+      case "panelSettings":
+      case "selectPanel":
+      case "loadingPanel":
+      case "noSettingAvailable":
+      case "dataSourceInfo":
+      case "diagnosticsDetail":
+      case "diagnosticsSummary":
+      case "gauge":
+      case "image":
+      case "indicator":
+      case "legacyPlot":
+      case "log":
+      case "map":
+      case "plot":
+      case "rawMessage":
+      case "stateTransition":
+      case "tab":
+      case "table":
+      case "teleop":
+      case "topicGraph":
+      case "urdfViewer":
+      case "variableSlider":
+      case "publish":
+      case "parameters":
+      case "studioPlaybackPerformance":
+      case "userScript":
+        return t(item);
+      default:
+        return item;
+    }
+  };
 
   const incrementSequenceNumber = usePanelStateStore(selectIncrementSequenceNumber);
 
@@ -165,7 +200,7 @@ export default function PanelSettings({
   return (
     <SidebarContent
       disablePadding={isSettingsTree}
-      title={`${t(panelInfo.title)}${t("panelSettings")}`}
+      title={`${panelInfo.title && displayPanelInfoTitle(panelInfo.title)}${t("panelSettings")}`}
       trailingItems={[
         <ActionMenu
           key={1}

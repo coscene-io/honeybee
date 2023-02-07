@@ -4,9 +4,7 @@
 
 export default {
   layouts: "布局",
-  sync: "同步",
-  online: "上线",
   offline: "离线",
-  gsLayout: "GS 布局",
-  knLayout: "KN 布局",
+  online: "在线",
+  sync: "同步",
 };

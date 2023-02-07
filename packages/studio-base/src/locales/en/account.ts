@@ -4,8 +4,8 @@
 
 export default {
   intro: "Create a Foxglove account to:",
-  syncLayout: "Sync your layouts across multiple devices",
-  shareLayout: "Share your layouts with others",
   manageData: "Manage and store your robotics data",
-  signin: "Sign in",
+  shareLayout: "Share your layouts with others",
+  signIn: "Sign in",
+  syncLayout: "Sync your layouts across multiple devices",
 };

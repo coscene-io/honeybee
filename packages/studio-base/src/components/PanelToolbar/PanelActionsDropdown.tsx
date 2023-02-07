@@ -94,6 +94,137 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
     setMenuAnchorEl(undefined);
   };
 
+  const displayItemText = (itemText: string): string => {
+    switch (itemText) {
+      case "setting":
+      case "level":
+      case "addPanel":
+      case "impExpSetting":
+      case "reset":
+      case "displayFrame":
+      case "followMode":
+      case "renderStats":
+      case "background":
+      case "labelScale":
+      case "ignoreTag":
+      case "syncCamera":
+      case "meshUpAxis":
+      case "view":
+      case "editable":
+      case "labels":
+      case "labelSize":
+      case "axisScale":
+      case "lineWidth":
+      case "lineColor":
+      case "addGrid":
+      case "addFormat":
+      case "type":
+      case "topic":
+      case "dataSourceInfo":
+      case "changePanel":
+      case "splitHorizontal":
+      case "splitVertical":
+      case "fullScreen":
+      case "removePanel":
+      case "diagnosticsDetail":
+      case "diagnosticsSummary":
+      case "general":
+      case "numericPrecision":
+      case "sortByLevel":
+      case "gauge":
+      case "data":
+      case "minimum":
+      case "maxiMum":
+      case "colorMode":
+      case "colorMap":
+      case "reverse":
+      case "image":
+      case "cameraTopic":
+      case "transformMarkers":
+      case "synchronizeTimestamps":
+      case "bilinearSmoothing":
+      case "flipHorizontal":
+      case "flipVertical":
+      case "rotation":
+      case "minimumValue":
+      case "maximumValue":
+      case "markers":
+      case "indicator":
+      case "indicatorPanelSettings":
+      case "style":
+      case "rules":
+      case "comparison":
+      case "comparisonWith":
+      case "color":
+      case "label":
+      case "otherwise":
+      case "legacyPlot":
+      case "legacyPlotPanelSettings":
+      case "log":
+      case "logPanelSettings":
+      case "map":
+      case "mapPanelSettings":
+      case "tileLayer":
+      case "followTopic":
+      case "topics":
+      case "parameters":
+      case "parametersPanelSettings":
+      case "plot":
+      case "plotPanelSettings":
+      case "title":
+      case "syncWithOtherPlots":
+      case "showLabels":
+      case "rangeSecond":
+      case "series":
+      case "path":
+      case "timeStamp":
+      case "publish":
+      case "publishPanelSettings":
+      case "editingMode":
+      case "buttonTitle":
+      case "buttonTooltip":
+      case "buttonColor":
+      case "rawMessage":
+      case "rawMessagePanelSettings":
+      case "stateTransition":
+      case "stateTransitionPanelSettings":
+      case "studioPlaybackPerformance":
+      case "studioPlaybackPerformancePanelSettings":
+      case "tab":
+      case "tabPanelSettings":
+      case "table":
+      case "tablePanelSettings":
+      case "teleop":
+      case "teleopPanelSettings":
+      case "publishRate":
+      case "upButton":
+      case "downButton":
+      case "leftButton":
+      case "rightButton":
+      case "field":
+      case "value":
+      case "topicGraph":
+      case "topicGraphPanelSettings":
+      case "urdfViewer":
+      case "urdfViewerPanelSettings":
+      case "asset":
+      case "opacity":
+      case "manualControl":
+      case "userScript":
+      case "userScriptPanelSettings":
+      case "autoSave":
+      case "variableSlider":
+      case "variableSliderPanelSettings":
+      case "variableName":
+      case "selectPanelLayout":
+      case "learnMore":
+      case "studioDescription":
+        return t(itemText);
+      default:
+        return itemText;
+    }
+  };
+
   const handleSubmenuClick = (event: MouseEvent<HTMLElement>) => {
     if (subMenuAnchorEl !== event.currentTarget) {
       setSubmenuAnchorEl(event.currentTarget);
@@ -258,7 +389,7 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
               data-testid={item["data-testid"]}
             >
               {item.icon}
-              {item.text && t(item.text)}
+              {item.text && displayItemText(item.text)}
             </MenuItem>
           ),
         )}
