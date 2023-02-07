@@ -38,6 +38,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { useTranslation } from "react-i18next";
 
 const log = Log.getLogger(__filename);
 
@@ -88,6 +89,7 @@ const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const { onClose } = props;
   const urlState = useMessagePipeline(selectUrlState);
+  const { t } = useTranslation("moment");
 
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
@@ -222,12 +224,12 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
       <Stack paddingX={3} paddingTop={2}>
-        <Typography variant="h2">Create moment</Typography>
+        <Typography variant="h2">{t("createMoment")}</Typography>
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
         <TextField
           id="event-name"
-          label="Name"
+          label={t("name", { ns: "general" })}
           multiline
           maxRows={1}
           value={event.eventName}
@@ -241,13 +243,13 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       <Stack paddingX={3} paddingTop={2}>
         <div className={classes.grid}>
           <FormControl>
-            <FormLabel>Start Time</FormLabel>
+            <FormLabel>{t("startTime")}</FormLabel>
             <Typography paddingY={1}>{formattedStartTime}</Typography>
           </FormControl>
           <TextField
             value={event.duration ?? ""}
             fullWidth
-            label="Duration"
+            label={t("duration")}
             onChange={(ev) => {
               const duration = Number(ev.currentTarget.value);
               setEvent((oldEvent) => ({
@@ -270,7 +272,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                   }}
                 >
                   <ToggleButton className={classes.toggleButton} tabIndex={-1} value="sec">
-                    sec
+                    {t("sec")}
                   </ToggleButton>
                   {/* <ToggleButton className={classes.toggleButton} tabIndex={-1} value="nsec">
                     nsec
@@ -293,7 +295,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
         <div>
           <TextField
             id="description"
-            label="Description"
+            label={t("description")}
             multiline
             rows={2}
             value={event.description}
@@ -306,7 +308,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
         </div>
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
-        <FormLabel>Metadata</FormLabel>
+        <FormLabel>{t("metadata")}</FormLabel>
         <div className={classes.grid}>
           {event.metadataEntries.map(({ key, value }, index) => {
             const hasDuplicate = ((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
@@ -315,7 +317,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                 <TextField
                   fullWidth
                   value={key}
-                  placeholder="Key (string)"
+                  placeholder={`${t("key")} (${t("string")})`}
                   error={hasDuplicate}
                   onKeyDown={onMetaDataKeyDown}
                   onChange={(evt) => updateMetadata(index, "key", evt.currentTarget.value)}
@@ -323,7 +325,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                 <TextField
                   fullWidth
                   value={value}
-                  placeholder="Value (string)"
+                  placeholder={`${t("value")} (${t("string")})`}
                   error={hasDuplicate}
                   onKeyDown={onMetaDataKeyDown}
                   onChange={(evt) => updateMetadata(index, "value", evt.currentTarget.value)}
@@ -347,7 +349,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       </Stack>
       <DialogActions>
         <Button variant="outlined" size="large" onClick={onClose}>
-          Cancel
+          {t("cancel", { ns: "general" })}
         </Button>
         <Button
           variant="contained"
@@ -358,7 +360,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
           {createdEvent.loading && (
             <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
           )}
-          Create Moment
+          {t("createMoment")}
         </Button>
       </DialogActions>
       {duplicateKey && <Alert severity="error">Duplicate key {duplicateKey[0]}</Alert>}

@@ -5,4 +5,6 @@
 // Generic global translation
 export default {
   foxglove: "Foxglove",
+  name: "Name",
+  cancel: "Cancel",
 };
