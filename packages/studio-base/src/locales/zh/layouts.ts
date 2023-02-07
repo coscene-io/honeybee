@@ -4,7 +4,7 @@
 
 export default {
   layouts: "布局",
-  sync: "同步",
-  online: "在线",
   offline: "离线",
+  online: "在线",
+  sync: "同步",
 };

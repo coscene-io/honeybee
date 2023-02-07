@@ -4,8 +4,8 @@
 
 export default {
   intro: "创建 Foxglove 账户你可以:",
-  syncLayout: "多个设备同步布局",
-  shareLayout: "分享你的布局",
   manageData: "管理和存储机器人数据",
+  shareLayout: "分享你的布局",
   signIn: "登录",
+  syncLayout: "多个设备同步布局",
 };

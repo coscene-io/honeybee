@@ -4,7 +4,7 @@
 
 export default {
   layouts: "Layouts",
-  sync: "Sync",
-  online: "Online",
   offline: "Offline",
+  online: "Online",
+  sync: "Sync",
 };
