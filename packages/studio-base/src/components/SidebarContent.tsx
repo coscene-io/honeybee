@@ -6,7 +6,6 @@ import HelpIcon from "@mui/icons-material/Help";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { IconButton, Typography } from "@mui/material";
 import { useState, useMemo, CSSProperties, Fragment } from "react";
-import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -40,7 +39,6 @@ export function SidebarContent({
 }: React.PropsWithChildren<SidebarContentProps>): JSX.Element {
   const { classes } = useStyles();
   const [showHelp, setShowHelp] = useState<boolean>(false);
-  const { t } = useTranslation("addPanel");
 
   const trailingItemsWithHelp = useMemo(() => {
     if (helpContent != undefined) {
