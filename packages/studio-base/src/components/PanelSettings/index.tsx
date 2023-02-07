@@ -25,7 +25,6 @@ import {
   usePanelStateStore,
 } from "@foxglove/studio-base/context/PanelStateContext";
 import { useWorkspace } from "@foxglove/studio-base/context/WorkspaceContext";
-import panelSetting from "@foxglove/studio-base/locales/en/panelSetting";
 import { PanelConfig } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
@@ -201,7 +200,7 @@ export default function PanelSettings({
   return (
     <SidebarContent
       disablePadding={isSettingsTree}
-      title={`${displayPanelInfoTitle(panelInfo.title)}${t("panelSettings")}`}
+      title={`${panelInfo.title && displayPanelInfoTitle(panelInfo.title)}${t("panelSettings")}`}
       trailingItems={[
         <ActionMenu
           key={1}
