@@ -288,13 +288,13 @@ export default function CurrentLayoutProvider({
         await setSelectedLayoutId(newGs75Layout.id);
       } else {
         const newLayout = await layoutManager.saveNewLayout({
-          name: "knLayout",
+          name: "KN Layout",
           data: keenonDefaultLayout,
           permission: "CREATOR_WRITE",
         });
 
         const newGs50Layout = await layoutManager.saveNewLayout({
-          name: "gsLayout",
+          name: "GS Layout",
           data: gs50Layout,
           permission: "CREATOR_WRITE",
         });

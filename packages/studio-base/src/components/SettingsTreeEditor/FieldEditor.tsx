@@ -24,9 +24,9 @@ import { v4 as uuid } from "uuid";
 import { SettingsTreeAction, SettingsTreeField } from "@foxglove/studio";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import Stack from "@foxglove/studio-base/components/Stack";
+import addPanel from "@foxglove/studio-base/locales/en/addPanel";
 
 import { ColorPickerInput, ColorGradientInput, NumberInput, Vec3Input, Vec2Input } from "./inputs";
-
 // Used to both undefined and empty string in select inputs.
 const UNDEFINED_SENTINEL_VALUE = uuid();
 
@@ -389,6 +389,137 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
   const { classes } = useStyles();
   const { t } = useTranslation("addPanel");
 
+  const fieldLabelDisplay = () => {
+    switch (field.label) {
+      case "setting":
+      case "level":
+      case "addPanel":
+      case "impExpSetting":
+      case "reset":
+      case "displayFrame":
+      case "followMode":
+      case "renderStats":
+      case "background":
+      case "labelScale":
+      case "ignoreTag":
+      case "syncCamera":
+      case "meshUpAxis":
+      case "view":
+      case "editable":
+      case "labels":
+      case "labelSize":
+      case "axisScale":
+      case "lineWidth":
+      case "lineColor":
+      case "addGrid":
+      case "addFormat":
+      case "type":
+      case "topic":
+      case "dataSourceInfo":
+      case "changePanel":
+      case "splitHorizontal":
+      case "splitVertical":
+      case "fullScreen":
+      case "removePanel":
+      case "diagnosticsDetail":
+      case "diagnosticsSummary":
+      case "general":
+      case "numericPrecision":
+      case "sortByLevel":
+      case "gauge":
+      case "data":
+      case "minimum":
+      case "maxiMum":
+      case "colorMode":
+      case "colorMap":
+      case "reverse":
+      case "image":
+      case "cameraTopic":
+      case "transformMarkers":
+      case "synchronizeTimestamps":
+      case "bilinearSmoothing":
+      case "flipHorizontal":
+      case "flipVertical":
+      case "rotation":
+      case "minimumValue":
+      case "maximumValue":
+      case "markers":
+      case "indicator":
+      case "indicatorPanelSettings":
+      case "style":
+      case "rules":
+      case "comparison":
+      case "comparisonWith":
+      case "color":
+      case "label":
+      case "otherwise":
+      case "legacyPlot":
+      case "legacyPlotPanelSettings":
+      case "log":
+      case "logPanelSettings":
+      case "map":
+      case "mapPanelSettings":
+      case "tileLayer":
+      case "followTopic":
+      case "topics":
+      case "parameters":
+      case "parametersPanelSettings":
+      case "plot":
+      case "plotPanelSettings":
+      case "title":
+      case "syncWithOtherPlots":
+      case "showLabels":
+      case "rangeSecond":
+      case "series":
+      case "path":
+      case "timeStamp":
+      case "publish":
+      case "publishPanelSettings":
+      case "editingMode":
+      case "buttonTitle":
+      case "buttonTooltip":
+      case "buttonColor":
+      case "rawMessage":
+      case "rawMessagePanelSettings":
+      case "stateTransition":
+      case "stateTransitionPanelSettings":
+      case "studioPlaybackPerformance":
+      case "studioPlaybackPerformancePanelSettings":
+      case "tab":
+      case "tabPanelSettings":
+      case "table":
+      case "tablePanelSettings":
+      case "teleop":
+      case "teleopPanelSettings":
+      case "publishRate":
+      case "upButton":
+      case "downButton":
+      case "leftButton":
+      case "rightButton":
+      case "field":
+      case "value":
+      case "topicGraph":
+      case "topicGraphPanelSettings":
+      case "urdfViewer":
+      case "urdfViewerPanelSettings":
+      case "asset":
+      case "opacity":
+      case "manualControl":
+      case "userScript":
+      case "userScriptPanelSettings":
+      case "autoSave":
+      case "variableSlider":
+      case "variableSliderPanelSettings":
+      case "variableName":
+      case "selectPanelLayout":
+      case "learnMore":
+      case "studioDescription":
+        return t(field.label);
+      default:
+        return field.label;
+    }
+  };
+
   if (field.input === "vec2") {
     const labels = field.labels ?? ["X", "Y"];
     return (
@@ -457,7 +588,7 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
           title={field.help ?? field.label}
           variant="subtitle2"
         >
-          {t(field.label)}
+          {fieldLabelDisplay()}
         </Typography>
       </>
     );

@@ -3,9 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export default {
-  problems: "问题",
-  logs: "日志",
   clearLogs: "清除日志",
+  logs: "日志",
+  problems: "问题",
   save: "保存",
   saved: "已保存",
 };

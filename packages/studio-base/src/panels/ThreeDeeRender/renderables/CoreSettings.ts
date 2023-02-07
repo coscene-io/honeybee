@@ -158,7 +158,7 @@ export class CoreSettings extends SceneExtension {
               help: "Sync the camera with other panels that also have this setting enabled.",
             },
             meshUpAxis: {
-              label: "meshupAxis",
+              label: "meshUpAxis",
               help: "The direction to use as “up” when loading meshes without orientation info (STL and OBJ)",
               input: "select",
               value: config.scene.meshUpAxis ?? DEFAULT_MESH_UP_AXIS,

@@ -494,7 +494,7 @@ export default React.memo(function LayoutRow({
             noWrap
             style={{ display: editingName ? "none" : "block" }}
           >
-            {t(layout.name)}
+            {layout.name}
           </Typography>
         </ListItemText>
       </ListItemButton>

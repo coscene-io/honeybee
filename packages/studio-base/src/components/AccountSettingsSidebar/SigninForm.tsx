@@ -45,7 +45,7 @@ export default function SigninForm(): JSX.Element {
       </Typography>
 
       <Button variant="contained" color="primary" onClick={signIn}>
-        {t("signin")}
+        {t("signIn")}
       </Button>
     </div>
   );
