@@ -44,6 +44,7 @@ import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import { RepeatAdapter } from "./RepeatAdapter";
 import Scrubber from "./Scrubber";
 import { jumpSeek, DIRECTION } from "./sharedHelpers";
+import { useTranslation } from "react-i18next";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -75,6 +76,7 @@ export default function PlaybackControls(props: {
 }): JSX.Element {
   const { play, pause, seek, isPlaying, getTimeInfo, playUntil } = props;
   const presence = useMessagePipeline(selectPresence);
+  const { t } = useTranslation("moment");
 
   const { classes } = useStyles();
   const [repeat, setRepeat] = useState(false);
@@ -173,12 +175,12 @@ export default function PlaybackControls(props: {
           <Stack direction="row" flex={1} gap={0.5}>
             <HoverableIconButton
               size="small"
-              title="Create moment"
+              title={t("createMoment")}
               icon={<EventOutlinedIcon />}
               activeIcon={<EventIcon />}
               onClick={toggleCreateEventDialog}
             >
-              <p className={classes.createMoment}>Create moment (⎇ / ⌥ + M)</p>
+              <p className={classes.createMoment}>{`${t("createMoment")} (⎇ / ⌥ + M)`}</p>
             </HoverableIconButton>
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
           </Stack>
