@@ -115,7 +115,7 @@ export function EventsList(): JSX.Element {
           fullWidth
           value={filter}
           onChange={(event) => setFilter(event.currentTarget.value)}
-          placeholder="Search by key, value, or key:value"
+          placeholder={t("searchByKV")}
           InputProps={{
             startAdornment: <SearchIcon fontSize="small" />,
             endAdornment: filter !== "" && (

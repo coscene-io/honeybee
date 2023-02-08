@@ -169,7 +169,7 @@ export default function DataSourceSidebar(): JSX.Element {
                         alignItems="baseline"
                         gap={1}
                       >
-                        Problems
+                        {t("problem")}
                         {playerProblems.length > 0 && (
                           <ProblemCount>{playerProblems.length}</ProblemCount>
                         )}

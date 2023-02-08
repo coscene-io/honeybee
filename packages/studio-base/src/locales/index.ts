@@ -17,7 +17,6 @@ import {
   enMoment,
   enGeneral,
 } from "./en";
-
 import {
   zhPreferences,
   zhDataSource,
