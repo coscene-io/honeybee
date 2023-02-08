@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export default {
+  layout: "布局",
   layouts: "布局",
   offline: "离线",
   online: "在线",

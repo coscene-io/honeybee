@@ -4,6 +4,7 @@
 import { difference, isEqual } from "lodash";
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getNodeAtPath } from "react-mosaic-component";
 import { useAsync, useAsyncFn, useMountedState } from "react-use";
 import shallowequal from "shallowequal";
@@ -63,6 +64,7 @@ export default function CurrentLayoutProvider({
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
   const isMounted = useMountedState();
+  const { t } = useTranslation("layouts");
 
   const [mosaicId] = useState(() => uuidv4());
 
@@ -273,13 +275,13 @@ export default function CurrentLayoutProvider({
         await setSelectedLayoutId(defaultLayout.id);
       } else if (APP_CONFIG.VITE_APP_PROJECT_ENV === "gaussian") {
         const newGs50Layout = await layoutManager.saveNewLayout({
-          name: "50 Layout",
+          name: `50 ${t("layout")}`,
           data: gs50Layout,
           permission: "CREATOR_WRITE",
         });
 
         const newGs75Layout = await layoutManager.saveNewLayout({
-          name: "75 Layout",
+          name: `75 ${t("layout")}`,
           data: gs75Layout,
           permission: "CREATOR_WRITE",
         });
@@ -288,13 +290,13 @@ export default function CurrentLayoutProvider({
         await setSelectedLayoutId(newGs75Layout.id);
       } else {
         const newLayout = await layoutManager.saveNewLayout({
-          name: "KN Layout",
+          name: `KN ${t("layout")}`,
           data: keenonDefaultLayout,
           permission: "CREATOR_WRITE",
         });
 
         const newGs50Layout = await layoutManager.saveNewLayout({
-          name: "GS Layout",
+          name: `GS ${t("layout")}`,
           data: gs50Layout,
           permission: "CREATOR_WRITE",
         });
@@ -303,7 +305,7 @@ export default function CurrentLayoutProvider({
         await setSelectedLayoutId(newGs50Layout.id);
       }
     }
-  }, [getUserProfile, layoutManager, setSelectedLayoutId]);
+  }, [getUserProfile, layoutManager, setSelectedLayoutId, t]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({

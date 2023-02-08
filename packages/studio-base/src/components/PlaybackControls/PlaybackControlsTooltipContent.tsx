@@ -3,8 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Divider, Typography } from "@mui/material";
+import dayjs from "dayjs";
 import { isEmpty } from "lodash";
 import { Fragment } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { fromNanoSec, add } from "@foxglove/rostime";
@@ -20,7 +22,6 @@ import {
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formateTimeToReadableFormat } from "@foxglove/studio-base/util/time";
-import dayjs from "dayjs";
 
 export type PlaybackControlsTooltipItem =
   | { type: "divider" }
@@ -61,6 +62,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
   const hoveredBags = useTimelineInteractionState(selectHoveredBags);
   const startTime = useMessagePipeline(selectStartTime);
   const { classes } = useStyles();
+  const { t } = useTranslation("common");
 
   if (!startTime) {
     return ReactNull;
@@ -79,12 +81,12 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
 
       tooltipItems.push({
         type: "item",
-        title: "Start",
+        title: t("start"),
         value: formatTime(eventStartTime),
       });
       tooltipItems.push({
         type: "item",
-        title: "End",
+        title: t("end"),
         value: formatTime(eventEndTime),
       });
 
@@ -102,22 +104,22 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
       if (bag.startTime && bag.endTime) {
         tooltipItems.push({
           type: "item",
-          title: "Name",
+          title: t("name"),
           value: bag.displayName,
         });
         tooltipItems.push({
           type: "item",
-          title: "Start",
+          title: t("start"),
           value: formatTime(bag.startTime),
         });
         tooltipItems.push({
           type: "item",
-          title: "End",
+          title: t("end"),
           value: formatTime(bag.endTime),
         });
         tooltipItems.push({
           type: "item",
-          title: "Duration",
+          title: t("duration"),
           value: dayjs(toDate(subtractTimes(bag.endTime, bag.startTime))).format("mm[min]ss[s]"),
         });
       }
@@ -127,7 +129,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
 
   switch (timeFormat) {
     case "TOD":
-      tooltipItems.push({ type: "item", title: "Time", value: formatTime(stamp) });
+      tooltipItems.push({ type: "item", title: t("time"), value: formatTime(stamp) });
       break;
     case "SEC":
       tooltipItems.push({ type: "item", title: "SEC", value: formatTime(stamp) });
@@ -136,7 +138,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
 
   tooltipItems.push({
     type: "item",
-    title: "Elapsed",
+    title: t("elapsed"),
     value: formateTimeToReadableFormat(timeFromStart),
   });
 

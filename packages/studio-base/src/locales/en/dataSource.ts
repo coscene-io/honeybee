@@ -16,6 +16,8 @@ export default {
   more: "More",
   noMoment: "No Moments",
   playlist: "Playlist",
+  problem: "Problem",
+  searchByKV: "Search by key, value, or key:value",
   startTime: "Start time",
   topicName: "Topic Name",
   topics: "Topics",

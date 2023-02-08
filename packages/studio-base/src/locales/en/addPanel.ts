@@ -101,6 +101,7 @@ export default {
   rotation: "Rotation",
   rules: "Rules (first matching rule wins)",
   scene: "Scene",
+  searchPanel: "Search panels",
   selectPanelLayout: "Select a panel below to add it to your layout.",
   series: "Series",
   setting: "Settings",
