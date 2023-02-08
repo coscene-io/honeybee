@@ -25,7 +25,7 @@ export default {
   tab: "标签",
   table: "表",
   teleop: "远程操作",
-  topicGraph: "主题图",
+  topicGraph: "话题图",
   urdfViewer: "URDF 查看器",
   userScript: "用户脚本",
   variableSlider: "可变滑块",

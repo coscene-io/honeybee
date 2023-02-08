@@ -1,24 +1,30 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import ClearIcon from "@mui/icons-material/Clear";
+import SearchIcon from "@mui/icons-material/Search";
 import { AppBar, IconButton, TextField, Typography, CircularProgress } from "@mui/material";
+import { useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
+
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
+import Stack from "@foxglove/studio-base/components/Stack";
 import {
   CoSceneRecordStore,
   useRecord,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoSceneRecordContext";
-import ClearIcon from "@mui/icons-material/Clear";
-import SearchIcon from "@mui/icons-material/Search";
-import Stack from "@foxglove/studio-base/components/Stack";
-import { makeStyles } from "tss-react/mui";
 import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { BagView } from "./BagView";
-import {
-  MessagePipelineContext,
-  useMessagePipeline,
-} from "@foxglove/studio-base/components/MessagePipeline";
 
-import { useState, useCallback, useMemo } from "react";
+import { BagView } from "./BagView";
 
 const selectBagFiles = (state: CoSceneRecordStore) => state.recordBagFiles;
 const selectCurrentBagFiles = (state: CoSceneRecordStore) => state.currentBagFiles;
@@ -51,6 +57,7 @@ export function Playlist(): JSX.Element {
   const currentBagFiles = useRecord(selectCurrentBagFiles);
   const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
+  const { t } = useTranslation("common");
 
   const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);
   const hoveredBag = useTimelineInteractionState(selectHoverBag);
@@ -90,7 +97,7 @@ export function Playlist(): JSX.Element {
           fullWidth
           value={filterText}
           onChange={(event) => setFilterText(event.currentTarget.value)}
-          placeholder="Search by name or time"
+          placeholder={t("searchByNameTime")}
           InputProps={{
             startAdornment: <SearchIcon fontSize="small" />,
             endAdornment: filterText !== "" && (
@@ -109,14 +116,14 @@ export function Playlist(): JSX.Element {
       {bagFiles.error && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
           <Typography align="center" color="error">
-            Error loading bag files.
+            {t("noLoadingBag")}
           </Typography>
         </Stack>
       )}
       {bagFiles.value && bagFiles.value.length === 0 && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
           <Typography align="center" color="text.secondary">
-            No bag files.
+            {t("noBag")}
           </Typography>
         </Stack>
       )}

@@ -478,6 +478,7 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
   const [highlightedPanelIdx, setHighlightedPanelIdx] = React.useState<number | undefined>();
   const { mode, onPanelSelect, selectedPanelType } = props;
   const { classes } = useStyles();
+  const { t } = useTranslation("addPanel");
 
   const { dropPanel } = useCurrentLayoutActions();
   const mosaicId = usePanelMosaicId();
@@ -651,7 +652,7 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
       <div className={classes.toolbar}>
         <TextField
           fullWidth
-          placeholder="Search panels"
+          placeholder={t("searchPanel")}
           value={searchQuery}
           onChange={handleSearchChange}
           onKeyDown={onKeyDown}

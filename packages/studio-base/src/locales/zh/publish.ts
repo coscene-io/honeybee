@@ -4,5 +4,5 @@
 
 export default {
   datatype: "数据类型",
-  topic: "主题",
+  topic: "话题",
 };
