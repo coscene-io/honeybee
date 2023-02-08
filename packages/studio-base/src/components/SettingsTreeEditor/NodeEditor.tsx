@@ -19,7 +19,6 @@ import { filterMap } from "@foxglove/den/collection";
 import { SettingsTreeAction, SettingsTreeNode } from "@foxglove/studio";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import Stack from "@foxglove/studio-base/components/Stack";
-import addPanel from "@foxglove/studio-base/locales/en/addPanel";
 
 import { FieldEditor } from "./FieldEditor";
 import { NodeActionsMenu } from "./NodeActionsMenu";

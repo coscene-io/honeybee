@@ -24,7 +24,6 @@ import { v4 as uuid } from "uuid";
 import { SettingsTreeAction, SettingsTreeField } from "@foxglove/studio";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import Stack from "@foxglove/studio-base/components/Stack";
-import addPanel from "@foxglove/studio-base/locales/en/addPanel";
 
 import { ColorPickerInput, ColorGradientInput, NumberInput, Vec3Input, Vec2Input } from "./inputs";
 // Used to both undefined and empty string in select inputs.

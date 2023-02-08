@@ -13,3 +13,5 @@ export { default as zhCommon } from "./common";
 export { default as zhDiagnostic } from "./diagnostic";
 export { default as zhPublish } from "./publish";
 export { default as zhUserScript } from "./userScript";
+export { default as zhMoment } from "./moment";
+export { default as zhGeneral } from "./general";

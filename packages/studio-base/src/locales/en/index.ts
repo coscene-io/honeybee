@@ -13,3 +13,5 @@ export { default as enCommon } from "./common";
 export { default as enDiagnostic } from "./diagnostic";
 export { default as enPublish } from "./publish";
 export { default as enUserScript } from "./userScript";
+export { default as enMoment } from "./moment";
+export { default as enGeneral } from "./general";
