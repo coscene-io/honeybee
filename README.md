@@ -1,75 +1,6 @@
-[![Accelerate your robotics development](https://user-images.githubusercontent.com/14011012/195918769-5aaeedf3-5de2-48fb-951e-7399f2b9e190.png)](https://foxglove.dev)
+# Honeybee
 
-<br/>
-
-<div align="center">
-    <h1>Foxglove Studio</h1>
-    <a href="https://github.com/foxglove/studio/releases"><img src="https://img.shields.io/github/v/release/foxglove/studio?label=version" /></a>
-    <a href="https://github.com/foxglove/studio/blob/main/LICENSE"><img src="https://img.shields.io/github/license/foxglove/studio" /></a>
-    <a href="https://github.com/orgs/foxglove/discussions"><img src="https://img.shields.io/github/discussions/foxglove/community.svg?logo=github" /></a>
-    <a href="https://foxglove.dev/join-slack"><img src="https://img.shields.io/badge/chat-on%20slack-purple.svg?logo=slack" /></a>
-    <br />
-    <br />
-    <a href="https://foxglove.dev/download">Download</a>
-    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-    <a href="https://foxglove.dev/docs/studio">Docs</a>
-    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-    <a href="https://foxglove.dev/blog">Blog</a>
-    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-    <a href="https://foxglove.dev/demo">Demo</a>
-    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-    <a href="https://foxglove.dev/contact">Contact Us</a>
-    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-    <a href="https://foxglove.dev/slack">Slack</a>
-    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-    <a href="https://twitter.com/foxglovedev">Twitter</a>
-  <br />
-  <br />
-
-[Foxglove Studio](https://foxglove.dev) is an integrated visualization and diagnosis tool for robotics, available [in your browser](https://studio.foxglove.dev/) or [as a desktop app](https://foxglove.dev/download) on Linux, Windows, and macOS.
-
-  <p align="center">
-    <a href="https://foxglove.dev"><img alt="Foxglove Studio screenshot" src="/resources/screenshot.png"></a>
-  </p>
-</div>
-
-<hr />
-
-To learn more, visit the following resources:
-
-[About](https://foxglove.dev/about)
-&nbsp;•&nbsp;
-[Documentation](https://foxglove.dev/docs)
-&nbsp;•&nbsp;
-[Release notes](https://github.com/foxglove/studio/releases)
-&nbsp;•&nbsp;
-[ROS Wiki page](http://wiki.ros.org/FoxgloveStudio)
-&nbsp;•&nbsp;
-[Blog](https://foxglove.dev/blog)
-
-You can also join us on the following platforms to ask questions, share feedback, and stay up to date on what our team is working on:
-
-[GitHub Discussions](https://github.com/foxglove/studio/discussions)
-&nbsp;•&nbsp;
-[Slack](https://foxglove.dev/join-slack)
-&nbsp;•&nbsp;
-[Newsletter](https://www.getrevue.co/profile/foxglove)
-&nbsp;•&nbsp;
-[Twitter](https://twitter.com/foxglovedev)
-&nbsp;•&nbsp;
-[LinkedIn](https://www.linkedin.com/company/foxglovedev)
-
-<br />
-
-## Installation
-
-Visit [foxglove.dev/download](https://foxglove.dev/download) or [GitHub Releases](https://github.com/foxglove/studio/releases) to download the latest version.
-
-## Contributing
-
-Foxglove Studio is primarily written in TypeScript – contributions are welcome!
-
-Note: All contributors must agree to our [Contributor License Agreement](https://github.com/foxglove/cla).
+Honeybee is an integrated visualization and diagnosis tool for robotics, available in browser or as a desktop app on Linux, Windows, and macOS.
 
 **Supported development environments:** Linux, Windows, macOS
 
@@ -79,52 +10,90 @@ Note: All contributors must agree to our [Contributor License Agreement](https:/
 - [Git LFS](https://git-lfs.github.com/)
 - [Visual Studio Code](https://code.visualstudio.com/) – Recommended
 
-**Getting started:**
+## Initialization
 
-1. Install git-lfs: `brew install git-lfs` (macOS) or `sudo apt-get install git-lfs` (Linux)
-2. Clone repo
-3. Run `corepack enable` and `yarn install`
-4. Launch the development environment:
+> Note: Make sure that all the dependencies are set (specially the [Git LFS](https://git-lfs.github.com/)).
 
-```sh
-# To launch the desktop app (run both scripts concurrently):
-$ yarn desktop:serve        # start webpack
-$ yarn desktop:start        # launch electron
+1. Clone repository.
+2. Run the follow commands: `corepack enable` and `yarn install`.
+3. Launch the development environment:
 
-# To launch the browser app:
-$ yarn web:serve
+   ```sh
+   # To launch the desktop app (run both scripts concurrently):
+   $ yarn desktop:serve        # start webpack
+   $ yarn desktop:start        # launch electron
 
-# To launch the browser app using a local instance of the backend server:
-$ yarn web:serve:local
+   # To launch the browser app:
+   $ yarn web:serve
 
-# To launch the storybook:
-$ yarn storybook
+   # To launch the browser app using a local instance of the backend server:
+   $ yarn web:serve:local
 
-# Advanced usage: running webpack and electron on different computers (or VMs) on the same network
-$ yarn desktop:serve --host 192.168.xxx.yyy         # the address where electron can reach the webpack dev server
-$ yarn dlx electron@13.0.0-beta.13 .webpack # launch the version of electron for the current computer's platform
+   # To launch the storybook:
+   $ yarn storybook
 
-# To launch the desktop app using production API endpoints
-$ yarn desktop:serve --env FOXGLOVE_BACKEND=production
-$ yarn desktop:start
+   # Advanced usage: running webpack and electron on different computers (or VMs) on the same network
+   $ yarn desktop:serve --host 192.168.xxx.yyy         # the address where electron can reach the webpack dev server
+   $ yarn dlx electron@13.0.0-beta.13 .webpack # launch the version of electron for the current computer's platform
 
-# NOTE: yarn web:serve does not support connecting to the production endpoints
-```
+   # To launch the desktop app using production API endpoints
+   $ yarn desktop:serve --env FOXGLOVE_BACKEND=production
+   $ yarn desktop:start
+
+   # NOTE: yarn web:serve does not support connecting to the production endpoints
+   ```
 
 A [Dockerfile](/Dockerfile) to self-host the browser app is also available.
 
 **Other useful commands:**
 
-```sh
-$ yarn run          # list available commands
-$ yarn lint         # lint all files
-$ yarn test         # run all tests
-$ yarn test:watch   # run tests on changed files
-```
+    ```sh
+    $ yarn run          # list available commands
+    $ yarn lint         # lint all files
+    $ yarn test         # run all tests
+    $ yarn test:watch   # run tests on changed files
+    ```
+
+## Setup
+
+### (1) Token setup
+
+After opening it on the local browser, we need to set tokens to obtain access authorization. You can choose to set up Bearer token or Basic token.
+
+#### (1.1) Bearer Token
+
+> Note: If you choose to set the Bearer token, you need to set it every day (expire every day).
+
+1. Go to [CoScene Development Page](https://home.coscene.dev/) and Sign In.
+2. Open "Chrome Inspector", go to "Application" tab, search for "Local Storage", and copy the following two keys to the local development environment.
+   - coScene_org_jwt
+   - CoSceneContext
+
+  <img src="./resources/readme/bearer-token.png" width="fit-content"/>
+
+#### (1.2) Basic Token
+
+1. Go to [CoScene Development Page](https://home.coscene.dev/) and Sign In.
+2. Go to "Setting" and choose the "Security" tab.
+3. Click on Generate Access Token, give it a name and expiration time.
+4. With token, you need to encode with [base64](https://www.base64encoder.io/) by adding "_apikey:_" to the beginning of the token, e.g.: `apikey:{ACCESS_TOKEN}`.
+5. Replace the "coScene_org_jwt" key with: `Basic {ENCODED_TOKEN}`
+
+<img src="./resources/readme/basic-token.png" width="fit-content"/>
+
+### (2) Data Source Simulation
+
+To open a data source file, you need to copy the link query of the record on the [CoScene Development Page](https://home.coscene.dev/) and paste it into the local environment, you can follow the pictures below.
+
+<img src="./resources/readme/data-source-get-1.png" width="fit-content"/>
+<img src="./resources/readme/data-source-get-2.png" width="fit-content"/>
+<img src="./resources/readme/data-source-get-3.png" width="fit-content"/>
+<img src="./resources/readme/data-source-get-4.png" width="fit-content"/>
+<img src="./resources/readme/data-source-get-5.png" width="fit-content"/>
 
 ## Self-hosting
 
-Foxglove Studio can be run as a standalone [desktop application](https://foxglove.dev/download), accessed in your browser at [studio.foxglove.dev](https://studio.foxglove.dev/), or self-hosted on your own domain.
+Honeybee can be run as a standalone [desktop application](https://foxglove.dev/download), accessed in your browser at [studio.foxglove.dev](https://studio.foxglove.dev/), or self-hosted on your own domain.
 
 A Docker image is provided to make self-hosting easy. You can run it like so:
 
@@ -132,10 +101,12 @@ A Docker image is provided to make self-hosting easy. You can run it like so:
 docker run --rm -p "8080:8080" ghcr.io/foxglove/studio:latest
 ```
 
-Foxglove Studio will then be accessible in your browser at [localhost:8080](http://localhost:8080/).
+Honeybee will then be accessible in your browser at [localhost:8080](http://localhost:8080/).
 
 For all list of available image versions, see the [package details](https://github.com/foxglove/studio/pkgs/container/studio).
 
 ## Credits
 
-Foxglove Studio originally began as a fork of [Webviz](https://github.com/cruise-automation/webviz), an open source project developed by [Cruise](https://getcruise.com/). The codebase has since changed significantly, with a port to TypeScript, more [panels](https://foxglove.dev/docs/panels/introduction), additional [data sources](https://foxglove.dev/docs/connection/data-sources), improved [layout management](https://foxglove.dev/docs/layouts), new [team features](https://foxglove.dev/blog/announcing-foxglove-for-teams), and an [Extension API](https://foxglove.dev/docs/extensions/getting-started).
+Honeybee originally began as a fork of [Foxglove Studio](https://github.com/foxglove/studio), an open source project developed by [Foxglove](https://foxglove.dev/about).
+
+<!-- The codebase has since changed significantly, with a port to TypeScript, more [panels](https://foxglove.dev/docs/panels/introduction), additional [data sources](https://foxglove.dev/docs/connection/data-sources), improved [layout management](https://foxglove.dev/docs/layouts), new [team features](https://foxglove.dev/blog/announcing-foxglove-for-teams), and an [Extension API](https://foxglove.dev/docs/extensions/getting-started). -->
