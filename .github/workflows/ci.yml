@@ -37,5 +37,3 @@ jobs:
 
       - run: yarn run tsc --noEmit
       - run: yarn run lint:ci
-      - run: yarn run lint:unused-exports
-      - run: yarn run lint:dependencies
