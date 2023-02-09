@@ -6,6 +6,7 @@ import { isEqual, keyBy } from "lodash";
 import { ReactNode, useState } from "react";
 import { createStore, StoreApi } from "zustand";
 
+import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 import {
   TimelineInteractionStateContext,
@@ -13,7 +14,6 @@ import {
   SyncBounds,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { HoverValue } from "@foxglove/studio-base/types/hoverValue";
-import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
 
 function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStateStore> {
   return createStore((set) => {
@@ -65,7 +65,7 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
       },
 
       setHoveredBag(hoveredBag: undefined | BagFileInfo) {
-        if (hoveredBag && hoveredBag.secondsSinceStart) {
+        if (hoveredBag?.secondsSinceStart != undefined) {
           set({
             hoveredBag,
             hoverValue: {

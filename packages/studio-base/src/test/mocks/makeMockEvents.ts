@@ -37,5 +37,6 @@ export function makeMockEvents(
       endPosition: idx / count + 0.1,
       secondsSinceStart: toSec(startTime),
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }) as any;
 }
