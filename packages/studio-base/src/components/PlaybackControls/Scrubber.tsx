@@ -27,8 +27,8 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
-import { EventsOverlay } from "./EventsOverlay";
 import { BagsOverlay } from "./BagsOverlay";
+import { EventsOverlay } from "./EventsOverlay";
 import PlaybackBarHoverTicks from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
 import { ProgressPlot } from "./ProgressPlot";

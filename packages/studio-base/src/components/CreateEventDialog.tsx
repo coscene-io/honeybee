@@ -23,6 +23,7 @@ import {
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import { countBy } from "lodash";
 import { KeyboardEvent, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { keyframes } from "tss-react";
 import { makeStyles } from "tss-react/mui";
@@ -38,7 +39,6 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-import { useTranslation } from "react-i18next";
 
 const log = Log.getLogger(__filename);
 

@@ -1,19 +1,24 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import { Ros1BagMedia } from "@coscene-io/coscene/proto/v1alpha1";
+import { useEffect, useMemo } from "react";
+import { useAsyncFn } from "react-use";
+
+import { scaleValue as scale } from "@foxglove/den/math";
+import Logger from "@foxglove/log";
+import { subtract, Time, toSec, fromNanoSec, compare } from "@foxglove/rostime";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
 import {
   CoSceneRecordStore,
   useRecord,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
-import { useAsyncFn } from "react-use";
-import {
-  MessagePipelineContext,
-  useMessagePipeline,
-} from "@foxglove/studio-base/components/MessagePipeline";
-import { Ros1BagMedia } from "@coscene-io/coscene/proto/v1alpha1";
-import { useEffect, useMemo } from "react";
-import Logger from "@foxglove/log";
-import { subtract, Time, toSec, fromNanoSec, compare } from "@foxglove/rostime";
-import { scaleValue as scale } from "@foxglove/den/math";
 import {
   TimelineInteractionStateStore,
   useHoverValue,
@@ -45,14 +50,14 @@ function positionBag(
 
   const bagFileStartTime = fromNanoSec(
     BigInt(
-      bagFileInterval!.getStartTime()!.getSeconds() * 1e9 +
-        bagFileInterval!.getStartTime()!.getNanos(),
+      bagFileInterval.getStartTime()!.getSeconds() * 1e9 +
+        bagFileInterval.getStartTime()!.getNanos(),
     ),
   );
 
   const bagFileEndTime = fromNanoSec(
     BigInt(
-      bagFileInterval!.getEndTime()!.getSeconds() * 1e9 + bagFileInterval!.getEndTime()!.getNanos(),
+      bagFileInterval.getEndTime()!.getSeconds() * 1e9 + bagFileInterval.getEndTime()!.getNanos(),
     ),
   );
 
@@ -112,25 +117,27 @@ export function RecordsSyncAdapter(): ReactNull {
   const [_records, syncRecords] = useAsyncFn(async () => {
     if (
       urlState?.parameters?.warehouseId &&
-      urlState?.parameters?.projectId &&
-      urlState?.parameters?.recordId &&
+      urlState.parameters.projectId &&
+      urlState.parameters.recordId &&
       startTime &&
       startTime.sec > 0
     ) {
       try {
-        const recordName = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}/records/${urlState?.parameters?.recordId}`;
+        const recordName = `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}`;
         const record = await consoleApi.getRecord({ recordName });
         const recordBagFiles: BagFileInfo[] = [];
 
         setRecord({ loading: false, value: record });
 
-        (record.getHead()?.getFilesList() || []).forEach((ele) => {
+        (record.getHead()?.getFilesList() ?? []).forEach((ele) => {
           if (ele.getFilename().split(".").pop() === "bag") {
             const fileMedia = ele.getMedia();
 
-            const bagFileMedia = Ros1BagMedia.deserializeBinary(fileMedia?.getValue_asU8()!);
+            const bagFileMedia = Ros1BagMedia.deserializeBinary(
+              fileMedia?.getValue_asU8() as Uint8Array,
+            );
 
-            if (startTime && endTime) {
+            if (endTime) {
               recordBagFiles.push(
                 positionBag(bagFileMedia, startTime, endTime, ele.getName(), ele.getFilename()),
               );
@@ -156,6 +163,7 @@ export function RecordsSyncAdapter(): ReactNull {
     urlState?.parameters?.recordId,
     startTime,
     endTime,
+    setRecordBagFiles,
   ]);
 
   useEffect(() => {
@@ -167,7 +175,7 @@ export function RecordsSyncAdapter(): ReactNull {
     if (hoverValue && timeRange != undefined && timeRange > 0) {
       const hoverPosition = scale(hoverValue.value, 0, timeRange, 0, 1);
       const hoveredBagFiles = (bagFiles.value ?? []).filter((bagFile) => {
-        if (bagFile.startPosition !== undefined && bagFile.endPosition !== undefined) {
+        if (bagFile.startPosition != undefined && bagFile.endPosition != undefined) {
           return (
             hoverPosition >= bagFile.startPosition * (1 - HOVER_TOLERANCE) &&
             hoverPosition <= bagFile.endPosition * (1 + HOVER_TOLERANCE)
@@ -175,13 +183,13 @@ export function RecordsSyncAdapter(): ReactNull {
         }
         return false;
       });
-      if (hoveredBag === undefined) {
+      if (hoveredBag == undefined) {
         setBagsAtHoverValue(hoveredBagFiles);
       }
     } else {
       setBagsAtHoverValue([]);
     }
-  }, [hoverValue, setBagsAtHoverValue, timeRange, bagFiles]);
+  }, [hoverValue, setBagsAtHoverValue, timeRange, bagFiles, hoveredBag]);
 
   // Sync current bag
   useEffect(() => {

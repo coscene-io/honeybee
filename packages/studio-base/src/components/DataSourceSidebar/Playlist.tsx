@@ -136,10 +136,10 @@ export function Playlist(): JSX.Element {
               filter={filterText}
               isHovered={
                 (hoveredBag && hoveredBag.name === bag.name) ||
-                bagsAtHoverValue[bag.name] !== undefined
+                bagsAtHoverValue[bag.name] != undefined
               }
               isCurrent={
-                currentBagFiles?.find((currentBag) => currentBag.name === bag.name) !== undefined
+                currentBagFiles?.find((currentBag) => currentBag.name === bag.name) != undefined
               }
               onClick={onClick}
               onHoverStart={onHoverStart}

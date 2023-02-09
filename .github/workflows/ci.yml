@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, release/*]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 30
+    env:
+      BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3.3.0
+        with:
+          lfs: true
+
+      - uses: actions/setup-node@v3.6.0
+        with:
+          node-version: 18.14
+      - run: corepack enable yarn
+
+      - name: Restore cache
+        uses: actions/cache@v3.2.3
+        with:
+          path: |
+            .yarn/cache
+            **/node_modules
+          key: v5-${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: v5-${{ runner.os }}-yarn-
+
+      - run: yarn install --immutable
+
+      - run: set -x
+
+      - run: yarn run tsc --noEmit
+      - run: yarn run lint:ci

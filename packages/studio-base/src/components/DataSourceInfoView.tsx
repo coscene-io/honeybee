@@ -72,7 +72,7 @@ function DataSourceInfoContent(props: {
       {record.value?.getTitle()}
     </Link>,
     <Typography key="3" color="text.primary">
-      {(currentBagFiles || []).map((bag) => bag.displayName).join(", ")}
+      {(currentBagFiles ?? []).map((bag) => bag.displayName).join(", ")}
     </Typography>,
   ];
 

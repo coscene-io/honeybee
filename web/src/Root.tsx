@@ -26,7 +26,6 @@ import {
   ConsoleApi,
   CoSceneContext,
 } from "@foxglove/studio-base";
-
 // import Ros1UnavailableDataSourceFactory from "./dataSources/Ros1UnavailableDataSourceFactory";
 // import Ros2UnavailableDataSourceFactory from "./dataSources/Ros2UnavailableDataSourceFactory";
 // import VelodyneUnavailableDataSourceFactory from "./dataSources/VelodyneUnavailableDataSourceFactory";

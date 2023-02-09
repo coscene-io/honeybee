@@ -9,8 +9,7 @@ import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { fromNanoSec, add } from "@foxglove/rostime";
-import { subtract as subtractTimes, Time, toDate } from "@foxglove/rostime";
+import { fromNanoSec, add, subtract as subtractTimes, Time, toDate } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,

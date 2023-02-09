@@ -17,6 +17,7 @@ import { ROLLBAR_CONFIG } from "@foxglove/studio-base/util/rollbarConfig";
 import VersionBanner from "./VersionBanner";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
+// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, no-underscore-dangle
 export const __bl = __browserLogger.__bl || {};
 
 bcInstance.listenBroadcastMessage((msg) => {
