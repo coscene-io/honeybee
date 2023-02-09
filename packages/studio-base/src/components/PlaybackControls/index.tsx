@@ -22,6 +22,7 @@ import {
   Previous20Regular,
 } from "@fluentui/react-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import useKeyboardJs from "react-use/lib/useKeyboardJs";
 import { makeStyles } from "tss-react/mui";
 
@@ -44,7 +45,6 @@ import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import { RepeatAdapter } from "./RepeatAdapter";
 import Scrubber from "./Scrubber";
 import { jumpSeek, DIRECTION } from "./sharedHelpers";
-import { useTranslation } from "react-i18next";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -155,6 +155,7 @@ export default function PlaybackControls(props: {
   const toggleCreateEventDialog = useCallback(() => {
     pause();
     setCreateEventDialogOpen((open) => !open);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

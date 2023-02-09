@@ -138,9 +138,7 @@ export default class ChartJsMux {
     // create a new chartjs instance
     // this must be done before sending any other rpc requests to the instance
     rpc.receive("initialize", (args: InitOpts) => {
-      if (fontLoaded) {
-        args.fontLoaded = fontLoaded;
-      }
+      args.fontLoaded = fontLoaded;
       const manager = new ChartJSManager(args);
       this._managers.set(args.id, manager);
       return manager.getScales();

@@ -16,8 +16,11 @@ import { makeStyles } from "tss-react/mui";
 import { toRFC3339String, fromDate } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
-import { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
-import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import {
+  TimelinePositionedEvent,
+  EventsStore,
+  useEvents,
+} from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 
 const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(

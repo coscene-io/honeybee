@@ -6,13 +6,13 @@ import { BroadcastChannel } from "broadcast-channel";
 
 class BroadcastChannelClient {
   private bc: BroadcastChannel;
-  constructor() {
+  public constructor() {
     this.bc = new BroadcastChannel("coScene");
   }
-  public sendBroadcastMessage(message: any) {
-    this.bc.postMessage(message);
+  public async sendBroadcastMessage(message: unknown) {
+    await this.bc.postMessage(message);
   }
-  public listenBroadcastMessage(callback: (message: any) => void) {
+  public listenBroadcastMessage(callback: (message: unknown) => void) {
     this.bc.onmessage = (ev) => {
       callback(ev);
     };

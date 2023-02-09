@@ -267,7 +267,16 @@ function DiagnosticSummary(props: Props): JSX.Element {
         )}
       </AutoSizer>
     );
-  }, [diagnostics, hardwareIdFilter, pinnedIds, renderRow, sortByLevel, minLevel, topicToRender]);
+  }, [
+    diagnostics,
+    hardwareIdFilter,
+    pinnedIds,
+    renderRow,
+    sortByLevel,
+    minLevel,
+    topicToRender,
+    t,
+  ]);
 
   const actionHandler = useCallback(
     (action: SettingsTreeAction) => {

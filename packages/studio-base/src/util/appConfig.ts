@@ -15,6 +15,7 @@ declare global {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 const cosConfig = window.cosConfig ?? {};
 export const APP_CONFIG = {
   VITE_APP_BASE_API_PORT:

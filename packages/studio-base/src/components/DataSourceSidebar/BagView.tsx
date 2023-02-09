@@ -1,11 +1,16 @@
-import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
-import { makeStyles } from "tss-react/mui";
-import { alpha } from "@mui/material";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-import { subtract, toDate } from "@foxglove/rostime";
-import dayjs from "dayjs";
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 import BarChartIcon from "@mui/icons-material/BarChart";
+import { alpha } from "@mui/material";
+import dayjs from "dayjs";
+import { makeStyles } from "tss-react/mui";
+
+import { subtract, toDate } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
+import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 
 const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) => ({
   bagBox: {

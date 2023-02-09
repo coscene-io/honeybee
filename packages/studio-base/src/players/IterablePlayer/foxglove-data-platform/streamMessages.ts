@@ -11,7 +11,6 @@ import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/m
 import { fromNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
 import ConsoleApi, { DataPlatformRequestArgs } from "@foxglove/studio-base/services/ConsoleApi";
-import dayjs from "dayjs";
 
 const log = Logger.getLogger(__filename);
 

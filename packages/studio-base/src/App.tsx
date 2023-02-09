@@ -8,9 +8,9 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
-import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
-import CoSceneRecordProvider from "@foxglove/studio-base/providers/CoSceneRecordProvider";
 import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
+import CoSceneRecordProvider from "@foxglove/studio-base/providers/CoSceneRecordProvider";
+import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";

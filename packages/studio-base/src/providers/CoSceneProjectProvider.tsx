@@ -1,7 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import { Project } from "@coscene-io/coscene/proto/v1alpha1";
 import { ReactNode, useState } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
-import { Project } from "@coscene-io/coscene/proto/v1alpha1";
 
 import {
   CoSceneProjectContext,
@@ -11,7 +15,7 @@ import {
 function createProjectStore() {
   return createStore<CoSceneProjectStore>((set) => ({
     project: { loading: false, value: new Project() },
-    setProject: (project: AsyncState<Project>) => set({ project: project }),
+    setProject: (project: AsyncState<Project>) => set({ project }),
   }));
 }
 
