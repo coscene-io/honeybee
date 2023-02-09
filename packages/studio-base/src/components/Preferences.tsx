@@ -35,10 +35,6 @@ import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
-import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
-import WebIcon from "@mui/icons-material/Web";
-import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlined";
-import { ExperimentalFeatureSettings } from "@foxglove/studio-base/components/ExperimentalFeatureSettings";
 
 type LanguageOption = "en" | "zh";
 
@@ -230,48 +226,6 @@ function TimeFormat(): React.ReactElement {
   );
 }
 
-export function LaunchDefault(): React.ReactElement {
-  const { classes } = useStyles();
-  const { t } = useTranslation("preferences");
-  const [preference, setPreference] = useAppConfigurationValue<string | undefined>(
-    AppSetting.LAUNCH_PREFERENCE,
-  );
-  let sanitizedPreference: LaunchPreferenceValue;
-  switch (preference) {
-    case LaunchPreferenceValue.WEB:
-    case LaunchPreferenceValue.DESKTOP:
-    case LaunchPreferenceValue.ASK:
-      sanitizedPreference = preference;
-      break;
-    default:
-      sanitizedPreference = LaunchPreferenceValue.WEB;
-  }
-
-  return (
-    <Stack>
-      <FormLabel>{t("openLinksIn")}:</FormLabel>
-      <ToggleButtonGroup
-        color="primary"
-        size="small"
-        fullWidth
-        exclusive
-        value={sanitizedPreference}
-        onChange={(_, value?: string) => value != undefined && void setPreference(value)}
-      >
-        <ToggleButton value={LaunchPreferenceValue.WEB} className={classes.toggleButton}>
-          <WebIcon /> {t("webApp")}
-        </ToggleButton>
-        <ToggleButton value={LaunchPreferenceValue.DESKTOP} className={classes.toggleButton}>
-          <ComputerIcon /> {t("desktopApp")}
-        </ToggleButton>
-        <ToggleButton value={LaunchPreferenceValue.ASK} className={classes.toggleButton}>
-          <QuestionAnswerOutlinedIcon /> {t("askEachTime")}
-        </ToggleButton>
-      </ToggleButtonGroup>
-    </Stack>
-  );
-}
-
 export function MessageFramerate(): React.ReactElement {
   const { t } = useTranslation("preferences");
   const [messageRate, setMessageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
@@ -325,27 +279,6 @@ function AutoUpdate(): React.ReactElement {
   );
 }
 
-export function RosPackagePath(): React.ReactElement {
-  const [rosPackagePath, setRosPackagePath] = useAppConfigurationValue<string>(
-    AppSetting.ROS_PACKAGE_PATH,
-  );
-
-  const rosPackagePathPlaceholder = useMemo(
-    () => OsContextSingleton?.getEnvVar("ROS_PACKAGE_PATH"),
-    [],
-  );
-
-  return (
-    <TextField
-      fullWidth
-      label="ROS_PACKAGE_PATH"
-      placeholder={rosPackagePathPlaceholder}
-      value={rosPackagePath ?? ""}
-      onChange={(event) => void setRosPackagePath(event.target.value)}
-    />
-  );
-}
-
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("preferences");
   const [selectedLanguage, setSelectedLanguage] = useAppConfigurationValue<string>(
@@ -383,14 +316,7 @@ export function LanguageSettings(): React.ReactElement {
 }
 
 export default function Preferences(): React.ReactElement {
-  const [crashReportingEnabled, setCrashReportingEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.CRASH_REPORTING_ENABLED,
-  );
-  const [telemetryEnabled, setTelemetryEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.TELEMETRY_ENABLED,
-  );
   const { t } = useTranslation("preferences");
-  const { classes } = useStyles();
 
   // automatic updates are a desktop-only setting
   //
@@ -427,63 +353,6 @@ export default function Preferences(): React.ReactElement {
                 <AutoUpdate />
               </div>
             )}
-            {!isDesktopApp() && (
-              <div>
-                <LaunchDefault />
-              </div>
-            )}
-          </Stack>
-        </section>
-
-        <section>
-          <Typography component="h2" variant="h5" gutterBottom color="primary">
-            {t("ros")}
-          </Typography>
-          <Stack gap={1}>
-            <div>
-              <RosPackagePath />
-            </div>
-          </Stack>
-        </section>
-
-        <section>
-          <Typography component="h2" variant="h5" gutterBottom color="primary">
-            {t("privacy")}
-          </Typography>
-          <Stack gap={2}>
-            <Typography color="text.secondary">{t("privacyDescription")}</Typography>
-            <FormControlLabel
-              className={classes.formControlLabel}
-              control={
-                <Checkbox
-                  className={classes.checkbox}
-                  checked={telemetryEnabled ?? true}
-                  onChange={(_event, checked) => void setTelemetryEnabled(checked)}
-                />
-              }
-              label={t("sendAnonymizedUsageData")!}
-            />
-            <FormControlLabel
-              className={classes.formControlLabel}
-              control={
-                <Checkbox
-                  className={classes.checkbox}
-                  checked={crashReportingEnabled ?? true}
-                  onChange={(_event, checked) => void setCrashReportingEnabled(checked)}
-                />
-              }
-              label={t("sendAnonymizedCrashReports")!}
-            />
-          </Stack>
-        </section>
-
-        <section>
-          <Typography component="h2" variant="h5" gutterBottom color="primary">
-            {t("experimentalFeatures")}
-          </Typography>
-          <Stack gap={1}>
-            <Typography color="text.secondary">{t("experimentalFeaturesDescription")}</Typography>
-            <ExperimentalFeatureSettings />
           </Stack>
         </section>
       </Stack>
