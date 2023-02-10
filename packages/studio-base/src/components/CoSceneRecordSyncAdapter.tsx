@@ -118,16 +118,12 @@ export function RecordsSyncAdapter(): ReactNull {
     if (
       urlState?.parameters?.warehouseId &&
       urlState.parameters.projectId &&
-      urlState.parameters.recordId &&
-      startTime &&
-      startTime.sec > 0
+      urlState.parameters.recordId
     ) {
       try {
         const recordName = `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}`;
         const record = await consoleApi.getRecord({ recordName });
         const recordBagFiles: BagFileInfo[] = [];
-
-        setRecord({ loading: false, value: record });
 
         (record.getHead()?.getFilesList() ?? []).forEach((ele) => {
           if (ele.getFilename().split(".").pop() === "bag") {
@@ -137,7 +133,7 @@ export function RecordsSyncAdapter(): ReactNull {
               fileMedia?.getValue_asU8() as Uint8Array,
             );
 
-            if (endTime) {
+            if (startTime && endTime) {
               recordBagFiles.push(
                 positionBag(bagFileMedia, startTime, endTime, ele.getName(), ele.getFilename()),
               );
@@ -150,13 +146,11 @@ export function RecordsSyncAdapter(): ReactNull {
         );
 
         setRecordBagFiles({ loading: false, value: recordBagFiles });
+        setRecord({ loading: false, value: record });
       } catch (error) {
         setRecord({ loading: false, error });
         setRecordBagFiles({ loading: false, error });
       }
-    } else {
-      setRecord({ loading: false });
-      setRecordBagFiles({ loading: false });
     }
   }, [
     consoleApi,
