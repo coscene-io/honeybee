@@ -7,4 +7,5 @@ export default {
   foxglove: "Foxglove",
   name: "Name",
   cancel: "Cancel",
+  refresh: "Refresh",
 };

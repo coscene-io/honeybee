@@ -7,4 +7,5 @@ export default {
   foxglove: "Foxglove",
   name: "名称",
   cancel: "取消",
+  refresh: "刷新",
 };

@@ -23,4 +23,8 @@ export default {
   topics: "Topics",
   triggerTime: "Trigger Time",
   waitData: "Waiting for data...",
+  noPlayableBag: "There are no bag files to play in the current list",
+  noPlayableBagDesc:
+    "Please refresh and try again, or go to the record details page to view and operate",
+  viewRecordDetails: "View record details",
 };
