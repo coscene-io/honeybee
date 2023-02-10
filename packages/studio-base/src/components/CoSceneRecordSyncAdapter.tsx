@@ -154,6 +154,9 @@ export function RecordsSyncAdapter(): ReactNull {
         setRecord({ loading: false, error });
         setRecordBagFiles({ loading: false, error });
       }
+    } else {
+      setRecord({ loading: false });
+      setRecordBagFiles({ loading: false });
     }
   }, [
     consoleApi,
