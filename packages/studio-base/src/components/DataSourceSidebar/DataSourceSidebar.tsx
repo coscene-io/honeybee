@@ -2,12 +2,20 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import CloseIcon from "@mui/icons-material/Close";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import { Tab, Tabs, styled as muiStyled, Divider, Box } from "@mui/material";
 import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
 import Menu from "@mui/material/Menu";
 import { useTheme } from "@mui/material/styles";
-import { useState, PropsWithChildren, useEffect } from "react";
+import { useState, PropsWithChildren, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
 import {
@@ -16,6 +24,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
@@ -44,6 +53,22 @@ const StyledTabs = muiStyled(Tabs)({
     height: 2,
   },
 });
+
+const useStyles = makeStyles()((theme) => ({
+  dialogTitle: {
+    display: "flex",
+    justifyContent: "space-between",
+    paddingRight: "",
+  },
+  dialogTitleText: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+  },
+  closeDialogIcon: {
+    cursor: "pointer",
+  },
+}));
 
 const ProblemCount = muiStyled("div")(({ theme }) => ({
   backgroundColor: theme.palette.error.main,
@@ -81,8 +106,69 @@ const selectPlayerProblems = ({ playerState }: MessagePipelineContext) => player
 const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
   playerState.urlState?.sourceId;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
+const selectRecords = (state: CoSceneRecordStore) => state.record;
+const selectBagFiles = (state: CoSceneRecordStore) => state.recordBagFiles;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
-// Temporarily not open to select the back end, delete the prop too much impact temporarily disabled @junhui.Li
+const NoPlayableBagsDialog = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+  const { classes } = useStyles();
+  const { t } = useTranslation("dataSource");
+  const CurrentUrlState = useMessagePipeline(selectUrlState);
+
+  const projectHref =
+    process.env.NODE_ENV === "development"
+      ? `https://home.coscene.dev/${CurrentUrlState?.parameters?.warehouseSlug}/${CurrentUrlState?.parameters?.projectSlug}`
+      : `/${CurrentUrlState?.parameters?.warehouseSlug}/${CurrentUrlState?.parameters?.projectSlug}`;
+
+  const recordHref = `${projectHref}/records/${CurrentUrlState?.parameters?.recordId}`;
+
+  return (
+    <div>
+      <Dialog
+        open={open}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title" className={classes.dialogTitle}>
+          <div className={classes.dialogTitleText}>
+            <ReportProblemIcon color="error" />
+            {t("noPlayableBag")}
+          </div>
+
+          <CloseIcon
+            className={classes.closeDialogIcon}
+            onClick={() => {
+              onClose();
+            }}
+          />
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            {t("noPlayableBagDesc")}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              window.open(recordHref);
+            }}
+          >
+            {t("viewRecordDetails")}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              window.location.reload();
+            }}
+          >
+            {t("refresh", { ns: "general" })}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  );
+};
 
 export default function DataSourceSidebar(): JSX.Element {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
@@ -94,6 +180,20 @@ export default function DataSourceSidebar(): JSX.Element {
   const [moreActiveTab, setMoreActiveTab] = useState(-1);
   const theme = useTheme();
   const { t } = useTranslation("dataSource");
+  const record = useRecord(selectRecords);
+  const bagFiles = useRecord(selectBagFiles);
+
+  const [noPlayableBags, setNoPlayableBags] = useState<boolean>(false);
+
+  const bags = useMemo(() => bagFiles.value ?? [], [bagFiles]);
+
+  useEffect(() => {
+    const playableBags = bags.filter((bag) => bag.startTime);
+
+    if (!record.loading && playableBags.length === 0) {
+      setNoPlayableBags(true);
+    }
+  }, [bags, record.loading]);
 
   const showEventsTab = currentUser != undefined && playerSourceId === "foxglove-data-platform";
 
@@ -199,6 +299,12 @@ export default function DataSourceSidebar(): JSX.Element {
           </>
         )}
       </Stack>
+      <NoPlayableBagsDialog
+        open={noPlayableBags}
+        onClose={() => {
+          setNoPlayableBags(false);
+        }}
+      />
     </SidebarContent>
   );
 }
