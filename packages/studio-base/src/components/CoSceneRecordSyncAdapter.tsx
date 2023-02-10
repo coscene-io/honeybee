@@ -142,7 +142,7 @@ export function RecordsSyncAdapter(): ReactNull {
         });
 
         recordBagFiles.sort((a, b) =>
-          a.startTime && b.startTime ? compare(a.startTime, b.startTime) : 1,
+          a.startTime && b.startTime ? compare(a.startTime, b.startTime) : a.startTime ? -1 : 1,
         );
 
         setRecordBagFiles({ loading: false, value: recordBagFiles });
