@@ -12,6 +12,7 @@ import {
   ThemeProvider as MuiThemeProvider,
 } from "@mui/material";
 import { useState, useMemo, ReactElement } from "react";
+import { useTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { createMuiTheme } from "@foxglove/studio-base/theme";
@@ -58,15 +59,13 @@ const VersionBanner = function ({
 }): ReactElement | ReactNull {
   const [showBanner, setShowBanner] = useState(true);
   const muiTheme = useMemo(() => createMuiTheme("dark"), []);
+  const { t } = useTranslation("general");
 
   if (!showBanner || currentVersion >= MINIMUM_CHROME_VERSION) {
     return ReactNull;
   }
 
-  const prompt = isChrome
-    ? "You’re using an outdated version of Chrome."
-    : "You’re using an unsupported browser.";
-  const fixText = isChrome ? "Update Chrome" : "Download Chrome";
+  const prompt = isChrome ? t("outdatedVersion") : t("unsupportedBrowser");
 
   return (
     <MuiThemeProvider theme={muiTheme}>
@@ -80,12 +79,13 @@ const VersionBanner = function ({
 
           <div>
             <Typography align="center" variant="h6">
-              {prompt} Foxglove Studio currently requires Chrome v{MINIMUM_CHROME_VERSION}+.
+              {prompt} {t("requireChrome")}
             </Typography>
 
             {!isChrome && (
               <Typography align="center" variant="subtitle1">
-                Check out our cross-browser support progress in GitHub issue{" "}
+                {t("checkoutSupport")}
+                {t("requireChrome")}
                 <Link color="inherit" href="https://github.com/foxglove/studio/issues/1511">
                   #1511
                 </Link>
@@ -95,13 +95,13 @@ const VersionBanner = function ({
           </div>
 
           <Button
-            href="https://www.google.com/chrome/"
+            href="https://www.google.cn/chrome/"
             target="_blank"
             rel="noreferrer"
             color="inherit"
             variant="outlined"
           >
-            {fixText}
+            {t("download")} Chrome
           </Button>
         </Stack>
       </Root>
