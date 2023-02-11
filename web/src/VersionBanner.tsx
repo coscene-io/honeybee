@@ -17,7 +17,7 @@ import { useTranslation } from "react-i18next";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { createMuiTheme } from "@foxglove/studio-base/theme";
 
-const MINIMUM_CHROME_VERSION = 76;
+const MINIMUM_CHROME_VERSION = 104;
 
 const Root = muiStyled("div", {
   shouldForwardProp: (prop) => prop !== "isDismissable",
