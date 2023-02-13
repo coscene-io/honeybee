@@ -23,6 +23,7 @@ import {
   useContext,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { usePrevious } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
@@ -209,6 +210,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   const [selectedSidebarItem, setSelectedSidebarItem] = useState<SidebarItemKey | undefined>(
     "connection",
   );
+  const prevSelectedSidebarItem = usePrevious(selectedSidebarItem);
 
   // When a player is present we hide the connection sidebar. To prevent hiding the connection sidebar
   // when the user wants to select a new connection we track whether the sidebar item opened
@@ -529,8 +531,8 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
           iconName: "QuestionCircle",
           title: "Help",
           component: () => {
-            setSelectedSidebarItem(undefined);
             window.open("https://docs.coscene.cn/docs/get-started/create-project-flow/");
+            setSelectedSidebarItem(prevSelectedSidebarItem);
             return <></>;
           },
         },
@@ -558,6 +560,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     enableStudioLogsSidebar,
     supportsAccountSettings,
     currentUser,
+    prevSelectedSidebarItem,
   ]);
 
   const keyDownHandlers = useMemo(
