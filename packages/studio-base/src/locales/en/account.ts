@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export default {
-  intro: "Create a Foxglove account to:",
+  intro: "Create a coScene account to:",
   manageData: "Manage and store your robotics data",
   shareLayout: "Share your layouts with others",
   signIn: "Sign in",
