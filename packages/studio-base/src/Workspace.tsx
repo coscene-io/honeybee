@@ -163,6 +163,7 @@ const selectSetHelpInfo = (store: HelpInfoStore) => store.setHelpInfo;
 
 export default function Workspace(props: WorkspaceProps): JSX.Element {
   const { classes } = useStyles();
+  const { t } = useTranslation("addPanel");
   const containerRef = useRef<HTMLDivElement>(ReactNull);
   const { availableSources, selectSource } = usePlayerSelection();
   const playerPresence = useMessagePipeline(selectPlayerPresence);
@@ -500,7 +501,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
         "connection",
         {
           iconName: "DatabaseSettings",
-          title: "Data source",
+          title: t("dataSource"),
           component: DataSourceSidebarItem,
           badge:
             playerProblems && playerProblems.length > 0
@@ -508,18 +509,18 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
               : undefined,
         },
       ],
-      ["layouts", { iconName: "FiveTileGrid", title: "Layouts", component: LayoutBrowser }],
-      ["add-panel", { iconName: "RectangularClipping", title: "Add panel", component: AddPanel }],
+      ["layouts", { iconName: "FiveTileGrid", title: t("layouts"), component: LayoutBrowser }],
+      ["add-panel", { iconName: "RectangularClipping", title: t("addPanel"), component: AddPanel }],
       [
         "panel-settings",
-        { iconName: "PanelSettings", title: "Panel settings", component: PanelSettings },
+        { iconName: "PanelSettings", title: t("panelSettings"), component: PanelSettings },
       ],
     ]);
 
     if (enableStudioLogsSidebar) {
       topItems.set("studio-logs-settings", {
         iconName: "BacklogList",
-        title: "Studio Logs Settings",
+        title: t("studioLogsSettings"),
         component: StudioLogsSettingsSidebar,
       });
     }
@@ -529,7 +530,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
         "help",
         {
           iconName: "QuestionCircle",
-          title: "Help",
+          title: t("helpCenter"),
           component: () => {
             window.open("https://docs.coscene.cn/docs/get-started/create-project-flow/");
             setSelectedSidebarItem(prevSelectedSidebarItem);
@@ -542,14 +543,14 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     if (supportsAccountSettings) {
       bottomItems.set("account", {
         iconName: currentUser != undefined ? "BlockheadFilled" : "Blockhead",
-        title: currentUser != undefined ? `Signed in as ${currentUser.email}` : "Account",
+        title: currentUser != undefined ? `${t("signInAs")} ${currentUser.email}` : t("account"),
         component: AccountSettings,
       });
     }
 
     bottomItems.set("preferences", {
       iconName: "Settings",
-      title: "Preferences",
+      title: t("preferences"),
       component: Preferences,
     });
 
@@ -558,9 +559,10 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     DataSourceSidebarItem,
     playerProblems,
     enableStudioLogsSidebar,
+    t,
     supportsAccountSettings,
-    currentUser,
     prevSelectedSidebarItem,
+    currentUser,
   ]);
 
   const keyDownHandlers = useMemo(
