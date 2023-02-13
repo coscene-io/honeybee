@@ -2,20 +2,15 @@
 # we can only build the image on the GitHub runner,
 # and then synchronize it to the Alibaba ACR service.
 # And this is a way to save self-hosted runner resources.
-name: Deploy to aliyun-keenon-cn-hangzhou
+name: Published Release Img
 
 on:
-  push:
-    tags:
-      - v[0-9]+.[0-9]+.[0-9]+
-  workflow_dispatch:
+  release:
+    types: [released]
 
 permissions:
   id-token: write
   contents: read
-
-env:
-  PROFILE: aliyun-keenon-cn-hangzhou
 
 jobs:
   build:
@@ -41,8 +36,8 @@ jobs:
           acr-login-registry: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}
           acr-username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
           acr-password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
-          azure-aks-resource-group: 'Dev-EUS'
-          azure-aks-cluster-name: 'Dev-EUS'
+          azure-aks-resource-group: "Dev-EUS"
+          azure-aks-cluster-name: "Dev-EUS"
           need-cd-tools: true
 
       - name: Set up Docker Buildx
@@ -59,8 +54,7 @@ jobs:
       tag: ${{ steps.build-and-push.outputs.TAG }}
 
   copy-image-to-aliyun:
-    environment: aliyun-keenon-cn-hangzhou
-    runs-on: [ self-hosted ]
+    runs-on: [self-hosted]
     needs: build
     steps:
       - name: Skopeo Copy
@@ -75,9 +69,8 @@ jobs:
           dst-creds: ${{ secrets.ACR_USERNAME }}:${{ secrets.ACR_PASSWORD }}
 
   sync-fallback:
-    environment: aliyun-keenon-cn-hangzhou
     runs-on: ubuntu-latest
-    needs: [ build, copy-image-to-aliyun ]
+    needs: [build, copy-image-to-aliyun]
     if: always()
     steps:
       - name: Skopeo Copy
@@ -91,7 +84,7 @@ jobs:
 
   callout:
     runs-on: ubuntu-latest
-    needs: [ build, copy-image-to-aliyun, sync-fallback ]
+    needs: [build, copy-image-to-aliyun, sync-fallback]
     steps:
       - name: Add summary
         if: needs.build.result == 'success'
