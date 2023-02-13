@@ -18,6 +18,8 @@ build:
   artifacts:
     - image: coseus.azurecr.io/honeybee
       context: .
+      custom:
+        buildCommand: docker buildx build --push --tag $IMAGE $BUILD_CONTEXT
       docker:
         dockerfile: Dockerfile
         buildArgs:
