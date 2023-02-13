@@ -35,12 +35,13 @@ const useStyles = makeStyles()((theme) => ({
   tooltipWrapper: {
     fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
     fontFamily: fonts.SANS_SERIF,
-    whiteSpace: "nowrap",
+    // whiteSpace: "pre-wrap",
     columnGap: theme.spacing(0.5),
     display: "grid",
-    alignItems: "center",
+    alignItems: "flex-start",
     gridTemplateColumns: "auto 1fr",
     flexDirection: "column",
+    wordBreak: "break-all",
   },
   itemKey: {
     fontSize: "0.7rem",
