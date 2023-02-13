@@ -6,6 +6,7 @@ import { isString, pickBy } from "lodash";
 import { useEffect } from "react";
 import { useDebounce } from "use-debounce";
 
+import { toSec } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -45,9 +46,11 @@ export function useStateToURLSynchronization(): void {
 
   // Sync current time with the url.
   useEffect(() => {
-    updateUrl({
-      time: canSeek ? debouncedCurrentTime : undefined,
-    });
+    if (canSeek || (debouncedCurrentTime && toSec(debouncedCurrentTime) > 0)) {
+      updateUrl({
+        time: canSeek ? debouncedCurrentTime : undefined,
+      });
+    }
   }, [canSeek, debouncedCurrentTime]);
 
   // Sync layoutId with the url.
