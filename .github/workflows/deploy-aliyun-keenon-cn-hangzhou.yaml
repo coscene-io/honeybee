@@ -46,7 +46,7 @@ jobs:
       - name: Build and push images
         id: build-and-push
         run: |
-          result=$(skaffold build -p aliyun-keenon-cn-hangzhou -q | jq '.builds[0].tag')
+          result=$(skaffold build -q | jq '.builds[0].tag')
           withoutRegistry=${result#*:}
           withoutDigest=${withoutRegistry%@*}
           echo "TAG=${withoutDigest}" >> $GITHUB_OUTPUT
