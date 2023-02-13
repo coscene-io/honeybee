@@ -26,7 +26,6 @@ build:
           CURRENT_IMAGE_TAG: "{{.IMAGE_TAG}}"
   local:
     useBuildkit: true
-    tryImportMissing: true
 profiles:
   - name: local
     build:
@@ -38,6 +37,3 @@ profiles:
     build:
       local:
         useBuildkit: true
-        tryImportMissing: false
-  - name: aliyun-staging-cn-hangzhou
-  - name: aliyun-keenon-cn-hangzhou
