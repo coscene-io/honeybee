@@ -523,7 +523,18 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     }
 
     const bottomItems = new Map<SidebarItemKey, SidebarItem>([
-      // ["help", { iconName: "QuestionCircle", title: "Help", component: HelpSidebar }],
+      [
+        "help",
+        {
+          iconName: "QuestionCircle",
+          title: "Help",
+          component: () => {
+            setSelectedSidebarItem(undefined);
+            window.open("https://docs.coscene.cn/docs/get-started/create-project-flow/");
+            return <></>;
+          },
+        },
+      ],
     ]);
 
     if (supportsAccountSettings) {
