@@ -23,4 +23,7 @@ export default {
   topics: "话题",
   triggerTime: "触发时间",
   waitData: "等待数据中",
+  noPlayableBag: "当前列表无可播放的bag文件",
+  noPlayableBagDesc: "请刷新重试，或前往记录详情页查看与操作",
+  viewRecordDetails: "查看记录详情",
 };

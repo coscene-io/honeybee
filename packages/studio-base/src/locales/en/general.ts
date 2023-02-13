@@ -7,4 +7,10 @@ export default {
   foxglove: "Foxglove",
   name: "Name",
   cancel: "Cancel",
+  refresh: "Refresh",
+  download: "Download",
+  checkoutSupport: "check out our cross-browser support progress in github issue ",
+  outdatedVersion: "You’re using an outdated version of Chrome.",
+  unsupportedBrowser: "You’re using an unsupported browser.",
+  requireChrome: "Coscene currently requires Chrome v104+.",
 };

@@ -13,10 +13,10 @@ export const keenonDefaultLayout: LayoutData = {
     "3D!3me9aqv": {
       cameraState: {
         perspective: true,
-        distance: 12.883341614682251,
-        phi: 0.00005729832627056611,
-        thetaOffset: -111.67729066471877,
-        targetOffset: [1.386388050497576, -0.04739030337816235, -6.104644794365336e-16],
+        distance: 29.27189496184394,
+        phi: 0.00005731104651187513,
+        thetaOffset: -111.67729310335004,
+        targetOffset: [-1.5747146232621145, -9.07055539898806, -6.104642506645591e-16],
         target: [0, 0, 0],
         targetOrientation: [0, 0, 0, 1],
         fovy: 45,
@@ -380,7 +380,7 @@ export const keenonDefaultLayout: LayoutData = {
           visible: true,
         },
         "/move_base/global_costmap/costmap": {
-          visible: true,
+          visible: false,
           minColor: "#ffffffff",
           frameLocked: true,
         },
@@ -413,6 +413,7 @@ export const keenonDefaultLayout: LayoutData = {
         },
         "/elevator_map": {
           visible: true,
+          unknownColor: "#80808000",
         },
         "/gate_map": {
           visible: true,
@@ -616,7 +617,7 @@ export const keenonDefaultLayout: LayoutData = {
       },
       layers: {
         "108784e4-993a-457b-9b7e-4bda09b3d80c": {
-          visible: true,
+          visible: false,
           frameLocked: true,
           label: "Grid",
           instanceId: "108784e4-993a-457b-9b7e-4bda09b3d80c",
@@ -699,7 +700,7 @@ export const keenonDefaultLayout: LayoutData = {
       ],
       showXAxisLabels: true,
       showYAxisLabels: true,
-      showLegend: true,
+      showLegend: false,
       legendDisplay: "floating",
       showPlotValuesInLegend: false,
       isSynced: true,
