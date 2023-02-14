@@ -78,7 +78,7 @@ const VersionBanner = function ({
 
           <div>
             <Typography align="center" variant="h6">
-              {prompt} {t("requireChrome")}
+              {prompt + ", "} {t("requireChrome")}
             </Typography>
           </div>
 
