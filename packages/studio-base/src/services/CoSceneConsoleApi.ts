@@ -2,7 +2,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { IncCounterRequest, Project, GetProjectRequest } from "@coscene-io/coscene/proto/v1alpha1";
+import {
+  IncCounterRequest,
+  Project,
+  GetProjectRequest,
+  TaskStateEnum,
+  TaskCategoryEnum,
+} from "@coscene-io/coscene/proto/v1alpha1";
 import {
   ListEventsRequest,
   CreateEventRequest,
@@ -11,6 +17,8 @@ import {
   UpdateEventRequest,
   GetRecordRequest,
   Record as CoSceneRecord,
+  CreateTaskRequest,
+  Task,
 } from "@coscene-io/coscene/proto/v1alpha2";
 import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
@@ -480,6 +488,35 @@ class CoSceneConsoleApi {
     req.setUpdateMask(updateMask);
 
     await CsWebClient.getEventClient().updateEvent(req);
+  }
+
+  public async createTask({
+    parent,
+    record,
+    task,
+  }: {
+    parent: string;
+    record: string;
+    task: {
+      title: string;
+      description: string;
+      assignee: string;
+      assigner: string;
+    };
+  }): Promise<Task> {
+    const newTask = new Task()
+      .setCategory(TaskCategoryEnum.TaskCategory.RECORD)
+      .setRecord(record)
+      .setDescription(task.title)
+      .setTitle(task.title)
+      .setDescription(task.description)
+      .setState(TaskStateEnum.TaskState.PENDING)
+      .setAssignee(task.assignee)
+      .setAssigner(task.assigner);
+
+    const request = new CreateTaskRequest().setParent(parent).setTask(newTask);
+    const result = await CsWebClient.getTaskClient().createTask(request);
+    return result;
   }
 
   public async sendIncCounter({
