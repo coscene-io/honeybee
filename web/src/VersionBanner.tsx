@@ -6,7 +6,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import {
   IconButton,
   Typography,
-  Link,
   Button,
   styled as muiStyled,
   ThemeProvider as MuiThemeProvider,
@@ -79,19 +78,8 @@ const VersionBanner = function ({
 
           <div>
             <Typography align="center" variant="h6">
-              {prompt} {t("requireChrome")}
+              {prompt + ", "} {t("requireChrome")}
             </Typography>
-
-            {!isChrome && (
-              <Typography align="center" variant="subtitle1">
-                {t("checkoutSupport")}
-                {t("requireChrome")}
-                <Link color="inherit" href="https://github.com/foxglove/studio/issues/1511">
-                  #1511
-                </Link>
-                .
-              </Typography>
-            )}
           </div>
 
           <Button

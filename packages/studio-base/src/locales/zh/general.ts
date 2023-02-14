@@ -12,5 +12,5 @@ export default {
   checkoutSupport: "在 github issue 中查看我们的跨浏览器支持进度",
   outdatedVersion: "你正在使用旧版的 Chrome",
   unsupportedBrowser: "你正在使用不支持的浏览器",
-  requireChrome: "Coscene 目前支持 Chrome v104+.",
+  requireChrome: "coScene 目前支持 Chrome v104+.",
 };
