@@ -4,6 +4,7 @@
 
 export default {
   createMoment: "Create Moment",
+  createNewTask: "Create a new task",
   startTime: "Start Time",
   duration: "Duration",
   description: "Description",

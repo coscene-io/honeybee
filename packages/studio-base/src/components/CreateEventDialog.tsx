@@ -8,9 +8,11 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Alert,
   Button,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
+  FormControlLabel,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -110,6 +112,14 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     durationUnit: "sec",
     description: "",
     metadataEntries: [{ key: "", value: "" }],
+  });
+
+  const [task, setTask] = useImmer<{
+    enabled: boolean;
+    title: string;
+  }>({
+    enabled: false,
+    title: "",
   });
 
   const updateMetadata = useCallback(
@@ -346,6 +356,22 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
             );
           })}
         </div>
+      </Stack>
+      <Stack paddingX={3} paddingTop={2}>
+        <FormControlLabel
+          disableTypography
+          checked={task.enabled}
+          control={
+            <Checkbox
+              size="medium"
+              defaultChecked
+              onChange={() => {
+                setTask((old) => ({ ...old, enabled: !old.enabled, title: event.eventName }));
+              }}
+            />
+          }
+          label={t("createNewTask")}
+        />
       </Stack>
       <DialogActions>
         <Button variant="outlined" size="large" onClick={onClose}>

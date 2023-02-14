@@ -4,6 +4,7 @@
 
 export default {
   createMoment: "创建一刻",
+  createNewTask: "创建一个新的任务",
   startTime: "开始时间",
   duration: "持续时间",
   description: "描述",
