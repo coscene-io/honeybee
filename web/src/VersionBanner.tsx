@@ -82,7 +82,7 @@ const VersionBanner = function ({
               {prompt} {t("requireChrome")}
             </Typography>
 
-            {!isChrome && (
+            {/* {!isChrome && (
               <Typography align="center" variant="subtitle1">
                 {t("checkoutSupport")}
                 {t("requireChrome")}
@@ -91,7 +91,7 @@ const VersionBanner = function ({
                 </Link>
                 .
               </Typography>
-            )}
+            )} */}
           </div>
 
           <Button
