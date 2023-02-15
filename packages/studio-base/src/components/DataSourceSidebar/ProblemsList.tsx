@@ -22,6 +22,11 @@ export function ProblemsList({ problems }: { problems: PlayerProblem[] }): JSX.E
     (error: string): string => {
       switch (error) {
         case "Login expired, please login again":
+          setTimeout(() => {
+            window.location.href = `/login?redirectToPath=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`;
+          }, 2000);
           return t("loginExpired", { ns: "error" });
         default:
           return error;

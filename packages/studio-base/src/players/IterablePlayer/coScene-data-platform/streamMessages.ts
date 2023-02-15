@@ -207,16 +207,7 @@ export async function* streamMessages({
         topics: params.topics,
       }),
     });
-    if (response.status === 200) {
-      throw new Error("Login expired, please login again");
-    }
-
     if (response.status === 401) {
-      setTimeout(() => {
-        window.location.href = `/login?redirectToPath=${encodeURIComponent(
-          window.location.pathname + window.location.search,
-        )}`;
-      }, 2000);
       throw new Error("Login expired, please login again");
     }
     if (response.status === 404) {
