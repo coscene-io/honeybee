@@ -2,28 +2,19 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import {
   Alert,
   Button,
   CircularProgress,
   Dialog,
   DialogActions,
-  //   FormControlLabel,
   TextField,
-  //   ToggleButton,
-  //   ToggleButtonGroup,
   Typography,
-  //   FormLabel,
-  //   FormControl,
-  //   IconButton,
-  //   ButtonGroup,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { useImmer } from "use-immer";
 
-// import Log from "@foxglove/log";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -31,12 +22,15 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 
-// const log = Log.getLogger(__filename);
-
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
-export function CreateTaskDialog(props: { onClose: () => void }): JSX.Element {
-  const { onClose } = props;
+export function CreateTaskDialog({
+  onClose,
+  initialTask,
+}: {
+  onClose: () => void;
+  initialTask: { title: string; eventName: string };
+}): JSX.Element {
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("moment");
   const consoleApi = useConsoleApi();
@@ -47,8 +41,8 @@ export function CreateTaskDialog(props: { onClose: () => void }): JSX.Element {
     assignee: string;
     assigner: string;
   }>({
-    title: "",
-    description: "",
+    title: initialTask.title,
+    description: `{"root":{"children":[{"children":[{"sourceName":"${initialTask.eventName}","sourceType":"moment","type":"source","version":1}],"direction":null,"format":"","indent":0,"type":"paragraph","version":1}],"direction":null,"format":"","indent":0,"type":"root","version":1}}`,
     assignee: "users/373035b6-2471-4d40-9a67-364f09192a9e",
     assigner: "users/c90becf2-66bf-4e92-bf71-5142266abb9d",
   });
@@ -68,7 +62,7 @@ export function CreateTaskDialog(props: { onClose: () => void }): JSX.Element {
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
         <TextField
-          id="event-name"
+          id="title"
           label={t("name", { ns: "general" })}
           multiline
           maxRows={1}
@@ -79,23 +73,6 @@ export function CreateTaskDialog(props: { onClose: () => void }): JSX.Element {
           fullWidth
           variant="standard"
         />
-      </Stack>
-
-      <Stack paddingX={3} paddingTop={2}>
-        <div>
-          <TextField
-            id="description"
-            label={t("description")}
-            multiline
-            rows={2}
-            value={task.description}
-            onChange={(val) => {
-              setTask((state) => ({ ...state, description: val.target.value }));
-            }}
-            fullWidth
-            variant="standard"
-          />
-        </div>
       </Stack>
       <DialogActions>
         <Button variant="outlined" size="large" onClick={onClose}>

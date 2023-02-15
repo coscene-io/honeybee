@@ -91,7 +91,6 @@ const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 
 export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const { onClose } = props;
-  // const [openCreateTaskDialog, setthing] = useState();
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("moment");
 
@@ -410,6 +409,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       </Dialog>
       {task.enabled && (
         <CreateTaskDialog
+          initialTask={{ title: task.title, eventName: task.eventName }}
           onClose={() => {
             setTask({ enabled: false, eventName: "", title: "" });
             onClose();
