@@ -30,6 +30,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
+
 // const log = Log.getLogger(__filename);
 
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
@@ -38,21 +39,25 @@ export function CreateTaskDialog(props: { onClose: () => void }): JSX.Element {
   const { onClose } = props;
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("moment");
-
   const consoleApi = useConsoleApi();
 
   const [task, setTask] = useImmer<{
     title: string;
     description: string;
+    assignee: string;
+    assigner: string;
   }>({
     title: "",
     description: "",
+    assignee: "users/373035b6-2471-4d40-9a67-364f09192a9e",
+    assigner: "users/c90becf2-66bf-4e92-bf71-5142266abb9d",
   });
 
-  const canSubmit = true;
-
   const [createdTask, createTask] = useAsyncFn(async () => {
-    console.log(consoleApi, urlState, task, onClose);
+    const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
+    const record = `${parent}/records/${urlState?.parameters?.recordId}`;
+
+    await consoleApi.createTask({ parent, record, task });
     onClose();
   }, [consoleApi, urlState, task, onClose]);
 
@@ -69,7 +74,7 @@ export function CreateTaskDialog(props: { onClose: () => void }): JSX.Element {
           maxRows={1}
           value={task.title}
           onChange={(val) => {
-            setTask((old) => ({ ...old, title: val.target.value }));
+            setTask((state) => ({ ...state, title: val.target.value }));
           }}
           fullWidth
           variant="standard"
@@ -85,7 +90,7 @@ export function CreateTaskDialog(props: { onClose: () => void }): JSX.Element {
             rows={2}
             value={task.description}
             onChange={(val) => {
-              setTask((old) => ({ ...old, description: val.target.value }));
+              setTask((state) => ({ ...state, description: val.target.value }));
             }}
             fullWidth
             variant="standard"
@@ -100,7 +105,7 @@ export function CreateTaskDialog(props: { onClose: () => void }): JSX.Element {
           variant="contained"
           size="large"
           onClick={createTask}
-          disabled={!canSubmit || createdTask.loading || !task.title}
+          disabled={createdTask.loading || !task.title}
         >
           {createdTask.loading && (
             <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
