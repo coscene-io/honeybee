@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export default {
+  assignee: "经办人",
   createMoment: "创建一刻",
   createNewTask: "创建一个新的任务",
   createTask: "创建任务",

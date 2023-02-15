@@ -8,11 +8,14 @@ import {
   CircularProgress,
   Dialog,
   DialogActions,
+  FormLabel,
+  MenuItem,
+  Select,
   TextField,
   Typography,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { useAsyncFn } from "react-use";
+import { useAsync, useAsyncFn } from "react-use";
 import { useImmer } from "use-immer";
 
 import {
@@ -43,7 +46,7 @@ export function CreateTaskDialog({
   }>({
     title: initialTask.title,
     description: `{"root":{"children":[{"children":[{"sourceName":"${initialTask.eventName}","sourceType":"moment","type":"source","version":1}],"direction":null,"format":"","indent":0,"type":"paragraph","version":1}],"direction":null,"format":"","indent":0,"type":"root","version":1}}`,
-    assignee: "users/373035b6-2471-4d40-9a67-364f09192a9e",
+    assignee: "",
     assigner: "users/c90becf2-66bf-4e92-bf71-5142266abb9d",
   });
 
@@ -55,6 +58,10 @@ export function CreateTaskDialog({
     onClose();
   }, [consoleApi, urlState, task, onClose]);
 
+  const { value: users } = useAsync(async () => {
+    return await consoleApi.listOrganizationUsers();
+  });
+
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
       <Stack paddingX={3} paddingTop={2}>
@@ -62,7 +69,8 @@ export function CreateTaskDialog({
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
         <TextField
-          id="title"
+          fullWidth
+          variant="standard"
           label={t("name", { ns: "general" })}
           multiline
           maxRows={1}
@@ -70,9 +78,26 @@ export function CreateTaskDialog({
           onChange={(val) => {
             setTask((state) => ({ ...state, title: val.target.value }));
           }}
+        />
+      </Stack>
+      <Stack paddingX={3} paddingTop={2}>
+        <FormLabel>{t("assignee")}</FormLabel>
+        <Select
           fullWidth
           variant="standard"
-        />
+          value={task.assignee}
+          onChange={(event) => {
+            setTask((s) => ({ ...s, assignee: event.target.value }));
+          }}
+        >
+          {users?.map((user, index) => {
+            return (
+              <MenuItem key={index} value={user.getName()}>
+                {user.getNickname()}
+              </MenuItem>
+            );
+          })}
+        </Select>
       </Stack>
       <DialogActions>
         <Button variant="outlined" size="large" onClick={onClose}>
@@ -82,7 +107,7 @@ export function CreateTaskDialog({
           variant="contained"
           size="large"
           onClick={createTask}
-          disabled={createdTask.loading || !task.title}
+          disabled={createdTask.loading || !task.title || !task.assignee}
         >
           {createdTask.loading && (
             <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />

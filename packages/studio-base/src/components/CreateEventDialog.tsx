@@ -192,15 +192,15 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     });
 
     const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
-
     const recordName = `${parent}/records/${urlState?.parameters?.recordId}`;
-
     const result = await consoleApi.createEvent({
       event: newEvent,
       parent,
       recordName,
     });
     const eventName = result.getName();
+    // const eventName =
+    //   "warehouses/7d58a141-3cdd-457e-bef2-cac3556b70fd/projects/3c7a78d6-9b6e-4470-9b83-4d4405a5c262/events/e6657d82-8b06-4b78-9e5e-f3737dbdde15";
     if (event.enabledCreateNewTask) {
       setTask({ enabled: true, eventName, title: event.eventName });
     } else {
@@ -377,7 +377,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
             control={
               <Checkbox
                 size="medium"
-                defaultChecked
+                checked={event.enabledCreateNewTask}
                 onChange={() => {
                   setEvent((old) => ({ ...old, enabledCreateNewTask: !old.enabledCreateNewTask }));
                 }}

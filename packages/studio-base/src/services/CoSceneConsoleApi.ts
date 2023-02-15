@@ -8,6 +8,9 @@ import {
   GetProjectRequest,
   TaskStateEnum,
   TaskCategoryEnum,
+  ListOrganizationUsersRequest,
+  User as CosUser,
+  ListProjectUsersRequest,
 } from "@coscene-io/coscene/proto/v1alpha1";
 import {
   ListEventsRequest,
@@ -517,6 +520,20 @@ class CoSceneConsoleApi {
     const request = new CreateTaskRequest().setParent(parent).setTask(newTask);
     const result = await CsWebClient.getTaskClient().createTask(request);
     return result;
+  }
+
+  public async listOrganizationUsers(): Promise<CosUser[]> {
+    const request = new ListOrganizationUsersRequest()
+      .setParent("organizations/current")
+      .setPageSize(100);
+    const result = await CsWebClient.getUserClient().listOrganizationUsers(request);
+    return result.getOrganizationUsersList();
+  }
+
+  public async listProjectUsers(): Promise<CosUser[]> {
+    const request = new ListProjectUsersRequest().setPageSize(100);
+    const result = await CsWebClient.getUserClient().listProjectUsers(request);
+    return result.getProjectUsersList();
   }
 
   public async sendIncCounter({
