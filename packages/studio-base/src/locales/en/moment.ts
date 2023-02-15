@@ -5,12 +5,13 @@
 export default {
   createMoment: "Create Moment",
   createNewTask: "Create a new task",
-  startTime: "Start Time",
-  duration: "Duration",
+  createTask: "创建任务",
   description: "Description",
-  metadata: "Metadata",
+  duration: "Duration",
   key: "Key",
-  value: "Value",
-  string: "String",
+  metadata: "Metadata",
   sec: "sec",
+  startTime: "Start Time",
+  string: "String",
+  value: "Value",
 };
