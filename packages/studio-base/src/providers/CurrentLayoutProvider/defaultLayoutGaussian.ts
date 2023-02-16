@@ -827,6 +827,7 @@ export const gs50Layout: LayoutData = {
     "RosOut!mt4hkx": {
       searchTerms: [],
       minLogLevel: 1,
+      topicToRender: "/rosout",
     },
   },
   globalVariables: {},
@@ -1680,6 +1681,7 @@ export const gs75Layout: LayoutData = {
     "RosOut!mt4hkx": {
       searchTerms: [],
       minLogLevel: 1,
+      topicToRender: "/rosout",
     },
   },
   globalVariables: {},
