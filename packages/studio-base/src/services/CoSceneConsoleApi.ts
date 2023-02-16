@@ -3,15 +3,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  IncCounterRequest,
-  Project,
   GetProjectRequest,
-  TaskStateEnum,
-  TaskCategoryEnum,
-  ListOrganizationUsersRequest,
-  User as CoUser,
-  ListProjectUsersRequest,
   GetUserRequest,
+  IncCounterRequest,
+  ListOrganizationUsersRequest,
+  Project,
+  TaskCategoryEnum,
+  TaskStateEnum,
+  User as CoUser,
 } from "@coscene-io/coscene/proto/v1alpha1";
 import {
   ListEventsRequest,
