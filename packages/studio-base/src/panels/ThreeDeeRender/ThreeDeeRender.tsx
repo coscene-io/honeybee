@@ -4,6 +4,7 @@
 
 import RulerIcon from "@mdi/svg/svg/ruler.svg";
 import Video3dIcon from "@mdi/svg/svg/video-3d.svg";
+import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
 import {
   IconButton,
   ListItemIcon,
@@ -16,6 +17,7 @@ import {
 import { cloneDeep, isEqual, merge } from "lodash";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
+import { useTranslation } from "react-i18next";
 import { useLatest, useLongPress } from "react-use";
 import { DeepPartial } from "ts-essentials";
 import { useDebouncedCallback } from "use-debounce";
@@ -103,6 +105,9 @@ function RendererOverlay(props: {
   publishClickType: PublishClickType;
   onChangePublishClickType: (_: PublishClickType) => void;
   onClickPublish: () => void;
+  renderRef: React.MutableRefObject<{
+    needsRender: boolean;
+  }>;
 }): JSX.Element {
   const [clickedPosition, setClickedPosition] = useState<{ clientX: number; clientY: number }>({
     clientX: 0,
@@ -114,6 +119,8 @@ function RendererOverlay(props: {
   );
   const [interactionsTabType, setInteractionsTabType] = useState<TabType | undefined>(undefined);
   const renderer = useRenderer();
+
+  const { t } = useTranslation("threeDimensionalPanel");
 
   // Publish control is only available if the canPublish prop is true and we have a fixed frame in the renderer
   const showPublishControl: boolean = props.canPublish && renderer?.fixedFrameId != undefined;
@@ -230,7 +237,7 @@ function RendererOverlay(props: {
         <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
           <IconButton
             color={props.perspective ? "info" : "inherit"}
-            title={props.perspective ? "Switch to 2D camera" : "Switch to 3D camera"}
+            title={props.perspective ? t("switchTo2DCamera") : t("switchTo3DCamera")}
             onClick={props.onTogglePerspective}
             style={{ pointerEvents: "auto" }}
           >
@@ -239,7 +246,7 @@ function RendererOverlay(props: {
           <IconButton
             data-testid="measure-button"
             color={props.measureActive ? "info" : "inherit"}
-            title={props.measureActive ? "Cancel measuring" : "Measure distance"}
+            title={props.measureActive ? t("cancelMeasuring") : t("measureDistance")}
             onClick={props.onClickMeasure}
             style={{ position: "relative", pointerEvents: "auto" }}
           >
@@ -251,7 +258,7 @@ function RendererOverlay(props: {
               <IconButton
                 {...longPressPublishEvent}
                 color={props.publishActive ? "info" : "inherit"}
-                title={props.publishActive ? "Click to cancel" : "Click to publish"}
+                title={props.publishActive ? t("clickToCancel") : t("clickToPublish")}
                 ref={publickClickButtonRef}
                 onClick={props.onClickPublish}
                 data-testid="publish-button"
@@ -312,6 +319,23 @@ function RendererOverlay(props: {
               </Menu>
             </>
           )}
+        </Paper>
+        <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
+          <IconButton
+            color="inherit"
+            title={t("reCenter")}
+            onClick={() => {
+              renderer?.setCameraState(cloneDeep(DEFAULT_CAMERA_STATE));
+              props.renderRef.current.needsRender = true;
+            }}
+            style={{ pointerEvents: "auto" }}
+          >
+            <FilterCenterFocusIcon
+              style={{
+                fontSize: 16,
+              }}
+            />
+          </IconButton>
         </Paper>
       </div>
       {clickedObjects.length > 1 && !selectedObject && (
@@ -942,6 +966,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
               renderer?.publishClickTool.setPublishClickType(type);
               renderer?.publishClickTool.start();
             }}
+            renderRef={renderRef}
           />
         </RendererContext.Provider>
       </div>
