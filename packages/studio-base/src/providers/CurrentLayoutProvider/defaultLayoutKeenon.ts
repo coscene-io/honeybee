@@ -710,6 +710,7 @@ export const keenonDefaultLayout: LayoutData = {
     "RosOut!mt4hkx": {
       searchTerms: [],
       minLogLevel: 1,
+      topicToRender: "/rosout",
     },
   },
   globalVariables: {},
