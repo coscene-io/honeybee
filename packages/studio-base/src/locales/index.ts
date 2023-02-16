@@ -17,6 +17,7 @@ import {
   enMoment,
   enGeneral,
   enError,
+  enThreeDimensionalPanel,
 } from "./en";
 import {
   zhPreferences,
@@ -33,6 +34,7 @@ import {
   zhMoment,
   zhGeneral,
   zhError,
+  zhThreeDimensionalPanel,
 } from "./zh";
 
 export const translations = {
@@ -51,6 +53,7 @@ export const translations = {
     moment: enMoment,
     general: enGeneral,
     error: enError,
+    threeDimensionalPanel: enThreeDimensionalPanel,
   },
   zh: {
     account: zhAccount,
@@ -67,5 +70,6 @@ export const translations = {
     moment: zhMoment,
     general: zhGeneral,
     error: zhError,
+    threeDimensionalPanel: zhThreeDimensionalPanel,
   },
 };
