@@ -9,8 +9,9 @@ import {
   TaskStateEnum,
   TaskCategoryEnum,
   ListOrganizationUsersRequest,
-  User as CosUser,
+  User as CoUser,
   ListProjectUsersRequest,
+  GetUserRequest,
 } from "@coscene-io/coscene/proto/v1alpha1";
 import {
   ListEventsRequest,
@@ -493,6 +494,12 @@ class CoSceneConsoleApi {
     await CsWebClient.getEventClient().updateEvent(req);
   }
 
+  public async getUser(userName: string): Promise<CoUser> {
+    const request = new GetUserRequest().setName(userName);
+    const result = await CsWebClient.getUserClient().getUser(request);
+    return result;
+  }
+
   public async createTask({
     parent,
     record,
@@ -507,6 +514,7 @@ class CoSceneConsoleApi {
       assigner: string;
     };
   }): Promise<Task> {
+    const currentUser = await this.getUser("users/current");
     const newTask = new Task()
       .setCategory(TaskCategoryEnum.TaskCategory.RECORD)
       .setRecord(record)
@@ -515,25 +523,19 @@ class CoSceneConsoleApi {
       .setDescription(task.description)
       .setState(TaskStateEnum.TaskState.PENDING)
       .setAssignee(task.assignee)
-      .setAssigner(task.assigner);
+      .setAssigner(currentUser.getName());
 
     const request = new CreateTaskRequest().setParent(parent).setTask(newTask);
     const result = await CsWebClient.getTaskClient().createTask(request);
     return result;
   }
 
-  public async listOrganizationUsers(): Promise<CosUser[]> {
+  public async listOrganizationUsers(): Promise<CoUser[]> {
     const request = new ListOrganizationUsersRequest()
       .setParent("organizations/current")
       .setPageSize(100);
     const result = await CsWebClient.getUserClient().listOrganizationUsers(request);
     return result.getOrganizationUsersList();
-  }
-
-  public async listProjectUsers(): Promise<CosUser[]> {
-    const request = new ListProjectUsersRequest().setPageSize(100);
-    const result = await CsWebClient.getUserClient().listProjectUsers(request);
-    return result.getProjectUsersList();
   }
 
   public async sendIncCounter({

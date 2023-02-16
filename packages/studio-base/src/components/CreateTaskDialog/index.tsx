@@ -3,14 +3,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
+  Autocomplete,
   Alert,
+  Box,
   Button,
   CircularProgress,
   Dialog,
   DialogActions,
   FormLabel,
-  MenuItem,
-  Select,
+  FormControl,
   TextField,
   Typography,
 } from "@mui/material";
@@ -34,6 +35,7 @@ export function CreateTaskDialog({
   onClose: () => void;
   initialTask: { title: string; eventName: string };
 }): JSX.Element {
+  const { eventName } = initialTask;
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("moment");
   const consoleApi = useConsoleApi();
@@ -45,18 +47,63 @@ export function CreateTaskDialog({
     assigner: string;
   }>({
     title: initialTask.title,
-    description: `{"root":{"children":[{"children":[{"sourceName":"${initialTask.eventName}","sourceType":"moment","type":"source","version":1}],"direction":null,"format":"","indent":0,"type":"paragraph","version":1}],"direction":null,"format":"","indent":0,"type":"root","version":1}}`,
+    description: "",
     assignee: "",
-    assigner: "users/c90becf2-66bf-4e92-bf71-5142266abb9d",
+    assigner: "",
   });
 
   const [createdTask, createTask] = useAsyncFn(async () => {
     const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
     const record = `${parent}/records/${urlState?.parameters?.recordId}`;
 
-    await consoleApi.createTask({ parent, record, task });
+    const description =
+      JSON.stringify({
+        root: {
+          children: [
+            {
+              children: [
+                {
+                  sourceName: eventName,
+                  sourceType: "moment",
+                  type: "source",
+                  version: 1,
+                },
+              ],
+              direction: "ltr",
+              format: "",
+              indent: 0,
+              type: "paragraph",
+              version: 1,
+            },
+            ...task.description.split("\n").map((text) => ({
+              children: [
+                {
+                  detail: 0,
+                  format: 0,
+                  mode: "normal",
+                  style: "",
+                  text,
+                  type: "text",
+                  version: 1,
+                },
+              ],
+              direction: "ltr",
+              format: "",
+              indent: 0,
+              type: "paragraph",
+              version: 1,
+            })),
+          ],
+          direction: "ltr",
+          format: "",
+          indent: 0,
+          type: "root",
+          version: 1,
+        },
+      }) ?? task.description;
+    await consoleApi.createTask({ parent, record, task: { ...task, description } });
     onClose();
-  }, [consoleApi, urlState, task, onClose]);
+  }, [consoleApi, urlState, task, onClose, eventName]);
 
   const { value: users } = useAsync(async () => {
     return await consoleApi.listOrganizationUsers();
@@ -81,23 +128,43 @@ export function CreateTaskDialog({
         />
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
-        <FormLabel>{t("assignee")}</FormLabel>
-        <Select
+        <TextField
+          id="description"
+          label={t("description")}
+          multiline
+          rows={3}
+          value={task.description}
+          onChange={(val) => {
+            setTask((state) => ({ ...state, description: val.target.value }));
+          }}
           fullWidth
           variant="standard"
-          value={task.assignee}
-          onChange={(event) => {
-            setTask((s) => ({ ...s, assignee: event.target.value }));
-          }}
-        >
-          {users?.map((user, index) => {
-            return (
-              <MenuItem key={index} value={user.getName()}>
-                {user.getNickname()}
-              </MenuItem>
-            );
-          })}
-        </Select>
+        />
+      </Stack>
+      <Stack paddingX={3} paddingTop={2}>
+        <FormControl>
+          <FormLabel>{t("assignee")}</FormLabel>
+          <Autocomplete
+            disableClearable
+            options={users ?? []}
+            getOptionLabel={(option) => option.getNickname()}
+            renderInput={(params) => <TextField {...params} variant="standard" />}
+            renderOption={(props, option) => (
+              <Box component="li" {...props}>
+                <img
+                  style={{ width: 18, borderRadius: "50%", marginRight: 5 }}
+                  src={option.getAvatar()}
+                />
+                {option.getNickname()}
+              </Box>
+            )}
+            value={users?.find((user) => user.getName() === task.assignee)}
+            isOptionEqualToValue={(option, value) => option.getName() === value.getName()}
+            onChange={(event, option) => {
+              setTask((s) => ({ ...s, assignee: option.getName() }));
+            }}
+          />
+        </FormControl>
       </Stack>
       <DialogActions>
         <Button variant="outlined" size="large" onClick={onClose}>
