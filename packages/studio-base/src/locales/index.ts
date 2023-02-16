@@ -16,6 +16,7 @@ import {
   enUserScript,
   enMoment,
   enGeneral,
+  enError,
 } from "./en";
 import {
   zhPreferences,
@@ -31,6 +32,7 @@ import {
   zhUserScript,
   zhMoment,
   zhGeneral,
+  zhError,
 } from "./zh";
 
 export const translations = {
@@ -48,6 +50,7 @@ export const translations = {
     userScript: enUserScript,
     moment: enMoment,
     general: enGeneral,
+    error: enError,
   },
   zh: {
     account: zhAccount,
@@ -63,5 +66,6 @@ export const translations = {
     userScript: zhUserScript,
     moment: zhMoment,
     general: zhGeneral,
+    error: zhError,
   },
 };

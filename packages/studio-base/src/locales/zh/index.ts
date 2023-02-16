@@ -15,3 +15,4 @@ export { default as zhPublish } from "./publish";
 export { default as zhUserScript } from "./userScript";
 export { default as zhMoment } from "./moment";
 export { default as zhGeneral } from "./general";
+export { default as zhError } from "./error";
