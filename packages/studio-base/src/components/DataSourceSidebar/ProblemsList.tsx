@@ -7,6 +7,7 @@ import InfoIcon from "@mui/icons-material/InfoOutlined";
 import WarningIcon from "@mui/icons-material/WarningAmber";
 import { List, ListItem, ListItemButton, ListItemText, Typography } from "@mui/material";
 import { useCallback, useContext } from "react";
+import { useTranslation } from "react-i18next";
 
 import NotificationModal from "@foxglove/studio-base/components/NotificationModal";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -15,6 +16,24 @@ import { PlayerProblem } from "@foxglove/studio-base/players/types";
 
 export function ProblemsList({ problems }: { problems: PlayerProblem[] }): JSX.Element {
   const modalHost = useContext(ModalContext);
+  const { t } = useTranslation();
+
+  const getErrorMessage = useCallback(
+    (error: string): string => {
+      switch (error) {
+        case "Login expired, please login again":
+          setTimeout(() => {
+            window.location.href = `/login?redirectToPath=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`;
+          }, 2000);
+          return t("loginExpired", { ns: "error" });
+        default:
+          return error;
+      }
+    },
+    [t],
+  );
 
   const showProblemModal = useCallback(
     (problem: PlayerProblem) => {
@@ -54,7 +73,7 @@ export function ProblemsList({ problems }: { problems: PlayerProblem[] }): JSX.E
                 {problem.severity === "error" && <ErrorIcon color="error" />}
                 {problem.severity === "info" && <InfoIcon color="info" />}
                 <ListItemText
-                  primary={problem.message}
+                  primary={getErrorMessage(problem.message)}
                   primaryTypographyProps={{
                     color:
                       problem.severity === "warn" ? "warning.main" : `${problem.severity}.main`,
