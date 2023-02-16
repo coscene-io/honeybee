@@ -2,7 +2,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { IncCounterRequest, Project, GetProjectRequest } from "@coscene-io/coscene/proto/v1alpha1";
+import {
+  GetProjectRequest,
+  GetUserRequest,
+  IncCounterRequest,
+  ListOrganizationUsersRequest,
+  Project,
+  TaskCategoryEnum,
+  TaskStateEnum,
+  User as CoUser,
+} from "@coscene-io/coscene/proto/v1alpha1";
 import {
   ListEventsRequest,
   CreateEventRequest,
@@ -11,6 +20,8 @@ import {
   UpdateEventRequest,
   GetRecordRequest,
   Record as CoSceneRecord,
+  CreateTaskRequest,
+  Task,
 } from "@coscene-io/coscene/proto/v1alpha2";
 import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
@@ -480,6 +491,50 @@ class CoSceneConsoleApi {
     req.setUpdateMask(updateMask);
 
     await CsWebClient.getEventClient().updateEvent(req);
+  }
+
+  public async getUser(userName: string): Promise<CoUser> {
+    const request = new GetUserRequest().setName(userName);
+    const result = await CsWebClient.getUserClient().getUser(request);
+    return result;
+  }
+
+  public async createTask({
+    parent,
+    record,
+    task,
+  }: {
+    parent: string;
+    record: string;
+    task: {
+      title: string;
+      description: string;
+      assignee: string;
+      assigner: string;
+    };
+  }): Promise<Task> {
+    const currentUser = await this.getUser("users/current");
+    const newTask = new Task()
+      .setCategory(TaskCategoryEnum.TaskCategory.RECORD)
+      .setRecord(record)
+      .setDescription(task.title)
+      .setTitle(task.title)
+      .setDescription(task.description)
+      .setState(TaskStateEnum.TaskState.PENDING)
+      .setAssignee(task.assignee)
+      .setAssigner(currentUser.getName());
+
+    const request = new CreateTaskRequest().setParent(parent).setTask(newTask);
+    const result = await CsWebClient.getTaskClient().createTask(request);
+    return result;
+  }
+
+  public async listOrganizationUsers(): Promise<CoUser[]> {
+    const request = new ListOrganizationUsersRequest()
+      .setParent("organizations/current")
+      .setPageSize(100);
+    const result = await CsWebClient.getUserClient().listOrganizationUsers(request);
+    return result.getOrganizationUsersList();
   }
 
   public async sendIncCounter({
