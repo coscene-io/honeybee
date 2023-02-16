@@ -16,3 +16,4 @@ export { default as enUserScript } from "./userScript";
 export { default as enMoment } from "./moment";
 export { default as enGeneral } from "./general";
 export { default as enError } from "./error";
+export { default as enThreeDimensionalPanel } from "./threeDimensionalPanel";
