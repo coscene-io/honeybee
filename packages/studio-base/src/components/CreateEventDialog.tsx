@@ -293,9 +293,6 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                     <ToggleButton className={classes.toggleButton} tabIndex={-1} value="sec">
                       {t("sec")}
                     </ToggleButton>
-                    {/* <ToggleButton className={classes.toggleButton} tabIndex={-1} value="nsec">
-                    nsec
-                  </ToggleButton> */}
                   </ToggleButtonGroup>
                 ),
               }}
