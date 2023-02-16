@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { useAsync, useAsyncFn } from "react-use";
+import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
 import {
@@ -28,6 +29,17 @@ import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
+const useStyles = makeStyles()(() => ({
+  avatar: {
+    width: 18,
+    borderRadius: "50%",
+    marginRight: 5,
+  },
+  circularProgress: {
+    marginRight: "0.5rem",
+  },
+}));
+
 export function CreateTaskDialog({
   onClose,
   initialTask,
@@ -35,6 +47,7 @@ export function CreateTaskDialog({
   onClose: () => void;
   initialTask: { title: string; eventName: string };
 }): JSX.Element {
+  const { classes } = useStyles();
   const { eventName } = initialTask;
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("moment");
@@ -151,10 +164,7 @@ export function CreateTaskDialog({
             renderInput={(params) => <TextField {...params} variant="standard" />}
             renderOption={(props, option) => (
               <Box component="li" {...props}>
-                <img
-                  style={{ width: 18, borderRadius: "50%", marginRight: 5 }}
-                  src={option.getAvatar()}
-                />
+                <img className={classes.avatar} src={option.getAvatar()} />
                 {option.getNickname()}
               </Box>
             )}
@@ -177,7 +187,7 @@ export function CreateTaskDialog({
           disabled={createdTask.loading || !task.title || !task.assignee}
         >
           {createdTask.loading && (
-            <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
+            <CircularProgress color="inherit" size="1rem" className={classes.circularProgress} />
           )}
           {t("createTask")}
         </Button>
