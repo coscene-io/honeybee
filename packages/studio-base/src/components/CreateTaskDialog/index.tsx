@@ -170,7 +170,7 @@ export function CreateTaskDialog({
             )}
             value={users?.find((user) => user.getName() === task.assignee)}
             isOptionEqualToValue={(option, value) => option.getName() === value.getName()}
-            onChange={(event, option) => {
+            onChange={(_event, option) => {
               setTask((s) => ({ ...s, assignee: option.getName() }));
             }}
           />
