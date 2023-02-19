@@ -12,4 +12,6 @@ export default {
   selectObjectTips: "Click an object in the 3D view to select it.",
   switchTo2DCamera: "Switch to 2D camera",
   switchTo3DCamera: "Switch to 3D camera",
+  zoomIn: "Zoom-in",
+  zoomOut: "Zoom-out",
 };

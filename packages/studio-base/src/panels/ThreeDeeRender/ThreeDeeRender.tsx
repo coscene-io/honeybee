@@ -4,7 +4,9 @@
 
 import RulerIcon from "@mdi/svg/svg/ruler.svg";
 import Video3dIcon from "@mdi/svg/svg/video-3d.svg";
+import AddIcon from "@mui/icons-material/Add";
 import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
+import RemoveIcon from "@mui/icons-material/Remove";
 import {
   IconButton,
   ListItemIcon,
@@ -83,6 +85,9 @@ const PANEL_STYLE: React.CSSProperties = {
   position: "relative",
 };
 
+const ZOOM_IN_LIMITATION = 1;
+const ZOOM_OUT_LIMITATION = 40;
+
 const PublishClickIcons: Record<PublishClickType, React.ReactNode> = {
   pose: <PublishGoalIcon fontSize="inherit" />,
   point: <PublishPointIcon fontSize="inherit" />,
@@ -118,6 +123,7 @@ function RendererOverlay(props: {
     undefined,
   );
   const [interactionsTabType, setInteractionsTabType] = useState<TabType | undefined>(undefined);
+  const [zoomValue, setZoomValue] = useState(DEFAULT_CAMERA_STATE.distance);
   const renderer = useRenderer();
 
   const { t } = useTranslation("threeDimensionalPanel");
@@ -201,7 +207,7 @@ function RendererOverlay(props: {
   // Inform the Renderer when a renderable is selected
   useEffect(() => {
     renderer?.setSelectedRenderable(selectedRenderable);
-  }, [renderer, selectedRenderable]);
+  }, [renderer, selectedRenderable, zoomValue]);
 
   const publickClickButtonRef = useRef<HTMLButtonElement>(ReactNull);
   const [publishMenuExpanded, setPublishMenuExpanded] = useState(false);
@@ -213,6 +219,55 @@ function RendererOverlay(props: {
   const longPressPublishEvent = useLongPress(onLongPressPublish);
 
   const theme = useTheme();
+
+  useEffect(() => {
+    renderer?.setCameraState(
+      cloneDeep({
+        ...renderer.config.cameraState,
+        distance: zoomValue,
+      }),
+    );
+    renderer?.animationFrame();
+    props.renderRef.current.needsRender = true;
+  }, [props.renderRef, renderer, zoomValue]);
+
+  const zoomIn = () => {
+    const distance = renderer?.getCameraState().distance;
+    // eslint-disable-next-line no-restricted-syntax
+    if (distance != null && distance > ZOOM_IN_LIMITATION) {
+      if (distance < 2) {
+        setZoomValue(ZOOM_IN_LIMITATION);
+      } else {
+        setZoomValue(distance - ZOOM_IN_LIMITATION);
+      }
+    }
+  };
+
+  const zoomOut = () => {
+    const distance = renderer?.getCameraState().distance;
+    // eslint-disable-next-line no-restricted-syntax
+    if (distance != null && distance < ZOOM_OUT_LIMITATION) {
+      if (distance > ZOOM_OUT_LIMITATION) {
+        setZoomValue(ZOOM_OUT_LIMITATION);
+      } else {
+        setZoomValue(distance + ZOOM_IN_LIMITATION);
+      }
+    }
+  };
+
+  const scaleDisplay = () => {
+    if (zoomValue === ZOOM_IN_LIMITATION) {
+      return "200%";
+    } else if (zoomValue > ZOOM_OUT_LIMITATION) {
+      return "0  %";
+    } else {
+      return `${(
+        (ZOOM_IN_LIMITATION -
+          (zoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
+        100
+      ).toFixed(0)}%`;
+    }
+  };
 
   return (
     <React.Fragment>
@@ -331,6 +386,44 @@ function RendererOverlay(props: {
             style={{ pointerEvents: "auto" }}
           >
             <FilterCenterFocusIcon
+              style={{
+                fontSize: 16,
+              }}
+            />
+          </IconButton>
+        </Paper>
+        <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
+          <IconButton
+            color="inherit"
+            title={t("zoomIn")}
+            onClick={zoomIn}
+            style={{ pointerEvents: "auto" }}
+          >
+            <AddIcon
+              style={{
+                fontSize: 16,
+              }}
+            />
+          </IconButton>
+          <div
+            style={{
+              pointerEvents: "auto",
+              padding: "10px 0px",
+              width: 32,
+              fontSize: 4,
+              textAlign: "center",
+            }}
+          >
+            {scaleDisplay()}
+          </div>
+
+          <IconButton
+            color="inherit"
+            title={t("zoomOut")}
+            onClick={zoomOut}
+            style={{ pointerEvents: "auto" }}
+          >
+            <RemoveIcon
               style={{
                 fontSize: 16,
               }}

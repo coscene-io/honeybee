@@ -12,4 +12,6 @@ export default {
   selectObjectTips: "在3D视图中点击一个对象来选择它。",
   switchTo2DCamera: "切换到2D相机",
   switchTo3DCamera: "切换到3D相机",
+  zoomIn: "放大",
+  zoomOut: "缩小",
 };
