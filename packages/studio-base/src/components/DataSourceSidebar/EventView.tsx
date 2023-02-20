@@ -33,6 +33,7 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
     event: {
       display: "contents",
       cursor: "pointer",
+      wordBreak: "break-all",
       "&:hover": {
         [`.${classes.eventMetadata}`]: {
           backgroundColor: alpha(theme.palette.info.main, theme.palette.action.hoverOpacity),
@@ -95,8 +96,9 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
     grid: {
       display: "grid",
       flexShrink: 1,
-      gridTemplateColumns: "auto 1fr",
+      gridTemplateColumns: "1fr 3fr",
       overflowY: "auto",
+      wordBreak: "break-all",
       // padding: theme.spacing(1),
     },
   }),
