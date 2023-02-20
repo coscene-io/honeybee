@@ -2,8 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { CameraState } from "@foxglove/studio-base/src/panels/ThreeDeeRender/ThreeDeeRender.tsx";
-
 declare module "@foxglove/studio" {
   // Valid types for parameter data (such as rosparams)
   export type ParameterValue =
@@ -538,10 +536,6 @@ declare module "@foxglove/studio" {
         labels?: [string, string];
         max?: number;
         min?: number;
-      }
-    | {
-        input: "camera";
-        value?: CameraState;
       };
 
   export type SettingsTreeField = SettingsTreeFieldValue & {

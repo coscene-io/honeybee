@@ -1021,16 +1021,13 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
 
   const onSetCameraState = useCallback(
     (updateState: CameraState) => {
-      actionHandler({
-        action: "update",
-        payload: {
-          input: "camera",
-          path: ["scene", "cameraState"],
-          value: updateState,
-        },
-      });
+      if (renderer) {
+        renderer.updateConfig((draft) => {
+          draft.cameraState = updateState;
+        });
+      }
     },
-    [actionHandler],
+    [renderer],
   );
 
   // The 3d panel only supports publishing to ros1 and ros2 data sources
