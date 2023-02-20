@@ -110,10 +110,9 @@ function RendererOverlay(props: {
   publishClickType: PublishClickType;
   onChangePublishClickType: (_: PublishClickType) => void;
   onClickPublish: () => void;
-  renderRef: React.MutableRefObject<{
-    needsRender: boolean;
-  }>;
+  onResetCamera: (updateState: CameraState) => void;
 }): JSX.Element {
+  const { onResetCamera } = props;
   const [clickedPosition, setClickedPosition] = useState<{ clientX: number; clientY: number }>({
     clientX: 0,
     clientY: 0,
@@ -221,15 +220,13 @@ function RendererOverlay(props: {
   const theme = useTheme();
 
   useEffect(() => {
-    renderer?.setCameraState(
-      cloneDeep({
+    if (renderer) {
+      onResetCamera({
         ...renderer.config.cameraState,
         distance: zoomValue,
-      }),
-    );
-    renderer?.animationFrame();
-    props.renderRef.current.needsRender = true;
-  }, [props.renderRef, renderer, zoomValue]);
+      });
+    }
+  }, [renderer, zoomValue, onResetCamera]);
 
   const zoomIn = () => {
     const distance = renderer?.getCameraState().distance;
@@ -378,9 +375,11 @@ function RendererOverlay(props: {
             color="inherit"
             title={t("reCenter")}
             onClick={() => {
-              renderer?.setCameraState(cloneDeep(DEFAULT_CAMERA_STATE));
-              props.renderRef.current.needsRender = true;
-              setZoomValue(DEFAULT_CAMERA_STATE.distance);
+              const currentState = renderer?.getCameraState().perspective ?? false;
+              props.onResetCamera({
+                ...DEFAULT_CAMERA_STATE,
+                perspective: currentState,
+              });
             }}
             style={{ pointerEvents: "auto" }}
           >
@@ -1024,6 +1023,20 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     [onTogglePerspective],
   );
 
+  const onResetCamera = useCallback(
+    (updateState: CameraState) => {
+      actionHandler({
+        action: "update",
+        payload: {
+          input: "camera",
+          path: ["scene", "cameraState"],
+          value: updateState,
+        },
+      });
+    },
+    [actionHandler],
+  );
+
   // The 3d panel only supports publishing to ros1 and ros2 data sources
   const isRosDataSource =
     context.dataSourceProfile === "ros1" || context.dataSourceProfile === "ros2";
@@ -1058,7 +1071,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
               renderer?.publishClickTool.setPublishClickType(type);
               renderer?.publishClickTool.start();
             }}
-            renderRef={renderRef}
+            onResetCamera={onResetCamera}
           />
         </RendererContext.Provider>
       </div>

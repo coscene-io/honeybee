@@ -47,7 +47,7 @@ export default {
   general: "General",
   helpCenter: "Help Center",
   hideAll: "Hide All",
-  ignoreTag: 'Ignore COLLADA <up_axis>"',
+  ignoreTag: "Ignore COLLADA <up_axis>",
   image: "Image",
   imageDescription: "Display annotated images.",
   impExpSetting: "Import/export settings...",
