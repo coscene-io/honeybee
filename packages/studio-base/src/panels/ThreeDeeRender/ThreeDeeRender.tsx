@@ -380,8 +380,10 @@ function RendererOverlay(props: {
             color="inherit"
             title={t("reCenter")}
             onClick={() => {
+              console.log("trfdas");
               renderer?.setCameraState(cloneDeep(DEFAULT_CAMERA_STATE));
               props.renderRef.current.needsRender = true;
+              setZoomValue(DEFAULT_CAMERA_STATE.distance);
             }}
             style={{ pointerEvents: "auto" }}
           >
