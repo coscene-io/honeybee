@@ -197,8 +197,8 @@ export function RecordsSyncAdapter(): ReactNull {
         if (
           ele.startTime &&
           ele.endTime &&
-          compare(ele.startTime, currentTime) < 0 &&
-          compare(ele.endTime, currentTime) > 0
+          compare(ele.startTime, currentTime) <= 0 &&
+          compare(ele.endTime, currentTime) >= 0
         ) {
           currentBagNames.push(ele);
         }
