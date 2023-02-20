@@ -207,6 +207,9 @@ export async function* streamMessages({
         topics: params.topics,
       }),
     });
+    if (response.status === 401) {
+      throw new Error("Login expired, please login again");
+    }
     if (response.status === 404) {
       return;
     } else if (response.status !== 200) {

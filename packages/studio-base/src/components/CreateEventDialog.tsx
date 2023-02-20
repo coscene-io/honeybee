@@ -8,9 +8,11 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Alert,
   Button,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
+  FormControlLabel,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -31,6 +33,7 @@ import { useImmer } from "use-immer";
 
 import Log from "@foxglove/log";
 import { toDate } from "@foxglove/rostime";
+import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -103,6 +106,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     durationUnit: "sec" | "nsec";
     description: undefined | string;
     metadataEntries: KeyValue[];
+    enabledCreateNewTask: boolean;
   }>({
     eventName: "",
     startTime: currentTime ? toDate(currentTime) : undefined,
@@ -110,6 +114,17 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     durationUnit: "sec",
     description: "",
     metadataEntries: [{ key: "", value: "" }],
+    enabledCreateNewTask: false,
+  });
+
+  const [task, setTask] = useImmer<{
+    enabled: boolean;
+    eventName: string;
+    title: string;
+  }>({
+    enabled: false,
+    eventName: "",
+    title: "",
   });
 
   const updateMetadata = useCallback(
@@ -177,18 +192,21 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     });
 
     const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
-
     const recordName = `${parent}/records/${urlState?.parameters?.recordId}`;
-
-    await consoleApi.createEvent({
+    const result = await consoleApi.createEvent({
       event: newEvent,
       parent,
       recordName,
     });
+    const eventName = result.getName();
+    if (event.enabledCreateNewTask) {
+      setTask({ enabled: true, eventName, title: event.eventName });
+    } else {
+      onClose();
+    }
 
-    onClose();
     refreshEvents();
-  }, [consoleApi, urlState, event, onClose, refreshEvents]);
+  }, [consoleApi, urlState, event, onClose, refreshEvents, setTask]);
 
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: KeyboardEvent) => {
@@ -222,149 +240,177 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const formattedStartTime = currentTime ? formatTime(currentTime) : "-";
 
   return (
-    <Dialog open onClose={onClose} fullWidth maxWidth="sm">
-      <Stack paddingX={3} paddingTop={2}>
-        <Typography variant="h2">{t("createMoment")}</Typography>
-      </Stack>
-      <Stack paddingX={3} paddingTop={2}>
-        <TextField
-          id="event-name"
-          label={t("name", { ns: "general" })}
-          multiline
-          maxRows={1}
-          value={event.eventName}
-          onChange={(val) => {
-            setEvent((old) => ({ ...old, eventName: val.target.value }));
-          }}
-          fullWidth
-          variant="standard"
-        />
-      </Stack>
-      <Stack paddingX={3} paddingTop={2}>
-        <div className={classes.grid}>
-          <FormControl>
-            <FormLabel>{t("startTime")}</FormLabel>
-            <Typography paddingY={1}>{formattedStartTime}</Typography>
-          </FormControl>
+    <>
+      <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+        <Stack paddingX={3} paddingTop={2}>
+          <Typography variant="h2">{t("createMoment")}</Typography>
+        </Stack>
+        <Stack paddingX={3} paddingTop={2}>
           <TextField
-            value={event.duration ?? ""}
-            fullWidth
-            label={t("duration")}
-            onChange={(ev) => {
-              const duration = Number(ev.currentTarget.value);
-              setEvent((oldEvent) => ({
-                ...oldEvent,
-                duration: duration > 0 ? duration : undefined,
-              }));
-            }}
-            type="number"
-            InputProps={{
-              endAdornment: (
-                <ToggleButtonGroup
-                  className={classes.toggleButtonGroup}
-                  size="small"
-                  exclusive
-                  value={event.durationUnit}
-                  onChange={(_ev, durationUnit) => {
-                    if (event.durationUnit !== durationUnit) {
-                      setEvent((old) => ({ ...old, durationUnit }));
-                    }
-                  }}
-                >
-                  <ToggleButton className={classes.toggleButton} tabIndex={-1} value="sec">
-                    {t("sec")}
-                  </ToggleButton>
-                  {/* <ToggleButton className={classes.toggleButton} tabIndex={-1} value="nsec">
-                    nsec
-                  </ToggleButton> */}
-                </ToggleButtonGroup>
-              ),
-            }}
-          />
-          <ButtonGroup style={{ visibility: "hidden" }}>
-            <IconButton tabIndex={-1} data-testid="add">
-              <AddIcon />
-            </IconButton>
-            <IconButton tabIndex={-1}>
-              <AddIcon />
-            </IconButton>
-          </ButtonGroup>
-        </div>
-      </Stack>
-      <Stack paddingX={3} paddingTop={2}>
-        <div>
-          <TextField
-            id="description"
-            label={t("description")}
+            id="event-name"
+            label={t("name", { ns: "general" })}
             multiline
-            rows={2}
-            value={event.description}
+            maxRows={1}
+            value={event.eventName}
             onChange={(val) => {
-              setEvent((old) => ({ ...old, description: val.target.value }));
+              setEvent((old) => ({ ...old, eventName: val.target.value }));
             }}
             fullWidth
             variant="standard"
           />
-        </div>
-      </Stack>
-      <Stack paddingX={3} paddingTop={2}>
-        <FormLabel>{t("metadata")}</FormLabel>
-        <div className={classes.grid}>
-          {event.metadataEntries.map(({ key, value }, index) => {
-            const hasDuplicate = ((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
-            return (
-              <div className={classes.row} key={index}>
-                <TextField
-                  fullWidth
-                  value={key}
-                  placeholder={`${t("key")} (${t("string")})`}
-                  error={hasDuplicate}
-                  onKeyDown={onMetaDataKeyDown}
-                  onChange={(evt) => updateMetadata(index, "key", evt.currentTarget.value)}
-                />
-                <TextField
-                  fullWidth
-                  value={value}
-                  placeholder={`${t("value")} (${t("string")})`}
-                  error={hasDuplicate}
-                  onKeyDown={onMetaDataKeyDown}
-                  onChange={(evt) => updateMetadata(index, "value", evt.currentTarget.value)}
-                />
-                <ButtonGroup>
-                  <IconButton tabIndex={-1} onClick={() => addRow(index)}>
-                    <AddIcon />
-                  </IconButton>
-                  <IconButton
-                    tabIndex={-1}
-                    onClick={() => removeRow(index)}
-                    style={{ visibility: event.metadataEntries.length > 1 ? "visible" : "hidden" }}
+        </Stack>
+        <Stack paddingX={3} paddingTop={2}>
+          <div className={classes.grid}>
+            <FormControl>
+              <FormLabel>{t("startTime")}</FormLabel>
+              <Typography paddingY={1}>{formattedStartTime}</Typography>
+            </FormControl>
+            <TextField
+              value={event.duration ?? ""}
+              fullWidth
+              label={t("duration")}
+              onChange={(ev) => {
+                const duration = Number(ev.currentTarget.value);
+                setEvent((oldEvent) => ({
+                  ...oldEvent,
+                  duration: duration > 0 ? duration : undefined,
+                }));
+              }}
+              type="number"
+              InputProps={{
+                endAdornment: (
+                  <ToggleButtonGroup
+                    className={classes.toggleButtonGroup}
+                    size="small"
+                    exclusive
+                    value={event.durationUnit}
+                    onChange={(_ev, durationUnit) => {
+                      if (event.durationUnit !== durationUnit) {
+                        setEvent((old) => ({ ...old, durationUnit }));
+                      }
+                    }}
                   >
-                    <RemoveIcon />
-                  </IconButton>
-                </ButtonGroup>
-              </div>
-            );
-          })}
-        </div>
-      </Stack>
-      <DialogActions>
-        <Button variant="outlined" size="large" onClick={onClose}>
-          {t("cancel", { ns: "general" })}
-        </Button>
-        <Button
-          variant="contained"
-          size="large"
-          onClick={createEvent}
-          disabled={!canSubmit || createdEvent.loading || !event.eventName}
-        >
-          {createdEvent.loading && (
-            <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
-          )}
-          {t("createMoment")}
-        </Button>
-      </DialogActions>
-      {duplicateKey && <Alert severity="error">Duplicate key {duplicateKey[0]}</Alert>}
-      {createdEvent.error?.message && <Alert severity="error">{createdEvent.error.message}</Alert>}
-    </Dialog>
+                    <ToggleButton className={classes.toggleButton} tabIndex={-1} value="sec">
+                      {t("sec")}
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                ),
+              }}
+            />
+            <ButtonGroup style={{ visibility: "hidden" }}>
+              <IconButton tabIndex={-1} data-testid="add">
+                <AddIcon />
+              </IconButton>
+              <IconButton tabIndex={-1}>
+                <AddIcon />
+              </IconButton>
+            </ButtonGroup>
+          </div>
+        </Stack>
+        <Stack paddingX={3} paddingTop={2}>
+          <div>
+            <TextField
+              id="description"
+              label={t("description")}
+              multiline
+              rows={2}
+              value={event.description}
+              onChange={(val) => {
+                setEvent((old) => ({ ...old, description: val.target.value }));
+              }}
+              fullWidth
+              variant="standard"
+            />
+          </div>
+        </Stack>
+        <Stack paddingX={3} paddingTop={2}>
+          <FormLabel>{t("metadata")}</FormLabel>
+          <div className={classes.grid}>
+            {event.metadataEntries.map(({ key, value }, index) => {
+              const hasDuplicate = ((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
+              return (
+                <div className={classes.row} key={index}>
+                  <TextField
+                    fullWidth
+                    value={key}
+                    placeholder={`${t("key")} (${t("string")})`}
+                    error={hasDuplicate}
+                    onKeyDown={onMetaDataKeyDown}
+                    onChange={(evt) => updateMetadata(index, "key", evt.currentTarget.value)}
+                  />
+                  <TextField
+                    fullWidth
+                    value={value}
+                    placeholder={`${t("value")} (${t("string")})`}
+                    error={hasDuplicate}
+                    onKeyDown={onMetaDataKeyDown}
+                    onChange={(evt) => updateMetadata(index, "value", evt.currentTarget.value)}
+                  />
+                  <ButtonGroup>
+                    <IconButton tabIndex={-1} onClick={() => addRow(index)}>
+                      <AddIcon />
+                    </IconButton>
+                    <IconButton
+                      tabIndex={-1}
+                      onClick={() => removeRow(index)}
+                      style={{
+                        visibility: event.metadataEntries.length > 1 ? "visible" : "hidden",
+                      }}
+                    >
+                      <RemoveIcon />
+                    </IconButton>
+                  </ButtonGroup>
+                </div>
+              );
+            })}
+          </div>
+        </Stack>
+        <Stack paddingX={3} paddingTop={2}>
+          <FormControlLabel
+            disableTypography
+            checked={event.enabledCreateNewTask}
+            control={
+              <Checkbox
+                size="medium"
+                checked={event.enabledCreateNewTask}
+                onChange={() => {
+                  setEvent((old) => ({ ...old, enabledCreateNewTask: !old.enabledCreateNewTask }));
+                }}
+              />
+            }
+            label={t("createNewTask")}
+          />
+        </Stack>
+        <DialogActions>
+          <Button variant="outlined" size="large" onClick={onClose}>
+            {t("cancel", { ns: "general" })}
+          </Button>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={createEvent}
+            disabled={!canSubmit || createdEvent.loading || !event.eventName}
+          >
+            {createdEvent.loading && (
+              <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
+            )}
+            {t("createMoment")}
+          </Button>
+        </DialogActions>
+        {duplicateKey && <Alert severity="error">Duplicate key {duplicateKey[0]}</Alert>}
+        {createdEvent.error?.message && (
+          <Alert severity="error">{createdEvent.error.message}</Alert>
+        )}
+      </Dialog>
+      {task.enabled && (
+        <CreateTaskDialog
+          initialTask={{ title: task.title, eventName: task.eventName }}
+          onClose={() => {
+            setTask({ enabled: false, eventName: "", title: "" });
+            onClose();
+          }}
+        />
+      )}
+    </>
   );
 }

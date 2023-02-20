@@ -1794,12 +1794,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/coscene@npm:0.2.64":
-  version: 0.2.64
-  resolution: "@coscene-io/coscene@npm:0.2.64::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.64%2F00b5efb11d8708890adeeaa701562f9dc3a6ba68"
+"@coscene-io/coscene@npm:0.2.77":
+  version: 0.2.77
+  resolution: "@coscene-io/coscene@npm:0.2.77::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.77%2Ffeddd62dcc9d3a1614600a65886e77b304a9ff37"
   dependencies:
-    "@coscene-io/cosceneapis": ^0.0.135
-    "@coscene-io/semantic-lib": ^0.0.91
+    "@coscene-io/cosceneapis": ^0.0.156
+    "@coscene-io/semantic-lib": ^0.0.100
     ahooks: ^3.7.0
     antd: ^4.22.3
     axios: ^0.27.1
@@ -1811,13 +1811,13 @@ __metadata:
     react-query: ^3.39.2
     react-router-dom: ^6.3.0
     recoil: ^0.7.4
-  checksum: 2a65176a090730c2c5f48f778b874cc268457baa9a13821fbc45d0f55e2df17ef8023a10427fe90e60b7f98174976b3363a2409ed6db44d1f8af3c85584266eb
+  checksum: ae140bd6f2f538ba852d77f8b56a9c98309417d8bc07d6a8a5d16a684cc301bf440ca1ce5c41266a94ad0fbc8edfd1a3dc969e99f11bfc7424a84a4ef7163efd
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis@npm:^0.0.135":
-  version: 0.0.135
-  resolution: "@coscene-io/cosceneapis@npm:0.0.135::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.135%2Ffba112818d1ee258aa563d66bd6fc14edac2ea92"
+"@coscene-io/cosceneapis@npm:^0.0.156":
+  version: 0.0.156
+  resolution: "@coscene-io/cosceneapis@npm:0.0.156::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.156%2F171015af4a27224b5b30c2db32aab20e45388383"
   dependencies:
     "@buf/grpc_web_coscene-io_argo-workflows-apis": 1.9.1
     "@buf/grpc_web_coscene-io_kubernetes-apis": 1.9.3
@@ -1826,14 +1826,14 @@ __metadata:
     "@types/google-protobuf": 3.15.6
     google-protobuf: 3.20.1
     grpc-web: 1.4.0
-  checksum: e5c487189209d6db8e9669a934ed1fbe879f59dce8efc8ec6b41116d72f64ad3f811f608a444d0536b2c1275de258c2ec567db6d277187c2112252d054c8bb22
+  checksum: 2c8510dbae154c35e9cce2bcf77f8682beb8a8b46ba23bfd70ee98ef6b26477b07fa8fafeaa16ce43a51cfc75235941b1cc2ceada4a5200a08069413af75b759
   languageName: node
   linkType: hard
 
-"@coscene-io/semantic-lib@npm:^0.0.91":
-  version: 0.0.91
-  resolution: "@coscene-io/semantic-lib@npm:0.0.91::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fsemantic-lib%2F0.0.91%2Fcae3e2343979493f426e7fe52c83fc0e407a91fa"
-  checksum: 1963a42c74380bee59ec07f75f8f946b112002229e0afa9d1e167b00b0f6e1b8a3611c0ca5136552ed0d6bf12075974ab4b1b2aa9601bfbffa0696374d4eedba
+"@coscene-io/semantic-lib@npm:^0.0.100":
+  version: 0.0.100
+  resolution: "@coscene-io/semantic-lib@npm:0.0.100::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fsemantic-lib%2F0.0.100%2F0cbcc108e9eaf8f4ac2397a218abb4bdb8c1c465"
+  checksum: 046dbef254a683365ffae6a81df8e9bc1b64e1f60a639084d7081f708e7710bd846e3696bc22903675dff4c74483fd001f4cdbf35073f2feaf6315254b2bd52b
   languageName: node
   linkType: hard
 
@@ -2504,7 +2504,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@foxglove/studio-base@workspace:packages/studio-base"
   dependencies:
-    "@coscene-io/coscene": 0.2.64
+    "@coscene-io/coscene": 0.2.77
     "@emotion/cache": 11.10.5
     "@emotion/react": 11.7.1
     "@emotion/styled": 11.6.0

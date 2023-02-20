@@ -3,13 +3,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export default {
+  assignee: "Assignee",
   createMoment: "Create Moment",
-  startTime: "Start Time",
-  duration: "Duration",
+  createNewTask: "Create a new task",
+  createTask: "Create task",
   description: "Description",
-  metadata: "Metadata",
+  duration: "Duration",
   key: "Key",
-  value: "Value",
-  string: "String",
+  metadata: "Metadata",
   sec: "sec",
+  startTime: "Start Time",
+  string: "String",
+  value: "Value",
 };

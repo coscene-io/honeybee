@@ -26,6 +26,7 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 
 const HOVER_TOLERANCE = 0.01;
+const ROS_BAG_MEDIA_TYPE = "application/vnd.ros1.bag";
 
 const log = Logger.getLogger(__filename);
 
@@ -126,7 +127,7 @@ export function RecordsSyncAdapter(): ReactNull {
         const recordBagFiles: BagFileInfo[] = [];
 
         (record.getHead()?.getFilesList() ?? []).forEach((ele) => {
-          if (ele.getFilename().split(".").pop() === "bag") {
+          if (ele.getMediaType() === ROS_BAG_MEDIA_TYPE) {
             const fileMedia = ele.getMedia();
 
             const bagFileMedia = Ros1BagMedia.deserializeBinary(
@@ -196,8 +197,8 @@ export function RecordsSyncAdapter(): ReactNull {
         if (
           ele.startTime &&
           ele.endTime &&
-          compare(ele.startTime, currentTime) < 0 &&
-          compare(ele.endTime, currentTime) > 0
+          compare(ele.startTime, currentTime) <= 0 &&
+          compare(ele.endTime, currentTime) >= 0
         ) {
           currentBagNames.push(ele);
         }

@@ -4,6 +4,9 @@
 
 import RulerIcon from "@mdi/svg/svg/ruler.svg";
 import Video3dIcon from "@mdi/svg/svg/video-3d.svg";
+import AddIcon from "@mui/icons-material/Add";
+import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
+import RemoveIcon from "@mui/icons-material/Remove";
 import {
   IconButton,
   ListItemIcon,
@@ -16,6 +19,7 @@ import {
 import { cloneDeep, isEqual, merge } from "lodash";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
+import { useTranslation } from "react-i18next";
 import { useLatest, useLongPress } from "react-use";
 import { DeepPartial } from "ts-essentials";
 import { useDebouncedCallback } from "use-debounce";
@@ -81,6 +85,9 @@ const PANEL_STYLE: React.CSSProperties = {
   position: "relative",
 };
 
+const ZOOM_IN_LIMITATION = 1;
+const ZOOM_OUT_LIMITATION = 40;
+
 const PublishClickIcons: Record<PublishClickType, React.ReactNode> = {
   pose: <PublishGoalIcon fontSize="inherit" />,
   point: <PublishPointIcon fontSize="inherit" />,
@@ -103,6 +110,9 @@ function RendererOverlay(props: {
   publishClickType: PublishClickType;
   onChangePublishClickType: (_: PublishClickType) => void;
   onClickPublish: () => void;
+  renderRef: React.MutableRefObject<{
+    needsRender: boolean;
+  }>;
 }): JSX.Element {
   const [clickedPosition, setClickedPosition] = useState<{ clientX: number; clientY: number }>({
     clientX: 0,
@@ -113,7 +123,10 @@ function RendererOverlay(props: {
     undefined,
   );
   const [interactionsTabType, setInteractionsTabType] = useState<TabType | undefined>(undefined);
+  const [zoomValue, setZoomValue] = useState(DEFAULT_CAMERA_STATE.distance);
   const renderer = useRenderer();
+
+  const { t } = useTranslation("threeDimensionalPanel");
 
   // Publish control is only available if the canPublish prop is true and we have a fixed frame in the renderer
   const showPublishControl: boolean = props.canPublish && renderer?.fixedFrameId != undefined;
@@ -194,7 +207,7 @@ function RendererOverlay(props: {
   // Inform the Renderer when a renderable is selected
   useEffect(() => {
     renderer?.setSelectedRenderable(selectedRenderable);
-  }, [renderer, selectedRenderable]);
+  }, [renderer, selectedRenderable, zoomValue]);
 
   const publickClickButtonRef = useRef<HTMLButtonElement>(ReactNull);
   const [publishMenuExpanded, setPublishMenuExpanded] = useState(false);
@@ -206,6 +219,53 @@ function RendererOverlay(props: {
   const longPressPublishEvent = useLongPress(onLongPressPublish);
 
   const theme = useTheme();
+
+  useEffect(() => {
+    renderer?.setCameraState(
+      cloneDeep({
+        ...renderer.config.cameraState,
+        distance: zoomValue,
+      }),
+    );
+    renderer?.animationFrame();
+    props.renderRef.current.needsRender = true;
+  }, [props.renderRef, renderer, zoomValue]);
+
+  const zoomIn = () => {
+    const distance = renderer?.getCameraState().distance;
+    if (distance != undefined && distance > ZOOM_IN_LIMITATION) {
+      if (distance < 2) {
+        setZoomValue(ZOOM_IN_LIMITATION);
+      } else {
+        setZoomValue(distance - ZOOM_IN_LIMITATION);
+      }
+    }
+  };
+
+  const zoomOut = () => {
+    const distance = renderer?.getCameraState().distance;
+    if (distance != undefined && distance < ZOOM_OUT_LIMITATION) {
+      if (distance > ZOOM_OUT_LIMITATION) {
+        setZoomValue(ZOOM_OUT_LIMITATION);
+      } else {
+        setZoomValue(distance + ZOOM_IN_LIMITATION);
+      }
+    }
+  };
+
+  const scaleDisplay = () => {
+    if (zoomValue === ZOOM_IN_LIMITATION) {
+      return "200%";
+    } else if (zoomValue > ZOOM_OUT_LIMITATION) {
+      return "0  %";
+    } else {
+      return `${(
+        (ZOOM_IN_LIMITATION -
+          (zoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
+        100
+      ).toFixed(0)}%`;
+    }
+  };
 
   return (
     <React.Fragment>
@@ -230,7 +290,7 @@ function RendererOverlay(props: {
         <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
           <IconButton
             color={props.perspective ? "info" : "inherit"}
-            title={props.perspective ? "Switch to 2D camera" : "Switch to 3D camera"}
+            title={props.perspective ? t("switchTo2DCamera") : t("switchTo3DCamera")}
             onClick={props.onTogglePerspective}
             style={{ pointerEvents: "auto" }}
           >
@@ -239,7 +299,7 @@ function RendererOverlay(props: {
           <IconButton
             data-testid="measure-button"
             color={props.measureActive ? "info" : "inherit"}
-            title={props.measureActive ? "Cancel measuring" : "Measure distance"}
+            title={props.measureActive ? t("cancelMeasuring") : t("measureDistance")}
             onClick={props.onClickMeasure}
             style={{ position: "relative", pointerEvents: "auto" }}
           >
@@ -251,7 +311,7 @@ function RendererOverlay(props: {
               <IconButton
                 {...longPressPublishEvent}
                 color={props.publishActive ? "info" : "inherit"}
-                title={props.publishActive ? "Click to cancel" : "Click to publish"}
+                title={props.publishActive ? t("clickToCancel") : t("clickToPublish")}
                 ref={publickClickButtonRef}
                 onClick={props.onClickPublish}
                 data-testid="publish-button"
@@ -312,6 +372,62 @@ function RendererOverlay(props: {
               </Menu>
             </>
           )}
+        </Paper>
+        <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
+          <IconButton
+            color="inherit"
+            title={t("reCenter")}
+            onClick={() => {
+              renderer?.setCameraState(cloneDeep(DEFAULT_CAMERA_STATE));
+              props.renderRef.current.needsRender = true;
+              setZoomValue(DEFAULT_CAMERA_STATE.distance);
+            }}
+            style={{ pointerEvents: "auto" }}
+          >
+            <FilterCenterFocusIcon
+              style={{
+                fontSize: 16,
+              }}
+            />
+          </IconButton>
+        </Paper>
+        <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
+          <IconButton
+            color="inherit"
+            title={t("zoomIn")}
+            onClick={zoomIn}
+            style={{ pointerEvents: "auto" }}
+          >
+            <AddIcon
+              style={{
+                fontSize: 16,
+              }}
+            />
+          </IconButton>
+          <div
+            style={{
+              pointerEvents: "auto",
+              padding: "10px 0px",
+              width: 32,
+              fontSize: 4,
+              textAlign: "center",
+            }}
+          >
+            {scaleDisplay()}
+          </div>
+
+          <IconButton
+            color="inherit"
+            title={t("zoomOut")}
+            onClick={zoomOut}
+            style={{ pointerEvents: "auto" }}
+          >
+            <RemoveIcon
+              style={{
+                fontSize: 16,
+              }}
+            />
+          </IconButton>
         </Paper>
       </div>
       {clickedObjects.length > 1 && !selectedObject && (
@@ -942,6 +1058,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
               renderer?.publishClickTool.setPublishClickType(type);
               renderer?.publishClickTool.start();
             }}
+            renderRef={renderRef}
           />
         </RendererContext.Provider>
       </div>
