@@ -87,6 +87,7 @@ const PANEL_STYLE: React.CSSProperties = {
 
 const ZOOM_IN_LIMITATION = 1;
 const ZOOM_OUT_LIMITATION = 40;
+const ZOOM_STEP = 1;
 
 const PublishClickIcons: Record<PublishClickType, React.ReactNode> = {
   pose: <PublishGoalIcon fontSize="inherit" />,
@@ -110,10 +111,9 @@ function RendererOverlay(props: {
   publishClickType: PublishClickType;
   onChangePublishClickType: (_: PublishClickType) => void;
   onClickPublish: () => void;
-  renderRef: React.MutableRefObject<{
-    needsRender: boolean;
-  }>;
+  onSetCameraState: (updateState: CameraState) => void;
 }): JSX.Element {
+  const { onSetCameraState } = props;
   const [clickedPosition, setClickedPosition] = useState<{ clientX: number; clientY: number }>({
     clientX: 0,
     clientY: 0,
@@ -123,7 +123,6 @@ function RendererOverlay(props: {
     undefined,
   );
   const [interactionsTabType, setInteractionsTabType] = useState<TabType | undefined>(undefined);
-  const [zoomValue, setZoomValue] = useState(DEFAULT_CAMERA_STATE.distance);
   const renderer = useRenderer();
 
   const { t } = useTranslation("threeDimensionalPanel");
@@ -204,11 +203,6 @@ function RendererOverlay(props: {
     [selectedRenderable],
   );
 
-  // Inform the Renderer when a renderable is selected
-  useEffect(() => {
-    renderer?.setSelectedRenderable(selectedRenderable);
-  }, [renderer, selectedRenderable, zoomValue]);
-
   const publickClickButtonRef = useRef<HTMLButtonElement>(ReactNull);
   const [publishMenuExpanded, setPublishMenuExpanded] = useState(false);
   const selectedPublishClickIcon = PublishClickIcons[props.publishClickType];
@@ -220,48 +214,46 @@ function RendererOverlay(props: {
 
   const theme = useTheme();
 
-  useEffect(() => {
-    renderer?.setCameraState(
-      cloneDeep({
-        ...renderer.config.cameraState,
-        distance: zoomValue,
-      }),
-    );
-    renderer?.animationFrame();
-    props.renderRef.current.needsRender = true;
-  }, [props.renderRef, renderer, zoomValue]);
-
   const zoomIn = () => {
-    const distance = renderer?.getCameraState().distance;
-    if (distance != undefined && distance > ZOOM_IN_LIMITATION) {
-      if (distance < 2) {
-        setZoomValue(ZOOM_IN_LIMITATION);
-      } else {
-        setZoomValue(distance - ZOOM_IN_LIMITATION);
-      }
+    const currentCameraState = renderer?.getCameraState() ?? DEFAULT_CAMERA_STATE;
+    if (currentCameraState.distance - ZOOM_STEP < ZOOM_IN_LIMITATION) {
+      onSetCameraState({
+        ...currentCameraState,
+        distance: ZOOM_IN_LIMITATION,
+      });
+    } else {
+      onSetCameraState({
+        ...currentCameraState,
+        distance: currentCameraState.distance - ZOOM_STEP,
+      });
     }
   };
 
   const zoomOut = () => {
-    const distance = renderer?.getCameraState().distance;
-    if (distance != undefined && distance < ZOOM_OUT_LIMITATION) {
-      if (distance > ZOOM_OUT_LIMITATION) {
-        setZoomValue(ZOOM_OUT_LIMITATION);
-      } else {
-        setZoomValue(distance + ZOOM_IN_LIMITATION);
-      }
+    const currentCameraState = renderer?.getCameraState() ?? DEFAULT_CAMERA_STATE;
+    if (currentCameraState.distance + ZOOM_STEP > ZOOM_OUT_LIMITATION) {
+      onSetCameraState({
+        ...currentCameraState,
+        distance: ZOOM_OUT_LIMITATION,
+      });
+    } else {
+      onSetCameraState({
+        ...currentCameraState,
+        distance: currentCameraState.distance + ZOOM_STEP,
+      });
     }
   };
 
   const scaleDisplay = () => {
-    if (zoomValue === ZOOM_IN_LIMITATION) {
+    const currentZoomValue = renderer?.getCameraState().distance ?? 20;
+
+    if (currentZoomValue === ZOOM_IN_LIMITATION) {
       return "200%";
-    } else if (zoomValue > ZOOM_OUT_LIMITATION) {
+    } else if (currentZoomValue >= ZOOM_OUT_LIMITATION) {
       return "0  %";
     } else {
       return `${(
-        (ZOOM_IN_LIMITATION -
-          (zoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
+        (1 - (currentZoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
         100
       ).toFixed(0)}%`;
     }
@@ -378,9 +370,11 @@ function RendererOverlay(props: {
             color="inherit"
             title={t("reCenter")}
             onClick={() => {
-              renderer?.setCameraState(cloneDeep(DEFAULT_CAMERA_STATE));
-              props.renderRef.current.needsRender = true;
-              setZoomValue(DEFAULT_CAMERA_STATE.distance);
+              const currentState = renderer?.getCameraState().perspective ?? false;
+              onSetCameraState({
+                ...DEFAULT_CAMERA_STATE,
+                perspective: currentState,
+              });
             }}
             style={{ pointerEvents: "auto" }}
           >
@@ -1024,6 +1018,17 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     [onTogglePerspective],
   );
 
+  const onSetCameraState = useCallback(
+    (updateState: CameraState) => {
+      if (renderer) {
+        renderer.updateConfig((draft) => {
+          draft.cameraState = updateState;
+        });
+      }
+    },
+    [renderer],
+  );
+
   // The 3d panel only supports publishing to ros1 and ros2 data sources
   const isRosDataSource =
     context.dataSourceProfile === "ros1" || context.dataSourceProfile === "ros2";
@@ -1058,7 +1063,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
               renderer?.publishClickTool.setPublishClickType(type);
               renderer?.publishClickTool.start();
             }}
-            renderRef={renderRef}
+            onSetCameraState={onSetCameraState}
           />
         </RendererContext.Provider>
       </div>
