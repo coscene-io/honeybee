@@ -122,7 +122,6 @@ function RendererOverlay(props: {
     undefined,
   );
   const [interactionsTabType, setInteractionsTabType] = useState<TabType | undefined>(undefined);
-  const [zoomValue, setZoomValue] = useState(DEFAULT_CAMERA_STATE.distance);
   const renderer = useRenderer();
 
   const { t } = useTranslation("threeDimensionalPanel");
@@ -203,11 +202,6 @@ function RendererOverlay(props: {
     [selectedRenderable],
   );
 
-  // Inform the Renderer when a renderable is selected
-  useEffect(() => {
-    renderer?.setSelectedRenderable(selectedRenderable);
-  }, [renderer, selectedRenderable, zoomValue]);
-
   const publickClickButtonRef = useRef<HTMLButtonElement>(ReactNull);
   const [publishMenuExpanded, setPublishMenuExpanded] = useState(false);
   const selectedPublishClickIcon = PublishClickIcons[props.publishClickType];
@@ -219,46 +213,47 @@ function RendererOverlay(props: {
 
   const theme = useTheme();
 
-  useEffect(() => {
-    if (renderer) {
-      onSetCameraState({
-        ...renderer.config.cameraState,
-        distance: zoomValue,
-      });
-    }
-  }, [renderer, zoomValue, onSetCameraState]);
-
   const zoomIn = () => {
-    const distance = renderer?.getCameraState().distance;
-    if (distance != undefined && distance > ZOOM_IN_LIMITATION) {
-      if (distance < 2) {
-        setZoomValue(ZOOM_IN_LIMITATION);
-      } else {
-        setZoomValue(distance - ZOOM_IN_LIMITATION);
-      }
+    const currentCameraState = renderer?.getCameraState() ?? DEFAULT_CAMERA_STATE;
+    if (currentCameraState.distance - ZOOM_IN_LIMITATION < ZOOM_IN_LIMITATION) {
+      onSetCameraState({
+        ...currentCameraState,
+        distance: ZOOM_IN_LIMITATION,
+      });
+    } else {
+      onSetCameraState({
+        ...currentCameraState,
+        distance: currentCameraState.distance - ZOOM_IN_LIMITATION,
+      });
     }
   };
 
   const zoomOut = () => {
-    const distance = renderer?.getCameraState().distance;
-    if (distance != undefined && distance < ZOOM_OUT_LIMITATION) {
-      if (distance > ZOOM_OUT_LIMITATION) {
-        setZoomValue(ZOOM_OUT_LIMITATION);
-      } else {
-        setZoomValue(distance + ZOOM_IN_LIMITATION);
-      }
+    const currentCameraState = renderer?.getCameraState() ?? DEFAULT_CAMERA_STATE;
+    if (currentCameraState.distance + ZOOM_IN_LIMITATION > ZOOM_OUT_LIMITATION) {
+      onSetCameraState({
+        ...currentCameraState,
+        distance: ZOOM_OUT_LIMITATION,
+      });
+    } else {
+      onSetCameraState({
+        ...currentCameraState,
+        distance: currentCameraState.distance + ZOOM_IN_LIMITATION,
+      });
     }
   };
 
   const scaleDisplay = () => {
-    if (zoomValue === ZOOM_IN_LIMITATION) {
+    const currentZoomValue = renderer?.getCameraState().distance ?? 20;
+
+    if (currentZoomValue === ZOOM_IN_LIMITATION) {
       return "200%";
-    } else if (zoomValue > ZOOM_OUT_LIMITATION) {
+    } else if (currentZoomValue > ZOOM_OUT_LIMITATION) {
       return "0  %";
     } else {
       return `${(
         (ZOOM_IN_LIMITATION -
-          (zoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
+          (currentZoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
         100
       ).toFixed(0)}%`;
     }
@@ -376,7 +371,7 @@ function RendererOverlay(props: {
             title={t("reCenter")}
             onClick={() => {
               const currentState = renderer?.getCameraState().perspective ?? false;
-              props.onSetCameraState({
+              onSetCameraState({
                 ...DEFAULT_CAMERA_STATE,
                 perspective: currentState,
               });
