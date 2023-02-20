@@ -233,8 +233,7 @@ function RendererOverlay(props: {
 
   const zoomIn = () => {
     const distance = renderer?.getCameraState().distance;
-    // eslint-disable-next-line no-restricted-syntax
-    if (distance != null && distance > ZOOM_IN_LIMITATION) {
+    if (distance != undefined && distance > ZOOM_IN_LIMITATION) {
       if (distance < 2) {
         setZoomValue(ZOOM_IN_LIMITATION);
       } else {
@@ -245,8 +244,7 @@ function RendererOverlay(props: {
 
   const zoomOut = () => {
     const distance = renderer?.getCameraState().distance;
-    // eslint-disable-next-line no-restricted-syntax
-    if (distance != null && distance < ZOOM_OUT_LIMITATION) {
+    if (distance != undefined && distance < ZOOM_OUT_LIMITATION) {
       if (distance > ZOOM_OUT_LIMITATION) {
         setZoomValue(ZOOM_OUT_LIMITATION);
       } else {
@@ -380,7 +378,6 @@ function RendererOverlay(props: {
             color="inherit"
             title={t("reCenter")}
             onClick={() => {
-              console.log("trfdas");
               renderer?.setCameraState(cloneDeep(DEFAULT_CAMERA_STATE));
               props.renderRef.current.needsRender = true;
               setZoomValue(DEFAULT_CAMERA_STATE.distance);
