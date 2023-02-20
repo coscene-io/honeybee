@@ -381,6 +381,9 @@ function FieldInput({
           }
         />
       );
+    // Special type Only to update the settings
+    case "camera":
+      return <></>;
   }
 }
 
