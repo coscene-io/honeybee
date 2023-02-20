@@ -87,6 +87,7 @@ const PANEL_STYLE: React.CSSProperties = {
 
 const ZOOM_IN_LIMITATION = 1;
 const ZOOM_OUT_LIMITATION = 40;
+const ZOOM_STEP = 1;
 
 const PublishClickIcons: Record<PublishClickType, React.ReactNode> = {
   pose: <PublishGoalIcon fontSize="inherit" />,
@@ -215,7 +216,7 @@ function RendererOverlay(props: {
 
   const zoomIn = () => {
     const currentCameraState = renderer?.getCameraState() ?? DEFAULT_CAMERA_STATE;
-    if (currentCameraState.distance - ZOOM_IN_LIMITATION < ZOOM_IN_LIMITATION) {
+    if (currentCameraState.distance - ZOOM_STEP < ZOOM_IN_LIMITATION) {
       onSetCameraState({
         ...currentCameraState,
         distance: ZOOM_IN_LIMITATION,
@@ -223,14 +224,14 @@ function RendererOverlay(props: {
     } else {
       onSetCameraState({
         ...currentCameraState,
-        distance: currentCameraState.distance - ZOOM_IN_LIMITATION,
+        distance: currentCameraState.distance - ZOOM_STEP,
       });
     }
   };
 
   const zoomOut = () => {
     const currentCameraState = renderer?.getCameraState() ?? DEFAULT_CAMERA_STATE;
-    if (currentCameraState.distance + ZOOM_IN_LIMITATION > ZOOM_OUT_LIMITATION) {
+    if (currentCameraState.distance + ZOOM_STEP > ZOOM_OUT_LIMITATION) {
       onSetCameraState({
         ...currentCameraState,
         distance: ZOOM_OUT_LIMITATION,
@@ -238,7 +239,7 @@ function RendererOverlay(props: {
     } else {
       onSetCameraState({
         ...currentCameraState,
-        distance: currentCameraState.distance + ZOOM_IN_LIMITATION,
+        distance: currentCameraState.distance + ZOOM_STEP,
       });
     }
   };
@@ -248,7 +249,7 @@ function RendererOverlay(props: {
 
     if (currentZoomValue === ZOOM_IN_LIMITATION) {
       return "200%";
-    } else if (currentZoomValue > ZOOM_OUT_LIMITATION) {
+    } else if (currentZoomValue >= ZOOM_OUT_LIMITATION) {
       return "0  %";
     } else {
       return `${(
