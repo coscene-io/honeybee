@@ -253,8 +253,7 @@ function RendererOverlay(props: {
       return "0  %";
     } else {
       return `${(
-        (ZOOM_IN_LIMITATION -
-          (currentZoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
+        (1 - (currentZoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
         100
       ).toFixed(0)}%`;
     }
