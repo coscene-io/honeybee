@@ -110,9 +110,9 @@ function RendererOverlay(props: {
   publishClickType: PublishClickType;
   onChangePublishClickType: (_: PublishClickType) => void;
   onClickPublish: () => void;
-  onResetCamera: (updateState: CameraState) => void;
+  onSetCameraState: (updateState: CameraState) => void;
 }): JSX.Element {
-  const { onResetCamera } = props;
+  const { onSetCameraState } = props;
   const [clickedPosition, setClickedPosition] = useState<{ clientX: number; clientY: number }>({
     clientX: 0,
     clientY: 0,
@@ -221,12 +221,12 @@ function RendererOverlay(props: {
 
   useEffect(() => {
     if (renderer) {
-      onResetCamera({
+      onSetCameraState({
         ...renderer.config.cameraState,
         distance: zoomValue,
       });
     }
-  }, [renderer, zoomValue, onResetCamera]);
+  }, [renderer, zoomValue, onSetCameraState]);
 
   const zoomIn = () => {
     const distance = renderer?.getCameraState().distance;
@@ -376,7 +376,7 @@ function RendererOverlay(props: {
             title={t("reCenter")}
             onClick={() => {
               const currentState = renderer?.getCameraState().perspective ?? false;
-              props.onResetCamera({
+              props.onSetCameraState({
                 ...DEFAULT_CAMERA_STATE,
                 perspective: currentState,
               });
@@ -1023,7 +1023,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     [onTogglePerspective],
   );
 
-  const onResetCamera = useCallback(
+  const onSetCameraState = useCallback(
     (updateState: CameraState) => {
       actionHandler({
         action: "update",
@@ -1071,7 +1071,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
               renderer?.publishClickTool.setPublishClickType(type);
               renderer?.publishClickTool.start();
             }}
-            onResetCamera={onResetCamera}
+            onSetCameraState={onSetCameraState}
           />
         </RendererContext.Provider>
       </div>
