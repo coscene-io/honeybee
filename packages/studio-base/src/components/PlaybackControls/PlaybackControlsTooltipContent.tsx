@@ -38,7 +38,7 @@ const useStyles = makeStyles()((theme) => ({
     columnGap: theme.spacing(0.5),
     display: "grid",
     alignItems: "flex-start",
-    gridTemplateColumns: "auto 1fr",
+    gridTemplateColumns: "1fr 4fr",
     flexDirection: "column",
     wordBreak: "break-all",
   },
