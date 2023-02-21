@@ -993,10 +993,6 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
           perspective: currentState,
         };
       });
-      renderer.setCameraState({
-        ...DEFAULT_CAMERA_STATE,
-        perspective: currentState,
-      });
     }
   }, [renderer]);
 
@@ -1009,22 +1005,12 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
             distance: ZOOM_IN_LIMITATION,
           };
         });
-
-        renderer.setCameraState({
-          ...renderer.config.cameraState,
-          distance: ZOOM_IN_LIMITATION,
-        });
       } else {
         renderer.updateConfig((draft) => {
           draft.cameraState = {
             ...renderer.config.cameraState,
             distance: renderer.config.cameraState.distance - ZOOM_STEP,
           };
-        });
-
-        renderer.setCameraState({
-          ...renderer.config.cameraState,
-          distance: renderer.config.cameraState.distance - ZOOM_STEP,
         });
       }
     }
@@ -1039,22 +1025,12 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
             distance: ZOOM_OUT_LIMITATION,
           };
         });
-
-        renderer.setCameraState({
-          ...renderer.config.cameraState,
-          distance: ZOOM_OUT_LIMITATION,
-        });
       } else {
         renderer.updateConfig((draft) => {
           draft.cameraState = {
             ...renderer.config.cameraState,
             distance: renderer.config.cameraState.distance + ZOOM_STEP,
           };
-        });
-
-        renderer.setCameraState({
-          ...renderer.config.cameraState,
-          distance: renderer.config.cameraState.distance + ZOOM_STEP,
         });
       }
     }
