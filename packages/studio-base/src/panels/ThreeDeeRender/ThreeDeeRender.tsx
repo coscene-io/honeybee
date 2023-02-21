@@ -111,9 +111,11 @@ function RendererOverlay(props: {
   publishClickType: PublishClickType;
   onChangePublishClickType: (_: PublishClickType) => void;
   onClickPublish: () => void;
-  onSetCameraState: (updateState: CameraState) => void;
+  onResetCamera: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
 }): JSX.Element {
-  const { onSetCameraState } = props;
+  const { onResetCamera, onZoomIn, onZoomOut } = props;
   const [clickedPosition, setClickedPosition] = useState<{ clientX: number; clientY: number }>({
     clientX: 0,
     clientY: 0,
@@ -213,36 +215,6 @@ function RendererOverlay(props: {
   const longPressPublishEvent = useLongPress(onLongPressPublish);
 
   const theme = useTheme();
-
-  const zoomIn = () => {
-    const currentCameraState = renderer?.getCameraState() ?? DEFAULT_CAMERA_STATE;
-    if (currentCameraState.distance - ZOOM_STEP < ZOOM_IN_LIMITATION) {
-      onSetCameraState({
-        ...currentCameraState,
-        distance: ZOOM_IN_LIMITATION,
-      });
-    } else {
-      onSetCameraState({
-        ...currentCameraState,
-        distance: currentCameraState.distance - ZOOM_STEP,
-      });
-    }
-  };
-
-  const zoomOut = () => {
-    const currentCameraState = renderer?.getCameraState() ?? DEFAULT_CAMERA_STATE;
-    if (currentCameraState.distance + ZOOM_STEP > ZOOM_OUT_LIMITATION) {
-      onSetCameraState({
-        ...currentCameraState,
-        distance: ZOOM_OUT_LIMITATION,
-      });
-    } else {
-      onSetCameraState({
-        ...currentCameraState,
-        distance: currentCameraState.distance + ZOOM_STEP,
-      });
-    }
-  };
 
   const scaleDisplay = () => {
     const currentZoomValue = renderer?.getCameraState().distance ?? 20;
@@ -369,13 +341,7 @@ function RendererOverlay(props: {
           <IconButton
             color="inherit"
             title={t("reCenter")}
-            onClick={() => {
-              const currentState = renderer?.getCameraState().perspective ?? false;
-              onSetCameraState({
-                ...DEFAULT_CAMERA_STATE,
-                perspective: currentState,
-              });
-            }}
+            onClick={onResetCamera}
             style={{ pointerEvents: "auto" }}
           >
             <FilterCenterFocusIcon
@@ -389,7 +355,7 @@ function RendererOverlay(props: {
           <IconButton
             color="inherit"
             title={t("zoomIn")}
-            onClick={zoomIn}
+            onClick={onZoomIn}
             style={{ pointerEvents: "auto" }}
           >
             <AddIcon
@@ -413,7 +379,7 @@ function RendererOverlay(props: {
           <IconButton
             color="inherit"
             title={t("zoomOut")}
-            onClick={zoomOut}
+            onClick={onZoomOut}
             style={{ pointerEvents: "auto" }}
           >
             <RemoveIcon
@@ -1018,16 +984,81 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     [onTogglePerspective],
   );
 
-  const onSetCameraState = useCallback(
-    (updateState: CameraState) => {
-      if (renderer) {
+  const onResetCamera = useCallback(() => {
+    if (renderer) {
+      const currentState = renderer.config.cameraState.perspective;
+      renderer.updateConfig((draft) => {
+        draft.cameraState = {
+          ...DEFAULT_CAMERA_STATE,
+          perspective: currentState,
+        };
+      });
+      renderer.setCameraState({
+        ...DEFAULT_CAMERA_STATE,
+        perspective: currentState,
+      });
+    }
+  }, [renderer]);
+
+  const onZoomIn = useCallback(() => {
+    if (renderer) {
+      if (renderer.config.cameraState.distance - ZOOM_STEP < ZOOM_IN_LIMITATION) {
         renderer.updateConfig((draft) => {
-          draft.cameraState = updateState;
+          draft.cameraState = {
+            ...renderer.config.cameraState,
+            distance: ZOOM_IN_LIMITATION,
+          };
+        });
+
+        renderer.setCameraState({
+          ...renderer.config.cameraState,
+          distance: ZOOM_IN_LIMITATION,
+        });
+      } else {
+        renderer.updateConfig((draft) => {
+          draft.cameraState = {
+            ...renderer.config.cameraState,
+            distance: renderer.config.cameraState.distance - ZOOM_STEP,
+          };
+        });
+
+        renderer.setCameraState({
+          ...renderer.config.cameraState,
+          distance: renderer.config.cameraState.distance - ZOOM_STEP,
         });
       }
-    },
-    [renderer],
-  );
+    }
+  }, [renderer]);
+
+  const onZoomOut = useCallback(() => {
+    if (renderer) {
+      if (renderer.config.cameraState.distance + ZOOM_STEP > ZOOM_OUT_LIMITATION) {
+        renderer.updateConfig((draft) => {
+          draft.cameraState = {
+            ...renderer.config.cameraState,
+            distance: ZOOM_OUT_LIMITATION,
+          };
+        });
+
+        renderer.setCameraState({
+          ...renderer.config.cameraState,
+          distance: ZOOM_OUT_LIMITATION,
+        });
+      } else {
+        renderer.updateConfig((draft) => {
+          draft.cameraState = {
+            ...renderer.config.cameraState,
+            distance: renderer.config.cameraState.distance + ZOOM_STEP,
+          };
+        });
+
+        renderer.setCameraState({
+          ...renderer.config.cameraState,
+          distance: renderer.config.cameraState.distance + ZOOM_STEP,
+        });
+      }
+    }
+  }, [renderer]);
 
   // The 3d panel only supports publishing to ros1 and ros2 data sources
   const isRosDataSource =
@@ -1063,7 +1094,9 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
               renderer?.publishClickTool.setPublishClickType(type);
               renderer?.publishClickTool.start();
             }}
-            onSetCameraState={onSetCameraState}
+            onResetCamera={onResetCamera}
+            onZoomIn={onZoomIn}
+            onZoomOut={onZoomOut}
           />
         </RendererContext.Provider>
       </div>
