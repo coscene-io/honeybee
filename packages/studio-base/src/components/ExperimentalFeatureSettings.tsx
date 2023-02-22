@@ -37,18 +37,8 @@ const useStyles = makeStyles()({
 
 type Feature = {
   key: AppSetting;
-  name:
-    | "studioDebugPanels"
-    | "legacyPlotPanel"
-    | "memoryUseIndicator"
-    | "plotPanelSeriesInSettings"
-    | "layoutDebugging";
-  description:
-    | "studioDebugPanelsDescription"
-    | "legacyPlotPanelDescription"
-    | "memoryUseIndicatorDescription"
-    | "plotPanelSeriesInSettingsDescription"
-    | "layoutDebuggingDescription";
+  name: string;
+  description: JSX.Element;
 };
 
 function useFeatures(): Feature[] {
@@ -99,7 +89,6 @@ function ExperimentalFeatureItem(props: { feature: Feature }) {
   const { classes } = useStyles();
   const analytics = useAnalytics();
   /* @ts-ignore */
-  const { t } = useTranslation("preferences");
 
   const [enabled, setEnabled] = useAppConfigurationValue<boolean>(feature.key);
   return (
@@ -120,9 +109,9 @@ function ExperimentalFeatureItem(props: { feature: Feature }) {
       }
       label={
         <Stack gap={0.25} paddingLeft={0.5}>
-          <Typography fontWeight={600}>{t(feature.name)}</Typography>
+          <Typography fontWeight={600}>{feature.name}</Typography>
           <Typography variant="body2" color="text.secondary">
-            <>{t(feature.description)}</>
+            <>{feature.description}</>
           </Typography>
         </Stack>
       }

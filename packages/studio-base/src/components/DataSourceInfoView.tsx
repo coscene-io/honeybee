@@ -54,7 +54,7 @@ function DataSourceInfoContent(props: {
   playerSourceId?: string;
   startTime?: Time;
 }): JSX.Element {
-  const { durationRef, endTimeRef, playerName, playerPresence, playerSourceId, startTime } = props;
+  const { durationRef, endTimeRef, playerPresence, playerSourceId, startTime } = props;
   const { classes } = useStyles();
   const urlState = useMessagePipeline(selectUrlState);
   const record = useRecord(selectRecord);
@@ -125,7 +125,7 @@ function DataSourceInfoContent(props: {
       {!isLiveConnection && (
         <Stack>
           <Typography className={classes.overline} variant="overline">
-          {t("endTime")}
+            {t("endTime")}
           </Typography>
           {playerPresence === PlayerPresence.INITIALIZING ? (
             <Skeleton animation="wave" width="50%" />
@@ -139,7 +139,7 @@ function DataSourceInfoContent(props: {
 
       <Stack>
         <Typography className={classes.overline} variant="overline">
-        {t("duration")}
+          {t("duration")}
         </Typography>
         {playerPresence === PlayerPresence.INITIALIZING ? (
           <Skeleton animation="wave" width={100} />

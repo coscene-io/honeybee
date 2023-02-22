@@ -20,6 +20,7 @@ export type RegisteredIconNames =
   | "GenericScan"
   | "OpenFile"
   | "PanelSettings"
+  | "QuestionCircle"
   | "RectangularClipping"
   | "Settings"
   | "Variable2"

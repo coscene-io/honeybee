@@ -12,7 +12,14 @@
 //   You may not use this file except in compliance with the License.
 
 import { useSnackbar } from "notistack";
-import { PropsWithChildren, useCallback, useLayoutEffect, useMemo, useState } from "react";
+import {
+  PropsWithChildren,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useContext,
+} from "react";
 import { useLatest, useMountedState } from "react-use";
 
 import { useShallowMemo } from "@foxglove/hooks";
@@ -72,7 +79,6 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
   const nativeWindow = useNativeWindow();
 
   const isMounted = useMountedState();
-
 
   // When we implement per-data-connector UI settings we will move this into the foxglove data platform source.
   const consoleApi = useContext(ConsoleApiContext);

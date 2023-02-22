@@ -40,6 +40,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 
@@ -94,7 +95,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const urlState = useMessagePipeline(selectUrlState);
   /* @ts-ignore */
   const { t } = useTranslation("moment");
-
+  const consoleApi = useConsoleApi();
   const { classes } = useStyles();
 
   const refreshEvents = useEvents(selectRefreshEvents);

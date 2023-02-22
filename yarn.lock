@@ -7733,7 +7733,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/keyboardjs@npm:^2.5.0":
+"@types/keyboardjs@npm:^2, @types/keyboardjs@npm:^2.5.0":
   version: 2.5.0
   resolution: "@types/keyboardjs@npm:2.5.0"
   checksum: 9d5ed542b24ab036c48a4f3c42b054f14793153a829ae0fb036a34f1558fe323ec80b26933a0fa06f1a42c00e2c6a1f1f51c4585b31fa6fb5dfb454616687353
@@ -15484,6 +15484,7 @@ __metadata:
     "@types/babel__preset-env": ^7.9.2
     "@types/case-sensitive-paths-webpack-plugin": 2.1.6
     "@types/jest": 29.4.0
+    "@types/keyboardjs": ^2
     "@types/license-checker": ^25.0.3
     "@types/semver": ^7.3.13
     "@typescript-eslint/eslint-plugin": 5.49.0
@@ -15509,6 +15510,7 @@ __metadata:
     jest: 29.4.0
     jest-canvas-mock: 2.4.0
     jest-environment-jsdom: 29.4.0
+    keyboardjs: 2.7.0
     license-checker: 25.0.1
     prettier: 2.8.3
     rimraf: 4.1.2
@@ -18932,6 +18934,13 @@ __metadata:
   version: 3.1.0
   resolution: "junk@npm:3.1.0"
   checksum: 6c4d68e8f8bc25b546baed802cd0e7be6a971e92f1e885c92cbfe98946d5690b961a32f8e7909e77765d3204c3e556d13c17f73e31697ffae1db07a58b9e68c0
+  languageName: node
+  linkType: hard
+
+"keyboardjs@npm:2.7.0":
+  version: 2.7.0
+  resolution: "keyboardjs@npm:2.7.0"
+  checksum: 1e349d07e43c7c76654f676acf33e04ac07642ae09102440faa75d9951bd6519295dfc3572b0786650bebd3a173274e76dfb67e40279716d62267d07f815d70a
   languageName: node
   linkType: hard
 

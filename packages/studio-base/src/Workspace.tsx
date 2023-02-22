@@ -14,6 +14,7 @@ import { Link, Typography } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { extname } from "path";
 import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
+import { usePrevious } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
@@ -44,13 +45,13 @@ import { SignInFormModal } from "@foxglove/studio-base/components/SignInFormModa
 import Stack from "@foxglove/studio-base/components/Stack";
 import { StudioLogsSettingsSidebar } from "@foxglove/studio-base/components/StudioLogsSettingsSidebar";
 import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
+import VariablesSidebar from "@foxglove/studio-base/components/VariablesSidebar";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import { useAssets } from "@foxglove/studio-base/context/AssetsContext";
 import {
   IDataSourceFactory,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import VariablesSidebar from "@foxglove/studio-base/components/VariablesSidebar";
-import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { useAssets } from "@foxglove/studio-base/context/AssetsContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
@@ -134,13 +135,13 @@ function AddPanel() {
   );
 }
 
-function ExtensionsSidebar() {
-  return (
-    <SidebarContent title="Extensions" disablePadding>
-      <ExtensionsSettings />
-    </SidebarContent>
-  );
-}
+// function ExtensionsSidebar() {
+//   return (
+//     <SidebarContent title="Extensions" disablePadding>
+//       <ExtensionsSettings />
+//     </SidebarContent>
+//   );
+// }
 
 type WorkspaceProps = CustomWindowControlsProps & {
   deepLinks?: string[];
@@ -486,7 +487,9 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   // open the data source dialog.
   const DataSourceSidebarItem = useMemo(() => {
     return function DataSourceSidebarItemImpl() {
-      return <DataSourceSidebar />;
+      return (
+        <DataSourceSidebar onSelectDataSourceAction={() => setShowOpenDialog({ view: "start" })} />
+      );
     };
   }, []);
 
@@ -526,20 +529,17 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
       });
     }
 
-    const bottomItems = new Map<SidebarItemKey, SidebarItem>([
-      [
-        "help",
-        {
-          iconName: "QuestionCircle",
-          title: t("helpCenter"),
-          component: () => {
-            window.open("https://docs.coscene.cn/docs/get-started/create-project-flow/");
-            setSelectedSidebarItem(prevSelectedSidebarItem);
-            return <></>;
-          },
-        },
-      ],
-    ]);
+    const bottomItems = new Map<SidebarItemKey, SidebarItem>([]);
+
+    bottomItems.set("help", {
+      iconName: "QuestionCircle",
+      title: t("helpCenter"),
+      component: () => {
+        window.open("https://docs.coscene.cn/docs/get-started/create-project-flow/");
+        setSelectedSidebarItem(prevSelectedSidebarItem);
+        return <></>;
+      },
+    });
 
     if (supportsAccountSettings) {
       bottomItems.set("account", {
@@ -559,10 +559,8 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   }, [
     DataSourceSidebarItem,
     playerProblems,
-    ConnectedLayoutBrowser,
     enableStudioLogsSidebar,
     t,
-    enableNewTopNav,
     supportsAccountSettings,
     prevSelectedSidebarItem,
     currentUser,

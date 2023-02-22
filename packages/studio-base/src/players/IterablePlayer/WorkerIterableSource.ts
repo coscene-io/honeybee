@@ -21,6 +21,7 @@ import type { WorkerIterableSourceWorker } from "./WorkerIterableSourceWorker";
 Comlink.transferHandlers.set("abortsignal", abortSignalTransferHandler);
 
 type ConstructorArgs = {
+  sourceType?: string;
   initWorker: () => Worker;
   initArgs: IterableSourceInitializeArgs;
 };

@@ -60,6 +60,7 @@ export class BlockLoader {
   private stopped: boolean = false;
   private activeChangeCondvar: Condvar = new Condvar();
   private abortController: AbortController;
+  private activeBlockId: number = 0;
 
   public constructor(args: BlockLoaderArgs) {
     this.source = args.source;
@@ -82,6 +83,20 @@ export class BlockLoader {
 
     log.debug(`Block count: ${blockCount}`);
     this.blocks = Array.from({ length: blockCount });
+  }
+
+  public setActiveTime(time: Time): void {
+    const startTime = subtractTimes(subtractTimes(time, this.start), { sec: 1, nsec: 0 });
+    const startNs = Math.max(0, Number(toNanoSec(startTime)));
+    const beginBlockId = Math.floor(startNs / this.blockDurationNanos);
+
+    if (beginBlockId === this.activeBlockId) {
+      return;
+    }
+
+    this.abortController.abort();
+    this.activeBlockId = beginBlockId;
+    this.activeChangeCondvar.notifyAll();
   }
 
   public setTopics(topics: Set<string>): void {
