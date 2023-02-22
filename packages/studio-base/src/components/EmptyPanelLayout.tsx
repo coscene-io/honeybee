@@ -60,6 +60,7 @@ const DropTarget = muiStyled("div", {
 
 export const EmptyPanelLayout = ({ tabId }: Props): JSX.Element => {
   const { addPanel } = useCurrentLayoutActions();
+  /* @ts-ignore */
   const { t } = useTranslation("addPanel");
 
   const [{ isOver }, drop] = useDrop<unknown, MosaicDropResult, { isOver: boolean }>({

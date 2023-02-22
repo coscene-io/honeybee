@@ -62,6 +62,7 @@ const useStyles = makeStyles()((theme) => ({
 
 export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
   const { classes, cx } = useStyles();
+  /* @ts-ignore */
   const { t } = useTranslation("addPanel");
 
   const [menuAnchorEl, setMenuAnchorEl] = useState<undefined | HTMLElement>(undefined);

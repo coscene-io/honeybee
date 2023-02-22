@@ -28,7 +28,6 @@ import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/Pane
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import DiagnosticStatus from "./DiagnosticStatus";
-import helpContent from "./DiagnosticStatusPanel.help.md";
 import { buildStatusPanelSettingsTree } from "./settings";
 import useAvailableDiagnostics from "./useAvailableDiagnostics";
 import useDiagnostics from "./useDiagnostics";
@@ -52,6 +51,7 @@ function DiagnosticStatusPanel(props: Props) {
   const { openSiblingPanel } = usePanelContext();
   const { selectedHardwareId, selectedName, splitFraction, topicToRender, numericPrecision } =
     config;
+    /* @ts-ignore */
   const { t } = useTranslation("diagnostic");
 
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
@@ -59,7 +59,9 @@ function DiagnosticStatusPanel(props: Props) {
   // Filter down all topics to those that conform to our supported datatypes
   const availableTopics = useMemo(() => {
     const filtered = topics
-      .filter((topic) => ALLOWED_DATATYPES.includes(topic.schemaName))
+      .filter(
+        (topic) => topic.schemaName != undefined && ALLOWED_DATATYPES.includes(topic.schemaName),
+      )
       .map((topic) => topic.name);
 
     // Keeps only the first occurrence of each topic.
@@ -149,7 +151,7 @@ function DiagnosticStatusPanel(props: Props) {
 
   return (
     <Stack flex="auto" overflow="hidden">
-      <PanelToolbar helpContent={helpContent}>
+      <PanelToolbar>
         <Autocomplete
           disablePortal
           blurOnSelect={true}

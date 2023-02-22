@@ -121,6 +121,7 @@ function EventViewComponent(params: {
   const refreshEvents = useEvents(selectRefreshEvents);
   const [open, setOpen] = useState(false);
   const { formatTime } = useAppTimeFormat();
+  /* @ts-ignore */
   const { t } = useTranslation("dataSource");
   const [toastInfo, setToastInfo] = useState<{
     message: string;

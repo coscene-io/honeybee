@@ -134,6 +134,7 @@ function DraggablePanelItem({
   mosaicId,
 }: PanelItemProps) {
   const { classes } = useStyles();
+  /* @ts-ignore */
   const { t } = useTranslation("addPanel");
 
   const panelItemDisplay = (item: string): string => {
@@ -361,6 +362,14 @@ function DraggablePanelItem({
     [onClick],
   );
 
+  const onClickWithStopPropagation = useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
+      onClick();
+    },
+    [onClick],
+  );
+
   switch (mode) {
     case "grid":
       return (
@@ -478,6 +487,7 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
   const [highlightedPanelIdx, setHighlightedPanelIdx] = React.useState<number | undefined>();
   const { mode, onPanelSelect, selectedPanelType } = props;
   const { classes } = useStyles();
+  /* @ts-ignore */
   const { t } = useTranslation("addPanel");
 
   const { dropPanel } = useCurrentLayoutActions();

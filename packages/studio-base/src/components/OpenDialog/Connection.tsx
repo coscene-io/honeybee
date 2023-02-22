@@ -149,7 +149,8 @@ export default function Connection(props: ConnectionProps): JSX.Element {
       return;
     }
     selectSource(selectedSource.id, { type: "connection", params: fieldValues });
-  }, [selectedSource, fieldValues, selectSource]);
+    onCancel?.();
+  }, [onCancel, selectedSource, fieldValues, selectSource]);
 
   const disableOpen = selectedSource?.disabledReason != undefined || fieldErrors.size > 0;
 
@@ -237,8 +238,14 @@ export default function Connection(props: ConnectionProps): JSX.Element {
             )}
             <Stack direction="row" gap={1}>
               {(selectedSource?.docsLinks ?? []).map((item) => (
-                <Link key={item.url} color="primary" href={item.url}>
-                  {item.label ? `View docs for ${item.label}` : "View docs"}.
+                <Link
+                  key={item.url}
+                  color="primary"
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {item.label ? `View docs for ${item.label}` : "View docs"}
                 </Link>
               ))}
             </Stack>

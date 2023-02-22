@@ -4,7 +4,6 @@
 
 import CloseIcon from "@mui/icons-material/Close";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
-import { Tab, Tabs, styled as muiStyled, Divider, Box } from "@mui/material";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -16,6 +15,7 @@ import { useTheme } from "@mui/material/styles";
 import { useState, PropsWithChildren, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
+import AddIcon from "@mui/icons-material/Add";
 
 import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
 import {
@@ -29,16 +29,30 @@ import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
-import { DataSourceInfoView } from "../DataSourceInfoView";
-import { Playlist } from "./Playlist";
 import { ProblemsList } from "./ProblemsList";
 import { TopicList } from "./TopicList";
+import { DataSourceInfoView } from "../DataSourceInfoView";
+import { Playlist } from "./Playlist";
+import {
+  IconButton,
+  Tab,
+  Tabs,
+  styled as muiStyled,
+  Divider,
+  Box,
+  CircularProgress,
+} from "@mui/material";
+
+type Props = {
+  onSelectDataSourceAction: () => void;
+};
 
 const StyledTab = muiStyled(Tab)(({ theme }) => ({
-  minHeight: "auto",
+  minHeight: 30,
   minWidth: theme.spacing(8),
-  padding: theme.spacing(1.5, 2),
+  padding: theme.spacing(0, 1.5),
   color: theme.palette.text.secondary,
+  fontSize: "0.6875rem",
 
   "&.Mui-selected": {
     color: theme.palette.text.primary,
@@ -112,6 +126,7 @@ const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState
 
 const NoPlayableBagsDialog = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
   const { classes } = useStyles();
+  /* @ts-ignore */
   const { t } = useTranslation("dataSource");
   const CurrentUrlState = useMessagePipeline(selectUrlState);
 
@@ -170,7 +185,7 @@ const NoPlayableBagsDialog = ({ open, onClose }: { open: boolean; onClose: () =>
   );
 };
 
-export default function DataSourceSidebar(): JSX.Element {
+export default function DataSourceSidebar(props:Props): JSX.Element {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const { currentUser } = useCurrentUser();
@@ -179,9 +194,11 @@ export default function DataSourceSidebar(): JSX.Element {
   const [activeTab, setActiveTab] = useState(0);
   const [moreActiveTab, setMoreActiveTab] = useState(-1);
   const theme = useTheme();
+  /* @ts-ignore */
   const { t } = useTranslation("dataSource");
   const record = useRecord(selectRecords);
   const bagFiles = useRecord(selectBagFiles);
+  const { onSelectDataSourceAction } = props;
 
   const [noPlayableBags, setNoPlayableBags] = useState<boolean>(false);
 
@@ -205,6 +222,12 @@ export default function DataSourceSidebar(): JSX.Element {
   const handleClose = () => {
     setAnchorEl(undefined);
   };
+  const isLoading = useMemo(
+    () =>
+      playerPresence === PlayerPresence.INITIALIZING ||
+      playerPresence === PlayerPresence.RECONNECTING,
+    [playerPresence],
+  );
 
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
@@ -216,12 +239,32 @@ export default function DataSourceSidebar(): JSX.Element {
   }, [playerPresence, showEventsTab, selectedEventId]);
 
   return (
-    <SidebarContent overflow="auto" title={t("dataSource")} disablePadding>
+    <SidebarContent
+      overflow="auto"
+      title={t("dataSource")}
+      disablePadding
+      trailingItems={[
+        isLoading && (
+          <Stack key="loading" alignItems="center" justifyContent="center" padding={1}>
+            <CircularProgress size={18} variant="indeterminate" />
+          </Stack>
+        ),
+        <IconButton
+          key="add-connection"
+          color="primary"
+          title="New connection"
+          onClick={onSelectDataSourceAction}
+        >
+          <AddIcon />
+        </IconButton>,
+      ].filter(Boolean)}
+    >
       <Stack fullHeight>
-        <DataSourceInfoView />
+        <Stack paddingX={2} paddingBottom={2}>
+          <DataSourceInfoView />
+        </Stack>
         {playerPresence !== PlayerPresence.NOT_PRESENT && (
           <>
-            <Divider />
             <Stack flex={1}>
               <StyledTabs
                 value={activeTab}

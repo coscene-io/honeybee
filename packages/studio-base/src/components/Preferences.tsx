@@ -18,7 +18,10 @@ import {
   Typography,
   ToggleButtonGroup,
   ToggleButton,
+  ToggleButtonGroupProps,
+  SelectChangeEvent,
 } from "@mui/material";
+import { captureException } from "@sentry/core";
 import moment from "moment-timezone";
 import { MouseEvent, useCallback, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,15 +34,23 @@ import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent"
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
+import { Language } from "@foxglove/studio-base/i18n";
+import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
+import WebIcon from "@mui/icons-material/Web";
+import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlined";
+
 
 type LanguageOption = "en" | "zh";
 
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
-const LANGUAGE_OPTIONS: LanguageOption[] = ["en", "zh"];
+const LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
+  { key: "en", value: "English" },
+  { key: "zh", value: "中文" },
+];
 
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
@@ -77,7 +88,7 @@ function formatTimezone(name: string) {
   return `${name} (${zoneAbbr}, ${offsetStr})`;
 }
 
-function ColorSchemeSettings(): JSX.Element {
+export function ColorSchemeSettings(): JSX.Element {
   const { classes } = useStyles();
   const [colorScheme = "system", setColorScheme] = useAppConfigurationValue<string>(
     AppSetting.COLOR_SCHEME,
@@ -118,7 +129,7 @@ function ColorSchemeSettings(): JSX.Element {
   );
 }
 
-function TimezoneSettings(): React.ReactElement {
+export function TimezoneSettings(): React.ReactElement {
   type Option = { key: string; label: string; data?: string; divider?: boolean };
 
   const { classes } = useStyles();
@@ -194,7 +205,11 @@ function TimezoneSettings(): React.ReactElement {
   );
 }
 
-function TimeFormat(): React.ReactElement {
+export function TimeFormat({
+  orientation = "vertical",
+}: {
+  orientation?: ToggleButtonGroupProps["orientation"];
+}): React.ReactElement {
   const { timeFormat, setTimeFormat } = useAppTimeFormat();
 
   const { t } = useTranslation("preferences");
@@ -209,7 +224,7 @@ function TimeFormat(): React.ReactElement {
       <ToggleButtonGroup
         color="primary"
         size="small"
-        orientation="vertical"
+        orientation={orientation}
         fullWidth
         exclusive
         value={timeFormat}
@@ -220,6 +235,48 @@ function TimeFormat(): React.ReactElement {
         </ToggleButton>
         <ToggleButton value="TOD" data-testid="timeformat-local">
           {formatTime(exampleTime, timezone)}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}
+
+export function LaunchDefault(): React.ReactElement {
+  const { classes } = useStyles();
+  const { t } = useTranslation("preferences");
+  const [preference, setPreference] = useAppConfigurationValue<string | undefined>(
+    AppSetting.LAUNCH_PREFERENCE,
+  );
+  let sanitizedPreference: LaunchPreferenceValue;
+  switch (preference) {
+    case LaunchPreferenceValue.WEB:
+    case LaunchPreferenceValue.DESKTOP:
+    case LaunchPreferenceValue.ASK:
+      sanitizedPreference = preference;
+      break;
+    default:
+      sanitizedPreference = LaunchPreferenceValue.WEB;
+  }
+
+  return (
+    <Stack>
+      <FormLabel>{t("openLinksIn")}:</FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={sanitizedPreference}
+        onChange={(_, value?: string) => value != undefined && void setPreference(value)}
+      >
+        <ToggleButton value={LaunchPreferenceValue.WEB} className={classes.toggleButton}>
+          <WebIcon /> {t("webApp")}
+        </ToggleButton>
+        <ToggleButton value={LaunchPreferenceValue.DESKTOP} className={classes.toggleButton}>
+          <ComputerIcon /> {t("desktopApp")}
+        </ToggleButton>
+        <ToggleButton value={LaunchPreferenceValue.ASK} className={classes.toggleButton}>
+          <QuestionAnswerOutlinedIcon /> {t("askEachTime")}
         </ToggleButton>
       </ToggleButtonGroup>
     </Stack>
@@ -252,7 +309,7 @@ export function MessageFramerate(): React.ReactElement {
   );
 }
 
-function AutoUpdate(): React.ReactElement {
+export function AutoUpdate(): React.ReactElement {
   const [updatesEnabled = true, setUpdatedEnabled] = useAppConfigurationValue<boolean>(
     AppSetting.UPDATES_ENABLED,
   );
@@ -279,35 +336,60 @@ function AutoUpdate(): React.ReactElement {
   );
 }
 
+export function RosPackagePath(): React.ReactElement {
+  const [rosPackagePath, setRosPackagePath] = useAppConfigurationValue<string>(
+    AppSetting.ROS_PACKAGE_PATH,
+  );
+
+  const rosPackagePathPlaceholder = useMemo(
+    () => OsContextSingleton?.getEnvVar("ROS_PACKAGE_PATH"),
+    [],
+  );
+
+  return (
+    <TextField
+      fullWidth
+      label="ROS_PACKAGE_PATH"
+      placeholder={rosPackagePathPlaceholder}
+      value={rosPackagePath ?? ""}
+      onChange={(event) => void setRosPackagePath(event.target.value)}
+    />
+  );
+}
+
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("preferences");
-  const [selectedLanguage, setSelectedLanguage] = useAppConfigurationValue<string>(
-    AppSetting.DEFAULT_LANGUAGE,
+  const [selectedLanguage = "en", setSelectedLanguage] = useAppConfigurationValue<Language>(
+    AppSetting.LANGUAGE,
   );
-  useEffect(() => {
-    if (selectedLanguage !== i18n.language) {
-      i18n.changeLanguage(selectedLanguage).catch((error: unknown) => {
+  const onChangeLanguage = useCallback(
+    (event: SelectChangeEvent<Language>) => {
+      const lang = event.target.value as Language;
+      void setSelectedLanguage(lang);
+      i18n.changeLanguage(lang).catch((error) => {
         console.error("Failed to switch languages", error);
+        captureException(error);
       });
-    }
-  }, [selectedLanguage, i18n]);
-  const options: { key: LanguageOption; text: LanguageOption; data: LanguageOption }[] = useMemo(
+    },
+    [i18n, setSelectedLanguage],
+  );
+  const options: { key: string; text: string; data: string }[] = useMemo(
     () =>
-      LANGUAGE_OPTIONS.map((language) => ({ key: language, text: `${language}`, data: language })),
+      LANGUAGE_OPTIONS.map((language) => ({
+        key: language.key,
+        text: `${language.value}`,
+        data: language.key,
+      })),
     [],
   );
 
   return (
     <Stack>
       <FormLabel>{t("language")}:</FormLabel>
-      <Select
-        value={selectedLanguage ?? "en"}
-        fullWidth
-        onChange={(event) => void setSelectedLanguage(event.target.value)}
-      >
+      <Select<Language> value={selectedLanguage} fullWidth onChange={onChangeLanguage}>
         {options.map((option) => (
           <MenuItem key={option.key} value={option.key}>
-            {t(option.text)}
+            {option.text}
           </MenuItem>
         ))}
       </Select>
@@ -316,6 +398,12 @@ export function LanguageSettings(): React.ReactElement {
 }
 
 export default function Preferences(): React.ReactElement {
+  const [crashReportingEnabled, setCrashReportingEnabled] = useAppConfigurationValue<boolean>(
+    AppSetting.CRASH_REPORTING_ENABLED,
+  );
+  const [telemetryEnabled, setTelemetryEnabled] = useAppConfigurationValue<boolean>(
+    AppSetting.TELEMETRY_ENABLED,
+  );
   const { t } = useTranslation("preferences");
 
   // automatic updates are a desktop-only setting

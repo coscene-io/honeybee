@@ -76,6 +76,7 @@ export default function PlaybackControls(props: {
 }): JSX.Element {
   const { play, pause, seek, isPlaying, getTimeInfo, playUntil } = props;
   const presence = useMessagePipeline(selectPresence);
+  /* @ts-ignore */
   const { t } = useTranslation("moment");
 
   const { classes } = useStyles();

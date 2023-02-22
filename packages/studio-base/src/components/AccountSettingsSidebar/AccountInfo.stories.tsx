@@ -7,12 +7,6 @@ import ConsoleApi, { User } from "@foxglove/studio-base/services/CoSceneConsoleA
 
 import AccountInfo from "./AccountInfo";
 
-class FakeConsoleApi extends ConsoleApi {
-  public constructor() {
-    super("");
-  }
-}
-
 export default {
   title: "AccountSettingsSidebar/AccountInfo",
   component: AccountInfo,
@@ -38,11 +32,5 @@ export const SignedIn = (): JSX.Element => {
     org,
   };
 
-  const fakeConsoleApi = new FakeConsoleApi();
-
-  return (
-    <ConsoleApiContext.Provider value={fakeConsoleApi}>
-      <AccountInfo currentUser={me} />
-    </ConsoleApiContext.Provider>
-  );
+  return <AccountInfo currentUser={me} />;
 };

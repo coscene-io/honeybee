@@ -39,7 +39,7 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
+import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 
@@ -92,10 +92,10 @@ const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const { onClose } = props;
   const urlState = useMessagePipeline(selectUrlState);
+  /* @ts-ignore */
   const { t } = useTranslation("moment");
 
   const { classes } = useStyles();
-  const consoleApi = useConsoleApi();
 
   const refreshEvents = useEvents(selectRefreshEvents);
   const currentTime = useMessagePipeline(selectCurrentTime);
@@ -149,6 +149,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   );
 
   const { formatTime } = useAppTimeFormat();
+  const { createEvent: appModuleCreateEvent } = useAppContext();
 
   const countedMetadata = countBy(event.metadataEntries, (kv) => kv.key);
   const duplicateKey = Object.entries(countedMetadata).find(

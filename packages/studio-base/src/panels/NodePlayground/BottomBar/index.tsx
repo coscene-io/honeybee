@@ -77,6 +77,7 @@ const StyledBadge = muiStyled(Badge)(({ theme }) => ({
 const BottomBar = ({ nodeId, isSaved, save, diagnostics, logs }: Props): ReactElement => {
   const [bottomBarDisplay, setBottomBarDisplay] = useState<BottomBarModes>("closed");
   const [autoScroll, setAutoScroll] = useState(true);
+  /* @ts-ignore */
   const { t } = useTranslation("userScript");
 
   const { clearUserNodeLogs } = useUserNodeState();

@@ -2,8 +2,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Box, Divider } from "@mui/material";
+import { Divider } from "@mui/material";
 import { useTranslation } from "react-i18next";
+
 import { makeStyles } from "tss-react/mui";
 
 import CopyButton from "@foxglove/studio-base/components/CopyButton";
@@ -16,9 +17,8 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
+import Stack from "@foxglove/studio-base/components/Stack";
 import { Topic } from "@foxglove/studio-base/src/players/types";
-
-import helpContent from "./index.help.md";
 
 const useStyles = makeStyles<void, "copyIcon">()((theme, _params, classes) => ({
   copyIcon: {
@@ -32,7 +32,6 @@ const useStyles = makeStyles<void, "copyIcon">()((theme, _params, classes) => ({
     borderCollapse: "collapse",
     display: "block",
     flex: 1,
-    overflowY: "auto",
 
     thead: {
       position: "sticky",
@@ -82,14 +81,20 @@ function TopicRow({ topic }: { topic: Topic }): JSX.Element {
         />
       </td>
       <td>
-        {topic.schemaName}
-        <CopyButton
-          className={classes.copyIcon}
-          edge="end"
-          size="small"
-          iconSize="small"
-          getText={() => topic.schemaName}
-        />
+        {topic.schemaName == undefined ? (
+          "—"
+        ) : (
+          <>
+            {topic.schemaName}
+            <CopyButton
+              className={classes.copyIcon}
+              edge="end"
+              size="small"
+              iconSize="small"
+              getText={() => topic.schemaName ?? ""}
+            />
+          </>
+        )}
       </td>
       <td data-topic={topic.name} data-topic-stat="count">
         &mdash;
@@ -109,6 +114,7 @@ const MemoTopicRow = React.memo(TopicRow);
 
 function SourceInfo(): JSX.Element {
   const { classes } = useStyles();
+  /* @ts-ignore */
   const { t } = useTranslation("dataSource");
 
   const topics = useMessagePipeline(selectSortedTopics);
@@ -118,7 +124,7 @@ function SourceInfo(): JSX.Element {
   if (!startTime || !endTime) {
     return (
       <>
-        <PanelToolbar helpContent={helpContent} />
+        <PanelToolbar />
         <EmptyState>{t("waitData")}</EmptyState>
       </>
     );
@@ -126,28 +132,30 @@ function SourceInfo(): JSX.Element {
 
   return (
     <>
-      <PanelToolbar helpContent={helpContent} />
+      <PanelToolbar />
       <Divider />
-      <Box paddingTop={1}>
-        <DataSourceInfoView />
-      </Box>
-      <Divider />
-      <table className={classes.table}>
-        <thead>
-          <tr>
-            <th>{t("topicName")}</th>
-            <th>{t("datatype")}</th>
-            <th>{t("messageCount")}</th>
-            <th>{t("frequency")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {topics.map((topic) => (
-            <MemoTopicRow key={topic.name} topic={topic} />
-          ))}
-        </tbody>
-      </table>
-      <DirectTopicStatsUpdater interval={6} />
+      <Stack fullHeight overflowY="auto">
+        <Stack padding={1.5}>
+          <DataSourceInfoView />
+        </Stack>
+        <Divider />
+        <table className={classes.table}>
+          <thead>
+            <tr>
+              <th>{t("topicName")}</th>
+              <th>{t("datatype")}</th>
+              <th>{t("messageCount")}</th>
+              <th>{t("frequency")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topics.map((topic) => (
+              <MemoTopicRow key={topic.name} topic={topic} />
+            ))}
+          </tbody>
+        </table>
+        <DirectTopicStatsUpdater interval={6} />
+      </Stack>
     </>
   );
 }

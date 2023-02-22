@@ -57,6 +57,7 @@ export function Playlist(): JSX.Element {
   const currentBagFiles = useRecord(selectCurrentBagFiles);
   const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
+  /* @ts-ignore */
   const { t } = useTranslation("common");
 
   const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);

@@ -11,6 +11,7 @@ import { useStudioLogsSettingsTree } from "./useStudioLogsSettingsTree";
 
 function StudioLogsSettingsSidebar(): JSX.Element {
   const logSettings = useStudioLogsSettingsTree();
+  /* @ts-ignore */
   const { t } = useTranslation("studioLogsSettings");
   return (
     <SidebarContent overflow="auto" title={t("studioLogsSettings")} disablePadding>

@@ -108,6 +108,30 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
         setParameter: expect.any(Function),
         pauseFrame: expect.any(Function),
       },
+      {
+        playerState: {
+          activeData: undefined,
+          capabilities: [],
+          presence: PlayerPresence.NOT_PRESENT,
+          playerId: "",
+          progress: {},
+        },
+        subscriptions: [],
+        publishers: [],
+        messageEventsBySubscriberId: new Map(),
+        sortedTopics: [],
+        datatypes: new Map(),
+        setSubscriptions: expect.any(Function),
+        setPublishers: expect.any(Function),
+        publish: expect.any(Function),
+        callService: expect.any(Function),
+        startPlayback: undefined,
+        pausePlayback: undefined,
+        setPlaybackSpeed: undefined,
+        seekPlayback: undefined,
+        setParameter: expect.any(Function),
+        pauseFrame: expect.any(Function),
+      },
     ]);
   });
 
@@ -245,7 +269,7 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
         }),
     );
     expect(all).toEqual([
-      expect.objectContaining<DeepPartial<typeof all[0]>>({
+      expect.objectContaining<DeepPartial<(typeof all)[0]>>({
         playerState: {
           activeData: undefined,
           capabilities: [],
@@ -254,10 +278,10 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
           progress: {},
         },
       }),
-      expect.objectContaining<DeepPartial<typeof all[0]>>({
+      expect.objectContaining<DeepPartial<(typeof all)[0]>>({
         sortedTopics: [{ name: "foo", schemaName: "Foo" }],
       }),
-      expect.objectContaining<DeepPartial<typeof all[0]>>({
+      expect.objectContaining<DeepPartial<(typeof all)[0]>>({
         sortedTopics: [
           { name: "bar", schemaName: "Bar" },
           { name: "foo", schemaName: "Foo" },

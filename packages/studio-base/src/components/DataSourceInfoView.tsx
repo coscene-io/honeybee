@@ -24,13 +24,16 @@ import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoS
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { subtractTimes } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/typescript/userUtils/time";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { formatDate, formatDuration } from "@foxglove/studio-base/util/formatTime";
+import { formatDuration } from "@foxglove/studio-base/util/formatTime";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formatTimeRaw, isAbsoluteTime } from "@foxglove/studio-base/util/time";
 
 const useStyles = makeStyles()({
+  overline: {
+    opacity: 0.6,
+  },
   numericValue: {
-    fontFamily: fonts.MONOSPACE,
+    fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
   },
 });
 
@@ -41,19 +44,23 @@ const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState
 const selectRecord = (store: CoSceneRecordStore) => store.record;
 const selectProject = (store: CoSceneProjectStore) => store.project;
 const selectCurrentBagFiles = (state: CoSceneRecordStore) => state.currentBagFiles;
+const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
+  playerState.urlState?.sourceId;
 
 function DataSourceInfoContent(props: {
   durationRef: MutableRefObject<ReactNull | HTMLDivElement>;
   endTimeRef: MutableRefObject<ReactNull | HTMLDivElement>;
   playerPresence: PlayerPresence;
+  playerSourceId?: string;
   startTime?: Time;
 }): JSX.Element {
-  const { durationRef, endTimeRef, playerPresence, startTime } = props;
+  const { durationRef, endTimeRef, playerName, playerPresence, playerSourceId, startTime } = props;
   const { classes } = useStyles();
   const urlState = useMessagePipeline(selectUrlState);
   const record = useRecord(selectRecord);
   const project = useProject(selectProject);
   const currentBagFiles = useRecord(selectCurrentBagFiles);
+  /* @ts-ignore */
   const { t } = useTranslation("dataSource");
 
   useTitle(`coScene ${record.value?.getTitle() ?? ""}`);
@@ -76,8 +83,13 @@ function DataSourceInfoContent(props: {
     </Typography>,
   ];
 
+  const isLiveConnection =
+    playerSourceId != undefined
+      ? playerSourceId.endsWith("socket") || playerSourceId.endsWith("lidar")
+      : false;
+
   return (
-    <Stack gap={1.5} paddingX={2} paddingBottom={2}>
+    <Stack gap={1.5}>
       <Stack>
         <Typography display="block" variant="overline" color="text.secondary">
           {t("currentSource")}
@@ -96,7 +108,7 @@ function DataSourceInfoContent(props: {
       </Stack>
 
       <Stack>
-        <Typography variant="overline" color="text.secondary">
+        <Typography variant="overline" color="text.secondary" className={classes.overline}>
           {t("startTime")}
         </Typography>
         {playerPresence === PlayerPresence.INITIALIZING ? (
@@ -104,28 +116,30 @@ function DataSourceInfoContent(props: {
         ) : startTime ? (
           <Timestamp horizontal time={startTime} />
         ) : (
-          <Typography className={classes.numericValue} variant="inherit" color="text.secondary">
+          <Typography className={classes.numericValue} variant="inherit">
             &mdash;
           </Typography>
         )}
       </Stack>
 
-      <Stack>
-        <Typography variant="overline" color="text.secondary">
+      {!isLiveConnection && (
+        <Stack>
+          <Typography className={classes.overline} variant="overline">
           {t("endTime")}
-        </Typography>
-        {playerPresence === PlayerPresence.INITIALIZING ? (
-          <Skeleton animation="wave" width="50%" />
-        ) : (
-          <Typography className={classes.numericValue} variant="inherit" ref={endTimeRef}>
-            &mdash;
           </Typography>
-        )}
-      </Stack>
+          {playerPresence === PlayerPresence.INITIALIZING ? (
+            <Skeleton animation="wave" width="50%" />
+          ) : (
+            <Typography className={classes.numericValue} variant="inherit" ref={endTimeRef}>
+              &mdash;
+            </Typography>
+          )}
+        </Stack>
+      )}
 
       <Stack>
-        <Typography variant="overline" color="text.secondary">
-          {t("duration")}
+        <Typography className={classes.overline} variant="overline">
+        {t("duration")}
         </Typography>
         {playerPresence === PlayerPresence.INITIALIZING ? (
           <Skeleton animation="wave" width={100} />
@@ -147,9 +161,10 @@ export function DataSourceInfoView(): JSX.Element {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
+  const playerSourceId = useMessagePipeline(selectPlayerSourceId);
   const durationRef = useRef<HTMLDivElement>(ReactNull);
   const endTimeRef = useRef<HTMLDivElement>(ReactNull);
-  const { formatTime } = useAppTimeFormat();
+  const { formatDate, formatTime } = useAppTimeFormat();
 
   // We bypass react and update the DOM elements directly for better performance here.
   useEffect(() => {
@@ -164,7 +179,7 @@ export function DataSourceInfoView(): JSX.Element {
     }
     if (endTimeRef.current) {
       if (endTime) {
-        const date = formatDate(endTime, undefined);
+        const date = formatDate(endTime);
         endTimeRef.current.innerText = !isAbsoluteTime(endTime)
           ? `${formatTimeRaw(endTime)}`
           : `${date} ${formatTime(endTime)}`;
@@ -172,13 +187,14 @@ export function DataSourceInfoView(): JSX.Element {
         endTimeRef.current.innerHTML = EmDash;
       }
     }
-  }, [endTime, formatTime, startTime, playerPresence]);
+  }, [endTime, formatTime, startTime, playerPresence, formatDate]);
 
   return (
     <MemoDataSourceInfoContent
       durationRef={durationRef}
       endTimeRef={endTimeRef}
       playerPresence={playerPresence}
+      playerSourceId={playerSourceId}
       startTime={startTime}
     />
   );
