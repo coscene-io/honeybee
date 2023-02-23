@@ -552,6 +552,7 @@ export default function LayoutBrowser({
   }, [setSelectLayoutTemplateModalOpen]);
 
   const handleSelectLayoutTemplate = async (layout: LayoutData, layoutName: string) => {
+    setSelectLayoutTemplateModalOpen(false);
     const newLayout = await layoutManager.saveNewLayout({
       name: layoutName,
       data: layout,
@@ -560,8 +561,6 @@ export default function LayoutBrowser({
     void onSelectLayout(newLayout);
 
     void analytics.logEvent(AppEvent.LAYOUT_CREATE);
-
-    setSelectLayoutTemplateModalOpen(false);
   };
 
   return (
