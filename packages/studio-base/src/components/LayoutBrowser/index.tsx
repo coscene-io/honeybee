@@ -609,7 +609,7 @@ export default function LayoutBrowser({
               setSelectLayoutTemplateModalOpen(true);
             }}
           >
-            {t('createLayoutFromTemplate')}
+            {t("createLayoutFromTemplate")}
           </MenuItem>
           <MenuItem
             onClick={() => {
@@ -617,7 +617,7 @@ export default function LayoutBrowser({
               void createNewLayout();
             }}
           >
-            {t('createBlankLayout')}
+            {t("createBlankLayout")}
           </MenuItem>
         </Menu>,
         <IconButton
