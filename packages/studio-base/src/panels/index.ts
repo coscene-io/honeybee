@@ -30,7 +30,7 @@ const builtin: PanelInfo[] = [
   {
     title: "3D",
     type: "3D",
-    description: "Display markers, camera images, meshes, URDFs, and more in a 3D scene.",
+    description: "threeDDescription",
     thumbnail: threeDeeRenderThumbnail,
     module: async () => await import("./ThreeDeeRender"),
     settingsOnboardingTooltip: "Open settings to configure topics and layers.",
@@ -38,7 +38,7 @@ const builtin: PanelInfo[] = [
   {
     title: `diagnosticsDetail`,
     type: "DiagnosticStatusPanel",
-    description: "Display ROS DiagnosticArray messages for a specific hardware_id.",
+    description: "diagnosticsDetailDescription",
     thumbnail: diagnosticStatusThumbnail,
     module: async () => await import("./diagnostics/DiagnosticStatusPanel"),
     hasCustomToolbar: true,
@@ -54,7 +54,7 @@ const builtin: PanelInfo[] = [
   {
     title: "image",
     type: "ImageViewPanel",
-    description: "Display annotated images.",
+    description: "imageDescription",
     thumbnail: imageViewThumbnail,
     module: async () => await import("./Image"),
   },

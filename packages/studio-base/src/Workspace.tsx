@@ -14,6 +14,7 @@ import { Link, Typography } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { extname } from "path";
 import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { usePrevious } from "react-use";
 import { makeStyles } from "tss-react/mui";
 

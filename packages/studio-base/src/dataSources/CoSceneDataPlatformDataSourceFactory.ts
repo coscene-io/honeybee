@@ -60,12 +60,12 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
 
     const source = new WorkerIterableSource({
       sourceType: "foxgloveDataPlatform",
+      initWorker,
       initArgs: {
         api: {
           baseUrl: APP_CONFIG.CS_HONEYBEE_BASE_URL,
           auth: `${localStorage.getItem("coScene_org_jwt")}`,
         },
-        initWorker,
         params: args.params,
         coSceneContext: JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
       },

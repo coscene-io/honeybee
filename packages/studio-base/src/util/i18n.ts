@@ -15,7 +15,12 @@ const DETECTION_OPTIONS = {
   caches: ["localStorage"],
 };
 
-i18n
+export type Language = keyof typeof translations;
+
+
+
+export async function initI18n(): Promise<void> {
+  await i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
@@ -32,4 +37,5 @@ i18n
     console.error("Failed to initialize i18n", err);
   });
 
-export default i18n;
+}
+export default initI18n;

@@ -5,6 +5,8 @@
 import Brightness5Icon from "@mui/icons-material/Brightness5";
 import ComputerIcon from "@mui/icons-material/Computer";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
+import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlined";
+import WebIcon from "@mui/icons-material/Web";
 import {
   Autocomplete,
   Checkbox,
@@ -23,7 +25,7 @@ import {
 } from "@mui/material";
 import { captureException } from "@sentry/core";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo, useEffect } from "react";
+import { MouseEvent, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -34,17 +36,12 @@ import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent"
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
-import { Language } from "@foxglove/studio-base/i18n";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
+import { Language } from "@foxglove/studio-base/util/i18n";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
-import WebIcon from "@mui/icons-material/Web";
-import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlined";
-
-
-type LanguageOption = "en" | "zh";
 
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
 const LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
@@ -93,6 +90,7 @@ export function ColorSchemeSettings(): JSX.Element {
   const [colorScheme = "system", setColorScheme] = useAppConfigurationValue<string>(
     AppSetting.COLOR_SCHEME,
   );
+  /* @ts-ignore */
   const { t } = useTranslation("preferences");
 
   const handleChange = useCallback(
@@ -398,12 +396,12 @@ export function LanguageSettings(): React.ReactElement {
 }
 
 export default function Preferences(): React.ReactElement {
-  const [crashReportingEnabled, setCrashReportingEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.CRASH_REPORTING_ENABLED,
-  );
-  const [telemetryEnabled, setTelemetryEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.TELEMETRY_ENABLED,
-  );
+  // const [crashReportingEnabled, setCrashReportingEnabled] = useAppConfigurationValue<boolean>(
+  //   AppSetting.CRASH_REPORTING_ENABLED,
+  // );
+  // const [telemetryEnabled, setTelemetryEnabled] = useAppConfigurationValue<boolean>(
+  //   AppSetting.TELEMETRY_ENABLED,
+  // );
   const { t } = useTranslation("preferences");
 
   // automatic updates are a desktop-only setting

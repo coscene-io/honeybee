@@ -14,8 +14,9 @@ import { useState, useMemo, ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
-import { Language } from "@foxglove/studio-base/i18n";
 import { createMuiTheme } from "@foxglove/studio-base/theme";
+
+import { Language } from "@foxglove/studio-base/util/i18n";
 
 const MINIMUM_CHROME_VERSION = 104;
 
