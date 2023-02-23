@@ -31,7 +31,6 @@ import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 
 export type User = {
@@ -599,12 +598,8 @@ class CoSceneConsoleApi {
     return await CsWebClient.getProjectClient().getProject(req);
   }
 
-  public async getLayoutTemplatesIndex(): Promise<LayoutTemplatesIndex> {
-    return await this.get<LayoutTemplatesIndex>(
-      APP_CONFIG.LAYOUT_TEMPLATE_INDEX_OSS_URL,
-      undefined,
-      true,
-    );
+  public async getLayoutTemplatesIndex(layoutTemplatesUrl: string): Promise<LayoutTemplatesIndex> {
+    return await this.get<LayoutTemplatesIndex>(layoutTemplatesUrl, undefined, true);
   }
 
   public async getLayoutTemplate(url: string): Promise<LayoutData> {
