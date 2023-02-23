@@ -53,6 +53,7 @@ CsWebClient.init({
 });
 
 type AppProps = CustomWindowControlsProps & {
+  consoleApi: ConsoleApi;
   deepLinks: string[];
   appConfiguration: IAppConfiguration;
   dataSources: IDataSourceFactory[];
@@ -81,6 +82,7 @@ export function App(props: AppProps): JSX.Element {
   const [assetLoaders] = useState(() => [new URDFAssetLoader()]);
 
   const {
+    consoleApi,
     appConfiguration,
     dataSources,
     layoutStorage,
@@ -95,6 +97,7 @@ export function App(props: AppProps): JSX.Element {
 
   const providers = [
     /* eslint-disable react/jsx-key */
+    <ConsoleApiContext.Provider value={consoleApi} />,
     <StudioLogsSettingsProvider />,
     <StudioToastProvider />,
     <LayoutStorageContext.Provider value={layoutStorage} />,
@@ -132,6 +135,11 @@ export function App(props: AppProps): JSX.Element {
     document.addEventListener("contextmenu", contextMenuHandler);
     return () => document.removeEventListener("contextmenu", contextMenuHandler);
   }, []);
+
+  localStorage.setItem(
+    "coScene_org_jwt",
+    "Bearer eyJraWQiOiI2YmE0N2Y0My02MWZkLTRlOGYtODhjMy05MTZjZTU3YjZlY2IiLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIzNzMwMzViNi0yNDcxLTRkNDAtOWE2Ny0zNjRmMDkxOTJhOWUiLCJpc3MiOiJodHRwczovL2FwaS5jb3NjZW5lLmRldi9zdXBlcnRva2Vucy1zZXJ2ZXIvYXV0aCIsImV4cCI6MTY3NzIwMjc5NCwidXNlcklkIjoiMzczMDM1YjYtMjQ3MS00ZDQwLTlhNjctMzY0ZjA5MTkyYTllIiwiaWF0IjoxNjc3MTE2MzkzLCJvcmdJZCI6IjNkZDc2ZmYyLTgzOWQtNDlhMy04MmFmLTY2MzQyMmI2OWIwMSJ9.EVYBxznMWhMZELCkZz9BmT_jPR0qiePPMS7eGaDTvlBVapptilYfrbWWL7LxQbvrTGjDdXQYlQLcaRhA8pICV1By3KgrWrxqqkb7hG7dJX9Byj8gH7qdsjqORAAINP-qO3P4KLv6hmwvO_b9TPPxmWg9NtsY6t5YDUGkqGD2OwIfglPEfS278ySCLPW5ZsBXKpStGR7yDJQ5fA9a-_8bXMRT4OJgXFSa56mWgsI4FpiYIPj1qNZmwXDwRs9PjFiearr2wpPHT9Mr8_CTRxj_wM1zAWwsczKLS7Hr9j7WW2fQAV-negA55RE3pHOEYgd11NqlDmu7poUc7YO7txiqgA",
+  );
 
   return (
     <AppConfigurationContext.Provider value={appConfiguration}>

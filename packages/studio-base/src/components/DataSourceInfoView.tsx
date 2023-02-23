@@ -72,10 +72,10 @@ function DataSourceInfoContent(props: {
   const recordHref = `${projectHref}/records/${urlState?.parameters?.recordId}`;
 
   const breadcrumbs = [
-    <Link href={projectHref} underline="hover" key="1" color="inherit">
+    <Link href={projectHref} target="_blank" underline="hover" key="1" color="inherit">
       {project.value?.getDisplayName()}
     </Link>,
-    <Link href={recordHref} underline="hover" key="2" color="inherit">
+    <Link href={recordHref} target="_blank" underline="hover" key="2" color="inherit">
       {record.value?.getTitle()}
     </Link>,
     <Typography key="3" color="text.primary">

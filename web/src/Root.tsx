@@ -6,21 +6,22 @@ import { useMemo, useState } from "react";
 import { useFavicon } from "react-use";
 
 import {
-  IDataSourceFactory,
+  // IDataSourceFactory,
   CoSceneIDataSourceFactory,
   CoSceneDataPlatformDataSourceFactory,
   CoSceneContext,
-  Ros1LocalBagDataSourceFactory,
-  Ros2LocalBagDataSourceFactory,
-  RosbridgeDataSourceFactory,
-  RemoteDataSourceFactory,
-  FoxgloveWebSocketDataSourceFactory,
-  UlogLocalDataSourceFactory,
-  McapLocalDataSourceFactory,
-  SampleNuscenesDataSourceFactory,
+  // Ros1LocalBagDataSourceFactory,
+  // Ros2LocalBagDataSourceFactory,
+  // RosbridgeDataSourceFactory,
+  // RemoteDataSourceFactory,
+  // FoxgloveWebSocketDataSourceFactory,
+  // UlogLocalDataSourceFactory,
+  // McapLocalDataSourceFactory,
+  // SampleNuscenesDataSourceFactory,
   IAppConfiguration,
   IdbExtensionLoader,
   App,
+  ConsoleApi,
 } from "@foxglove/studio-base";
 // import Ros1UnavailableDataSourceFactory from "./dataSources/Ros1UnavailableDataSourceFactory";
 // import Ros2UnavailableDataSourceFactory from "./dataSources/Ros2UnavailableDataSourceFactory";
@@ -71,6 +72,15 @@ export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration
     new IdbExtensionLoader("local"),
   ]);
 
+  const consoleApi = useMemo(
+    () =>
+      new ConsoleApi(
+        APP_CONFIG.CS_HONEYBEE_BASE_URL,
+        JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}") as CoSceneContext,
+      ),
+    [],
+  );
+
   return (
     <>
       <App
@@ -81,6 +91,7 @@ export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration
         layoutStorage={layoutStorage}
         extensionLoaders={extensionLoaders}
         enableGlobalCss
+        consoleApi={consoleApi}
       />
     </>
   );
