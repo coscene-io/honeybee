@@ -66,7 +66,7 @@ export default function SelectLayoutTemplateModal({
     let templateIndex: { [key: string]: { path: string; updateTime: string } } = {};
     try {
       const index = await consoleApi.getLayoutTemplatesIndex(
-        APP_CONFIG.LAYOUT_TEMPLATE_INDEX_OSS_URL,
+        `${APP_CONFIG.LAYOUT_TEMPLATE_INDEX_OSS_URL}?v=${Date.now()}`,
       );
       templateIndex = index;
     } catch (error) {
