@@ -8,4 +8,10 @@ export default {
   offline: "Offline",
   online: "Online",
   sync: "Sync",
+  selectTemplate: "Select a template",
+  updateTime: "Update time",
+  noTemplates: "No templates found",
+  loadLayoutTemplateFailed: "Failed to load layout template",
+  createLayoutFromTemplate: "Create layout from template",
+  createBlankLayout: "Create blank layout",
 };
