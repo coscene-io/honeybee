@@ -8,4 +8,10 @@ export default {
   offline: "离线",
   online: "在线",
   sync: "同步",
+  selectTemplate: "选择模板",
+  updateTime: "更新时间",
+  noTemplates: "未找到模板",
+  loadLayoutTemplateFailed: "加载布局模板失败",
+  createLayoutFromTemplate: "从模板创建布局",
+  createBlankLayout: "创建空白布局",
 };

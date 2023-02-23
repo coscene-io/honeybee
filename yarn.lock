@@ -2650,6 +2650,7 @@ __metadata:
     react-dnd: 14.0.2
     react-dnd-html5-backend: 14.0.2
     react-dom: 17.0.2
+    react-hot-toast: 2.4.0
     react-hover-observer: 2.1.1
     react-i18next: 12.1.3
     react-json-tree: "patch:react-json-tree@npm:0.15.1#../../patches/react-json-tree.patch"
@@ -14051,6 +14052,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"goober@npm:^2.1.10":
+  version: 2.1.12
+  resolution: "goober@npm:2.1.12"
+  peerDependencies:
+    csstype: ^3.0.10
+  checksum: 5945cbe92413031b8859d9087d125a744149e237c8bcf6c15db1998ee3d1b6d680ee4a47dd420f95684b76f72eebc34e98155e8a1cb06748d00cbdc05ede186d
+  languageName: node
+  linkType: hard
+
 "google-protobuf@npm:3.21.2, google-protobuf@npm:^3.20.1":
   version: 3.21.2
   resolution: "google-protobuf@npm:3.21.2"
@@ -21715,6 +21725,18 @@ __metadata:
   peerDependencies:
     react: ">=16.13.1"
   checksum: f36270a5d775a25c8920f854c0d91649ceea417b15b5bc51e270a959b0476647bb79abb4da3be7dd9a4597b029214e8fe43ea914a7f16fa7543c91f784977f1b
+  languageName: node
+  linkType: hard
+
+"react-hot-toast@npm:2.4.0":
+  version: 2.4.0
+  resolution: "react-hot-toast@npm:2.4.0"
+  dependencies:
+    goober: ^2.1.10
+  peerDependencies:
+    react: ">=16"
+    react-dom: ">=16"
+  checksum: 910214496d6821af8e643c5f7087eff6c76f1395756f3d6cf1fc07a599c582c443cbb5a4cadfc58205acf0845b77a2a10a4ca49b385e772b72edc57dfd38d016
   languageName: node
   linkType: hard
 

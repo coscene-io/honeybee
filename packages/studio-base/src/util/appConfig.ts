@@ -11,6 +11,7 @@ declare global {
       VITE_APP_ROLLBAR_ACCESS_TOKEN?: string;
       IMAGE_TAG?: string;
       CS_HONEYBEE_BASE_URL?: string;
+      LAYOUT_TEMPLATE_INDEX_OSS_URL?: string;
     };
   }
 }
@@ -32,6 +33,10 @@ export const APP_CONFIG = {
   IMAGE_TAG: process.env.IMAGE_TAG,
   LAST_BUILD_TIME: process.env.LAST_BUILD_TIME,
   NPM_PACKAGE_VERSION: process.env.NPM_PACKAGE_VERSION,
+  LAYOUT_TEMPLATE_INDEX_OSS_URL:
+    cosConfig.LAYOUT_TEMPLATE_INDEX_OSS_URL ??
+    process.env.LAYOUT_TEMPLATE_INDEX_OSS_URL ??
+    "http://coscene-artifacts-production.oss-cn-hangzhou.aliyuncs.com/honeybee_layouts/dev/index.json",
 };
 
 window.cosConfig = APP_CONFIG;

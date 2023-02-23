@@ -123,7 +123,9 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
       <meta property="og:title" content="coScene"/>
       <meta property="og:description" content="Open source visualization and debugging tool for robotics"/>
       <meta property="og:type" content="website"/>
-      <script src="/viz/cos-config.js" type="text/javascript"></script>
+      <script src="/viz/cos-config.js?t=${
+        process.env.LAST_BUILD_TIME ?? "local"
+      }" type="text/javascript"></script>
       <title>coScene</title>
     </head>
     <script>
