@@ -14,17 +14,28 @@ import {
   CircularProgress,
   useTheme,
 } from "@mui/material";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import { partition } from "lodash";
 import moment from "moment";
 import { useSnackbar } from "notistack";
 import path from "path";
-import { MouseEvent, useCallback, useContext, useEffect, useLayoutEffect, useMemo } from "react";
+import {
+  MouseEvent,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 import useAsyncFn from "react-use/lib/useAsyncFn";
 
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import SelectLayoutTemplateModal from "@foxglove/studio-base/components/LayoutBrowser/SelectLayoutTemplateModal";
 import SignInPrompt from "@foxglove/studio-base/components/LayoutBrowser/SignInPrompt";
 import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/LayoutBrowser/UnsavedChangesPrompt";
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
@@ -62,6 +73,9 @@ export default function LayoutBrowser({
 }: React.PropsWithChildren<{
   currentDateForStorybook?: Date;
 }>): JSX.Element {
+  const [selectLayoutTemplateModalOpen, setSelectLayoutTemplateModalOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
+
   const theme = useTheme();
   const isMounted = useMountedState();
   const { enqueueSnackbar } = useSnackbar();
@@ -71,6 +85,7 @@ export default function LayoutBrowser({
   const confirm = useConfirm();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
   const { t } = useTranslation("layouts");
+  const createLayoutMenuOpen = Boolean(anchorEl);
 
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const { setSelectedLayoutId } = useCurrentLayoutActions();
@@ -521,6 +536,34 @@ export default function LayoutBrowser({
       .some((layout) => layout.working != undefined && state.selectedIds.includes(layout.id));
   }, [layouts, state.selectedIds]);
 
+  const handleCloseCreateLayoutMenu = useCallback(() => {
+    setAnchorEl(undefined);
+  }, [setAnchorEl]);
+
+  const handleOpenLayoutMenuClick = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      setAnchorEl(event.currentTarget);
+    },
+    [setAnchorEl],
+  );
+
+  const handleCloseLayoutTemplateModal = useCallback(() => {
+    setSelectLayoutTemplateModalOpen(false);
+  }, [setSelectLayoutTemplateModalOpen]);
+
+  const handleSelectLayoutTemplate = async (layout: LayoutData, layoutName: string) => {
+    const newLayout = await layoutManager.saveNewLayout({
+      name: layoutName,
+      data: layout,
+      permission: "CREATOR_WRITE",
+    });
+    void onSelectLayout(newLayout);
+
+    void analytics.logEvent(AppEvent.LAYOUT_CREATE);
+
+    setSelectLayoutTemplateModalOpen(false);
+  };
+
   return (
     <SidebarContent
       title={t("layouts")}
@@ -539,13 +582,44 @@ export default function LayoutBrowser({
         <IconButton
           color="primary"
           key="add-layout"
-          onClick={createNewLayout}
+          id="add-layout"
           aria-label="Create new layout"
           data-testid="add-layout"
           title="Create new layout"
+          aria-controls={createLayoutMenuOpen ? "create-layout-menu" : undefined}
+          aria-haspopup="true"
+          aria-expanded={createLayoutMenuOpen ? "true" : undefined}
+          onClick={handleOpenLayoutMenuClick}
         >
           <AddIcon />
         </IconButton>,
+        <Menu
+          id="create-layout-menu"
+          key="create-layout-menu"
+          anchorEl={anchorEl}
+          open={createLayoutMenuOpen}
+          onClose={handleCloseCreateLayoutMenu}
+          MenuListProps={{
+            "aria-labelledby": "add-layout",
+          }}
+        >
+          <MenuItem
+            onClick={() => {
+              handleCloseCreateLayoutMenu();
+              setSelectLayoutTemplateModalOpen(true);
+            }}
+          >
+            {t("createLayoutFromTemplate")}
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              handleCloseCreateLayoutMenu();
+              void createNewLayout();
+            }}
+          >
+            {t("createBlankLayout")}
+          </MenuItem>
+        </Menu>,
         <IconButton
           color="primary"
           key="import-layout"
@@ -639,6 +713,11 @@ export default function LayoutBrowser({
           </Stack>
         )}
       </Stack>
+      <SelectLayoutTemplateModal
+        open={selectLayoutTemplateModalOpen}
+        onClose={handleCloseLayoutTemplateModal}
+        onSelectedLayout={handleSelectLayoutTemplate}
+      />
     </SidebarContent>
   );
 }

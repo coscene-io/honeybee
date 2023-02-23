@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useMemo, useState } from "react";
+import { Toaster } from "react-hot-toast";
 import { useFavicon } from "react-use";
 
 import {
@@ -105,6 +106,7 @@ export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration
         extensionLoaders={extensionLoaders}
         enableGlobalCss
       />
+      <Toaster />
     </>
   );
 }

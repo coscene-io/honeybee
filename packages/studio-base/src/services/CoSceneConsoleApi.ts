@@ -30,6 +30,8 @@ import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 
 export type User = {
@@ -180,6 +182,13 @@ export type CoSceneContext = {
 
 type ApiResponse<T> = { status: number; json: T };
 
+type LayoutTemplatesIndex = {
+  [key: string]: {
+    path: string;
+    updateTime: string;
+  };
+};
+
 class CoSceneConsoleApi {
   private _baseUrl: string;
   private _authHeader?: string;
@@ -236,7 +245,12 @@ class CoSceneConsoleApi {
     });
   }
 
-  private async get<T>(apiPath: string, query?: Record<string, string | undefined>): Promise<T> {
+  private async get<T>(
+    apiPath: string,
+    query?: Record<string, string | undefined>,
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    customHost?: boolean,
+  ): Promise<T> {
     // Strip keys with undefined values from the final query
     let queryWithoutUndefined: Record<string, string> | undefined;
     if (query) {
@@ -254,6 +268,8 @@ class CoSceneConsoleApi {
           ? apiPath
           : `${apiPath}?${new URLSearchParams(queryWithoutUndefined).toString()}`,
         { method: "GET" },
+        undefined,
+        customHost,
       )
     ).json;
   }
@@ -326,8 +342,10 @@ class CoSceneConsoleApi {
       /** By default, status codes other than 200 will throw an error. */
       allowedStatuses?: number[];
     } = {},
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    customHost?: boolean,
   ): Promise<ApiResponse<T>> {
-    const fullUrl = `${this._baseUrl}${url}`;
+    const fullUrl = customHost != undefined && customHost ? url : `${this._baseUrl}${url}`;
 
     const headers: Record<string, string> = {
       // Include the version of studio in the request Useful when scraping logs to determine what
@@ -363,13 +381,19 @@ class CoSceneConsoleApi {
     }
   }
 
-  private async post<T>(apiPath: string, body?: unknown): Promise<T> {
+  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  private async post<T>(apiPath: string, body?: unknown, customHost?: boolean): Promise<T> {
     return (
-      await this.request<T>(apiPath, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
+      await this.request<T>(
+        apiPath,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+        {},
+        customHost,
+      )
     ).json;
   }
 
@@ -573,6 +597,18 @@ class CoSceneConsoleApi {
   public async getProject({ projectName }: { projectName: string }): Promise<Project> {
     const req = new GetProjectRequest().setName(projectName);
     return await CsWebClient.getProjectClient().getProject(req);
+  }
+
+  public async getLayoutTemplatesIndex(): Promise<LayoutTemplatesIndex> {
+    return await this.get<LayoutTemplatesIndex>(
+      APP_CONFIG.LAYOUT_TEMPLATE_INDEX_OSS_URL,
+      undefined,
+      true,
+    );
+  }
+
+  public async getLayoutTemplate(url: string): Promise<LayoutData> {
+    return await this.get<LayoutData>(url, undefined, true);
   }
 }
 
