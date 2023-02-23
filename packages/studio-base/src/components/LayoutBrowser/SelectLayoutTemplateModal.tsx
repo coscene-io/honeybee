@@ -21,6 +21,7 @@ import { makeStyles } from "tss-react/mui";
 import Logger from "@foxglove/log";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 const useStyles = makeStyles()((theme) => ({
   paper: { maxWidth: "700px", width: "70%" },
@@ -64,7 +65,9 @@ export default function SelectLayoutTemplateModal({
   const [layoutTemplateIndex, getLayoutTemplateIndex] = useAsyncFn(async () => {
     let templateIndex: { [key: string]: { path: string; updateTime: string } } = {};
     try {
-      const index = await consoleApi.getLayoutTemplatesIndex();
+      const index = await consoleApi.getLayoutTemplatesIndex(
+        APP_CONFIG.LAYOUT_TEMPLATE_INDEX_OSS_URL,
+      );
       templateIndex = index;
     } catch (error) {
       log.error(error);
