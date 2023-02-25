@@ -14,6 +14,7 @@ export default {
   followSystem: "Follow system",
   general: "General",
   language: "Language",
+  lastUpdated: "Last updated",
   layoutDebugging: "Layout debugging",
   layoutDebuggingDescription: "Show extra controls for developing and debugging layout storage.",
   legacyPlotPanel: "Legacy plot panels",

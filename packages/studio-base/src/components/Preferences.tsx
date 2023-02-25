@@ -19,6 +19,7 @@ import {
   ToggleButtonGroup,
   ToggleButton,
 } from "@mui/material";
+import dayjs from "dayjs";
 import moment from "moment-timezone";
 import { MouseEvent, useCallback, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,6 +33,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
@@ -62,6 +64,11 @@ const useStyles = makeStyles()((theme) => ({
     flexDirection: "column",
     gap: theme.spacing(0.75),
     lineHeight: "1 !important",
+  },
+  versionText: {
+    color: theme.palette.text.secondary,
+    fontSize: theme.typography.caption.fontSize,
+    marginBottom: theme.spacing(1),
   },
 }));
 
@@ -282,7 +289,7 @@ function AutoUpdate(): React.ReactElement {
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("preferences");
   const [selectedLanguage, setSelectedLanguage] = useAppConfigurationValue<string>(
-    AppSetting.DEFAULT_LANGUAGE,
+    AppSetting.DEFAULT_LANGUAGE.toString(),
   );
   useEffect(() => {
     if (selectedLanguage !== i18n.language) {
@@ -317,7 +324,7 @@ export function LanguageSettings(): React.ReactElement {
 
 export default function Preferences(): React.ReactElement {
   const { t } = useTranslation("preferences");
-
+  const { classes } = useStyles();
   // automatic updates are a desktop-only setting
   //
   // electron-updater does not provide a way to detect if we are on a supported update platform
@@ -353,6 +360,9 @@ export default function Preferences(): React.ReactElement {
                 <AutoUpdate />
               </div>
             )}
+            <div className={classes.versionText}>
+              {t("lastUpdated")}: {dayjs(APP_CONFIG.LAST_BUILD_TIME).format("YYYY-MM-DD HH:mm:ss")}
+            </div>
           </Stack>
         </section>
       </Stack>
