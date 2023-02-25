@@ -41,7 +41,6 @@ import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/Layout
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 import {
   LayoutState,
   useCurrentLayoutActions,
@@ -70,8 +69,10 @@ const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.i
 
 export default function LayoutBrowser({
   currentDateForStorybook,
+  supportsSignIn,
 }: React.PropsWithChildren<{
   currentDateForStorybook?: Date;
+  supportsSignIn?: boolean;
 }>): JSX.Element {
   const [selectLayoutTemplateModalOpen, setSelectLayoutTemplateModalOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
@@ -80,9 +81,9 @@ export default function LayoutBrowser({
   const isMounted = useMountedState();
   const { enqueueSnackbar } = useSnackbar();
   const layoutManager = useLayoutManager();
-  const prompt = usePrompt();
+  const [prompt, promptModal] = usePrompt();
   const analytics = useAnalytics();
-  const confirm = useConfirm();
+  const [confirm, confirmModal] = useConfirm();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
   const { t } = useTranslation("layouts");
   const createLayoutMenuOpen = Boolean(anchorEl);
@@ -520,13 +521,13 @@ export default function LayoutBrowser({
   ]);
 
   const layoutDebug = useContext(LayoutStorageDebuggingContext);
-  const supportsSignIn = useContext(ConsoleApiContext) != undefined;
 
   const [hideSignInPrompt = false, setHideSignInPrompt] = useAppConfigurationValue<boolean>(
     AppSetting.HIDE_SIGN_IN_PROMPT,
   );
 
-  const showSignInPrompt = supportsSignIn && !layoutManager.supportsSharing && !hideSignInPrompt;
+  const showSignInPrompt =
+    supportsSignIn === true && !layoutManager.supportsSharing && !hideSignInPrompt;
 
   const pendingMultiAction = state.multiAction?.ids != undefined;
 
@@ -630,6 +631,8 @@ export default function LayoutBrowser({
         </IconButton>,
       ].filter(Boolean)}
     >
+      {promptModal}
+      {confirmModal}
       {unsavedChangesPrompt}
       <Stack fullHeight gap={2} style={{ pointerEvents: pendingMultiAction ? "none" : "auto" }}>
         <LayoutSection

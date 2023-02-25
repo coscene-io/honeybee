@@ -18,9 +18,12 @@ import {
   Typography,
   ToggleButtonGroup,
   ToggleButton,
+  ToggleButtonGroupProps,
+  SelectChangeEvent,
 } from "@mui/material";
+import { captureException } from "@sentry/core";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo, useEffect } from "react";
+import { MouseEvent, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -31,15 +34,17 @@ import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent"
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
+import { Language } from "@foxglove/studio-base/i18n";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
-type LanguageOption = "en" | "zh";
-
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
-const LANGUAGE_OPTIONS: LanguageOption[] = ["en", "zh"];
+const LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
+  { key: "en", value: "English" },
+  { key: "zh", value: "中文" },
+];
 
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
@@ -77,7 +82,7 @@ function formatTimezone(name: string) {
   return `${name} (${zoneAbbr}, ${offsetStr})`;
 }
 
-function ColorSchemeSettings(): JSX.Element {
+export function ColorSchemeSettings(): JSX.Element {
   const { classes } = useStyles();
   const [colorScheme = "system", setColorScheme] = useAppConfigurationValue<string>(
     AppSetting.COLOR_SCHEME,
@@ -118,7 +123,7 @@ function ColorSchemeSettings(): JSX.Element {
   );
 }
 
-function TimezoneSettings(): React.ReactElement {
+export function TimezoneSettings(): React.ReactElement {
   type Option = { key: string; label: string; data?: string; divider?: boolean };
 
   const { classes } = useStyles();
@@ -194,7 +199,11 @@ function TimezoneSettings(): React.ReactElement {
   );
 }
 
-function TimeFormat(): React.ReactElement {
+export function TimeFormat({
+  orientation = "vertical",
+}: {
+  orientation?: ToggleButtonGroupProps["orientation"];
+}): React.ReactElement {
   const { timeFormat, setTimeFormat } = useAppTimeFormat();
 
   const { t } = useTranslation("preferences");
@@ -209,7 +218,7 @@ function TimeFormat(): React.ReactElement {
       <ToggleButtonGroup
         color="primary"
         size="small"
-        orientation="vertical"
+        orientation={orientation}
         fullWidth
         exclusive
         value={timeFormat}
@@ -252,7 +261,7 @@ export function MessageFramerate(): React.ReactElement {
   );
 }
 
-function AutoUpdate(): React.ReactElement {
+export function AutoUpdate(): React.ReactElement {
   const [updatesEnabled = true, setUpdatedEnabled] = useAppConfigurationValue<boolean>(
     AppSetting.UPDATES_ENABLED,
   );
@@ -281,33 +290,37 @@ function AutoUpdate(): React.ReactElement {
 
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("preferences");
-  const [selectedLanguage, setSelectedLanguage] = useAppConfigurationValue<string>(
-    AppSetting.DEFAULT_LANGUAGE,
+  const [selectedLanguage = "en", setSelectedLanguage] = useAppConfigurationValue<Language>(
+    AppSetting.LANGUAGE,
   );
-  useEffect(() => {
-    if (selectedLanguage !== i18n.language) {
-      i18n.changeLanguage(selectedLanguage).catch((error: unknown) => {
+  const onChangeLanguage = useCallback(
+    (event: SelectChangeEvent<Language>) => {
+      const lang = event.target.value as Language;
+      void setSelectedLanguage(lang);
+      i18n.changeLanguage(lang).catch((error) => {
         console.error("Failed to switch languages", error);
+        captureException(error);
       });
-    }
-  }, [selectedLanguage, i18n]);
-  const options: { key: LanguageOption; text: LanguageOption; data: LanguageOption }[] = useMemo(
+    },
+    [i18n, setSelectedLanguage],
+  );
+  const options: { key: string; text: string; data: string }[] = useMemo(
     () =>
-      LANGUAGE_OPTIONS.map((language) => ({ key: language, text: `${language}`, data: language })),
+      LANGUAGE_OPTIONS.map((language) => ({
+        key: language.key,
+        text: `${language.value}`,
+        data: language.key,
+      })),
     [],
   );
 
   return (
     <Stack>
       <FormLabel>{t("language")}:</FormLabel>
-      <Select
-        value={selectedLanguage ?? "en"}
-        fullWidth
-        onChange={(event) => void setSelectedLanguage(event.target.value)}
-      >
+      <Select<Language> value={selectedLanguage} fullWidth onChange={onChangeLanguage}>
         {options.map((option) => (
           <MenuItem key={option.key} value={option.key}>
-            {t(option.text)}
+            {option.text}
           </MenuItem>
         ))}
       </Select>
@@ -353,6 +366,15 @@ export default function Preferences(): React.ReactElement {
                 <AutoUpdate />
               </div>
             )}
+          </Stack>
+        </section>
+
+        <section>
+          <Typography component="h2" variant="h5" gutterBottom color="primary">
+            {t("experimentalFeatures")}
+          </Typography>
+          <Stack gap={1}>
+            <Typography color="text.secondary">{t("experimentalFeaturesDescription")}</Typography>
           </Stack>
         </section>
       </Stack>

@@ -35,10 +35,11 @@ import { ProblemsList } from "./ProblemsList";
 import { TopicList } from "./TopicList";
 
 const StyledTab = muiStyled(Tab)(({ theme }) => ({
-  minHeight: "auto",
+  minHeight: 30,
   minWidth: theme.spacing(8),
-  padding: theme.spacing(1.5, 2),
+  padding: theme.spacing(0, 1.5),
   color: theme.palette.text.secondary,
+  fontSize: "0.6875rem",
 
   "&.Mui-selected": {
     color: theme.palette.text.primary,
@@ -218,10 +219,11 @@ export default function DataSourceSidebar(): JSX.Element {
   return (
     <SidebarContent overflow="auto" title={t("dataSource")} disablePadding>
       <Stack fullHeight>
-        <DataSourceInfoView />
+        <Stack paddingX={2} paddingBottom={2}>
+          <DataSourceInfoView />
+        </Stack>
         {playerPresence !== PlayerPresence.NOT_PRESENT && (
           <>
-            <Divider />
             <Stack flex={1}>
               <StyledTabs
                 value={activeTab}

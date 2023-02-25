@@ -85,18 +85,9 @@ export function Root({ appConfiguration }: { appConfiguration: IAppConfiguration
     [],
   );
 
-  // Enable dialog auth in development since using cookie auth does not work between
-  // localhost and the hosted dev deployment due to browser cookie/host security.
-  const enableDialogAuth =
-    process.env.NODE_ENV === "development" || process.env.FOXGLOVE_ENABLE_DIALOG_AUTH != undefined;
-
-  const disableSignin = process.env.FOXGLOVE_DISABLE_SIGN_IN != undefined;
-
   return (
     <>
       <App
-        disableSignin={disableSignin}
-        enableDialogAuth={enableDialogAuth}
         enableLaunchPreferenceScreen
         deepLinks={[window.location.href]}
         dataSources={dataSources}

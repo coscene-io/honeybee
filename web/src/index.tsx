@@ -64,7 +64,10 @@ const isDevelopment = process.env.NODE_ENV === "development";
 function LogAfterRender(props: React.PropsWithChildren<unknown>): JSX.Element {
   useEffect(() => {
     // Integration tests look for this console log to indicate the app has rendered once
+    const level = log.getLevel();
+    log.setLevel("debug");
     log.debug("App rendered");
+    log.setLevel(level);
   }, []);
   return <>{props.children}</>;
 }
@@ -93,17 +96,14 @@ async function main() {
     return;
   }
 
-  const { installDevtoolsFormatters, overwriteFetch, waitForFonts } = await import(
+  const { installDevtoolsFormatters, overwriteFetch, waitForFonts, initI18n } = await import(
     "@foxglove/studio-base"
   );
   installDevtoolsFormatters();
   overwriteFetch();
   // consider moving waitForFonts into App to display an app loading screen
-  try {
-    await waitForFonts();
-  } catch (error) {
-    console.error(error);
-  }
+  await waitForFonts();
+  await initI18n();
 
   const { Root } = await import("./Root");
 

@@ -33,7 +33,7 @@ const useStyles = makeStyles()((theme) => ({
     opacity: 0.5,
   },
   tooltipWrapper: {
-    fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
+    fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
     fontFamily: fonts.SANS_SERIF,
     columnGap: theme.spacing(0.5),
     display: "grid",
@@ -149,8 +149,12 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
         }
         return (
           <Fragment key={`${item.title}_${idx}`}>
-            <Typography className={classes.itemKey}>{item.title}</Typography>
-            <Typography variant="subtitle2">{item.value}</Typography>
+            <Typography className={classes.itemKey} noWrap>
+              {item.title}
+            </Typography>
+            <Typography variant="subtitle2" noWrap>
+              {item.value}
+            </Typography>
           </Fragment>
         );
       })}

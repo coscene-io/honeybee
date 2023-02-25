@@ -74,7 +74,6 @@ import {
   getValueActionForValue,
   getStructureItemForPath,
 } from "./getValueActionForValue";
-import helpContent from "./index.help.md";
 import { RawMessagesPanelConfig } from "./types";
 import { DATA_ARRAY_PREVIEW_LIMIT, generateDeepKeyPaths } from "./utils";
 
@@ -114,11 +113,11 @@ const useStyles = makeStyles()((theme) => ({
   },
   topic: {
     fontFamily: fonts.SANS_SERIF,
-    fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
+    fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
   },
   big: {
     "&.MuiTypography-root": {
-      fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
+      fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
     },
   },
   hoverObserver: {
@@ -156,7 +155,7 @@ function RawMessages(props: Props) {
     [topicRosPath, topics],
   );
   const rootStructureItem: MessagePathStructureItem | undefined = useMemo(() => {
-    if (!topic || !topicRosPath) {
+    if (!topic || !topicRosPath || topic.schemaName == undefined) {
       return;
     }
     return traverseStructure(
@@ -654,7 +653,7 @@ function RawMessages(props: Props) {
 
   return (
     <Stack flex="auto" overflow="hidden" position="relative">
-      <PanelToolbar helpContent={helpContent}>
+      <PanelToolbar>
         <IconButton
           className={classes.iconButton}
           title="Toggle diff"

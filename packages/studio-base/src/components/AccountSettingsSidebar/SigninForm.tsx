@@ -33,7 +33,7 @@ export default function SigninForm(): JSX.Element {
       <div className={classes.icon}>
         <AccountSyncGraphic width={192} />
       </div>
-      <Typography variant="body1" component="div">
+      <Typography variant="body1">
         <>
           {t("intro")}
           <ul>
