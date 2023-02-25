@@ -20,7 +20,6 @@ import { BuiltinIcon } from "@foxglove/studio-base/components/BuiltinIcon";
 import ErrorBoundary from "@foxglove/studio-base/components/ErrorBoundary";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { MemoryUseIndicator } from "./MemoryUseIndicator";
 import { TabSpacer } from "./TabSpacer";
