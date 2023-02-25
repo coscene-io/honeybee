@@ -14,6 +14,7 @@ export default {
   followSystem: "跟随系统",
   general: "通用",
   language: "语言",
+  lastUpdated: "最后更新",
   layoutDebugging: "布局调试",
   layoutDebuggingDescription: "显示用于开发和调试布局存储的额外控件",
   legacyPlotPanel: "遗留图绘制",
