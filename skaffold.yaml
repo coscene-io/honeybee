@@ -19,7 +19,7 @@ build:
     - image: coseus.azurecr.io/honeybee
       context: .
       custom:
-        buildCommand: docker buildx build --build-arg BUF_TOKEN={{.BUF_TOKEN}} --build-arg GH_PACKAGES_ORG_TOKEN={{.GH_PACKAGES_ORG_TOKEN}} --build-arg CURRENT_IMAGE_TAG=$IMAGE --push --tag $IMAGE $BUILD_CONTEXT
+        buildCommand: docker buildx build --build-arg BUF_TOKEN={{.BUF_TOKEN}} --build-arg SENTRY_AUTH_TOKEN={{.SENTRY_AUTH_TOKEN}} --build-arg GH_PACKAGES_ORG_TOKEN={{.GH_PACKAGES_ORG_TOKEN}} --build-arg CURRENT_IMAGE_TAG=$IMAGE --push --tag $IMAGE $BUILD_CONTEXT
 
   local:
     useBuildkit: true
