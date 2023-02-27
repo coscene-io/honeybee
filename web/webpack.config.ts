@@ -68,6 +68,7 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
   if (!isDev) {
     plugins.push(
       new SentryWebpackPlugin({
+        url: "https://sentry.coscene.site/",
         authToken: process.env.SENTRY_AUTH_TOKEN,
         org: "coscene",
         project: "honeybee",
