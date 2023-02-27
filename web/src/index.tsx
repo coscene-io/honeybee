@@ -36,7 +36,7 @@ window.onerror = (...args) => {
 if (APP_CONFIG.VITE_APP_PROJECT_ENV !== "local") {
   log.info("initializing Sentry");
   Sentry.init({
-    dsn: APP_CONFIG.SENTRY_WEB_DSN,
+    dsn: APP_CONFIG.SENTRY_HONEYBEE_DSN,
     autoSessionTracking: true,
     // Remove the default breadbrumbs integration - it does not accurately track breadcrumbs and
     // creates more noise than benefit.
