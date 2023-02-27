@@ -65,22 +65,13 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
   }
 
   // Source map upload if configuration permits
-  if (
-    !isDev &&
-    process.env.SENTRY_AUTH_TOKEN != undefined &&
-    process.env.SENTRY_ORG != undefined &&
-    process.env.SENTRY_PROJECT != undefined
-  ) {
+  if (!isDev) {
     plugins.push(
       new SentryWebpackPlugin({
         authToken: process.env.SENTRY_AUTH_TOKEN,
-        org: process.env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT,
+        org: "coscene",
+        project: "honeybee",
         include: path.resolve(__dirname, ".webpack"),
-        setCommits:
-          process.env.SENTRY_REPO && process.env.SENTRY_CURRENT_COMMIT
-            ? { repo: process.env.SENTRY_REPO, commit: process.env.SENTRY_CURRENT_COMMIT }
-            : undefined,
       }),
     );
   }
