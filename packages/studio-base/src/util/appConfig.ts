@@ -8,10 +8,10 @@ declare global {
       VITE_APP_BASE_API_PORT?: string;
       VITE_APP_BASE_API_URL?: string;
       VITE_APP_PROJECT_ENV?: string;
-      VITE_APP_ROLLBAR_ACCESS_TOKEN?: string;
       IMAGE_TAG?: string;
       CS_HONEYBEE_BASE_URL?: string;
       LAYOUT_TEMPLATE_INDEX_OSS_URL?: string;
+      SENTRY_WEB_DSN?: string;
     };
   }
 }
@@ -27,7 +27,6 @@ export const APP_CONFIG = {
     "https://api.coscene.dev",
   VITE_APP_PROJECT_ENV:
     cosConfig.VITE_APP_PROJECT_ENV ?? process.env.VITE_APP_PROJECT_ENV ?? "local",
-  VITE_APP_ROLLBAR_ACCESS_TOKEN: cosConfig.VITE_APP_ROLLBAR_ACCESS_TOKEN ?? "",
   CS_HONEYBEE_BASE_URL:
     cosConfig.CS_HONEYBEE_BASE_URL ?? process.env.CS_HONEYBEE_BASE_URL ?? "http://localhost:8080",
   IMAGE_TAG: process.env.IMAGE_TAG,
@@ -37,6 +36,7 @@ export const APP_CONFIG = {
     cosConfig.LAYOUT_TEMPLATE_INDEX_OSS_URL ??
     process.env.LAYOUT_TEMPLATE_INDEX_OSS_URL ??
     "http://coscene-artifacts-production.oss-cn-hangzhou.aliyuncs.com/honeybee_layouts/dev/index.json",
+  SENTRY_WEB_DSN: cosConfig.SENTRY_WEB_DSN ?? "",
 };
 
 window.cosConfig = APP_CONFIG;

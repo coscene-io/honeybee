@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Provider as RollbarProvider, ErrorBoundary } from "@rollbar/react";
 import * as Sentry from "@sentry/browser";
 import { BrowserTracing } from "@sentry/tracing";
 import { StrictMode, useEffect } from "react";
@@ -10,9 +9,9 @@ import ReactDOM from "react-dom";
 
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
 import __browserLogger from "@foxglove/studio-base/util/browserLogger";
-import { ROLLBAR_CONFIG } from "@foxglove/studio-base/util/rollbarConfig";
 
 import VersionBanner from "./VersionBanner";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
@@ -34,10 +33,10 @@ window.onerror = (...args) => {
   console.error(...args);
 };
 
-if (typeof process.env.SENTRY_DSN === "string") {
+if (APP_CONFIG.VITE_APP_PROJECT_ENV !== "local") {
   log.info("initializing Sentry");
   Sentry.init({
-    dsn: process.env.SENTRY_DSN,
+    dsn: APP_CONFIG.SENTRY_WEB_DSN,
     autoSessionTracking: true,
     // Remove the default breadbrumbs integration - it does not accurately track breadcrumbs and
     // creates more noise than benefit.
@@ -50,7 +49,11 @@ if (typeof process.env.SENTRY_DSN === "string") {
           }),
         ]);
     },
-    tracesSampleRate: 0.05,
+    environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
+
+    // We recommend adjusting this value in production, or using tracesSampler
+    // for finer control
+    tracesSampleRate: 1.0,
   });
 }
 
@@ -116,14 +119,10 @@ async function main() {
 
   ReactDOM.render(
     <StrictMode>
-      <RollbarProvider config={ROLLBAR_CONFIG}>
-        <ErrorBoundary>
-          <LogAfterRender>
-            {banner}
-            <Root appConfiguration={appConfiguration} />
-          </LogAfterRender>
-        </ErrorBoundary>
-      </RollbarProvider>
+      <LogAfterRender>
+        {banner}
+        <Root appConfiguration={appConfiguration} />
+      </LogAfterRender>
     </StrictMode>,
     rootEl,
   );
