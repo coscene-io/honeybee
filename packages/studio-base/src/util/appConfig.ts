@@ -11,7 +11,7 @@ declare global {
       IMAGE_TAG?: string;
       CS_HONEYBEE_BASE_URL?: string;
       LAYOUT_TEMPLATE_INDEX_OSS_URL?: string;
-      SENTRY_WEB_DSN?: string;
+      SENTRY_HONEYBEE_DSN?: string;
     };
   }
 }
@@ -36,7 +36,7 @@ export const APP_CONFIG = {
     cosConfig.LAYOUT_TEMPLATE_INDEX_OSS_URL ??
     process.env.LAYOUT_TEMPLATE_INDEX_OSS_URL ??
     "http://coscene-artifacts-production.oss-cn-hangzhou.aliyuncs.com/honeybee_layouts/dev/index.json",
-  SENTRY_WEB_DSN: cosConfig.SENTRY_WEB_DSN ?? "",
+  SENTRY_HONEYBEE_DSN: cosConfig.SENTRY_HONEYBEE_DSN ?? "",
 };
 
 window.cosConfig = APP_CONFIG;
