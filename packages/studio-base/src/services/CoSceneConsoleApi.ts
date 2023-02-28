@@ -133,6 +133,14 @@ type customTopicResponse = {
   metaData: TopicResponse[];
 };
 
+export type getPlaylistResponse = {
+  bagList: {
+    fileName: string;
+    startTime: number;
+    endTime: number;
+  }[];
+};
+
 type CoverageResponse = {
   deviceId: string;
   start: string;
@@ -444,6 +452,16 @@ class CoSceneConsoleApi {
       end: toRFC3339String(timestampToTime(topics.endTime)),
       metaData,
     };
+  }
+
+  public async getPlaylist(
+    params: DataPlatformRequestArgs & { includeSchemas?: boolean; accessToken: string },
+  ): Promise<getPlaylistResponse> {
+    return await this.get<getPlaylistResponse>("/v1/data/getPlaylist", {
+      revisionName: params.revisionName,
+      includeSchemas: params.includeSchemas ?? false ? "true" : "false",
+      access_token: params.accessToken.replace(/(^\s*)|(\s*$)/g, ""),
+    });
   }
 
   public getStreamUrl(revisionName: string, authHeader: string): string {
