@@ -66,9 +66,9 @@ export class Markers extends SceneExtension<TopicMarkers> {
         icon: "Shapes",
         order: topic.name.toLocaleLowerCase(),
         fields: {
-          color: { label: "Color", input: "rgba", value: config.color },
+          color: { label: "color", input: "rgba", value: config.color },
           selectedIdVariable: {
-            label: "Selection Variable",
+            label: "selectionVariable",
             input: "string",
             help: "When selecting a marker, this global variable will be set to the marker ID",
             value: config.selectedIdVariable,

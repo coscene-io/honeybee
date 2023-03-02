@@ -281,12 +281,12 @@ export function baseColorModeSettingsNode<Settings extends ColorModeSettings & B
   const fields: SettingsTreeFields = {};
 
   fields.colorMode = {
-    label: "Color mode",
+    label: "colorMode",
     input: "select",
     options: [
-      { label: "Flat", value: "flat" },
-      { label: "Color map", value: "colormap" },
-      { label: "Gradient", value: "gradient" },
+      { label: "flat", value: "flat" },
+      { label: "colorMap", value: "colormap" },
+      { label: "gradient", value: "gradient" },
     ]
       .concat(
         supportsPackedRgbModes
@@ -304,10 +304,10 @@ export function baseColorModeSettingsNode<Settings extends ColorModeSettings & B
     value: colorMode,
   };
   if (colorMode === "flat") {
-    fields.flatColor = { label: "Flat color", input: "rgba", value: flatColor };
+    fields.flatColor = { label: "flatColor", input: "rgba", value: flatColor };
   } else if (colorMode !== "rgba-fields") {
     fields.colorField = {
-      label: "Color by",
+      label: "colorBy",
       input: "select",
       options: colorFieldOptions,
       value: colorField,
@@ -316,14 +316,14 @@ export function baseColorModeSettingsNode<Settings extends ColorModeSettings & B
     switch (colorMode) {
       case "gradient":
         fields.gradient = {
-          label: "Gradient",
+          label: "gradient",
           input: "gradient",
           value: gradient ?? defaults.gradient,
         };
         break;
       case "colormap":
         fields.colorMap = {
-          label: "Color map",
+          label: "colorMap",
           input: "select",
           options: [
             { label: "Turbo", value: "turbo" },
@@ -338,7 +338,7 @@ export function baseColorModeSettingsNode<Settings extends ColorModeSettings & B
 
     if (colorMode === "colormap" || colorMode === "rgb") {
       fields.explicitAlpha = {
-        label: "Opacity",
+        label: "opacity",
         input: "number",
         step: 0.1,
         placeholder: "1",
@@ -351,14 +351,14 @@ export function baseColorModeSettingsNode<Settings extends ColorModeSettings & B
 
     if (NEEDS_MIN_MAX.includes(colorMode)) {
       fields.minValue = {
-        label: "Value min",
+        label: "valueMin",
         input: "number",
         placeholder: "auto",
         precision: 4,
         value: minValue,
       };
       fields.maxValue = {
-        label: "Value max",
+        label: "valueMax",
         input: "number",
         placeholder: "auto",
         precision: 4,

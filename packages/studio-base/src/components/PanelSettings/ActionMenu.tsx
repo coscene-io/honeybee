@@ -4,6 +4,7 @@
 
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { IconButton, Menu, MenuItem } from "@mui/material";
+import { useTranslation } from "react-i18next";
 
 export function ActionMenu({
   allowShare,
@@ -22,6 +23,7 @@ export function ActionMenu({
   const handleClose = () => {
     setAnchorEl(undefined);
   };
+  const { t } = useTranslation("general");
 
   return (
     <div>
@@ -50,7 +52,7 @@ export function ActionMenu({
             handleClose();
           }}
         >
-          Import/export settings...
+          {t("importExportSettings")}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -58,7 +60,7 @@ export function ActionMenu({
             handleClose();
           }}
         >
-          Reset to defaults
+          {t("resetToDefault")}
         </MenuItem>
       </Menu>
     </div>

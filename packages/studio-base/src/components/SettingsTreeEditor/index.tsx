@@ -7,6 +7,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { AppBar, IconButton, TextField } from "@mui/material";
 import memoizeWeak from "memoize-weak";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { DeepReadonly } from "ts-essentials";
 import { makeStyles } from "tss-react/mui";
 
@@ -40,6 +41,7 @@ export default function SettingsTreeEditor({
   const { classes } = useStyles();
   const { actionHandler } = settings;
   const [filterText, setFilterText] = useState<string>("");
+  const { t } = useTranslation("general");
 
   const filteredNodes = useMemo(() => {
     if (filterText.length > 0) {
@@ -61,7 +63,7 @@ export default function SettingsTreeEditor({
             value={filterText}
             variant="filled"
             fullWidth
-            placeholder="Filter"
+            placeholder={t("filter")}
             InputProps={{
               startAdornment: <SearchIcon fontSize="small" />,
               endAdornment: filterText && (
