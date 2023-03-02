@@ -216,7 +216,7 @@ function FieldInput({
               key={(typeof opt === "string" ? opt : opt.value) ?? UNDEFINED_SENTINEL_VALUE}
               value={(typeof opt === "string" ? opt : opt.value) ?? UNDEFINED_SENTINEL_VALUE}
             >
-              {typeof opt === "string" ? opt : opt.label + "0000"}
+              {typeof opt === "string" ? opt : opt.label}
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
@@ -621,7 +621,7 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
       <>
         <Typography
           className={classes.fieldLabel}
-          title={field.help ?? field.label + "6"}
+          title={field.help ?? field.label}
           variant="subtitle2"
         >
           {fieldLabelDisplay()}
