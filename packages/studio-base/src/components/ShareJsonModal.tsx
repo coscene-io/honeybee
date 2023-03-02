@@ -85,7 +85,7 @@ export default function ShareJsonModal({
             {title}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            {`${t("pasteNew")}${noun}${t("copyPanelDescription")}`}
+            {`${t("pasteNew", { noun })}}`}
           </Typography>
         </Stack>
 

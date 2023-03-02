@@ -15,7 +15,7 @@ export default {
   name: "名称",
   outdatedVersion: "你正在使用旧版的 Chrome",
   panelSettings: "面板设置",
-  pasteNew: "粘贴一个新的",
+  pasteNew: "粘贴一个新的 {{noun}} 使用，或者复制以下参数设置然后分享:",
   refresh: "刷新",
   requireChrome: "coScene 目前支持 Chrome v104+.",
   resetToDefault: "重置于默认值",
