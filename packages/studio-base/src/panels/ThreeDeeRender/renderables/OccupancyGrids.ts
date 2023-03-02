@@ -93,11 +93,11 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
 
       // prettier-ignore
       const fields: SettingsTreeFields = {
-        minColor: { label: "Min Color", input: "rgba", value: config.minColor ?? DEFAULT_MIN_COLOR_STR },
-        maxColor: { label: "Max Color", input: "rgba", value: config.maxColor ?? DEFAULT_MAX_COLOR_STR },
-        unknownColor: { label: "Unknown Color", input: "rgba", value: config.unknownColor ?? DEFAULT_UNKNOWN_COLOR_STR },
-        invalidColor: { label: "Invalid Color", input: "rgba", value: config.invalidColor ?? DEFAULT_INVALID_COLOR_STR },
-        frameLocked: { label: "Frame Lock", input: "boolean", value: config.frameLocked ?? false },
+        minColor: { label: "minColor", input: "rgba", value: config.minColor ?? DEFAULT_MIN_COLOR_STR },
+        maxColor: { label: "maxColor", input: "rgba", value: config.maxColor ?? DEFAULT_MAX_COLOR_STR },
+        unknownColor: { label: "unknownColor", input: "rgba", value: config.unknownColor ?? DEFAULT_UNKNOWN_COLOR_STR },
+        invalidColor: { label: "invalidColor", input: "rgba", value: config.invalidColor ?? DEFAULT_INVALID_COLOR_STR },
+        frameLocked: { label: "frameLock", input: "boolean", value: config.frameLocked ?? false },
       };
 
       entries.push({

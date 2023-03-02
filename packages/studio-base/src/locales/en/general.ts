@@ -4,13 +4,23 @@
 
 // Generic global translation
 export default {
-  foxglove: "Foxglove",
-  name: "Name",
+  apply: "Apply",
   cancel: "Cancel",
-  refresh: "Refresh",
-  download: "Download",
   checkoutSupport: "check out our cross-browser support progress in github issue ",
+  copyPanelDescription: "Paste a new panel settings to use it, or copy this one to share it:",
+  download: "Download",
+  filter: "Filter",
+  foxglove: "Foxglove",
+  importExportSettings: "Import/export settings",
+  name: "Name",
   outdatedVersion: "You’re using an outdated version of Chrome.",
-  unsupportedBrowser: "You’re using an unsupported browser.",
+  panelSettings: "panel settings",
+  pasteNew: "Paste a new",
+  refresh: "Refresh",
   requireChrome: "coScene currently requires Chrome v104+.",
+  resetToDefault: "Reset to defaults",
+  unsupportedBrowser: "You’re using an unsupported browser.",
+  listAll: "List all",
+  listVisible: "List visible",
+  listInvisible: "List invisible",
 };

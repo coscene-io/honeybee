@@ -123,6 +123,21 @@ function FieldInput({
   path: readonly string[];
 }): JSX.Element {
   const { classes } = useStyles();
+  const { t } = useTranslation("general");
+
+  const settingsLabelsDisplay = (label: string | undefined) => {
+    if (label != undefined) {
+      switch (label) {
+        case "listAll":
+        case "listVisible":
+        case "listInvisible":
+          return t(label);
+        default:
+          return label;
+      }
+    }
+    return "General";
+  };
 
   switch (field.input) {
     case "autocomplete":
@@ -201,7 +216,7 @@ function FieldInput({
               key={(typeof opt === "string" ? opt : opt.value) ?? UNDEFINED_SENTINEL_VALUE}
               value={(typeof opt === "string" ? opt : opt.value) ?? UNDEFINED_SENTINEL_VALUE}
             >
-              {typeof opt === "string" ? opt : opt.label}
+              {typeof opt === "string" ? opt : opt.label + "0000"}
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
@@ -311,7 +326,7 @@ function FieldInput({
           renderValue={(value) => {
             for (const option of field.options) {
               if (option.value === value) {
-                return option.label.trim();
+                return settingsLabelsDisplay(option.label.trim());
               }
             }
             return undefined;
@@ -333,7 +348,7 @@ function FieldInput({
         >
           {field.options.map(({ label, value = UNDEFINED_SENTINEL_VALUE }) => (
             <MenuItem key={value} value={value}>
-              {label}
+              {settingsLabelsDisplay(label)}
             </MenuItem>
           ))}
         </Select>
@@ -513,6 +528,28 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
       case "selectPanelLayout":
       case "learnMore":
       case "studioDescription":
+      case "filterList":
+      case "pointSize":
+      case "pointShape":
+      case "decayTime":
+      case "flatColor":
+      case "minColor":
+      case "maxColor":
+      case "unknownColor":
+      case "invalidColor":
+      case "frameLock":
+      case "covariance":
+      case "covarianceColor":
+      case "gradient":
+      case "scale":
+      case "selectionVariable":
+      case "planarProjectionFactor":
+      case "cameraInfo":
+      case "distance":
+      case "colorBy":
+      case "valueMin":
+      case "valueMax":
+      case "flat":
         return t(field.label);
       default:
         return field.label;
@@ -525,25 +562,25 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
       <>
         <div className={classes.multiLabelWrapper}>
           <Typography
-            title={field.label}
+            title={field.label + "111"}
             variant="subtitle2"
             color="text.secondary"
             noWrap
             flex="auto"
           >
-            {field.label}
+            {field.label + "222"}
           </Typography>
           {labels.map((label, index) => (
             <Typography
-              key={label}
-              title={field.label}
+              key={label + "777"}
+              title={field.label + "333"}
               variant="subtitle2"
               color="text.secondary"
               noWrap
               style={{ gridColumn: index === 0 ? "span 1" : "2 / span 1" }}
               flex="auto"
             >
-              {label}
+              {label + "22"}
             </Typography>
           ))}
         </div>
@@ -555,25 +592,25 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
       <>
         <div className={classes.multiLabelWrapper}>
           <Typography
-            title={field.label}
+            title={field.label + "3"}
             variant="subtitle2"
             color="text.secondary"
             noWrap
             flex="auto"
           >
-            {field.label}
+            {field.label + "4"}
           </Typography>
           {labels.map((label, index) => (
             <Typography
-              key={label}
-              title={field.label}
+              key={label + "888"}
+              title={field.label + "5"}
               variant="subtitle2"
               color="text.secondary"
               noWrap
               style={{ gridColumn: index === 0 ? "span 1" : "2 / span 1" }}
               flex="auto"
             >
-              {label}
+              {label + "11"}
             </Typography>
           ))}
         </div>
@@ -584,10 +621,10 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
       <>
         <Typography
           className={classes.fieldLabel}
-          title={field.help ?? field.label}
+          title={field.help ?? field.label + "6"}
           variant="subtitle2"
         >
-          {fieldLabelDisplay()}
+          {fieldLabelDisplay() + "99909090"}
         </Typography>
       </>
     );

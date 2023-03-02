@@ -16,6 +16,7 @@ import {
   styled as muiStyled,
 } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import CopyButton from "@foxglove/studio-base/components/CopyButton";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
@@ -49,6 +50,7 @@ export default function ShareJsonModal({
   title,
 }: Props): JSX.Element {
   const [value, setValue] = useState(JSON.stringify(initialValue, undefined, 2) ?? "");
+  const { t } = useTranslation("general");
 
   const { decodedValue, error } = useMemo(() => {
     try {
@@ -83,7 +85,7 @@ export default function ShareJsonModal({
             {title}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            {`Paste a new ${noun} to use it, or copy this one to share it:`}
+            {`${t("pasteNew")}${noun}${t("copyPanelDescription")}`}
           </Typography>
         </Stack>
 
@@ -130,7 +132,7 @@ export default function ShareJsonModal({
           size="large"
           onClick={handleSubmit}
         >
-          Apply
+          {t("apply")}
         </Button>
       </DialogActions>
     </Dialog>

@@ -142,9 +142,9 @@ const makeStablePath = memoizeWeak((path: readonly string[], key: string) => [..
 
 type SelectVisibilityFilterValue = "all" | "visible" | "invisible";
 const SelectVisibilityFilterOptions: { label: string; value: SelectVisibilityFilterValue }[] = [
-  { label: "List all", value: "all" },
-  { label: "List visible", value: "visible" },
-  { label: "List invisible", value: "invisible" },
+  { label: "listAll", value: "all" },
+  { label: "listVisible", value: "visible" },
+  { label: "listInvisible", value: "invisible" },
 ];
 function showVisibleFilter(child: DeepReadonly<SettingsTreeNode>): boolean {
   // want to show children with undefined visibility
@@ -156,7 +156,7 @@ function showInvisibleFilter(child: DeepReadonly<SettingsTreeNode>): boolean {
 }
 const SelectVisibilityFilterField = {
   input: "select",
-  label: "Filter list",
+  label: "filterList",
   help: "Filter list by visibility",
   options: SelectVisibilityFilterOptions,
 } as const;

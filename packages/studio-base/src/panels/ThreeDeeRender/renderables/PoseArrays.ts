@@ -169,23 +169,23 @@ export class PoseArrays extends SceneExtension<PoseArrayRenderable> {
       const gradient = config.gradient ?? DEFAULT_GRADIENT_STR;
 
       const fields: SettingsTreeFields = {
-        type: { label: "Type", input: "select", options: TYPE_OPTIONS, value: displayType },
+        type: { label: "type", input: "select", options: TYPE_OPTIONS, value: displayType },
       };
       switch (displayType) {
         case "axis":
-          fields["axisScale"] = fieldSize("Scale", axisScale, PRECISION_DISTANCE);
+          fields["axisScale"] = fieldSize("scale", axisScale, PRECISION_DISTANCE);
           break;
         case "arrow":
-          fields["arrowScale"] = fieldScaleVec3("Scale", arrowScale);
+          fields["arrowScale"] = fieldScaleVec3("scale", arrowScale);
           break;
         case "line":
-          fields["lineWidth"] = fieldLineWidth("Line Width", lineWidth, DEFAULT_LINE_WIDTH);
+          fields["lineWidth"] = fieldLineWidth("lineWidth", lineWidth, DEFAULT_LINE_WIDTH);
           break;
       }
 
       // Axis does not currently support gradients. This could possibly be done with tinting
       if (displayType !== "axis") {
-        fields["gradient"] = fieldGradient("Gradient", gradient);
+        fields["gradient"] = fieldGradient("gradient", gradient);
       }
 
       entries.push({
