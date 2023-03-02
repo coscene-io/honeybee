@@ -129,11 +129,11 @@ export class Poses extends SceneExtension<PoseRenderable> {
       const type = config.type ?? DEFAULT_TYPE;
 
       const fields: SettingsTreeFields = {
-        type: { label: "Type", input: "select", options: TYPE_OPTIONS, value: type },
+        type: { label: "type", input: "select", options: TYPE_OPTIONS, value: type },
       };
       if (type === "axis") {
         fields["axisScale"] = {
-          label: "Scale",
+          label: "scale",
           input: "number",
           step: 0.5,
           min: 0,
@@ -142,7 +142,7 @@ export class Poses extends SceneExtension<PoseRenderable> {
         };
       } else {
         fields["arrowScale"] = {
-          label: "Scale",
+          label: "scale",
           input: "vec3",
           labels: ["X", "Y", "Z"],
           step: 0.5,
@@ -161,13 +161,13 @@ export class Poses extends SceneExtension<PoseRenderable> {
         const covarianceColor = config.covarianceColor ?? DEFAULT_COVARIANCE_COLOR_STR;
 
         fields["showCovariance"] = {
-          label: "Covariance",
+          label: "covariance",
           input: "boolean",
           value: showCovariance,
         };
         if (showCovariance) {
           fields["covarianceColor"] = {
-            label: "Covariance Color",
+            label: "covarianceColor",
             input: "rgba",
             value: covarianceColor,
           };

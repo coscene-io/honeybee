@@ -73,9 +73,9 @@ export class FoxgloveSceneEntities extends SceneExtension<TopicEntities> {
         icon: "Shapes",
         order: topic.name.toLocaleLowerCase(),
         fields: {
-          color: { label: "Color", input: "rgba", value: config.color },
+          color: { label: "color", input: "rgba", value: config.color },
           selectedIdVariable: {
-            label: "Selection Variable",
+            label: "selectionVariable",
             input: "string",
             help: "When selecting a SceneEntity, this global variable will be set to the entity ID",
             value: config.selectedIdVariable,

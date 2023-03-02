@@ -91,7 +91,7 @@ export function pointSettingsNode(
   });
   node.fields = {
     pointSize: {
-      label: "Point size",
+      label: "pointSize",
       input: "number",
       step: 1,
       placeholder: "2",
@@ -99,13 +99,13 @@ export function pointSettingsNode(
       value: pointSize,
     },
     pointShape: {
-      label: "Point shape",
+      label: "pointShape",
       input: "select",
       options: POINT_SHAPE_OPTIONS,
       value: pointShape,
     },
     decayTime: {
-      label: "Decay time",
+      label: "decayTime",
       input: "number",
       step: 0.5,
       placeholder: "0 seconds",

@@ -73,7 +73,7 @@ export function useSettingsTree(
           value: config.colorMode,
           options: [
             { label: "Color map", value: "colormap" },
-            { label: "Gradient", value: "gradient" },
+            { label: "gradient", value: "gradient" },
           ],
         },
         ...(config.colorMode === "colormap" && {
@@ -90,7 +90,7 @@ export function useSettingsTree(
         }),
         ...(config.colorMode === "gradient" && {
           gradient: {
-            label: "Gradient",
+            label: "gradient",
             input: "gradient",
             value: config.gradient,
           },
