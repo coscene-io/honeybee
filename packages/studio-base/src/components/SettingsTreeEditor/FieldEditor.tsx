@@ -562,25 +562,25 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
       <>
         <div className={classes.multiLabelWrapper}>
           <Typography
-            title={field.label + "111"}
+            title={field.label}
             variant="subtitle2"
             color="text.secondary"
             noWrap
             flex="auto"
           >
-            {field.label + "222"}
+            {field.label}
           </Typography>
           {labels.map((label, index) => (
             <Typography
-              key={label + "777"}
-              title={field.label + "333"}
+              key={label}
+              title={field.label}
               variant="subtitle2"
               color="text.secondary"
               noWrap
               style={{ gridColumn: index === 0 ? "span 1" : "2 / span 1" }}
               flex="auto"
             >
-              {label + "22"}
+              {label}
             </Typography>
           ))}
         </div>
@@ -592,25 +592,25 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
       <>
         <div className={classes.multiLabelWrapper}>
           <Typography
-            title={field.label + "3"}
+            title={field.label}
             variant="subtitle2"
             color="text.secondary"
             noWrap
             flex="auto"
           >
-            {field.label + "4"}
+            {field.label}
           </Typography>
           {labels.map((label, index) => (
             <Typography
-              key={label + "888"}
-              title={field.label + "5"}
+              key={label}
+              title={field.label}
               variant="subtitle2"
               color="text.secondary"
               noWrap
               style={{ gridColumn: index === 0 ? "span 1" : "2 / span 1" }}
               flex="auto"
             >
-              {label + "11"}
+              {label}
             </Typography>
           ))}
         </div>
@@ -624,7 +624,7 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
           title={field.help ?? field.label + "6"}
           variant="subtitle2"
         >
-          {fieldLabelDisplay() + "99909090"}
+          {fieldLabelDisplay()}
         </Typography>
       </>
     );
