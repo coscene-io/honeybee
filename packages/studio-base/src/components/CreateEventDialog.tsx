@@ -81,6 +81,10 @@ const useStyles = makeStyles<void, "toggleButton">()((theme, _params, classes) =
       borderLeft: "none !important",
     },
   },
+  requiredFlags: {
+    color: "#ff4d4f",
+    marginRight: "3px",
+  },
 }));
 
 type KeyValue = { key: string; value: string };
@@ -251,7 +255,12 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
           <Stack paddingX={3} paddingTop={2}>
             <TextField
               id="event-name"
-              label={t("name", { ns: "general" })}
+              label={
+                <>
+                  <span className={classes.requiredFlags}>*</span>
+                  {t("name", { ns: "general" })}
+                </>
+              }
               multiline
               maxRows={1}
               value={event.eventName}
