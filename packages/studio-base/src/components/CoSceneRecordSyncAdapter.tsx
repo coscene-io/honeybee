@@ -109,19 +109,23 @@ export function RecordsSyncAdapter(): ReactNull {
   }, [endTime, startTime]);
 
   const [playlist, syncPlaylist] = useAsyncFn(async () => {
-    if (
-      urlState?.parameters?.warehouseId &&
-      urlState.parameters.projectId &&
-      urlState.parameters.recordId &&
-      urlState.parameters.revisionId
-    ) {
-      const revisionName = `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}/revisions/${urlState.parameters.revisionId}`;
+    try {
+      if (
+        urlState?.parameters?.warehouseId &&
+        urlState.parameters.projectId &&
+        urlState.parameters.recordId &&
+        urlState.parameters.revisionId
+      ) {
+        const revisionName = `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}/revisions/${urlState.parameters.revisionId}`;
 
-      const accessToken = localStorage.getItem("coScene_org_jwt");
+        const accessToken = localStorage.getItem("coScene_org_jwt");
 
-      return await consoleApi.getPlaylist({ revisionName, accessToken: accessToken ?? "" });
+        return await consoleApi.getPlaylist({ revisionName, accessToken: accessToken ?? "" });
+      }
+    } catch (error) {
+      setRecord({ loading: false, error });
+      setRecordBagFiles({ loading: false, error });
     }
-
     return false;
   }, [
     consoleApi,
@@ -129,6 +133,8 @@ export function RecordsSyncAdapter(): ReactNull {
     urlState?.parameters?.projectId,
     urlState?.parameters?.recordId,
     urlState?.parameters?.revisionId,
+    setRecord,
+    setRecordBagFiles,
   ]);
 
   const [_records, syncRecords] = useAsyncFn(async () => {
