@@ -30,7 +30,6 @@ import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import AccountSettings from "@foxglove/studio-base/components/AccountSettingsSidebar/AccountSettings";
 import { DataSourceSidebar } from "@foxglove/studio-base/components/DataSourceSidebar";
-import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import { MESSAGE_PATH_SYNTAX_HELP_INFO } from "@foxglove/studio-base/components/HelpSidebar";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import LayoutBrowser from "@foxglove/studio-base/components/LayoutBrowser";
@@ -168,16 +167,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   const { availableSources, selectSource } = usePlayerSelection();
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems);
-  // file types we support for drag/drop
-  const allowedDropExtensions = useMemo(() => {
-    const extensions = [".foxe", ".urdf", ".xacro"];
-    for (const source of availableSources) {
-      if (source.type === "file" && source.supportedFileTypes) {
-        extensions.push(...source.supportedFileTypes);
-      }
-    }
-    return extensions;
-  }, [availableSources]);
 
   const supportsAccountSettings =
     useContext(ConsoleApiContext) != undefined && props.disableSignin !== true;
@@ -354,51 +343,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
 
   const installExtension = useExtensionCatalog((state) => state.installExtension);
 
-  const openHandle = useCallback(
-    async (
-      handle: FileSystemFileHandle /* foxglove-depcheck-used: @types/wicg-file-system-access */,
-    ) => {
-      log.debug("open handle", handle);
-      const file = await handle.getFile();
-      // electron extends File with a `path` field which is not available in browsers
-      const basePath = (file as { path?: string }).path ?? "";
-
-      if (file.name.endsWith(".foxe")) {
-        // Extension installation
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          const data = new Uint8Array(arrayBuffer);
-          const extension = await installExtension("local", data);
-          enqueueSnackbar(`Installed extension ${extension.id}`, { variant: "success" });
-        } catch (err) {
-          log.error(err);
-          enqueueSnackbar(`Failed to install extension ${file.name}: ${err.message}`, {
-            variant: "error",
-          });
-        }
-      } else {
-        try {
-          if (await loadFromFile(file, { basePath })) {
-            return;
-          }
-        } catch (err) {
-          log.error(err);
-          enqueueSnackbar(`Failed to load ${file.name}: ${err.message}`, { variant: "error" });
-        }
-      }
-
-      // Look for a source that supports the file extensions
-      const matchedSource = availableSources.find((source) => {
-        const ext = extname(file.name);
-        return source.supportedFileTypes?.includes(ext);
-      });
-      if (matchedSource) {
-        selectSource(matchedSource.id, { type: "file", handle });
-      }
-    },
-    [availableSources, enqueueSnackbar, installExtension, loadFromFile, selectSource],
-  );
-
   const openFiles = useCallback(
     async (files: File[]) => {
       const otherFiles: File[] = [];
@@ -459,21 +403,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
       void openFiles(Array.from(filesToOpen));
     }
   }, [filesToOpen, openFiles]);
-
-  const dropHandler = useCallback(
-    (event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
-      const handle = event.handles?.[0];
-      // When selecting sources with handles we can only select with a single handle since we haven't
-      // written the code to store multiple handles for recents. When there are multiple handles, we
-      // fall back to opening regular files.
-      if (handle && event.handles?.length === 1) {
-        void openHandle(handle);
-      } else if (event.files) {
-        void openFiles(event.files);
-      }
-    },
-    [openFiles, openHandle],
-  );
 
   const workspaceActions = useMemo(
     () => ({
@@ -612,7 +541,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
           onDismiss={() => setShowOpenDialog(undefined)}
         />
       )}
-      <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
