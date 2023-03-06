@@ -5,37 +5,24 @@
 import * as Comlink from "comlink";
 
 import { abortSignalTransferHandler } from "@foxglove/comlink-transfer-handlers";
-import { MessageEvent, Time } from "@foxglove/studio";
+import { MessageEvent } from "@foxglove/studio";
 
 import type {
   GetBackfillMessagesArgs,
   IIterableSource,
   IMessageCursor,
   Initalization,
+  IterableSourceInitializeArgs,
   IteratorResult,
   MessageIteratorArgs,
 } from "./IIterableSource";
 import { IteratorCursor } from "./IteratorCursor";
 
-export class WorkerIterableSourceWorker implements IIterableSource {
-  initialize(): Promise<Initalization> {
-    throw new Error("Method not implemented.");
-  }
-  messageIterator(args: MessageIteratorArgs): AsyncIterableIterator<Readonly<IteratorResult>> {
-    throw new Error("Method not implemented.");
-  }
-  getBackfillMessages(args: GetBackfillMessagesArgs): Promise<Readonly<{ topic: string; schemaName: string; receiveTime: Time; publishTime?: Time | undefined; message: unknown; sizeInBytes: number; originalMessageEvent?: Readonly<any> | undefined; }>[]> {
-    throw new Error("Method not implemented.");
-  }
-  getMessageCursor?: ((args: MessageIteratorArgs & { abort?: AbortSignal | undefined; }) => IMessageCursor) | undefined;
-  terminate?: (() => Promise<void>) | undefined;
-  protected _source: IIterableSource;
+type SourceFn = () => Promise<{
+  initialize: (args: IterableSourceInitializeArgs) => IIterableSource;
+}>;
 
 const RegisteredSourceModuleLoaders: Record<string, SourceFn> = {
-  mcap: async () => await import("./Mcap/McapIterableSource"),
-  rosbag: async () => await import("./BagIterableSource"),
-  rosdb3: async () => await import("./rosdb3/RosDb3IterableSource"),
-  ulog: async () => await import("./ulog/UlogIterableSource"),
   foxgloveDataPlatform: async () =>
     await import("./coScene-data-platform/DataPlatformIterableSource"),
 };
@@ -55,12 +42,22 @@ export class WorkerIterableSourceWorker {
   }
 
   public async initialize(): Promise<Initalization> {
+    const loadRegisteredSourceModule = RegisteredSourceModuleLoaders[this._args.sourceType];
+    if (!loadRegisteredSourceModule) {
+      throw new Error(`No source for type: ${this._args.sourceType}`);
+    }
+    const module = await loadRegisteredSourceModule();
+    this._source = module.initialize(this._args.initArgs);
     return await this._source.initialize();
   }
 
   public messageIterator(
     args: MessageIteratorArgs,
   ): AsyncIterableIterator<Readonly<IteratorResult>> & Comlink.ProxyMarked {
+    if (!this._source) {
+      throw new Error("uninitialized");
+    }
+
     return Comlink.proxy(this._source.messageIterator(args));
   }
 
@@ -70,6 +67,9 @@ export class WorkerIterableSourceWorker {
     // clonable (and needs to signal across the worker boundary)
     abortSignal?: AbortSignal,
   ): Promise<MessageEvent<unknown>[]> {
+    if (!this._source) {
+      throw new Error("uninitialized");
+    }
     return await this._source.getBackfillMessages({
       ...args,
       abortSignal,
@@ -80,10 +80,12 @@ export class WorkerIterableSourceWorker {
     args: Omit<MessageIteratorArgs, "abort">,
     abort?: AbortSignal,
   ): IMessageCursor & Comlink.ProxyMarked {
-    const iter = this._source.messageIterator(args);
+    const iter = this.messageIterator(args);
     const cursor = new IteratorCursor(iter, abort);
+
     return Comlink.proxy(cursor);
   }
 }
 
 Comlink.transferHandlers.set("abortsignal", abortSignalTransferHandler);
+Comlink.expose(WorkerIterableSourceWorker);

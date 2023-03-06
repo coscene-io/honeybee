@@ -63,6 +63,7 @@ const VersionBanner = function ({
     () => createMuiTheme("dark", i18n.language as Language),
     [i18n.language],
   );
+  const { t } = useTranslation("general");
 
   if (!showBanner || currentVersion >= MINIMUM_CHROME_VERSION) {
     return ReactNull;

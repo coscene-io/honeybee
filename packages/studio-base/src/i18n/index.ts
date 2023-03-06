@@ -6,17 +6,75 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
-import { enPreferences, enGeneral } from "./en";
-import { zhPreferences, zhGeneral } from "./zh";
+import {
+  enPreferences,
+  enDataSource,
+  enLayouts,
+  enAddPanel,
+  enPanelSetting,
+  enStudioLogsSettings,
+  enAccount,
+  enCommon,
+  enDiagnostic,
+  enPublish,
+  enUserScript,
+  enMoment,
+  enGeneral,
+  enError,
+  enThreeDimensionalPanel,
+} from "./en";
+import {
+  zhPreferences,
+  zhDataSource,
+  zhLayouts,
+  zhAddPanel,
+  zhPanelSetting,
+  zhStudioLogsSettings,
+  zhAccount,
+  zhCommon,
+  zhDiagnostic,
+  zhPublish,
+  zhUserScript,
+  zhMoment,
+  zhGeneral,
+  zhError,
+  zhThreeDimensionalPanel,
+} from "./zh";
 
 export const translations = {
   en: {
+    account: enAccount,
+    addPanel: enAddPanel,
+    common: enCommon,
+    dataSource: enDataSource,
+    diagnostic: enDiagnostic,
+    layouts: enLayouts,
+    panelSetting: enPanelSetting,
     preferences: enPreferences,
+    publish: enPublish,
+    studioLogsSettings: enStudioLogsSettings,
+    userScript: enUserScript,
+    moment: enMoment,
     general: enGeneral,
+    error: enError,
+    threeDimensionalPanel: enThreeDimensionalPanel,
   },
   zh: {
+    account: zhAccount,
+    addPanel: zhAddPanel,
+    common: zhCommon,
+    dataSource: zhDataSource,
+    diagnostic: zhDiagnostic,
+    layouts: zhLayouts,
+    panelSetting: zhPanelSetting,
     preferences: zhPreferences,
+    publish: zhPublish,
+    studioLogsSettings: zhStudioLogsSettings,
+    userScript: zhUserScript,
+    moment: zhMoment,
     general: zhGeneral,
+    error: zhError,
+    threeDimensionalPanel: zhThreeDimensionalPanel,
   },
 };
 

@@ -18,6 +18,7 @@ import {
   Settings20Regular,
   SlideAdd24Regular,
   TextBulletListLtr24Regular,
+  QuestionCircle20Regular,
 } from "@fluentui/react-icons";
 
 import BlockheadFilledIcon from "@foxglove/studio-base/components/BlockheadFilledIcon";
@@ -54,6 +55,7 @@ const icons: {
   Settings: <Settings20Regular />,
   Variable2: <BracesVariable24Regular />,
   ROS: <RosIcon />,
+  QuestionCircle: <QuestionCircle20Regular />,
 };
 
 export default icons;

@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Provider as RollbarProvider, ErrorBoundary } from "@rollbar/react";
 import * as Sentry from "@sentry/browser";
 import { BrowserTracing } from "@sentry/tracing";
 import { StrictMode, useEffect } from "react";
@@ -12,7 +11,6 @@ import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base";
 import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
 import __browserLogger from "@foxglove/studio-base/util/browserLogger";
-import { ROLLBAR_CONFIG } from "@foxglove/studio-base/util/rollbarConfig";
 
 import VersionBanner from "./VersionBanner";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
@@ -116,14 +114,10 @@ async function main() {
 
   ReactDOM.render(
     <StrictMode>
-      <RollbarProvider config={ROLLBAR_CONFIG}>
-        <ErrorBoundary>
-          <LogAfterRender>
-            {banner}
-            <Root appConfiguration={appConfiguration} />
-          </LogAfterRender>
-        </ErrorBoundary>
-      </RollbarProvider>
+      <LogAfterRender>
+        {banner}
+        <Root appConfiguration={appConfiguration} />
+      </LogAfterRender>
     </StrictMode>,
     rootEl,
   );

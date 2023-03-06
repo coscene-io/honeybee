@@ -5,8 +5,8 @@
 import CircularDependencyPlugin from "circular-dependency-plugin";
 import { ESBuildMinifyPlugin } from "esbuild-loader";
 import ForkTsCheckerWebpackPlugin from "fork-ts-checker-webpack-plugin";
-import monacoPkg from "monaco-editor/package.json";
 import MonacoWebpackPlugin from "monaco-editor-webpack-plugin";
+import monacoPkg from "monaco-editor/package.json";
 import path from "path";
 import ReactRefreshTypescript from "react-refresh-typescript";
 import ts from "typescript";
@@ -48,6 +48,8 @@ export function makeConfig(
 ): Pick<Configuration, "resolve" | "module" | "optimization" | "plugins" | "node"> {
   const isDev = argv.mode === "development";
   const isServe = argv.env?.WEBPACK_SERVE ?? false;
+
+  const commitHash = process.env.GITHUB_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA;
 
   const { allowUnusedVariables = isDev && isServe } = options ?? {};
 
@@ -237,6 +239,9 @@ export function makeConfig(
         // Should match webpack-defines.d.ts
         ReactNull: null, // eslint-disable-line no-restricted-syntax
         FOXGLOVE_STUDIO_VERSION: JSON.stringify(packageJson.version),
+        FOXGLOVE_USER_AGENT: JSON.stringify(
+          `studio/${packageJson.version} (commit ${commitHash ?? "??"})`,
+        ),
       }),
       // https://webpack.js.org/plugins/ignore-plugin/#example-of-ignoring-moment-locales
       new webpack.IgnorePlugin({

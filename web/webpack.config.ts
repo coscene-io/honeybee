@@ -55,7 +55,6 @@ const devServerConfig: WebpackConfiguration = {
 const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
   const isDev = argv.mode === "development";
   const isServe = argv.env?.WEBPACK_SERVE ?? false;
-  const publicPath = process.env.FOXGLOVE_PUBLIC_PATH ?? "";
 
   const allowUnusedVariables = isDev;
 
