@@ -29,11 +29,11 @@ import {
   RemoteLayout,
 } from "@foxglove/studio-base/services/IRemoteLayoutStorage";
 
-import { migratePanelsState } from "../migrateLayout";
 import { NamespacedLayoutStorage } from "./NamespacedLayoutStorage";
 import WriteThroughLayoutCache from "./WriteThroughLayoutCache";
 import { isLayoutEqual } from "./compareLayouts";
 import computeLayoutSyncOperations, { SyncOperation } from "./computeLayoutSyncOperations";
+import { migratePanelsState } from "../migrateLayout";
 
 const log = Logger.getLogger(__filename);
 

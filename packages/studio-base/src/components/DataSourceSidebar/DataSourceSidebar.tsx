@@ -29,10 +29,10 @@ import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
-import { DataSourceInfoView } from "../DataSourceInfoView";
 import { Playlist } from "./Playlist";
 import { ProblemsList } from "./ProblemsList";
 import { TopicList } from "./TopicList";
+import { DataSourceInfoView } from "../DataSourceInfoView";
 
 const StyledTab = muiStyled(Tab)(({ theme }) => ({
   minHeight: 30,

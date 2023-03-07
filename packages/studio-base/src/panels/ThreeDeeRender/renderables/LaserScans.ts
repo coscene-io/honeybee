@@ -17,6 +17,7 @@ import {
 import type { RosObject, RosValue } from "@foxglove/studio-base/players/types";
 import { emptyPose } from "@foxglove/studio-base/util/Pose";
 
+import { colorHasTransparency, getColorConverter } from "./pointClouds/colors";
 import { DynamicBufferGeometry } from "../DynamicBufferGeometry";
 import { BaseUserData, Renderable } from "../Renderable";
 import { Renderer } from "../Renderer";
@@ -27,7 +28,6 @@ import { normalizeFloat32Array, normalizeTime, normalizePose } from "../normaliz
 import { LASERSCAN_DATATYPES as ROS_LASERSCAN_DATATYPES, LaserScan as RosLaserScan } from "../ros";
 import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
 import { Pose } from "../transforms";
-import { colorHasTransparency, getColorConverter } from "./pointClouds/colors";
 
 type LayerSettingsLaserScan = LayerSettingsPointExtension;
 const DEFAULT_SETTINGS = DEFAULT_POINT_SETTINGS;

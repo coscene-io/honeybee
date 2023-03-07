@@ -20,12 +20,6 @@ import {
   Transformer,
 } from "@foxglove/velodyne-cloud";
 
-import { Renderer } from "../Renderer";
-import { SceneExtension } from "../SceneExtension";
-import { SettingsTreeEntry, SettingsTreeNodeWithActionHandler } from "../SettingsManager";
-import { VELODYNE_SCAN_DATATYPES } from "../ros";
-import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
-import { makePose } from "../transforms";
 import {
   autoSelectColorField,
   createInstancePickingMaterial,
@@ -36,6 +30,12 @@ import {
   pointCloudMaterial,
   POINT_CLOUD_REQUIRED_FIELDS,
 } from "./pointExtensionUtils";
+import { Renderer } from "../Renderer";
+import { SceneExtension } from "../SceneExtension";
+import { SettingsTreeEntry, SettingsTreeNodeWithActionHandler } from "../SettingsManager";
+import { VELODYNE_SCAN_DATATYPES } from "../ros";
+import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
+import { makePose } from "../transforms";
 
 type LayerSettingsVelodyneScans = LayerSettingsPointExtension & {
   stixelsEnabled: boolean;
