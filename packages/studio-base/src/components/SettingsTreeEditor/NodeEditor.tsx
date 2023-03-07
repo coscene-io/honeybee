@@ -271,10 +271,11 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
   const settingsLabelsDisplay = () => {
     const label = settings.label;
     if (typeof label === "object") {
-      if (label.key === "transforms") {
-        return t(label.key) + label.params;
-      } else {
-        return "";
+      switch (label.key) {
+        case "transforms":
+          return t(label.key) + label.params;
+        default:
+          return "";
       }
     }
 
