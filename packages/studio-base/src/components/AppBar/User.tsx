@@ -39,10 +39,6 @@ const useStyles = makeStyles()((theme) => ({
   menuList: {
     minWidth: 200,
   },
-  userIconImage: {
-    objectFit: "cover",
-    width: "100%",
-  },
 }));
 
 type UserIconProps = IconButtonProps & {
@@ -51,19 +47,12 @@ type UserIconProps = IconButtonProps & {
 
 export const UserIconButton = forwardRef<HTMLButtonElement, UserIconProps>((props, ref) => {
   const { classes } = useStyles();
-  const { currentUser: me, ...otherProps } = props;
+  const { currentUser: _me, ...otherProps } = props;
 
   return (
     <IconButton {...otherProps} ref={ref} className={classes.avatarButton}>
       <Avatar className={classes.avatar} variant="rounded">
-        {me?.avatarImageUrl != undefined && (
-          <img
-            src={me.avatarImageUrl}
-            referrerPolicy="same-origin"
-            className={classes.userIconImage}
-          />
-        )}
-        {me?.avatarImageUrl == undefined && <PersonIcon />}
+        <PersonIcon />
       </Avatar>
     </IconButton>
   );

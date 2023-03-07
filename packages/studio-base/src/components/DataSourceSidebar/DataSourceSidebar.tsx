@@ -2,27 +2,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
-import {
-  IconButton,
-  Tab,
-  Tabs,
-  styled as muiStyled,
-  Divider,
-  Box,
-  CircularProgress,
-} from "@mui/material";
+import { Tab, Tabs, styled as muiStyled, Divider } from "@mui/material";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import Menu from "@mui/material/Menu";
-import { useTheme } from "@mui/material/styles";
-import { useState, PropsWithChildren, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -166,19 +155,16 @@ const NoPlayableBagsDialog = ({ open, onClose }: { open: boolean; onClose: () =>
   );
 };
 
-type DataSourceSidebarTab = "topics" | "events" | "problems";
+type DataSourceSidebarTab = "topics" | "events" | "playlist" | "more" | "problems";
 
-export default function DataSourceSidebar(props: Props): JSX.Element {
-  const { onSelectDataSourceAction } = props;
+export default function DataSourceSidebar(_props: Props): JSX.Element {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const { currentUser } = useCurrentUser();
   const playerSourceId = useMessagePipeline(selectPlayerSourceId);
   const selectedEventId = useEvents(selectSelectedEventId);
-  const [activeTab, setActiveTab] = useState<DataSourceSidebarTab>("topics");
+  const [activeTab, setActiveTab] = useState<DataSourceSidebarTab>("playlist");
   const { classes } = useStyles();
-  const [moreActiveTab, setMoreActiveTab] = useState(-1);
-  const theme = useTheme();
   const { t } = useTranslation("dataSource");
   const record = useRecord(selectRecords);
   const bagFiles = useRecord(selectBagFiles);
@@ -199,15 +185,6 @@ export default function DataSourceSidebar(props: Props): JSX.Element {
 
   const showEventsTab =
     !enableNewTopNav && currentUser != undefined && playerSourceId === "foxglove-data-platform";
-
-  const [anchorEl, setAnchorEl] = React.useState<undefined | HTMLElement>(undefined);
-  const open = Boolean(anchorEl);
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(undefined);
-  };
 
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
@@ -231,22 +208,28 @@ export default function DataSourceSidebar(props: Props): JSX.Element {
                 onChange={(_ev, newValue: DataSourceSidebarTab) => setActiveTab(newValue)}
                 textColor="inherit"
               >
-                <StyledTab disableRipple label="Topics" value="topics" />
-                {showEventsTab && <StyledTab disableRipple label="Events" value="events" />}
+                <StyledTab disableRipple label={t("playlist")} value="playlist" />
+                <StyledTab disableRipple label={t("topics")} value="topics" />
+                <StyledTab disableRipple label={t("moment")} value="events" />
                 <StyledTab
                   disableRipple
                   label={
                     <Stack direction="row" alignItems="baseline" gap={1}>
-                      Problems
+                      {t("problem")}
                       {playerProblems.length > 0 && (
                         <ProblemCount>{playerProblems.length}</ProblemCount>
                       )}
                     </Stack>
                   }
-                  value="problems"
+                  value="more"
                 />
               </StyledTabs>
               <Divider />
+              {activeTab === "playlist" && (
+                <div className={classes.tabContent}>
+                  <Playlist />
+                </div>
+              )}
               {activeTab === "topics" && (
                 <div className={classes.tabContent}>
                   <TopicList />

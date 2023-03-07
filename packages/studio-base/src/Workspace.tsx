@@ -422,7 +422,9 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   // open the data source dialog.
   const DataSourceSidebarItem = useMemo(() => {
     return function DataSourceSidebarItemImpl() {
-      return <DataSourceSidebar />;
+      return (
+        <DataSourceSidebar onSelectDataSourceAction={() => setShowOpenDialog({ view: "start" })} />
+      );
     };
   }, []);
 
