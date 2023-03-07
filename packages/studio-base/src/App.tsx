@@ -97,6 +97,7 @@ export function App(props: AppProps): JSX.Element {
   const providers = [
     /* eslint-disable react/jsx-key */
     <StudioLogsSettingsProvider />,
+    <ConsoleApiContext.Provider value={consoleApi} />,
     <StudioToastProvider />,
     <LayoutStorageContext.Provider value={layoutStorage} />,
     <UserProfileLocalStorageProvider />,
@@ -112,7 +113,6 @@ export function App(props: AppProps): JSX.Element {
     <EventsProvider />,
     <CoSceneRecordProvider />,
     <CoSceneProjectProvider />,
-    <ConsoleApiContext.Provider value={consoleApi} />,
     /* eslint-enable react/jsx-key */
   ];
 

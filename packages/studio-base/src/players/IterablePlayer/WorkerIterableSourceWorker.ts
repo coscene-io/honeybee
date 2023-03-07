@@ -12,16 +12,10 @@ import type {
   IIterableSource,
   IMessageCursor,
   Initalization,
-  IterableSourceInitializeArgs,
   IteratorResult,
   MessageIteratorArgs,
 } from "./IIterableSource";
 import { IteratorCursor } from "./IteratorCursor";
-
-export type WorkerIterableSourceWorkerArgs = {
-  sourceType: string;
-  initArgs: IterableSourceInitializeArgs;
-};
 
 export class WorkerIterableSourceWorker implements IIterableSource {
   protected _source: IIterableSource;
@@ -64,4 +58,3 @@ export class WorkerIterableSourceWorker implements IIterableSource {
 }
 
 Comlink.transferHandlers.set("abortsignal", abortSignalTransferHandler);
-Comlink.expose(WorkerIterableSourceWorker);

@@ -10,9 +10,6 @@ import { WorkerIterableSourceWorker } from "@foxglove/studio-base/players/Iterab
 import { initialize as DataPlatformIterableSourceInitialize } from "./DataPlatformIterableSource";
 
 export function initialize(args: IterableSourceInitializeArgs): WorkerIterableSourceWorker {
-  if (!args.file) {
-    throw new Error("file required");
-  }
   const source = DataPlatformIterableSourceInitialize(args);
   const wrapped = new WorkerIterableSourceWorker(source);
   return Comlink.proxy(wrapped);
