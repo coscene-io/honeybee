@@ -42,7 +42,7 @@ export function filterTreeNodes(
     }
 
     // Match on label or key in tree.
-    const stringToMatch = (node.label ?? key).toLocaleLowerCase();
+    const stringToMatch = (node.label != undefined ? typeof node.label === 'string' ? node.label : '' : key).toLocaleLowerCase();
     if (stringToMatch.includes(filter.toLocaleLowerCase())) {
       result[key] = node;
     }

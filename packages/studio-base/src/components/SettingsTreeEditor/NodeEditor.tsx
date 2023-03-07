@@ -269,8 +269,17 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
   );
 
   const settingsLabelsDisplay = () => {
-    if (settings.label != undefined) {
-      switch (settings.label) {
+    const label = settings.label;
+    if (typeof label === "object") {
+      if (label.key === "transforms") {
+        return t(label.key) + label.params;
+      } else {
+        return "";
+      }
+    }
+
+    if (label != undefined) {
+      switch (label) {
         case "setting":
         case "addPanel":
         case "impExpSetting":
@@ -420,9 +429,9 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
         case "userScriptDescription":
         case "tabDescription":
         case "studioDescription":
-          return t(settings.label);
+          return t(label);
         default:
-          return settings.label;
+          return label;
       }
     }
     return "General";

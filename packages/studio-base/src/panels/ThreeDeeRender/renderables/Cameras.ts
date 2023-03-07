@@ -109,10 +109,10 @@ export class Cameras extends SceneExtension<CameraInfoRenderable> {
 
       // prettier-ignore
       const fields: SettingsTreeFields = {
-        distance: { label: "Distance", input: "number", placeholder: String(DEFAULT_DISTANCE), step: 0.1, precision: PRECISION_DISTANCE, value: config.distance },
+        distance: { label: "distance", input: "number", placeholder: String(DEFAULT_DISTANCE), step: 0.1, precision: PRECISION_DISTANCE, value: config.distance },
         planarProjectionFactor: { label: "planarProjectionFactor", input: "number", placeholder: String(DEFAULT_PLANAR_PROJECTION_FACTOR), min: 0, max: 1, step: 0.1, precision: 2, value: config.planarProjectionFactor },
         width: fieldLineWidth("lineWidth", config.width, DEFAULT_WIDTH),
-        color: { label: "Color", input: "rgba", value: config.color ?? DEFAULT_COLOR_STR },
+        color: { label: "color", input: "rgba", value: config.color ?? DEFAULT_COLOR_STR },
       };
 
       entries.push({

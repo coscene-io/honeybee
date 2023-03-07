@@ -629,7 +629,7 @@ declare module "@foxglove/studio" {
     /**
      * An optional label shown at the top of this node.
      */
-    label?: string;
+    label?: string | {key: string; params : string};
 
     /**
      * True if the node label can be edited by the user.
