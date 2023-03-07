@@ -11,6 +11,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { ReOrderDotsVertical16Filled } from "@fluentui/react-icons";
 import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -31,7 +32,7 @@ import {
 } from "@mui/material";
 import fuzzySort from "fuzzysort";
 import { countBy, isEmpty } from "lodash";
-import { useCallback, useEffect, useMemo } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDrag } from "react-dnd";
 import { useTranslation } from "react-i18next";
 import { MosaicDragType, MosaicPath } from "react-mosaic-component";
@@ -53,7 +54,7 @@ import {
 } from "@foxglove/studio-base/types/panels";
 import { mightActuallyBePartial } from "@foxglove/studio-base/util/mightActuallyBePartial";
 
-const useStyles = makeStyles()((theme) => {
+const useStyles = makeStyles<void, "dragIcon">()((theme, _params, classes) => {
   return {
     fullHeight: {
       height: "100%",
@@ -65,8 +66,17 @@ const useStyles = makeStyles()((theme) => {
     cardContent: {
       flex: "auto",
     },
-    grab: {
+    listItemButton: {
       cursor: "grab",
+
+      [`&:not(:hover) .${classes.dragIcon}`]: {
+        visibility: "hidden",
+      },
+    },
+    dragIcon: {
+      cursor: "grab",
+      marginRight: theme.spacing(-1),
+      color: theme.palette.text.disabled,
     },
     grid: {
       display: "grid !important",
@@ -78,11 +88,14 @@ const useStyles = makeStyles()((theme) => {
       top: -0.5, // yep that's a half pixel to avoid a gap between the appbar and panel top
       zIndex: 100,
       display: "flex",
-      padding: theme.spacing(2),
+      padding: theme.spacing(1.5),
       justifyContent: "stretch",
       backgroundImage: `linear-gradient(to top, transparent, ${
         theme.palette.background.paper
       } ${theme.spacing(1.5)}) !important`,
+    },
+    toolbarGrid: {
+      padding: theme.spacing(2),
     },
   };
 });
@@ -112,6 +125,7 @@ type PanelItemProps = {
   highlighted?: boolean;
   onClick: () => void;
   mosaicId: string;
+  onDragStart?: () => void;
   onDrop: (arg0: DropDescription) => void;
 };
 
@@ -128,6 +142,7 @@ function DraggablePanelItem({
   searchQuery,
   panel,
   onClick,
+  onDragStart,
   onDrop,
   checked = false,
   highlighted = false,
@@ -297,11 +312,14 @@ function DraggablePanelItem({
         return item;
     }
   };
-  const scrollRef = React.useRef<HTMLElement>(ReactNull);
+  const scrollRef = useRef<HTMLElement>(ReactNull);
   const [, connectDragSource] = useDrag<unknown, MosaicDropResult, never>({
     type: MosaicDragType.WINDOW,
     // mosaicId is needed for react-mosaic to accept the drop
-    item: () => ({ mosaicId }),
+    item: () => {
+      onDragStart?.();
+      return { mosaicId };
+    },
     options: { dropEffect: "copy" },
     end: (_item, monitor) => {
       const dropResult = monitor.getDropResult() ?? {};
@@ -319,7 +337,7 @@ function DraggablePanelItem({
     },
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (highlighted && scrollRef.current) {
       const highlightedItem = scrollRef.current.getBoundingClientRect();
       const scrollContainer = scrollRef.current.parentElement?.parentElement?.parentElement;
@@ -398,7 +416,8 @@ function DraggablePanelItem({
       return (
         <Tooltip
           placement="right"
-          enterDelay={200}
+          enterDelay={500}
+          leaveDelay={0}
           TransitionComponent={Fade}
           title={
             <Stack paddingTop={0.25} style={{ width: 200 }}>
@@ -414,9 +433,10 @@ function DraggablePanelItem({
             </Stack>
           }
         >
-          <ListItem disableGutters disablePadding selected={highlighted}>
+          <ListItem disableGutters disablePadding>
             <ListItemButton
-              className={classes.grab}
+              selected={highlighted}
+              className={classes.listItemButton}
               disabled={checked}
               ref={mergedRef}
               onClick={onClickWithStopPropagation}
@@ -429,6 +449,7 @@ function DraggablePanelItem({
                 }
                 primaryTypographyProps={{ fontWeight: checked ? "bold" : undefined }}
               />
+              <ReOrderDotsVertical16Filled className={classes.dragIcon} />
             </ListItemButton>
           </ListItem>
         </Tooltip>
@@ -447,6 +468,7 @@ export type PanelSelection = {
 type Props = {
   mode?: "grid" | "list";
   onPanelSelect: (arg0: PanelSelection) => void;
+  onDragStart?: () => void;
   selectedPanelType?: string;
 };
 
@@ -473,11 +495,11 @@ function verifyPanels(panels: readonly PanelInfo[]) {
   }
 }
 
-const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) => {
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [highlightedPanelIdx, setHighlightedPanelIdx] = React.useState<number | undefined>();
-  const { mode, onPanelSelect, selectedPanelType } = props;
-  const { classes } = useStyles();
+const PanelList = forwardRef<HTMLDivElement, Props>((props: Props, ref) => {
+  const { mode, onDragStart, onPanelSelect, selectedPanelType } = props;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [highlightedPanelIdx, setHighlightedPanelIdx] = useState<number | undefined>();
+  const { classes, cx } = useStyles();
   const { t } = useTranslation("addPanel");
 
   const { dropPanel } = useCurrentLayoutActions();
@@ -485,7 +507,7 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
 
   // Update panel layout when a panel menu item is dropped;
   // actual operations to change layout supplied by react-mosaic-component
-  const onPanelMenuItemDrop = React.useCallback(
+  const onPanelMenuItemDrop = useCallback(
     ({ config, relatedConfigs, type, position, path, tabId }: DropDescription) => {
       dropPanel({
         newPanelType: type,
@@ -500,7 +522,7 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
     [dropPanel],
   );
 
-  const handleSearchChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
     setSearchQuery(query);
 
@@ -541,7 +563,7 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
     verifyPanels([...allRegularPanels, ...allPreconfiguredPanels]);
   }, [allRegularPanels, allPreconfiguredPanels]);
 
-  const getFilteredPanels = React.useCallback(
+  const getFilteredPanels = useCallback(
     (panels: PanelInfo[]) => {
       return searchQuery.length > 0
         ? fuzzySort
@@ -557,7 +579,7 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
     [searchQuery],
   );
 
-  const { filteredRegularPanels, filteredPreconfiguredPanels } = React.useMemo(
+  const { filteredRegularPanels, filteredPreconfiguredPanels } = useMemo(
     () => ({
       filteredRegularPanels: getFilteredPanels(allRegularPanels),
       filteredPreconfiguredPanels: getFilteredPanels(allPreconfiguredPanels),
@@ -565,18 +587,18 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
     [getFilteredPanels, allRegularPanels, allPreconfiguredPanels],
   );
 
-  const allFilteredPanels = React.useMemo(
+  const allFilteredPanels = useMemo(
     () => [...filteredPreconfiguredPanels, ...filteredRegularPanels],
     [filteredPreconfiguredPanels, filteredRegularPanels],
   );
 
-  const highlightedPanel = React.useMemo(() => {
+  const highlightedPanel = useMemo(() => {
     return highlightedPanelIdx != undefined ? allFilteredPanels[highlightedPanelIdx] : undefined;
   }, [allFilteredPanels, highlightedPanelIdx]);
 
   const noResults = allFilteredPanels.length === 0;
 
-  const onKeyDown = React.useCallback(
+  const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       // Prevent key down events from triggering the parent menu, if any.
       if (e.key !== "Escape") {
@@ -616,7 +638,7 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
     [allFilteredPanels.length, highlightedPanel, mode, onPanelSelect],
   );
 
-  const displayPanelListItem = React.useCallback(
+  const displayPanelListItem = useCallback(
     (panelInfo: PanelInfo) => {
       const { title, type, config, relatedConfigs } = panelInfo;
       return (
@@ -625,6 +647,7 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
           key={`${type}-${title}`}
           mosaicId={mosaicId}
           panel={panelInfo}
+          onDragStart={onDragStart}
           onDrop={onPanelMenuItemDrop}
           onClick={() => {
             onPanelSelect({ type, config, relatedConfigs });
@@ -640,6 +663,7 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
       highlightedPanel?.title,
       mode,
       mosaicId,
+      onDragStart,
       onPanelMenuItemDrop,
       onPanelSelect,
       searchQuery,
@@ -649,7 +673,11 @@ const PanelList = React.forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
 
   return (
     <div className={classes.fullHeight} ref={ref}>
-      <div className={classes.toolbar}>
+      <div
+        className={cx(classes.toolbar, {
+          [classes.toolbarGrid]: mode === "grid",
+        })}
+      >
         <TextField
           fullWidth
           placeholder={t("searchPanel")}

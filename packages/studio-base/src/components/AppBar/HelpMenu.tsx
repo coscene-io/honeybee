@@ -2,19 +2,20 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
-import ContactSupportOutlinedIcon from "@mui/icons-material/ContactSupportOutlined";
-import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import {
+  ChatBubblesQuestion24Regular,
+  Cloud24Regular,
+  SlideLayout24Regular,
+} from "@fluentui/react-icons";
 import {
   Divider,
   ListItemText,
   ListSubheader,
   Menu,
   MenuItem,
-  IconButton,
-  IconButtonProps,
-  MenuProps,
+  PopoverOrigin,
+  PopoverPosition,
+  PopoverReference,
 } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 
@@ -30,45 +31,57 @@ const useStyles = makeStyles()((theme) => ({
   paper: {
     width: 280,
   },
+  icon: {
+    color: theme.palette.primary.main,
+    flex: "none",
+  },
   menuItem: {
     gap: theme.spacing(1),
   },
   menuText: {
     whiteSpace: "normal",
-  },
-  iconButton: {
-    padding: theme.spacing(0.375),
+    flex: "0 1 auto",
   },
 }));
 
-export function HelpIconButton(props: IconButtonProps): JSX.Element {
-  const { classes } = useStyles();
+type HelpMenuProps = {
+  anchorEl?: HTMLElement;
+  anchorOrigin?: PopoverOrigin;
+  anchorPosition?: PopoverPosition;
+  anchorReference?: PopoverReference;
+  disablePortal?: boolean;
+  handleClose: () => void;
+  open: boolean;
+  transformOrigin?: PopoverOrigin;
+};
 
-  return (
-    <IconButton {...props} className={classes.iconButton}>
-      <ContactSupportOutlinedIcon />
-    </IconButton>
-  );
-}
-
-export function HelpMenu(
-  props: {
-    handleClose: () => void;
-  } & MenuProps,
-): JSX.Element {
-  const { anchorEl, handleClose, open } = props;
+export function HelpMenu(props: HelpMenuProps): JSX.Element {
+  const {
+    anchorEl,
+    anchorOrigin,
+    anchorPosition,
+    anchorReference,
+    disablePortal,
+    handleClose,
+    open,
+    transformOrigin,
+  } = props;
   const { classes } = useStyles();
   const currentUserType = useCurrentUserType();
   const analytics = useAnalytics();
 
   return (
     <Menu
-      {...props}
       classes={{ paper: classes.paper }}
       id="help-menu"
       anchorEl={anchorEl}
+      anchorOrigin={anchorOrigin}
+      anchorReference={anchorReference}
+      anchorPosition={anchorPosition}
+      disablePortal={disablePortal}
       open={open}
       onClose={handleClose}
+      transformOrigin={transformOrigin}
       MenuListProps={{
         "aria-labelledby": "help-button",
       }}
@@ -89,7 +102,7 @@ export function HelpMenu(
           handleClose();
         }}
       >
-        <VisibilityOutlinedIcon color="primary" />
+        <SlideLayout24Regular className={classes.icon} />
         <ListItemText
           primary="Studio"
           secondary="Open source robotics visualization and debugging."
@@ -109,7 +122,7 @@ export function HelpMenu(
           handleClose();
         }}
       >
-        <CloudOutlinedIcon color="primary" />
+        <Cloud24Regular className={classes.icon} />
         <ListItemText
           primary="Data Platform"
           secondary="Scalable data management platform"
@@ -133,7 +146,7 @@ export function HelpMenu(
           handleClose();
         }}
       >
-        <ForumOutlinedIcon color="primary" />
+        <ChatBubblesQuestion24Regular className={classes.icon} />
         <ListItemText
           primary="Join us on Slack"
           secondary="Give us feedback, ask questions, and collaborate with other users."

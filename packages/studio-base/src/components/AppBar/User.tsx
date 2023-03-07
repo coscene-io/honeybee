@@ -11,6 +11,8 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  PopoverPosition,
+  PopoverReference,
 } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { forwardRef, useCallback } from "react";
@@ -18,7 +20,7 @@ import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
 import { APP_BAR_PRIMARY_COLOR } from "@foxglove/studio-base/components/AppBar/constants";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
+import { useCurrentUser, User } from "@foxglove/studio-base/context/CurrentUserContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 const log = Logger.getLogger(__filename);
@@ -34,15 +36,34 @@ const useStyles = makeStyles()((theme) => ({
   avatarButton: {
     padding: 0,
   },
+  menuList: {
+    minWidth: 200,
+  },
+  userIconImage: {
+    objectFit: "cover",
+    width: "100%",
+  },
 }));
 
-export const UserIconButton = forwardRef<HTMLButtonElement, IconButtonProps>((props, ref) => {
+type UserIconProps = IconButtonProps & {
+  currentUser?: User;
+};
+
+export const UserIconButton = forwardRef<HTMLButtonElement, UserIconProps>((props, ref) => {
   const { classes } = useStyles();
+  const { currentUser: me, ...otherProps } = props;
 
   return (
-    <IconButton {...props} ref={ref} className={classes.avatarButton}>
+    <IconButton {...otherProps} ref={ref} className={classes.avatarButton}>
       <Avatar className={classes.avatar} variant="rounded">
-        <PersonIcon />
+        {me?.avatarImageUrl != undefined && (
+          <img
+            src={me.avatarImageUrl}
+            referrerPolicy="same-origin"
+            className={classes.userIconImage}
+          />
+        )}
+        {me?.avatarImageUrl == undefined && <PersonIcon />}
       </Avatar>
     </IconButton>
   );
@@ -51,13 +72,20 @@ UserIconButton.displayName = "UserIconButton";
 
 export function UserMenu({
   anchorEl,
+  anchorReference,
+  anchorPosition,
+  disablePortal,
   handleClose,
   open,
 }: {
   handleClose: () => void;
   anchorEl?: HTMLElement;
+  anchorReference?: PopoverReference;
+  anchorPosition?: PopoverPosition;
+  disablePortal?: boolean;
   open: boolean;
 }): JSX.Element {
+  const { classes } = useStyles();
   const { currentUser, signOut } = useCurrentUser();
   const { enqueueSnackbar } = useSnackbar();
   const [confirm, confirmModal] = useConfirm();
@@ -93,15 +121,14 @@ export function UserMenu({
     <>
       <Menu
         anchorEl={anchorEl}
+        anchorReference={anchorReference}
+        anchorPosition={anchorPosition}
+        disablePortal={disablePortal}
         id="account-menu"
         open={open}
         onClose={handleClose}
         onClick={handleClose}
-        MenuListProps={{
-          sx: {
-            minWidth: 200,
-          },
-        }}
+        MenuListProps={{ className: classes.menuList }}
       >
         <MenuItem onClick={onSettingsClick}>
           <ListItemText primary={currentUser.email} />
@@ -109,7 +136,7 @@ export function UserMenu({
         <MenuItem onClick={onSettingsClick}>
           <ListItemText>User settings</ListItemText>
         </MenuItem>
-        <Divider />
+        <Divider variant="middle" />
         <MenuItem onClick={onSignoutClick}>
           <ListItemText>Log out</ListItemText>
         </MenuItem>

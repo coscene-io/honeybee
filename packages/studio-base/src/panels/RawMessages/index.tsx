@@ -340,7 +340,7 @@ function RawMessages(props: Props) {
           if (structureItem) {
             const childStructureItem = getStructureItemForPath(
               structureItem,
-              keyPath.slice(0, -1).reverse().join(","),
+              keyPath.slice(0, -1).reverse(),
             );
             if (childStructureItem) {
               const field = keyPath[0];

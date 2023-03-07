@@ -4,7 +4,6 @@
 
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import {
   Alert,
@@ -15,7 +14,6 @@ import {
   DialogProps,
   FormControlLabel,
   IconButton,
-  IconButtonProps,
   Link,
   Tab,
   Tabs,
@@ -71,9 +69,6 @@ const useStyles = makeStyles()((theme) => ({
   },
   tabPanelActive: {
     display: "block",
-  },
-  iconButton: {
-    padding: theme.spacing(0.375),
   },
   checkbox: {
     "&.MuiCheckbox-root": {
@@ -174,16 +169,6 @@ export const aboutItems: Map<
     },
   ],
 ]);
-
-export function PreferencesIconButton(props: IconButtonProps): JSX.Element {
-  const { classes } = useStyles();
-
-  return (
-    <IconButton {...props} className={classes.iconButton}>
-      <SettingsOutlinedIcon />
-    </IconButton>
-  );
-}
 
 type TabOption = "general" | "privacy" | "extensions" | "experimental-features" | "about";
 

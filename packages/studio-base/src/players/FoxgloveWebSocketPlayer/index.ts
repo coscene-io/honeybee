@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { debouncePromise } from "@foxglove/den/async";
 import Log from "@foxglove/log";
 import { parseChannel, ParsedChannel } from "@foxglove/mcap-support";
-import { RosMsgDefinition } from "@foxglove/rosmsg";
+import { MessageDefinition } from "@foxglove/message-definition";
 import CommonRosTypes from "@foxglove/rosmsg-msgs-common";
 import { MessageWriter as Ros1MessageWriter } from "@foxglove/rosmsg-serialization";
 import { MessageWriter as Ros2MessageWriter } from "@foxglove/rosmsg2-serialization";
@@ -94,6 +94,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   private _problems = new PlayerProblemManager();
   private _numTimeSeeks = 0;
   private _profile?: string;
+  private _urlState: PlayerState["urlState"];
 
   /** Earliest time seen */
   private _startTime?: Time;
@@ -141,6 +142,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this._name = url;
     this._metricsCollector.playerConstructed();
     this._sourceId = sourceId;
+    this._urlState = {
+      sourceId: this._sourceId,
+      parameters: { url: this._url },
+    };
     this._open();
   }
 
@@ -251,7 +256,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           : CommonRosTypes.ros2humble;
 
         for (const dataType in rosDataTypes) {
-          const msgDef = (rosDataTypes as Record<string, RosMsgDefinition>)[dataType]!;
+          const msgDef = (rosDataTypes as Record<string, MessageDefinition>)[dataType]!;
           this._datatypes.set(dataType, msgDef);
           this._datatypes.set(dataTypeToFullName(dataType), msgDef);
         }
@@ -637,6 +642,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         playerId: this._id,
         activeData: undefined,
         problems: this._problems.problems(),
+        urlState: this._urlState,
       });
     }
 
@@ -658,10 +664,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       profile: this._profile,
       playerId: this._id,
       problems: this._problems.problems(),
-      urlState: {
-        sourceId: this._sourceId,
-        parameters: { url: this._url },
-      },
+      urlState: this._urlState,
 
       activeData: {
         messages,
@@ -898,7 +901,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       let messageWriter: Publication["messageWriter"] = undefined;
       if (ROS_ENCODINGS.includes(encoding)) {
         // Try to retrieve the ROS message definition for this topic
-        let msgdef: RosMsgDefinition[];
+        let msgdef: MessageDefinition[];
         try {
           const datatypes = options?.["datatypes"] as RosDatatypes | undefined;
           if (!datatypes || !(datatypes instanceof Map)) {

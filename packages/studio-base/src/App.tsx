@@ -16,7 +16,7 @@ import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/Ti
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import Workspace from "./Workspace";
-import { CustomWindowControlsProps } from "./components/AppBar";
+import { CustomWindowControlsProps } from "./components/AppBar/CustomWindowControls";
 import { ColorSchemeThemeProvider } from "./components/ColorSchemeThemeProvider";
 import CssBaseline from "./components/CssBaseline";
 import DocumentTitleAdapter from "./components/DocumentTitleAdapter";

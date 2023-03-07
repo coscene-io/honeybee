@@ -2,9 +2,18 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
-import { Tab, Tabs, styled as muiStyled, Divider, Box } from "@mui/material";
+import {
+  IconButton,
+  Tab,
+  Tabs,
+  styled as muiStyled,
+  Divider,
+  Box,
+  CircularProgress,
+} from "@mui/material";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -17,6 +26,7 @@ import { useState, PropsWithChildren, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
 import {
   MessagePipelineContext,
@@ -27,12 +37,36 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import { Playlist } from "./Playlist";
 import { ProblemsList } from "./ProblemsList";
 import { TopicList } from "./TopicList";
 import { DataSourceInfoView } from "../DataSourceInfoView";
+
+type Props = {
+  onSelectDataSourceAction: () => void;
+};
+
+const useStyles = makeStyles()((theme) => ({
+  tabContent: {
+    flex: "auto",
+  },
+  dialogTitle: {
+    display: "flex",
+    justifyContent: "space-between",
+    paddingRight: "",
+  },
+  dialogTitleText: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+  },
+  closeDialogIcon: {
+    cursor: "pointer",
+  },
+}));
 
 const StyledTab = muiStyled(Tab)(({ theme }) => ({
   minHeight: 30,
@@ -55,22 +89,6 @@ const StyledTabs = muiStyled(Tabs)({
   },
 });
 
-const useStyles = makeStyles()((theme) => ({
-  dialogTitle: {
-    display: "flex",
-    justifyContent: "space-between",
-    paddingRight: "",
-  },
-  dialogTitleText: {
-    display: "flex",
-    alignItems: "center",
-    gap: theme.spacing(1),
-  },
-  closeDialogIcon: {
-    cursor: "pointer",
-  },
-}));
-
 const ProblemCount = muiStyled("div")(({ theme }) => ({
   backgroundColor: theme.palette.error.main,
   fontSize: theme.typography.caption.fontSize,
@@ -78,29 +96,6 @@ const ProblemCount = muiStyled("div")(({ theme }) => ({
   padding: theme.spacing(0.125, 0.75),
   borderRadius: 8,
 }));
-
-const TabPanel = (
-  props: PropsWithChildren<{
-    index: number;
-    menuValue?: number;
-    value: number;
-  }>,
-): JSX.Element => {
-  const { children, value, index, menuValue, ...other } = props;
-
-  return (
-    <Box
-      role="tabpanel"
-      hidden={value !== index && menuValue !== index}
-      id={`tabpanel-${index}`}
-      aria-labelledby={`tab-${index}`}
-      flex="auto"
-      {...other}
-    >
-      {(value === index || index === menuValue) && <>{children}</>}
-    </Box>
-  );
-};
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
 const selectPlayerProblems = ({ playerState }: MessagePipelineContext) => playerState.problems;
@@ -171,13 +166,17 @@ const NoPlayableBagsDialog = ({ open, onClose }: { open: boolean; onClose: () =>
   );
 };
 
-export default function DataSourceSidebar(): JSX.Element {
+type DataSourceSidebarTab = "topics" | "events" | "problems";
+
+export default function DataSourceSidebar(props: Props): JSX.Element {
+  const { onSelectDataSourceAction } = props;
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const { currentUser } = useCurrentUser();
   const playerSourceId = useMessagePipeline(selectPlayerSourceId);
   const selectedEventId = useEvents(selectSelectedEventId);
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState<DataSourceSidebarTab>("topics");
+  const { classes } = useStyles();
   const [moreActiveTab, setMoreActiveTab] = useState(-1);
   const theme = useTheme();
   const { t } = useTranslation("dataSource");
@@ -196,7 +195,10 @@ export default function DataSourceSidebar(): JSX.Element {
     }
   }, [bags, record.loading]);
 
-  const showEventsTab = currentUser != undefined && playerSourceId === "foxglove-data-platform";
+  const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
+
+  const showEventsTab =
+    !enableNewTopNav && currentUser != undefined && playerSourceId === "foxglove-data-platform";
 
   const [anchorEl, setAnchorEl] = React.useState<undefined | HTMLElement>(undefined);
   const open = Boolean(anchorEl);
@@ -209,10 +211,9 @@ export default function DataSourceSidebar(): JSX.Element {
 
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
-      setActiveTab(3);
-      setMoreActiveTab(4);
+      setActiveTab("problems");
     } else if (showEventsTab && selectedEventId != undefined) {
-      setActiveTab(1);
+      setActiveTab("events");
     }
   }, [playerPresence, showEventsTab, selectedEventId]);
 
@@ -227,76 +228,40 @@ export default function DataSourceSidebar(): JSX.Element {
             <Stack flex={1}>
               <StyledTabs
                 value={activeTab}
-                onChange={(_ev, newValue: number) => {
-                  setActiveTab(newValue);
-                  setMoreActiveTab(-1);
-                }}
+                onChange={(_ev, newValue: DataSourceSidebarTab) => setActiveTab(newValue)}
                 textColor="inherit"
               >
-                <StyledTab disableRipple label={t("playlist")} value={0} />
-                <StyledTab disableRipple label={t("topics")} value={1} />
-                <StyledTab disableRipple label={t("moment")} value={2} />
-                <Button
-                  id="basic-button"
-                  aria-controls={open ? "basic-menu" : undefined}
-                  aria-haspopup="true"
-                  aria-expanded={open ? "true" : undefined}
-                  onClick={handleClick}
-                  style={{
-                    color:
-                      activeTab === 3 ? theme.palette.text.primary : theme.palette.text.secondary,
-                  }}
-                >
-                  {t("more")}
-                </Button>
-                <Menu
-                  id="basic-menu"
-                  anchorEl={anchorEl}
-                  open={open}
-                  onClose={handleClose}
-                  MenuListProps={{
-                    "aria-labelledby": "basic-button",
-                  }}
-                >
-                  <StyledTab
-                    label={
-                      <Stack
-                        direction="row"
-                        style={{
-                          color:
-                            moreActiveTab === 3
-                              ? theme.palette.text.primary
-                              : theme.palette.text.secondary,
-                        }}
-                        alignItems="baseline"
-                        gap={1}
-                      >
-                        {t("problem")}
-                        {playerProblems.length > 0 && (
-                          <ProblemCount>{playerProblems.length}</ProblemCount>
-                        )}
-                      </Stack>
-                    }
-                    onChange={() => {
-                      setActiveTab(3);
-                      setMoreActiveTab(4);
-                    }}
-                  />
-                </Menu>
+                <StyledTab disableRipple label="Topics" value="topics" />
+                {showEventsTab && <StyledTab disableRipple label="Events" value="events" />}
+                <StyledTab
+                  disableRipple
+                  label={
+                    <Stack direction="row" alignItems="baseline" gap={1}>
+                      Problems
+                      {playerProblems.length > 0 && (
+                        <ProblemCount>{playerProblems.length}</ProblemCount>
+                      )}
+                    </Stack>
+                  }
+                  value="problems"
+                />
               </StyledTabs>
               <Divider />
-              <TabPanel value={activeTab} index={0}>
-                <Playlist />
-              </TabPanel>
-              <TabPanel value={activeTab} index={1}>
-                <TopicList />
-              </TabPanel>
-              <TabPanel value={activeTab} index={2}>
-                <EventsList />
-              </TabPanel>
-              <TabPanel value={activeTab} menuValue={moreActiveTab} index={4}>
-                <ProblemsList problems={playerProblems} />
-              </TabPanel>
+              {activeTab === "topics" && (
+                <div className={classes.tabContent}>
+                  <TopicList />
+                </div>
+              )}
+              {activeTab === "events" && (
+                <div className={classes.tabContent}>
+                  <EventsList />
+                </div>
+              )}
+              {activeTab === "problems" && (
+                <div className={classes.tabContent}>
+                  <ProblemsList problems={playerProblems} />
+                </div>
+              )}
             </Stack>
           </>
         )}
