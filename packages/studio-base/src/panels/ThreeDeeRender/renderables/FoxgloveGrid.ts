@@ -412,7 +412,7 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
       );
       node.icon = "Cells";
       node.fields.frameLocked = {
-        label: "Frame lock",
+        label: "frameLock",
         input: "boolean",
         value: config.frameLocked ?? DEFAULT_SETTINGS.frameLocked,
       };

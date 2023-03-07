@@ -24,6 +24,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { getPlaylistResponse } from "@foxglove/studio-base/src/services/CoSceneConsoleApi";
 
 const HOVER_TOLERANCE = 0.01;
 const ROS_BAG_MEDIA_TYPE = "application/vnd.ros1.bag";
@@ -36,31 +37,23 @@ function positionBag(
   endTime: Time,
   name: string,
   displayName: string,
+  playlist: getPlaylistResponse,
 ): BagFileInfo {
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
 
-  const bagFileInterval = bagFileMedia.getInterval();
+  const currentBagInfo = playlist.bagList.find((bag) => bag.fileName === displayName);
 
-  if (!bagFileInterval) {
+  if (currentBagInfo?.startTime == undefined) {
     return {
       name,
       displayName,
     };
   }
 
-  const bagFileStartTime = fromNanoSec(
-    BigInt(
-      bagFileInterval.getStartTime()!.getSeconds() * 1e9 +
-        bagFileInterval.getStartTime()!.getNanos(),
-    ),
-  );
+  const bagFileStartTime = fromNanoSec(BigInt(currentBagInfo.startTime * 1e6));
 
-  const bagFileEndTime = fromNanoSec(
-    BigInt(
-      bagFileInterval.getEndTime()!.getSeconds() * 1e9 + bagFileInterval.getEndTime()!.getNanos(),
-    ),
-  );
+  const bagFileEndTime = fromNanoSec(BigInt(currentBagInfo.endTime * 1e6));
 
   const startTimeInSeconds = toSec(bagFileStartTime);
   const endTimeInSeconds = toSec(bagFileEndTime);
@@ -115,11 +108,42 @@ export function RecordsSyncAdapter(): ReactNull {
     return toSec(subtract(endTime, startTime));
   }, [endTime, startTime]);
 
+  const [playlist, syncPlaylist] = useAsyncFn(async () => {
+    try {
+      if (
+        urlState?.parameters?.warehouseId &&
+        urlState.parameters.projectId &&
+        urlState.parameters.recordId &&
+        urlState.parameters.revisionId
+      ) {
+        const revisionName = `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}/revisions/${urlState.parameters.revisionId}`;
+
+        const accessToken = localStorage.getItem("coScene_org_jwt");
+
+        return await consoleApi.getPlaylist({ revisionName, accessToken: accessToken ?? "" });
+      }
+    } catch (error) {
+      setRecord({ loading: false, error });
+      setRecordBagFiles({ loading: false, error });
+    }
+    return false;
+  }, [
+    consoleApi,
+    urlState?.parameters?.warehouseId,
+    urlState?.parameters?.projectId,
+    urlState?.parameters?.recordId,
+    urlState?.parameters?.revisionId,
+    setRecord,
+    setRecordBagFiles,
+  ]);
+
   const [_records, syncRecords] = useAsyncFn(async () => {
     if (
       urlState?.parameters?.warehouseId &&
       urlState.parameters.projectId &&
-      urlState.parameters.recordId
+      urlState.parameters.recordId &&
+      playlist.value != undefined &&
+      playlist.value !== false
     ) {
       try {
         const recordName = `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}`;
@@ -134,9 +158,16 @@ export function RecordsSyncAdapter(): ReactNull {
               fileMedia?.getValue_asU8() as Uint8Array,
             );
 
-            if (startTime && endTime) {
+            if (startTime && endTime && playlist.value != undefined && playlist.value !== false) {
               recordBagFiles.push(
-                positionBag(bagFileMedia, startTime, endTime, ele.getName(), ele.getFilename()),
+                positionBag(
+                  bagFileMedia,
+                  startTime,
+                  endTime,
+                  ele.getName(),
+                  ele.getFilename(),
+                  playlist.value,
+                ),
               );
             }
           }
@@ -162,7 +193,12 @@ export function RecordsSyncAdapter(): ReactNull {
     startTime,
     endTime,
     setRecordBagFiles,
+    playlist,
   ]);
+
+  useEffect(() => {
+    syncPlaylist().catch((error) => log.error(error));
+  }, [syncPlaylist]);
 
   useEffect(() => {
     syncRecords().catch((error) => log.error(error));

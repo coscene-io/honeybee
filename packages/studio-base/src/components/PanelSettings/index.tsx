@@ -45,7 +45,7 @@ export default function PanelSettings({
 }>): JSX.Element {
   const selectedLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const singlePanelId = useCurrentLayoutSelector(singlePanelIdSelector);
-  const { t } = useTranslation("panelSetting");
+  const { t } = useTranslation(["panelSetting", "general"]);
 
   const {
     selectedPanelIds: originalSelectedPanelIds,
@@ -113,7 +113,7 @@ export default function PanelSettings({
       case "parameters":
       case "studioPlaybackPerformance":
       case "userScript":
-        return t(item);
+        return t(item, { ns: "panelSetting" });
       default:
         return item;
     }
@@ -137,14 +137,15 @@ export default function PanelSettings({
           });
           incrementSequenceNumber(selectedPanelId);
         }}
-        title="Import/export settings"
-        noun="panel settings"
+        title={t("importExportSettings", { ns: "general" })}
+        noun={t("panelSettings", { ns: "general" })}
       />
     );
   }, [
     getCurrentLayout,
     selectedPanelId,
     showShareModal,
+    t,
     savePanelConfigs,
     incrementSequenceNumber,
   ]);
@@ -166,7 +167,7 @@ export default function PanelSettings({
 
   if (selectedLayoutId == undefined) {
     return (
-      <SidebarContent title={t("panelSettings")}>
+      <SidebarContent title={t("panelSettings", { ns: "panelSetting" })}>
         <Typography color="text.secondary">
           <Link onClick={openLayoutBrowser}>Select a layout</Link> to get started!
         </Typography>
@@ -176,8 +177,8 @@ export default function PanelSettings({
 
   if (selectedPanelId == undefined) {
     return (
-      <SidebarContent title={t("panelSettings")}>
-        <Typography color="text.secondary">{t("selectPanel")}</Typography>
+      <SidebarContent title={t("panelSettings", { ns: "panelSetting" })}>
+        <Typography color="text.secondary">{t("selectPanel", { ns: "panelSetting" })}</Typography>
       </SidebarContent>
     );
   }
@@ -190,8 +191,8 @@ export default function PanelSettings({
 
   if (!config) {
     return (
-      <SidebarContent title={t("panelSettings")}>
-        <Typography color="text.secondary">{t("loadingPanel")}</Typography>
+      <SidebarContent title={t("panelSettings", { ns: "panelSetting" })}>
+        <Typography color="text.secondary">{t("loadingPanel", { ns: "panelSetting" })}</Typography>
       </SidebarContent>
     );
   }
@@ -200,7 +201,9 @@ export default function PanelSettings({
   return (
     <SidebarContent
       disablePadding={isSettingsTree}
-      title={`${panelInfo.title && displayPanelInfoTitle(panelInfo.title)}${t("panelSettings")}`}
+      title={`${panelInfo.title && displayPanelInfoTitle(panelInfo.title)}${t("panelSettings", {
+        ns: "panelSetting",
+      })}`}
       trailingItems={[
         <ActionMenu
           key={1}
@@ -215,7 +218,9 @@ export default function PanelSettings({
         <div>
           {settingsTree && <SettingsTreeEditor key={selectedPanelId} settings={settingsTree} />}
           {!settingsTree && (
-            <Typography color="text.secondary">{t("noSettingAvailable")}</Typography>
+            <Typography color="text.secondary">
+              {t("noSettingAvailable", { ns: "panelSetting" })}
+            </Typography>
           )}
         </div>
       </Stack>

@@ -17,8 +17,9 @@ jobs:
     runs-on: ubuntu-20.04
     environment: azure-dev-east-us
     env:
-      BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
+      BUF_BUILD_TOKEN: ${{ secrets.BUF_BUILD_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -36,8 +37,8 @@ jobs:
           acr-login-registry: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}
           acr-username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
           acr-password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
-          azure-aks-resource-group: 'Dev-EUS'
-          azure-aks-cluster-name: 'Dev-EUS'
+          azure-aks-resource-group: "Dev-EUS"
+          azure-aks-cluster-name: "Dev-EUS"
           need-cd-tools: true
 
       - name: Set up Docker Buildx
@@ -62,8 +63,8 @@ jobs:
           acr-login-registry: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}
           acr-username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
           acr-password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
-          azure-aks-resource-group: 'Dev-EUS'
-          azure-aks-cluster-name: 'Dev-EUS'
+          azure-aks-resource-group: "Dev-EUS"
+          azure-aks-cluster-name: "Dev-EUS"
           need-cd-tools: true
       - name: Setup helmfile
         uses: mamezou-tech/setup-helmfile@v1.1.0
@@ -93,7 +94,7 @@ jobs:
 
   callout:
     runs-on: ubuntu-latest
-    needs: [ build ]
+    needs: [build]
     steps:
       - name: Add summary
         if: needs.build.result == 'success'

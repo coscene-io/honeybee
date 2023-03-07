@@ -123,6 +123,21 @@ function FieldInput({
   path: readonly string[];
 }): JSX.Element {
   const { classes } = useStyles();
+  const { t } = useTranslation("general");
+
+  const settingsLabelsDisplay = (label: string | undefined) => {
+    if (label != undefined) {
+      switch (label) {
+        case "listAll":
+        case "listVisible":
+        case "listInvisible":
+          return t(label);
+        default:
+          return label;
+      }
+    }
+    return "General";
+  };
 
   switch (field.input) {
     case "autocomplete":
@@ -311,7 +326,7 @@ function FieldInput({
           renderValue={(value) => {
             for (const option of field.options) {
               if (option.value === value) {
-                return option.label.trim();
+                return settingsLabelsDisplay(option.label.trim());
               }
             }
             return undefined;
@@ -333,7 +348,7 @@ function FieldInput({
         >
           {field.options.map(({ label, value = UNDEFINED_SENTINEL_VALUE }) => (
             <MenuItem key={value} value={value}>
-              {label}
+              {settingsLabelsDisplay(label)}
             </MenuItem>
           ))}
         </Select>
@@ -513,6 +528,28 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
       case "selectPanelLayout":
       case "learnMore":
       case "studioDescription":
+      case "filterList":
+      case "pointSize":
+      case "pointShape":
+      case "decayTime":
+      case "flatColor":
+      case "minColor":
+      case "maxColor":
+      case "unknownColor":
+      case "invalidColor":
+      case "frameLock":
+      case "covariance":
+      case "covarianceColor":
+      case "gradient":
+      case "scale":
+      case "selectionVariable":
+      case "planarProjectionFactor":
+      case "cameraInfo":
+      case "distance":
+      case "colorBy":
+      case "valueMin":
+      case "valueMax":
+      case "flat":
         return t(field.label);
       default:
         return field.label;

@@ -115,8 +115,8 @@ export class Grids extends SceneExtension<GridRenderable> {
         frameId: { label: "Frame", input: "select", options: frameIdOptions, value: config.frameId }, // options is extended in `settings.ts:buildTopicNode()`
         size: { label: "Size", input: "number", min: 0, step: 0.5, precision: PRECISION_DISTANCE, value: config.size, placeholder: String(DEFAULT_SIZE) },
         divisions: { label: "Divisions", input: "number", min: 1, max: MAX_DIVISIONS, step: 1, precision: 0, value: config.divisions, placeholder: String(DEFAULT_DIVISIONS) },
-        lineWidth: { label: "Line Width", input: "number", min: 0, step: 0.5, precision: 1, value: config.lineWidth, placeholder: String(DEFAULT_LINE_WIDTH) },
-        color: { label: "Color", input: "rgba", value: config.color ?? DEFAULT_COLOR },
+        lineWidth: { label: "lineWidth", input: "number", min: 0, step: 0.5, precision: 1, value: config.lineWidth, placeholder: String(DEFAULT_LINE_WIDTH) },
+        color: { label: "color", input: "rgba", value: config.color ?? DEFAULT_COLOR },
         position: { label: "Position", input: "vec3", labels: ["X", "Y", "Z"], precision: PRECISION_DISTANCE, value: config.position ?? [0, 0, 0] },
         rotation: { label: "Rotation", input: "vec3", labels: ["R", "P", "Y"], precision: PRECISION_DEGREES, value: config.rotation ?? [0, 0, 0] },
       };

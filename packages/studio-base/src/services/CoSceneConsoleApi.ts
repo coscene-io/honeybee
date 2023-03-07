@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Metric } from "@buf/coscene-io_cosceneapis.grpc_web/coscene/dataplatform/v1alpha1/common/metric_pb";
 import {
   GetProjectRequest,
   GetUserRequest,
@@ -24,7 +25,6 @@ import {
   Task,
 } from "@coscene-io/coscene/proto/v1alpha2";
 import { CsWebClient } from "@coscene-io/coscene/queries";
-import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
@@ -131,6 +131,14 @@ type customTopicResponse = {
   start: string;
   end: string;
   metaData: TopicResponse[];
+};
+
+export type getPlaylistResponse = {
+  bagList: {
+    fileName: string;
+    startTime: number;
+    endTime: number;
+  }[];
 };
 
 type CoverageResponse = {
@@ -444,6 +452,16 @@ class CoSceneConsoleApi {
       end: toRFC3339String(timestampToTime(topics.endTime)),
       metaData,
     };
+  }
+
+  public async getPlaylist(
+    params: DataPlatformRequestArgs & { includeSchemas?: boolean; accessToken: string },
+  ): Promise<getPlaylistResponse> {
+    return await this.get<getPlaylistResponse>("/v1/data/getPlaylist", {
+      revisionName: params.revisionName,
+      includeSchemas: params.includeSchemas ?? false ? "true" : "false",
+      access_token: params.accessToken.replace(/(^\s*)|(\s*$)/g, ""),
+    });
   }
 
   public getStreamUrl(revisionName: string, authHeader: string): string {

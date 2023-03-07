@@ -2784,39 +2784,62 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@buf/grpc_web_coscene-io_argo-workflows-apis@npm:1.9.1":
-  version: 1.9.1
-  resolution: "@buf/grpc_web_coscene-io_argo-workflows-apis@npm:1.9.1::__archiveUrl=https%3A%2F%2Fnpm.buf.build%2F%40buf%2Fgrpc_web_coscene-io_argo-workflows-apis%2F1.9.1%2Ftarball"
+"@buf/coscene-io_argo-workflows-apis.grpc_web@npm:1.4.2-20221112072124-2695da33f313.2":
+  version: 1.4.2-20221112072124-2695da33f313.2
+  resolution: "@buf/coscene-io_argo-workflows-apis.grpc_web@npm:1.4.2-20221112072124-2695da33f313.2::__archiveUrl=https%3A%2F%2Fbuf.build%2Fgen%2Fnpm%2Fv1%2F%40buf%2Fcoscene-io_argo-workflows-apis.grpc_web%2F1.4.2-20221112072124-2695da33f313.2%2Ftarball"
   dependencies:
-    "@buf/grpc_web_coscene-io_kubernetes-apis": 1.9.3
-    "@buf/grpc_web_googleapis_googleapis": 1.9.1
+    "@buf/coscene-io_kubernetes-apis.grpc_web": 1.4.2-20221112070216-1e6cdcee3ba3.2
+    "@buf/googleapis_googleapis.grpc_web": 1.4.2-20221025150512-783e4b5374fa.2
   peerDependencies:
-    "@types/google-protobuf": 3.15.6
-    google-protobuf: v3.20.1
-    grpc-web: 1.4.0
-  checksum: a2165892fe895250cebf319c5dbb5fa11acbc7019d7e12fe7b5771ced4ad7480ee9de1585fa23c44d2c48e912d832d9ef64ccbc04ffc766edcd1520f6c9db648
+    google-protobuf: ^3.21.2
+    grpc-web: ^1.4.2
+  checksum: 685805a91287c3c7f727515fc8f2663f072273dffe82dfb1bfdb22f587352bbee366ea828c908de38482be7a1c36baacbe5937a31584cce07e9f56791c59ac07
   languageName: node
   linkType: hard
 
-"@buf/grpc_web_coscene-io_kubernetes-apis@npm:1.9.3":
-  version: 1.9.3
-  resolution: "@buf/grpc_web_coscene-io_kubernetes-apis@npm:1.9.3::__archiveUrl=https%3A%2F%2Fnpm.buf.build%2F%40buf%2Fgrpc_web_coscene-io_kubernetes-apis%2F1.9.3%2Ftarball"
+"@buf/coscene-io_cosceneapis.grpc_web@npm:^1.4.2-20230303091607-a29fa3506315.2":
+  version: 1.4.2-20230303091607-a29fa3506315.2
+  resolution: "@buf/coscene-io_cosceneapis.grpc_web@npm:1.4.2-20230303091607-a29fa3506315.2::__archiveUrl=https%3A%2F%2Fbuf.build%2Fgen%2Fnpm%2Fv1%2F%40buf%2Fcoscene-io_cosceneapis.grpc_web%2F1.4.2-20230303091607-a29fa3506315.2%2Ftarball"
+  dependencies:
+    "@buf/coscene-io_argo-workflows-apis.grpc_web": 1.4.2-20221112072124-2695da33f313.2
+    "@buf/coscene-io_kubernetes-apis.grpc_web": 1.4.2-20221112070216-1e6cdcee3ba3.2
+    "@buf/googleapis_googleapis.grpc_web": 1.4.2-20221025150512-783e4b5374fa.2
   peerDependencies:
-    "@types/google-protobuf": 3.15.6
-    google-protobuf: v3.20.1
-    grpc-web: 1.4.0
-  checksum: 22afd7cc824ac80b78c80b860a42eb9613b0d5bd629abdda169ca608ce51274e3bae16e3a0f1bce72719e7d598601f0f59613f6b036e0c8dd5c45a04737db35e
+    google-protobuf: ^3.21.2
+    grpc-web: ^1.4.2
+  checksum: a25e159f6be5e755a82ba5f47d9300ab6574db64e8fa7def6243110f84f59bc869f3338ae1a81e49bb87c0da16b158f5bdab4f1db8f8f0af35741ea9e8742375
   languageName: node
   linkType: hard
 
-"@buf/grpc_web_googleapis_googleapis@npm:1.9.1":
-  version: 1.9.1
-  resolution: "@buf/grpc_web_googleapis_googleapis@npm:1.9.1::__archiveUrl=https%3A%2F%2Fnpm.buf.build%2F%40buf%2Fgrpc_web_googleapis_googleapis%2F1.9.1%2Ftarball"
+"@buf/coscene-io_kubernetes-apis.grpc_web@npm:1.4.2-20221112070216-1e6cdcee3ba3.2":
+  version: 1.4.2-20221112070216-1e6cdcee3ba3.2
+  resolution: "@buf/coscene-io_kubernetes-apis.grpc_web@npm:1.4.2-20221112070216-1e6cdcee3ba3.2::__archiveUrl=https%3A%2F%2Fbuf.build%2Fgen%2Fnpm%2Fv1%2F%40buf%2Fcoscene-io_kubernetes-apis.grpc_web%2F1.4.2-20221112070216-1e6cdcee3ba3.2%2Ftarball"
+  dependencies:
+    "@buf/googleapis_googleapis.grpc_web": 1.4.2-20221004150447-d1263fe26f8e.2
   peerDependencies:
-    "@types/google-protobuf": 3.15.6
-    google-protobuf: v3.20.1
-    grpc-web: 1.4.0
-  checksum: 45c20964e2303ab419e60565f633399c5f647c2da9135968262a0153dc4f4b7a5cd15c90c4a331b9070c8e8a922a0244d22c338e2b95c2c9ffc33fa9f10044c1
+    google-protobuf: ^3.21.2
+    grpc-web: ^1.4.2
+  checksum: 446fde1ba77120aa05413e7f3383618b248702169e1cf968e479c4f333705586e0d2b10e89d3c79015fb617341e7fec6259cf1495332d91205bc6fe58eed668f
+  languageName: node
+  linkType: hard
+
+"@buf/googleapis_googleapis.grpc_web@npm:1.4.2-20221004150447-d1263fe26f8e.2":
+  version: 1.4.2-20221004150447-d1263fe26f8e.2
+  resolution: "@buf/googleapis_googleapis.grpc_web@npm:1.4.2-20221004150447-d1263fe26f8e.2::__archiveUrl=https%3A%2F%2Fbuf.build%2Fgen%2Fnpm%2Fv1%2F%40buf%2Fgoogleapis_googleapis.grpc_web%2F1.4.2-20221004150447-d1263fe26f8e.2%2Ftarball"
+  peerDependencies:
+    google-protobuf: ^3.21.2
+    grpc-web: ^1.4.2
+  checksum: a8fe860cc0ea6ea4e61a91a6d14a2416bc64f5fdc2f6953df2a38253f0876bb32aafc1a8c2007b819d7b64c6f40d3c458c1ad83aa0b8e076292eaf3350e147e8
+  languageName: node
+  linkType: hard
+
+"@buf/googleapis_googleapis.grpc_web@npm:1.4.2-20221025150512-783e4b5374fa.2":
+  version: 1.4.2-20221025150512-783e4b5374fa.2
+  resolution: "@buf/googleapis_googleapis.grpc_web@npm:1.4.2-20221025150512-783e4b5374fa.2::__archiveUrl=https%3A%2F%2Fbuf.build%2Fgen%2Fnpm%2Fv1%2F%40buf%2Fgoogleapis_googleapis.grpc_web%2F1.4.2-20221025150512-783e4b5374fa.2%2Ftarball"
+  peerDependencies:
+    google-protobuf: ^3.21.2
+    grpc-web: ^1.4.2
+  checksum: 0d3da4dc979d7c6bbeef33862daf8eba47a69a085d35d78ab6b14c69f48a9430cb72a5fe00292ffc80d99733200e97acef7d06edc7f529ea6ba974477b20a554
   languageName: node
   linkType: hard
 
@@ -2839,12 +2862,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/coscene@npm:0.2.77":
-  version: 0.2.77
-  resolution: "@coscene-io/coscene@npm:0.2.77::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.77%2Ffeddd62dcc9d3a1614600a65886e77b304a9ff37"
+"@coscene-io/coscene@npm:0.2.104":
+  version: 0.2.104
+  resolution: "@coscene-io/coscene@npm:0.2.104::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.2.104%2F0b8b36b8549f08eb65df4672d26ff397b9eba958"
   dependencies:
-    "@coscene-io/cosceneapis": ^0.0.156
-    "@coscene-io/semantic-lib": ^0.0.100
+    "@buf/coscene-io_cosceneapis.grpc_web": ^1.4.2-20230303091607-a29fa3506315.2
+    "@coscene-io/semantic-lib": ^23.10.3
     ahooks: ^3.7.0
     antd: ^4.22.3
     axios: ^0.27.1
@@ -2856,29 +2879,14 @@ __metadata:
     react-query: ^3.39.2
     react-router-dom: ^6.3.0
     recoil: ^0.7.4
-  checksum: ae140bd6f2f538ba852d77f8b56a9c98309417d8bc07d6a8a5d16a684cc301bf440ca1ce5c41266a94ad0fbc8edfd1a3dc969e99f11bfc7424a84a4ef7163efd
+  checksum: 1c26c87c6733d3c45b24da6d3f9b904bdc3c44bf51b7321ca435c76c306f80f08b14f64f1848e6affdf3d1c5315458bc4a3a7a0dd8e638940e9ec45ac7c2816a
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis@npm:^0.0.156":
-  version: 0.0.156
-  resolution: "@coscene-io/cosceneapis@npm:0.0.156::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.156%2F171015af4a27224b5b30c2db32aab20e45388383"
-  dependencies:
-    "@buf/grpc_web_coscene-io_argo-workflows-apis": 1.9.1
-    "@buf/grpc_web_coscene-io_kubernetes-apis": 1.9.3
-    "@buf/grpc_web_googleapis_googleapis": 1.9.1
-  peerDependencies:
-    "@types/google-protobuf": 3.15.6
-    google-protobuf: 3.20.1
-    grpc-web: 1.4.0
-  checksum: 2c8510dbae154c35e9cce2bcf77f8682beb8a8b46ba23bfd70ee98ef6b26477b07fa8fafeaa16ce43a51cfc75235941b1cc2ceada4a5200a08069413af75b759
-  languageName: node
-  linkType: hard
-
-"@coscene-io/semantic-lib@npm:^0.0.100":
-  version: 0.0.100
-  resolution: "@coscene-io/semantic-lib@npm:0.0.100::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fsemantic-lib%2F0.0.100%2F0cbcc108e9eaf8f4ac2397a218abb4bdb8c1c465"
-  checksum: 046dbef254a683365ffae6a81df8e9bc1b64e1f60a639084d7081f708e7710bd846e3696bc22903675dff4c74483fd001f4cdbf35073f2feaf6315254b2bd52b
+"@coscene-io/semantic-lib@npm:^23.10.3":
+  version: 23.10.3
+  resolution: "@coscene-io/semantic-lib@npm:23.10.3::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fsemantic-lib%2F23.10.3%2F011afb8144a79148d9e6fe22be6b83dcd57e317d"
+  checksum: cd01ef594ceb8eafd8e6a858d95f7fa3feae7e46b8460373969ad89a644f3c2d26b832e56d38ac8ca264a95398dd64ac960f14f9b16ea957eb41bd2da2bfe710
   languageName: node
   linkType: hard
 
@@ -3663,7 +3671,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@foxglove/studio-base@workspace:packages/studio-base"
   dependencies:
-    "@coscene-io/coscene": 0.2.77
+    "@coscene-io/coscene": 0.2.104
     "@emotion/cache": 11.10.5
     "@emotion/react": 11.10.5
     "@emotion/styled": 11.10.6

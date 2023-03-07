@@ -9,6 +9,7 @@ import ReactDOM from "react-dom";
 
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
 import __browserLogger from "@foxglove/studio-base/util/browserLogger";
 
@@ -32,10 +33,10 @@ window.onerror = (...args) => {
   console.error(...args);
 };
 
-if (typeof process.env.SENTRY_DSN === "string") {
+if (APP_CONFIG.VITE_APP_PROJECT_ENV !== "local") {
   log.info("initializing Sentry");
   Sentry.init({
-    dsn: process.env.SENTRY_DSN,
+    dsn: APP_CONFIG.SENTRY_HONEYBEE_DSN,
     autoSessionTracking: true,
     // Remove the default breadbrumbs integration - it does not accurately track breadcrumbs and
     // creates more noise than benefit.
@@ -48,7 +49,11 @@ if (typeof process.env.SENTRY_DSN === "string") {
           }),
         ]);
     },
-    tracesSampleRate: 0.05,
+    environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
+
+    // We recommend adjusting this value in production, or using tracesSampler
+    // for finer control
+    tracesSampleRate: 1.0,
   });
 }
 
