@@ -361,14 +361,6 @@ function DraggablePanelItem({
     [onClick],
   );
 
-  const onClickWithStopPropagation = useCallback(
-    (event: React.MouseEvent) => {
-      event.stopPropagation();
-      onClick();
-    },
-    [onClick],
-  );
-
   switch (mode) {
     case "grid":
       return (

@@ -5,6 +5,8 @@
 import Brightness5Icon from "@mui/icons-material/Brightness5";
 import ComputerIcon from "@mui/icons-material/Computer";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
+import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlined";
+import WebIcon from "@mui/icons-material/Web";
 import {
   Autocomplete,
   Checkbox,
@@ -35,6 +37,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Language } from "@foxglove/studio-base/i18n";
+import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
@@ -235,6 +238,48 @@ export function TimeFormat({
   );
 }
 
+export function LaunchDefault(): React.ReactElement {
+  const { classes } = useStyles();
+  const { t } = useTranslation("preferences");
+  const [preference, setPreference] = useAppConfigurationValue<string | undefined>(
+    AppSetting.LAUNCH_PREFERENCE,
+  );
+  let sanitizedPreference: LaunchPreferenceValue;
+  switch (preference) {
+    case LaunchPreferenceValue.WEB:
+    case LaunchPreferenceValue.DESKTOP:
+    case LaunchPreferenceValue.ASK:
+      sanitizedPreference = preference;
+      break;
+    default:
+      sanitizedPreference = LaunchPreferenceValue.WEB;
+  }
+
+  return (
+    <Stack>
+      <FormLabel>{t("openLinksIn")}:</FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={sanitizedPreference}
+        onChange={(_, value?: string) => value != undefined && void setPreference(value)}
+      >
+        <ToggleButton value={LaunchPreferenceValue.WEB} className={classes.toggleButton}>
+          <WebIcon /> {t("webApp")}
+        </ToggleButton>
+        <ToggleButton value={LaunchPreferenceValue.DESKTOP} className={classes.toggleButton}>
+          <ComputerIcon /> {t("desktopApp")}
+        </ToggleButton>
+        <ToggleButton value={LaunchPreferenceValue.ASK} className={classes.toggleButton}>
+          <QuestionAnswerOutlinedIcon /> {t("askEachTime")}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}
+
 export function MessageFramerate(): React.ReactElement {
   const { t } = useTranslation("preferences");
   const [messageRate, setMessageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
@@ -285,6 +330,27 @@ export function AutoUpdate(): React.ReactElement {
         label="Automatically install updates"
       />
     </>
+  );
+}
+
+export function RosPackagePath(): React.ReactElement {
+  const [rosPackagePath, setRosPackagePath] = useAppConfigurationValue<string>(
+    AppSetting.ROS_PACKAGE_PATH,
+  );
+
+  const rosPackagePathPlaceholder = useMemo(
+    () => OsContextSingleton?.getEnvVar("ROS_PACKAGE_PATH"),
+    [],
+  );
+
+  return (
+    <TextField
+      fullWidth
+      label="ROS_PACKAGE_PATH"
+      placeholder={rosPackagePathPlaceholder}
+      value={rosPackagePath ?? ""}
+      onChange={(event) => void setRosPackagePath(event.target.value)}
+    />
   );
 }
 
@@ -366,15 +432,6 @@ export default function Preferences(): React.ReactElement {
                 <AutoUpdate />
               </div>
             )}
-          </Stack>
-        </section>
-
-        <section>
-          <Typography component="h2" variant="h5" gutterBottom color="primary">
-            {t("experimentalFeatures")}
-          </Typography>
-          <Stack gap={1}>
-            <Typography color="text.secondary">{t("experimentalFeaturesDescription")}</Typography>
           </Stack>
         </section>
       </Stack>

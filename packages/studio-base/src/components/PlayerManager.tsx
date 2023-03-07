@@ -143,6 +143,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
       // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {
         const newPlayer = foundSource.initialize({
+          consoleApi,
           metricsCollector,
         });
 
@@ -180,6 +181,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
         switch (args.type) {
           case "connection": {
             const newPlayer = foundSource.initialize({
+              consoleApi,
               metricsCollector,
               params: args.params,
             });
@@ -277,6 +279,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
       playerSources,
       metricsCollector,
       enqueueSnackbar,
+      consoleApi,
       layoutStorage,
       isMounted,
       setSelectedLayoutId,

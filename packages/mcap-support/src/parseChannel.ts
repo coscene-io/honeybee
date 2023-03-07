@@ -11,7 +11,7 @@ import { MessageReader as ROS2MessageReader } from "@foxglove/rosmsg2-serializat
 
 import { parseFlatbufferSchema } from "./parseFlatbufferSchema";
 import { parseJsonSchema } from "./parseJsonSchema";
-import { protobufDefinitionsToDatatypes } from "./protobufDefinitionsToDatatypes";
+import { protobufDefinitionsToDatatypes, stripLeadingDot } from "./protobufDefinitionsToDatatypes";
 import { RosDatatypes } from "./types";
 
 type Channel = {
