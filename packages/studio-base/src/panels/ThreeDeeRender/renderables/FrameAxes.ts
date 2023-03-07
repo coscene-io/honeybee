@@ -201,7 +201,10 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
       {
         path: ["transforms"],
         node: {
-          label: `Transforms${frameCount > 0 ? ` (${frameCount})` : ""}`,
+          label: {
+            key: 'transforms',
+            params: frameCount > 0 ? ` (${frameCount})` : " "
+          },
           actions: [
             { id: "show-all", type: "action", label: "Show All" },
             { id: "hide-all", type: "action", label: "Hide All" },
