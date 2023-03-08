@@ -16,6 +16,7 @@ import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/Ti
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import Workspace from "./Workspace";
+import { CustomWindowControlsProps } from "./components/AppBar/CustomWindowControls";
 import { ColorSchemeThemeProvider } from "./components/ColorSchemeThemeProvider";
 import CssBaseline from "./components/CssBaseline";
 import DocumentTitleAdapter from "./components/DocumentTitleAdapter";
@@ -30,17 +31,12 @@ import { AssetsProvider } from "./context/AssetsContext";
 import { IDataSourceFactory } from "./context/CoScenePlayerSelectionContext";
 import ConsoleApiContext from "./context/ConsoleApiContext";
 import LayoutStorageContext from "./context/LayoutStorageContext";
-import ModalHost from "./context/ModalHost";
 import NativeAppMenuContext, { INativeAppMenu } from "./context/NativeAppMenuContext";
 import NativeWindowContext, { INativeWindow } from "./context/NativeWindowContext";
 import { UserNodeStateProvider } from "./context/UserNodeStateContext";
-import { ConsoleApiCookieCurrentUserProvider } from "./providers/ConsoleApiCookieUserProvider";
-import { ConsoleApiDialogCurrentUserProvider } from "./providers/ConsoleApiDialogCurrentUserProvider";
-import ConsoleApiRemoteLayoutStorageProvider from "./providers/ConsoleApiRemoteLayoutStorageProvider";
 import CurrentLayoutProvider from "./providers/CurrentLayoutProvider";
 import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
 import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
-import HelpInfoProvider from "./providers/HelpInfoProvider";
 import LayoutManagerProvider from "./providers/LayoutManagerProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
 import UserProfileLocalStorageProvider from "./providers/UserProfileLocalStorageProvider";
@@ -49,26 +45,26 @@ import ConsoleApi from "./services/CoSceneConsoleApi";
 import { ExtensionLoader } from "./services/ExtensionLoader";
 import { ILayoutStorage } from "./services/ILayoutStorage";
 import URDFAssetLoader from "./services/URDFAssetLoader";
-import "./util/i18n";
 
 CsWebClient.init({
   hostname: APP_CONFIG.VITE_APP_BASE_API_URL,
   port: APP_CONFIG.VITE_APP_BASE_API_PORT,
 });
 
-type AppProps = {
+type AppProps = CustomWindowControlsProps & {
   deepLinks: string[];
   appConfiguration: IAppConfiguration;
   dataSources: IDataSourceFactory[];
-  consoleApi: ConsoleApi;
   layoutStorage: ILayoutStorage;
   extensionLoaders: readonly ExtensionLoader[];
   nativeAppMenu?: INativeAppMenu;
   nativeWindow?: INativeWindow;
-  disableSignin?: boolean;
-  enableDialogAuth?: boolean;
   enableLaunchPreferenceScreen?: boolean;
   enableGlobalCss?: boolean;
+  appBarLeftInset?: number;
+  extraProviders?: JSX.Element[];
+  onAppBarDoubleClick?: () => void;
+  consoleApi: ConsoleApi;
 };
 
 // Suppress context menu for the entire app except on inputs & textareas.
@@ -88,36 +84,26 @@ export function App(props: AppProps): JSX.Element {
     appConfiguration,
     dataSources,
     layoutStorage,
-    consoleApi,
-    disableSignin,
     extensionLoaders,
     nativeAppMenu,
     nativeWindow,
-    enableDialogAuth,
     deepLinks,
     enableLaunchPreferenceScreen,
     enableGlobalCss = false,
+    extraProviders,
+    consoleApi,
   } = props;
-
-  const CurrentUserProviderComponent =
-    enableDialogAuth === true
-      ? ConsoleApiDialogCurrentUserProvider
-      : ConsoleApiCookieCurrentUserProvider;
 
   const providers = [
     /* eslint-disable react/jsx-key */
     <StudioLogsSettingsProvider />,
     <ConsoleApiContext.Provider value={consoleApi} />,
-    <CurrentUserProviderComponent />,
-    <ConsoleApiRemoteLayoutStorageProvider />,
     <StudioToastProvider />,
     <LayoutStorageContext.Provider value={layoutStorage} />,
     <UserProfileLocalStorageProvider />,
     <AnalyticsProvider amplitudeApiKey={process.env.AMPLITUDE_API_KEY} />,
     <LayoutManagerProvider />,
-    <ModalHost />, // render modal elements inside the ThemeProvider
     <AssetsProvider loaders={assetLoaders} />,
-    <HelpInfoProvider />,
     <TimelineInteractionStateProvider />,
     <UserNodeStateProvider />,
     <CurrentLayoutProvider />,
@@ -136,6 +122,10 @@ export function App(props: AppProps): JSX.Element {
 
   if (nativeWindow) {
     providers.push(<NativeWindowContext.Provider value={nativeWindow} />);
+  }
+
+  if (extraProviders) {
+    providers.unshift(...extraProviders);
   }
 
   const MaybeLaunchPreference = enableLaunchPreferenceScreen === true ? LaunchPreference : Fragment;
@@ -158,7 +148,17 @@ export function App(props: AppProps): JSX.Element {
                 <DndProvider backend={HTML5Backend}>
                   <Suspense fallback={<></>}>
                     <PanelCatalogProvider>
-                      <Workspace deepLinks={deepLinks} disableSignin={disableSignin} />
+                      <Workspace
+                        deepLinks={deepLinks}
+                        appBarLeftInset={props.appBarLeftInset}
+                        onAppBarDoubleClick={props.onAppBarDoubleClick}
+                        showCustomWindowControls={props.showCustomWindowControls}
+                        isMaximized={props.isMaximized}
+                        onMinimizeWindow={props.onMinimizeWindow}
+                        onMaximizeWindow={props.onMaximizeWindow}
+                        onUnmaximizeWindow={props.onUnmaximizeWindow}
+                        onCloseWindow={props.onCloseWindow}
+                      />
                     </PanelCatalogProvider>
                   </Suspense>
                 </DndProvider>

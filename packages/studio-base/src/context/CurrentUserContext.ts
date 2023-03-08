@@ -10,14 +10,12 @@ export type User = ConsoleUser;
 
 export interface CurrentUser {
   currentUser: User | undefined;
-  signIn: () => void;
-  signOut: () => Promise<void>;
+  signIn?: () => void;
+  signOut?: () => Promise<void>;
 }
 
 const CurrentUserContext = createContext<CurrentUser>({
   currentUser: undefined,
-  signIn: () => {},
-  signOut: async () => {},
 });
 CurrentUserContext.displayName = "CurrentUserContext";
 
@@ -25,4 +23,28 @@ export function useCurrentUser(): CurrentUser {
   return useContext(CurrentUserContext);
 }
 
+export type UserType =
+  | "unauthenticated"
+  | "authenticated-free"
+  | "authenticated-team"
+  | "authenticated-enterprise";
+
+export function useCurrentUserType(): UserType {
+  const user = useCurrentUser();
+  if (user.currentUser == undefined) {
+    return "unauthenticated";
+  }
+
+  if (user.currentUser.org.isEnterprise) {
+    return "authenticated-enterprise";
+  }
+
+  if (user.currentUser.orgPaid === true) {
+    return "authenticated-team";
+  }
+
+  return "authenticated-free";
+}
+
+// ts-prune-ignore-next
 export default CurrentUserContext;

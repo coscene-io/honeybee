@@ -9,7 +9,7 @@ import { useUnmount } from "react-use";
 
 import { useConfigById } from "@foxglove/studio-base/PanelAPI";
 import { ActionMenu } from "@foxglove/studio-base/components/PanelSettings/ActionMenu";
-import SettingsEditor from "@foxglove/studio-base/components/SettingsTreeEditor";
+import SettingsTreeEditor from "@foxglove/studio-base/components/SettingsTreeEditor";
 import ShareJsonModal from "@foxglove/studio-base/components/ShareJsonModal";
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -216,7 +216,7 @@ export default function PanelSettings({
       {shareModal}
       <Stack gap={2} justifyContent="flex-start">
         <div>
-          {settingsTree && <SettingsEditor key={selectedPanelId} settings={settingsTree} />}
+          {settingsTree && <SettingsTreeEditor key={selectedPanelId} settings={settingsTree} />}
           {!settingsTree && (
             <Typography color="text.secondary">
               {t("noSettingAvailable", { ns: "panelSetting" })}

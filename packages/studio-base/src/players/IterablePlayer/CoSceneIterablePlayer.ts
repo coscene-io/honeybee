@@ -135,7 +135,7 @@ export class CoSceneIterablePlayer implements Player {
   private _metricsCollector: CoScenePlayerMetricsCollectorInterface;
   private _subscriptions: SubscribePayload[] = [];
   private _allTopics: Set<string> = new Set();
-  private _partialTopics: Set<string> = new Set();
+  private _preloadTopics: Set<string> = new Set();
 
   private _progress: Progress = {};
   private _id: string = uuidv4();
@@ -250,8 +250,7 @@ export class CoSceneIterablePlayer implements Player {
   }
 
   public seekPlayback(time: Time): void {
-    // Seeking before initialization is complete is a no-op since we do not
-    // yet know the time range of the source
+    // Wait to perform seek until initialization is complete
     if (this._state === "preinit" || this._state === "initialize") {
       return;
     }
@@ -261,18 +260,19 @@ export class CoSceneIterablePlayer implements Player {
 
     // We are already seeking to this time, no need to reset seeking
     if (this._seekTarget && compare(this._seekTarget, targetTime) === 0) {
+      log.debug(`Ignoring seek, already seeking to this time`);
       return;
     }
 
     // We are already at this time, no need to reset seeking
     if (this._currentTime && compare(this._currentTime, targetTime) === 0) {
+      log.debug(`Ignoring seek, already at this time`);
       return;
     }
 
     this._seekTarget = targetTime;
     this._untilTime = undefined;
 
-    this._blockLoader?.setActiveTime(targetTime);
     this._setState("seek-backfill");
   }
 
@@ -281,27 +281,27 @@ export class CoSceneIterablePlayer implements Player {
     this._subscriptions = newSubscriptions;
 
     const allTopics = new Set(this._subscriptions.map((subscription) => subscription.topic));
-    const partialTopics = new Set(
+    const preloadTopics = new Set(
       filterMap(this._subscriptions, (sub) =>
         sub.preloadType !== "partial" ? sub.topic : undefined,
       ),
     );
 
     // If there are no changes to topics there's no reason to perform a "seek" to trigger loading
-    if (isEqual(allTopics, this._allTopics) && isEqual(partialTopics, this._partialTopics)) {
+    if (isEqual(allTopics, this._allTopics) && isEqual(preloadTopics, this._preloadTopics)) {
       return;
     }
 
     this._allTopics = allTopics;
-    this._partialTopics = partialTopics;
-    this._blockLoader?.setTopics(this._partialTopics);
+    this._preloadTopics = preloadTopics;
+    this._blockLoader?.setTopics(this._preloadTopics);
 
     // If the player is playing, the playing state will detect any subscription changes and adjust
     // iterators accordignly. However if we are idle or already seeking then we need to manually
     // trigger the backfill.
     if (this._state === "idle" || this._state === "seek-backfill" || this._state === "play") {
       if (!this._isPlaying && this._currentTime) {
-        this._seekTarget = this._currentTime;
+        this._seekTarget ??= this._currentTime;
         this._untilTime = undefined;
 
         // Trigger a seek backfill to load any missing messages and reset the forward iterator
@@ -439,7 +439,8 @@ export class CoSceneIterablePlayer implements Player {
       } = await this._bufferedSource.initialize();
 
       this._profile = profile;
-      this._start = this._currentTime = start;
+      this._start = start;
+      this._currentTime = this._seekTarget ?? start;
       this._end = end;
       this._publishedTopics = publishersByTopic;
       this._providerDatatypes = datatypes;
@@ -509,8 +510,7 @@ export class CoSceneIterablePlayer implements Player {
       // playback.
       await delay(START_DELAY_MS);
 
-      this._blockLoader?.setActiveTime(this._start);
-      this._blockLoader?.setTopics(this._partialTopics);
+      this._blockLoader?.setTopics(this._preloadTopics);
 
       // Block loadings is constantly running and tries to keep the preloaded messages in memory
       this._blockLoadingProcess = this.startBlockLoading();
@@ -713,9 +713,6 @@ export class CoSceneIterablePlayer implements Player {
     this._messages = [];
 
     const currentTime = this._currentTime ?? this._start;
-
-    // Notify the block loader about the current time so it tries to keep current time loaded
-    this._blockLoader?.setActiveTime(currentTime);
 
     const data: PlayerState = {
       name: this._name,
@@ -992,6 +989,7 @@ export class CoSceneIterablePlayer implements Player {
     await this._blockLoader?.stopLoading();
     await this._blockLoadingProcess;
     await this._bufferedSource.stopProducer();
+    await this._bufferedSource.terminate();
     await this._playbackIterator?.return?.();
     this._playbackIterator = undefined;
     await this._iterableSource.terminate?.();

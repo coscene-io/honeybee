@@ -41,9 +41,9 @@ import {
 } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutGaussian";
 import { keenonDefaultLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutKeenon";
 import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
-import { LayoutID } from "@foxglove/studio-base/services/ConsoleApi";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/ILayoutManager";
+import { LayoutID } from "@foxglove/studio-base/services/ILayoutStorage";
 import { PanelConfig, UserNodes, PlaybackConfig } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
@@ -164,7 +164,7 @@ export default function CurrentLayoutProvider({
 
   // When the user performs an action, we immediately setLayoutState to update the UI. Saving back
   // to the LayoutManager is debounced.
-  const debouncedSaveTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const debouncedSaveTimeout = useRef<ReturnType<typeof setTimeout> | undefined>();
   const performAction = useCallback(
     (action: PanelsActions) => {
       if (
@@ -236,7 +236,12 @@ export default function CurrentLayoutProvider({
       }
     };
     layoutManager.on("change", listener);
-    return () => layoutManager.off("change", listener);
+    return () => {
+      layoutManager.off("change", listener);
+      if (debouncedSaveTimeout.current) {
+        clearTimeout(debouncedSaveTimeout.current);
+      }
+    };
   }, [layoutManager, setLayoutState]);
 
   // Make sure our layout still exists after changes. If not deselect it.

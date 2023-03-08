@@ -13,15 +13,7 @@
 import { Link, Typography } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { extname } from "path";
-import {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-  useLayoutEffect,
-  useContext,
-} from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { usePrevious } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -29,8 +21,10 @@ import { makeStyles } from "tss-react/mui";
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import AccountSettings from "@foxglove/studio-base/components/AccountSettingsSidebar/AccountSettings";
+import { AppBar } from "@foxglove/studio-base/components/AppBar";
+import { CustomWindowControlsProps } from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
 import { DataSourceSidebar } from "@foxglove/studio-base/components/DataSourceSidebar";
-import { MESSAGE_PATH_SYNTAX_HELP_INFO } from "@foxglove/studio-base/components/HelpSidebar";
+import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import LayoutBrowser from "@foxglove/studio-base/components/LayoutBrowser";
 import {
@@ -46,25 +40,26 @@ import PanelSettings from "@foxglove/studio-base/components/PanelSettings";
 import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls";
 import Preferences from "@foxglove/studio-base/components/Preferences";
 import RemountOnValueChange from "@foxglove/studio-base/components/RemountOnValueChange";
-import Sidebar, { SidebarItem } from "@foxglove/studio-base/components/Sidebar";
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
+import Sidebars, { SidebarItem } from "@foxglove/studio-base/components/Sidebars";
+import { NewSidebarItem } from "@foxglove/studio-base/components/Sidebars/NewSidebar";
 import { SignInFormModal } from "@foxglove/studio-base/components/SignInFormModal";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { StudioLogsSettingsSidebar } from "@foxglove/studio-base/components/StudioLogsSettingsSidebar";
 import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
+import VariablesList from "@foxglove/studio-base/components/VariablesList";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAssets } from "@foxglove/studio-base/context/AssetsContext";
 import {
   IDataSourceFactory,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
-import LinkHandlerContext from "@foxglove/studio-base/context/LinkHandlerContext";
 import { useNativeAppMenu } from "@foxglove/studio-base/context/NativeAppMenuContext";
 import { useWorkspace, WorkspaceContext } from "@foxglove/studio-base/context/WorkspaceContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
@@ -75,8 +70,8 @@ import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFiles
 import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useInitialDeepLinkState";
 import useNativeAppMenuEvent from "@foxglove/studio-base/hooks/useNativeAppMenuEvent";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { HelpInfoStore, useHelpInfo } from "@foxglove/studio-base/providers/HelpInfoProvider";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const log = Logger.getLogger(__filename);
 
@@ -104,6 +99,8 @@ type SidebarItemKey =
   | "preferences"
   | "help"
   | "studio-logs-settings";
+
+type RightSidebarItemKey = "variables" | "events";
 
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
@@ -141,9 +138,10 @@ function AddPanel() {
   );
 }
 
-type WorkspaceProps = {
+type WorkspaceProps = CustomWindowControlsProps & {
   deepLinks?: string[];
-  disableSignin?: boolean;
+  appBarLeftInset?: number;
+  onAppBarDoubleClick?: () => void;
 };
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
@@ -157,8 +155,8 @@ const selectPlay = (ctx: MessagePipelineContext) => ctx.startPlayback;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectPlayUntil = (ctx: MessagePipelineContext) => ctx.playUntil;
 const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
-
-const selectSetHelpInfo = (store: HelpInfoStore) => store.setHelpInfo;
+const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
+  playerState.urlState?.sourceId;
 
 export default function Workspace(props: WorkspaceProps): JSX.Element {
   const { classes } = useStyles();
@@ -168,16 +166,15 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems);
 
-  const supportsAccountSettings =
-    useContext(ConsoleApiContext) != undefined && props.disableSignin !== true;
-
   // We use playerId to detect when a player changes for RemountOnValueChange below
   // see comment below above the RemountOnValueChange component
   const playerId = useMessagePipeline(selectPlayerId);
+  const playerSourceId = useMessagePipeline(selectPlayerSourceId);
 
   const isPlayerPresent = playerPresence !== PlayerPresence.NOT_PRESENT;
 
-  const { currentUser } = useCurrentUser();
+  const { currentUser, signIn } = useCurrentUser();
+  const supportsAccountSettings = signIn != undefined;
 
   const { currentUserRequired } = useInitialDeepLinkState(props.deepLinks ?? DEFAULT_DEEPLINKS);
 
@@ -186,10 +183,17 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   const [showOpenDialogOnStartup = true] = useAppConfigurationValue<boolean>(
     AppSetting.SHOW_OPEN_DIALOG_ON_STARTUP,
   );
-
   const [enableStudioLogsSidebar = false] = useAppConfigurationValue<boolean>(
     AppSetting.SHOW_DEBUG_PANELS,
   );
+  // Since we can't toggle the title bar on an electron window, keep the setting at its initial
+  // value until the app is reloaded/relaunched.
+  const [currentEnableNewTopNav = false] = useAppConfigurationValue<boolean>(
+    AppSetting.ENABLE_NEW_TOPNAV,
+  );
+
+  const [initialEnableNewTopNav] = useState(currentEnableNewTopNav);
+  const enableNewTopNav = isDesktopApp() ? initialEnableNewTopNav : currentEnableNewTopNav;
 
   const showSignInForm = currentUserRequired && currentUser == undefined;
 
@@ -201,6 +205,10 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     "connection",
   );
   const prevSelectedSidebarItem = usePrevious(selectedSidebarItem);
+
+  const [selectedRightSidebarItem, setSelectedRightSidebarItem] = useState<
+    RightSidebarItemKey | undefined
+  >(undefined);
 
   // When a player is present we hide the connection sidebar. To prevent hiding the connection sidebar
   // when the user wants to select a new connection we track whether the sidebar item opened
@@ -220,19 +228,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
       setShowOpenDialog(undefined);
     }
   }, [playerPresence]);
-
-  const setHelpInfo = useHelpInfo(selectSetHelpInfo);
-
-  const handleInternalLink = useCallback(
-    (event: React.MouseEvent, href: string) => {
-      if (href === "#help:message-path-syntax") {
-        event.preventDefault();
-        setSelectedSidebarItem("help");
-        setHelpInfo(MESSAGE_PATH_SYNTAX_HELP_INFO);
-      }
-    },
-    [setHelpInfo],
-  );
 
   useEffect(() => {
     // Focus on page load to enable keyboard interaction.
@@ -288,8 +283,10 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   useNativeAppMenuEvent(
     "open-preferences",
     useCallback(() => {
-      setSelectedSidebarItem("preferences");
-    }, []),
+      if (!enableNewTopNav) {
+        setSelectedSidebarItem("preferences");
+      }
+    }, [enableNewTopNav]),
   );
 
   useNativeAppMenuEvent(
@@ -340,6 +337,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   const { enqueueSnackbar } = useSnackbar();
 
   const { loadFromFile } = useAssets();
+  const analytics = useAnalytics();
 
   const installExtension = useExtensionCatalog((state) => state.installExtension);
 
@@ -367,7 +365,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
           }
         } else {
           try {
-            if (!(await loadFromFile(file, { basePath }))) {
+            if (!(await loadFromFile(file, { basePath, analytics, source: "local_file" }))) {
               otherFiles.push(file);
             }
           } catch (err) {
@@ -393,7 +391,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
         }
       }
     },
-    [availableSources, enqueueSnackbar, installExtension, loadFromFile, selectSource],
+    [analytics, availableSources, enqueueSnackbar, installExtension, loadFromFile, selectSource],
   );
 
   // files the main thread told us to open
@@ -404,15 +402,19 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     }
   }, [filesToOpen, openFiles]);
 
-  const workspaceActions = useMemo(
+  const workspaceContextValue = useMemo(
     () => ({
       panelSettingsOpen: selectedSidebarItem === "panel-settings",
       openPanelSettings: () => setSelectedSidebarItem("panel-settings"),
       openHelp: () => setSelectedSidebarItem("help"),
       openAccountSettings: () => supportsAccountSettings && setSelectedSidebarItem("account"),
       openLayoutBrowser: () => setSelectedSidebarItem("layouts"),
+      rightSidebarOpen: selectedRightSidebarItem != undefined,
+      // eslint-disable-next-line @foxglove/no-boolean-parameters
+      setRightSidebarOpen: (open: boolean) =>
+        setSelectedRightSidebarItem(open ? "variables" : undefined),
     }),
-    [selectedSidebarItem, supportsAccountSettings],
+    [selectedSidebarItem, selectedRightSidebarItem, supportsAccountSettings],
   );
 
   // Since the _component_ field of a sidebar item entry is a component and accepts no additional
@@ -420,9 +422,16 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   // open the data source dialog.
   const DataSourceSidebarItem = useMemo(() => {
     return function DataSourceSidebarItemImpl() {
-      return <DataSourceSidebar />;
+      return (
+        <DataSourceSidebar onSelectDataSourceAction={() => setShowOpenDialog({ view: "start" })} />
+      );
     };
   }, []);
+
+  const ConnectedLayoutBrowser = useCallback(
+    () => <LayoutBrowser supportsSignIn={supportsAccountSettings} />,
+    [supportsAccountSettings],
+  );
 
   const [sidebarItems, sidebarBottomItems] = useMemo(() => {
     const topItems = new Map<SidebarItemKey, SidebarItem>([
@@ -438,14 +447,32 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
               : undefined,
         },
       ],
-      ["layouts", { iconName: "FiveTileGrid", title: t("layouts"), component: LayoutBrowser }],
-      ["add-panel", { iconName: "RectangularClipping", title: t("addPanel"), component: AddPanel }],
-      [
-        "panel-settings",
-        { iconName: "PanelSettings", title: t("panelSettings"), component: PanelSettings },
-      ],
     ]);
 
+    if (!enableNewTopNav) {
+      topItems.set("layouts", {
+        iconName: "FiveTileGrid",
+        title: t("layouts"),
+        component: ConnectedLayoutBrowser,
+      });
+      topItems.set("add-panel", {
+        iconName: "RectangularClipping",
+        title: t("addPanel"),
+        component: AddPanel,
+      });
+    }
+    topItems.set("panel-settings", {
+      iconName: "PanelSettings",
+      title: t("panelSettings"),
+      component: PanelSettings,
+    });
+    if (!enableNewTopNav) {
+      topItems.set("variables", {
+        iconName: "Variable2",
+        title: "Variables",
+        component: VariablesList,
+      });
+    }
     if (enableStudioLogsSidebar) {
       topItems.set("studio-logs-settings", {
         iconName: "BacklogList",
@@ -469,11 +496,19 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
       ],
     ]);
 
-    if (supportsAccountSettings) {
-      bottomItems.set("account", {
-        iconName: currentUser != undefined ? "BlockheadFilled" : "Blockhead",
-        title: currentUser != undefined ? `${t("signInAs")} ${currentUser.email}` : t("account"),
-        component: AccountSettings,
+    if (!enableNewTopNav) {
+      if (supportsAccountSettings) {
+        bottomItems.set("account", {
+          iconName: currentUser != undefined ? "BlockheadFilled" : "Blockhead",
+          title: currentUser != undefined ? `${t("signInAs")} ${currentUser.email}` : t("account"),
+          component: AccountSettings,
+        });
+      }
+
+      bottomItems.set("preferences", {
+        iconName: "Settings",
+        title: "Preferences",
+        component: Preferences,
       });
     }
 
@@ -487,12 +522,25 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   }, [
     DataSourceSidebarItem,
     playerProblems,
+    ConnectedLayoutBrowser,
     enableStudioLogsSidebar,
     t,
     supportsAccountSettings,
     prevSelectedSidebarItem,
     currentUser,
+    enableNewTopNav,
   ]);
+
+  const showEventsTab = currentUser != undefined && playerSourceId === "foxglove-data-platform";
+  const rightSidebarItems = useMemo(() => {
+    const items = new Map<RightSidebarItemKey, NewSidebarItem>([
+      ["variables", { title: "Variables", component: VariablesList }],
+    ]);
+    if (showEventsTab) {
+      items.set("events", { title: "Events", component: EventsList });
+    }
+    return items;
+  }, [showEventsTab]);
 
   const keyDownHandlers = useMemo(
     () => ({
@@ -527,8 +575,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     <MultiProvider
       providers={[
         /* eslint-disable react/jsx-key */
-        <LinkHandlerContext.Provider value={handleInternalLink} />,
-        <WorkspaceContext.Provider value={workspaceActions} />,
+        <WorkspaceContext.Provider value={workspaceContextValue} />,
         <PanelStateContextProvider />,
         /* eslint-enable react/jsx-key */
       ]}
@@ -544,31 +591,49 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
       <SyncAdapters />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
-        <Sidebar
+        {enableNewTopNav && (
+          <AppBar
+            currentUser={currentUser}
+            signIn={signIn}
+            leftInset={props.appBarLeftInset}
+            onDoubleClick={props.onAppBarDoubleClick}
+            showCustomWindowControls={props.showCustomWindowControls}
+            isMaximized={props.isMaximized}
+            onMinimizeWindow={props.onMinimizeWindow}
+            onMaximizeWindow={props.onMaximizeWindow}
+            onUnmaximizeWindow={props.onUnmaximizeWindow}
+            onCloseWindow={props.onCloseWindow}
+            onSelectDataSourceAction={() => setShowOpenDialog({ view: "start" })}
+          />
+        )}
+        <Sidebars
           items={sidebarItems}
           bottomItems={sidebarBottomItems}
           selectedKey={selectedSidebarItem}
           onSelectKey={selectSidebarItem}
+          rightItems={rightSidebarItems}
+          selectedRightKey={selectedRightSidebarItem}
+          onSelectRightKey={setSelectedRightSidebarItem}
         >
           {/* To ensure no stale player state remains, we unmount all panels when players change */}
           <RemountOnValueChange value={playerId}>
             <Stack>
               <PanelLayout />
-              {play && pause && seek && (
-                <div style={{ flexShrink: 0 }}>
-                  <PlaybackControls
-                    play={play}
-                    pause={pause}
-                    seek={seek}
-                    playUntil={playUntil}
-                    isPlaying={isPlaying}
-                    getTimeInfo={getTimeInfo}
-                  />
-                </div>
-              )}
             </Stack>
           </RemountOnValueChange>
-        </Sidebar>
+        </Sidebars>
+        {play && pause && seek && (
+          <div style={{ flexShrink: 0 }}>
+            <PlaybackControls
+              play={play}
+              pause={pause}
+              seek={seek}
+              playUntil={playUntil}
+              isPlaying={isPlaying}
+              getTimeInfo={getTimeInfo}
+            />
+          </div>
+        )}
       </div>
     </MultiProvider>
   );

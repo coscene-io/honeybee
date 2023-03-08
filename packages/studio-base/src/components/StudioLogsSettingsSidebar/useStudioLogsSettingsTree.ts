@@ -30,7 +30,6 @@ function useStudioLogsSettingsTree(): SettingsTree {
     const settingsRoot: SettingsTreeNodes = {
       Settings: {
         label: "setting",
-        icon: "Settings",
         fields: {
           level: {
             label: "level",

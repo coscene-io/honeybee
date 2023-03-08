@@ -21,7 +21,6 @@ export function buildSummarySettingsTree(
   return {
     general: {
       label: "general",
-      icon: "Settings",
       fields: {
         topicToRender: {
           label: "topic",
@@ -51,7 +50,6 @@ export function buildStatusPanelSettingsTree(
   return {
     general: {
       label: "general",
-      icon: "Settings",
       fields: {
         topicToRender: {
           label: "topic",
