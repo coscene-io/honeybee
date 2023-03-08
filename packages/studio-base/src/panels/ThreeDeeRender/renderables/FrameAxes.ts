@@ -196,19 +196,16 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
         error: this.renderer.settings.errors.errors.errorAtPath(tempTfPath),
       };
     }
-    console.log('frameCount', frameCount);
-    console.log(frameCount > -1 ? ` (${11})` : " ");
 
     return [
       {
         path: ["transforms"],
         node: {
           label: {
-            key: 'transforms{{transformsMount}}',
+            key: "transforms",
             params: {
-              defaultValue:'',
-              transformsMount: frameCount > -1 ? ` (${11})` : " "
-            }
+              transformsMount: frameCount > -1 ? ` (${frameCount})` : " ",
+            },
           },
           actions: [
             { id: "show-all", type: "action", label: "Show All" },

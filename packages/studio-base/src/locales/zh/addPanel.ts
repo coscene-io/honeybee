@@ -166,7 +166,7 @@ export default {
   topicGraphPanelSettings: "话题图面板设置",
   topics: "话题",
   transformMarkers: "转化标记",
-  transforms: "转化",
+  transforms: "转化{{transformsMount}}",
   type: "类型",
   unknownColor: "未知颜色",
   upButton: "上按钮",

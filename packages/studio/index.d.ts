@@ -598,9 +598,7 @@ declare module "@foxglove/studio" {
   export interface LabelInterpolation {
     key: string;
     params: {
-      defaultValue: '';
-      [key:string]: string;
-      // transformsMount: string
+      [key: string]: string;
     };
   }
 
@@ -638,7 +636,6 @@ declare module "@foxglove/studio" {
     /**
      * An optional label shown at the top of this node.
      */
-
 
     label?: string | LabelInterpolation;
 

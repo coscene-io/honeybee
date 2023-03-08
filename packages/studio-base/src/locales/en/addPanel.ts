@@ -166,7 +166,7 @@ export default {
   topicGraphPanelSettings: "topicGraph panel settings",
   topics: "Topics",
   transformMarkers: "Transform Markers",
-  transforms: "Transforms",
+  transforms: "Transforms{{transformsMount}}",
   type: "Type",
   unknownColor: "Unknown Color",
   upButton: "Up Button",
