@@ -595,6 +595,15 @@ declare module "@foxglove/studio" {
    */
   export type SettingsTreeNodeAction = SettingsTreeNodeActionItem | SettingsTreeNodeActionDivider;
 
+  export interface LabelInterpolation {
+    key: string;
+    params: {
+      defaultValue: '';
+      [key:string]: string;
+      // transformsMount: string
+    };
+  }
+
   export type SettingsTreeNode = {
     /**
      * An array of actions that can be performed on this node.
@@ -629,7 +638,9 @@ declare module "@foxglove/studio" {
     /**
      * An optional label shown at the top of this node.
      */
-    label?: string | {key: string; params : string};
+
+
+    label?: string | LabelInterpolation;
 
     /**
      * True if the node label can be edited by the user.

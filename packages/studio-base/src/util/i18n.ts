@@ -26,6 +26,8 @@ i18n
 
     interpolation: {
       escapeValue: false,
+      prefix: "{{",
+      suffix: "}}",
     },
   })
   .catch((err) => {
@@ -33,3 +35,10 @@ i18n
   });
 
 export default i18n;
+
+// returnObjects: true,
+//       maxReplaces: 1000,
+//       nestingOptionsSeparator: ",",
+//       prefix: "{{",
+//       suffix: "}}",
+//       unescapePrefix: "-",
