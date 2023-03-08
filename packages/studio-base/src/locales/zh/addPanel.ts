@@ -166,7 +166,7 @@ export default {
   topicGraphPanelSettings: "话题图面板设置",
   topics: "话题",
   transformMarkers: "转化标记",
-  transforms: "转化",
+  // transforms: "转化",
   type: "类型",
   unknownColor: "未知颜色",
   upButton: "上按钮",
@@ -184,4 +184,5 @@ export default {
   variableSlider: "可变滑块",
   variableSliderPanelSettings: "可变滑块面板设置",
   view: "视图",
+  transforms: "变换{{transformsMount}}",
 };

@@ -166,7 +166,7 @@ export default {
   topicGraphPanelSettings: "topicGraph panel settings",
   topics: "Topics",
   transformMarkers: "Transform Markers",
-  transforms: "Transforms",
+  // transforms: "Transforms",
   type: "Type",
   unknownColor: "Unknown Color",
   upButton: "Up Button",
@@ -185,4 +185,5 @@ export default {
   variableSlider: "Variable Slider",
   variableSliderPanelSettings: "variableSlider panel settings",
   view: "View",
+  transforms: "Transforms{{transformsMount}}",
 };

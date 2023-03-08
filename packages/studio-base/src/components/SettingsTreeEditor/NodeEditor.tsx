@@ -270,19 +270,12 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
 
   const settingsLabelsDisplay = () => {
     const label = settings.label;
-    console.log("label", label);
 
-    console.log("label.params", label.params);
     if (typeof label === "object") {
-      console.log(label.params, 9999);
-      console.log("key", label.key);
-      console.log("555", t(label.key, label.params));
-      console.log("0000", t(label.key, { transformsMount: "(22)" }));
-      console.log("7777", t("transforms"));
-      // return t(label.key, { transformsMount: "(22)" });
-      return t(label.key, {
-        ...label.params,
-      });
+      switch (label.key) {
+        case "transforms":
+          return t(label.key, { ...label.params });
+      }
     }
 
     if (label != undefined) {
