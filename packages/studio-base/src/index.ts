@@ -21,22 +21,24 @@ export type {
   AppConfigurationValue,
   ChangeHandler,
 } from "./context/AppConfigurationContext";
+export { AppContext } from "./context/AppContext";
+export type { IAppContext } from "./context/AppContext";
 export type { Layout, LayoutID, ISO8601Timestamp, ILayoutStorage } from "./services/ILayoutStorage";
 export { migrateLayout } from "./services/migrateLayout";
 export type { INativeAppMenu, NativeAppMenuEvent } from "./context/NativeAppMenuContext";
 export { default as NativeWindowContext } from "./context/NativeWindowContext";
-export type { INativeWindow } from "./context/NativeWindowContext";
+export type { INativeWindow, NativeWindowEvent } from "./context/NativeWindowContext";
 export type { IDataSourceFactory } from "./context/PlayerSelectionContext";
 export type { IDataSourceFactory as CoSceneIDataSourceFactory } from "./context/CoScenePlayerSelectionContext";
 export { default as installDevtoolsFormatters } from "./util/installDevtoolsFormatters";
 export { default as overwriteFetch } from "./util/overwriteFetch";
 export { default as waitForFonts } from "./util/waitForFonts";
+export { initI18n } from "./i18n";
 export { IdbExtensionLoader } from "./services/IdbExtensionLoader";
 export type { ExtensionLoader } from "./services/ExtensionLoader";
 export type { ExtensionInfo, ExtensionNamespace } from "./types/Extensions";
 export { AppSetting } from "./AppSetting";
 export { default as CoSceneDataPlatformDataSourceFactory } from "./dataSources/CoSceneDataPlatformDataSourceFactory";
-export { default as FoxgloveDataPlatformDataSourceFactory } from "./dataSources/FoxgloveDataPlatformDataSourceFactory";
 export { default as FoxgloveWebSocketDataSourceFactory } from "./dataSources/FoxgloveWebSocketDataSourceFactory";
 export { default as Ros1LocalBagDataSourceFactory } from "./dataSources/Ros1LocalBagDataSourceFactory";
 export { default as Ros1SocketDataSourceFactory } from "./dataSources/Ros1SocketDataSourceFactory";

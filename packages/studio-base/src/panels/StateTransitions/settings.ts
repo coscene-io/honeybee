@@ -14,7 +14,6 @@ function buildSettingsTree(config: StateTransitionConfig): SettingsTreeNodes {
   return {
     general: {
       label: "general",
-      icon: "Settings",
       fields: {
         isSynced: { label: "syncWithOtherPlots", input: "boolean", value: config.isSynced },
       },
