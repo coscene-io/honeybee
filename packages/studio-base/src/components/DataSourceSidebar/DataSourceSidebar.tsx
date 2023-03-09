@@ -24,7 +24,7 @@ import {
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
+import { useCurrentUser, User } from "@foxglove/studio-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
@@ -95,15 +95,23 @@ const selectRecords = (state: CoSceneRecordStore) => state.record;
 const selectBagFiles = (state: CoSceneRecordStore) => state.recordBagFiles;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
-const NoPlayableBagsDialog = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+const NoPlayableBagsDialog = ({
+  open,
+  currentUser,
+  onClose,
+}: {
+  open: boolean;
+  currentUser: User | undefined;
+  onClose: () => void;
+}) => {
   const { classes } = useStyles();
   const { t } = useTranslation("dataSource");
   const CurrentUrlState = useMessagePipeline(selectUrlState);
 
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://home.coscene.dev/${CurrentUrlState?.parameters?.warehouseSlug}/${CurrentUrlState?.parameters?.projectSlug}`
-      : `/${CurrentUrlState?.parameters?.warehouseSlug}/${CurrentUrlState?.parameters?.projectSlug}`;
+      ? `https://home.coscene.dev/${currentUser?.orgSlug}/${CurrentUrlState?.parameters?.projectSlug}`
+      : `/${currentUser?.orgSlug}/${CurrentUrlState?.parameters?.projectSlug}`;
 
   const recordHref = `${projectHref}/records/${CurrentUrlState?.parameters?.recordId}`;
 
@@ -251,6 +259,7 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
       </Stack>
       <NoPlayableBagsDialog
         open={noPlayableBags}
+        currentUser={currentUser}
         onClose={() => {
           setNoPlayableBags(false);
         }}

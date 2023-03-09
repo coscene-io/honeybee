@@ -19,6 +19,7 @@ import CoSceneConsoleApi, {
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
+import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";
 import {
   IIterableSource,
   Initalization,
@@ -27,7 +28,6 @@ import {
   GetBackfillMessagesArgs,
   IterableSourceInitializeArgs,
 } from "../IIterableSource";
-import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";
 
 const log = Logger.getLogger(__filename);
 
