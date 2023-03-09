@@ -19,7 +19,6 @@ import CoSceneConsoleApi, {
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
-import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";
 import {
   IIterableSource,
   Initalization,
@@ -28,6 +27,7 @@ import {
   GetBackfillMessagesArgs,
   IterableSourceInitializeArgs,
 } from "../IIterableSource";
+import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";
 
 const log = Logger.getLogger(__filename);
 
@@ -339,7 +339,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   }
 
   if (!api) {
-    throw new Error("api is required for data platfomr");
+    throw new Error("api is required for data platform");
   }
 
   // const revisionName = params.revisionName ?? "";

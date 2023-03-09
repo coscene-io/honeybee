@@ -182,6 +182,7 @@ export type CoSceneContext = {
   currentProjectSlug?: string;
   currentProjectDisplayName?: string;
   currentOrganizationId?: string;
+  currentOrganizationSlug?: string;
   currentOrganizationDisplayName?: string;
   currentRecordId?: string;
   isCurrentProjectArchived?: boolean;
@@ -608,7 +609,8 @@ class CoSceneConsoleApi {
     const req = new GetRecordRequest();
     req.setName(recordName);
 
-    return await CsWebClient.getRecordClient().getRecord(req);
+    const res = await CsWebClient.getRecordClient().getRecord(req);
+    return res;
   }
 
   public async getProject({ projectName }: { projectName: string }): Promise<Project> {
