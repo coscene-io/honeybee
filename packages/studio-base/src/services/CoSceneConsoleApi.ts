@@ -182,6 +182,7 @@ export type CoSceneContext = {
   currentProjectSlug?: string;
   currentProjectDisplayName?: string;
   currentOrganizationId?: string;
+  currentOrganizationSlug?: string;
   currentOrganizationDisplayName?: string;
   currentRecordId?: string;
   isCurrentProjectArchived?: boolean;
@@ -200,11 +201,11 @@ class CoSceneConsoleApi {
   private _baseUrl: string;
   private _authHeader?: string;
   private _responseObserver: undefined | ((response: Response) => void);
-  private _coSceneContext: CoSceneContext;
+  public coSceneContext: CoSceneContext;
 
   public constructor(baseUrl: string, coSceneContext?: CoSceneContext) {
     this._baseUrl = baseUrl;
-    this._coSceneContext = coSceneContext ?? {};
+    this.coSceneContext = coSceneContext ?? {};
   }
 
   public getBaseUrl(): string {
@@ -595,8 +596,8 @@ class CoSceneConsoleApi {
       metric.getLabelsMap().set(key, value);
     }
 
-    if (this._coSceneContext.currentOrganizationId) {
-      const orgId = this._coSceneContext.currentOrganizationId.split("/").pop();
+    if (this.coSceneContext.currentOrganizationId) {
+      const orgId = this.coSceneContext.currentOrganizationId.split("/").pop();
       metric.getLabelsMap().set("org_id", orgId ? orgId : "");
     }
 

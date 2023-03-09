@@ -24,6 +24,7 @@ import {
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
@@ -99,11 +100,14 @@ const NoPlayableBagsDialog = ({ open, onClose }: { open: boolean; onClose: () =>
   const { classes } = useStyles();
   const { t } = useTranslation("dataSource");
   const CurrentUrlState = useMessagePipeline(selectUrlState);
+  const {
+    coSceneContext: { currentOrganizationSlug },
+  } = useConsoleApi();
 
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://home.coscene.dev/${CurrentUrlState?.parameters?.warehouseSlug}/${CurrentUrlState?.parameters?.projectSlug}`
-      : `/${CurrentUrlState?.parameters?.warehouseSlug}/${CurrentUrlState?.parameters?.projectSlug}`;
+      ? `https://home.coscene.dev/${currentOrganizationSlug}/${CurrentUrlState?.parameters?.projectSlug}`
+      : `/${currentOrganizationSlug}/${CurrentUrlState?.parameters?.projectSlug}`;
 
   const recordHref = `${projectHref}/records/${CurrentUrlState?.parameters?.recordId}`;
 

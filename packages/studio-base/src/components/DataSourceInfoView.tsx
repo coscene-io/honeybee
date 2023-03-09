@@ -21,6 +21,7 @@ import {
   useProject,
 } from "@foxglove/studio-base/context/CoSceneProjectContext";
 import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { subtractTimes } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/typescript/userUtils/time";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
@@ -61,13 +62,16 @@ function DataSourceInfoContent(props: {
   const project = useProject(selectProject);
   const currentBagFiles = useRecord(selectCurrentBagFiles);
   const { t } = useTranslation("dataSource");
+  const {
+    coSceneContext: { currentOrganizationSlug },
+  } = useConsoleApi();
 
   useTitle(`coScene ${record.value?.getTitle() ?? ""}`);
 
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://home.coscene.dev/${urlState?.parameters?.warehouseSlug}/${urlState?.parameters?.projectSlug}`
-      : `/${urlState?.parameters?.warehouseSlug}/${urlState?.parameters?.projectSlug}`;
+      ? `https://home.coscene.dev/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`
+      : `/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`;
   const recordHref = `${projectHref}/records/${urlState?.parameters?.recordId}`;
 
   const breadcrumbs = [

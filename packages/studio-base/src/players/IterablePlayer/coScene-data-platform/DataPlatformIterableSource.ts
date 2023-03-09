@@ -339,7 +339,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   }
 
   if (!api) {
-    throw new Error("api is required for data platfomr");
+    throw new Error("api is required for data platform");
   }
 
   // const revisionName = params.revisionName ?? "";
