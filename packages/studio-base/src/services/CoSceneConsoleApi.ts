@@ -609,8 +609,7 @@ class CoSceneConsoleApi {
     const req = new GetRecordRequest();
     req.setName(recordName);
 
-    const res = await CsWebClient.getRecordClient().getRecord(req);
-    return res;
+    return await CsWebClient.getRecordClient().getRecord(req);
   }
 
   public async getProject({ projectName }: { projectName: string }): Promise<Project> {
