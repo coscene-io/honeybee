@@ -71,7 +71,7 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
         url: "https://sentry.coscene.site/",
         authToken: process.env.SENTRY_AUTH_TOKEN,
         org: "coscene",
-        project: "honeybee",
+        project: "honeybee-web",
         include: path.resolve(__dirname, ".webpack"),
       }),
     );
