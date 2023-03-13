@@ -12,13 +12,13 @@ export const keenonDefaultLayout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
+        distance: 18.448594521220304,
         perspective: true,
-        distance: 29.27189496184394,
-        phi: 0.00005731104651187513,
-        thetaOffset: -111.67729310335004,
-        targetOffset: [-1.5747146232621145, -9.07055539898806, -6.104642506645591e-16],
+        phi: 6.684560722983336,
         target: [0, 0, 0],
+        targetOffset: [3.8280221757338198, -0.014944592868562843, -5.158693785275839e-16],
         targetOrientation: [0, 0, 0, 1],
+        thetaOffset: -99.36136870550249,
         fovy: 45,
         near: 0.5,
         far: 5000,
@@ -45,7 +45,7 @@ export const keenonDefaultLayout: LayoutData = {
           visible: false,
         },
         "frame:odom": {
-          visible: true,
+          visible: false,
         },
         "frame:camera_link6": {
           visible: false,
@@ -257,6 +257,18 @@ export const keenonDefaultLayout: LayoutData = {
         "frame:use_camera_link": {
           visible: false,
         },
+        "frame:camera_rgb_frame": {
+          visible: false,
+        },
+        "frame:camera_depth_optical_frame": {
+          visible: false,
+        },
+        "frame:camera_depth_frame": {
+          visible: false,
+        },
+        "frame:camera_rgb_optical_frame": {
+          visible: false,
+        },
       },
       topics: {
         "/camera1_record/depth/camera_info": {
@@ -426,6 +438,8 @@ export const keenonDefaultLayout: LayoutData = {
           minColor: "#0500fa",
           maxColor: "#ff0000",
           frameLocked: false,
+          colorMode: "costmap",
+          alpha: 1,
         },
         "/vel_map": {
           visible: true,
@@ -601,6 +615,9 @@ export const keenonDefaultLayout: LayoutData = {
         },
         "/block_pcl": {
           visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
         },
         "/schedule_path": {
           visible: true,
@@ -608,11 +625,17 @@ export const keenonDefaultLayout: LayoutData = {
         "/map.png": {
           visible: true,
           colorField: "blue",
-          colorMode: "gradient",
+          colorMode: "rgba-fields",
           colorMap: "turbo",
           gradient: ["#0011fffF", "#ffffffff"],
           minValue: -20,
           maxValue: 1,
+        },
+        "/map_1.png": {
+          visible: true,
+        },
+        "/1.png": {
+          visible: true,
         },
       },
       layers: {
@@ -644,7 +667,6 @@ export const keenonDefaultLayout: LayoutData = {
       followTf: "base_link",
     },
     "Plot!t0ra0d": {
-      title: "Plot",
       paths: [
         {
           value: "/chassis_imu_data.angular_velocity.x",
@@ -665,9 +687,9 @@ export const keenonDefaultLayout: LayoutData = {
       isSynced: true,
       xAxisVal: "timestamp",
       sidebarDimension: 240,
+      foxglovePanelTitle: "Plot",
     },
     "Plot!1o1y0sh": {
-      title: "Plot",
       paths: [
         {
           value: "/charge_state_fromSTM32.state",
@@ -683,9 +705,9 @@ export const keenonDefaultLayout: LayoutData = {
       isSynced: true,
       xAxisVal: "timestamp",
       sidebarDimension: 240,
+      foxglovePanelTitle: "Plot",
     },
     "Plot!v4o8q1": {
-      title: "Plot",
       paths: [
         {
           value: "/cmd_vel.linear.x",
@@ -706,6 +728,7 @@ export const keenonDefaultLayout: LayoutData = {
       isSynced: true,
       xAxisVal: "timestamp",
       sidebarDimension: 240,
+      foxglovePanelTitle: "Plot",
     },
     "RosOut!mt4hkx": {
       searchTerms: [],

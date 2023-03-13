@@ -12,18 +12,18 @@ export const gs50Layout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
-        perspective: false,
-        distance: 6.961643604278333,
-        phi: 1.633190853614318,
-        thetaOffset: -71.10090305249724,
-        targetOffset: [0.887508166898859, -0.09296316673732324, 4.2045954223009594e-16],
+        distance: 22.16066481994401,
+        perspective: true,
+        phi: 0.47583854832627764,
         target: [0, 0, 0],
+        targetOffset: [5.047111950773007, -0.44475575331862194, 6.01960032509308e-18],
         targetOrientation: [0, 0, 0, 1],
+        thetaOffset: 52.54218760354421,
         fovy: 45,
         near: 0.5,
         far: 5000,
       },
-      followMode: "follow-none",
+      followMode: "follow-position",
       scene: {
         enableStats: false,
         transforms: {
@@ -258,7 +258,7 @@ export const gs50Layout: LayoutData = {
           visible: false,
         },
         "frame:camera_depth_frame": {
-          visible: true,
+          visible: false,
         },
         "frame:webcam_link": {
           visible: false,
@@ -267,6 +267,48 @@ export const gs50Layout: LayoutData = {
           visible: false,
         },
         "frame:intrinsic_depth4": {
+          visible: false,
+        },
+        "frame:RADAR_FRONT": {
+          visible: false,
+        },
+        "frame:RADAR_FRONT_LEFT": {
+          visible: false,
+        },
+        "frame:RADAR_FRONT_RIGHT": {
+          visible: false,
+        },
+        "frame:RADAR_BACK_LEFT": {
+          visible: false,
+        },
+        "frame:RADAR_BACK_RIGHT": {
+          visible: false,
+        },
+        "frame:LIDAR_TOP": {
+          visible: false,
+        },
+        "frame:CAM_FRONT": {
+          visible: false,
+        },
+        "frame:CAM_FRONT_RIGHT": {
+          visible: false,
+        },
+        "frame:CAM_BACK_RIGHT": {
+          visible: false,
+        },
+        "frame:CAM_BACK": {
+          visible: false,
+        },
+        "frame:CAM_BACK_LEFT": {
+          visible: false,
+        },
+        "frame:CAM_FRONT_LEFT": {
+          visible: false,
+        },
+        "frame:/world": {
+          visible: false,
+        },
+        "frame:rgb_m_bt": {
           visible: false,
         },
       },
@@ -519,20 +561,26 @@ export const gs50Layout: LayoutData = {
         },
         "/costmap_node/global_costmap/costmap": {
           visible: true,
+          colorMode: "custom",
         },
         "/costmap_node/global_costmap/local_costmap": {
           visible: true,
           minColor: "#0c20dd",
           maxColor: "#d90e0e",
+          colorMode: "costmap",
+          alpha: 1,
+          frameLocked: false,
         },
         "/costmap_node/global_costmap/local_laser_static_map": {
           visible: true,
+          colorMode: "custom",
         },
         "/costmap_node/global_costmap/mapping_map": {
           visible: true,
+          colorMode: "custom",
         },
         "/costmap_node/global_costmap/record_type_map": {
-          visible: true,
+          visible: false,
         },
         "/raw_scan_tracked_ogm": {
           visible: true,
@@ -724,7 +772,7 @@ export const gs50Layout: LayoutData = {
         "/map.png": {
           visible: true,
           colorField: "blue",
-          colorMode: "gradient",
+          colorMode: "rgba-fields",
           colorMap: "turbo",
           gradient: ["#0011ffff", "#ffffffff"],
           minValue: -20,
@@ -735,6 +783,124 @@ export const gs50Layout: LayoutData = {
           colorField: "x",
           colorMode: "colormap",
           colorMap: "turbo",
+        },
+        "/coScene-example_map.png": {
+          visible: true,
+        },
+        "/kitti/camera_color_left/camera_info": {
+          visible: true,
+        },
+        "/kitti/camera_color_left/image_raw": {
+          visible: true,
+        },
+        "/kitti/camera_color_right/camera_info": {
+          visible: true,
+        },
+        "/kitti/camera_color_right/image_raw": {
+          visible: true,
+        },
+        "/kitti/camera_gray_left/camera_info": {
+          visible: true,
+        },
+        "/kitti/camera_gray_left/image_raw": {
+          visible: true,
+        },
+        "/kitti/camera_gray_right/camera_info": {
+          visible: true,
+        },
+        "/kitti/camera_gray_right/image_raw": {
+          visible: true,
+        },
+        "/kitti/velo/pointcloud": {
+          visible: true,
+        },
+        "/CAM_FRONT_RIGHT/image_rect_compressed": {
+          visible: true,
+        },
+        "/markers/annotations": {
+          visible: true,
+        },
+        "/semantic_map": {
+          visible: true,
+        },
+        "/drivable_area": {
+          visible: true,
+        },
+        "/LIDAR_TOP": {
+          visible: true,
+          colorField: "intensity",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/RADAR_BACK_LEFT": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/RADAR_BACK_RIGHT": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/RADAR_FRONT": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/RADAR_FRONT_LEFT": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/RADAR_FRONT_RIGHT": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/pose": {
+          visible: true,
+        },
+        "/1.png": {
+          visible: false,
+        },
+        "/map_1.png": {
+          visible: true,
+        },
+        "/map_10.png": {
+          visible: false,
+        },
+        "/map_2.png": {
+          visible: true,
+          colorMode: "rgba-fields",
+          colorMap: "turbo",
+        },
+        "/map_3.png": {
+          visible: false,
+          colorMode: "rgba-fields",
+          colorMap: "turbo",
+        },
+        "/map_4.png": {
+          visible: false,
+        },
+        "/map_5.png": {
+          visible: false,
+        },
+        "/map_6.png": {
+          visible: false,
+        },
+        "/map_7.png": {
+          visible: false,
+        },
+        "/map_8.png": {
+          visible: false,
+        },
+        "/map_9.png": {
+          visible: false,
         },
       },
       layers: {
@@ -766,7 +932,6 @@ export const gs50Layout: LayoutData = {
       followTf: "base_link",
     },
     "Plot!t0ra0d": {
-      title: "Plot",
       paths: [
         {
           value: "/cmd_vel.linear.x",
@@ -778,6 +943,11 @@ export const gs50Layout: LayoutData = {
           enabled: true,
           timestampMethod: "receiveTime",
         },
+        {
+          value: "/cmd_vel.angular.z",
+          enabled: true,
+          timestampMethod: "receiveTime",
+        },
       ],
       showXAxisLabels: true,
       showYAxisLabels: true,
@@ -787,12 +957,22 @@ export const gs50Layout: LayoutData = {
       isSynced: true,
       xAxisVal: "timestamp",
       sidebarDimension: 240,
+      foxglovePanelTitle: "CMD 下发速度",
     },
     "Plot!1o1y0sh": {
-      title: "Plot",
       paths: [
         {
-          value: "",
+          value: "/unbiased_imu_PRY.vector.x",
+          enabled: true,
+          timestampMethod: "receiveTime",
+        },
+        {
+          value: "/unbiased_imu_PRY.vector.y",
+          enabled: true,
+          timestampMethod: "receiveTime",
+        },
+        {
+          value: "/unbiased_imu_PRY.vector.z",
           enabled: true,
           timestampMethod: "receiveTime",
         },
@@ -805,12 +985,17 @@ export const gs50Layout: LayoutData = {
       isSynced: true,
       xAxisVal: "timestamp",
       sidebarDimension: 240,
+      foxglovePanelTitle: "IMU 陀螺仪数值",
     },
     "Plot!v4o8q1": {
-      title: "Plot",
       paths: [
         {
-          value: "",
+          value: "/odom.twist.twist.linear.x",
+          enabled: true,
+          timestampMethod: "receiveTime",
+        },
+        {
+          value: "/odom.twist.twist.linear.y",
           enabled: true,
           timestampMethod: "receiveTime",
         },
@@ -823,19 +1008,29 @@ export const gs50Layout: LayoutData = {
       isSynced: true,
       xAxisVal: "timestamp",
       sidebarDimension: 240,
+      foxglovePanelTitle: "odom 实际速度",
     },
     "RosOut!mt4hkx": {
       searchTerms: [],
       minLogLevel: 1,
       topicToRender: "/rosout",
     },
+    "RawMessages!2pph0z6": {
+      diffEnabled: false,
+      diffMethod: "custom",
+      diffTopicPath: "",
+      showFullMessageForDiff: false,
+      topicPath: "/device/all_device_status",
+      expansion: "all",
+    },
   },
   globalVariables: {},
   userNodes: {},
   playbackConfig: {
-    speed: 1,
+    speed: 3,
   },
   layout: {
+    direction: "row",
     first: "3D!3me9aqv",
     second: {
       direction: "row",
@@ -850,11 +1045,14 @@ export const gs50Layout: LayoutData = {
         direction: "column",
         splitPercentage: 64.1726618705036,
       },
-      second: "RosOut!mt4hkx",
+      second: {
+        first: "RosOut!mt4hkx",
+        second: "RawMessages!2pph0z6",
+        direction: "column",
+      },
       splitPercentage: 50.80789975449156,
     },
-    direction: "row",
-    splitPercentage: 59.17355371900827,
+    splitPercentage: 57.921149320114516,
   },
 } as const;
 
@@ -866,18 +1064,18 @@ export const gs75Layout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
-        perspective: false,
-        distance: 6.961643604278333,
-        phi: 1.633190853614318,
-        thetaOffset: -71.10090305249724,
-        targetOffset: [0.887508166898859, -0.09296316673732324, 4.2045954223009594e-16],
+        distance: 22.16066481994401,
+        perspective: true,
+        phi: 0.47583854832627764,
         target: [0, 0, 0],
+        targetOffset: [5.047111950773007, -0.44475575331862194, 6.01960032509308e-18],
         targetOrientation: [0, 0, 0, 1],
+        thetaOffset: 52.54218760354421,
         fovy: 45,
         near: 0.5,
         far: 5000,
       },
-      followMode: "follow-none",
+      followMode: "follow-position",
       scene: {
         enableStats: false,
         transforms: {
@@ -1112,7 +1310,7 @@ export const gs75Layout: LayoutData = {
           visible: false,
         },
         "frame:camera_depth_frame": {
-          visible: true,
+          visible: false,
         },
         "frame:webcam_link": {
           visible: false,
@@ -1121,6 +1319,48 @@ export const gs75Layout: LayoutData = {
           visible: false,
         },
         "frame:intrinsic_depth4": {
+          visible: false,
+        },
+        "frame:RADAR_FRONT": {
+          visible: false,
+        },
+        "frame:RADAR_FRONT_LEFT": {
+          visible: false,
+        },
+        "frame:RADAR_FRONT_RIGHT": {
+          visible: false,
+        },
+        "frame:RADAR_BACK_LEFT": {
+          visible: false,
+        },
+        "frame:RADAR_BACK_RIGHT": {
+          visible: false,
+        },
+        "frame:LIDAR_TOP": {
+          visible: false,
+        },
+        "frame:CAM_FRONT": {
+          visible: false,
+        },
+        "frame:CAM_FRONT_RIGHT": {
+          visible: false,
+        },
+        "frame:CAM_BACK_RIGHT": {
+          visible: false,
+        },
+        "frame:CAM_BACK": {
+          visible: false,
+        },
+        "frame:CAM_BACK_LEFT": {
+          visible: false,
+        },
+        "frame:CAM_FRONT_LEFT": {
+          visible: false,
+        },
+        "frame:/world": {
+          visible: false,
+        },
+        "frame:rgb_m_bt": {
           visible: false,
         },
       },
@@ -1373,20 +1613,26 @@ export const gs75Layout: LayoutData = {
         },
         "/costmap_node/global_costmap/costmap": {
           visible: true,
+          colorMode: "custom",
         },
         "/costmap_node/global_costmap/local_costmap": {
           visible: true,
           minColor: "#0c20dd",
           maxColor: "#d90e0e",
+          colorMode: "costmap",
+          alpha: 1,
+          frameLocked: false,
         },
         "/costmap_node/global_costmap/local_laser_static_map": {
           visible: true,
+          colorMode: "custom",
         },
         "/costmap_node/global_costmap/mapping_map": {
           visible: true,
+          colorMode: "custom",
         },
         "/costmap_node/global_costmap/record_type_map": {
-          visible: true,
+          visible: false,
         },
         "/raw_scan_tracked_ogm": {
           visible: true,
@@ -1578,7 +1824,7 @@ export const gs75Layout: LayoutData = {
         "/map.png": {
           visible: true,
           colorField: "blue",
-          colorMode: "gradient",
+          colorMode: "rgba-fields",
           colorMap: "turbo",
           gradient: ["#0011ffff", "#ffffffff"],
           minValue: -20,
@@ -1589,6 +1835,124 @@ export const gs75Layout: LayoutData = {
           colorField: "x",
           colorMode: "colormap",
           colorMap: "turbo",
+        },
+        "/coScene-example_map.png": {
+          visible: true,
+        },
+        "/kitti/camera_color_left/camera_info": {
+          visible: true,
+        },
+        "/kitti/camera_color_left/image_raw": {
+          visible: true,
+        },
+        "/kitti/camera_color_right/camera_info": {
+          visible: true,
+        },
+        "/kitti/camera_color_right/image_raw": {
+          visible: true,
+        },
+        "/kitti/camera_gray_left/camera_info": {
+          visible: true,
+        },
+        "/kitti/camera_gray_left/image_raw": {
+          visible: true,
+        },
+        "/kitti/camera_gray_right/camera_info": {
+          visible: true,
+        },
+        "/kitti/camera_gray_right/image_raw": {
+          visible: true,
+        },
+        "/kitti/velo/pointcloud": {
+          visible: true,
+        },
+        "/CAM_FRONT_RIGHT/image_rect_compressed": {
+          visible: true,
+        },
+        "/markers/annotations": {
+          visible: true,
+        },
+        "/semantic_map": {
+          visible: true,
+        },
+        "/drivable_area": {
+          visible: true,
+        },
+        "/LIDAR_TOP": {
+          visible: true,
+          colorField: "intensity",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/RADAR_BACK_LEFT": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/RADAR_BACK_RIGHT": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/RADAR_FRONT": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/RADAR_FRONT_LEFT": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/RADAR_FRONT_RIGHT": {
+          visible: true,
+          colorField: "x",
+          colorMode: "colormap",
+          colorMap: "turbo",
+        },
+        "/pose": {
+          visible: true,
+        },
+        "/1.png": {
+          visible: false,
+        },
+        "/map_1.png": {
+          visible: true,
+        },
+        "/map_10.png": {
+          visible: false,
+        },
+        "/map_2.png": {
+          visible: true,
+          colorMode: "rgba-fields",
+          colorMap: "turbo",
+        },
+        "/map_3.png": {
+          visible: false,
+          colorMode: "rgba-fields",
+          colorMap: "turbo",
+        },
+        "/map_4.png": {
+          visible: false,
+        },
+        "/map_5.png": {
+          visible: false,
+        },
+        "/map_6.png": {
+          visible: false,
+        },
+        "/map_7.png": {
+          visible: false,
+        },
+        "/map_8.png": {
+          visible: false,
+        },
+        "/map_9.png": {
+          visible: false,
         },
       },
       layers: {
@@ -1620,7 +1984,6 @@ export const gs75Layout: LayoutData = {
       followTf: "base_link",
     },
     "Plot!t0ra0d": {
-      title: "Plot",
       paths: [
         {
           value: "/cmd_vel.linear.x",
@@ -1632,6 +1995,11 @@ export const gs75Layout: LayoutData = {
           enabled: true,
           timestampMethod: "receiveTime",
         },
+        {
+          value: "/cmd_vel.angular.z",
+          enabled: true,
+          timestampMethod: "receiveTime",
+        },
       ],
       showXAxisLabels: true,
       showYAxisLabels: true,
@@ -1641,12 +2009,22 @@ export const gs75Layout: LayoutData = {
       isSynced: true,
       xAxisVal: "timestamp",
       sidebarDimension: 240,
+      foxglovePanelTitle: "CMD 下发速度",
     },
     "Plot!1o1y0sh": {
-      title: "Plot",
       paths: [
         {
-          value: "",
+          value: "/unbiased_imu_PRY.vector.x",
+          enabled: true,
+          timestampMethod: "receiveTime",
+        },
+        {
+          value: "/unbiased_imu_PRY.vector.y",
+          enabled: true,
+          timestampMethod: "receiveTime",
+        },
+        {
+          value: "/unbiased_imu_PRY.vector.z",
           enabled: true,
           timestampMethod: "receiveTime",
         },
@@ -1659,12 +2037,17 @@ export const gs75Layout: LayoutData = {
       isSynced: true,
       xAxisVal: "timestamp",
       sidebarDimension: 240,
+      foxglovePanelTitle: "IMU 陀螺仪数值",
     },
     "Plot!v4o8q1": {
-      title: "Plot",
       paths: [
         {
-          value: "",
+          value: "/odom.twist.twist.linear.x",
+          enabled: true,
+          timestampMethod: "receiveTime",
+        },
+        {
+          value: "/odom.twist.twist.linear.y",
           enabled: true,
           timestampMethod: "receiveTime",
         },
@@ -1677,19 +2060,29 @@ export const gs75Layout: LayoutData = {
       isSynced: true,
       xAxisVal: "timestamp",
       sidebarDimension: 240,
+      foxglovePanelTitle: "odom 实际速度",
     },
     "RosOut!mt4hkx": {
       searchTerms: [],
       minLogLevel: 1,
       topicToRender: "/rosout",
     },
+    "RawMessages!2pph0z6": {
+      diffEnabled: false,
+      diffMethod: "custom",
+      diffTopicPath: "",
+      showFullMessageForDiff: false,
+      topicPath: "/device/all_device_status",
+      expansion: "all",
+    },
   },
   globalVariables: {},
   userNodes: {},
   playbackConfig: {
-    speed: 1,
+    speed: 3,
   },
   layout: {
+    direction: "row",
     first: "3D!3me9aqv",
     second: {
       direction: "row",
@@ -1704,10 +2097,13 @@ export const gs75Layout: LayoutData = {
         direction: "column",
         splitPercentage: 64.1726618705036,
       },
-      second: "RosOut!mt4hkx",
+      second: {
+        first: "RosOut!mt4hkx",
+        second: "RawMessages!2pph0z6",
+        direction: "column",
+      },
       splitPercentage: 50.80789975449156,
     },
-    direction: "row",
-    splitPercentage: 59.17355371900827,
+    splitPercentage: 57.921149320114516,
   },
 } as const;
