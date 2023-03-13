@@ -225,7 +225,7 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
                       )}
                     </Stack>
                   }
-                  value="more"
+                  value="problems"
                 />
               </StyledTabs>
               <Divider />
