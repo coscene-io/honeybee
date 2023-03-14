@@ -14,7 +14,6 @@
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import { styled as muiStyled, Typography } from "@mui/material";
 import { useContext, useMemo, CSSProperties } from "react";
-import { useTranslation } from "react-i18next";
 
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
@@ -65,139 +64,9 @@ export default React.memo<Props>(function PanelToolbar({
     exitFullscreen,
     config: { [PANEL_TITLE_CONFIG_KEY]: customTitle = undefined } = {},
   } = useContext(PanelContext) ?? {};
-  const { t } = useTranslation("addPanel");
 
   const panelContext = useContext(PanelContext);
-  const panelContextTitleDisplay = (item: string | undefined) => {
-    switch (item) {
-      case "setting":
-      case "level":
-      case "addPanel":
-      case "impExpSetting":
-      case "reset":
-      case "displayFrame":
-      case "followMode":
-      case "renderStats":
-      case "background":
-      case "labelScale":
-      case "ignoreTag":
-      case "syncCamera":
-      case "meshUpAxis":
-      case "view":
-      case "editable":
-      case "labels":
-      case "labelSize":
-      case "axisScale":
-      case "lineWidth":
-      case "lineColor":
-      case "addGrid":
-      case "addFormat":
-      case "type":
-      case "topic":
-      case "dataSourceInfo":
-      case "changePanel":
-      case "splitHorizontal":
-      case "splitVertical":
-      case "fullScreen":
-      case "removePanel":
-      case "diagnosticsDetail":
-      case "diagnosticsSummary":
-      case "general":
-      case "numericPrecision":
-      case "sortByLevel":
-      case "gauge":
-      case "data":
-      case "minimum":
-      case "maxiMum":
-      case "colorMode":
-      case "colorMap":
-      case "reverse":
-      case "image":
-      case "cameraTopic":
-      case "transformMarkers":
-      case "synchronizeTimestamps":
-      case "bilinearSmoothing":
-      case "flipHorizontal":
-      case "flipVertical":
-      case "rotation":
-      case "minimumValue":
-      case "maximumValue":
-      case "markers":
-      case "indicator":
-      case "indicatorPanelSettings":
-      case "style":
-      case "rules":
-      case "comparison":
-      case "comparisonWith":
-      case "color":
-      case "label":
-      case "otherwise":
-      case "legacyPlot":
-      case "legacyPlotPanelSettings":
-      case "log":
-      case "logPanelSettings":
-      case "map":
-      case "mapPanelSettings":
-      case "tileLayer":
-      case "followTopic":
-      case "topics":
-      case "parameters":
-      case "parametersPanelSettings":
-      case "plot":
-      case "plotPanelSettings":
-      case "title":
-      case "syncWithOtherPlots":
-      case "showLabels":
-      case "rangeSecond":
-      case "series":
-      case "path":
-      case "timeStamp":
-      case "publish":
-      case "publishPanelSettings":
-      case "editingMode":
-      case "buttonTitle":
-      case "buttonTooltip":
-      case "buttonColor":
-      case "rawMessage":
-      case "rawMessagePanelSettings":
-      case "stateTransition":
-      case "stateTransitionPanelSettings":
-      case "studioPlaybackPerformance":
-      case "studioPlaybackPerformancePanelSettings":
-      case "tab":
-      case "tabPanelSettings":
-      case "table":
-      case "tablePanelSettings":
-      case "teleop":
-      case "teleopPanelSettings":
-      case "publishRate":
-      case "upButton":
-      case "downButton":
-      case "leftButton":
-      case "rightButton":
-      case "field":
-      case "value":
-      case "topicGraph":
-      case "topicGraphPanelSettings":
-      case "urdfViewer":
-      case "urdfViewerPanelSettings":
-      case "asset":
-      case "opacity":
-      case "manualControl":
-      case "userScript":
-      case "userScriptPanelSettings":
-      case "autoSave":
-      case "variableSlider":
-      case "variableSliderPanelSettings":
-      case "variableName":
-      case "selectPanelLayout":
-      case "learnMore":
-      case "studioDescription":
-        return t(item);
-      default:
-        return item;
-    }
-  };
+
   // Help-shown state must be hoisted outside the controls container so the modal can remain visible
   // when the panel is no longer hovered.
   const additionalIconsWithHelp = useMemo(() => {
@@ -240,9 +109,9 @@ export default React.memo<Props>(function PanelToolbar({
       ref={rootDragRef}
     >
       {children ??
-        (title != undefined && (
+        (title && (
           <Typography noWrap variant="body2" color="text.secondary" flex="auto">
-            {panelContextTitleDisplay(panelContext?.title)}
+            {title}
           </Typography>
         ))}
       <PanelToolbarControls
