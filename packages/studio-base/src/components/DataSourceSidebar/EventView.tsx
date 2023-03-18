@@ -99,7 +99,9 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
       gridTemplateColumns: "1fr 3fr",
       overflowY: "auto",
       wordBreak: "break-all",
-      // padding: theme.spacing(1),
+    },
+    toast: {
+      bottom: "85px !important",
     },
   }),
 );
@@ -145,11 +147,11 @@ function EventViewComponent(params: {
     await consoleApi.deleteEvent({ eventName: event.event.getName() });
     setOpen(true);
     setToastInfo({
-      message: "Event deleted",
+      message: t("momentDeleted"),
       type: "success",
     });
     refreshEvents();
-  }, [consoleApi, event, refreshEvents]);
+  }, [consoleApi, event, refreshEvents, t]);
 
   const [updatedEventDesc, updateEventDesc] = useAsyncFn(
     async (desc: string) => {
@@ -161,18 +163,18 @@ function EventViewComponent(params: {
       });
       setOpen(true);
       setToastInfo({
-        message: "Moment have been updated",
+        message: t("momentUpdated"),
         type: "success",
       });
       refreshEvents();
     },
-    [consoleApi, event, refreshEvents],
+    [consoleApi, event, refreshEvents, t],
   );
 
   useEffect(() => {
     if (deletedEvent.error) {
       setToastInfo({
-        message: "Error deleting event",
+        message: t("errorDeletingEvent"),
         type: "error",
       });
       setOpen(true);
@@ -180,12 +182,12 @@ function EventViewComponent(params: {
 
     if (updatedEventDesc.error) {
       setToastInfo({
-        message: "Error updating event",
+        message: t("errorUpdatingEvent"),
         type: "error",
       });
       setOpen(true);
     }
-  }, [deletedEvent, updatedEventDesc]);
+  }, [deletedEvent, updatedEventDesc, t]);
 
   const handleShareEvent = async () => {
     const link = window.location.href;
@@ -200,7 +202,7 @@ function EventViewComponent(params: {
 
     setOpen(true);
     setToastInfo({
-      message: "Copied moment to clipboard",
+      message: t("copiedMomentToClipboard"),
       type: "success",
     });
   };
@@ -302,7 +304,7 @@ function EventViewComponent(params: {
           <div className={classes.spacer} />
         </div>
       </div>
-      <Snackbar open={open} autoHideDuration={6000} onClose={handleClose}>
+      <Snackbar open={open} autoHideDuration={6000} onClose={handleClose} className={classes.toast}>
         <Alert onClose={handleClose} severity={toastInfo.type} style={{ width: "100%" }}>
           {toastInfo.message}
         </Alert>
