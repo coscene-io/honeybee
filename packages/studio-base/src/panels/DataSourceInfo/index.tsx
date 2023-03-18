@@ -80,7 +80,7 @@ function TopicRow({ topic }: { topic: Topic }): JSX.Element {
         />
       </td>
       <td>
-        {topic.schemaName ? (
+        {topic.schemaName == undefined ? (
           "—"
         ) : (
           <>
