@@ -12,18 +12,18 @@ export const keenonDefaultLayout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
-        distance: 18.448594521220304,
         perspective: true,
-        phi: 6.684560722983336,
+        distance: 17.147499999998686,
+        phi: 0.00005729832627056611,
+        thetaOffset: 89.22732212548208,
+        targetOffset: [0, 0, 0],
         target: [0, 0, 0],
-        targetOffset: [3.8280221757338198, -0.014944592868562843, -5.158693785275839e-16],
         targetOrientation: [0, 0, 0, 1],
-        thetaOffset: -99.36136870550249,
         fovy: 45,
         near: 0.5,
         far: 5000,
       },
-      followMode: "follow-none",
+      followMode: "follow-position",
       scene: {
         enableStats: false,
         transforms: {
@@ -426,12 +426,17 @@ export const keenonDefaultLayout: LayoutData = {
         "/elevator_map": {
           visible: true,
           unknownColor: "#80808000",
+          colorMode: "custom",
+          alpha: 0.20000000000000015,
+          invalidColor: "#ff00ff80",
         },
         "/gate_map": {
           visible: true,
         },
         "/map": {
           visible: true,
+          colorMode: "map",
+          alpha: 1,
         },
         "/move_base/local_costmap/costmap": {
           visible: true,
@@ -451,6 +456,8 @@ export const keenonDefaultLayout: LayoutData = {
           unknownColor: "#ffffffff",
           invalidColor: "#ffffffff",
           frameLocked: false,
+          colorMode: "map",
+          alpha: 1,
         },
         "/beam": {
           visible: true,
@@ -512,7 +519,7 @@ export const keenonDefaultLayout: LayoutData = {
         "/move_base/move_base_global_plan": {
           visible: true,
           gradient: ["#ff0000ff", "#ff0000ff"],
-          lineWidth: 0.09999999999999992,
+          lineWidth: 0.1,
         },
         "/move_base/TebLocalPlannerROS/teb_poses": {
           visible: true,
@@ -637,6 +644,11 @@ export const keenonDefaultLayout: LayoutData = {
         "/1.png": {
           visible: true,
         },
+        "/1.pgm": {
+          visible: false,
+          colorMode: "rgba-fields",
+          colorMap: "turbo",
+        },
       },
       layers: {
         "108784e4-993a-457b-9b7e-4bda09b3d80c": {
@@ -688,6 +700,7 @@ export const keenonDefaultLayout: LayoutData = {
       xAxisVal: "timestamp",
       sidebarDimension: 240,
       foxglovePanelTitle: "Plot",
+      title: "Plot",
     },
     "Plot!1o1y0sh": {
       paths: [
@@ -706,6 +719,7 @@ export const keenonDefaultLayout: LayoutData = {
       xAxisVal: "timestamp",
       sidebarDimension: 240,
       foxglovePanelTitle: "Plot",
+      title: "Plot",
     },
     "Plot!v4o8q1": {
       paths: [
@@ -729,6 +743,7 @@ export const keenonDefaultLayout: LayoutData = {
       xAxisVal: "timestamp",
       sidebarDimension: 240,
       foxglovePanelTitle: "Plot",
+      title: "Plot",
     },
     "RosOut!mt4hkx": {
       searchTerms: [],

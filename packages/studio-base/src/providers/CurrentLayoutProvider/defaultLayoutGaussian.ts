@@ -12,13 +12,13 @@ export const gs50Layout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
-        distance: 22.16066481994401,
-        perspective: true,
-        phi: 0.47583854832627764,
+        perspective: false,
+        distance: 11.376001845528343,
+        phi: 59.99999999999999,
+        thetaOffset: 45.00000000000027,
+        targetOffset: [0.653630101964988, -0.7677388198661745, -7.682910853845e-18],
         target: [0, 0, 0],
-        targetOffset: [5.047111950773007, -0.44475575331862194, 6.01960032509308e-18],
         targetOrientation: [0, 0, 0, 1],
-        thetaOffset: 52.54218760354421,
         fovy: 45,
         near: 0.5,
         far: 5000,
@@ -311,6 +311,15 @@ export const gs50Layout: LayoutData = {
         "frame:rgb_m_bt": {
           visible: false,
         },
+        "frame:rgb_w_u": {
+          visible: false,
+        },
+        "frame:intrinsic_depth7": {
+          visible: false,
+        },
+        "frame:intrinsic_color7": {
+          visible: false,
+        },
       },
       topics: {
         "/camera1_record/depth/camera_info": {
@@ -573,11 +582,11 @@ export const gs50Layout: LayoutData = {
         },
         "/costmap_node/global_costmap/local_laser_static_map": {
           visible: true,
-          colorMode: "custom",
+          colorMode: "costmap",
         },
         "/costmap_node/global_costmap/mapping_map": {
           visible: true,
-          colorMode: "custom",
+          colorMode: "map",
         },
         "/costmap_node/global_costmap/record_type_map": {
           visible: false,
@@ -722,6 +731,7 @@ export const gs50Layout: LayoutData = {
           visible: true,
           type: "line",
           gradient: ["#00FF00ff", "#00FF00ff"],
+          lineWidth: 0.08,
         },
         "/unicycle_planner/dij_path": {
           visible: true,
@@ -958,6 +968,7 @@ export const gs50Layout: LayoutData = {
       xAxisVal: "timestamp",
       sidebarDimension: 240,
       foxglovePanelTitle: "CMD 下发速度",
+      title: "Plot",
     },
     "Plot!1o1y0sh": {
       paths: [
@@ -986,6 +997,7 @@ export const gs50Layout: LayoutData = {
       xAxisVal: "timestamp",
       sidebarDimension: 240,
       foxglovePanelTitle: "IMU 陀螺仪数值",
+      title: "Plot",
     },
     "Plot!v4o8q1": {
       paths: [
@@ -1009,6 +1021,7 @@ export const gs50Layout: LayoutData = {
       xAxisVal: "timestamp",
       sidebarDimension: 240,
       foxglovePanelTitle: "odom 实际速度",
+      title: "Plot",
     },
     "RosOut!mt4hkx": {
       searchTerms: [],
@@ -1027,7 +1040,7 @@ export const gs50Layout: LayoutData = {
   globalVariables: {},
   userNodes: {},
   playbackConfig: {
-    speed: 3,
+    speed: 1,
   },
   layout: {
     direction: "row",
@@ -1064,13 +1077,13 @@ export const gs75Layout: LayoutData = {
   configById: {
     "3D!3me9aqv": {
       cameraState: {
-        distance: 22.16066481994401,
-        perspective: true,
-        phi: 0.47583854832627764,
+        perspective: false,
+        distance: 11.376001845528343,
+        phi: 59.99999999999999,
+        thetaOffset: 45.00000000000027,
+        targetOffset: [0.653630101964988, -0.7677388198661745, -7.682910853845e-18],
         target: [0, 0, 0],
-        targetOffset: [5.047111950773007, -0.44475575331862194, 6.01960032509308e-18],
         targetOrientation: [0, 0, 0, 1],
-        thetaOffset: 52.54218760354421,
         fovy: 45,
         near: 0.5,
         far: 5000,
@@ -1363,6 +1376,15 @@ export const gs75Layout: LayoutData = {
         "frame:rgb_m_bt": {
           visible: false,
         },
+        "frame:rgb_w_u": {
+          visible: false,
+        },
+        "frame:intrinsic_depth7": {
+          visible: false,
+        },
+        "frame:intrinsic_color7": {
+          visible: false,
+        },
       },
       topics: {
         "/camera1_record/depth/camera_info": {
@@ -1625,11 +1647,11 @@ export const gs75Layout: LayoutData = {
         },
         "/costmap_node/global_costmap/local_laser_static_map": {
           visible: true,
-          colorMode: "custom",
+          colorMode: "costmap",
         },
         "/costmap_node/global_costmap/mapping_map": {
           visible: true,
-          colorMode: "custom",
+          colorMode: "map",
         },
         "/costmap_node/global_costmap/record_type_map": {
           visible: false,
@@ -1774,6 +1796,7 @@ export const gs75Layout: LayoutData = {
           visible: true,
           type: "line",
           gradient: ["#00FF00ff", "#00FF00ff"],
+          lineWidth: 0.08,
         },
         "/unicycle_planner/dij_path": {
           visible: true,
@@ -2010,6 +2033,7 @@ export const gs75Layout: LayoutData = {
       xAxisVal: "timestamp",
       sidebarDimension: 240,
       foxglovePanelTitle: "CMD 下发速度",
+      title: "Plot",
     },
     "Plot!1o1y0sh": {
       paths: [
@@ -2038,6 +2062,7 @@ export const gs75Layout: LayoutData = {
       xAxisVal: "timestamp",
       sidebarDimension: 240,
       foxglovePanelTitle: "IMU 陀螺仪数值",
+      title: "Plot",
     },
     "Plot!v4o8q1": {
       paths: [
@@ -2061,6 +2086,7 @@ export const gs75Layout: LayoutData = {
       xAxisVal: "timestamp",
       sidebarDimension: 240,
       foxglovePanelTitle: "odom 实际速度",
+      title: "Plot",
     },
     "RosOut!mt4hkx": {
       searchTerms: [],
@@ -2079,7 +2105,7 @@ export const gs75Layout: LayoutData = {
   globalVariables: {},
   userNodes: {},
   playbackConfig: {
-    speed: 3,
+    speed: 1,
   },
   layout: {
     direction: "row",
