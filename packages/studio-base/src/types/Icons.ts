@@ -24,5 +24,4 @@ export type RegisteredIconNames =
   | "Settings"
   | "Variable2"
   | "ROS"
-  | "QuestionCircle"
   | never; // never has no effect here other than keeping the semicolon on a separate line for easier conflict resolution

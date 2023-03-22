@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { alpha, Theme } from "@mui/material";
+import { alpha, Fade, Theme } from "@mui/material";
 import { CSSProperties } from "react";
 import tinycolor from "tinycolor2";
 
@@ -177,6 +177,11 @@ export default function muiComponents(theme: Theme): Theme["components"] & MuiLa
     MuiCheckbox: {
       defaultProps: {
         disableRipple: true,
+      },
+      styleOverrides: {
+        root: {
+          ...iconHack,
+        },
       },
     },
     MuiFormLabel: {
@@ -382,6 +387,9 @@ export default function muiComponents(theme: Theme): Theme["components"] & MuiLa
       },
     },
     MuiMenu: {
+      defaultProps: {
+        TransitionComponent: Fade,
+      },
       styleOverrides: {
         paper: {
           borderRadius: theme.shape.borderRadius,
@@ -513,6 +521,7 @@ export default function muiComponents(theme: Theme): Theme["components"] & MuiLa
     MuiTooltip: {
       defaultProps: {
         arrow: true,
+        TransitionComponent: Fade,
       },
       styleOverrides: {
         arrow: {
@@ -523,7 +532,26 @@ export default function muiComponents(theme: Theme): Theme["components"] & MuiLa
           backgroundColor: tinycolor(theme.palette.grey[700]).setAlpha(0.86).toRgbString(),
           backdropFilter: "blur(3px)",
           fontWeight: "normal",
-          fontSize: "0.75rem",
+          fontSize: theme.typography.caption.fontSize,
+        },
+      },
+    },
+    MuiTypography: {
+      defaultProps: {
+        // Remap typography variants to be <div> elements to
+        // avoid triggering react's validateDOMNesting error
+        variantMapping: {
+          h1: "div",
+          h2: "div",
+          h3: "div",
+          h4: "div",
+          h5: "div",
+          h6: "div",
+          subtitle1: "div",
+          subtitle2: "div",
+          body1: "div",
+          body2: "div",
+          inherit: "div",
         },
       },
     },

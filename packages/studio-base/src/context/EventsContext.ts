@@ -36,6 +36,9 @@ export type EventsStore = DeepReadonly<{
   /** Used to signal event refreshes. */
   eventFetchCount: number;
 
+  /** Whether events are supported for the currently loaded source. */
+  eventsSupported: boolean;
+
   /** Fetched events for this session. */
   events: AsyncState<TimelinePositionedEvent[]>;
 
@@ -44,6 +47,9 @@ export type EventsStore = DeepReadonly<{
 
   /** The currently selected event, if any. */
   selectedEventId: undefined | string;
+
+  /** The active device under which new events should be created. */
+  deviceId: string | undefined;
 
   /** Refreshes events from api. */
   refreshEvents: () => void;
@@ -54,8 +60,15 @@ export type EventsStore = DeepReadonly<{
   /** Set the fetched events. */
   setEvents: (events: AsyncState<TimelinePositionedEvent[]>) => void;
 
+  /** Set the flag indicating support for events. */
+  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  setEventsSupported: (supported: boolean) => void;
+
   /** Update the current filter expression. */
   setFilter: (filter: string) => void;
+
+  /** Set the active device. */
+  setDeviceId: (deviceId: string | undefined) => void;
 }>;
 
 export const EventsContext = createContext<undefined | StoreApi<EventsStore>>(undefined);

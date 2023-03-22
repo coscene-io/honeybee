@@ -10,6 +10,7 @@ import { fromDate } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import CurrentUserContext, { User } from "@foxglove/studio-base/context/CurrentUserContext";
+import { useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { PlayerPresence, Topic } from "@foxglove/studio-base/players/types";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
@@ -91,7 +92,7 @@ export const PlayerNotPresent = (): JSX.Element => {
   return (
     <MockMessagePipelineProvider noActiveData presence={PlayerPresence.NOT_PRESENT}>
       <Box height="100%" bgcolor="background.paper">
-        <DataSourceSidebar />
+        <DataSourceSidebar onSelectDataSourceAction={() => {}} />
       </Box>
     </MockMessagePipelineProvider>
   );
@@ -105,7 +106,7 @@ export const PlayerIntializing = (): JSX.Element => {
       presence={PlayerPresence.INITIALIZING}
     >
       <Box height="100%" bgcolor="background.paper">
-        <DataSourceSidebar />
+        <DataSourceSidebar onSelectDataSourceAction={() => {}} />
       </Box>
     </MockMessagePipelineProvider>
   );
@@ -128,7 +129,7 @@ export const PlayerReconnecting = (): JSX.Element => {
       ]}
     >
       <Box height="100%" bgcolor="background.paper">
-        <DataSourceSidebar />
+        <DataSourceSidebar onSelectDataSourceAction={() => {}} />
       </Box>
     </MockMessagePipelineProvider>
   );
@@ -143,7 +144,7 @@ export const PlayerPresent = (): JSX.Element => {
       presence={PlayerPresence.PRESENT}
     >
       <Box height="100%" bgcolor="background.paper">
-        <DataSourceSidebar />
+        <DataSourceSidebar onSelectDataSourceAction={() => {}} />
       </Box>
     </MockMessagePipelineProvider>
   );
@@ -177,18 +178,22 @@ export const WithEvents = (): JSX.Element => {
     signOut: async () => undefined,
   };
 
+  const setEventsSupported = useEvents((store) => store.setEventsSupported);
+  useEffect(() => {
+    setEventsSupported(true);
+  }, [setEventsSupported]);
+
   return (
     <MockMessagePipelineProvider
       startTime={START_TIME}
       endTime={END_TIME}
       topics={TOPICS}
       presence={PlayerPresence.PRESENT}
-      urlState={{ sourceId: "foxglove-data-platform" }}
     >
       <CurrentUserContext.Provider value={userContextValue}>
         <EventsProvider>
           <Box height="100%" bgcolor="background.paper">
-            <DataSourceSidebar />
+            <DataSourceSidebar onSelectDataSourceAction={() => {}} />
           </Box>
         </EventsProvider>
       </CurrentUserContext.Provider>
@@ -229,7 +234,7 @@ export const PlayerWithError = (): JSX.Element => {
       ]}
     >
       <Box height="100%" bgcolor="background.paper">
-        <DataSourceSidebar />
+        <DataSourceSidebar onSelectDataSourceAction={() => {}} />
       </Box>
     </MockMessagePipelineProvider>
   );

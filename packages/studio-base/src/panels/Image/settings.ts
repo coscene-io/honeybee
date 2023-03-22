@@ -50,7 +50,7 @@ export function buildSettingsTree({
       label: "general",
       fields: {
         cameraTopic: {
-          label: "cameraTopic",
+          label: "Topic",
           input: "select",
           value: config.cameraTopic,
           options: imageTopics.map((topic) => ({ label: topic.name, value: topic.name })),

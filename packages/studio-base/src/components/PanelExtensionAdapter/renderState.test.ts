@@ -536,6 +536,244 @@ describe("renderState", () => {
       ],
     });
   });
+
+  // It is valid to register multiple converters all sharing the same _from_ schema and having
+  // different _to_ schemas.
+  it("should support multiple _from_ converters with different _to_", () => {
+    const buildRenderState = initRenderStateBuilder();
+    const state = buildRenderState({
+      watchedFields: new Set(["topics", "currentFrame", "allFrames"]),
+      playerState: {
+        presence: PlayerPresence.INITIALIZING,
+        capabilities: [],
+        profile: undefined,
+        playerId: "test",
+        progress: {
+          messageCache: {
+            startTime: { sec: 0, nsec: 0 },
+            blocks: [
+              {
+                sizeInBytes: 0,
+                messagesByTopic: {
+                  test: [
+                    {
+                      topic: "test",
+                      schemaName: "schema",
+                      receiveTime: { sec: 1, nsec: 0 },
+                      sizeInBytes: 1,
+                      message: { from: "allFrames" },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      },
+      appSettings: undefined,
+      currentFrame: [
+        {
+          topic: "test",
+          schemaName: "schema",
+          receiveTime: { sec: 0, nsec: 0 },
+          sizeInBytes: 1,
+          message: { from: "currentFrame" },
+        },
+      ],
+      colorScheme: undefined,
+      globalVariables: {},
+      hoverValue: undefined,
+      sharedPanelState: {},
+      sortedTopics: [{ name: "test", schemaName: "schema" }],
+      subscriptions: [
+        { topic: "test" },
+        { topic: "test", convertTo: "otherSchema", preload: true },
+        { topic: "test", convertTo: "anotherSchema", preload: true },
+      ],
+      messageConverters: [
+        {
+          fromSchemaName: "schema",
+          toSchemaName: "otherSchema",
+          converter: () => {
+            return 1;
+          },
+        },
+        {
+          fromSchemaName: "schema",
+          toSchemaName: "anotherSchema",
+          converter: () => {
+            return 2;
+          },
+        },
+      ],
+    });
+
+    expect(state).toEqual({
+      topics: [
+        {
+          name: "test",
+          schemaName: "schema",
+          datatype: "schema",
+          convertibleTo: ["otherSchema", "anotherSchema"],
+        },
+      ],
+      currentFrame: [
+        {
+          topic: "test",
+          schemaName: "schema",
+          message: { from: "currentFrame" },
+          receiveTime: { sec: 0, nsec: 0 },
+          sizeInBytes: 1,
+        },
+        {
+          topic: "test",
+          schemaName: "otherSchema",
+          message: 1,
+          receiveTime: { sec: 0, nsec: 0 },
+          sizeInBytes: 1,
+          originalMessageEvent: {
+            topic: "test",
+            schemaName: "schema",
+            message: { from: "currentFrame" },
+            receiveTime: { sec: 0, nsec: 0 },
+            sizeInBytes: 1,
+          },
+        },
+        {
+          topic: "test",
+          schemaName: "anotherSchema",
+          message: 2,
+          receiveTime: { sec: 0, nsec: 0 },
+          sizeInBytes: 1,
+          originalMessageEvent: {
+            topic: "test",
+            schemaName: "schema",
+            message: { from: "currentFrame" },
+            receiveTime: { sec: 0, nsec: 0 },
+            sizeInBytes: 1,
+          },
+        },
+      ],
+      allFrames: [
+        {
+          message: { from: "allFrames" },
+          receiveTime: { nsec: 0, sec: 1 },
+          schemaName: "schema",
+          sizeInBytes: 1,
+          topic: "test",
+        },
+        {
+          message: 1,
+          originalMessageEvent: {
+            message: { from: "allFrames" },
+            receiveTime: { nsec: 0, sec: 1 },
+            schemaName: "schema",
+            sizeInBytes: 1,
+            topic: "test",
+          },
+          receiveTime: { nsec: 0, sec: 1 },
+          schemaName: "otherSchema",
+          sizeInBytes: 1,
+          topic: "test",
+        },
+        {
+          message: 2,
+          originalMessageEvent: {
+            message: { from: "allFrames" },
+            receiveTime: { nsec: 0, sec: 1 },
+            schemaName: "schema",
+            sizeInBytes: 1,
+            topic: "test",
+          },
+          receiveTime: { nsec: 0, sec: 1 },
+          schemaName: "anotherSchema",
+          sizeInBytes: 1,
+          topic: "test",
+        },
+      ],
+    });
+  });
+
+  it("should correctly avoid rendering when current frame stops changing", () => {
+    const buildRenderState = initRenderStateBuilder();
+
+    // The first render with a current frame produces a state with the current frame
+    {
+      const state = buildRenderState({
+        watchedFields: new Set(["currentFrame"]),
+        playerState: undefined,
+        appSettings: undefined,
+        currentFrame: [
+          {
+            topic: "test",
+            schemaName: "schema",
+            receiveTime: { sec: 0, nsec: 0 },
+            sizeInBytes: 0,
+            message: {},
+          },
+        ],
+        colorScheme: undefined,
+        globalVariables: {},
+        hoverValue: undefined,
+        sharedPanelState: {},
+        sortedTopics: [],
+        subscriptions: [{ topic: "test" }],
+        messageConverters: [],
+      });
+
+      expect(state).toEqual({
+        currentFrame: [
+          {
+            topic: "test",
+            schemaName: "schema",
+            message: {},
+            receiveTime: { sec: 0, nsec: 0 },
+            sizeInBytes: 0,
+          },
+        ],
+      });
+    }
+
+    // The next render has no current frame for our subscription so we get an undefined current frame
+    {
+      const state = buildRenderState({
+        watchedFields: new Set(["currentFrame"]),
+        playerState: undefined,
+        appSettings: undefined,
+        currentFrame: undefined,
+        colorScheme: undefined,
+        globalVariables: {},
+        hoverValue: undefined,
+        sharedPanelState: {},
+        sortedTopics: [],
+        subscriptions: [{ topic: "test" }],
+        messageConverters: [],
+      });
+
+      expect(state).toEqual({
+        currentFrame: undefined,
+      });
+    }
+
+    // Rendering again with no current frame should return no render state to indicate no render should happen
+    {
+      const state = buildRenderState({
+        watchedFields: new Set(["currentFrame"]),
+        playerState: undefined,
+        appSettings: undefined,
+        currentFrame: undefined,
+        colorScheme: undefined,
+        globalVariables: {},
+        hoverValue: undefined,
+        sharedPanelState: {},
+        sortedTopics: [],
+        subscriptions: [{ topic: "test" }],
+        messageConverters: [],
+      });
+
+      expect(state).toEqual(undefined);
+    }
+  });
 });
 
 describe("forEachSortedArrays", () => {
