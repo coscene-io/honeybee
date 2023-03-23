@@ -48,8 +48,6 @@ import { MosaicPathContext } from "./MosaicPathContext";
 import { PanelRemounter } from "./PanelRemounter";
 import { UnknownPanel } from "./UnknownPanel";
 
-import "react-mosaic-component/react-mosaic-component.css";
-
 type Props = {
   layout?: MosaicNode<string>;
   onChange: (panels: MosaicNode<string> | undefined) => void;

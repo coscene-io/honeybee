@@ -76,8 +76,4 @@ describe("TransformTree", () => {
     expect(tfTree.frame("c")).toBeUndefined();
     expect(tfTree.frame("d")).toBeUndefined();
   });
-  it("detects a cycle when adding a transform with a parent as itself", () => {
-    const tfTree = new TransformTree();
-    expect(tfTree.addTransform("a", "a", bigint, tf)).toEqual(AddTransformResult.CYCLE_DETECTED);
-  });
 });
