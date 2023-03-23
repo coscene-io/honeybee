@@ -71,6 +71,9 @@ type IterablePlayerOptions = {
 
   source: IIterableSource;
 
+  // How far ahead to buffer
+  readAheadDuration?: Time;
+
   // Optional player name
   name?: string;
 
@@ -174,10 +177,20 @@ export class CoSceneIterablePlayer implements Player {
   private _untilTime?: Time;
 
   public constructor(options: IterablePlayerOptions) {
-    const { metricsCollector, urlParams, source, name, enablePreload, sourceId } = options;
+    const {
+      metricsCollector,
+      urlParams,
+      source,
+      name,
+      enablePreload,
+      sourceId,
+      readAheadDuration,
+    } = options;
 
     this._iterableSource = source;
-    this._bufferedSource = new BufferedIterableSource(source);
+    this._bufferedSource = new BufferedIterableSource(source, {
+      readAheadDuration,
+    });
     this._name = name;
     this._urlParams = urlParams;
     this._metricsCollector = metricsCollector ?? new NoopMetricsCollector();
