@@ -58,7 +58,9 @@ function DiagnosticStatusPanel(props: Props) {
   // Filter down all topics to those that conform to our supported datatypes
   const availableTopics = useMemo(() => {
     const filtered = topics
-      .filter((topic) => topic.schemaName && ALLOWED_DATATYPES.includes(topic.schemaName))
+      .filter(
+        (topic) => topic.schemaName != undefined && ALLOWED_DATATYPES.includes(topic.schemaName),
+      )
       .map((topic) => topic.name);
 
     // Keeps only the first occurrence of each topic.

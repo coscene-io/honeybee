@@ -28,15 +28,14 @@ const actions = {
   onMaximizeWindow: action("onMaximizeWindow"),
   onUnmaximizeWindow: action("onUnmaximizeWindow"),
   onCloseWindow: action("onCloseWindow"),
+  prefsDialogOpen: false,
+  setPrefsDialogOpen: action("setPrefsDialogOpen"),
+  layoutMenuOpen: false,
+  setLayoutMenuOpen: action("setLayoutMenuOpen"),
 };
 
 export function Default(): JSX.Element {
-  return (
-    <AppBar
-      signIn={action("signIn")}
-      onSelectDataSourceAction={action("onSelectDataSourceAction")}
-    />
-  );
+  return <AppBar {...actions} />;
 }
 
 export function CustomWindowControls(): JSX.Element {
@@ -153,13 +152,6 @@ export function DataSources(): JSX.Element {
       <div
         style={{ display: "grid", gridTemplateColumns: "max-content auto", alignItems: "center" }}
       >
-        <MockMessagePipelineProvider
-          name="roman-transbot (dev_W m1gvryKJmREqnVT)"
-          presence={PlayerPresence.PRESENT}
-          urlState={{ sourceId: "foxglove-data-platform" }}
-        >
-          <LabeledAppBar label="foxglove-data-platform" {...actions} />
-        </MockMessagePipelineProvider>
         <MockMessagePipelineProvider
           name="Adapted from nuScenes dataset. Copyright © 2020 nuScenes. https://www.nuscenes.org/terms-of-use"
           presence={PlayerPresence.PRESENT}

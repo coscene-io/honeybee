@@ -351,11 +351,7 @@ class ConsoleApi {
   ): Promise<ApiResponse<T>> {
     const fullUrl = `${this._baseUrl}${url}`;
 
-    const headers: Record<string, string> = {
-      // Include the version of studio in the request Useful when scraping logs to determine what
-      // versions of the app are making requests.
-      "fg-user-agent": FOXGLOVE_USER_AGENT,
-    };
+    const headers: Record<string, string> = {};
     if (this._authHeader != undefined) {
       headers["Authorization"] = this._authHeader;
     }

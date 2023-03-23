@@ -318,29 +318,48 @@ export default class FoxgloveWebSocketPlayer implements Player {
         try {
           let schemaEncoding;
           let schemaData;
-          if (channel.encoding === "json") {
+          if (
+            channel.encoding === "json" &&
+            (channel.schemaEncoding == undefined || channel.schemaEncoding === "jsonschema")
+          ) {
             schemaEncoding = "jsonschema";
             schemaData = textEncoder.encode(channel.schema);
-          } else if (channel.encoding === "protobuf") {
+          } else if (
+            channel.encoding === "protobuf" &&
+            (channel.schemaEncoding == undefined || channel.schemaEncoding === "protobuf")
+          ) {
             schemaEncoding = "protobuf";
             schemaData = new Uint8Array(base64.length(channel.schema));
             if (base64.decode(channel.schema, schemaData, 0) !== schemaData.byteLength) {
               throw new Error(`Failed to decode base64 schema on channel ${channel.id}`);
             }
-          } else if (channel.encoding === "flatbuffer") {
+          } else if (
+            channel.encoding === "flatbuffer" &&
+            (channel.schemaEncoding == undefined || channel.schemaEncoding === "flatbuffer")
+          ) {
             schemaEncoding = "flatbuffer";
             schemaData = new Uint8Array(base64.length(channel.schema));
             if (base64.decode(channel.schema, schemaData, 0) !== schemaData.byteLength) {
               throw new Error(`Failed to decode base64 schema on channel ${channel.id}`);
             }
-          } else if (channel.encoding === "ros1") {
+          } else if (
+            channel.encoding === "ros1" &&
+            (channel.schemaEncoding == undefined || channel.schemaEncoding === "ros1msg")
+          ) {
             schemaEncoding = "ros1msg";
             schemaData = textEncoder.encode(channel.schema);
-          } else if (channel.encoding === "cdr") {
-            schemaEncoding = "ros2msg";
+          } else if (
+            channel.encoding === "cdr" &&
+            (channel.schemaEncoding == undefined ||
+              ["ros2idl", "ros2msg"].includes(channel.schemaEncoding))
+          ) {
+            schemaEncoding = channel.schemaEncoding ?? "ros2msg";
             schemaData = textEncoder.encode(channel.schema);
           } else {
-            throw new Error(`Unsupported encoding ${channel.encoding}`);
+            const msg = channel.schemaEncoding
+              ? `Unsupported combination of message / schema encoding: (${channel.encoding} / ${channel.schemaEncoding})`
+              : `Unsupported message encoding ${channel.encoding}`;
+            throw new Error(msg);
           }
           parsedChannel = parseChannel({
             messageEncoding: channel.encoding,
@@ -427,7 +446,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this._parsedMessages.push({
           topic,
           receiveTime,
-          message: chanInfo.parsedChannel.deserializer(data),
+          message: chanInfo.parsedChannel.deserialize(data),
           sizeInBytes: data.byteLength,
           schemaName: chanInfo.channel.schemaName,
         });
@@ -844,7 +863,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     return await new Promise<Record<string, unknown>>((resolve, reject) => {
       this._serviceResponseCbs.set(serviceCallRequest.callId, (response: ServiceCallResponse) => {
         try {
-          const data = parsedResponse.deserializer(response.data);
+          const data = parsedResponse.deserialize(response.data);
           resolve(data as Record<string, unknown>);
         } catch (error) {
           reject(error);

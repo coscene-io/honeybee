@@ -50,9 +50,8 @@ export class WorkerIterableSourceWorker implements IIterableSource {
     args: Omit<MessageIteratorArgs, "abort">,
     abort?: AbortSignal,
   ): IMessageCursor & Comlink.ProxyMarked {
-    const iter = this.messageIterator(args);
+    const iter = this._source.messageIterator(args);
     const cursor = new IteratorCursor(iter, abort);
-
     return Comlink.proxy(cursor);
   }
 }

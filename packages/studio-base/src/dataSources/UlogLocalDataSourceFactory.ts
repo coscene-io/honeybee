@@ -24,7 +24,6 @@ class UlogLocalDataSourceFactory implements IDataSourceFactory {
 
     const source = new WorkerIterableSource({
       initWorker: () => {
-        // foxglove-depcheck-used: babel-plugin-transform-import-meta
         return new Worker(
           // foxglove-depcheck-used: babel-plugin-transform-import-meta
           new URL(
