@@ -194,4 +194,5 @@ export type IterableSourceInitializeArgs = {
     auth?: string;
   };
   coSceneContext?: CoSceneContext;
+  singleRequestTime?: number;
 };
