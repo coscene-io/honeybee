@@ -19,12 +19,21 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public displayName = "Coscene Data Platform";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
+  private readAheadDuration = { sec: 30, nsec: 0 };
+
+  public constructor() {
+    const readAheadDuration = localStorage.getItem("readAheadDuration");
+    if (readAheadDuration && !isNaN(+readAheadDuration)) {
+      this.readAheadDuration = { sec: +readAheadDuration, nsec: 0 };
+    }
+  }
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const consoleApi = args.consoleApi;
     if (!consoleApi) {
       return;
     }
+    const singleRequestTime = localStorage.getItem("singleRequestTime");
 
     const source = new WorkerIterableSource({
       initWorker: () => {
@@ -43,6 +52,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
         },
         params: args.params,
         coSceneContext: JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
+        singleRequestTime: singleRequestTime && !isNaN(+singleRequestTime) ? +singleRequestTime : 5,
       },
     });
 
@@ -60,6 +70,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       source,
       sourceId: this.id,
       urlParams: definedParams,
+      readAheadDuration: this.readAheadDuration,
     });
   }
 }
