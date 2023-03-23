@@ -180,7 +180,7 @@ export async function* streamMessages({
         messages.push({
           topic: info.channel.topic,
           receiveTime,
-          message: info.parsedChannel.deserializer(record.data),
+          message: info.parsedChannel.deserialize(record.data),
           sizeInBytes: record.data.byteLength,
           schemaName: info.schemaName,
         });
@@ -198,7 +198,6 @@ export async function* streamMessages({
       headers: {
         // Include the version of studio in the request Useful when scraping logs to determine what
         // versions of the app are making requests.
-        "fg-user-agent": FOXGLOVE_USER_AGENT,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

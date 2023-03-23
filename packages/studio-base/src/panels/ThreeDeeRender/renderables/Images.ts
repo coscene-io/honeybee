@@ -116,13 +116,6 @@ export class Images extends SceneExtension<ImageRenderable> {
   private cameraInfoToImageTopics = new MultiMap<string, string>();
 
   /**
-   * A bi-directional mapping between cameraInfo topics and image topics. This
-   * is used for retrieving an image renderable, which is indexed by image
-   * topic, when receiving a camera info message.
-   */
-  private cameraInfoToImageTopics = new MultiMap<string, string>();
-
-  /**
    * Map of camera info topic name -> normalized CameraInfo message
    *
    * This stores the last camera info message on each topic so it can be applied when rendering the image

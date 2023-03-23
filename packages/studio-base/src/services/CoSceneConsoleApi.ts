@@ -355,11 +355,7 @@ class CoSceneConsoleApi {
   ): Promise<ApiResponse<T>> {
     const fullUrl = customHost != undefined && customHost ? url : `${this._baseUrl}${url}`;
 
-    const headers: Record<string, string> = {
-      // Include the version of studio in the request Useful when scraping logs to determine what
-      // versions of the app are making requests.
-      "fg-user-agent": FOXGLOVE_USER_AGENT,
-    };
+    const headers: Record<string, string> = {};
     const fullConfig: RequestInit = {
       ...config,
       headers: { ...headers, ...config?.headers },

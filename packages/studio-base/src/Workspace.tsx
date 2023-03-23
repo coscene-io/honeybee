@@ -594,7 +594,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     const items = new Map<RightSidebarItemKey, NewSidebarItem>([
       ["panel-settings", { title: "Panel settings", component: PanelSettingsSidebar }],
     ]);
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (showEventsTab) {
       items.set("events", { title: "Events", component: EventsList });
     }

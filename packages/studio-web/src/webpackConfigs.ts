@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ReactRefreshPlugin from "@pmmmwh/react-refresh-webpack-plugin";
+import SentryWebpackPlugin from "@sentry/webpack-plugin";
 import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import CopyPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
@@ -47,6 +48,13 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
     //  "[WDS] Disconnected!"
     // Since we are only connecting to localhost, DNS rebinding attacks are not a concern during dev
     allowedHosts: "all",
+    proxy: {
+      "/v1/data": {
+        target: "https://honeybee.coscene.dev",
+        secure: false,
+        changeOrigin: true,
+      },
+    },
   },
 
   plugins: [new CleanWebpackPlugin()],
@@ -66,6 +74,19 @@ export const mainConfig =
       plugins.push(new ReactRefreshPlugin());
     }
 
+    // Source map upload if configuration permits
+    if (!isDev) {
+      plugins.push(
+        new SentryWebpackPlugin({
+          url: "https://sentry.coscene.site/",
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+          org: "coscene",
+          project: "honeybee-web",
+          include: path.resolve(__dirname, ".webpack"),
+        }),
+      );
+    }
+
     const appWebpackConfig = makeConfig(env, argv, { allowUnusedVariables });
 
     const config: Configuration = {
@@ -79,7 +100,7 @@ export const mainConfig =
       devtool: isDev ? "eval-cheap-module-source-map" : params.prodSourceMap,
 
       output: {
-        publicPath: "auto",
+        publicPath: "/viz/",
 
         // Output filenames should include content hashes in order to cache bust when new versions are available
         filename: isDev ? "[name].js" : "[name].[contenthash].js",
@@ -95,31 +116,27 @@ export const mainConfig =
         }),
         new HtmlWebpackPlugin({
           templateContent: `
-  <!doctype html>
-  <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="apple-mobile-web-app-capable" content="yes">
-      <meta property="og:title" content="Foxglove Studio"/>
-      <meta property="og:description" content="Open source visualization and debugging tool for robotics"/>
-      <meta property="og:type" content="website"/>
-      <meta property="og:image" content="https://foxglove.dev/images/og-image.jpeg"/>
-      <meta property="og:url" content="https://studio.foxglove.dev/"/>
-      <meta name="twitter:card" content="summary_large_image"/>
-      <meta name="twitter:site" content="@foxglovedev"/>
-      <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-      <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
-      <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
-      <title>Foxglove Studio</title>
-    </head>
-    <script>
-      global = globalThis;
-    </script>
-    <body>
-      <div id="root"></div>
-    </body>
-  </html>
-  `,
+          <!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="apple-mobile-web-app-capable" content="yes">
+              <meta property="og:title" content="coScene"/>
+              <meta property="og:description" content="Open source visualization and debugging tool for robotics"/>
+              <meta property="og:type" content="website"/>
+              <script src="/viz/cos-config.js?t=${
+                process.env.LAST_BUILD_TIME ?? "local"
+              }" type="text/javascript"></script>
+              <title>coScene</title>
+            </head>
+            <script>
+              global = globalThis;
+            </script>
+            <body>
+              <div id="root"></div>
+            </body>
+          </html>
+          `,
         }),
       ],
     };

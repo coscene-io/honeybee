@@ -53,6 +53,9 @@ export interface IDataSourceFactory {
   hidden?: boolean;
   warning?: string;
 
+  /** Whether to wait for a user to be logged in before initializing this source. */
+  currentUserRequired?: boolean;
+
   sampleLayout?: LayoutData;
 
   formConfig?: {
