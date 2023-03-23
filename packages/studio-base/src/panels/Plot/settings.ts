@@ -30,7 +30,7 @@ const makeSeriesNode = memoizeWeak((path: PlotPath, index: number): SettingsTree
     visible: path.enabled,
     fields: {
       value: {
-        label: "path",
+        label: "Message path",
         input: "messagepath",
         value: path.value,
         validTypes: plotableRosTypes,

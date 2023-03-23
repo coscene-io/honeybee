@@ -30,7 +30,7 @@ export const builtin: PanelInfo[] = [
   {
     title: "3D",
     type: "3D",
-    description: "threeDDescription.",
+    description: "Display markers, camera images, meshes, URDFs, and more in a 3D scene.",
     thumbnail: threeDeeRenderThumbnail,
     module: async () => await import("./ThreeDeeRender"),
     settingsOnboardingTooltip: "Open settings to configure topics and layers.",
@@ -139,13 +139,6 @@ export const builtin: PanelInfo[] = [
     hasCustomToolbar: true,
   },
   {
-    title: "urdfViewer",
-    type: "URDFViewer",
-    description: "urdfDescription",
-    thumbnail: URDFViewerThumbnail,
-    module: async () => await import("./URDFViewer"),
-  },
-  {
     title: "topicGraph",
     type: "TopicGraph",
     description: "topicGraphDescription",
@@ -179,6 +172,7 @@ export const builtin: PanelInfo[] = [
     description: "tabDescription",
     thumbnail: tabThumbnail,
     module: async () => await import("./Tab"),
+    hasCustomToolbar: true,
   },
 ];
 
@@ -198,9 +192,9 @@ export const legacyPlot: PanelInfo = {
 };
 
 export const urdfViewer: PanelInfo = {
-  title: "URDF Viewer",
+  title: "urdfViewer",
   type: "URDFViewer",
-  description: "Visualize Unified Robot Description Format files.",
+  description: "urdfDescription",
   thumbnail: URDFViewerThumbnail,
   module: async () => await import("./URDFViewer"),
 };

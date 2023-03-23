@@ -36,6 +36,7 @@ import { TopicList } from "./TopicList";
 import { DataSourceInfoView } from "../DataSourceInfoView";
 
 type Props = {
+  disableToolbar?: boolean;
   onSelectDataSourceAction: () => void;
 };
 
@@ -89,8 +90,6 @@ const ProblemCount = muiStyled("div")(({ theme }) => ({
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
 const selectPlayerProblems = ({ playerState }: MessagePipelineContext) => playerState.problems;
-const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
-  playerState.urlState?.sourceId;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 const selectRecords = (state: CoSceneRecordStore) => state.record;
 const selectBagFiles = (state: CoSceneRecordStore) => state.recordBagFiles;
@@ -165,7 +164,6 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const { currentUser } = useCurrentUser();
-  const playerSourceId = useMessagePipeline(selectPlayerSourceId);
   const selectedEventId = useEvents(selectSelectedEventId);
   const [activeTab, setActiveTab] = useState<DataSourceSidebarTab>("playlist");
   const { classes } = useStyles();
@@ -187,8 +185,7 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
 
   const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
 
-  const showEventsTab =
-    !enableNewTopNav && currentUser != undefined && playerSourceId === "foxglove-data-platform";
+  const showEventsTab = !enableNewTopNav && currentUser != undefined;
 
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
