@@ -114,7 +114,9 @@ export function RecordsSyncAdapter(): ReactNull {
         urlState?.parameters?.warehouseId &&
         urlState.parameters.projectId &&
         urlState.parameters.recordId &&
-        urlState.parameters.revisionId
+        urlState.parameters.revisionId &&
+        startTime &&
+        endTime
       ) {
         const revisionName = `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}/revisions/${urlState.parameters.revisionId}`;
 
@@ -135,6 +137,8 @@ export function RecordsSyncAdapter(): ReactNull {
     urlState?.parameters?.revisionId,
     setRecord,
     setRecordBagFiles,
+    startTime,
+    endTime,
   ]);
 
   const [_records, syncRecords] = useAsyncFn(async () => {
