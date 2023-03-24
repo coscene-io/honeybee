@@ -2,11 +2,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { Badge, Paper, Tab, Tabs } from "@mui/material";
 import {
   ComponentProps,
-  MouseEvent,
   PropsWithChildren,
   useCallback,
   useEffect,
@@ -176,9 +174,6 @@ export default function Sidebars<
 
   const helpMenuOpen = Boolean(helpAnchorEl);
 
-  const handleHelpClick = (event: MouseEvent<HTMLElement>) => {
-    setHelpAnchorEl(event.currentTarget);
-  };
   const handleHelpClose = () => {
     setHelpAnchorEl(undefined);
   };
@@ -301,17 +296,6 @@ export default function Sidebars<
             {topTabs}
             <TabSpacer />
             {enableMemoryUseIndicator && <MemoryUseIndicator />}
-            <Tab
-              className={classes.tab}
-              color="inherit"
-              id="help-button"
-              aria-label="Help menu button"
-              aria-controls={helpMenuOpen ? "help-menu" : undefined}
-              aria-haspopup="true"
-              aria-expanded={helpMenuOpen ? "true" : undefined}
-              onClick={(event) => handleHelpClick(event)}
-              icon={<HelpOutlineIcon color={helpMenuOpen ? "primary" : "inherit"} />}
-            />
             {bottomTabs}
           </Tabs>
           <HelpMenu
