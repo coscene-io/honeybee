@@ -33,7 +33,6 @@ import { makeStyles } from "tss-react/mui";
 import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
-import { ExperimentalFeatureSettings } from "@foxglove/studio-base/components/ExperimentalFeatureSettings";
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
@@ -403,12 +402,6 @@ export function LanguageSettings(): React.ReactElement {
 }
 
 export default function Preferences(): React.ReactElement {
-  const [crashReportingEnabled, setCrashReportingEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.CRASH_REPORTING_ENABLED,
-  );
-  const [telemetryEnabled, setTelemetryEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.TELEMETRY_ENABLED,
-  );
   const { t } = useTranslation("preferences");
   const { classes } = useStyles();
   // automatic updates are a desktop-only setting
@@ -446,66 +439,9 @@ export default function Preferences(): React.ReactElement {
                 <AutoUpdate />
               </div>
             )}
-            {!isDesktopApp() && (
-              <div>
-                <LaunchDefault />
-              </div>
-            )}
             <div className={classes.versionText}>
               {t("lastUpdated")}: {dayjs(APP_CONFIG.LAST_BUILD_TIME).format("YYYY-MM-DD HH:mm:ss")}
             </div>
-          </Stack>
-        </section>
-
-        <section>
-          <Typography component="h2" variant="h5" gutterBottom color="primary">
-            {t("ros")}
-          </Typography>
-          <Stack gap={1}>
-            <div>
-              <RosPackagePath />
-            </div>
-          </Stack>
-        </section>
-
-        <section>
-          <Typography component="h2" variant="h5" gutterBottom color="primary">
-            {t("privacy")}
-          </Typography>
-          <Stack gap={2}>
-            <Typography color="text.secondary">{t("privacyDescription")}</Typography>
-            <FormControlLabel
-              className={classes.formControlLabel}
-              control={
-                <Checkbox
-                  className={classes.checkbox}
-                  checked={telemetryEnabled ?? true}
-                  onChange={(_event, checked) => void setTelemetryEnabled(checked)}
-                />
-              }
-              label={t("sendAnonymizedUsageData")}
-            />
-            <FormControlLabel
-              className={classes.formControlLabel}
-              control={
-                <Checkbox
-                  className={classes.checkbox}
-                  checked={crashReportingEnabled ?? true}
-                  onChange={(_event, checked) => void setCrashReportingEnabled(checked)}
-                />
-              }
-              label={t("sendAnonymizedCrashReports")}
-            />
-          </Stack>
-        </section>
-
-        <section>
-          <Typography component="h2" variant="h5" gutterBottom color="primary">
-            {t("experimentalFeatures")}
-          </Typography>
-          <Stack gap={1}>
-            <Typography color="text.secondary">{t("experimentalFeaturesDescription")}</Typography>
-            <ExperimentalFeatureSettings />
           </Stack>
         </section>
       </Stack>
