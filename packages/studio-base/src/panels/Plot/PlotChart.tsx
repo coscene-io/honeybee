@@ -96,23 +96,22 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
     const min = isNaN(minYValue) ? undefined : minYValue;
     const max = isNaN(maxYValue) ? undefined : maxYValue;
 
+    let yAxisData: number[][] = [];
     let minData = min;
     let maxData = max;
 
-    if (min == undefined) {
-      minData = Math.min(
-        ...data.datasets.map((dataset) =>
-          Math.min(...dataset.data.filter((d) => d != undefined).map((d) => d!.y)),
-        ),
+    if (min == undefined || max == undefined) {
+      yAxisData = data.datasets.map((dataset) =>
+        dataset.data.filter((d) => d != undefined).map((d) => d!.y),
       );
     }
 
+    if (min == undefined) {
+      minData = Math.min(...yAxisData.map((d) => Math.min(...d)));
+    }
+
     if (max == undefined) {
-      maxData = Math.max(
-        ...data.datasets.map((dataset) =>
-          Math.max(...dataset.data.filter((d) => d != undefined).map((d) => d!.y)),
-        ),
-      );
+      maxData = Math.max(...yAxisData.map((d) => Math.max(...d)));
     }
 
     if (min == undefined && maxData != undefined && minData != undefined) {
