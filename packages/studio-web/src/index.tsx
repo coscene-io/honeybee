@@ -11,14 +11,10 @@ import Logger from "@foxglove/log";
 import { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
-import __browserLogger from "@foxglove/studio-base/util/browserLogger";
 
 import VersionBanner from "./VersionBanner";
 
 const log = Logger.getLogger(__filename);
-
-// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, no-underscore-dangle
-export const __bl = __browserLogger.__bl || {};
 
 function LogAfterRender(props: React.PropsWithChildren<unknown>): JSX.Element {
   useEffect(() => {
