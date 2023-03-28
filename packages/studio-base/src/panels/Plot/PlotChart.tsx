@@ -88,12 +88,44 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
 
   const annotations = useMemo(() => getAnnotations(paths), [paths]);
 
+  const data = useMemo(() => {
+    return { datasets };
+  }, [datasets]);
+
   const yAxes = useMemo((): ScaleOptions<"linear"> => {
     const min = isNaN(minYValue) ? undefined : minYValue;
     const max = isNaN(maxYValue) ? undefined : maxYValue;
+
+    let minData = min;
+    let maxData = max;
+
+    if (min == undefined) {
+      minData = Math.min(
+        ...data.datasets.map((dataset) =>
+          Math.min(...dataset.data.filter((d) => d != undefined).map((d) => d!.y)),
+        ),
+      );
+    }
+
+    if (max == undefined) {
+      maxData = Math.max(
+        ...data.datasets.map((dataset) =>
+          Math.max(...dataset.data.filter((d) => d != undefined).map((d) => d!.y)),
+        ),
+      );
+    }
+
+    if (min == undefined && maxData != undefined && minData != undefined) {
+      minData = minData - (maxData - minData) * 0.1;
+    }
+
+    if (max == undefined && maxData != undefined && minData != undefined) {
+      maxData = maxData + (maxData - minData) * 0.1;
+    }
+
     return {
-      min,
-      max,
+      min: minData != undefined ? (isFinite(minData) ? minData : undefined) : undefined,
+      max: maxData != undefined ? (isFinite(maxData) ? maxData : undefined) : undefined,
       ticks: {
         display: showYAxisLabels,
         precision: 3,
@@ -102,7 +134,7 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
         color: theme.palette.divider,
       },
     };
-  }, [maxYValue, minYValue, showYAxisLabels, theme]);
+  }, [maxYValue, minYValue, showYAxisLabels, theme, data]);
 
   // Use a debounce and 0 refresh rate to avoid triggering a resize observation while handling
   // an existing resize observation.
@@ -115,10 +147,6 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
     refreshRate: 0,
     refreshMode: "debounce",
   });
-
-  const data = useMemo(() => {
-    return { datasets };
-  }, [datasets]);
 
   return (
     <div style={{ width: "100%", flexGrow: 1, overflow: "hidden", padding: "2px" }} ref={sizeRef}>
