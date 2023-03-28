@@ -2802,7 +2802,6 @@ __metadata:
     "@types/uuid": 9.0.1
     "@types/wicg-file-system-access": 2020.9.5
     "@uiw/react-textarea-code-editor": 2.1.1
-    alife-logger: 1.8.30
     amplitude-js: 8.21.6
     babel-jest: 29.5.0
     babel-plugin-transform-import-meta: 2.2.0
@@ -8532,13 +8531,6 @@ __metadata:
     require-from-string: ^2.0.2
     uri-js: ^4.2.2
   checksum: 90849ef03c4f4f7051d15f655120137b89e3205537d683beebd39d95f40c0ca00ea8476cd999602d2f433863e7e4bf1b81d1869d1e07f4dcf56d71b6430a605c
-  languageName: node
-  linkType: hard
-
-"alife-logger@npm:1.8.30":
-  version: 1.8.30
-  resolution: "alife-logger@npm:1.8.30"
-  checksum: 2017a2f1625188fea55086ee96ba7298de5394b5be2912a4805e30568fd9a4880cd31945ef4d8d136169a56956ee281090f5aea2cbbf38c1884f71cc7b3c83d0
   languageName: node
   linkType: hard
 

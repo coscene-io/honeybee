@@ -135,16 +135,6 @@ export function App(props: AppProps): JSX.Element {
     return () => document.removeEventListener("contextmenu", contextMenuHandler);
   }, []);
 
-  // MY TOKENS
-  localStorage.setItem(
-    "coScene_org_jwt",
-    "Basic YXBpa2V5Ok5EQXhaRGczTUdZd016VTVaVEZqTUdSak56QmpPVEl3Tm1NMk9HUmhPV00xTkRkaFlqTXpOakV6TkRFNU1HRXhabUV6T1RZeE56SXpaVEl5WkdRM01BPT0=",
-  );
-  localStorage.setItem(
-    "CoSceneContext",
-    '{"currentWarehouseId":"7d58a141-3cdd-457e-bef2-cac3556b70fd","currentWarehouseDisplayName":"default warehouse","currentWarehouseSlug":"default","currentProjectId":"65555135-3d1d-453f-b223-1664ae793368","currentProjectSlug":"shan-tests","currentProjectDisplayName":"shan-tests","currentOrganizationId":"organizations/3dd76ff2-839d-49a3-82af-663422b69b01","currentOrganizationDisplayName":"coScene(飞书)","currentRecordId":"96a6b039-dc71-45f8-9663-c88f0d96ba6e","isCurrentProjectArchived":false,"currentOrganizationSlug":"coscene-lark"}',
-  );
-
   return (
     <AppConfigurationContext.Provider value={appConfiguration}>
       <ColorSchemeThemeProvider>
