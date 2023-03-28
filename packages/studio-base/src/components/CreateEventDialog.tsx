@@ -114,7 +114,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   }>({
     eventName: "",
     startTime: currentTime ? toDate(currentTime) : undefined,
-    duration: 0,
+    duration: 1,
     durationUnit: "sec",
     description: "",
     metadataEntries: [{ key: "", value: "" }],
