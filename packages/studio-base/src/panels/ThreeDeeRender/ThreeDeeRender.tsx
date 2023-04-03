@@ -1118,6 +1118,46 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
 
   const onResetCamera = useCallback(() => {
     if (renderer) {
+      const currentFollowMode = renderer.followMode;
+
+      // If the follow mode is fixed, you need to adjust the display frame to "base_link" and the follow mode to "pose" in order to locate the robot. Then, adjust both back to their original settings.
+      if (currentFollowMode === "follow-none") {
+        const currentFollowTf = effectiveRendererFrameId;
+        actionHandler({
+          action: "update",
+          payload: {
+            input: "select",
+            path: ["general", "followTf"],
+            value: "base_link",
+          },
+        });
+        actionHandler({
+          action: "update",
+          payload: {
+            input: "select",
+            path: ["general", "followMode"],
+            value: "follow-pose",
+          },
+        });
+        setTimeout(() => {
+          actionHandler({
+            action: "update",
+            payload: {
+              input: "select",
+              path: ["general", "followTf"],
+              value: currentFollowTf,
+            },
+          });
+          actionHandler({
+            action: "update",
+            payload: {
+              input: "select",
+              path: ["general", "followMode"],
+              value: "follow-none",
+            },
+          });
+        });
+      }
       const currentState = renderer.config.cameraState.perspective;
       renderer.updateConfig((draft) => {
         draft.cameraState = {
@@ -1126,7 +1166,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
         };
       });
     }
-  }, [renderer]);
+  }, [renderer, actionHandler, effectiveRendererFrameId]);
 
   const onZoomIn = useCallback(() => {
     if (renderer) {
