@@ -1118,13 +1118,30 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
 
   const onResetCamera = useCallback(() => {
     if (renderer) {
-        const currentFollowTf = effectiveRendererFrameId;
+      const currentFollowTf = effectiveRendererFrameId;
+      actionHandler({
+        action: "update",
+        payload: {
+          input: "select",
+          path: ["general", "followTf"],
+          value: "base_link",
+        },
+      });
+      actionHandler({
+        action: "update",
+        payload: {
+          input: "select",
+          path: ["general", "followMode"],
+          value: "follow-pose",
+        },
+      });
+      setTimeout(() => {
         actionHandler({
           action: "update",
           payload: {
             input: "select",
             path: ["general", "followTf"],
-            value: "base_link",
+            value: currentFollowTf,
           },
         });
         actionHandler({
@@ -1132,27 +1149,10 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
           payload: {
             input: "select",
             path: ["general", "followMode"],
-            value: "follow-pose",
+            value: "follow-none",
           },
         });
-        setTimeout(() => {
-          actionHandler({
-            action: "update",
-            payload: {
-              input: "select",
-              path: ["general", "followTf"],
-              value: currentFollowTf,
-            },
-          });
-          actionHandler({
-            action: "update",
-            payload: {
-              input: "select",
-              path: ["general", "followMode"],
-              value: "follow-none",
-            },
-          });
-        });
+      });
       const currentState = renderer.config.cameraState.perspective;
       renderer.updateConfig((draft) => {
         draft.cameraState = {
