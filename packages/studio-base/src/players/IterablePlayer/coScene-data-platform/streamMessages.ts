@@ -36,6 +36,7 @@ export type StreamParams = {
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
   topics: string[];
+  playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "SHIT";
 };
 
 /**
@@ -199,6 +200,7 @@ export async function* streamMessages({
         // Include the version of studio in the request Useful when scraping logs to determine what
         // versions of the app are making requests.
         "Content-Type": "application/json",
+        playbackQualityLevel: params.playbackQualityLevel,
       },
       body: JSON.stringify({
         start: toMillis(params.start),
