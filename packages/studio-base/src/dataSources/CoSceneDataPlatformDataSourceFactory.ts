@@ -35,7 +35,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     }
     const singleRequestTime = localStorage.getItem("singleRequestTime");
     const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
-    let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "SHIT" = "ORIGINAL";
+    let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
 
     switch (localPlaybackQualityLevel) {
       case "ORIGINAL":
@@ -47,8 +47,8 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       case "MID":
         playbackQualityLevel = "MID";
         break;
-      case "SHIT":
-        playbackQualityLevel = "SHIT";
+      case "LOW":
+        playbackQualityLevel = "LOW";
         break;
       default:
         playbackQualityLevel = "ORIGINAL";

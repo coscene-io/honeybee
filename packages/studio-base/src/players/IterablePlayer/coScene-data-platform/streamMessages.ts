@@ -36,7 +36,7 @@ export type StreamParams = {
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
   topics: string[];
-  playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "SHIT";
+  playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW";
 };
 
 /**
