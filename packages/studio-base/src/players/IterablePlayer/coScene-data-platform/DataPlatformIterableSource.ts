@@ -46,7 +46,7 @@ type DataPlatformSourceParameters = {
   revisionName: string;
   recordName: string;
   singleRequestTime: number;
-  playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "SHIT";
+  playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW";
 };
 
 type DataPlatformIterableSourceOptions = {

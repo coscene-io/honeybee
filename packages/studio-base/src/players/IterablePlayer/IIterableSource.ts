@@ -195,5 +195,5 @@ export type IterableSourceInitializeArgs = {
   };
   coSceneContext?: CoSceneContext;
   singleRequestTime?: number;
-  playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "SHIT";
+  playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW";
 };
