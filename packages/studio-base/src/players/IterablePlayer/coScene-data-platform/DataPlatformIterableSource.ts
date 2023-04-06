@@ -323,6 +323,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       end: time,
       authHeader: this._consoleApi.getAuthHeader(),
       revisionName: this._params.revisionName,
+      playbackQualityLevel: this._params.playbackQualityLevel,
       topics,
     };
 
