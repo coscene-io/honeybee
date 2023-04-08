@@ -30,7 +30,7 @@ const BannerContainer = (props: PropsWithChildren<{ isDismissable: boolean }>) =
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    backgroundColor: theme.palette.primary.main,
+    backgroundColor: "#2563EB",
     color: theme.palette.primary.contrastText,
     zIndex: 100,
     ...(!isDismissable && {
