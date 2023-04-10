@@ -70,7 +70,7 @@ export const mainConfig =
 
     const plugins: WebpackPluginInstance[] = [
       new DefinePlugin({
-        "process.env.LAST_BUILD_TIME": new Date().toISOString(),
+        "process.env.LAST_BUILD_TIME": JSON.stringify(new Date().toISOString()),
       }),
       new EnvironmentPlugin(["IMAGE_TAG", "GITHUB_SHA"]),
     ];
