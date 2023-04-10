@@ -8,8 +8,7 @@ import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import CopyPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import path from "path";
-import { Configuration, WebpackPluginInstance } from "webpack";
-import webpack from "webpack";
+import { Configuration, WebpackPluginInstance, EnvironmentPlugin } from "webpack";
 import type { Configuration as WebpackDevServerConfiguration } from "webpack-dev-server";
 
 import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
@@ -69,9 +68,7 @@ export const mainConfig =
 
     const allowUnusedVariables = isDev;
 
-    const plugins: WebpackPluginInstance[] = [
-      new webpack.EnvironmentPlugin(["IMAGE_TAG", "GITHUB_SHA"]),
-    ];
+    const plugins: WebpackPluginInstance[] = [new EnvironmentPlugin(["IMAGE_TAG", "GITHUB_SHA"])];
 
     if (isServe) {
       plugins.push(new ReactRefreshPlugin());
