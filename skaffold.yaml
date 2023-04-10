@@ -18,8 +18,14 @@ build:
   artifacts:
     - image: coseus.azurecr.io/honeybee
       context: .
-      custom:
-        buildCommand: docker buildx build --build-arg BUF_BUILD_TOKEN={{.BUF_BUILD_TOKEN}} --build-arg SENTRY_AUTH_TOKEN={{.SENTRY_AUTH_TOKEN}} --build-arg GH_PACKAGES_ORG_TOKEN={{.GH_PACKAGES_ORG_TOKEN}} --build-arg CURRENT_IMAGE_TAG={{.IMAGE_TAG}} --build-arg GITHUB_SHA={{.GITHUB_SHA}} --push --tag $IMAGE $BUILD_CONTEXT
+      docker:
+        dockerfile: Dockerfile
+        buildArgs:
+          CURRENT_IMAGE_TAG: "{{.IMAGE_TAG}}"
+          GITHUB_SHA: "{{.GITHUB_SHA}}"
+          BUF_BUILD_TOKEN: "{{.BUF_BUILD_TOKEN}}"
+          GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
+          SENTRY_AUTH_TOKEN: "{{.SENTRY_AUTH_TOKEN}}"
 
   local:
     useBuildkit: true
