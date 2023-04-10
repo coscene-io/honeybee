@@ -5,13 +5,15 @@
 declare global {
   interface Window {
     cosConfig: {
+      CS_HONEYBEE_BASE_URL?: string;
+      GITHUB_SHA?: string;
+      IMAGE_TAG?: string;
+      LAYOUT_TEMPLATE_INDEX_OSS_URL?: string;
+      RELEASE_TAG?: string;
+      SENTRY_HONEYBEE_DSN?: string;
       VITE_APP_BASE_API_PORT?: string;
       VITE_APP_BASE_API_URL?: string;
       VITE_APP_PROJECT_ENV?: string;
-      IMAGE_TAG?: string;
-      CS_HONEYBEE_BASE_URL?: string;
-      LAYOUT_TEMPLATE_INDEX_OSS_URL?: string;
-      SENTRY_HONEYBEE_DSN?: string;
     };
   }
 }
@@ -30,6 +32,11 @@ export const APP_CONFIG = {
   CS_HONEYBEE_BASE_URL:
     cosConfig.CS_HONEYBEE_BASE_URL ?? process.env.CS_HONEYBEE_BASE_URL ?? "http://localhost:8080",
   IMAGE_TAG: process.env.IMAGE_TAG,
+  GITHUB_SHA: process.env.GITHUB_SHA,
+  RELEASE_TAG:
+    process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
+      ? process.env.GITHUB_SHA
+      : process.env.IMAGE_TAG,
   LAST_BUILD_TIME: process.env.LAST_BUILD_TIME,
   NPM_PACKAGE_VERSION: process.env.NPM_PACKAGE_VERSION,
   LAYOUT_TEMPLATE_INDEX_OSS_URL:

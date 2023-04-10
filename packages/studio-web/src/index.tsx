@@ -49,6 +49,7 @@ export async function main(params: MainParams = {}): Promise<void> {
     log.info("initializing Sentry");
     Sentry.init({
       dsn: APP_CONFIG.SENTRY_HONEYBEE_DSN,
+      release: APP_CONFIG.RELEASE_TAG,
       autoSessionTracking: true,
       // Remove the default breadbrumbs integration - it does not accurately track breadcrumbs and
       // creates more noise than benefit.
