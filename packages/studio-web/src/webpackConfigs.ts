@@ -8,7 +8,7 @@ import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import CopyPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import path from "path";
-import { Configuration, DefinePlugin, WebpackPluginInstance, EnvironmentPlugin } from "webpack";
+import { Configuration, DefinePlugin, WebpackPluginInstance } from "webpack";
 import type { Configuration as WebpackDevServerConfiguration } from "webpack-dev-server";
 
 import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
@@ -71,8 +71,9 @@ export const mainConfig =
     const plugins: WebpackPluginInstance[] = [
       new DefinePlugin({
         "process.env.LAST_BUILD_TIME": JSON.stringify(new Date().toISOString()),
+        "process.env.IMAGE_TAG": JSON.stringify(process.env.IMAGE_TAG),
+        "process.env.GITHUB_SHA": JSON.stringify(process.env.GITHUB_SHA),
       }),
-      new EnvironmentPlugin(["IMAGE_TAG", "GITHUB_SHA"]),
     ];
 
     if (isServe) {
