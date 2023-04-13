@@ -26,7 +26,6 @@ build:
           BUF_BUILD_TOKEN: "{{.BUF_BUILD_TOKEN}}"
           GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
           SENTRY_AUTH_TOKEN: "{{.SENTRY_AUTH_TOKEN}}"
-
   local:
     useBuildkit: true
 profiles:
@@ -35,8 +34,3 @@ profiles:
       local:
         push: false
         useBuildkit: false
-        tryImportMissing: false
-  - name: azure-dev-east-us
-    build:
-      local:
-        useBuildkit: true
