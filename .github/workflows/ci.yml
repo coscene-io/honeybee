@@ -18,12 +18,12 @@ jobs:
         with:
           lfs: true
 
+      - run: corepack enable yarn
+
       - uses: actions/setup-node@v3.6.0
         with:
           node-version: 18.14
           cache: "yarn"
-
-      - run: corepack enable yarn
 
       - run: yarn install --immutable
 
