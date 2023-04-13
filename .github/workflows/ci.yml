@@ -21,16 +21,9 @@ jobs:
       - uses: actions/setup-node@v3.6.0
         with:
           node-version: 18.14
-      - run: corepack enable yarn
+          cache: "yarn"
 
-      - name: Restore cache
-        uses: actions/cache@v3.2.6
-        with:
-          path: |
-            .yarn/cache
-            **/node_modules
-          key: v5-${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: v5-${{ runner.os }}-yarn-
+      - run: corepack enable yarn
 
       - run: yarn install --immutable
 

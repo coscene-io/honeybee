@@ -1,0 +1,31 @@
+name: CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - released
+      - prereleased
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image-push:
+    uses: coscene-io/cicd-templates/.github/workflows/image-push-yarn.yml@main
+    with:
+      project: honeybee
+      lfs: true
+    secrets: inherit
+
+  upgrade-server:
+    needs:
+      - image-push
+    uses: coscene-io/cicd-templates/.github/workflows/sub-chart-upgrade.yml@main
+    with:
+      deployment-name: coscene-honeybee
+    secrets: inherit
