@@ -8,6 +8,7 @@ import { Topic } from "@foxglove/studio-base/players/types";
 export function buildSettingsTree(
   topicToRender: string,
   availableTopics: Topic[],
+  { reverseOrder }: { reverseOrder: boolean },
 ): SettingsTreeNodes {
   const topicOptions = availableTopics.map((topic) => ({ label: topic.name, value: topic.name }));
   const topicIsAvailable = availableTopics.some((topic) => topic.name === topicToRender);
@@ -25,6 +26,17 @@ export function buildSettingsTree(
           value: topicToRender,
           error: topicError,
           options: topicOptions,
+        },
+      },
+    },
+    display: {
+      label: "Display",
+      defaultExpansionState: "collapsed",
+      fields: {
+        reverseOrder: {
+          label: "Reverse order",
+          input: "boolean",
+          value: reverseOrder,
         },
       },
     },

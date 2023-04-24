@@ -9,6 +9,7 @@ import { Header } from "@foxglove/studio-base/types/Messages";
 export type Config = {
   searchTerms: string[];
   minLogLevel: number;
+  reverseOrder: boolean;
   topicToRender?: string;
 };
 

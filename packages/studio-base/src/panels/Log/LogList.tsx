@@ -12,6 +12,7 @@
 //   You may not use this file except in compliance with the License.
 
 import DoubleArrowDownIcon from "@mui/icons-material/KeyboardDoubleArrowDown";
+import DoubleArrowUpIcon from "@mui/icons-material/KeyboardDoubleArrowUp";
 import { Fab } from "@mui/material";
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useResizeDetector } from "react-resize-detector";
@@ -36,6 +37,7 @@ const useStyles = makeStyles()((theme) => ({
 
 type Props = {
   items: readonly NormalizedLogMessage[];
+  reverseOrder: boolean;
 };
 
 type ListItemData = {
@@ -66,7 +68,7 @@ function Row(props: { data: ListItemData; index: number; style: CSSProperties })
  * List for showing large number of items, which are expected to be appended to the end regularly.
  * Automatically scrolls to the bottom unless you explicitly scroll up.
  */
-function LogList({ items }: Props): JSX.Element {
+function LogList({ items, reverseOrder }: Props): JSX.Element {
   const { classes } = useStyles();
 
   // Reference to the list item itself.
@@ -82,14 +84,18 @@ function LogList({ items }: Props): JSX.Element {
 
   const onResetView = React.useCallback(() => {
     setAutoscrollToEnd(true);
-    listRef.current?.scrollToItem(latestItems.current.length - 1, "end");
-  }, [latestItems]);
+    if (reverseOrder) {
+      listRef.current?.scrollToItem(0, "start");
+    } else {
+      listRef.current?.scrollToItem(latestItems.current.length - 1, "end");
+    }
+  }, [latestItems, reverseOrder]);
 
   useEffect(() => {
-    if (autoscrollToEnd) {
+    if (autoscrollToEnd && !reverseOrder) {
       listRef.current?.scrollToItem(items.length - 1, "end");
     }
-  }, [autoscrollToEnd, items.length]);
+  }, [autoscrollToEnd, reverseOrder, items.length]);
 
   // Disable autoscroll if the user manually scrolls back.
   const onScroll = React.useCallback(
@@ -102,17 +108,25 @@ function LogList({ items }: Props): JSX.Element {
       scrollOffset: number;
       scrollUpdateWasRequested: boolean;
     }) => {
-      const isAtEnd =
-        outerRef.current?.scrollHeight != undefined &&
-        outerRef.current.scrollHeight - (scrollOffset + outerRef.current.offsetHeight) < 5;
+      if (reverseOrder) {
+        if (scrollOffset !== 0) {
+          setAutoscrollToEnd(false);
+        } else {
+          setAutoscrollToEnd(true);
+        }
+      } else {
+        const isAtEnd =
+          outerRef.current?.scrollHeight != undefined &&
+          outerRef.current.scrollHeight - (scrollOffset + outerRef.current.offsetHeight) < 5;
 
-      if (!scrollUpdateWasRequested && scrollDirection === "backward" && !isAtEnd) {
-        setAutoscrollToEnd(false);
-      } else if (scrollDirection === "forward" && isAtEnd) {
-        setAutoscrollToEnd(true);
+        if (!scrollUpdateWasRequested && scrollDirection === "backward" && !isAtEnd) {
+          setAutoscrollToEnd(false);
+        } else if (scrollDirection === "forward" && isAtEnd) {
+          setAutoscrollToEnd(true);
+        }
       }
     },
-    [],
+    [reverseOrder],
   );
 
   // Cache calculated item heights.
@@ -133,13 +147,13 @@ function LogList({ items }: Props): JSX.Element {
   // This is passed to each row to tell it what to render.
   const itemData = useMemo(
     () => ({
-      items,
+      items: reverseOrder ? [...items].reverse() : items,
       setRowHeight,
     }),
     // Add resized width as an extra dep here to force the list to recalculate
     // everything when the width changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [items, setRowHeight, resizedWidth],
+    [items, setRowHeight, resizedWidth, reverseOrder],
   );
 
   return (
@@ -160,7 +174,7 @@ function LogList({ items }: Props): JSX.Element {
             >
               {Row}
             </List>
-
+            {/* && !reverseOrder */}
             {!autoscrollToEnd && (
               <Fab
                 size="small"
@@ -168,7 +182,7 @@ function LogList({ items }: Props): JSX.Element {
                 onClick={onResetView}
                 className={classes.floatingButton}
               >
-                <DoubleArrowDownIcon />
+                {reverseOrder ? <DoubleArrowUpIcon /> : <DoubleArrowDownIcon />}
               </Fab>
             )}
           </div>
