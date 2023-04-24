@@ -174,7 +174,6 @@ function LogList({ items, reverseOrder }: Props): JSX.Element {
             >
               {Row}
             </List>
-            {/* && !reverseOrder */}
             {!autoscrollToEnd && (
               <Fab
                 size="small"
