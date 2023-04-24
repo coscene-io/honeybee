@@ -11,6 +11,8 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import DoubleArrowDownIcon from "@mui/icons-material/KeyboardDoubleArrowDown";
+import DoubleArrowUpIcon from "@mui/icons-material/KeyboardDoubleArrowUp";
 import produce from "immer";
 import { set } from "lodash";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -90,9 +92,11 @@ const LogPanel = React.memo(({ config, saveConfig }: Props) => {
   useEffect(() => {
     updatePanelSettingsTree({
       actionHandler,
-      nodes: buildSettingsTree(topicToRender, availableTopics),
+      nodes: buildSettingsTree(topicToRender, availableTopics, {
+        reverseOrder: config.reverseOrder,
+      }),
     });
-  }, [actionHandler, availableTopics, topicToRender, updatePanelSettingsTree]);
+  }, [actionHandler, availableTopics, topicToRender, updatePanelSettingsTree, config.reverseOrder]);
 
   // avoid making new sets for node names
   // the filter bar uess the node names during on-demand filtering
@@ -125,6 +129,7 @@ const LogPanel = React.memo(({ config, saveConfig }: Props) => {
   return (
     <Stack fullHeight>
       <PanelToolbar>
+        <Stack>{config.reverseOrder ? <DoubleArrowUpIcon /> : <DoubleArrowDownIcon />}</Stack>
         <FilterBar
           searchTerms={searchTermsSet}
           minLogLevel={minLogLevel}
@@ -134,7 +139,7 @@ const LogPanel = React.memo(({ config, saveConfig }: Props) => {
         />
       </PanelToolbar>
       <Stack flexGrow={1}>
-        <LogList items={normalizedMessages} />
+        <LogList items={normalizedMessages} reverseOrder={config.reverseOrder} />
       </Stack>
     </Stack>
   );
@@ -144,7 +149,7 @@ LogPanel.displayName = "Log";
 
 export default Panel(
   Object.assign(LogPanel, {
-    defaultConfig: { searchTerms: [], minLogLevel: 1 } as Config,
+    defaultConfig: { searchTerms: [], minLogLevel: 1, reverseOrder: false } as Config,
     panelType: "RosOut", // The legacy RosOut name is used for backwards compatibility
   }),
 );
