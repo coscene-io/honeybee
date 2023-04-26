@@ -11,7 +11,7 @@ import * as cosZh from "./cosZh";
 import * as en from "./en";
 import * as zh from "./zh";
 
-export const translations = {
+export const translations: { en: typeof en & typeof cosEn; zh: typeof zh & typeof cosZh } = {
   en: {
     ...en,
     ...cosEn,
