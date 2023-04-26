@@ -24,7 +24,6 @@ export function ActionMenu({
   const handleClose = () => {
     setAnchorEl(undefined);
   };
-  const { t } = useTranslation("general");
 
   return (
     <div>

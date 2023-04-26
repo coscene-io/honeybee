@@ -6,4 +6,6 @@ import { TypeOptions } from "i18next";
 
 export const cosGeneral: TypeOptions["resources"]["cosGeneral"] = {
   coScene: "coScene",
+  apply: "使用",
+  refresh: "刷新",
 };

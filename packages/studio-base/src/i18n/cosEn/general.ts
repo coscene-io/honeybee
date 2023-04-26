@@ -4,4 +4,6 @@
 
 export const cosGeneral = {
   coScene: "coScene",
+  apply: "Apply",
+  refresh: "Refresh",
 };

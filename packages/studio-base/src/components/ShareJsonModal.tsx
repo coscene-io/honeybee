@@ -48,7 +48,7 @@ export default function ShareJsonModal({
   title,
 }: Props): JSX.Element {
   const [value, setValue] = useState(JSON.stringify(initialValue, undefined, 2) ?? "");
-  const { t } = useTranslation("general");
+  const { t } = useTranslation("cosGeneral");
 
   const { decodedValue, error } = useMemo(() => {
     try {

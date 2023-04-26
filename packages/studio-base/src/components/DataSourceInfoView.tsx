@@ -61,7 +61,7 @@ function DataSourceInfoContent(props: {
   const record = useRecord(selectRecord);
   const project = useProject(selectProject);
   const currentBagFiles = useRecord(selectCurrentBagFiles);
-  const { t } = useTranslation("dataSource");
+  const { t } = useTranslation("dataSourceInfo");
   const {
     coSceneContext: { currentOrganizationSlug },
   } = useConsoleApi();

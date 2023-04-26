@@ -96,7 +96,7 @@ const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const { onClose } = props;
   const urlState = useMessagePipeline(selectUrlState);
-  const { t } = useTranslation("moment");
+  const { t } = useTranslation("cosEvent");
 
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
@@ -258,7 +258,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               label={
                 <>
                   <span className={classes.requiredFlags}>*</span>
-                  {t("name", { ns: "general" })}
+                  {t("name")}
                 </>
               }
               multiline
@@ -398,7 +398,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
           </Stack>
           <DialogActions>
             <Button variant="outlined" size="large" onClick={onClose}>
-              {t("cancel", { ns: "general" })}
+              {t("cancel")}
             </Button>
             <Button
               variant="contained"
