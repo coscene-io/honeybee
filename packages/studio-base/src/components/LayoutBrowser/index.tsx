@@ -112,7 +112,7 @@ export default function LayoutBrowser({
   const analytics = useAnalytics();
   const [confirm, confirmModal] = useConfirm();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
-  const { t } = useTranslation("layouts");
+  const { t } = useTranslation("cosLayout");
   const createLayoutMenuOpen = Boolean(anchorEl);
 
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);

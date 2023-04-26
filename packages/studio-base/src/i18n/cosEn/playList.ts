@@ -7,4 +7,7 @@ export const cosPlaylist = {
   noPlayableBagDesc:
     "Please refresh and try again, or go to the record details page to view and operate",
   viewRecordDetails: "View record details",
+  searchByNameTime: "Search by name or time",
+  noLoadingBag: "Error loading bag files.",
+  noBag: "No bag files.",
 };

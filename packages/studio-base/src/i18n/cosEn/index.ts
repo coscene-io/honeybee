@@ -7,3 +7,5 @@ export * from "./versionBanner";
 export * from "./event";
 export * from "./account";
 export * from "./playList";
+export * from "./error";
+export * from "./layout";

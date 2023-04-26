@@ -8,4 +8,5 @@ export const cosGeneral: TypeOptions["resources"]["cosGeneral"] = {
   coScene: "coScene",
   apply: "使用",
   refresh: "刷新",
+  name: "名称",
 };

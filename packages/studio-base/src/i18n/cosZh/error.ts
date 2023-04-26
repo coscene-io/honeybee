@@ -2,9 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export const cosGeneral = {
-  coScene: "coScene",
-  apply: "Apply",
-  refresh: "Refresh",
-  name: "Name",
+import { TypeOptions } from "i18next";
+
+export const cosError: TypeOptions["resources"]["cosError"] = {
+  loginExpired: "登录已过期，请重新登录",
 };

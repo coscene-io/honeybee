@@ -60,7 +60,7 @@ export default function SelectLayoutTemplateModal({
 }): JSX.Element {
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
-  const { t } = useTranslation("layouts");
+  const { t } = useTranslation("cosLayout");
 
   const [layoutTemplateIndex, getLayoutTemplateIndex] = useAsyncFn(async () => {
     let templateIndex: { [key: string]: { path: string; updateTime: string } } = {};
@@ -125,7 +125,7 @@ export default function SelectLayoutTemplateModal({
                 <TableRow>
                   <TableCell>
                     {t("name", {
-                      ns: "general",
+                      ns: "cosGeneral",
                     })}
                   </TableCell>
                   <TableCell align="right">{t("updateTime")}</TableCell>
