@@ -12,8 +12,8 @@ import type { RosValue } from "@foxglove/studio-base/players/types";
 import { Axis, AXIS_LENGTH } from "./Axis";
 import { RenderableArrow } from "./markers/RenderableArrow";
 import { RenderableSphere } from "./markers/RenderableSphere";
+import type { IRenderer } from "../IRenderer";
 import { BaseUserData, Renderable } from "../Renderable";
-import { Renderer } from "../Renderer";
 import { PartialMessage, PartialMessageEvent, SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry } from "../SettingsManager";
 import { makeRgba, rgbaToCssString, stringToRgba } from "../color";
@@ -101,7 +101,7 @@ export class PoseRenderable extends Renderable<PoseUserData> {
 }
 
 export class Poses extends SceneExtension<PoseRenderable> {
-  public constructor(renderer: Renderer) {
+  public constructor(renderer: IRenderer) {
     super("foxglove.Poses", renderer);
 
     renderer.addSchemaSubscriptions(POSE_STAMPED_DATATYPES, this.handlePoseStamped);
@@ -129,11 +129,11 @@ export class Poses extends SceneExtension<PoseRenderable> {
       const type = config.type ?? DEFAULT_TYPE;
 
       const fields: SettingsTreeFields = {
-        type: { label: "type", input: "select", options: TYPE_OPTIONS, value: type },
+        type: { label: "Type", input: "select", options: TYPE_OPTIONS, value: type },
       };
       if (type === "axis") {
         fields["axisScale"] = {
-          label: "scale",
+          label: "Scale",
           input: "number",
           step: 0.5,
           min: 0,
@@ -142,7 +142,7 @@ export class Poses extends SceneExtension<PoseRenderable> {
         };
       } else {
         fields["arrowScale"] = {
-          label: "scale",
+          label: "Scale",
           input: "vec3",
           labels: ["X", "Y", "Z"],
           step: 0.5,
@@ -161,13 +161,13 @@ export class Poses extends SceneExtension<PoseRenderable> {
         const covarianceColor = config.covarianceColor ?? DEFAULT_COVARIANCE_COLOR_STR;
 
         fields["showCovariance"] = {
-          label: "covariance",
+          label: "Covariance",
           input: "boolean",
           value: showCovariance,
         };
         if (showCovariance) {
           fields["covarianceColor"] = {
-            label: "covarianceColor",
+            label: "Covariance Color",
             input: "rgba",
             value: covarianceColor,
           };

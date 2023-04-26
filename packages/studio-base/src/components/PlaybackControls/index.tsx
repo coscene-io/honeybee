@@ -155,8 +155,7 @@ export default function PlaybackControls(props: {
   const toggleCreateEventDialog = useCallback(() => {
     pause();
     setCreateEventDialogOpen((open) => !open);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pause]);
 
   useEffect(() => {
     if (createEventShortcutKeys) {

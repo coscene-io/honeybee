@@ -16,6 +16,7 @@ export function ActionMenu({
   onShare: () => void;
 }): JSX.Element {
   const [anchorEl, setAnchorEl] = React.useState<undefined | HTMLElement>();
+  const { t } = useTranslation("panelSettings");
   const open = Boolean(anchorEl);
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -52,7 +53,7 @@ export function ActionMenu({
             handleClose();
           }}
         >
-          {t("importExportSettings")}
+          {t("importOrExportSettingsWithEllipsis")}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -60,7 +61,7 @@ export function ActionMenu({
             handleClose();
           }}
         >
-          {t("resetToDefault")}
+          {t("resetToDefaults")}
         </MenuItem>
       </Menu>
     </div>

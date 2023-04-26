@@ -137,6 +137,7 @@ export default function CurrentLayoutProvider({
               loading: false,
               id: layout.id,
               data: layout.working?.data ?? layout.baseline.data,
+              name: layout.name,
             },
           });
           if (saveToProfile) {
@@ -185,6 +186,7 @@ export default function CurrentLayoutProvider({
       const newLayout = {
         id: layoutStateRef.current.selectedLayout.id,
         data: newData,
+        name: layoutStateRef.current.selectedLayout.name,
       };
 
       // store the layout for saving
@@ -202,7 +204,7 @@ export default function CurrentLayoutProvider({
             if (isMounted()) {
               enqueueSnackbar(`Your changes could not be saved. ${error.toString()}`, {
                 variant: "error",
-                id: "CurrentLayoutProvider.throttledSave",
+                key: "CurrentLayoutProvider.throttledSave",
               });
             }
           });
@@ -231,6 +233,7 @@ export default function CurrentLayoutProvider({
             loading: false,
             id: updatedLayout.id,
             data: updatedLayout.working?.data ?? updatedLayout.baseline.data,
+            name: updatedLayout.name,
           },
         });
       }

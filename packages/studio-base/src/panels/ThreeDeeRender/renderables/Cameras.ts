@@ -11,8 +11,8 @@ import type { RosValue } from "@foxglove/studio-base/players/types";
 
 import { RenderableLineList } from "./markers/RenderableLineList";
 import { cameraInfosEqual, normalizeCameraInfo, projectPixel } from "./projections";
+import type { IRenderer } from "../IRenderer";
 import { BaseUserData, Renderable } from "../Renderable";
-import { Renderer } from "../Renderer";
 import { PartialMessageEvent, SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry } from "../SettingsManager";
 import { makeRgba, rgbaToCssString, stringToRgba } from "../color";
@@ -81,7 +81,7 @@ export class CameraInfoRenderable extends Renderable<CameraInfoUserData> {
 }
 
 export class Cameras extends SceneExtension<CameraInfoRenderable> {
-  public constructor(renderer: Renderer) {
+  public constructor(renderer: IRenderer) {
     super("foxglove.Cameras", renderer);
 
     renderer.addSchemaSubscriptions(ROS_CAMERA_INFO_DATATYPES, this.handleCameraInfo);
@@ -106,8 +106,8 @@ export class Cameras extends SceneExtension<CameraInfoRenderable> {
       // prettier-ignore
       const fields: SettingsTreeFields = {
         distance: { label: "Distance", input: "number", placeholder: String(DEFAULT_DISTANCE), step: 0.1, precision: PRECISION_DISTANCE, value: config.distance },
-        planarProjectionFactor: { label: "planarProjectionFactor", input: "number", placeholder: String(DEFAULT_PLANAR_PROJECTION_FACTOR), min: 0, max: 1, step: 0.1, precision: 2, value: config.planarProjectionFactor },
-        width: fieldLineWidth("lineWidth", config.width, DEFAULT_WIDTH),
+        planarProjectionFactor: { label: "Planar Projection Factor", input: "number", placeholder: String(DEFAULT_PLANAR_PROJECTION_FACTOR), min: 0, max: 1, step: 0.1, precision: 2, value: config.planarProjectionFactor },
+        width: fieldLineWidth("Line Width", config.width, DEFAULT_WIDTH),
         color: { label: "Color", input: "rgba", value: config.color ?? DEFAULT_COLOR_STR },
       };
 
