@@ -29,4 +29,5 @@ export const cosEvent = {
   start: "Start",
   end: "End",
   time: "Time",
+  elapsed: "Elapsed",
 };
