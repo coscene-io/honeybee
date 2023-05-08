@@ -41,8 +41,6 @@ import { defaultPlaybackConfig } from "@foxglove/studio-base/providers/CurrentLa
 import { MosaicDropResult, PanelConfig } from "@foxglove/studio-base/types/panels";
 import { getPanelIdForType, getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
-import "react-mosaic-component/react-mosaic-component.css";
-
 import ErrorBoundary from "./ErrorBoundary";
 import { MosaicPathContext } from "./MosaicPathContext";
 import { PanelRemounter } from "./PanelRemounter";

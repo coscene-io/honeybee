@@ -187,27 +187,6 @@ export const PlayerPresentWithCustomTimezoneChinese = Object.assign(
   { parameters: { forceLanguage: "zh" } },
 );
 
-export const PlayerPresentWithCustomTimezone = (): JSX.Element => {
-  const [_, setTimezone] = useAppConfigurationValue<string>(AppSetting.TIMEZONE);
-
-  useEffect(() => {
-    setTimezone("Pacific/Ponape").catch(console.error);
-  }, [setTimezone]);
-
-  return (
-    <MockMessagePipelineProvider
-      startTime={fromDate(new Date(2022, 1, 22, 21, 22, 11))}
-      endTime={fromDate(new Date(2022, 1, 22, 23, 22, 22))}
-      topics={TOPICS}
-      presence={PlayerPresence.PRESENT}
-    >
-      <Box height="100%" bgcolor="background.paper">
-        <DataSourceSidebar onSelectDataSourceAction={() => {}} />
-      </Box>
-    </MockMessagePipelineProvider>
-  );
-};
-
 export const WithEvents = (): JSX.Element => {
   const userContextValue = {
     currentUser: { id: "ok" } as User,
