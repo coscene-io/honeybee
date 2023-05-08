@@ -17,6 +17,7 @@ import OpenDialog, { OpenDialogProps } from "./OpenDialog";
 export default {
   title: "components/OpenDialog/Start",
   component: OpenDialog,
+  parameters: { colorScheme: "dark" },
 };
 
 function fakeUser(type: "free" | "paid" | "enterprise"): User {
@@ -93,7 +94,7 @@ const playerSelection: PlayerSelection = {
   ],
 };
 
-function CurrentUserWrapper(props: { children: ReactNode; user?: User }): JSX.Element {
+function CurrentUserWrapper(props: { children: ReactNode; user?: User | undefined }): JSX.Element {
   const value: CurrentUser = {
     currentUser: props.user,
     signIn: () => undefined,
@@ -110,7 +111,6 @@ DefaultLight.parameters = { colorScheme: "light" };
 
 export const DefaultDark = (): JSX.Element => <OpenDialog {...defaultProps} />;
 DefaultDark.storyName = "Default (dark)";
-DefaultDark.parameters = { colorScheme: "dark" };
 
 export function UserNoAuth(): JSX.Element {
   return (
@@ -120,7 +120,27 @@ export function UserNoAuth(): JSX.Element {
   );
 }
 UserNoAuth.storyName = "User not authenticated";
-UserNoAuth.parameters = { colorScheme: "dark" };
+
+export const UserNoAuthChinese = Object.assign(UserNoAuth.bind(undefined), {
+  storyName: "User not authenticated Chinese",
+  parameters: { forceLanguage: "zh" },
+});
+
+export function UserPrivate(): JSX.Element {
+  return (
+    <CurrentUserWrapper>
+      <PlayerSelectionContext.Provider value={playerSelection}>
+        <OpenDialog {...defaultProps} />
+      </PlayerSelectionContext.Provider>
+    </CurrentUserWrapper>
+  );
+}
+UserPrivate.storyName = "User not authenticated (private)";
+
+export const UserPrivateChinese = Object.assign(UserPrivate.bind(undefined), {
+  storyName: "User not authenticated (private) Chinese",
+  parameters: { forceLanguage: "zh" },
+});
 
 export function UserAuthedFree(): JSX.Element {
   const freeUser = fakeUser("free");
@@ -134,7 +154,11 @@ export function UserAuthedFree(): JSX.Element {
   );
 }
 UserAuthedFree.storyName = "User Authenticated with Free Account";
-UserAuthedFree.parameters = { colorScheme: "dark" };
+
+export const UserAuthedFreeChinese = Object.assign(UserAuthedFree.bind(undefined), {
+  storyName: "User Authenticated with Free Account Chinese",
+  parameters: { forceLanguage: "zh" },
+});
 
 export function UserAuthedPaid(): JSX.Element {
   const freeUser = fakeUser("paid");
@@ -148,4 +172,8 @@ export function UserAuthedPaid(): JSX.Element {
   );
 }
 UserAuthedPaid.storyName = "User Authenticated with Paid Account";
-UserAuthedPaid.parameters = { colorScheme: "dark" };
+
+export const UserAuthedPaidChinese = Object.assign(UserAuthedPaid.bind(undefined), {
+  storyName: "User Authenticated with Paid Account Chinese",
+  parameters: { forceLanguage: "zh" },
+});

@@ -16,6 +16,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
+import { TFunction } from "i18next";
 import { isEqual, partition } from "lodash";
 import memoizeWeak from "memoize-weak";
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef } from "react";
@@ -63,7 +64,8 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
   focusedNode: {
-    animation: `${keyframes`
+    animation: `
+      ${keyframes`
       from {
         background-color: ${tinycolor(theme.palette.primary.main).setAlpha(0.3).toRgbString()};
       }
@@ -164,10 +166,13 @@ function ExpansionArrow({ expanded }: { expanded: boolean }): JSX.Element {
 const makeStablePath = memoizeWeak((path: readonly string[], key: string) => [...path, key]);
 
 type SelectVisibilityFilterValue = "all" | "visible" | "invisible";
-const SelectVisibilityFilterOptions: { label: string; value: SelectVisibilityFilterValue }[] = [
-  { label: "listAll", value: "all" },
-  { label: "listVisible", value: "visible" },
-  { label: "listInvisible", value: "invisible" },
+const SelectVisibilityFilterOptions: (t: TFunction<"settingsEditor">) => {
+  label: string;
+  value: SelectVisibilityFilterValue;
+}[] = (t) => [
+  { label: t("listAll"), value: "all" },
+  { label: t("listVisible"), value: "visible" },
+  { label: t("listInvisible"), value: "invisible" },
 ];
 function showVisibleFilter(child: DeepReadonly<SettingsTreeNode>): boolean {
   // want to show children with undefined visibility
@@ -177,12 +182,13 @@ function showInvisibleFilter(child: DeepReadonly<SettingsTreeNode>): boolean {
   // want to show children with undefined visibility
   return child.visible !== true;
 }
-const SelectVisibilityFilterField = {
-  input: "select",
-  label: "filterList",
-  help: "Filter list by visibility",
-  options: SelectVisibilityFilterOptions,
-} as const;
+const getSelectVisibilityFilterField = (t: TFunction<"settingsEditor">) =>
+  ({
+    input: "select",
+    label: t("filterList"),
+    help: t("filterListHelp"),
+    options: SelectVisibilityFilterOptions(t),
+  } as const);
 
 type State = {
   editing: boolean;
@@ -199,9 +205,8 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
     open: defaultOpen,
     visibilityFilter: "all",
   });
-
+  const { t } = useTranslation("settingsEditor");
   const { classes, cx } = useStyles();
-  const { t } = useTranslation("addPanel");
 
   const theme = useTheme();
   const indent = props.path.length;
@@ -319,166 +324,6 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
     [toggleEditing],
   );
 
-  const settingsLabelsDisplay = () => {
-    if (settings.label != undefined) {
-      switch (settings.label) {
-        case "setting":
-        case "addPanel":
-        case "impExpSetting":
-        case "reset":
-        case "frame":
-        case "displayFrame":
-        case "followMode":
-        case "scene":
-        case "renderStats":
-        case "background":
-        case "labelScale":
-        case "ignoreTag":
-        case "syncCamera":
-        case "meshUpAxis":
-        case "view":
-        case "editable":
-        case "labels":
-        case "labelSize":
-        case "axisScale":
-        case "lineWidth":
-        case "lineColor":
-        case "transforms":
-        case "showAll":
-        case "hideAll":
-        case "customLayers":
-        case "addGrid":
-        case "addFormat":
-        case "type":
-        case "topic":
-        case "dataSourceInfo":
-        case "changePanel":
-        case "splitHorizontal":
-        case "splitVertical":
-        case "fullScreen":
-        case "removePanel":
-        case "diagnosticsDetail":
-        case "diagnosticsSummary":
-        case "general":
-        case "numericPrecision":
-        case "sortByLevel":
-        case "gauge":
-        case "data":
-        case "minimum":
-        case "maxiMum":
-        case "colorMode":
-        case "colorMap":
-        case "reverse":
-        case "image":
-        case "cameraTopic":
-        case "transformMarkers":
-        case "synchronizeTimestamps":
-        case "bilinearSmoothing":
-        case "flipHorizontal":
-        case "flipVertical":
-        case "rotation":
-        case "minimumValue":
-        case "maximumValue":
-        case "markers":
-        case "indicator":
-        case "indicatorPanelSettings":
-        case "style":
-        case "rules":
-        case "comparison":
-        case "comparisonWith":
-        case "color":
-        case "label":
-        case "otherwise":
-        case "legacyPlot":
-        case "legacyPlotPanelSettings":
-        case "log":
-        case "logPanelSettings":
-        case "map":
-        case "mapPanelSettings":
-        case "tileLayer":
-        case "followTopic":
-        case "topics":
-        case "parameters":
-        case "parametersPanelSettings":
-        case "plot":
-        case "plotPanelSettings":
-        case "title":
-        case "syncWithOtherPlots":
-        case "showLabels":
-        case "rangeSecond":
-        case "series":
-        case "path":
-        case "timeStamp":
-        case "publish":
-        case "publishPanelSettings":
-        case "editingMode":
-        case "buttonTitle":
-        case "buttonTooltip":
-        case "buttonColor":
-        case "rawMessage":
-        case "rawMessagePanelSettings":
-        case "stateTransition":
-        case "stateTransitionPanelSettings":
-        case "studioPlaybackPerformance":
-        case "studioPlaybackPerformancePanelSettings":
-        case "tab":
-        case "tabPanelSettings":
-        case "table":
-        case "tablePanelSettings":
-        case "teleop":
-        case "teleopPanelSettings":
-        case "publishRate":
-        case "upButton":
-        case "downButton":
-        case "leftButton":
-        case "rightButton":
-        case "field":
-        case "value":
-        case "topicGraph":
-        case "topicGraphPanelSettings":
-        case "urdfViewer":
-        case "urdfViewerPanelSettings":
-        case "asset":
-        case "opacity":
-        case "manualControl":
-        case "userScript":
-        case "userScriptPanelSettings":
-        case "autoSave":
-        case "variableSlider":
-        case "variableSliderPanelSettings":
-        case "variableName":
-        case "selectPanelLayout":
-        case "learnMore":
-        case "threeDDescription":
-        case "diagnosticsDetailDescription":
-        case "diagnosticsSummaryDescription":
-        case "imageDescription":
-        case "gaugeDescription":
-        case "indicatorDescription":
-        case "teleopDescription":
-        case "mapDescription":
-        case "parametersDescription":
-        case "plotDescription":
-        case "publishDescription":
-        case "rawMessageDescription":
-        case "logDescription":
-        case "stateDescription":
-        case "tableDescription":
-        case "urdfDescription":
-        case "topicGraphDescription":
-        case "dataSourceDescription":
-        case "variableDescription":
-        case "userScriptDescription":
-        case "tabDescription":
-        case "studioDescription":
-          return t(settings.label);
-        default:
-          return settings.label;
-      }
-    }
-    return "General";
-  };
-
   const [inlineActions, menuActions] = useMemo(
     () =>
       partition(
@@ -507,6 +352,7 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
             marginLeft: theme.spacing(0.75 + 2 * indent),
           }}
           onClick={toggleOpen}
+          data-testid={`settings__nodeHeaderToggle__${props.path.join("-")}`}
         >
           {hasProperties && <ExpansionArrow expanded={state.open} />}
           {IconComponent && (
@@ -554,7 +400,7 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
               fontWeight={indent < 2 ? 600 : 400}
               color={visible ? "text.primary" : "text.disabled"}
             >
-              <HighlightedText text={settingsLabelsDisplay()} highlight={filter} />
+              <HighlightedText text={settings.label ?? t("general")} highlight={filter} />
             </Typography>
           )}
         </div>
@@ -640,7 +486,7 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
       {state.open && selectVisibilityFilterEnabled && hasChildren && (
         <FieldEditor
           key="visibilityFilter"
-          field={{ ...SelectVisibilityFilterField, value: state.visibilityFilter }}
+          field={{ ...getSelectVisibilityFilterField(t), value: state.visibilityFilter }}
           path={makeStablePath(props.path, "visibilityFilter")}
           actionHandler={selectVisibilityFilter}
         />

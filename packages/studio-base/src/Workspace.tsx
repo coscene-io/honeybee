@@ -13,9 +13,8 @@
 import { Link, Typography } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { extname } from "path";
-import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { usePrevious } from "react-use";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
@@ -26,6 +25,7 @@ import { CustomWindowControlsProps } from "@foxglove/studio-base/components/AppB
 import { DataSourceSidebar } from "@foxglove/studio-base/components/DataSourceSidebar";
 import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
 import { TopicList } from "@foxglove/studio-base/components/DataSourceSidebar/TopicList";
+import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import LayoutBrowser from "@foxglove/studio-base/components/LayoutBrowser";
 import {
@@ -39,7 +39,6 @@ import PanelLayout from "@foxglove/studio-base/components/PanelLayout";
 import PanelList from "@foxglove/studio-base/components/PanelList";
 import PanelSettings from "@foxglove/studio-base/components/PanelSettings";
 import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls";
-import Preferences from "@foxglove/studio-base/components/Preferences";
 import RemountOnValueChange from "@foxglove/studio-base/components/RemountOnValueChange";
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Sidebars, { SidebarItem } from "@foxglove/studio-base/components/Sidebars";
@@ -52,8 +51,7 @@ import {
 } from "@foxglove/studio-base/components/StudioLogsSettings";
 import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
-import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { useAssets } from "@foxglove/studio-base/context/AssetsContext";
+import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
 import {
   IDataSourceFactory,
   usePlayerSelection,
@@ -66,16 +64,23 @@ import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { useNativeAppMenu } from "@foxglove/studio-base/context/NativeAppMenuContext";
-import { useWorkspace, WorkspaceContext } from "@foxglove/studio-base/context/WorkspaceContext";
+import {
+  LeftSidebarItemKey,
+  RightSidebarItemKey,
+  SidebarItemKey,
+  useWorkspaceActions,
+  useWorkspaceStore,
+  WorkspaceContextStore,
+} from "@foxglove/studio-base/context/WorkspaceContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import useAddPanel from "@foxglove/studio-base/hooks/useAddPanel";
-import { useCalloutDismissalBlocker } from "@foxglove/studio-base/hooks/useCalloutDismissalBlocker";
 import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDefaultWebLaunchPreference";
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
 import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useInitialDeepLinkState";
 import useNativeAppMenuEvent from "@foxglove/studio-base/hooks/useNativeAppMenuEvent";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
+import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const log = Logger.getLogger(__filename);
@@ -92,21 +97,6 @@ const useStyles = makeStyles()({
     overflow: "hidden",
   },
 });
-
-type SidebarItemKey =
-  | "connection"
-  | "add-panel"
-  | "panel-settings"
-  | "variables"
-  | "extensions"
-  | "account"
-  | "layouts"
-  | "preferences"
-  | "help"
-  | "studio-logs-settings";
-
-type LeftSidebarItemKey = "topics" | "variables" | "studio-logs-settings";
-type RightSidebarItemKey = "panel-settings" | "events";
 
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
@@ -127,7 +117,7 @@ function keyboardEventHasModifier(event: KeyboardEvent) {
 
 function AddPanel() {
   const addPanel = useAddPanel();
-  const { openLayoutBrowser } = useWorkspace();
+  const { openLayoutBrowser } = useWorkspaceActions();
   const selectedLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const { t } = useTranslation("addPanel");
 
@@ -135,11 +125,25 @@ function AddPanel() {
     <SidebarContent disablePadding={selectedLayoutId != undefined} title={t("addPanel")}>
       {selectedLayoutId == undefined ? (
         <Typography color="text.secondary">
-          <Link onClick={openLayoutBrowser}>Select a layout</Link> to get started!
+          <Trans
+            t={t}
+            i18nKey="noLayoutSelected"
+            components={{
+              selectLayoutLink: <Link onClick={openLayoutBrowser} />,
+            }}
+          />
         </Typography>
       ) : (
         <PanelList onPanelSelect={addPanel} />
       )}
+    </SidebarContent>
+  );
+}
+
+function ExtensionsSidebar() {
+  return (
+    <SidebarContent title="Extensions" disablePadding>
+      <ExtensionsSettings />
     </SidebarContent>
   );
 }
@@ -162,17 +166,39 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectPlayUntil = (ctx: MessagePipelineContext) => ctx.playUntil;
 const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
 const selectEventsSupported = (store: EventsStore) => store.eventsSupported;
+const selectWorkspaceSidebarItem = (store: WorkspaceContextStore) => store.sidebarItem;
+const selectWorkspaceLeftSidebarItem = (store: WorkspaceContextStore) => store.leftSidebarItem;
+const selectWorkspaceLeftSidebarOpen = (store: WorkspaceContextStore) => store.leftSidebarOpen;
+const selectWorkspaceLeftSidebarSize = (store: WorkspaceContextStore) => store.leftSidebarSize;
+const selectWorkspaceRightSidebarItem = (store: WorkspaceContextStore) => store.rightSidebarItem;
+const selectWorkspaceRightSidebarOpen = (store: WorkspaceContextStore) => store.rightSidebarOpen;
+const selectWorkspaceRightSidebarSize = (store: WorkspaceContextStore) => store.rightSidebarSize;
 
-export default function Workspace(props: WorkspaceProps): JSX.Element {
+function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const { classes } = useStyles();
-  const { t } = useTranslation("addPanel");
   const containerRef = useRef<HTMLDivElement>(ReactNull);
   const { availableSources, selectSource } = usePlayerSelection();
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems);
 
-  const [prefsDialogOpen, setPrefsDialogOpen] = useState(false);
-  const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
+  const sidebarItem = useWorkspaceStore(selectWorkspaceSidebarItem);
+  const leftSidebarItem = useWorkspaceStore(selectWorkspaceLeftSidebarItem);
+  const leftSidebarOpen = useWorkspaceStore(selectWorkspaceLeftSidebarOpen);
+  const leftSidebarSize = useWorkspaceStore(selectWorkspaceLeftSidebarSize);
+  const rightSidebarItem = useWorkspaceStore(selectWorkspaceRightSidebarItem);
+  const rightSidebarOpen = useWorkspaceStore(selectWorkspaceRightSidebarOpen);
+  const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
+
+  const {
+    prefsDialogActions,
+    setLeftSidebarOpen,
+    setRightSidebarOpen,
+    selectLeftSidebarItem,
+    selectRightSidebarItem,
+    setLeftSidebarSize,
+    setRightSidebarSize,
+    selectSidebarItem,
+  } = useWorkspaceActions();
 
   // We use playerId to detect when a player changes for RemountOnValueChange below
   // see comment below above the RemountOnValueChange component
@@ -208,28 +234,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     { view: OpenDialogViews; activeDataSource?: IDataSourceFactory } | undefined
   >(isPlayerPresent || !showOpenDialogOnStartup || showSignInForm ? undefined : { view: "start" });
 
-  const [selectedSidebarItem, setSelectedSidebarItem] = useState<SidebarItemKey | undefined>(
-    "connection",
-  );
-  const prevSelectedSidebarItem = usePrevious(selectedSidebarItem);
-
-  const [selectedRightSidebarItem, setSelectedRightSidebarItem] = useState<
-    RightSidebarItemKey | undefined
-  >(undefined);
-
-  const [selectedLeftSidebarItem, setSelectedLeftSidebarItem] = useState<
-    LeftSidebarItemKey | undefined
-  >("topics");
-
-  // When a player is present we hide the connection sidebar. To prevent hiding the connection sidebar
-  // when the user wants to select a new connection we track whether the sidebar item opened
-  const userSelectSidebarItem = useRef(false);
-
-  const selectSidebarItem = useCallback((item: SidebarItemKey | undefined) => {
-    userSelectSidebarItem.current = true;
-    setSelectedSidebarItem(item);
-  }, []);
-
   // When a player is activated, hide the open dialog.
   useLayoutEffect(() => {
     if (
@@ -247,59 +251,53 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     }
   }, []);
 
-  useCalloutDismissalBlocker();
-
   useNativeAppMenuEvent(
     "open-layouts",
     useCallback(() => {
-      setSelectedSidebarItem("layouts");
-    }, []),
+      selectSidebarItem("layouts");
+    }, [selectSidebarItem]),
   );
 
   useNativeAppMenuEvent(
     "open-add-panel",
     useCallback(() => {
-      setSelectedSidebarItem("add-panel");
-    }, []),
+      selectSidebarItem("add-panel");
+    }, [selectSidebarItem]),
   );
 
   useNativeAppMenuEvent(
     "open-panel-settings",
     useCallback(() => {
-      setSelectedSidebarItem("panel-settings");
-    }, []),
+      selectSidebarItem("panel-settings");
+    }, [selectSidebarItem]),
   );
 
   useNativeAppMenuEvent(
     "open-variables",
     useCallback(() => {
-      setSelectedSidebarItem("variables");
-    }, []),
+      selectSidebarItem("variables");
+    }, [selectSidebarItem]),
   );
 
   useNativeAppMenuEvent(
     "open-extensions",
     useCallback(() => {
-      setSelectedSidebarItem("extensions");
-    }, []),
+      selectSidebarItem("extensions");
+    }, [selectSidebarItem]),
   );
 
   useNativeAppMenuEvent(
     "open-account",
     useCallback(() => {
-      setSelectedSidebarItem("account");
-    }, []),
+      selectSidebarItem("account");
+    }, [selectSidebarItem]),
   );
 
   useNativeAppMenuEvent(
-    "open-preferences",
+    "open-app-settings",
     useCallback(() => {
-      if (enableNewTopNav) {
-        setPrefsDialogOpen(true);
-      } else {
-        setSelectedSidebarItem("preferences");
-      }
-    }, [enableNewTopNav]),
+      prefsDialogActions.open();
+    }, [prefsDialogActions]),
   );
 
   useNativeAppMenuEvent(
@@ -349,9 +347,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
 
   const { enqueueSnackbar } = useSnackbar();
 
-  const { loadFromFile } = useAssets();
-  const analytics = useAnalytics();
-
   const installExtension = useExtensionCatalog((state) => state.installExtension);
 
   const openFiles = useCallback(
@@ -360,9 +355,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
       log.debug("open files", files);
 
       for (const file of files) {
-        // electron extends File with a `path` field which is not available in browsers
-        const basePath = (file as { path?: string }).path ?? "";
-
         if (file.name.endsWith(".foxe")) {
           // Extension installation
           try {
@@ -377,14 +369,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
             });
           }
         } else {
-          try {
-            if (!(await loadFromFile(file, { basePath, analytics, source: "local_file" }))) {
-              otherFiles.push(file);
-            }
-          } catch (err) {
-            log.error(err);
-            enqueueSnackbar(`Failed to load ${file.name}: ${err.message}`, { variant: "error" });
-          }
+          otherFiles.push(file);
         }
       }
 
@@ -404,7 +389,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
         }
       }
     },
-    [analytics, availableSources, enqueueSnackbar, installExtension, loadFromFile, selectSource],
+    [availableSources, enqueueSnackbar, installExtension, selectSource],
   );
 
   // files the main thread told us to open
@@ -414,36 +399,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
       void openFiles(Array.from(filesToOpen));
     }
   }, [filesToOpen, openFiles]);
-
-  const workspaceContextValue = useMemo(
-    () => ({
-      panelSettingsOpen:
-        selectedSidebarItem === "panel-settings" || selectedRightSidebarItem === "panel-settings",
-      openPanelSettings: () =>
-        enableNewTopNav
-          ? setSelectedRightSidebarItem("panel-settings")
-          : setSelectedSidebarItem("panel-settings"),
-      // ↓ ↓ ↓  just remove this one when deleting enableNewTopNav feature flag  ↓ ↓ ↓
-      openAccountSettings: () => supportsAccountSettings && setSelectedSidebarItem("account"),
-      openLayoutBrowser: () =>
-        enableNewTopNav ? setLayoutMenuOpen(true) : setSelectedSidebarItem("layouts"),
-      leftSidebarOpen: selectedLeftSidebarItem != undefined,
-      // eslint-disable-next-line @foxglove/no-boolean-parameters
-      setLeftSidebarOpen: (open: boolean) =>
-        setSelectedLeftSidebarItem(open ? "topics" : undefined),
-      rightSidebarOpen: selectedRightSidebarItem != undefined,
-      // eslint-disable-next-line @foxglove/no-boolean-parameters
-      setRightSidebarOpen: (open: boolean) =>
-        setSelectedRightSidebarItem(open ? "panel-settings" : undefined),
-    }),
-    [
-      selectedSidebarItem,
-      selectedLeftSidebarItem,
-      selectedRightSidebarItem,
-      enableNewTopNav,
-      supportsAccountSettings,
-    ],
-  );
 
   // Since the _component_ field of a sidebar item entry is a component and accepts no additional
   // props we need to wrap our DataSourceSidebar component to connect the open data source action to
@@ -465,18 +420,13 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     };
   }, []);
 
-  const ConnectedLayoutBrowser = useCallback(
-    () => <LayoutBrowser supportsSignIn={supportsAccountSettings} />,
-    [supportsAccountSettings],
-  );
-
   const [sidebarItems, sidebarBottomItems] = useMemo(() => {
     const topItems = new Map<SidebarItemKey, SidebarItem>([
       [
         "connection",
         {
           iconName: "DatabaseSettings",
-          title: t("dataSource"),
+          title: "Data sources",
           component: DataSourceSidebarItem,
           badge:
             playerProblems && playerProblems.length > 0
@@ -489,18 +439,18 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     if (!enableNewTopNav) {
       topItems.set("layouts", {
         iconName: "FiveTileGrid",
-        title: t("layouts"),
-        component: ConnectedLayoutBrowser,
+        title: "Layouts",
+        component: LayoutBrowser,
       });
       topItems.set("add-panel", {
         iconName: "RectangularClipping",
-        title: t("addPanel"),
+        title: "Add panel",
         component: AddPanel,
       });
     }
     topItems.set("panel-settings", {
       iconName: "PanelSettings",
-      title: t("panelSettings"),
+      title: "Panel settings",
       component: PanelSettings,
     });
     if (!enableNewTopNav) {
@@ -509,43 +459,34 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
         title: "Variables",
         component: VariablesList,
       });
+      topItems.set("extensions", {
+        iconName: "AddIn",
+        title: "Extensions",
+        component: ExtensionsSidebar,
+      });
     }
     if (enableStudioLogsSidebar) {
       topItems.set("studio-logs-settings", {
         iconName: "BacklogList",
-        title: t("studioLogsSettings"),
+        title: "Studio logs settings",
         component: StudioLogsSettingsSidebar,
       });
     }
 
-    const bottomItems = new Map<SidebarItemKey, SidebarItem>([
-      [
-        "help",
-        {
-          iconName: "QuestionCircle",
-          title: t("helpCenter"),
-          component: () => {
-            window.open("https://docs.coscene.cn/docs/get-started/create-project-flow/");
-            setSelectedSidebarItem(prevSelectedSidebarItem);
-            return <></>;
-          },
-        },
-      ],
-    ]);
+    const bottomItems = new Map<SidebarItemKey, SidebarItem>([]);
 
     if (!enableNewTopNav) {
       if (supportsAccountSettings) {
         bottomItems.set("account", {
           iconName: currentUser != undefined ? "BlockheadFilled" : "Blockhead",
-          title: currentUser != undefined ? `${t("signInAs")} ${currentUser.email}` : t("account"),
+          title: currentUser != undefined ? `Signed in as ${currentUser.email}` : "Account",
           component: AccountSettings,
         });
       }
 
-      bottomItems.set("preferences", {
+      bottomItems.set("app-settings", {
         iconName: "Settings",
-        title: t("preferences"),
-        component: Preferences,
+        title: "Settings",
       });
     }
 
@@ -553,11 +494,8 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   }, [
     DataSourceSidebarItem,
     playerProblems,
-    ConnectedLayoutBrowser,
     enableStudioLogsSidebar,
-    t,
     supportsAccountSettings,
-    prevSelectedSidebarItem,
     currentUser,
     enableNewTopNav,
   ]);
@@ -567,45 +505,39 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
 
   const leftSidebarItems = useMemo(() => {
     const items = new Map<LeftSidebarItemKey, NewSidebarItem>([
+      ["panel-settings", { title: "Panel", component: PanelSettingsSidebar }],
       ["topics", { title: "Topics", component: TopicList }],
+    ]);
+    return items;
+  }, [PanelSettingsSidebar]);
+
+  const rightSidebarItems = useMemo(() => {
+    const items = new Map<RightSidebarItemKey, NewSidebarItem>([
       ["variables", { title: "Variables", component: VariablesList }],
     ]);
     if (enableStudioLogsSidebar) {
       items.set("studio-logs-settings", { title: "Studio Logs", component: StudioLogsSettings });
     }
-    return items;
-  }, [enableStudioLogsSidebar]);
-
-  const rightSidebarItems = useMemo(() => {
-    const items = new Map<RightSidebarItemKey, NewSidebarItem>([
-      ["panel-settings", { title: "Panel settings", component: PanelSettingsSidebar }],
-    ]);
     if (showEventsTab) {
       items.set("events", { title: "Events", component: EventsList });
     }
     return items;
-  }, [PanelSettingsSidebar, showEventsTab]);
+  }, [enableStudioLogsSidebar, showEventsTab]);
 
   const keyDownHandlers = useMemo(() => {
-    const { leftSidebarOpen, rightSidebarOpen, setLeftSidebarOpen, setRightSidebarOpen } =
-      workspaceContextValue;
     return {
       b: (ev: KeyboardEvent) => {
-        if (
-          !keyboardEventHasModifier(ev) ||
-          activeElementIsInput() ||
-          selectedSidebarItem == undefined
-        ) {
+        if (!keyboardEventHasModifier(ev) || activeElementIsInput() || sidebarItem == undefined) {
           return;
         }
 
         ev.preventDefault();
-        setSelectedSidebarItem(undefined);
+        selectSidebarItem(undefined);
       },
-      "[": () => setLeftSidebarOpen(!leftSidebarOpen),
-      "]": () => setRightSidebarOpen(!rightSidebarOpen),
+      "[": () => setLeftSidebarOpen((oldValue) => !oldValue),
+      "]": () => setRightSidebarOpen((oldValue) => !oldValue),
     };
-  }, [selectedSidebarItem, workspaceContextValue]);
+  }, [sidebarItem, setLeftSidebarOpen, setRightSidebarOpen, selectSidebarItem]);
 
   const play = useMessagePipeline(selectPlay);
   const playUntil = useMessagePipeline(selectPlayUntil);
@@ -622,7 +554,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     <MultiProvider
       providers={[
         /* eslint-disable react/jsx-key */
-        <WorkspaceContext.Provider value={workspaceContextValue} />,
         <PanelStateContextProvider />,
         /* eslint-enable react/jsx-key */
       ]}
@@ -640,8 +571,6 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
       <div className={classes.container} ref={containerRef} tabIndex={0}>
         {enableNewTopNav && (
           <AppBar
-            currentUser={currentUser}
-            signIn={signIn}
             leftInset={props.appBarLeftInset}
             onDoubleClick={props.onAppBarDoubleClick}
             showCustomWindowControls={props.showCustomWindowControls}
@@ -651,23 +580,23 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
             onUnmaximizeWindow={props.onUnmaximizeWindow}
             onCloseWindow={props.onCloseWindow}
             onSelectDataSourceAction={() => setShowOpenDialog({ view: "start" })}
-            prefsDialogOpen={prefsDialogOpen}
-            setPrefsDialogOpen={setPrefsDialogOpen}
-            layoutMenuOpen={layoutMenuOpen}
-            setLayoutMenuOpen={setLayoutMenuOpen}
           />
         )}
         <Sidebars
           items={sidebarItems}
           bottomItems={sidebarBottomItems}
-          selectedKey={selectedSidebarItem}
+          selectedKey={sidebarItem}
           onSelectKey={selectSidebarItem}
           leftItems={leftSidebarItems}
-          selectedLeftKey={selectedLeftSidebarItem}
-          onSelectLeftKey={setSelectedLeftSidebarItem}
+          selectedLeftKey={leftSidebarOpen ? leftSidebarItem : undefined}
+          onSelectLeftKey={selectLeftSidebarItem}
+          leftSidebarSize={leftSidebarSize}
+          setLeftSidebarSize={setLeftSidebarSize}
           rightItems={rightSidebarItems}
-          selectedRightKey={selectedRightSidebarItem}
-          onSelectRightKey={setSelectedRightSidebarItem}
+          selectedRightKey={rightSidebarOpen ? rightSidebarItem : undefined}
+          onSelectRightKey={selectRightSidebarItem}
+          rightSidebarSize={rightSidebarSize}
+          setRightSidebarSize={setRightSidebarSize}
         >
           {/* To ensure no stale player state remains, we unmount all panels when players change */}
           <RemountOnValueChange value={playerId}>
@@ -689,6 +618,15 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
           </div>
         )}
       </div>
+      <WorkspaceDialogs />
     </MultiProvider>
+  );
+}
+
+export default function Workspace(props: WorkspaceProps): JSX.Element {
+  return (
+    <WorkspaceContextProvider>
+      <WorkspaceContent {...props} />
+    </WorkspaceContextProvider>
   );
 }

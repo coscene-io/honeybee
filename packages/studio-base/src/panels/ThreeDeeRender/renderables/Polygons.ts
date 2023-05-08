@@ -7,8 +7,8 @@ import { SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
 import type { RosValue } from "@foxglove/studio-base/players/types";
 
 import { RenderableLineStrip } from "./markers/RenderableLineStrip";
+import type { IRenderer } from "../IRenderer";
 import { BaseUserData, Renderable } from "../Renderable";
-import { Renderer } from "../Renderer";
 import { PartialMessage, PartialMessageEvent, SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry } from "../SettingsManager";
 import { makeRgba, rgbaToCssString, stringToRgba } from "../color";
@@ -61,7 +61,7 @@ export class PolygonRenderable extends Renderable<PolygonUserData> {
 }
 
 export class Polygons extends SceneExtension<PolygonRenderable> {
-  public constructor(renderer: Renderer) {
+  public constructor(renderer: IRenderer) {
     super("foxglove.Polygons", renderer);
 
     renderer.addSchemaSubscriptions(POLYGON_STAMPED_DATATYPES, this.handlePolygon);
@@ -79,8 +79,8 @@ export class Polygons extends SceneExtension<PolygonRenderable> {
 
       // prettier-ignore
       const fields: SettingsTreeFields = {
-        lineWidth: { label: "lineWidth", input: "number", min: 0, placeholder: String(DEFAULT_LINE_WIDTH), step: 0.005, precision: 3, value: config.lineWidth },
-        color: { label: "color", input: "rgba", value: config.color ?? DEFAULT_COLOR_STR },
+        lineWidth: { label: "Line Width", input: "number", min: 0, placeholder: String(DEFAULT_LINE_WIDTH), step: 0.005, precision: 3, value: config.lineWidth },
+        color: { label: "Color", input: "rgba", value: config.color ?? DEFAULT_COLOR_STR },
       };
 
       entries.push({

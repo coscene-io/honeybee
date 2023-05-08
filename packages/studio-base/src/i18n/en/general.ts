@@ -3,24 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // Generic global translation
-export default {
-  apply: "Apply",
-  cancel: "Cancel",
-  checkoutSupport: "check out our cross-browser support progress in github issue ",
-  // copyPanelDescription: "to use it, or copy this one to share it:",
-  download: "Download",
-  filter: "Filter",
+export const general = {
   foxglove: "Foxglove",
-  importExportSettings: "Import/export settings",
-  name: "Name",
-  outdatedVersion: "You’re using an outdated version of Chrome.",
-  panelSettings: "panel settings",
-  pasteNew: "Paste a new {{noun}} panel settings to use it, or copy this one to share it:",
-  refresh: "Refresh",
-  requireChrome: "coScene currently requires Chrome v104+.",
-  resetToDefault: "Reset to defaults",
-  unsupportedBrowser: "You’re using an unsupported browser.",
-  listAll: "List all",
-  listVisible: "List visible",
-  listInvisible: "List invisible",
+  learnMore: "Learn more",
 };

@@ -22,7 +22,6 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Divider, Menu, MenuItem } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { MosaicContext, MosaicNode, MosaicWindowContext } from "react-mosaic-component";
 import { makeStyles } from "tss-react/mui";
 
@@ -62,8 +61,6 @@ const useStyles = makeStyles()((theme) => ({
 
 export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
   const { classes, cx } = useStyles();
-  const { t } = useTranslation("addPanel");
-
   const [menuAnchorEl, setMenuAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const [subMenuAnchorEl, setSubmenuAnchorEl] = useState<undefined | HTMLElement>(undefined);
 
@@ -92,137 +89,6 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
   const handleMenuClose = () => {
     setSubmenuAnchorEl(undefined);
     setMenuAnchorEl(undefined);
-  };
-
-  const displayItemText = (itemText: string): string => {
-    switch (itemText) {
-      case "setting":
-      case "level":
-      case "addPanel":
-      case "impExpSetting":
-      case "reset":
-      case "displayFrame":
-      case "followMode":
-      case "renderStats":
-      case "background":
-      case "labelScale":
-      case "ignoreTag":
-      case "syncCamera":
-      case "meshUpAxis":
-      case "view":
-      case "editable":
-      case "labels":
-      case "labelSize":
-      case "axisScale":
-      case "lineWidth":
-      case "lineColor":
-      case "addGrid":
-      case "addFormat":
-      case "type":
-      case "topic":
-      case "dataSourceInfo":
-      case "changePanel":
-      case "splitHorizontal":
-      case "splitVertical":
-      case "fullScreen":
-      case "removePanel":
-      case "diagnosticsDetail":
-      case "diagnosticsSummary":
-      case "general":
-      case "numericPrecision":
-      case "sortByLevel":
-      case "gauge":
-      case "data":
-      case "minimum":
-      case "maxiMum":
-      case "colorMode":
-      case "colorMap":
-      case "reverse":
-      case "image":
-      case "cameraTopic":
-      case "transformMarkers":
-      case "synchronizeTimestamps":
-      case "bilinearSmoothing":
-      case "flipHorizontal":
-      case "flipVertical":
-      case "rotation":
-      case "minimumValue":
-      case "maximumValue":
-      case "markers":
-      case "indicator":
-      case "indicatorPanelSettings":
-      case "style":
-      case "rules":
-      case "comparison":
-      case "comparisonWith":
-      case "color":
-      case "label":
-      case "otherwise":
-      case "legacyPlot":
-      case "legacyPlotPanelSettings":
-      case "log":
-      case "logPanelSettings":
-      case "map":
-      case "mapPanelSettings":
-      case "tileLayer":
-      case "followTopic":
-      case "topics":
-      case "parameters":
-      case "parametersPanelSettings":
-      case "plot":
-      case "plotPanelSettings":
-      case "title":
-      case "syncWithOtherPlots":
-      case "showLabels":
-      case "rangeSecond":
-      case "series":
-      case "path":
-      case "timeStamp":
-      case "publish":
-      case "publishPanelSettings":
-      case "editingMode":
-      case "buttonTitle":
-      case "buttonTooltip":
-      case "buttonColor":
-      case "rawMessage":
-      case "rawMessagePanelSettings":
-      case "stateTransition":
-      case "stateTransitionPanelSettings":
-      case "studioPlaybackPerformance":
-      case "studioPlaybackPerformancePanelSettings":
-      case "tab":
-      case "tabPanelSettings":
-      case "table":
-      case "tablePanelSettings":
-      case "teleop":
-      case "teleopPanelSettings":
-      case "publishRate":
-      case "upButton":
-      case "downButton":
-      case "leftButton":
-      case "rightButton":
-      case "field":
-      case "value":
-      case "topicGraph":
-      case "topicGraphPanelSettings":
-      case "urdfViewer":
-      case "urdfViewerPanelSettings":
-      case "asset":
-      case "opacity":
-      case "manualControl":
-      case "userScript":
-      case "userScriptPanelSettings":
-      case "autoSave":
-      case "variableSlider":
-      case "variableSliderPanelSettings":
-      case "variableName":
-      case "selectPanelLayout":
-      case "learnMore":
-      case "studioDescription":
-        return t(itemText);
-      default:
-        return itemText;
-    }
   };
 
   const handleSubmenuClick = (event: MouseEvent<HTMLElement>) => {
@@ -282,13 +148,13 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
       items.push(
         {
           key: "hsplit",
-          text: "splitHorizontal",
+          text: "Split horizontal",
           icon: <SplitHorizontal20Regular />,
           onClick: () => split(panelContext?.id, "column"),
         },
         {
           key: "vsplit",
-          text: "splitVertical",
+          text: "Split vertical",
           icon: <SplitVertical20Regular />,
           onClick: () => split(panelContext?.id, "row"),
         },
@@ -298,7 +164,7 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
     if (panelContext?.isFullscreen !== true) {
       items.push({
         key: "enter-fullscreen",
-        text: "fullScreen",
+        text: "Fullscreen",
         icon: <FullScreenMaximize20Regular />,
         onClick: enterFullscreen,
         "data-testid": "panel-menu-fullscreen",
@@ -309,7 +175,7 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
 
     items.push({
       key: "remove",
-      text: "removePanel",
+      text: "Remove panel",
       icon: <Delete20Regular />,
       onClick: close,
       "data-testid": "panel-menu-remove",
@@ -369,7 +235,7 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
           onMouseEnter={handleSubmenuMouseEnter}
         >
           <ShapeSubtract20Regular />
-          {t("changePanel")}
+          Change panel
           <ChevronRightIcon className={classes.icon} fontSize="small" />
         </MenuItem>
         <ChangePanelMenu anchorEl={subMenuAnchorEl} onClose={handleSubmenuClose} tabId={tabId} />
@@ -389,7 +255,7 @@ export function PanelActionsDropdown({ isUnknownPanel }: Props): JSX.Element {
               data-testid={item["data-testid"]}
             >
               {item.icon}
-              {item.text && displayItemText(item.text)}
+              {item.text}
             </MenuItem>
           ),
         )}

@@ -26,7 +26,7 @@ const useStyles = makeStyles()((theme) => ({
 export default function SigninForm(): JSX.Element {
   const { classes } = useStyles();
   const { signIn } = useCurrentUser();
-  const { t } = useTranslation("account");
+  const { t } = useTranslation("cosAccount");
 
   return (
     <div className={classes.root}>

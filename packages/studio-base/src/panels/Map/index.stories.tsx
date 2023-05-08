@@ -38,7 +38,6 @@ function makeGeoJsonMessage(center: { lat: number; lon: number }) {
     features: [
       {
         type: "Feature",
-        properties: {},
         geometry: {
           type: "LineString",
           coordinates: [
@@ -50,7 +49,9 @@ function makeGeoJsonMessage(center: { lat: number; lon: number }) {
       },
       {
         type: "Feature",
-        properties: {},
+        properties: {
+          name: "Named Polygon",
+        },
         geometry: {
           type: "Polygon",
           coordinates: [
@@ -65,6 +66,7 @@ function makeGeoJsonMessage(center: { lat: number; lon: number }) {
       {
         type: "Feature",
         properties: {
+          name: "Named Point",
           "marker-color": "#7f7e7e",
           "marker-size": "medium",
           "marker-symbol": "1",

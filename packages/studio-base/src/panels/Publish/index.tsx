@@ -15,7 +15,6 @@ import { Button, Typography, styled as muiStyled, OutlinedInput } from "@mui/mat
 import produce from "immer";
 import { set } from "lodash";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useTranslation } from "react-i18next";
 
 import { useRethrow } from "@foxglove/hooks";
 import { SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
@@ -51,10 +50,10 @@ function buildSettingsTree(config: Config): SettingsTreeNodes {
   return {
     general: {
       fields: {
-        advancedView: { label: "editingMode", input: "boolean", value: config.advancedView },
-        buttonText: { label: "buttonTitle", input: "string", value: config.buttonText },
-        buttonTooltip: { label: "buttonTooltip", input: "string", value: config.buttonTooltip },
-        buttonColor: { label: "buttonColor", input: "rgb", value: config.buttonColor },
+        advancedView: { label: "Editing mode", input: "boolean", value: config.advancedView },
+        buttonText: { label: "Button title", input: "string", value: config.buttonText },
+        buttonTooltip: { label: "Button tooltip", input: "string", value: config.buttonTooltip },
+        buttonColor: { label: "Button color", input: "rgb", value: config.buttonColor },
       },
     },
   };
@@ -125,8 +124,6 @@ function parseInput(value: string): { error?: string; parsedObject?: unknown } {
 
 function Publish(props: Props) {
   const { topics, datatypes, capabilities } = useDataSourceInfo();
-  const { t } = useTranslation("publish");
-
   const {
     config: {
       topicName = "",
@@ -202,15 +199,19 @@ function Publish(props: Props) {
 
   // when a known topic is selected, also fill in its datatype
   const onSelectTopic = useCallback(
-    (name: string, topic: Topic, autocomplete: IAutocomplete) => {
-      saveConfig({ topicName: name, datatype: topic.schemaName });
+    (newValue: string | Topic, autocomplete: IAutocomplete) => {
+      if (typeof newValue === "string") {
+        saveConfig({ topicName: newValue });
+      } else {
+        saveConfig({ topicName: newValue.name, datatype: newValue.schemaName });
+      }
       autocomplete.blur();
     },
     [saveConfig],
   );
 
   const onSelectDatatype = useCallback(
-    (newDatatype: string, _value: unknown, autocomplete: IAutocomplete) => {
+    (newDatatype: string, autocomplete: IAutocomplete) => {
       saveConfig({ datatype: newDatatype });
       autocomplete.blur();
     },
@@ -235,9 +236,9 @@ function Publish(props: Props) {
       {advancedView && (
         <Stack flex="auto" padding={2} gap={1} paddingBottom={0}>
           <div>
-            <Stack alignItems="baseline" gap={1} padding={0.5} direction="row" flexShrink={0}>
+            <Stack alignItems="center" gap={1} padding={0.5} direction="row" flexShrink={0}>
               <Typography color="text.secondary" variant="body2" component="label">
-                {t("topic")}:
+                Topic:
               </Typography>
               <Autocomplete
                 placeholder="Choose a topic"
@@ -250,16 +251,16 @@ function Publish(props: Props) {
                 getItemValue={getTopicName}
               />
             </Stack>
-            <Stack alignItems="baseline" gap={1} padding={0.5} direction="row" flexShrink={0}>
+            <Stack alignItems="center" gap={1} padding={0.5} direction="row" flexShrink={0}>
               <Typography color="text.secondary" variant="body2" component="label">
-                {t("datatype")}:
+                Datatype:
               </Typography>
               <Autocomplete
-                clearOnFocus
                 placeholder="Choose a datatype"
                 items={datatypeNames}
                 onSelect={onSelectDatatype}
                 selectedItem={datatype}
+                selectOnFocus
               />
             </Stack>
           </div>

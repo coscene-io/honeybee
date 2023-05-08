@@ -97,7 +97,7 @@ const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState
 
 const NoPlayableBagsDialog = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
   const { classes } = useStyles();
-  const { t } = useTranslation("dataSource");
+  const { t } = useTranslation("cosPlaylist");
   const CurrentUrlState = useMessagePipeline(selectUrlState);
   const {
     coSceneContext: { currentOrganizationSlug },
@@ -150,7 +150,7 @@ const NoPlayableBagsDialog = ({ open, onClose }: { open: boolean; onClose: () =>
               window.location.reload();
             }}
           >
-            {t("refresh", { ns: "general" })}
+            {t("refresh", { ns: "cosGeneral" })}
           </Button>
         </DialogActions>
       </Dialog>
@@ -167,9 +167,9 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
   const selectedEventId = useEvents(selectSelectedEventId);
   const [activeTab, setActiveTab] = useState<DataSourceSidebarTab>("playlist");
   const { classes } = useStyles();
-  const { t } = useTranslation("dataSource");
   const record = useRecord(selectRecords);
   const bagFiles = useRecord(selectBagFiles);
+  const { t } = useTranslation("dataSourceInfo");
 
   const [noPlayableBags, setNoPlayableBags] = useState<boolean>(false);
 
@@ -209,14 +209,14 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
                 onChange={(_ev, newValue: DataSourceSidebarTab) => setActiveTab(newValue)}
                 textColor="inherit"
               >
-                <StyledTab disableRipple label={t("playlist")} value="playlist" />
-                <StyledTab disableRipple label={t("topics")} value="topics" />
-                <StyledTab disableRipple label={t("moment")} value="events" />
+                <StyledTab disableRipple label="Playlist" value="playlist" />
+                <StyledTab disableRipple label="Topics" value="topics" />
+                <StyledTab disableRipple label="Moment" value="events" />
                 <StyledTab
                   disableRipple
                   label={
                     <Stack direction="row" alignItems="baseline" gap={1}>
-                      {t("problem")}
+                      Problems
                       {playerProblems.length > 0 && (
                         <ProblemCount>{playerProblems.length}</ProblemCount>
                       )}

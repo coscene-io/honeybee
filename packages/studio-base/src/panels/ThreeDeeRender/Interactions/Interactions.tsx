@@ -13,7 +13,6 @@
 
 import { Cursor24Regular } from "@fluentui/react-icons";
 import { Typography } from "@mui/material";
-import { useTranslation } from "react-i18next";
 
 import type { LayoutActions } from "@foxglove/studio";
 import ExpandingToolbar, {
@@ -56,11 +55,10 @@ const InteractionsBaseComponent = React.memo<Props>(function InteractionsBaseCom
   const selectedInteractionData = selectedObject?.object.interactionData;
   const originalMessage = selectedInteractionData?.originalMessage;
   const instanceDetails = selectedInteractionData?.instanceDetails;
-  const { t } = useTranslation("threeDimensionalPanel");
 
   return (
     <ExpandingToolbar
-      tooltip={t("inspectObjects")}
+      tooltip="Inspect objects"
       icon={<Cursor24Regular />}
       selectedTab={interactionsTabType}
       onSelectTab={(newSelectedTab) => setInteractionsTabType(newSelectedTab)}
@@ -85,7 +83,7 @@ const InteractionsBaseComponent = React.memo<Props>(function InteractionsBaseCom
             </>
           ) : (
             <Typography variant="body2" color="text.disabled" gutterBottom>
-              {t("selectObjectTips")}
+              Click an object in the 3D view to select it.
             </Typography>
           )}
         </ToolGroupFixedSizePane>

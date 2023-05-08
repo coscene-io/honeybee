@@ -50,7 +50,7 @@ export function CreateTaskDialog({
   const { classes } = useStyles();
   const { eventName } = initialTask;
   const urlState = useMessagePipeline(selectUrlState);
-  const { t } = useTranslation("moment");
+  const { t } = useTranslation("cosEvent");
   const consoleApi = useConsoleApi();
 
   const [task, setTask] = useImmer<{

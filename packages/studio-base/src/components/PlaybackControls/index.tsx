@@ -76,7 +76,7 @@ export default function PlaybackControls(props: {
 }): JSX.Element {
   const { play, pause, seek, isPlaying, getTimeInfo, playUntil } = props;
   const presence = useMessagePipeline(selectPresence);
-  const { t } = useTranslation("moment");
+  const { t } = useTranslation("cosEvent");
 
   const { classes } = useStyles();
   const [repeat, setRepeat] = useState(false);
@@ -155,8 +155,7 @@ export default function PlaybackControls(props: {
   const toggleCreateEventDialog = useCallback(() => {
     pause();
     setCreateEventDialogOpen((open) => !open);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pause]);
 
   useEffect(() => {
     if (createEventShortcutKeys) {
