@@ -25,7 +25,6 @@ import { CustomWindowControlsProps } from "@foxglove/studio-base/components/AppB
 import { DataSourceSidebar } from "@foxglove/studio-base/components/DataSourceSidebar";
 import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
 import { TopicList } from "@foxglove/studio-base/components/DataSourceSidebar/TopicList";
-import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import LayoutBrowser from "@foxglove/studio-base/components/LayoutBrowser";
 import {
@@ -136,14 +135,6 @@ function AddPanel() {
       ) : (
         <PanelList onPanelSelect={addPanel} />
       )}
-    </SidebarContent>
-  );
-}
-
-function ExtensionsSidebar() {
-  return (
-    <SidebarContent title="Extensions" disablePadding>
-      <ExtensionsSettings />
     </SidebarContent>
   );
 }
@@ -458,11 +449,6 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
         iconName: "Variable2",
         title: "Variables",
         component: VariablesList,
-      });
-      topItems.set("extensions", {
-        iconName: "AddIn",
-        title: "Extensions",
-        component: ExtensionsSidebar,
       });
     }
     if (enableStudioLogsSidebar) {
