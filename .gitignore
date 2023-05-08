@@ -1,5 +1,6 @@
 *.log
 *.tsbuildinfo
+.idea/
 .DS_Store
 .webpack/
 ci/apt/packages
@@ -17,5 +18,3 @@ storybook-static/
 
 # Extensions
 *.foxe
-
-.idea/
