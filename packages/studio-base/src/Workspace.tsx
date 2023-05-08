@@ -473,19 +473,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       });
     }
 
-    const bottomItems = new Map<SidebarItemKey, SidebarItem>([
-      [
-        "help",
-        {
-          iconName: "QuestionCircle",
-          title: "Help center",
-          component: () => {
-            window.open("https://docs.coscene.cn/docs/get-started/create-project-flow/");
-            return <></>;
-          },
-        },
-      ],
-    ]);
+    const bottomItems = new Map<SidebarItemKey, SidebarItem>([]);
 
     if (!enableNewTopNav) {
       if (supportsAccountSettings) {

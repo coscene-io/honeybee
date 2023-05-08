@@ -94,9 +94,14 @@ const LogPanel = React.memo(({ config, saveConfig }: Props) => {
   useEffect(() => {
     updatePanelSettingsTree({
       actionHandler,
-      nodes: buildSettingsTree(topicToRender, availableTopics, t, {
-        reverseOrder: config.reverseOrder,
-      }),
+      nodes: buildSettingsTree(
+        topicToRender,
+        availableTopics,
+        {
+          reverseOrder: config.reverseOrder,
+        },
+        t,
+      ),
     });
   }, [
     actionHandler,

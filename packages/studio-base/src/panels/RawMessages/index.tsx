@@ -29,7 +29,6 @@ import {
 import { first, isEqual, get, last, padStart } from "lodash";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import ReactHoverObserver from "react-hover-observer";
-import { useTranslation } from "react-i18next";
 import Tree from "react-json-tree";
 import { DeepReadonly } from "ts-essentials";
 import { makeStyles } from "tss-react/mui";
@@ -136,7 +135,6 @@ function RawMessages(props: Props) {
   const { openSiblingPanel } = usePanelContext();
   const { topicPath, diffMethod, diffTopicPath, diffEnabled, showFullMessageForDiff } = config;
   const { topics, datatypes } = useDataSourceInfo();
-  const { t } = useTranslation("common");
 
   const defaultGetItemString = useGetItemStringWithTimezone();
   const getItemString = useMemo(
@@ -400,7 +398,7 @@ function RawMessages(props: Props) {
     };
 
     if (topicPath.length === 0) {
-      return <EmptyState>{t("noTopicSelected")}</EmptyState>;
+      return <EmptyState>No topic selected</EmptyState>;
     }
     if (diffEnabled && diffMethod === CUSTOM_METHOD && (!baseItem || !diffItem)) {
       return (
@@ -647,7 +645,6 @@ function RawMessages(props: Props) {
     rootStructureItem,
     saveConfig,
     showFullMessageForDiff,
-    t,
     themePreference,
     topic,
     topicPath,

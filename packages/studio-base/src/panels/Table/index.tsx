@@ -12,7 +12,6 @@
 //   You may not use this file except in compliance with the License.
 
 import { Box, Stack } from "@mui/material";
-import { useTranslation } from "react-i18next";
 
 import { useMessagesByTopic } from "@foxglove/studio-base/PanelAPI";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
@@ -32,7 +31,6 @@ type Props = { config: Config; saveConfig: SaveConfig<Config> };
 
 function TablePanel({ config, saveConfig }: Props) {
   const { topicPath } = config;
-  const { t } = useTranslation("common");
 
   const onTopicPathChange = React.useCallback(
     (newTopicPath: string) => {
@@ -64,7 +62,7 @@ function TablePanel({ config, saveConfig }: Props) {
           />
         </Box>
       </PanelToolbar>
-      {topicPath.length === 0 && <EmptyState>{t("noTopicSelected")}</EmptyState>}
+      {topicPath.length === 0 && <EmptyState>No topic selected</EmptyState>}
       {topicPath.length !== 0 && cachedMessages.length === 0 && (
         <EmptyState>Waiting for next message</EmptyState>
       )}

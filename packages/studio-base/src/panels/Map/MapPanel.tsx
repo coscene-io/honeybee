@@ -16,7 +16,6 @@ import {
 import { difference, groupBy, isEqual, minBy, partition, union } from "lodash";
 import memoizeWeak from "memoize-weak";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { useResizeDetector } from "react-resize-detector";
 import { useDebouncedCallback } from "use-debounce";
 
@@ -100,7 +99,6 @@ const memoizedFilterMessages = memoizeWeak((msgs: readonly MessageEvent<unknown>
 
 function MapPanel(props: MapPanelProps): JSX.Element {
   const { context } = props;
-  const { t } = useTranslation("common");
 
   const mapContainerRef = useRef<HTMLDivElement>(ReactNull);
 
@@ -746,7 +744,7 @@ function MapPanel(props: MapPanelProps): JSX.Element {
           position="absolute"
           style={{ top: 0, right: 0, bottom: 0, left: 0 }}
         >
-          {t("waitGPS")}
+          Waiting for first GPS point...
         </Stack>
       )}
       <Stack

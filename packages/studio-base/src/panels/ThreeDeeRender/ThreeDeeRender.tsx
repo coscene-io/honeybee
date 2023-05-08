@@ -155,7 +155,7 @@ function RendererOverlay(props: {
   const [interactionsTabType, setInteractionsTabType] = useState<TabType | undefined>(undefined);
   const renderer = useRenderer();
 
-  const { t } = useTranslation("threeDimensionalPanel");
+  const { t } = useTranslation("cosThreeDee");
 
   // Toggle object selection mode on/off in the renderer
   useEffect(() => {
