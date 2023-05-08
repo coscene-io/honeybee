@@ -7,8 +7,8 @@ import * as THREE from "three";
 import { PackedElementField, PointCloud } from "@foxglove/schemas";
 import { SettingsTreeNode, Topic } from "@foxglove/studio";
 import { DynamicBufferGeometry } from "@foxglove/studio-base/panels/ThreeDeeRender/DynamicBufferGeometry";
+import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import { BaseUserData, Renderable } from "@foxglove/studio-base/panels/ThreeDeeRender/Renderable";
-import { Renderer } from "@foxglove/studio-base/panels/ThreeDeeRender/Renderer";
 import { rgbaToCssString } from "@foxglove/studio-base/panels/ThreeDeeRender/color";
 import { isSupportedField } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/pointClouds/fieldReaders";
 import {
@@ -92,21 +92,22 @@ export function pointSettingsNode(
   });
   node.fields = {
     pointSize: {
-      label: "pointSize",
+      label: "Point size",
       input: "number",
       step: 1,
       placeholder: "2",
       precision: 2,
       value: pointSize,
+      min: 0,
     },
     pointShape: {
-      label: "pointShape",
+      label: "Point shape",
       input: "select",
       options: POINT_SHAPE_OPTIONS,
       value: pointShape,
     },
     decayTime: {
-      label: "decayTime",
+      label: "Decay time",
       input: "number",
       step: 0.5,
       placeholder: "0 seconds",
@@ -359,7 +360,7 @@ type HistoryEntry = { receiveTime: bigint; messageTime: bigint; object3d: ThreeO
 export class RenderObjectHistory<ParentRenderable extends Renderable<RenderObjectHistoryUserData>> {
   public history: HistoryEntry[];
   private renderable: ParentRenderable;
-  private renderer: Renderer;
+  private renderer: IRenderer;
 
   public constructor({
     initial,
@@ -367,7 +368,7 @@ export class RenderObjectHistory<ParentRenderable extends Renderable<RenderObjec
     parentRenderable,
   }: {
     initial: HistoryEntry;
-    renderer: Renderer;
+    renderer: IRenderer;
     parentRenderable: ParentRenderable;
   }) {
     this.history = [initial];

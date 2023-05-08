@@ -23,7 +23,6 @@ import {
   Collapse,
 } from "@mui/material";
 import { useState, useRef, useEffect, ReactElement } from "react";
-import { useTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useUserNodeState } from "@foxglove/studio-base/context/UserNodeStateContext";
@@ -77,7 +76,6 @@ const StyledBadge = muiStyled(Badge)(({ theme }) => ({
 const BottomBar = ({ nodeId, isSaved, save, diagnostics, logs }: Props): ReactElement => {
   const [bottomBarDisplay, setBottomBarDisplay] = useState<BottomBarModes>("closed");
   const [autoScroll, setAutoScroll] = useState(true);
-  const { t } = useTranslation("userScript");
 
   const { clearUserNodeLogs } = useUserNodeState();
   const scrollContainer = useRef<HTMLDivElement>(ReactNull);
@@ -123,7 +121,7 @@ const BottomBar = ({ nodeId, isSaved, save, diagnostics, logs }: Props): ReactEl
                   badgeContent={diagnostics.length}
                   invisible={diagnostics.length === 0}
                 >
-                  {t("problems")}
+                  Problems
                 </StyledBadge>
               }
               value="diagnostics"
@@ -133,7 +131,7 @@ const BottomBar = ({ nodeId, isSaved, save, diagnostics, logs }: Props): ReactEl
             <StyledTab
               label={
                 <StyledBadge color="error" badgeContent={logs.length} invisible={logs.length === 0}>
-                  {t("logs")}
+                  Logs
                 </StyledBadge>
               }
               value="logs"
@@ -155,7 +153,7 @@ const BottomBar = ({ nodeId, isSaved, save, diagnostics, logs }: Props): ReactEl
                   }
                 }}
               >
-                {t("clearLogs")}
+                Clear logs
               </Button>
             )}
             <Button
@@ -171,7 +169,7 @@ const BottomBar = ({ nodeId, isSaved, save, diagnostics, logs }: Props): ReactEl
                 }
               }}
             >
-              {isSaved ? t("saved") : t("save")}
+              {isSaved ? "Saved" : "Save"}
             </Button>
           </Stack>
         </Stack>

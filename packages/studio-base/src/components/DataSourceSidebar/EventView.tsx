@@ -123,7 +123,7 @@ function EventViewComponent(params: {
   const refreshEvents = useEvents(selectRefreshEvents);
   const [open, setOpen] = useState(false);
   const { formatTime } = useAppTimeFormat();
-  const { t } = useTranslation("dataSource");
+  const { t } = useTranslation("cosEvent");
   const [toastInfo, setToastInfo] = useState<{
     message: string;
     type: "success" | "error";

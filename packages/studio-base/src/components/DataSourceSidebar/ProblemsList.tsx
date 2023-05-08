@@ -33,7 +33,7 @@ export function ProblemsList({
               window.location.pathname + window.location.search,
             )}`;
           }, 2000);
-          return t("loginExpired", { ns: "error" });
+          return t("loginExpired", { ns: "cosError" });
         default:
           return error;
       }

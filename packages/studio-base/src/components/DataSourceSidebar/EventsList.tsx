@@ -65,7 +65,7 @@ export function EventsList(): JSX.Element {
   const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
   const filter = useEvents(selectEventFilter);
   const setFilter = useEvents(selectSetEventFilter);
-  const { t } = useTranslation("dataSource");
+  const { t } = useTranslation("cosEvent");
 
   const timestampedEvents = useMemo(
     () =>

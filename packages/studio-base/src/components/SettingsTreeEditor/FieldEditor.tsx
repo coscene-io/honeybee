@@ -16,7 +16,6 @@ import {
   TextField,
   ListProps,
 } from "@mui/material";
-import { useTranslation } from "react-i18next";
 import { DeepReadonly } from "ts-essentials";
 import { makeStyles } from "tss-react/mui";
 import { v4 as uuid } from "uuid";
@@ -26,8 +25,11 @@ import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax
 import Stack from "@foxglove/studio-base/components/Stack";
 
 import { ColorPickerInput, ColorGradientInput, NumberInput, Vec3Input, Vec2Input } from "./inputs";
-// Used to both undefined and empty string in select inputs.
+
+/** Used to allow both undefined and empty string in select inputs. */
 const UNDEFINED_SENTINEL_VALUE = uuid();
+/** Used to avoid MUI errors when an invalid option is selected */
+const INVALID_SENTINEL_VALUE = uuid();
 
 const useStyles = makeStyles<void, "error">()((theme, _params, classes) => {
   const prefersDarkMode = theme.palette.mode === "dark";
@@ -46,11 +48,9 @@ const useStyles = makeStyles<void, "error">()((theme, _params, classes) => {
     fieldWrapper: {
       minWidth: theme.spacing(14),
       marginRight: theme.spacing(0.5),
-      [`&.${classes.error}`]: {
-        ".MuiInputBase-root": {
-          outline: `1px ${theme.palette.error.main} solid`,
-          outlineOffset: -1,
-        },
+      [`&.${classes.error} .MuiInputBase-root, .MuiInputBase-root.${classes.error}`]: {
+        outline: `1px ${theme.palette.error.main} solid`,
+        outlineOffset: -1,
       },
     },
     multiLabelWrapper: {
@@ -63,13 +63,12 @@ const useStyles = makeStyles<void, "error">()((theme, _params, classes) => {
       textAlign: "end",
     },
     pseudoInputWrapper: {
-      padding: theme.spacing(0.75, 1),
       borderRadius: theme.shape.borderRadius,
       fontSize: "0.75em",
       backgroundColor: inputBackgroundColor,
 
       input: {
-        height: "1.4375em",
+        height: "1.77em",
       },
       "&:hover": {
         backgroundColor: prefersDarkMode ? "rgba(255, 255, 255, 0.13)" : "rgba(0, 0, 0, 0.09)",
@@ -122,22 +121,7 @@ function FieldInput({
   field: DeepReadonly<SettingsTreeField>;
   path: readonly string[];
 }): JSX.Element {
-  const { classes } = useStyles();
-  const { t } = useTranslation("general");
-
-  const settingsLabelsDisplay = (label: string | undefined) => {
-    if (label != undefined) {
-      switch (label) {
-        case "listAll":
-        case "listVisible":
-        case "listInvisible":
-          return t(label);
-        default:
-          return label;
-      }
-    }
-    return "General";
-  };
+  const { classes, cx } = useStyles();
 
   switch (field.input) {
     case "autocomplete":
@@ -313,23 +297,42 @@ function FieldInput({
           />
         </Stack>
       );
-    case "select":
+    case "select": {
+      const selectedOptionIndex = // use findIndex instead of find to avoid confusing TypeScript with union of arrays
+        field.options.findIndex((option) => option.value === field.value);
+      const selectedOption = field.options[selectedOptionIndex];
+
+      const isEmpty = field.options.length === 0;
+      let selectValue = field.value;
+      if (!selectedOption) {
+        selectValue = INVALID_SENTINEL_VALUE;
+      } else if (selectValue == undefined) {
+        // We can't pass value={undefined} or we get a React error "A component is changing an
+        // uncontrolled input to be controlled" when changing the value to be non-undefined.
+        selectValue = UNDEFINED_SENTINEL_VALUE;
+      }
+
+      const hasError = !selectedOption && (!isEmpty || field.value != undefined);
       return (
         <Select
+          className={cx({ [classes.error]: hasError })}
           size="small"
           displayEmpty
           fullWidth
           disabled={field.disabled}
           readOnly={field.readonly}
           variant="filled"
-          value={field.value ?? UNDEFINED_SENTINEL_VALUE}
-          renderValue={(value) => {
+          value={selectValue}
+          renderValue={(_value) => {
+            // Use field.value rather than the passed-in value so we can render the value even when
+            // it was not present in the list of options.
+            const value = field.value;
             for (const option of field.options) {
               if (option.value === value) {
-                return settingsLabelsDisplay(option.label.trim());
+                return option.label.trim();
               }
             }
-            return undefined;
+            return value;
           }}
           onChange={(event) =>
             actionHandler({
@@ -348,11 +351,16 @@ function FieldInput({
         >
           {field.options.map(({ label, value = UNDEFINED_SENTINEL_VALUE }) => (
             <MenuItem key={value} value={value}>
-              {settingsLabelsDisplay(label)}
+              {label}
             </MenuItem>
           ))}
+          {isEmpty && <MenuItem disabled>No options</MenuItem>}
+          {!selectedOption && (
+            <MenuItem style={{ display: "none" }} value={INVALID_SENTINEL_VALUE} />
+          )}
         </Select>
       );
+    }
     case "gradient":
       return (
         <ColorGradientInput
@@ -401,160 +409,6 @@ function FieldInput({
 
 function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.Element {
   const { classes } = useStyles();
-  const { t } = useTranslation("addPanel");
-
-  const fieldLabelDisplay = () => {
-    switch (field.label) {
-      case "setting":
-      case "level":
-      case "addPanel":
-      case "impExpSetting":
-      case "reset":
-      case "displayFrame":
-      case "followMode":
-      case "renderStats":
-      case "background":
-      case "labelScale":
-      case "ignoreTag":
-      case "syncCamera":
-      case "meshUpAxis":
-      case "view":
-      case "editable":
-      case "labels":
-      case "labelSize":
-      case "axisScale":
-      case "lineWidth":
-      case "lineColor":
-      case "addGrid":
-      case "addFormat":
-      case "type":
-      case "topic":
-      case "dataSourceInfo":
-      case "changePanel":
-      case "splitHorizontal":
-      case "splitVertical":
-      case "fullScreen":
-      case "removePanel":
-      case "diagnosticsDetail":
-      case "diagnosticsSummary":
-      case "general":
-      case "numericPrecision":
-      case "sortByLevel":
-      case "gauge":
-      case "data":
-      case "minimum":
-      case "maxiMum":
-      case "colorMode":
-      case "colorMap":
-      case "reverse":
-      case "image":
-      case "cameraTopic":
-      case "transformMarkers":
-      case "synchronizeTimestamps":
-      case "bilinearSmoothing":
-      case "flipHorizontal":
-      case "flipVertical":
-      case "rotation":
-      case "minimumValue":
-      case "maximumValue":
-      case "markers":
-      case "indicator":
-      case "indicatorPanelSettings":
-      case "style":
-      case "rules":
-      case "comparison":
-      case "comparisonWith":
-      case "color":
-      case "label":
-      case "otherwise":
-      case "legacyPlot":
-      case "legacyPlotPanelSettings":
-      case "log":
-      case "logPanelSettings":
-      case "map":
-      case "mapPanelSettings":
-      case "tileLayer":
-      case "followTopic":
-      case "topics":
-      case "parameters":
-      case "parametersPanelSettings":
-      case "plot":
-      case "plotPanelSettings":
-      case "title":
-      case "syncWithOtherPlots":
-      case "showLabels":
-      case "rangeSecond":
-      case "series":
-      case "path":
-      case "timeStamp":
-      case "publish":
-      case "publishPanelSettings":
-      case "editingMode":
-      case "buttonTitle":
-      case "buttonTooltip":
-      case "buttonColor":
-      case "rawMessage":
-      case "rawMessagePanelSettings":
-      case "stateTransition":
-      case "stateTransitionPanelSettings":
-      case "studioPlaybackPerformance":
-      case "studioPlaybackPerformancePanelSettings":
-      case "tab":
-      case "tabPanelSettings":
-      case "table":
-      case "tablePanelSettings":
-      case "teleop":
-      case "teleopPanelSettings":
-      case "publishRate":
-      case "upButton":
-      case "downButton":
-      case "leftButton":
-      case "rightButton":
-      case "field":
-      case "value":
-      case "topicGraph":
-      case "topicGraphPanelSettings":
-      case "urdfViewer":
-      case "urdfViewerPanelSettings":
-      case "asset":
-      case "opacity":
-      case "manualControl":
-      case "userScript":
-      case "userScriptPanelSettings":
-      case "autoSave":
-      case "variableSlider":
-      case "variableSliderPanelSettings":
-      case "variableName":
-      case "selectPanelLayout":
-      case "learnMore":
-      case "studioDescription":
-      case "filterList":
-      case "pointSize":
-      case "pointShape":
-      case "decayTime":
-      case "flatColor":
-      case "minColor":
-      case "maxColor":
-      case "unknownColor":
-      case "invalidColor":
-      case "frameLock":
-      case "covariance":
-      case "covarianceColor":
-      case "gradient":
-      case "scale":
-      case "selectionVariable":
-      case "planarProjectionFactor":
-      case "cameraInfo":
-      case "distance":
-      case "colorBy":
-      case "valueMin":
-      case "valueMax":
-      case "flat":
-        return t(field.label);
-      default:
-        return field.label;
-    }
-  };
 
   if (field.input === "vec2") {
     const labels = field.labels ?? ["X", "Y"];
@@ -624,7 +478,7 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
           title={field.help ?? field.label}
           variant="subtitle2"
         >
-          {fieldLabelDisplay()}
+          {field.label}
         </Typography>
       </>
     );

@@ -61,7 +61,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
   const hoveredBags = useTimelineInteractionState(selectHoveredBags);
   const startTime = useMessagePipeline(selectStartTime);
   const { classes } = useStyles();
-  const { t } = useTranslation("common");
+  const { t } = useTranslation("cosEvent");
 
   if (!startTime) {
     return ReactNull;

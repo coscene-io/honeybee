@@ -15,7 +15,6 @@ import { Autocomplete, TextField } from "@mui/material";
 import produce from "immer";
 import { set, sortBy, uniq } from "lodash";
 import { useCallback, useMemo, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 
 import { SettingsTreeAction } from "@foxglove/studio";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
@@ -51,7 +50,6 @@ function DiagnosticStatusPanel(props: Props) {
   const { openSiblingPanel } = usePanelContext();
   const { selectedHardwareId, selectedName, splitFraction, topicToRender, numericPrecision } =
     config;
-  const { t } = useTranslation("diagnostic");
 
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
 
@@ -180,7 +178,7 @@ function DiagnosticStatusPanel(props: Props) {
               {...params}
               InputProps={{ ...params.InputProps, disableUnderline: true }}
               placeholder={selectedDisplayName ?? "Filter"}
-            ></TextField>
+            />
           )}
         />
       </PanelToolbar>
@@ -202,10 +200,10 @@ function DiagnosticStatusPanel(props: Props) {
         </Stack>
       ) : selectedDisplayName ? (
         <EmptyState>
-          {t("waitDiagnosticFrom")} <code>{selectedDisplayName}</code>
+          Waiting for diagnostics from <code>{selectedDisplayName}</code>
         </EmptyState>
       ) : (
-        <EmptyState>{t("noDiagnostic")}</EmptyState>
+        <EmptyState>No diagnostic node selected</EmptyState>
       )}
     </Stack>
   );

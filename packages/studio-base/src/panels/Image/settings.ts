@@ -25,7 +25,7 @@ function buildMarkersNode(
     .value();
 
   return {
-    label: "markers",
+    label: "Markers",
     children: markerFields,
   };
 }
@@ -47,7 +47,7 @@ export function buildSettingsTree({
 }): SettingsTreeNodes {
   return {
     general: {
-      label: "general",
+      label: "General",
       fields: {
         cameraTopic: {
           label: "Topic",
@@ -57,7 +57,7 @@ export function buildSettingsTree({
         },
         transformMarkers: {
           input: "boolean",
-          label: "transformMarkers",
+          label: "Transform markers",
           value: config.transformMarkers,
           help: config.transformMarkers
             ? "Markers are being transformed by Foxglove Studio based on the camera model. Click to turn it off."
@@ -65,27 +65,27 @@ export function buildSettingsTree({
         },
         synchronize: {
           input: "boolean",
-          label: "synchronizeTimestamps",
+          label: "Synchronize timestamps",
           value: config.synchronize,
         },
         smooth: {
           input: "boolean",
-          label: "bilinearSmoothing",
+          label: "Bilinear smoothing",
           value: config.smooth ?? false,
         },
         flipHorizontal: {
           input: "boolean",
-          label: "flipHorizontal",
+          label: "Flip horizontal",
           value: config.flipHorizontal ?? false,
         },
         flipVertical: {
           input: "boolean",
-          label: "flipVertical",
+          label: "Flip vertical",
           value: config.flipVertical ?? false,
         },
         rotation: {
           input: "select",
-          label: "rotation",
+          label: "Rotation",
           value: config.rotation ?? 0,
           options: [
             { label: "0°", value: 0 },
@@ -96,13 +96,13 @@ export function buildSettingsTree({
         },
         minValue: {
           input: "number",
-          label: "minimumValue",
+          label: "Min (depth images)",
           placeholder: "0",
           value: config.minValue,
         },
         maxValue: {
           input: "number",
-          label: "maximumValue",
+          label: "Max (depth images)",
           placeholder: "10000",
           value: config.maxValue,
         },

@@ -65,7 +65,7 @@ const VersionBanner = function ({
   isDismissable: boolean;
 }): ReactElement | ReactNull {
   const [showBanner, setShowBanner] = useState(true);
-  const { i18n, t } = useTranslation("general");
+  const { i18n, t } = useTranslation("cosVersionBanner");
   const muiTheme = useMemo(
     () => createMuiTheme("dark", i18n.language as Language),
     [i18n.language],

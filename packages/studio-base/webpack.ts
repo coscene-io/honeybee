@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import CircularDependencyPlugin from "circular-dependency-plugin";
 import { ESBuildMinifyPlugin } from "esbuild-loader";
 import ForkTsCheckerWebpackPlugin from "fork-ts-checker-webpack-plugin";
 import monacoPkg from "monaco-editor/package.json";
@@ -10,12 +9,11 @@ import MonacoWebpackPlugin from "monaco-editor-webpack-plugin";
 import path from "path";
 import ReactRefreshTypescript from "react-refresh-typescript";
 import ts from "typescript";
-import webpack, { Configuration, WebpackPluginInstance } from "webpack";
+import webpack, { Configuration } from "webpack";
 
 import { createTssReactNameTransformer } from "@foxglove/typescript-transformers";
 
 import { WebpackArgv } from "./WebpackArgv";
-import packageJson from "./package.json";
 
 if (monacoPkg.version !== "0.30.1") {
   throw new Error(`
@@ -37,6 +35,8 @@ type Options = {
   // We ignore errors from unused locals to avoid having to also comment
   // those out while iterating.
   allowUnusedVariables?: boolean;
+  /** Specify the app version. */
+  version: string;
 };
 
 // Create a partial webpack configuration required to build app using webpack.
@@ -44,12 +44,12 @@ type Options = {
 export function makeConfig(
   _: unknown,
   argv: WebpackArgv,
-  options?: Options,
+  options: Options,
 ): Pick<Configuration, "resolve" | "module" | "optimization" | "plugins" | "node"> {
   const isDev = argv.mode === "development";
   const isServe = argv.env?.WEBPACK_SERVE ?? false;
 
-  const { allowUnusedVariables = isDev && isServe } = options ?? {};
+  const { allowUnusedVariables = isDev && isServe, version } = options;
 
   return {
     resolve: {
@@ -136,7 +136,7 @@ export function makeConfig(
         { test: /\.(md|template)$/, type: "asset/source" },
         {
           test: /\.svg$/,
-          loader: "react-svg-loader", // foxglove-depcheck-used: react-svg-loader
+          loader: "@svgr/webpack", // foxglove-depcheck-used: @svgr/webpack
           options: {
             svgo: {
               plugins: [{ removeViewBox: false }, { removeDimensions: false }],
@@ -180,7 +180,7 @@ export function makeConfig(
           options: {
             multiple: [
               {
-                search: "etwModule = require(etwModulePath);",
+                search: /etwModule\s*=\s*require\(etwModulePath\);/,
                 replace:
                   "throw new Error('[coScene] This module is not supported in the browser.');",
               },
@@ -198,6 +198,10 @@ export function makeConfig(
                 search: `return{module:require(n),modulePath:n,error:void 0}`,
                 replace:
                   "throw new Error('[coScene] This module is not supported in the browser.');",
+              },
+              {
+                search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
+                replace: `throw new Error('[Foxglove] This module is not supported in the browser.');`,
               },
               {
                 search: `getModuleResolver=function(e){let t;try{t=require(e)}`,
@@ -220,10 +224,6 @@ export function makeConfig(
       ],
     },
     plugins: [
-      new CircularDependencyPlugin({
-        exclude: /node_modules/,
-        failOnError: true,
-      }) as unknown as WebpackPluginInstance,
       new webpack.ProvidePlugin({
         // since we avoid "import React from 'react'" we shim here when used globally
         React: "react",
@@ -235,7 +235,7 @@ export function makeConfig(
       new webpack.DefinePlugin({
         // Should match webpack-defines.d.ts
         ReactNull: null, // eslint-disable-line no-restricted-syntax
-        FOXGLOVE_STUDIO_VERSION: JSON.stringify(packageJson.version),
+        FOXGLOVE_STUDIO_VERSION: JSON.stringify(version),
       }),
       // https://webpack.js.org/plugins/ignore-plugin/#example-of-ignoring-moment-locales
       new webpack.IgnorePlugin({

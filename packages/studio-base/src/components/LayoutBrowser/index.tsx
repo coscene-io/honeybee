@@ -52,6 +52,7 @@ import {
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import LayoutStorageDebuggingContext from "@foxglove/studio-base/context/LayoutStorageDebuggingContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
@@ -95,16 +96,15 @@ const useStyles = makeStyles()((theme) => ({
 export default function LayoutBrowser({
   menuClose,
   currentDateForStorybook,
-  supportsSignIn,
 }: React.PropsWithChildren<{
   menuClose?: () => void;
   currentDateForStorybook?: Date;
-  supportsSignIn?: boolean;
 }>): JSX.Element {
   const [selectLayoutTemplateModalOpen, setSelectLayoutTemplateModalOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
 
   const { classes } = useStyles();
+  const { signIn } = useCurrentUser();
   const isMounted = useMountedState();
   const { enqueueSnackbar } = useSnackbar();
   const layoutManager = useLayoutManager();
@@ -112,13 +112,14 @@ export default function LayoutBrowser({
   const analytics = useAnalytics();
   const [confirm, confirmModal] = useConfirm();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
-  const { t } = useTranslation("layouts");
+  const { t } = useTranslation("cosLayout");
   const createLayoutMenuOpen = Boolean(anchorEl);
 
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const { setSelectedLayoutId } = useCurrentLayoutActions();
 
   const [state, dispatch] = useLayoutBrowserReducer({
+    lastSelectedId: currentLayoutId,
     busy: layoutManager.isBusy,
     error: layoutManager.error,
     online: layoutManager.isOnline,
@@ -556,7 +557,7 @@ export default function LayoutBrowser({
     AppSetting.HIDE_SIGN_IN_PROMPT,
   );
   const showSignInPrompt =
-    supportsSignIn === true && !layoutManager.supportsSharing && !hideSignInPrompt;
+    signIn != undefined && !layoutManager.supportsSharing && !hideSignInPrompt;
 
   const pendingMultiAction = state.multiAction?.ids != undefined;
 
@@ -595,7 +596,7 @@ export default function LayoutBrowser({
 
   return (
     <SidebarContent
-      title={t("layouts")}
+      title="Layouts"
       disablePadding
       disableToolbar={enableNewTopNav}
       trailingItems={[

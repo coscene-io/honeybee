@@ -28,7 +28,6 @@ type Props = {
   onRequestClose: () => void;
   onChange: (value: unknown) => void;
   initialValue: unknown;
-  noun: string;
   title: string;
 };
 
@@ -46,11 +45,10 @@ export default function ShareJsonModal({
   initialValue = {},
   onChange,
   onRequestClose,
-  noun,
   title,
 }: Props): JSX.Element {
   const [value, setValue] = useState(JSON.stringify(initialValue, undefined, 2) ?? "");
-  const { t } = useTranslation("general");
+  const { t } = useTranslation("cosGeneral");
 
   const { decodedValue, error } = useMemo(() => {
     try {
@@ -83,9 +81,6 @@ export default function ShareJsonModal({
         <Stack>
           <Typography variant="h4" fontWeight={600} gutterBottom>
             {title}
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            {`${t("pasteNew", { noun })}}`}
           </Typography>
         </Stack>
 

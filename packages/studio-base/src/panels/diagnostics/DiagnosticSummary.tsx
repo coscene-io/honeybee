@@ -25,7 +25,6 @@ import {
 import produce from "immer";
 import { compact, set, uniq } from "lodash";
 import { useCallback, useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { List, AutoSizer, ListRowProps } from "react-virtualized";
 
 import { filterMap } from "@foxglove/den/collection";
@@ -155,7 +154,6 @@ function DiagnosticSummary(props: Props): JSX.Element {
   const { minLevel, topicToRender, pinnedIds, hardwareIdFilter, sortByLevel = true } = config;
   const { openSiblingPanel } = usePanelContext();
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
-  const { t } = useTranslation("diagnostic");
 
   const togglePinned = useCallback(
     (info: DiagnosticInfo) => {
@@ -220,7 +218,7 @@ function DiagnosticSummary(props: Props): JSX.Element {
     if (diagnostics.size === 0) {
       return (
         <EmptyState>
-          {t("waitFor")} <code>{topicToRender}</code> {t("messages")}
+          Waiting for <code>{topicToRender}</code> messages
         </EmptyState>
       );
     }
@@ -268,16 +266,7 @@ function DiagnosticSummary(props: Props): JSX.Element {
         )}
       </AutoSizer>
     );
-  }, [
-    diagnostics,
-    hardwareIdFilter,
-    pinnedIds,
-    renderRow,
-    sortByLevel,
-    minLevel,
-    topicToRender,
-    t,
-  ]);
+  }, [diagnostics, hardwareIdFilter, pinnedIds, renderRow, sortByLevel, minLevel, topicToRender]);
 
   const actionHandler = useCallback(
     (action: SettingsTreeAction) => {
