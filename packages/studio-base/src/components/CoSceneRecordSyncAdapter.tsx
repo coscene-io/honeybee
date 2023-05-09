@@ -31,7 +31,6 @@ const ROS_BAG_MEDIA_TYPE = "application/vnd.ros1.bag";
 const CYBER_RT_MEDIA_TYPE = "application/vnd.cyber.rt";
 const MCAP_MEDIA_TYPE = "application/vnd.mcap";
 
-
 const log = Logger.getLogger(__filename);
 
 function positionBag(
