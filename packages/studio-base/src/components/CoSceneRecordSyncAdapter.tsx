@@ -29,6 +29,7 @@ import { getPlaylistResponse } from "@foxglove/studio-base/src/services/CoSceneC
 const HOVER_TOLERANCE = 0.01;
 const ROS_BAG_MEDIA_TYPE = "application/vnd.ros1.bag";
 const CYBER_RT_MEDIA_TYPE = "application/vnd.cyber.rt";
+const MCAP_MEDIA_TYPE = "application/vnd.mcap";
 
 const log = Logger.getLogger(__filename);
 
@@ -158,7 +159,8 @@ export function RecordsSyncAdapter(): ReactNull {
         (record.getHead()?.getFilesList() ?? []).forEach((ele) => {
           if (
             ele.getMediaType() === ROS_BAG_MEDIA_TYPE ||
-            ele.getMediaType() === CYBER_RT_MEDIA_TYPE
+            ele.getMediaType() === CYBER_RT_MEDIA_TYPE ||
+            ele.getMediaType() === MCAP_MEDIA_TYPE
           ) {
             const fileMedia = ele.getMedia();
 
