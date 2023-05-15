@@ -9,4 +9,5 @@ export const cosSettings: TypeOptions["resources"]["cosSettings"] = {
   low: "低",
   original: "原始值",
   quality: "画质",
+  willTakeEffectOnTheNextStartup: "将在下次启动时生效",
 };

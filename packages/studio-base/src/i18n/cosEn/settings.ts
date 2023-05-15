@@ -8,4 +8,5 @@ export const cosSettings = {
   low: "Low",
   original: "Original",
   quality: "Quality",
+  willTakeEffectOnTheNextStartup: "Will take effect on the next startup",
 };

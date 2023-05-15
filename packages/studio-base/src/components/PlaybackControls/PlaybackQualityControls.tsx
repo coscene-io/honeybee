@@ -7,6 +7,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import { Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -102,6 +103,7 @@ export default function PlaybackQualityControls(): JSX.Element {
             key={option}
             onClick={() => {
               setPlaybackQuality(option);
+              toast.success(t("willTakeEffectOnTheNextStartup"));
               handleClose();
             }}
           >
