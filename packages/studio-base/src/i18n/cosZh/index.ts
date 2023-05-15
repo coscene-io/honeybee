@@ -10,3 +10,4 @@ export * from "./playList";
 export * from "./error";
 export * from "./layout";
 export * from "./threeDee";
+export * from "./settings";
