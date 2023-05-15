@@ -34,25 +34,6 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       return;
     }
     const singleRequestTime = localStorage.getItem("singleRequestTime");
-    const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
-    let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
-
-    switch (localPlaybackQualityLevel) {
-      case "ORIGINAL":
-        playbackQualityLevel = "ORIGINAL";
-        break;
-      case "HIGH":
-        playbackQualityLevel = "HIGH";
-        break;
-      case "MID":
-        playbackQualityLevel = "MID";
-        break;
-      case "LOW":
-        playbackQualityLevel = "LOW";
-        break;
-      default:
-        playbackQualityLevel = "ORIGINAL";
-    }
 
     const source = new WorkerIterableSource({
       initWorker: () => {
@@ -72,7 +53,6 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
         params: args.params,
         coSceneContext: JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
         singleRequestTime: singleRequestTime && !isNaN(+singleRequestTime) ? +singleRequestTime : 5,
-        playbackQualityLevel,
       },
     });
 

@@ -93,6 +93,7 @@ class BufferedIterableSource implements IIterableSource {
         topics: args.topics,
         start: this.readHead,
         consumptionType: "partial",
+        playbackQualityLevel: args.playbackQualityLevel,
       });
 
       // Messages are read from the source until reaching the readUntil time. Then we wait for the read head

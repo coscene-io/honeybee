@@ -551,11 +551,32 @@ export class CoSceneIterablePlayer implements Player {
     // set the playIterator to the seek time
     await this._bufferedSource.stopProducer();
 
+    const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
+    let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
+
+    switch (localPlaybackQualityLevel) {
+      case "ORIGINAL":
+        playbackQualityLevel = "ORIGINAL";
+        break;
+      case "HIGH":
+        playbackQualityLevel = "HIGH";
+        break;
+      case "MID":
+        playbackQualityLevel = "MID";
+        break;
+      case "LOW":
+        playbackQualityLevel = "LOW";
+        break;
+      default:
+        playbackQualityLevel = "ORIGINAL";
+    }
+
     log.debug("Initializing forward iterator from", next);
     this._playbackIterator = this._bufferedSource.messageIterator({
       topics: Array.from(this._allTopics),
       start: next,
       consumptionType: "partial",
+      playbackQualityLevel,
     });
   }
 
@@ -590,11 +611,32 @@ export class CoSceneIterablePlayer implements Player {
       throw new Error("Invariant. playbackIterator was already set");
     }
 
+    const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
+    let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
+
+    switch (localPlaybackQualityLevel) {
+      case "ORIGINAL":
+        playbackQualityLevel = "ORIGINAL";
+        break;
+      case "HIGH":
+        playbackQualityLevel = "HIGH";
+        break;
+      case "MID":
+        playbackQualityLevel = "MID";
+        break;
+      case "LOW":
+        playbackQualityLevel = "LOW";
+        break;
+      default:
+        playbackQualityLevel = "ORIGINAL";
+    }
+
     log.debug("Initializing forward iterator from", this._start);
     this._playbackIterator = this._bufferedSource.messageIterator({
       topics: Array.from(this._allTopics),
       start: this._start,
       consumptionType: "partial",
+      playbackQualityLevel,
     });
 
     this._lastMessageEvent = undefined;
@@ -679,10 +721,30 @@ export class CoSceneIterablePlayer implements Player {
 
     try {
       this._abort = new AbortController();
+      const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
+      let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
+
+      switch (localPlaybackQualityLevel) {
+        case "ORIGINAL":
+          playbackQualityLevel = "ORIGINAL";
+          break;
+        case "HIGH":
+          playbackQualityLevel = "HIGH";
+          break;
+        case "MID":
+          playbackQualityLevel = "MID";
+          break;
+        case "LOW":
+          playbackQualityLevel = "LOW";
+          break;
+        default:
+          playbackQualityLevel = "ORIGINAL";
+      }
       const messages = await this._bufferedSource.getBackfillMessages({
         topics,
         time: targetTime,
         abortSignal: this._abort.signal,
+        playbackQualityLevel,
       });
 
       // We've successfully loaded the messages and will emit those, no longer need the ackTimeout

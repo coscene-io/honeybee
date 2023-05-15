@@ -44,6 +44,13 @@ export default function PlaybackQualityControls(): JSX.Element {
   };
 
   useEffect(() => {
+    const playbackQualityLevel = localStorage.getItem(PLAYBACK_QUALITY_LEVEL);
+    if (playbackQualityLevel) {
+      setPlaybackQuality(playbackQualityLevel.toLowerCase());
+    }
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(PLAYBACK_QUALITY_LEVEL, playbackQuality.toUpperCase());
   }, [playbackQuality]);
 

@@ -232,11 +232,32 @@ export class BlockLoader {
       const cursorStartTime = this.blockIdToStartTime(blockId);
       const cursorEndTime = clampTime(this.blockIdToEndTime(endBlockId), this.start, this.end);
 
+      const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
+      let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
+
+      switch (localPlaybackQualityLevel) {
+        case "ORIGINAL":
+          playbackQualityLevel = "ORIGINAL";
+          break;
+        case "HIGH":
+          playbackQualityLevel = "HIGH";
+          break;
+        case "MID":
+          playbackQualityLevel = "MID";
+          break;
+        case "LOW":
+          playbackQualityLevel = "LOW";
+          break;
+        default:
+          playbackQualityLevel = "ORIGINAL";
+      }
+
       const iteratorArgs: MessageIteratorArgs = {
         topics: Array.from(topicsToFetch),
         start: cursorStartTime,
         end: cursorEndTime,
         consumptionType: "full",
+        playbackQualityLevel,
       };
 
       // If the source provides a message cursor we use its message cursor, otherwise we make one
