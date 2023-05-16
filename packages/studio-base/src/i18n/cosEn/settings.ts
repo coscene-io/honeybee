@@ -4,7 +4,7 @@
 
 export const cosSettings = {
   high: "High",
-  medium: "Medium",
+  mid: "Medium",
   low: "Low",
   original: "Original",
   quality: "Quality",
