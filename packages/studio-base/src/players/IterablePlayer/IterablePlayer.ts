@@ -36,6 +36,7 @@ import {
   PlayerStateActiveData,
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
+import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 import delay from "@foxglove/studio-base/util/delay";
 
 import { BlockLoader } from "./BlockLoader";
@@ -682,25 +683,8 @@ export class IterablePlayer implements Player {
 
     try {
       this._abort = new AbortController();
-      const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
-      let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
-
-      switch (localPlaybackQualityLevel) {
-        case "ORIGINAL":
-          playbackQualityLevel = "ORIGINAL";
-          break;
-        case "HIGH":
-          playbackQualityLevel = "HIGH";
-          break;
-        case "MID":
-          playbackQualityLevel = "MID";
-          break;
-        case "LOW":
-          playbackQualityLevel = "LOW";
-          break;
-        default:
-          playbackQualityLevel = "ORIGINAL";
-      }
+      const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
+        getPlaybackQualityLevelByLocalStorage();
       const messages = await this._bufferedSource.getBackfillMessages({
         topics,
         time: targetTime,
