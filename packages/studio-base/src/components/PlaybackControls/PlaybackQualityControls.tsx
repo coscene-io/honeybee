@@ -120,6 +120,7 @@ export default function PlaybackQualityControls(): JSX.Element {
             selected={playbackQuality === option}
             key={option}
             onClick={() => {
+              console.debug("option", option);
               setPlaybackQuality(option);
               toast.success(t("willTakeEffectOnTheNextStartup"));
               handleClose();
