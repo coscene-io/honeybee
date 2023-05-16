@@ -5,7 +5,7 @@ import { TypeOptions } from "i18next";
 
 export const cosSettings: TypeOptions["resources"]["cosSettings"] = {
   high: "高",
-  medium: "中",
+  mid: "中",
   low: "低",
   original: "原始值",
   quality: "画质",

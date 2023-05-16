@@ -11,9 +11,15 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { subtract } from "@foxglove/rostime";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
+
 const ORIGINAL = "original";
 const HIGH = "high";
-const MEDIUM = "medium";
+const MEDIUM = "mid";
 const LOW = "low";
 const PLAYBACK_QUALITY_LEVEL = "playbackQualityLevel";
 
@@ -28,12 +34,17 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+
 export default function PlaybackQualityControls(): JSX.Element {
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const [playbackQuality, setPlaybackQuality] = useState<string>(ORIGINAL);
   const { t } = useTranslation("cosSettings");
   const open = Boolean(anchorEl);
   const { classes, cx } = useStyles();
+  const seek = useMessagePipeline(selectSeek);
+  const currentTime = useMessagePipeline(selectCurrentTime);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -109,9 +120,13 @@ export default function PlaybackQualityControls(): JSX.Element {
             selected={playbackQuality === option}
             key={option}
             onClick={() => {
+              console.debug("option", option);
               setPlaybackQuality(option);
               toast.success(t("willTakeEffectOnTheNextStartup"));
               handleClose();
+              if (seek && currentTime) {
+                seek(subtract(currentTime, { sec: 0, nsec: 1 }));
+              }
             }}
           >
             {playbackQuality === option && (
