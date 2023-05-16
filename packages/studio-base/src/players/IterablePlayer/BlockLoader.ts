@@ -20,6 +20,7 @@ import { MessageEvent } from "@foxglove/studio";
 import { IteratorCursor } from "@foxglove/studio-base/players/IterablePlayer/IteratorCursor";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { MessageBlock, Progress } from "@foxglove/studio-base/players/types";
+import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 
 import { IIterableSource, MessageIteratorArgs } from "./IIterableSource";
 
@@ -232,25 +233,8 @@ export class BlockLoader {
       const cursorStartTime = this.blockIdToStartTime(blockId);
       const cursorEndTime = clampTime(this.blockIdToEndTime(endBlockId), this.start, this.end);
 
-      const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
-      let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
-
-      switch (localPlaybackQualityLevel) {
-        case "ORIGINAL":
-          playbackQualityLevel = "ORIGINAL";
-          break;
-        case "HIGH":
-          playbackQualityLevel = "HIGH";
-          break;
-        case "MID":
-          playbackQualityLevel = "MID";
-          break;
-        case "LOW":
-          playbackQualityLevel = "LOW";
-          break;
-        default:
-          playbackQualityLevel = "ORIGINAL";
-      }
+      const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
+        getPlaybackQualityLevelByLocalStorage();
 
       const iteratorArgs: MessageIteratorArgs = {
         topics: Array.from(topicsToFetch),

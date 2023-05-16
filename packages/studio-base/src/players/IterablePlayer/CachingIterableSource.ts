@@ -8,6 +8,7 @@ import { minIndexBy, sortedIndexByTuple } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
 import { subtract, add, toNanoSec, compare } from "@foxglove/rostime";
 import { Time, MessageEvent } from "@foxglove/studio";
+import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 import { Range } from "@foxglove/studio-base/util/ranges";
 
 import {
@@ -208,25 +209,8 @@ class CachingIterableSource implements IIterableSource {
         sourceReadEnd = maxEnd;
       }
 
-      const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
-      let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
-
-      switch (localPlaybackQualityLevel) {
-        case "ORIGINAL":
-          playbackQualityLevel = "ORIGINAL";
-          break;
-        case "HIGH":
-          playbackQualityLevel = "HIGH";
-          break;
-        case "MID":
-          playbackQualityLevel = "MID";
-          break;
-        case "LOW":
-          playbackQualityLevel = "LOW";
-          break;
-        default:
-          playbackQualityLevel = "ORIGINAL";
-      }
+      const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
+        getPlaybackQualityLevelByLocalStorage();
 
       const sourceMessageIterator = this.source.messageIterator({
         topics: this.cachedTopics,
