@@ -53,6 +53,8 @@ export type MessageIteratorArgs = {
    * `partial` indicates that the caller plans to read the iterator but may not read all the messages
    */
   consumptionType?: "full" | "partial";
+
+  playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW";
 };
 
 /**
@@ -86,6 +88,7 @@ export type IteratorResult =
 export type GetBackfillMessagesArgs = {
   topics: string[];
   time: Time;
+  playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW";
 
   abortSignal?: AbortSignal;
 };
@@ -195,5 +198,4 @@ export type IterableSourceInitializeArgs = {
   };
   coSceneContext?: CoSceneContext;
   singleRequestTime?: number;
-  playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW";
 };

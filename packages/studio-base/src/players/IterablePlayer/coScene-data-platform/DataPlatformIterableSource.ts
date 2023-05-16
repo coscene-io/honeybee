@@ -46,7 +46,6 @@ type DataPlatformSourceParameters = {
   revisionName: string;
   recordName: string;
   singleRequestTime: number;
-  playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW";
 };
 
 type DataPlatformIterableSourceOptions = {
@@ -220,7 +219,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         authHeader: this._consoleApi.getAuthHeader(),
         revisionName: this._params.revisionName,
         topics: args.topics,
-        playbackQualityLevel: this._params.playbackQualityLevel,
+        playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
       const stream = streamMessages({
@@ -252,7 +251,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         authHeader: this._consoleApi.getAuthHeader(),
         revisionName: this._params.revisionName,
         topics: args.topics,
-        playbackQualityLevel: this._params.playbackQualityLevel,
+        playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
       const stream = streamMessages({
@@ -311,6 +310,7 @@ export class DataPlatformIterableSource implements IIterableSource {
     topics,
     time,
     abortSignal,
+    playbackQualityLevel,
   }: GetBackfillMessagesArgs): Promise<MessageEvent<unknown>[]> {
     // Data platform treats topic array length 0 as "all topics". Until that is changed, we filter out
     // empty topic requests
@@ -323,7 +323,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       end: time,
       authHeader: this._consoleApi.getAuthHeader(),
       revisionName: this._params.revisionName,
-      playbackQualityLevel: this._params.playbackQualityLevel,
+      playbackQualityLevel,
       topics,
     };
 
@@ -344,7 +344,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 }
 
 export function initialize(args: IterableSourceInitializeArgs): DataPlatformIterableSource {
-  const { api, params, coSceneContext, singleRequestTime, playbackQualityLevel } = args;
+  const { api, params, coSceneContext, singleRequestTime } = args;
   if (!params) {
     throw new Error("params is required for data platform source");
   }
@@ -388,7 +388,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     revisionName: `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}/revisions/${revisionId}`,
     recordName: `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}/revisions/${recordId}`,
     singleRequestTime: singleRequestTime ?? 5,
-    playbackQualityLevel: playbackQualityLevel ?? "ORIGINAL",
   };
 
   const consoleApi = new CoSceneConsoleApi(api.baseUrl, coSceneContext);

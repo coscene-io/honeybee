@@ -208,11 +208,32 @@ class CachingIterableSource implements IIterableSource {
         sourceReadEnd = maxEnd;
       }
 
+      const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
+      let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
+
+      switch (localPlaybackQualityLevel) {
+        case "ORIGINAL":
+          playbackQualityLevel = "ORIGINAL";
+          break;
+        case "HIGH":
+          playbackQualityLevel = "HIGH";
+          break;
+        case "MID":
+          playbackQualityLevel = "MID";
+          break;
+        case "LOW":
+          playbackQualityLevel = "LOW";
+          break;
+        default:
+          playbackQualityLevel = "ORIGINAL";
+      }
+
       const sourceMessageIterator = this.source.messageIterator({
         topics: this.cachedTopics,
         start: sourceReadStart,
         end: sourceReadEnd,
         consumptionType: args.consumptionType,
+        playbackQualityLevel,
       });
 
       // The cache is indexed on time, but iterator results that are problems might not have a time.
