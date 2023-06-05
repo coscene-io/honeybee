@@ -19,7 +19,7 @@ export const cosEvent: TypeOptions["resources"]["cosEvent"] = {
   createNewTask: "创建一个新的任务",
   cancel: "取消",
   createTask: "创建任务",
-  searchByKV: "按照键，值或者键值对搜索",
+  searchByKV: "搜索一刻",
   errorLoading: "加载事件错误。",
   noMoment: "无一刻",
   momentDeleted: "一刻已删除",

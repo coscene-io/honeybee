@@ -131,6 +131,7 @@ function EventViewComponent(params: {
     message: "",
     type: "success",
   });
+  const [show, setShow] = useState(true);
 
   const handleClose = (
     _event: globalThis.Event | React.SyntheticEvent<unknown, globalThis.Event>,
@@ -171,6 +172,12 @@ function EventViewComponent(params: {
     [consoleApi, event, refreshEvents, t],
   );
 
+  const displayName = event.event.getDisplayName();
+  const triggerTime = formatTime(fromDate(event.event.getTriggerTime()!.toDate()));
+  const duration = `${event.event.getDuration().toString()} s`;
+  const description = event.event.getDescription();
+  const metadataMap = event.event.getCustomizedFieldsMap().toArray();
+
   useEffect(() => {
     if (deletedEvent.error) {
       setToastInfo({
@@ -188,6 +195,29 @@ function EventViewComponent(params: {
       setOpen(true);
     }
   }, [deletedEvent, updatedEventDesc, t]);
+
+  useEffect(() => {
+    if (!filter) {
+      setShow(true);
+      return;
+    }
+    const filteredText = [displayName, triggerTime, duration, description].find((item) => {
+      return item.toLowerCase().includes(filter.toLowerCase());
+    });
+
+    const filteredMap = metadataMap.find((item) => {
+      return (
+        item[0].toLowerCase().includes(filter.toLowerCase()) ||
+        item[1].toLowerCase().includes(filter.toLowerCase())
+      );
+    });
+
+    if (filteredMap || filteredText) {
+      setShow(true);
+    } else {
+      setShow(false);
+    }
+  }, [displayName, triggerTime, duration, description, metadataMap, filter]);
 
   const handleShareEvent = async () => {
     const link = window.location.href;
@@ -207,7 +237,7 @@ function EventViewComponent(params: {
     });
   };
 
-  return (
+  return show ? (
     <div
       className={classes.eventBox}
       onClick={() => onClick(event)}
@@ -215,7 +245,9 @@ function EventViewComponent(params: {
       onMouseLeave={() => onHoverEnd(event)}
     >
       <div className={classes.eventTitle}>
-        <div>{event.event.getDisplayName()}</div>
+        <div>
+          <HighlightedText text={displayName} highlight={filter} />
+        </div>
         <div
           className={classes.eventTitleIcons}
           onClick={(e) => {
@@ -239,10 +271,7 @@ function EventViewComponent(params: {
               <HighlightedText text={t("triggerTime")} highlight={filter} />
             </div>
             <div className={classes.eventMetadata}>
-              <HighlightedText
-                text={formatTime(fromDate(event.event.getTriggerTime()!.toDate()))}
-                highlight={filter}
-              />
+              <HighlightedText text={triggerTime} highlight={filter} />
             </div>
           </Fragment>
 
@@ -251,10 +280,7 @@ function EventViewComponent(params: {
               <HighlightedText text={t("duration")} highlight={filter} />
             </div>
             <div className={classes.eventMetadata}>
-              <HighlightedText
-                text={`${event.event.getDuration().toString()} s`}
-                highlight={filter}
-              />
+              <HighlightedText text={duration} highlight={filter} />
             </div>
           </Fragment>
 
@@ -271,7 +297,7 @@ function EventViewComponent(params: {
               <TextField
                 hiddenLabel
                 id="filled-hidden-label-small"
-                defaultValue={event.event.getDescription()}
+                defaultValue={description}
                 variant="filled"
                 size="small"
                 fullWidth
@@ -287,19 +313,16 @@ function EventViewComponent(params: {
             </div>
           </Fragment>
 
-          {event.event
-            .getCustomizedFieldsMap()
-            .toArray()
-            .map(([key, value]: string[]) => (
-              <Fragment key={key}>
-                <div className={classes.eventMetadata}>
-                  <HighlightedText text={key ?? ""} highlight={filter} />
-                </div>
-                <div className={classes.eventMetadata}>
-                  <HighlightedText text={value ?? ""} highlight={filter} />
-                </div>
-              </Fragment>
-            ))}
+          {metadataMap.map(([key, value]: string[]) => (
+            <Fragment key={key}>
+              <div className={classes.eventMetadata}>
+                <HighlightedText text={key ?? ""} highlight={filter} />
+              </div>
+              <div className={classes.eventMetadata}>
+                <HighlightedText text={value ?? ""} highlight={filter} />
+              </div>
+            </Fragment>
+          ))}
 
           <div className={classes.spacer} />
         </div>
@@ -310,6 +333,8 @@ function EventViewComponent(params: {
         </Alert>
       </Snackbar>
     </div>
+  ) : (
+    <></>
   );
 }
 
