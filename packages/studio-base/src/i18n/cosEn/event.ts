@@ -17,7 +17,7 @@ export const cosEvent = {
   createNewTask: "Create a new task",
   cancel: "Cancel",
   createTask: "Create task",
-  searchByKV: "Search by key, value, or key:value",
+  searchByKV: "Search moment",
   errorLoading: "Error loading events.",
   noMoment: "No Moments",
   momentDeleted: "Moment deleted",
