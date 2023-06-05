@@ -1,11 +1,14 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import * as Sentry from "@sentry/browser";
+import { BrowserTracing } from "@sentry/tracing";
 import { StrictMode, useEffect } from "react";
 import ReactDOM from "react-dom";
 
 import Logger from "@foxglove/log";
 import { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
 
 import VersionBanner from "./VersionBanner";
@@ -40,6 +43,31 @@ export async function main(params: MainParams = {}): Promise<void> {
   window.onerror = (...args) => {
     console.error(...args);
   };
+
+  if (APP_CONFIG.VITE_APP_PROJECT_ENV !== "local") {
+    log.info("initializing Sentry");
+    Sentry.init({
+      dsn: APP_CONFIG.SENTRY_HONEYBEE_DSN,
+      release: APP_CONFIG.RELEASE_TAG,
+      autoSessionTracking: true,
+      // Remove the default breadbrumbs integration - it does not accurately track breadcrumbs and
+      // creates more noise than benefit.
+      integrations: (integrations) => {
+        return integrations
+          .filter((integration) => integration.name !== "Breadcrumbs")
+          .concat([
+            new BrowserTracing({
+              startTransactionOnLocationChange: false, // location changes as a result of non-navigation interactions such as seeking
+            }),
+          ]);
+      },
+      environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
+
+      // We recommend adjusting this value in production, or using tracesSampler
+      // for finer control
+      tracesSampleRate: 0.1,
+    });
+  }
 
   const rootEl = document.getElementById("root");
   if (!rootEl) {
