@@ -65,7 +65,7 @@ export async function main(params: MainParams = {}): Promise<void> {
 
       // We recommend adjusting this value in production, or using tracesSampler
       // for finer control
-      tracesSampleRate: 1.0,
+      tracesSampleRate: 0.1,
     });
   }
 
