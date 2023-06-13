@@ -34,6 +34,7 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import { useUserProfileStorage } from "@foxglove/studio-base/context/UserProfileStorageContext";
+import { sampleLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutCoScene";
 import {
   gs75Layout,
   gs50Layout,
@@ -307,6 +308,13 @@ export default function CurrentLayoutProvider({
           permission: "CREATOR_WRITE",
         });
 
+        const newSampleLayout = await layoutManager.saveNewLayout({
+          name: `Demo layout`,
+          data: sampleLayout,
+          permission: "CREATOR_WRITE",
+        });
+
+        await setSelectedLayoutId(newSampleLayout.id);
         await setSelectedLayoutId(newLayout.id);
         await setSelectedLayoutId(newGs50Layout.id);
       }
