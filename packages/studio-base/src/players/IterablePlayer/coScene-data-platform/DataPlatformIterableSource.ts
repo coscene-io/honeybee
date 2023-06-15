@@ -43,8 +43,9 @@ export type DataPlatformInterableSourceConsoleApi = Pick<
 >;
 
 type DataPlatformSourceParameters = {
-  revisionName: string;
-  recordName: string;
+  revisionName?: string;
+  workflowRunId?: string;
+  jobRunId?: string;
   singleRequestTime: number;
 };
 
@@ -78,6 +79,8 @@ export class DataPlatformIterableSource implements IIterableSource {
   public async initialize(): Promise<Initalization> {
     const apiParams = {
       revisionName: this._params.revisionName,
+      workflowRunId: this._params.workflowRunId,
+      jobRunId: this._params.jobRunId,
     };
 
     // get topics
@@ -218,6 +221,8 @@ export class DataPlatformIterableSource implements IIterableSource {
         end: streamEnd,
         authHeader: this._consoleApi.getAuthHeader(),
         revisionName: this._params.revisionName,
+        workflowRunId: this._params.workflowRunId,
+        jobRunId: this._params.jobRunId,
         topics: args.topics,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
@@ -250,6 +255,8 @@ export class DataPlatformIterableSource implements IIterableSource {
         end: localEnd,
         authHeader: this._consoleApi.getAuthHeader(),
         revisionName: this._params.revisionName,
+        workflowRunId: this._params.workflowRunId,
+        jobRunId: this._params.jobRunId,
         topics: args.topics,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
@@ -323,6 +330,8 @@ export class DataPlatformIterableSource implements IIterableSource {
       end: time,
       authHeader: this._consoleApi.getAuthHeader(),
       revisionName: this._params.revisionName,
+      workflowRunId: this._params.workflowRunId,
+      jobRunId: this._params.jobRunId,
       playbackQualityLevel,
       topics,
     };
@@ -359,6 +368,8 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   const warehouseSlug = params.warehouseSlug ?? "";
   const recordId = params.recordId ?? "";
   const revisionId = params.revisionId ?? "";
+  const workflowRunsId = params.workflowRunsId ?? "";
+  const jobRunsId = params.jobRunsId ?? "";
 
   if (!projectId) {
     throw new Error("projectId is required for data platform source");
@@ -376,17 +387,18 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("warehouseSlug is required for data platform source");
   }
 
-  if (!recordId) {
-    throw new Error("recordId is required for data platform source");
-  }
-
-  if (!revisionId) {
-    throw new Error("revisionId is required for data platform source");
-  }
-
   const dpSourceParams: DataPlatformSourceParameters = {
-    revisionName: `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}/revisions/${revisionId}`,
-    recordName: `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}/revisions/${recordId}`,
+    revisionName:
+      recordId &&
+      revisionId &&
+      `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}/revisions/${revisionId}`,
+    workflowRunId:
+      workflowRunsId &&
+      `warehouses/${warehouseId}/projects/${projectId}/workflowRuns/${workflowRunsId}`,
+    jobRunId:
+      workflowRunsId &&
+      jobRunsId &&
+      `warehouses/${warehouseId}/projects/${projectId}/workflowRuns/${workflowRunsId}/jobRuns/${jobRunsId}`,
     singleRequestTime: singleRequestTime ?? 5,
   };
 

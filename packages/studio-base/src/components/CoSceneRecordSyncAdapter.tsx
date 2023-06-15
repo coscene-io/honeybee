@@ -115,16 +115,29 @@ export function RecordsSyncAdapter(): ReactNull {
       if (
         urlState?.parameters?.warehouseId &&
         urlState.parameters.projectId &&
-        urlState.parameters.recordId &&
-        urlState.parameters.revisionId &&
         startTime &&
         endTime
       ) {
-        const revisionName = `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}/revisions/${urlState.parameters.revisionId}`;
+        const revisionName =
+          urlState.parameters.recordId &&
+          urlState.parameters.revisionId &&
+          `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}/revisions/${urlState.parameters.revisionId}`;
+        const workflowRunId =
+          urlState.parameters.workflowRunsId &&
+          `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/workflowRuns/${urlState.parameters.workflowRunsId}`;
+        const jobRunId =
+          urlState.parameters.workflowRunsId &&
+          urlState.parameters.jobRunsId &&
+          `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/workflowRuns/${urlState.parameters.workflowRunsId}/jobRuns/${urlState.parameters.jobRunsId}`;
 
         const accessToken = localStorage.getItem("coScene_org_jwt");
 
-        return await consoleApi.getPlaylist({ revisionName, accessToken: accessToken ?? "" });
+        return await consoleApi.getPlaylist({
+          revisionName,
+          workflowRunId,
+          jobRunId,
+          accessToken: accessToken ?? "",
+        });
       }
     } catch (error) {
       setRecord({ loading: false, error });

@@ -166,7 +166,9 @@ export type ConsoleApiLayout = {
 };
 
 export type DataPlatformRequestArgs = {
-  revisionName: string;
+  revisionName?: string;
+  workflowRunId?: string;
+  jobRunId?: string;
 };
 
 export enum MetricType {
@@ -430,8 +432,10 @@ class CoSceneConsoleApi {
   ): Promise<customTopicResponse> {
     const topics = await this.get<topicInterfaceReturns>("/v1/data/getMetadata", {
       revisionName: params.revisionName,
+      workflowRunId: params.workflowRunId,
+      jobRunId: params.jobRunId,
       includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-      access_token: this._authHeader?.replace(/(^\s*)|(\s*$)/g, ""),
+      accessToken: this._authHeader?.replace(/(^\s*)|(\s*$)/g, ""),
     });
 
     const metaData = topics.topics.map((topic) => {
@@ -456,18 +460,15 @@ class CoSceneConsoleApi {
   ): Promise<getPlaylistResponse> {
     return await this.get<getPlaylistResponse>("/v1/data/getPlaylist", {
       revisionName: params.revisionName,
+      workflowRunId: params.workflowRunId,
+      jobRunId: params.jobRunId,
       includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-      access_token: params.accessToken.replace(/(^\s*)|(\s*$)/g, ""),
+      accessToken: params.accessToken.replace(/(^\s*)|(\s*$)/g, ""),
     });
   }
 
-  public getStreamUrl(revisionName: string, authHeader: string): string {
-    return `${
-      this._baseUrl
-    }/v1/data/getStreams?revisionName=${revisionName}&access_token=${authHeader.replace(
-      /(^\s*)|(\s*$)/g,
-      "",
-    )}`;
+  public getStreamUrl(): string {
+    return `${this._baseUrl}/v1/data/getStreams`;
   }
 
   public async createEvent({

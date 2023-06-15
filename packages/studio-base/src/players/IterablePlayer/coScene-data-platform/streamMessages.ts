@@ -31,7 +31,9 @@ export type ParsedChannelAndEncodings = {
 export type StreamParams = {
   start: Time;
   end: Time;
-  revisionName: string;
+  revisionName?: string;
+  workflowRunId?: string;
+  jobRunId?: string;
   authHeader?: string;
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
@@ -192,7 +194,7 @@ export async function* streamMessages({
 
   try {
     // Since every request is signed with a new token, there's no benefit to caching.
-    const response = await fetch(api.getStreamUrl(params.revisionName, params.authHeader), {
+    const response = await fetch(api.getStreamUrl(), {
       method: "POST",
       signal: controller.signal,
       cache: "no-cache",
@@ -206,6 +208,10 @@ export async function* streamMessages({
         start: toMillis(params.start),
         end: toMillis(params.end),
         topics: params.topics,
+        revisionName: params.revisionName,
+        workflowRunId: params.workflowRunId,
+        jobRunId: params.jobRunId,
+        accessToken: params.authHeader.replace(/(^\s*)|(\s*$)/g, ""),
       }),
     });
     if (response.status === 401) {
