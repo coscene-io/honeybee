@@ -167,8 +167,8 @@ export type ConsoleApiLayout = {
 
 export type DataPlatformRequestArgs = {
   revisionName?: string;
-  workflowRunId?: string;
   jobRunId?: string;
+  projectName?: string;
 };
 
 export enum MetricType {
@@ -260,6 +260,7 @@ class CoSceneConsoleApi {
     query?: Record<string, string | undefined>,
     // eslint-disable-next-line @foxglove/no-boolean-parameters
     customHost?: boolean,
+    config?: RequestInit,
   ): Promise<T> {
     // Strip keys with undefined values from the final query
     let queryWithoutUndefined: Record<string, string> | undefined;
@@ -277,7 +278,7 @@ class CoSceneConsoleApi {
         query == undefined
           ? apiPath
           : `${apiPath}?${new URLSearchParams(queryWithoutUndefined).toString()}`,
-        { method: "GET" },
+        { method: "GET", ...config },
         undefined,
         customHost,
       )
@@ -430,13 +431,21 @@ class CoSceneConsoleApi {
   public async topics(
     params: DataPlatformRequestArgs & { includeSchemas?: boolean },
   ): Promise<customTopicResponse> {
-    const topics = await this.get<topicInterfaceReturns>("/v1/data/getMetadata", {
-      revisionName: params.revisionName,
-      workflowRunId: params.workflowRunId,
-      jobRunId: params.jobRunId,
-      includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-      accessToken: this._authHeader?.replace(/(^\s*)|(\s*$)/g, ""),
-    });
+    const topics = await this.get<topicInterfaceReturns>(
+      "/v1/data/getMetadata",
+      {
+        revisionName: params.revisionName,
+        jobRunId: params.jobRunId,
+        includeSchemas: params.includeSchemas ?? false ? "true" : "false",
+        accessToken: this._authHeader?.replace(/(^\s*)|(\s*$)/g, ""),
+      },
+      undefined,
+      {
+        headers: {
+          ProjectName: params.projectName ?? "",
+        },
+      },
+    );
 
     const metaData = topics.topics.map((topic) => {
       if (topic.schema == undefined) {
@@ -458,13 +467,21 @@ class CoSceneConsoleApi {
   public async getPlaylist(
     params: DataPlatformRequestArgs & { includeSchemas?: boolean; accessToken: string },
   ): Promise<getPlaylistResponse> {
-    return await this.get<getPlaylistResponse>("/v1/data/getPlaylist", {
-      revisionName: params.revisionName,
-      workflowRunId: params.workflowRunId,
-      jobRunId: params.jobRunId,
-      includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-      accessToken: params.accessToken.replace(/(^\s*)|(\s*$)/g, ""),
-    });
+    return await this.get<getPlaylistResponse>(
+      "/v1/data/getPlaylist",
+      {
+        revisionName: params.revisionName,
+        jobRunId: params.jobRunId,
+        includeSchemas: params.includeSchemas ?? false ? "true" : "false",
+        accessToken: params.accessToken.replace(/(^\s*)|(\s*$)/g, ""),
+      },
+      undefined,
+      {
+        headers: {
+          ProjectName: params.projectName ?? "",
+        },
+      },
+    );
   }
 
   public getStreamUrl(): string {

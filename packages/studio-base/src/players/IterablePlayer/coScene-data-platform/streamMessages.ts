@@ -32,8 +32,8 @@ export type StreamParams = {
   start: Time;
   end: Time;
   revisionName?: string;
-  workflowRunId?: string;
   jobRunId?: string;
+  projectName?: string;
   authHeader?: string;
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
@@ -204,13 +204,13 @@ export async function* streamMessages({
         "Content-Type": "application/json",
         playbackQualityLevel: params.playbackQualityLevel,
         Authorization: params.authHeader.replace(/(^\s*)|(\s*$)/g, ""),
+        ProjectName: params.projectName ?? "",
       },
       body: JSON.stringify({
         start: toMillis(params.start),
         end: toMillis(params.end),
         topics: params.topics,
         revisionName: params.revisionName,
-        workflowRunId: params.workflowRunId,
         jobRunId: params.jobRunId,
       }),
     });

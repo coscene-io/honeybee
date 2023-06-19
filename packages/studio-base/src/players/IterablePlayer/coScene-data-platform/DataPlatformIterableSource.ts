@@ -43,8 +43,8 @@ export type DataPlatformInterableSourceConsoleApi = Pick<
 >;
 
 type DataPlatformSourceParameters = {
+  projectName?: string;
   revisionName?: string;
-  workflowRunId?: string;
   jobRunId?: string;
   singleRequestTime: number;
 };
@@ -79,8 +79,8 @@ export class DataPlatformIterableSource implements IIterableSource {
   public async initialize(): Promise<Initalization> {
     const apiParams = {
       revisionName: this._params.revisionName,
-      workflowRunId: this._params.workflowRunId,
       jobRunId: this._params.jobRunId,
+      projectName: this._params.projectName,
     };
 
     // get topics
@@ -221,8 +221,8 @@ export class DataPlatformIterableSource implements IIterableSource {
         end: streamEnd,
         authHeader: this._consoleApi.getAuthHeader(),
         revisionName: this._params.revisionName,
-        workflowRunId: this._params.workflowRunId,
         jobRunId: this._params.jobRunId,
+        projectName: this._params.projectName,
         topics: args.topics,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
@@ -255,8 +255,8 @@ export class DataPlatformIterableSource implements IIterableSource {
         end: localEnd,
         authHeader: this._consoleApi.getAuthHeader(),
         revisionName: this._params.revisionName,
-        workflowRunId: this._params.workflowRunId,
         jobRunId: this._params.jobRunId,
+        projectName: this._params.projectName,
         topics: args.topics,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
@@ -330,8 +330,8 @@ export class DataPlatformIterableSource implements IIterableSource {
       end: time,
       authHeader: this._consoleApi.getAuthHeader(),
       revisionName: this._params.revisionName,
-      workflowRunId: this._params.workflowRunId,
       jobRunId: this._params.jobRunId,
+      projectName: this._params.projectName,
       playbackQualityLevel,
       topics,
     };
@@ -392,13 +392,11 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
       recordId &&
       revisionId &&
       `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}/revisions/${revisionId}`,
-    workflowRunId:
-      workflowRunsId &&
-      `warehouses/${warehouseId}/projects/${projectId}/workflowRuns/${workflowRunsId}`,
     jobRunId:
       workflowRunsId &&
       jobRunsId &&
       `warehouses/${warehouseId}/projects/${projectId}/workflowRuns/${workflowRunsId}/jobRuns/${jobRunsId}`,
+    projectName: `warehouses/${warehouseId}/projects/${projectId}`,
     singleRequestTime: singleRequestTime ?? 5,
   };
 
