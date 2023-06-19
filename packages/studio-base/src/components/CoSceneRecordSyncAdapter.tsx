@@ -149,6 +149,7 @@ export function RecordsSyncAdapter(): ReactNull {
     urlState?.parameters?.recordId,
     urlState?.parameters?.revisionId,
     urlState?.parameters?.jobRunsId,
+    urlState?.parameters?.workflowRunsId,
     setRecord,
     setRecordBagFiles,
     startTime,
