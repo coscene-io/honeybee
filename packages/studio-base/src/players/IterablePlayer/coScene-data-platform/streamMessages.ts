@@ -203,6 +203,7 @@ export async function* streamMessages({
         // versions of the app are making requests.
         "Content-Type": "application/json",
         playbackQualityLevel: params.playbackQualityLevel,
+        Authorization: params.authHeader.replace(/(^\s*)|(\s*$)/g, ""),
       },
       body: JSON.stringify({
         start: toMillis(params.start),
@@ -211,7 +212,6 @@ export async function* streamMessages({
         revisionName: params.revisionName,
         workflowRunId: params.workflowRunId,
         jobRunId: params.jobRunId,
-        accessToken: params.authHeader.replace(/(^\s*)|(\s*$)/g, ""),
       }),
     });
     if (response.status === 401) {
