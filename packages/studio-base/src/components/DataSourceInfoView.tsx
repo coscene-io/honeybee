@@ -44,7 +44,6 @@ const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => player
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectRecord = (store: CoSceneRecordStore) => store.record;
 const selectProject = (store: CoSceneProjectStore) => store.project;
-const selectCurrentBagFiles = (state: CoSceneRecordStore) => state.currentBagFiles;
 const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
   playerState.urlState?.sourceId;
 
@@ -60,7 +59,6 @@ function DataSourceInfoContent(props: {
   const urlState = useMessagePipeline(selectUrlState);
   const record = useRecord(selectRecord);
   const project = useProject(selectProject);
-  const currentBagFiles = useRecord(selectCurrentBagFiles);
   const { t } = useTranslation("dataSourceInfo");
   const {
     coSceneContext: { currentOrganizationSlug },
@@ -81,9 +79,6 @@ function DataSourceInfoContent(props: {
     <Link href={recordHref} target="_blank" underline="hover" key="2" color="inherit">
       {record.value?.getTitle()}
     </Link>,
-    <Typography key="3" color="text.primary">
-      {(currentBagFiles ?? []).map((bag) => bag.displayName).join(", ")}
-    </Typography>,
   ];
 
   const isLiveConnection =
