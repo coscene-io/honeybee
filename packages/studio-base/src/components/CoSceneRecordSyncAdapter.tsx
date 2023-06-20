@@ -23,7 +23,6 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { getPlaylistResponse } from "@foxglove/studio-base/src/services/CoSceneConsoleApi";
 
 const HOVER_TOLERANCE = 0.01;
 const ROS_BAG_MEDIA_TYPE = "application/vnd.ros1.bag";
@@ -37,12 +36,16 @@ function positionBag(
   endTime: Time,
   name: string,
   displayName: string,
-  playlist: getPlaylistResponse,
+  currentBagInfo?: {
+    fileName: string;
+    startTime: number;
+    endTime: number;
+    isGhostMode: boolean;
+    recordName: string;
+  },
 ): BagFileInfo {
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
-
-  const currentBagInfo = playlist.bagList.find((bag) => bag.fileName === displayName);
 
   if (currentBagInfo?.startTime == undefined) {
     return {
@@ -168,7 +171,9 @@ export function RecordsSyncAdapter(): ReactNull {
 
         const record = await consoleApi.getRecord({ recordName: recordName ?? "" });
         const recordBagFiles: BagFileInfo[] = [];
+
         const shadowBags = playlist.value.bagList.filter((bag) => bag.isGhostMode);
+        const originalBags = playlist.value.bagList.filter((bag) => !bag.isGhostMode);
 
         (record.getHead()?.getFilesList() ?? []).forEach((ele) => {
           if (
@@ -177,8 +182,9 @@ export function RecordsSyncAdapter(): ReactNull {
             ele.getMediaType() === MCAP_MEDIA_TYPE
           ) {
             if (startTime && endTime && playlist.value != undefined && playlist.value !== false) {
+              const currentBagInfo = originalBags.find((bag) => bag.fileName === ele.getFilename());
               recordBagFiles.push(
-                positionBag(startTime, endTime, ele.getName(), ele.getFilename(), playlist.value),
+                positionBag(startTime, endTime, ele.getName(), ele.getFilename(), currentBagInfo),
               );
             }
           }
@@ -187,13 +193,7 @@ export function RecordsSyncAdapter(): ReactNull {
         shadowBags.forEach((ele) => {
           if (startTime && endTime && playlist.value != undefined && playlist.value !== false) {
             recordBagFiles.push(
-              positionBag(
-                startTime,
-                endTime,
-                `shadow/${ele.fileName}`,
-                ele.fileName,
-                playlist.value,
-              ),
+              positionBag(startTime, endTime, `shadow/${ele.fileName}`, ele.fileName, ele),
             );
           }
         });
