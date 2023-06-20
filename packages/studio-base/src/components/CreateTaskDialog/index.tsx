@@ -120,7 +120,7 @@ export function CreateTaskDialog({
 
     await consoleApi.createTask({ parent, record, task: { ...task, description } });
     onClose();
-  }, [consoleApi, urlState, task, onClose, eventName]);
+  }, [consoleApi, urlState, task, onClose, eventName, recordInfo.value]);
 
   const { value: users } = useAsync(async () => {
     return await consoleApi.listOrganizationUsers();
