@@ -70,7 +70,7 @@ function DataSourceInfoContent(props: {
     process.env.NODE_ENV === "development"
       ? `https://home.coscene.dev/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`
       : `/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`;
-  const recordHref = `${projectHref}/records/${urlState?.parameters?.recordId}`;
+  const recordHref = `${projectHref}/records/${record.value?.getName().split("/").pop() ?? ""}`;
 
   const breadcrumbs = [
     <Link href={projectHref} target="_blank" underline="hover" key="1" color="inherit">
