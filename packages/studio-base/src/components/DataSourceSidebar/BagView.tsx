@@ -2,9 +2,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { ImageShadow20Filled } from "@fluentui/react-icons";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import { alpha } from "@mui/material";
+import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { subtract, toDate } from "@foxglove/rostime";
@@ -25,6 +28,31 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     },
     borderBottom: `1px solid ${theme.palette.divider}`,
     padding: "10px 13px",
+    position: "relative",
+  },
+  triangle: {
+    width: 0,
+    height: 0,
+    borderBottom: "24px solid transparent",
+    borderLeft: "24px solid #F3F4F6",
+    borderRight: "24px solid transparent",
+    position: "absolute",
+    left: 0,
+    top: 0,
+  },
+  shadowIcon: {
+    position: "absolute",
+    left: "2px",
+    top: "2px",
+    width: "10px",
+    height: "10px",
+    color: "#4F46E5",
+  },
+  tooltip: {
+    position: "absolute",
+    width: "24px",
+    left: 0,
+    top: 0,
   },
   isCurrentBag: {
     color: "#4F46E5 !important",
@@ -93,6 +121,7 @@ function BagViewComponent(params: {
   const { bag, filter, isHovered, isCurrent, onClick, onHoverStart, onHoverEnd } = params;
   const { classes, cx } = useStyles();
   const { formatTime } = useAppTimeFormat();
+  const { t } = useTranslation("cosPlaylist");
   return (
     <div
       className={cx(classes.bagBox, {
@@ -143,6 +172,14 @@ function BagViewComponent(params: {
             highlight={filter}
           />
         </div>
+      )}
+      {bag.isGhostMode === true && (
+        <Tooltip title={t("shadowMode")} placement="top" className={classes.tooltip}>
+          <div>
+            <div className={classes.triangle} />
+            <ImageShadow20Filled className={classes.shadowIcon} />
+          </div>
+        </Tooltip>
       )}
     </div>
   );

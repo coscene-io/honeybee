@@ -20,6 +20,7 @@ import {
   Next20Regular,
   Previous20Filled,
   Previous20Regular,
+  ImageShadow20Filled,
 } from "@fluentui/react-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -66,6 +67,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 export default function PlaybackControls(props: {
   play: NonNullable<Player["startPlayback"]>;
@@ -77,6 +79,7 @@ export default function PlaybackControls(props: {
 }): JSX.Element {
   const { play, pause, seek, isPlaying, getTimeInfo, playUntil } = props;
   const presence = useMessagePipeline(selectPresence);
+  const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("cosEvent");
 
   const { classes } = useStyles();
@@ -211,7 +214,15 @@ export default function PlaybackControls(props: {
               onClick={() => seekForwardAction()}
             />
           </Stack>
+
           <Stack direction="row" flex={1} alignItems="center" justifyContent="flex-end" gap={0.5}>
+            {urlState?.parameters?.jobRunsId && (
+              <>
+                <ImageShadow20Filled />
+                <div>{t("shadowMode", { ns: "cosPlaylist" })}</div>
+              </>
+            )}
+
             <HoverableIconButton
               size="small"
               title="Loop playback"

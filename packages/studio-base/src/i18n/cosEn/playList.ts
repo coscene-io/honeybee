@@ -10,4 +10,5 @@ export const cosPlaylist = {
   searchByNameTime: "Search by name or time",
   noLoadingBag: "Error loading bag files.",
   noBag: "No bag files.",
+  shadowMode: "Shadow mode",
 };

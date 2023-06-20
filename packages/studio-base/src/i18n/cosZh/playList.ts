@@ -10,4 +10,5 @@ export const cosPlaylist: TypeOptions["resources"]["cosPlaylist"] = {
   searchByNameTime: "按照名字或者时间搜索",
   noLoadingBag: "加载bag文件错误",
   noBag: "没有bag文件",
+  shadowMode: "影子模式",
 };
