@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Ros1BagMedia } from "@coscene-io/coscene/proto/v1alpha1";
 import { useEffect, useMemo } from "react";
 import { useAsyncFn } from "react-use";
 
@@ -34,7 +33,6 @@ const MCAP_MEDIA_TYPE = "application/vnd.mcap";
 const log = Logger.getLogger(__filename);
 
 function positionBag(
-  bagFileMedia: Ros1BagMedia,
   startTime: Time,
   endTime: Time,
   name: string,
@@ -64,10 +62,10 @@ function positionBag(
   const endPosition = scale(endTimeInSeconds, startSecs, endSecs, 0, 1);
 
   return {
-    media: bagFileMedia,
     startTime: bagFileStartTime,
     endTime: bagFileEndTime,
     secondsSinceStart: startTimeInSeconds - startSecs,
+    isGhostMode: currentBagInfo.isGhostMode,
     startPosition,
     endPosition,
     name,
@@ -160,14 +158,17 @@ export function RecordsSyncAdapter(): ReactNull {
     if (
       urlState?.parameters?.warehouseId &&
       urlState.parameters.projectId &&
-      urlState.parameters.recordId &&
       playlist.value != undefined &&
       playlist.value !== false
     ) {
       try {
-        const recordName = `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}`;
-        const record = await consoleApi.getRecord({ recordName });
+        const recordName = urlState.parameters.recordId
+          ? `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}`
+          : playlist.value.bagList[0]?.recordName;
+
+        const record = await consoleApi.getRecord({ recordName: recordName ?? "" });
         const recordBagFiles: BagFileInfo[] = [];
+        const shadowBags = playlist.value.bagList.filter((bag) => bag.isGhostMode);
 
         (record.getHead()?.getFilesList() ?? []).forEach((ele) => {
           if (
@@ -175,24 +176,25 @@ export function RecordsSyncAdapter(): ReactNull {
             ele.getMediaType() === CYBER_RT_MEDIA_TYPE ||
             ele.getMediaType() === MCAP_MEDIA_TYPE
           ) {
-            const fileMedia = ele.getMedia();
-
-            const bagFileMedia = Ros1BagMedia.deserializeBinary(
-              fileMedia?.getValue_asU8() as Uint8Array,
-            );
-
             if (startTime && endTime && playlist.value != undefined && playlist.value !== false) {
               recordBagFiles.push(
-                positionBag(
-                  bagFileMedia,
-                  startTime,
-                  endTime,
-                  ele.getName(),
-                  ele.getFilename(),
-                  playlist.value,
-                ),
+                positionBag(startTime, endTime, ele.getName(), ele.getFilename(), playlist.value),
               );
             }
+          }
+        });
+
+        shadowBags.forEach((ele) => {
+          if (startTime && endTime && playlist.value != undefined && playlist.value !== false) {
+            recordBagFiles.push(
+              positionBag(
+                startTime,
+                endTime,
+                `shadow/${ele.fileName}`,
+                ele.fileName,
+                playlist.value,
+              ),
+            );
           }
         });
 
