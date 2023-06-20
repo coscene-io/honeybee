@@ -25,9 +25,11 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectRecord = (state: CoSceneRecordStore) => state.record;
 
 const useStyles = makeStyles()(() => ({
   avatar: {
@@ -52,6 +54,7 @@ export function CreateTaskDialog({
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("cosEvent");
   const consoleApi = useConsoleApi();
+  const recordInfo = useRecord(selectRecord);
 
   const [task, setTask] = useImmer<{
     title: string;
@@ -67,7 +70,7 @@ export function CreateTaskDialog({
 
   const [createdTask, createTask] = useAsyncFn(async () => {
     const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
-    const record = `${parent}/records/${urlState?.parameters?.recordId}`;
+    const record = recordInfo.value?.getName() ?? "";
 
     const description =
       JSON.stringify({
@@ -114,9 +117,10 @@ export function CreateTaskDialog({
           version: 1,
         },
       }) ?? task.description;
+
     await consoleApi.createTask({ parent, record, task: { ...task, description } });
     onClose();
-  }, [consoleApi, urlState, task, onClose, eventName]);
+  }, [consoleApi, urlState, task, onClose, eventName, recordInfo.value]);
 
   const { value: users } = useAsync(async () => {
     return await consoleApi.listOrganizationUsers();
