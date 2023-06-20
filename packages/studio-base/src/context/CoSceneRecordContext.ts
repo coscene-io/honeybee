@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Ros1BagMedia } from "@coscene-io/coscene/proto/v1alpha1";
 import { Record } from "@coscene-io/coscene/proto/v1alpha2";
 import { createContext } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
@@ -21,6 +20,8 @@ export type BagFileInfo = {
 
   endTime?: Time;
 
+  isGhostMode?: boolean;
+
   /** The end position of the bag, as a value 0-1 relative to the timeline. */
   endPosition?: number;
 
@@ -29,8 +30,6 @@ export type BagFileInfo = {
 
   /** The time, in seconds, relative to the start of the timeline. */
   secondsSinceStart?: number;
-
-  media?: Ros1BagMedia;
 };
 
 export type CoSceneRecordStore = DeepReadonly<{

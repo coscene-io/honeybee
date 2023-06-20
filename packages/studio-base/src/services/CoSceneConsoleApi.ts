@@ -138,6 +138,8 @@ export type getPlaylistResponse = {
     fileName: string;
     startTime: number;
     endTime: number;
+    isGhostMode: boolean;
+    recordName: string;
   }[];
 };
 
