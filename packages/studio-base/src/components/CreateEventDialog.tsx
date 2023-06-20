@@ -39,6 +39,7 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
@@ -92,6 +93,7 @@ type KeyValue = { key: string; value: string };
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
+const selectRecord = (state: CoSceneRecordStore) => state.record;
 
 export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const { onClose } = props;
@@ -102,6 +104,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const consoleApi = useConsoleApi();
 
   const refreshEvents = useEvents(selectRefreshEvents);
+  const record = useRecord(selectRecord);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const [event, setEvent] = useImmer<{
     eventName: string;
@@ -196,7 +199,8 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     });
 
     const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
-    const recordName = `${parent}/records/${urlState?.parameters?.recordId}`;
+    const recordName = record.value?.getName() ?? "";
+
     const result = await consoleApi.createEvent({
       event: newEvent,
       parent,
@@ -210,7 +214,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     }
 
     refreshEvents();
-  }, [consoleApi, urlState, event, onClose, refreshEvents, setTask]);
+  }, [consoleApi, urlState, event, onClose, refreshEvents, setTask, record.value]);
 
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: KeyboardEvent) => {

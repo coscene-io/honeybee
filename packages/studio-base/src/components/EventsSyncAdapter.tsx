@@ -13,6 +13,7 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import {
   EventsStore,
@@ -69,6 +70,7 @@ const selectSetEventsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setEventsAtHoverValue;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
+const selectRecord = (state: CoSceneRecordStore) => state.record;
 
 /**
  * Syncs events from server and syncs hovered event with hovered time.
@@ -83,6 +85,7 @@ export function EventsSyncAdapter(): ReactNull {
   const endTime = useMessagePipeline(selectEndTime);
   const events = useEvents(selectEvents);
   const eventFetchCount = useEvents(selectEventFetchCount);
+  const record = useRecord(selectRecord);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -102,7 +105,7 @@ export function EventsSyncAdapter(): ReactNull {
 
     const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
 
-    const recordId = urlState?.parameters?.recordId;
+    const recordId = record.value?.getName().split("/").pop();
 
     if (parent && recordId && startTime && endTime) {
       try {
@@ -113,7 +116,7 @@ export function EventsSyncAdapter(): ReactNull {
         setEvents({ loading: false, error });
       }
     }
-  }, [consoleApi, endTime, setEvents, startTime, urlState?.parameters]);
+  }, [consoleApi, endTime, setEvents, startTime, urlState?.parameters, record]);
 
   useEffect(() => {
     syncEvents().catch((error) => log.error(error));
