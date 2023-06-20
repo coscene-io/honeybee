@@ -20,8 +20,8 @@ import {
   Next20Regular,
   Previous20Filled,
   Previous20Regular,
+  ImageShadow20Filled,
 } from "@fluentui/react-icons";
-import { ImageShadow20Filled } from "@fluentui/react-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import useKeyboardJs from "react-use/lib/useKeyboardJs";
