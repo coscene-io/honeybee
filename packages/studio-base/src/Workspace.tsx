@@ -51,17 +51,20 @@ import {
 import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import {
   IDataSourceFactory,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   LayoutState,
+  useCurrentLayoutActions,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
+import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import { useNativeAppMenu } from "@foxglove/studio-base/context/NativeAppMenuContext";
 import {
   LeftSidebarItemKey,
@@ -78,8 +81,10 @@ import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFiles
 import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useInitialDeepLinkState";
 import useNativeAppMenuEvent from "@foxglove/studio-base/hooks/useNativeAppMenuEvent";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import { sampleLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutCoScene";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const log = Logger.getLogger(__filename);
@@ -180,6 +185,10 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const rightSidebarOpen = useWorkspaceStore(selectWorkspaceRightSidebarOpen);
   const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
 
+  const layoutManager = useLayoutManager();
+  const analytics = useAnalytics();
+  const { setSelectedLayoutId } = useCurrentLayoutActions();
+
   const {
     prefsDialogActions,
     setLeftSidebarOpen,
@@ -190,6 +199,28 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     setRightSidebarSize,
     selectSidebarItem,
   } = useWorkspaceActions();
+
+  const loadDemoLayout = useCallback(async () => {
+    const newLayout = await layoutManager.saveNewLayout({
+      name: "Demo Layout",
+      data: sampleLayout,
+      permission: "CREATOR_WRITE",
+    });
+    setTimeout(() => {
+      setSelectedLayoutId(newLayout.id);
+    }, 0);
+
+    void analytics.logEvent(AppEvent.LAYOUT_CREATE);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const demoSite = localStorage.getItem("demoSite");
+
+    if (demoSite === "true") {
+      void loadDemoLayout();
+    }
+  }, [loadDemoLayout]);
 
   // We use playerId to detect when a player changes for RemountOnValueChange below
   // see comment below above the RemountOnValueChange component
