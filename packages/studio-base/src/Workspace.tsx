@@ -215,9 +215,11 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   }, []);
 
   useEffect(() => {
-    const demoSite = localStorage.getItem("demoSite");
+    const isDemoSite =
+      localStorage.getItem("demoSite") === "true" &&
+      localStorage.getItem("joyrideStepIndex") === "5";
 
-    if (demoSite === "true") {
+    if (isDemoSite) {
       void loadDemoLayout();
     }
   }, [loadDemoLayout]);

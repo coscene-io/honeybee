@@ -32,6 +32,7 @@ import {
 // import VelodyneUnavailableDataSourceFactory from "./dataSources/VelodyneUnavailableDataSourceFactory";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
+import { JoyrideWrapper } from "./Joyride";
 import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
@@ -115,6 +116,7 @@ export function Root(props: {
         enableGlobalCss
         extraProviders={props.extraProviders}
       />
+      <JoyrideWrapper />
       <Toaster />
     </>
   );

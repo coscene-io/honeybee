@@ -33,6 +33,7 @@ interface DevtoolFormatter {
 declare global {
   interface Window {
     devtoolsFormatters: DevtoolFormatter[];
+    nextStep: () => void;
   }
 }
 
