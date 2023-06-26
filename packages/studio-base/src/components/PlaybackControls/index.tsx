@@ -109,7 +109,7 @@ export default function PlaybackControls(props: {
       }
       play();
     }
-  }, [isPlaying, pause, getTimeInfo, play, seek]);
+  }, [isPlaying, pause, getTimeInfo, play, seek, isDemoSite]);
 
   const seekForwardAction = useCallback(
     (ev?: KeyboardEvent) => {
