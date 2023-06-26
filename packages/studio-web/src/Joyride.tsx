@@ -92,8 +92,6 @@ export function JoyrideWrapper(): JSX.Element {
           <div>展示摄像头信息</div>
         </div>
       ),
-      // locale: { skip: <strong aria-label="skip">S-K-I-P</strong> },
-      // placement: "center",
       target: ".mosaic-tile .mosaic-tile",
     },
     {
@@ -116,8 +114,6 @@ export function JoyrideWrapper(): JSX.Element {
           <div>机器速度曲线图</div>
         </div>
       ),
-      // locale: { skip: <strong aria-label="skip">S-K-I-P</strong> },
-      // placement: "center",
       target: ".mosaic-tile .mosaic-tile ~ .mosaic-tile",
     },
     {
@@ -140,8 +136,6 @@ export function JoyrideWrapper(): JSX.Element {
           <div>机器原始数据</div>
         </div>
       ),
-      // locale: { skip: <strong aria-label="skip">S-K-I-P</strong> },
-      // placement: "center",
       target: ".mosaic-tile .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile",
     },
     {
@@ -164,8 +158,6 @@ export function JoyrideWrapper(): JSX.Element {
           <div>机器日志，实时滚动播放</div>
         </div>
       ),
-      // locale: { skip: <strong aria-label="skip">S-K-I-P</strong> },
-      // placement: "center",
       target:
         ".mosaic-tile .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile",
       placement: "left",
