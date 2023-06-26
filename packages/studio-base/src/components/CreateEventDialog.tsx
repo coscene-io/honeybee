@@ -96,6 +96,9 @@ const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectRecord = (state: CoSceneRecordStore) => state.record;
 
 export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
+  const isDemoSite =
+    localStorage.getItem("demoSite") === "true" && localStorage.getItem("joyrideStepIndex") === "5";
+
   const { onClose } = props;
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("cosEvent");
@@ -267,7 +270,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               }
               multiline
               maxRows={1}
-              value={event.eventName}
+              value={isDemoSite ? "机器人不动" : event.eventName}
               onChange={(val) => {
                 setEvent((old) => ({ ...old, eventName: val.target.value }));
               }}
@@ -330,7 +333,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                 label={t("description")}
                 multiline
                 rows={2}
-                value={event.description}
+                value={isDemoSite ? "机器人在原地无法移动" : event.description}
                 onChange={(val) => {
                   setEvent((old) => ({ ...old, description: val.target.value }));
                 }}
@@ -388,7 +391,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               control={
                 <Checkbox
                   size="medium"
-                  checked={event.enabledCreateNewTask}
+                  checked={isDemoSite ? true : event.enabledCreateNewTask}
                   onChange={() => {
                     setEvent((old) => ({
                       ...old,
@@ -407,11 +410,20 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
             <Button
               variant="contained"
               size="large"
+              id="create-moment"
               onClick={async () => {
-                await createEvent();
-                setCreateEventDialogOpen(false);
+                if (!isDemoSite) {
+                  await createEvent();
+                  setCreateEventDialogOpen(false);
+                } else {
+                  setTask({ enabled: true, eventName: "demo", title: "机器人不动" });
+                  setTimeout(() => {
+                    window.nextStep();
+                    setCreateEventDialogOpen(false);
+                  }, 100);
+                }
               }}
-              disabled={!canSubmit || createdEvent.loading || !event.eventName}
+              disabled={isDemoSite ? false : !canSubmit || createdEvent.loading || !event.eventName}
             >
               {createdEvent.loading && (
                 <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />

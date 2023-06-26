@@ -49,6 +49,9 @@ export function CreateTaskDialog({
   onClose: () => void;
   initialTask: { title: string; eventName: string };
 }): JSX.Element {
+  const isDemoSite =
+    localStorage.getItem("demoSite") === "true" && localStorage.getItem("joyrideStepIndex") === "5";
+
   const { classes } = useStyles();
   const { eventName } = initialTask;
   const urlState = useMessagePipeline(selectUrlState);
@@ -150,7 +153,7 @@ export function CreateTaskDialog({
           label={t("description")}
           multiline
           rows={3}
-          value={task.description}
+          value={isDemoSite ? "麻烦看一下这个问题，并给出解决方案" : task.description}
           onChange={(val) => {
             setTask((state) => ({ ...state, description: val.target.value }));
           }}
@@ -177,6 +180,8 @@ export function CreateTaskDialog({
             onChange={(_event, option) => {
               setTask((s) => ({ ...s, assignee: option.getName() }));
             }}
+            disabled={isDemoSite}
+            inputValue={isDemoSite ? "demo" : undefined}
           />
         </FormControl>
       </Stack>
@@ -187,13 +192,21 @@ export function CreateTaskDialog({
         <Button
           variant="contained"
           size="large"
-          onClick={createTask}
-          disabled={createdTask.loading || !task.title || !task.assignee}
+          id="create-task-btn"
+          onClick={
+            isDemoSite
+              ? () => {
+                  localStorage.setItem("joyrideStepIndex", "6");
+                  window.location.href = "/";
+                }
+              : createTask
+          }
+          disabled={isDemoSite ? false : createdTask.loading || !task.title || !task.assignee}
         >
           {createdTask.loading && (
             <CircularProgress color="inherit" size="1rem" className={classes.circularProgress} />
           )}
-          {t("createTask")}
+          {t("createTask")}create
         </Button>
       </DialogActions>
       {createdTask.error?.message && <Alert severity="error">{createdTask.error.message}</Alert>}

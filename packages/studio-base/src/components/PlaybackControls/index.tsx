@@ -77,6 +77,9 @@ export default function PlaybackControls(props: {
   isPlaying: boolean;
   getTimeInfo: () => { startTime?: Time; endTime?: Time; currentTime?: Time };
 }): JSX.Element {
+  const isDemoSite =
+    localStorage.getItem("demoSite") === "true" && localStorage.getItem("joyrideStepIndex") === "5";
+
   const { play, pause, seek, isPlaying, getTimeInfo, playUntil } = props;
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
@@ -93,6 +96,9 @@ export default function PlaybackControls(props: {
   }, []);
 
   const togglePlayPause = useCallback(() => {
+    if (isDemoSite) {
+      window.nextStep();
+    }
     if (isPlaying) {
       pause();
     } else {
@@ -159,7 +165,12 @@ export default function PlaybackControls(props: {
   const toggleCreateEventDialog = useCallback(() => {
     pause();
     setCreateEventDialogOpen((open) => !open);
-  }, [pause]);
+    if (isDemoSite) {
+      setTimeout(() => {
+        window.nextStep();
+      }, 100);
+    }
+  }, [pause, isDemoSite]);
 
   useEffect(() => {
     if (createEventShortcutKeys) {
@@ -200,6 +211,7 @@ export default function PlaybackControls(props: {
             <HoverableIconButton
               disabled={disableControls}
               size="small"
+              id="play-pause-button"
               title={isPlaying ? "Pause" : "Play"}
               onClick={togglePlayPause}
               icon={isPlaying ? <Pause20Regular /> : <Play20Regular />}
