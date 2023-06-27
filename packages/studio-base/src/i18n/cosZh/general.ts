@@ -9,4 +9,5 @@ export const cosGeneral: TypeOptions["resources"]["cosGeneral"] = {
   apply: "使用",
   refresh: "刷新",
   name: "名称",
+  cancel: "取消",
 };
