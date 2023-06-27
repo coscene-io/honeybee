@@ -188,7 +188,7 @@ export function JoyrideWrapper(): JSX.Element {
           <div>点击创建“一刻”，标记发生故障的关键帧</div>
         </div>
       ),
-      target: "[title='Create Moment']",
+      target: "#create-moment-dialog-button",
       placement: "top",
     },
     {

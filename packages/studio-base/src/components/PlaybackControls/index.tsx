@@ -191,6 +191,7 @@ export default function PlaybackControls(props: {
             <HoverableIconButton
               size="small"
               title={t("createMoment")}
+              id="create-moment-dialog-button"
               icon={<EventOutlinedIcon />}
               activeIcon={<EventIcon />}
               onClick={toggleCreateEventDialog}
