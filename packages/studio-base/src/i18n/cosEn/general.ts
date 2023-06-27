@@ -7,4 +7,5 @@ export const cosGeneral = {
   apply: "Apply",
   refresh: "Refresh",
   name: "Name",
+  cancel: "Cancel",
 };

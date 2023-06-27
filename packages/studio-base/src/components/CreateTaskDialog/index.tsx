@@ -138,7 +138,7 @@ export function CreateTaskDialog({
         <TextField
           fullWidth
           variant="standard"
-          label={t("name", { ns: "general" })}
+          label={t("name", { ns: "cosGeneral" })}
           multiline
           maxRows={1}
           value={task.title}
@@ -187,7 +187,7 @@ export function CreateTaskDialog({
       </Stack>
       <DialogActions>
         <Button variant="outlined" size="large" onClick={onClose}>
-          {t("cancel", { ns: "general" })}
+          {t("cancel", { ns: "cosGeneral" })}
         </Button>
         <Button
           variant="contained"
