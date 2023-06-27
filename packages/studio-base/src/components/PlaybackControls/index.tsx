@@ -78,7 +78,8 @@ export default function PlaybackControls(props: {
   getTimeInfo: () => { startTime?: Time; endTime?: Time; currentTime?: Time };
 }): JSX.Element {
   const isDemoSite =
-    localStorage.getItem("demoSite") === "true" && localStorage.getItem("joyrideStepIndex") === "5";
+    localStorage.getItem("demoSite") === "true" &&
+    localStorage.getItem("honeybeeDemoStatus") === "start";
 
   const { play, pause, seek, isPlaying, getTimeInfo, playUntil } = props;
   const presence = useMessagePipeline(selectPresence);

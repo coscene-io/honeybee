@@ -9,7 +9,8 @@ export function JoyrideWrapper(): JSX.Element {
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const isDemoSite =
-    localStorage.getItem("demoSite") === "true" && localStorage.getItem("joyrideStepIndex") === "5";
+    localStorage.getItem("demoSite") === "true" &&
+    localStorage.getItem("honeybeeDemoStatus") === "start";
 
   useEffect(() => {
     if (isDemoSite) {
@@ -268,7 +269,7 @@ export function JoyrideWrapper(): JSX.Element {
           setStepIndex((ele) => ele - 1);
         }
         if (action === "skip") {
-          localStorage.setItem("joyrideStepIndex", "7");
+          localStorage.setItem("honeybeeDemoStatus", "skip");
         }
       }}
       showSkipButton
