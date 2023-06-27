@@ -217,7 +217,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   useEffect(() => {
     const isDemoSite =
       localStorage.getItem("demoSite") === "true" &&
-      localStorage.getItem("joyrideStepIndex") === "5";
+      localStorage.getItem("honeybeeDemoStatus") === "start";
 
     if (isDemoSite) {
       void loadDemoLayout();
