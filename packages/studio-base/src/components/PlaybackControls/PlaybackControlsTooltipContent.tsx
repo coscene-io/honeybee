@@ -152,9 +152,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
             <Typography className={classes.itemKey} noWrap>
               {item.title}
             </Typography>
-            <Typography variant="subtitle2" noWrap>
-              {item.value}
-            </Typography>
+            <Typography variant="subtitle2">{item.value}</Typography>
           </Fragment>
         );
       })}
