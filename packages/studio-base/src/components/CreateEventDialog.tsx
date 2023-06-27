@@ -97,7 +97,8 @@ const selectRecord = (state: CoSceneRecordStore) => state.record;
 
 export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const isDemoSite =
-    localStorage.getItem("demoSite") === "true" && localStorage.getItem("joyrideStepIndex") === "5";
+    localStorage.getItem("demoSite") === "true" &&
+    localStorage.getItem("honeybeeDemoStatus") === "start";
 
   const { onClose } = props;
   const urlState = useMessagePipeline(selectUrlState);

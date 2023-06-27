@@ -50,7 +50,8 @@ export function CreateTaskDialog({
   initialTask: { title: string; eventName: string };
 }): JSX.Element {
   const isDemoSite =
-    localStorage.getItem("demoSite") === "true" && localStorage.getItem("joyrideStepIndex") === "5";
+    localStorage.getItem("demoSite") === "true" &&
+    localStorage.getItem("honeybeeDemoStatus") === "start";
 
   const { classes } = useStyles();
   const { eventName } = initialTask;
@@ -196,7 +197,7 @@ export function CreateTaskDialog({
           onClick={
             isDemoSite
               ? () => {
-                  localStorage.setItem("joyrideStepIndex", "6");
+                  localStorage.setItem("honeybeeDemoStatus", "end");
                   window.location.href = "/";
                 }
               : createTask
