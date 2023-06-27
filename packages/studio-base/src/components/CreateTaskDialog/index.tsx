@@ -207,7 +207,7 @@ export function CreateTaskDialog({
           {createdTask.loading && (
             <CircularProgress color="inherit" size="1rem" className={classes.circularProgress} />
           )}
-          {t("createTask")}create
+          {t("createTask")}
         </Button>
       </DialogActions>
       {createdTask.error?.message && <Alert severity="error">{createdTask.error.message}</Alert>}
