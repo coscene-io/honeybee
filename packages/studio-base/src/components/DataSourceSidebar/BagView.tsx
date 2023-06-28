@@ -46,7 +46,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     top: "2px",
     width: "10px",
     height: "10px",
-    color: "#4F46E5",
+    color: `${theme.palette.primary.main}`,
   },
   tooltip: {
     position: "absolute",
@@ -55,7 +55,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     top: 0,
   },
   isCurrentBag: {
-    color: "#4F46E5 !important",
+    color: `${theme.palette.primary.main} !important`,
   },
   bagInfo: {
     display: "flex",
@@ -99,7 +99,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     cursor: "not-allowed",
   },
   barChartIcon: {
-    color: "#4F46E5",
+    color: `${theme.palette.primary.main}`,
     height: "16px",
     width: "16px",
     marginBottom: "-2px",
