@@ -27,14 +27,14 @@ const useStyles = makeStyles()(({ transitions, palette }) => ({
   tick: {
     transition: transitions.create("height", { duration: transitions.duration.shortest }),
     backgroundBlendMode: "overlay",
-    backgroundColor: "#B9AFFF",
+    backgroundColor: "#93c5fd",
     opacity: 0.5,
     position: "absolute",
     height: 6,
   },
   tickHovered: {
     transition: transitions.create("height", { duration: transitions.duration.shortest }),
-    backgroundColor: "#B9AFFF",
+    backgroundColor: "#93c5fd",
     border: `1px solid ${palette.info.main}`,
     height: 12,
   },
