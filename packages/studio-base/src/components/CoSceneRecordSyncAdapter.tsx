@@ -23,6 +23,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { timestampToTime } from "@foxglove/studio-base/util/time";
 
 const HOVER_TOLERANCE = 0.01;
 const ROS_BAG_MEDIA_TYPE = "application/vnd.ros1.bag";
@@ -87,6 +88,7 @@ const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activ
 const selectSetBagsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setBagsAtHoverValue;
 const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 
 export function RecordsSyncAdapter(): ReactNull {
   const setRecord = useRecord(selectSetRecords);
@@ -102,6 +104,7 @@ export function RecordsSyncAdapter(): ReactNull {
   const currentTime = useMessagePipeline(selectCurrentTime);
   const hoverValue = useHoverValue();
   const bagFiles = useRecord(selectBagFiles);
+  const seek = useMessagePipeline(selectSeek);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -168,12 +171,22 @@ export function RecordsSyncAdapter(): ReactNull {
         const recordName = urlState.parameters.recordId
           ? `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/records/${urlState.parameters.recordId}`
           : playlist.value.bagList[0]?.recordName;
+        const filename = urlState.parameters.filename;
 
         const record = await consoleApi.getRecord({ recordName: recordName ?? "" });
         const recordBagFiles: BagFileInfo[] = [];
 
         const shadowBags = playlist.value.bagList.filter((bag) => bag.isGhostMode);
         const originalBags = playlist.value.bagList.filter((bag) => !bag.isGhostMode);
+
+        // 当url中携带filename时，以对应bag的startTime开始播放
+        let bagStartTime = undefined;
+
+        if (shadowBags.length > 0) {
+          bagStartTime = shadowBags.find((bag) => bag.fileName === filename);
+        } else {
+          bagStartTime = originalBags.find((bag) => bag.fileName === filename);
+        }
 
         (record.getHead()?.getFilesList() ?? []).forEach((ele) => {
           if (
@@ -202,6 +215,10 @@ export function RecordsSyncAdapter(): ReactNull {
           a.startTime && b.startTime ? compare(a.startTime, b.startTime) : a.startTime ? -1 : 1,
         );
 
+        if (bagStartTime != undefined && seek) {
+          seek(timestampToTime(bagStartTime.startTime));
+        }
+
         setRecordBagFiles({ loading: false, value: recordBagFiles });
         setRecord({ loading: false, value: record });
       } catch (error) {
@@ -215,6 +232,8 @@ export function RecordsSyncAdapter(): ReactNull {
     urlState?.parameters?.warehouseId,
     urlState?.parameters?.projectId,
     urlState?.parameters?.recordId,
+    urlState?.parameters?.filename,
+    seek,
     startTime,
     endTime,
     setRecordBagFiles,
