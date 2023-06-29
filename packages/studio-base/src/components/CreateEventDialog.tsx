@@ -179,6 +179,12 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
     );
 
+    const jobRunsId = urlState?.parameters?.jobRunsId;
+    const workflowRunsId = urlState?.parameters?.workflowRunsId;
+    const revisionId = urlState?.parameters?.revisionId;
+    const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
+    const recordName = record.value?.getName() ?? "";
+
     const newEvent = new Event();
 
     newEvent.setDisplayName(event.eventName);
@@ -198,12 +204,19 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       newEvent.setDescription(event.description);
     }
 
+    if (jobRunsId && workflowRunsId) {
+      newEvent.setJobRun(
+        `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/workflowRuns/${workflowRunsId}/jobRuns/${jobRunsId}`,
+      );
+    }
+
+    if (revisionId) {
+      newEvent.setRevision(`${recordName}/revisions/${revisionId}`);
+    }
+
     Object.keys(keyedMetadata).forEach((key) => {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
-
-    const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
-    const recordName = record.value?.getName() ?? "";
 
     const result = await consoleApi.createEvent({
       event: newEvent,

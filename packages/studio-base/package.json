@@ -14,7 +14,7 @@
   "homepage": "https://foxglove.dev/",
   "main": "src/index",
   "devDependencies": {
-    "@coscene-io/coscene": "0.2.104",
+    "@coscene-io/coscene": "0.3.84",
     "@emotion/cache": "11.10.7",
     "@emotion/react": "11.10.6",
     "@emotion/styled": "11.10.6",
@@ -116,6 +116,7 @@
     "fzf": "0.5.1",
     "gl-matrix": "3.4.3",
     "google-protobuf": "3.21.2",
+    "grpc-web": "1.4.2",
     "hammerjs": "2.0.8",
     "i18next": "22.4.14",
     "i18next-browser-languagedetector": "7.0.1",
