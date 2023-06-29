@@ -494,20 +494,15 @@ class CoSceneConsoleApi {
     event,
     parent,
     recordName,
-    jobRunName,
   }: {
     event: Event;
     parent: string;
     recordName: string;
-    jobRunName?: string;
   }): Promise<Event> {
     const createEventRequest = new CreateEventRequest();
     createEventRequest.setParent(parent);
     createEventRequest.setEvent(event);
     createEventRequest.setRecord(recordName);
-    if (jobRunName != undefined) {
-      // createEventRequest.setJobRun(jobRunName);
-    }
 
     const newEvent = await CsWebClient.getEventClient().createEvent(createEventRequest);
 
