@@ -4,7 +4,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const appSettings: TypeOptions["resources"]["appSettings"] = {
+export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   settings: "设置",
   colorScheme: "配色方案",
   dark: "暗色",
@@ -28,8 +28,6 @@ export const appSettings: TypeOptions["resources"]["appSettings"] = {
   experimentalFeaturesDescription: "这些功能不稳定，不建议日常使用。",
   studioDebugPanels: "Studio 调试面板",
   studioDebugPanelsDescription: "在“添加面板”列表中显示 Foxglove Studio 调试面板。",
-  legacyPlotPanel: "旧版绘图面板",
-  legacyPlotPanelDescription: "启用旧版绘图面板.",
   memoryUseIndicator: "内存使用指示器",
   memoryUseIndicatorDescription: "在侧边栏显示应用程序的内存使用情况。",
   newNavigation: "新版导航栏",
@@ -40,8 +38,4 @@ export const appSettings: TypeOptions["resources"]["appSettings"] = {
   extensions: "扩展",
   about: "关于",
   noExperimentalFeatures: "目前没有实验性的功能。",
-  ros2NativeConnection: "ROS 2 的本地连接",
-  ros2NativeConnectionDescription: "启用已废弃的 ROS 2 本地连接器",
-  newImagePanel: "新图像面板",
-  newImagePanelDescription: "启用实验性图像面板。",
 };

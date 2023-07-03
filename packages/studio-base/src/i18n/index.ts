@@ -10,8 +10,13 @@ import * as cosEn from "./cosEn";
 import * as cosZh from "./cosZh";
 import * as en from "./en";
 import * as zh from "./zh";
+import * as ja from "./ja";
 
-export const translations: { en: typeof en & typeof cosEn; zh: typeof zh & typeof cosZh } = {
+export const translations: {
+  en: typeof en & typeof cosEn;
+  zh: typeof zh & typeof cosZh;
+  ja: typeof ja;
+} = {
   en: {
     ...en,
     ...cosEn,
@@ -20,6 +25,7 @@ export const translations: { en: typeof en & typeof cosEn; zh: typeof zh & typeo
     ...zh,
     ...cosZh,
   },
+  ja,
 };
 
 export type Language = keyof typeof translations;

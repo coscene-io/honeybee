@@ -28,6 +28,7 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { formatDuration } from "@foxglove/studio-base/util/formatTime";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formatTimeRaw, isAbsoluteTime } from "@foxglove/studio-base/util/time";
+import { MultilineMiddleTruncate } from "./MultilineMiddleTruncate";
 
 const useStyles = makeStyles()({
   overline: {
@@ -48,13 +49,15 @@ const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
   playerState.urlState?.sourceId;
 
 function DataSourceInfoContent(props: {
+  disableSource?: boolean;
   durationRef: MutableRefObject<ReactNull | HTMLDivElement>;
   endTimeRef: MutableRefObject<ReactNull | HTMLDivElement>;
+  playerName?: string;
   playerPresence: PlayerPresence;
   playerSourceId?: string;
   startTime?: Time;
 }): JSX.Element {
-  const { durationRef, endTimeRef, playerPresence, playerSourceId, startTime } = props;
+  const { durationRef, endTimeRef, playerPresence, playerSourceId, startTime, playerName } = props;
   const { classes } = useStyles();
   const urlState = useMessagePipeline(selectUrlState);
   const record = useRecord(selectRecord);
@@ -101,6 +104,12 @@ function DataSourceInfoContent(props: {
         ) : (
           <Typography className={classes.numericValue} variant="inherit">
             &mdash;
+          </Typography>
+        )}
+        {/* TODO: just test what is this */}
+        {playerName && (
+          <Typography variant="inherit" component="span">
+            <MultilineMiddleTruncate text={playerName} />
           </Typography>
         )}
       </Stack>
@@ -155,7 +164,7 @@ const MemoDataSourceInfoContent = React.memo(DataSourceInfoContent);
 
 const EmDash = "\u2014";
 
-export function DataSourceInfoView(): JSX.Element {
+export function DataSourceInfoView({ disableSource }: { disableSource?: boolean }): JSX.Element {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
@@ -189,6 +198,7 @@ export function DataSourceInfoView(): JSX.Element {
 
   return (
     <MemoDataSourceInfoContent
+      disableSource={disableSource}
       durationRef={durationRef}
       endTimeRef={endTimeRef}
       playerPresence={playerPresence}

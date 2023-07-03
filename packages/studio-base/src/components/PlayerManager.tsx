@@ -22,7 +22,7 @@ import {
 } from "react";
 import { useLatest, useMountedState } from "react-use";
 
-import { useShallowMemo } from "@foxglove/hooks";
+import { useShallowMemo, useWarnImmediateReRender } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
 import PlayerSelectionContext, {
@@ -41,7 +41,6 @@ import { useNativeWindow } from "@foxglove/studio-base/context/NativeWindowConte
 import { useUserNodeState } from "@foxglove/studio-base/context/UserNodeStateContext";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
-import useWarnImmediateReRender from "@foxglove/studio-base/hooks/useWarnImmediateReRender";
 import CoSceneAnalyticsMetricsCollector from "@foxglove/studio-base/players/CoSceneAnalyticsMetricsCollector";
 import UserNodePlayer from "@foxglove/studio-base/players/UserNodePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
@@ -141,7 +140,6 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
       // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {
         const newPlayer = foundSource.initialize({
-          consoleApi,
           metricsCollector,
         });
 
@@ -179,7 +177,6 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
         switch (args.type) {
           case "connection": {
             const newPlayer = foundSource.initialize({
-              consoleApi,
               metricsCollector,
               params: args.params,
             });

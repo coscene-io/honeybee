@@ -12,28 +12,33 @@
 //   You may not use this file except in compliance with the License.
 
 import {
+  ArrowRepeatAll20Regular,
+  ArrowRepeatAllOff20Regular,
+  Info24Regular,
+  Next20Filled,
+  Next20Regular,
   Pause20Filled,
   Pause20Regular,
   Play20Filled,
   Play20Regular,
-  Next20Filled,
-  Next20Regular,
   Previous20Filled,
   Previous20Regular,
   ImageShadow20Filled,
 } from "@fluentui/react-icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Tooltip } from "@mui/material";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import useKeyboardJs from "react-use/lib/useKeyboardJs";
 import { makeStyles } from "tss-react/mui";
 
-import { compare, Time } from "@foxglove/rostime";
-import { CreateEventDialog } from "@foxglove/studio-base/components/CreateEventDialog";
+import { Time, compare } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { CreateEventDialog } from "@foxglove/studio-base/components/CoSceneCreateEventDialog";
+import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import EventIcon from "@foxglove/studio-base/components/EventIcon";
 import EventOutlinedIcon from "@foxglove/studio-base/components/EventOutlinedIcon";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
-import LoopIcon from "@foxglove/studio-base/components/LoopIcon";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -41,12 +46,20 @@ import {
 import PlaybackQualityControls from "@foxglove/studio-base/components/PlaybackControls/PlaybackQualityControls";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
+import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import {
+  WorkspaceContextStore,
+  useWorkspaceStore,
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import { RepeatAdapter } from "./RepeatAdapter";
 import Scrubber from "./Scrubber";
-import { jumpSeek, DIRECTION } from "./sharedHelpers";
+import { DIRECTION, jumpSeek } from "./sharedHelpers";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -64,10 +77,23 @@ const useStyles = makeStyles()((theme) => ({
     justifyContent: "center",
     margin: 0,
   },
+  disabled: {
+    opacity: theme.palette.action.disabledOpacity,
+  },
+  popper: {
+    "&[data-popper-placement*=top] .MuiTooltip-tooltip": {
+      margin: theme.spacing(0.5, 0.5, 0.75),
+    },
+  },
+  dataSourceInfoButton: {
+    cursor: "default",
+  },
 }));
 
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectEventsSupported = (store: EventsStore) => store.eventsSupported;
+const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
 
 export default function PlaybackControls(props: {
   play: NonNullable<Player["startPlayback"]>;
@@ -85,16 +111,23 @@ export default function PlaybackControls(props: {
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("cosEvent");
+  const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
 
-  const { classes } = useStyles();
-  const [repeat, setRepeat] = useState(false);
+  const { classes, cx } = useStyles();
+  const repeat = useWorkspaceStore(selectPlaybackRepeat);
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(false);
 
   const [createEventShortcutKeys] = useKeyboardJs("alt > m");
+  const { currentUser } = useCurrentUser();
+  const eventsSupported = useEvents(selectEventsSupported);
+
+  const {
+    playbackControlActions: { setRepeat },
+  } = useWorkspaceActions();
 
   const toggleRepeat = useCallback(() => {
     setRepeat((old) => !old);
-  }, []);
+  }, [setRepeat]);
 
   const togglePlayPause = useCallback(() => {
     if (isDemoSite) {
@@ -199,6 +232,24 @@ export default function PlaybackControls(props: {
             >
               <p className={classes.createMoment}>{`${t("createMoment")} (⎇ / ⌥ + M)`}</p>
             </HoverableIconButton>
+            {enableNewTopNav && (
+              <Tooltip
+                classes={{ popper: classes.popper }}
+                title={
+                  <Stack paddingY={0.75}>
+                    <DataSourceInfoView disableSource />
+                  </Stack>
+                }
+              >
+                <HoverableIconButton
+                  className={cx(classes.dataSourceInfoButton, {
+                    [classes.disabled]: disableControls,
+                  })}
+                  size="small"
+                  icon={<Info24Regular />}
+                />
+              </Tooltip>
+            )}
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
@@ -242,8 +293,7 @@ export default function PlaybackControls(props: {
               title="Loop playback"
               color={repeat ? "primary" : "inherit"}
               onClick={toggleRepeat}
-              icon={repeat ? <LoopIcon strokeWidth={1.9375} /> : <LoopIcon strokeWidth={1.375} />}
-              activeIcon={<LoopIcon strokeWidth={1.875} />}
+              icon={repeat ? <ArrowRepeatAll20Regular /> : <ArrowRepeatAllOff20Regular />}
             />
             <PlaybackSpeedControls />
             <PlaybackQualityControls />

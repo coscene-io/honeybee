@@ -8,10 +8,11 @@ import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import CopyPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import path from "path";
-import { Configuration, DefinePlugin, WebpackPluginInstance } from "webpack";
+import { Configuration, WebpackPluginInstance, DefinePlugin } from "webpack";
 import type { Configuration as WebpackDevServerConfiguration } from "webpack-dev-server";
 
 import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
+import * as palette from "@foxglove/studio-base/src/theme/palette";
 import { makeConfig } from "@foxglove/studio-base/webpack";
 
 export interface WebpackConfiguration extends Configuration {
@@ -143,6 +144,22 @@ export const mainConfig =
                 process.env.LAST_BUILD_TIME ?? "local"
               }" type="text/javascript"></script>
               <title>coScene</title>
+              <style type="text/css" id="loading-styles">
+                body {
+                  margin: 0;
+                }
+                #root {
+                  height: 100vh;
+                  background-color: ${palette.light.background?.default};
+                  color: ${palette.light.text?.primary};
+                }
+                @media (prefers-color-scheme: dark) {
+                  #root {
+                    background-color: ${palette.dark.background?.default}};
+                    color: ${palette.dark.text?.primary};
+                  }
+                }
+              </style>
             </head>
             <script>
               global = globalThis;

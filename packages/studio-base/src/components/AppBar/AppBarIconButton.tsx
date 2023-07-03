@@ -7,11 +7,6 @@ import { forwardRef } from "react";
 import tinycolor from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
-import {
-  APP_BAR_FOREGROUND_COLOR,
-  APP_BAR_PRIMARY_COLOR,
-} from "@foxglove/studio-base/components/AppBar/constants";
-
 const useStyles = makeStyles()((theme) => ({
   tooltip: {
     marginTop: `${theme.spacing(0.5)} !important`,
@@ -21,14 +16,14 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: 24,
     padding: theme.spacing(1.25),
 
-    svg: {
-      fontSize: "1em !important",
+    "svg:not(.MuiSvgIcon-root)": {
+      fontSize: "1em",
     },
     "&:hover": {
-      backgroundColor: tinycolor(APP_BAR_FOREGROUND_COLOR).setAlpha(0.08).toRgbString(),
+      backgroundColor: tinycolor(theme.palette.common.white).setAlpha(0.08).toRgbString(),
     },
     "&.Mui-selected": {
-      backgroundColor: APP_BAR_PRIMARY_COLOR,
+      backgroundColor: theme.palette.appBar.primary,
     },
     "&.Mui-disabled": {
       color: "currentColor",
@@ -37,7 +32,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-type AppBarIconButtonProps = Omit<IconButtonProps, "title"> & { title: React.ReactNode };
+type AppBarIconButtonProps = Omit<IconButtonProps, "title"> & { title?: React.ReactNode };
 
 export const AppBarIconButton = forwardRef<HTMLButtonElement, AppBarIconButtonProps>(
   (props, ref) => {

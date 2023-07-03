@@ -12,7 +12,7 @@ import type { RosValue } from "@foxglove/studio-base/players/types";
 import { Axis, AXIS_LENGTH } from "./Axis";
 import { RenderableArrow } from "./markers/RenderableArrow";
 import { RenderableSphere } from "./markers/RenderableSphere";
-import type { IRenderer } from "../IRenderer";
+import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
 import { BaseUserData, Renderable } from "../Renderable";
 import { PartialMessage, PartialMessageEvent, SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry } from "../SettingsManager";
@@ -103,13 +103,26 @@ export class PoseRenderable extends Renderable<PoseUserData> {
 export class Poses extends SceneExtension<PoseRenderable> {
   public constructor(renderer: IRenderer) {
     super("foxglove.Poses", renderer);
+  }
 
-    renderer.addSchemaSubscriptions(POSE_STAMPED_DATATYPES, this.handlePoseStamped);
-    renderer.addSchemaSubscriptions(POSE_IN_FRAME_DATATYPES, this.handlePoseInFrame);
-    renderer.addSchemaSubscriptions(
-      POSE_WITH_COVARIANCE_STAMPED_DATATYPES,
-      this.handlePoseWithCovariance,
-    );
+  public override getSubscriptions(): readonly AnyRendererSubscription[] {
+    return [
+      {
+        type: "schema",
+        schemaNames: POSE_STAMPED_DATATYPES,
+        subscription: { handler: this.#handlePoseStamped },
+      },
+      {
+        type: "schema",
+        schemaNames: POSE_IN_FRAME_DATATYPES,
+        subscription: { handler: this.#handlePoseInFrame },
+      },
+      {
+        type: "schema",
+        schemaNames: POSE_WITH_COVARIANCE_STAMPED_DATATYPES,
+        subscription: { handler: this.#handlePoseWithCovariance },
+      },
+    ];
   }
 
   public override settingsNodes(): SettingsTreeEntry[] {
@@ -204,7 +217,7 @@ export class Poses extends SceneExtension<PoseRenderable> {
       const settings = this.renderer.config.topics[topicName] as
         | Partial<LayerSettingsPose>
         | undefined;
-      this._updatePoseRenderable(
+      this.#updatePoseRenderable(
         renderable,
         renderable.userData.poseMessage,
         renderable.userData.originalMessage,
@@ -214,27 +227,27 @@ export class Poses extends SceneExtension<PoseRenderable> {
     }
   };
 
-  private handlePoseStamped = (messageEvent: PartialMessageEvent<PoseStamped>): void => {
+  #handlePoseStamped = (messageEvent: PartialMessageEvent<PoseStamped>): void => {
     const poseMessage = normalizePoseStamped(messageEvent.message);
     const receiveTime = toNanoSec(messageEvent.receiveTime);
-    this.addPose(messageEvent.topic, poseMessage, messageEvent.message, receiveTime);
+    this.#addPose(messageEvent.topic, poseMessage, messageEvent.message, receiveTime);
   };
 
-  private handlePoseInFrame = (messageEvent: PartialMessageEvent<PoseInFrame>): void => {
+  #handlePoseInFrame = (messageEvent: PartialMessageEvent<PoseInFrame>): void => {
     const poseMessage = normalizePoseInFrameToPoseStamped(messageEvent.message);
     const receiveTime = toNanoSec(messageEvent.receiveTime);
-    this.addPose(messageEvent.topic, poseMessage, messageEvent.message, receiveTime);
+    this.#addPose(messageEvent.topic, poseMessage, messageEvent.message, receiveTime);
   };
 
-  private handlePoseWithCovariance = (
+  #handlePoseWithCovariance = (
     messageEvent: PartialMessageEvent<PoseWithCovarianceStamped>,
   ): void => {
     const poseMessage = normalizePoseWithCovarianceStamped(messageEvent.message);
     const receiveTime = toNanoSec(messageEvent.receiveTime);
-    this.addPose(messageEvent.topic, poseMessage, messageEvent.message, receiveTime);
+    this.#addPose(messageEvent.topic, poseMessage, messageEvent.message, receiveTime);
   };
 
-  private addPose(
+  #addPose(
     topic: string,
     poseMessage: PoseStamped | PoseWithCovarianceStamped,
     originalMessage: Record<string, RosValue>,
@@ -267,7 +280,7 @@ export class Poses extends SceneExtension<PoseRenderable> {
       this.renderables.set(topic, renderable);
     }
 
-    this._updatePoseRenderable(
+    this.#updatePoseRenderable(
       renderable,
       poseMessage,
       originalMessage,
@@ -276,7 +289,7 @@ export class Poses extends SceneExtension<PoseRenderable> {
     );
   }
 
-  private _updatePoseRenderable(
+  #updatePoseRenderable(
     renderable: PoseRenderable,
     poseMessage: PoseStamped | PoseWithCovarianceStamped,
     originalMessage: Record<string, RosValue>,

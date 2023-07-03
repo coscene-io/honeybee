@@ -51,7 +51,7 @@ const playerStateWithMessages = (messages: any): PlayerState => ({
 const message = (
   headerStampSeconds: number | undefined,
   receiveTimeSeconds: number | undefined,
-): MessageEvent<unknown> => ({
+): MessageEvent => ({
   topic: "/foo",
   receiveTime:
     receiveTimeSeconds == undefined ? undefined : ({ sec: receiveTimeSeconds, nsec: 1 } as any),
@@ -80,6 +80,15 @@ describe("MessagePipeline/MessageOrderTracker", () => {
           severity: "warn",
         },
       ]);
+    });
+
+    it("doesn't report out of order error when messages have been recomputed", () => {
+      const orderTracker = new MessageOrderTracker();
+      const playerState = playerStateWithMessages([message(7, 10), message(8, 9)]);
+      playerState.activeData!.messagesRecomputed = true;
+      const problems = orderTracker.update(playerState);
+
+      expect(problems).toEqual([]);
     });
 
     it("does not report an error when messages are in order", () => {

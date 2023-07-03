@@ -4,7 +4,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const panelSettings: TypeOptions["resources"]["panelSettings"] = {
+export const panelSettings: Partial<TypeOptions["resources"]["panelSettings"]> = {
   importOrExportSettings: "导入/导出设置",
   importOrExportSettingsWithEllipsis: "导入/导出设置……",
   panelSettings: "面板设置",
@@ -15,5 +15,4 @@ export const panelSettings: TypeOptions["resources"]["panelSettings"] = {
   panelDoesNotHaveSettings: "此面板没有任何设置",
   resetToDefaults: "重置为默认值",
   unknown: "未知",
-  noLayoutSelected: "<selectLayoutLink>选择一个布局</selectLayoutLink> 开始使用！",
 };

@@ -14,16 +14,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
+import { Immutable } from "@foxglove/studio";
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
 import { PlayerCapabilities } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
-type Props = {
+type Props = Immutable<{
   topic: string;
   schemaName: string;
   datatypes: RosDatatypes;
   name: string;
-};
+}>;
 
 // Registers a publisher with the player and returns a publish() function to publish data. This uses
 // no-op functions if the player does not have the `advertise` capability
@@ -40,7 +41,7 @@ export default function usePublisher({
   const publish = useMessagePipeline((context) => context.publish);
   const setPublishers = useMessagePipeline((context) => context.setPublishers);
   useEffect(() => {
-    if (canPublish) {
+    if (canPublish && topic && schemaName) {
       setPublishers(id, [{ topic, schemaName, options: { datatypes } }]);
       return () => setPublishers(id, []);
     } else {

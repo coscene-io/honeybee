@@ -11,13 +11,14 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Link, Typography, styled as muiStyled } from "@mui/material";
+import { Link, Typography } from "@mui/material";
 import { useCallback } from "react";
 import { useDrop } from "react-dnd";
 import { useTranslation } from "react-i18next";
 import { MosaicDragType } from "react-mosaic-component";
+import { makeStyles } from "tss-react/mui";
 
-import PanelList, { PanelSelection } from "@foxglove/studio-base/components/PanelList";
+import { PanelCatalog, PanelSelection } from "@foxglove/studio-base/components/PanelCatalog";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { MosaicDropResult } from "@foxglove/studio-base/types/panels";
@@ -27,23 +28,19 @@ type Props = {
   tabId?: string;
 };
 
-const Root = muiStyled("div")(({ theme }) => ({
-  backgroundColor: theme.palette.background.paper,
-  width: "100%",
-  height: "100%",
-  overflowY: "auto",
-}));
-
-const DropTarget = muiStyled("div", {
-  shouldForwardProp: (prop) => prop !== "isOver",
-})<{
-  isOver: boolean;
-}>(({ isOver, theme }) => ({
-  width: "100%",
-  height: "100%",
-  minHeight: 0,
-
-  ...(isOver && {
+const useStyles = makeStyles()((theme) => ({
+  root: {
+    backgroundColor: theme.palette.background.paper,
+    width: "100%",
+    height: "100%",
+    overflowY: "auto",
+  },
+  dropTarget: {
+    width: "100%",
+    height: "100%",
+    minHeight: 0,
+  },
+  isOver: {
     "&:after": {
       content: "''",
       borderColor: `1px solid ${theme.palette.action.selected}`,
@@ -55,10 +52,11 @@ const DropTarget = muiStyled("div", {
       bottom: 0,
       zIndex: theme.zIndex.appBar,
     },
-  }),
+  },
 }));
 
 export const EmptyPanelLayout = ({ tabId }: Props): JSX.Element => {
+  const { classes, cx } = useStyles();
   const { addPanel } = useCurrentLayoutActions();
   const { t } = useTranslation("addPanel");
 
@@ -81,8 +79,12 @@ export const EmptyPanelLayout = ({ tabId }: Props): JSX.Element => {
   );
 
   return (
-    <DropTarget isOver={isOver} ref={drop} data-testid="empty-drop-target">
-      <Root>
+    <div
+      ref={drop}
+      data-testid="empty-drop-target"
+      className={cx(classes.dropTarget, { [classes.isOver]: isOver })}
+    >
+      <div className={classes.root}>
         <Stack paddingBottom={2}>
           <Typography variant="body2" paddingX={2} paddingTop={2}>
             {t("selectPanelToAddToLayout")}{" "}
@@ -90,9 +92,9 @@ export const EmptyPanelLayout = ({ tabId }: Props): JSX.Element => {
               {t("learnMore", { ns: "general" })}
             </Link>
           </Typography>
-          <PanelList mode="grid" onPanelSelect={onPanelSelect} />
+          <PanelCatalog mode="grid" onPanelSelect={onPanelSelect} />
         </Stack>
-      </Root>
-    </DropTarget>
+      </div>
+    </div>
   );
 };

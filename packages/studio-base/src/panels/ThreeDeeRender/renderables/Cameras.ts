@@ -11,7 +11,7 @@ import type { RosValue } from "@foxglove/studio-base/players/types";
 
 import { RenderableLineList } from "./markers/RenderableLineList";
 import { cameraInfosEqual, normalizeCameraInfo, projectPixel } from "./projections";
-import type { IRenderer } from "../IRenderer";
+import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
 import { BaseUserData, Renderable } from "../Renderable";
 import { PartialMessageEvent, SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry } from "../SettingsManager";
@@ -83,9 +83,21 @@ export class CameraInfoRenderable extends Renderable<CameraInfoUserData> {
 export class Cameras extends SceneExtension<CameraInfoRenderable> {
   public constructor(renderer: IRenderer) {
     super("foxglove.Cameras", renderer);
+  }
 
-    renderer.addSchemaSubscriptions(ROS_CAMERA_INFO_DATATYPES, this.handleCameraInfo);
-    renderer.addSchemaSubscriptions(CAMERA_CALIBRATION_DATATYPES, this.handleCameraInfo);
+  public override getSubscriptions(): readonly AnyRendererSubscription[] {
+    return [
+      {
+        type: "schema",
+        schemaNames: ROS_CAMERA_INFO_DATATYPES,
+        subscription: { handler: this.#handleCameraInfo },
+      },
+      {
+        type: "schema",
+        schemaNames: CAMERA_CALIBRATION_DATATYPES,
+        subscription: { handler: this.#handleCameraInfo },
+      },
+    ];
   }
 
   public override settingsNodes(): SettingsTreeEntry[] {
@@ -142,7 +154,7 @@ export class Cameras extends SceneExtension<CameraInfoRenderable> {
         const settings = this.renderer.config.topics[topicName] as
           | Partial<LayerSettingsCameraInfo>
           | undefined;
-        this._updateCameraInfoRenderable(
+        this.#updateCameraInfoRenderable(
           renderable,
           cameraInfo,
           originalMessage,
@@ -153,7 +165,7 @@ export class Cameras extends SceneExtension<CameraInfoRenderable> {
     }
   };
 
-  private handleCameraInfo = (
+  #handleCameraInfo = (
     messageEvent: PartialMessageEvent<IncomingCameraInfo | CameraCalibration>,
   ): void => {
     const topic = messageEvent.topic;
@@ -189,7 +201,7 @@ export class Cameras extends SceneExtension<CameraInfoRenderable> {
       this.renderables.set(topic, renderable);
     }
 
-    this._updateCameraInfoRenderable(
+    this.#updateCameraInfoRenderable(
       renderable,
       cameraInfo,
       messageEvent.message,
@@ -198,7 +210,7 @@ export class Cameras extends SceneExtension<CameraInfoRenderable> {
     );
   };
 
-  private _updateCameraInfoRenderable(
+  #updateCameraInfoRenderable(
     renderable: CameraInfoRenderable,
     cameraInfo: CameraInfo,
     originalMessage: Record<string, RosValue> | undefined,
@@ -250,7 +262,7 @@ export class Cameras extends SceneExtension<CameraInfoRenderable> {
 
     // If the CameraInfo message contents changed or the settings changed, redraw the wireframe
     if (
-      renderable.userData.cameraModel?.P != undefined &&
+      renderable.userData.cameraModel != undefined &&
       (!dataEqual || !settingsEqual || !renderable.userData.lines)
     ) {
       this.renderer.settings.errors.removeFromTopic(topic, CAMERA_MODEL);

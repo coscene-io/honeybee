@@ -13,6 +13,7 @@ import { UserNodeStateProvider } from "@foxglove/studio-base/context/UserNodeSta
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
 import { AppBar } from ".";
@@ -28,6 +29,7 @@ function Wrapper({ children }: React.PropsWithChildren<unknown>): JSX.Element {
     <UserNodeStateProvider />,
     <MockMessagePipelineProvider />,
     <MockCurrentLayoutProvider />,
+    <ThemeProvider isDark />,
     /* eslint-enable react/jsx-key */
   ];
   return <MultiProvider providers={providers}>{children}</MultiProvider>;
@@ -48,7 +50,6 @@ describe("<AppBar />", () => {
           onMaximizeWindow={mockMaximize}
           onUnmaximizeWindow={mockUnmaximize}
           onCloseWindow={mockClose}
-          onSelectDataSourceAction={() => {}}
         />
       </Wrapper>,
     );
@@ -71,7 +72,6 @@ describe("<AppBar />", () => {
           onUnmaximizeWindow={mockUnmaximize}
           onCloseWindow={mockClose}
           isMaximized
-          onSelectDataSourceAction={() => {}}
         />
       </Wrapper>,
     );

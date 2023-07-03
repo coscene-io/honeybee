@@ -2,6 +2,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { Immutable } from "./immutable";
+
+export type { Immutable } from "./immutable";
+
 // Valid types for parameter data (such as rosparams)
 export type ParameterValue =
   | undefined
@@ -65,7 +69,7 @@ export type Subscription = {
   topic: string;
 
   /**
-   * If a topic as additional schema names, specifying a schema name will convert messages on that
+   * If a topic has additional schema names, specifying a schema name will convert messages on that
    * topic to the convertTo schema using a registered message converter. MessageEvents for the
    * subscription will contain the converted message and an originalMessageEvent field with the
    * original message event.
@@ -84,7 +88,7 @@ export type Subscription = {
 /**
  * A message event frames message data with the topic and receive time
  */
-export type MessageEvent<T> = Readonly<{
+export type MessageEvent<T = unknown> = {
   /** The topic name this message was received on, i.e. "/some/topic" */
   topic: string;
   /**
@@ -120,8 +124,8 @@ export type MessageEvent<T> = Readonly<{
    * contains the converted message and the originalMessageEvent field contains the original
    * un-converted message event.
    */
-  originalMessageEvent?: MessageEvent<unknown>;
-}>;
+  originalMessageEvent?: MessageEvent;
+};
 
 export interface LayoutActions {
   /** Open a new panel or update an existing panel in the layout.  */
@@ -155,11 +159,11 @@ export interface LayoutActions {
   }): void;
 }
 
-export interface RenderState {
+export type RenderState = {
   /**
    * The latest messages for the current render frame. These are new messages since the last render frame.
    */
-  currentFrame?: readonly MessageEvent<unknown>[];
+  currentFrame?: MessageEvent[];
 
   /**
    * True if the data source performed a seek. This indicates that some data may have been skipped
@@ -171,32 +175,32 @@ export interface RenderState {
   /**
    * All available messages. Best-effort list of all available messages.
    */
-  allFrames?: readonly MessageEvent<unknown>[];
+  allFrames?: MessageEvent[];
 
   /**
    * Map of current parameter values. Parameters are key/value pairs associated with the data
    * source, and may not be available for all data sources. For example, ROS 1 live connections
    * support parameters through the Parameter Server <http://wiki.ros.org/Parameter%20Server>.
    */
-  parameters?: ReadonlyMap<string, ParameterValue>;
+  parameters?: Map<string, ParameterValue>;
 
   /**
    * Transient panel state shared between panels of the same type. This can be any data a
    * panel author wishes to share between panels.
    */
-  sharedPanelState?: Readonly<Record<string, unknown>>;
+  sharedPanelState?: Record<string, unknown>;
 
   /**
    * Map of current Studio variables. Variables are key/value pairs that are globally accessible
    * to panels and scripts in the current layout. See
    * <https://foxglove.dev/docs/studio/app-concepts/variables> for more information.
    */
-  variables?: ReadonlyMap<string, VariableValue>;
+  variables?: Map<string, VariableValue>;
 
   /**
    * List of available topics. This list includes subscribed and unsubscribed topics.
    */
-  topics?: readonly Topic[];
+  topics?: Topic[];
 
   /**
    * A timestamp value indicating the current playback time.
@@ -231,8 +235,8 @@ export interface RenderState {
   colorScheme?: "dark" | "light";
 
   /** Application settings. This will only contain subscribed application setting key/values */
-  appSettings?: ReadonlyMap<string, AppSettingValue>;
-}
+  appSettings?: Map<string, AppSettingValue>;
+};
 
 export type PanelExtensionContext = {
   /**
@@ -298,9 +302,12 @@ export type PanelExtensionContext = {
   setPreviewTime: (time: number | undefined) => void;
 
   /**
-   * Seek playback to the given time. Behaves as if the user had clicked the playback bar to seek.
+   * Seek playback to the given time. Behaves as if the user had clicked the playback bar
+   * to seek.
+   *
+   * Clients can pass a number or alternatively a Time object for greater precision.
    */
-  seekPlayback?: (time: number) => void;
+  seekPlayback?: (time: number | Time) => void;
 
   /**
    * Subscribe to an array of topic names.
@@ -309,11 +316,19 @@ export type PanelExtensionContext = {
    * array will unsubscribe from all topics.
    *
    * Calling subscribe with an empty array of topics is analagous to unsubscribeAll.
+   *
+   * @deprecated Use `subscribe` with an array of Subscription objects instead.
    */
   subscribe(topics: string[]): void;
 
   /**
    * Subscribe to an array of topics with additional options for each subscription.
+   *
+   * Subscribe will update the current subscriptions to the new list of Subscriptions and
+   * unsubscribe from any previously subscribed topics no longer in the Subscription list. Passing
+   * an empty array will unsubscribe from all topics.
+   *
+   * Calling subscribe with an empty array is analagous to unsubscribeAll.
    */
   subscribe(subscriptions: Subscription[]): void;
 
@@ -366,13 +381,13 @@ export type PanelExtensionContext = {
    *
    * The done callback should be called once the panel has rendered the render state.
    */
-  onRender?: (renderState: Readonly<RenderState>, done: () => void) => void;
+  onRender?: (renderState: Immutable<RenderState>, done: () => void) => void;
 
   /**
    * Updates the panel's settings editor. Call this every time you want to update
    * the representation of the panel settings in the editor.
    */
-  updatePanelSettingsEditor(settings: Readonly<SettingsTree>): void;
+  updatePanelSettingsEditor(settings: Immutable<SettingsTree>): void;
 
   /**
    * Updates the panel's default title. Users can always override the default title by editing it
@@ -399,7 +414,7 @@ export type ExtensionPanelRegistration = {
 export type RegisterMessageConverterArgs<Src> = {
   fromSchemaName: string;
   toSchemaName: string;
-  converter: (msg: Src) => unknown;
+  converter: (msg: Src, event: Immutable<MessageEvent<Src>>) => unknown;
 };
 
 export interface ExtensionContext {
@@ -497,7 +512,13 @@ export type SettingsTreeFieldValue =
       hideClearButton?: boolean;
     }
   | { input: "gradient"; value?: [string, string] }
-  | { input: "messagepath"; value?: string; validTypes?: string[] }
+  | {
+      input: "messagepath";
+      value?: string;
+      validTypes?: string[];
+      /** True if the input should allow math modifiers like @abs. */
+      supportsMathModifiers?: boolean;
+    }
   | {
       input: "number";
       value?: number;
@@ -534,6 +555,11 @@ export type SettingsTreeFieldValue =
       input: "toggle";
       value?: string;
       options: string[] | Array<{ label: string; value: undefined | string }>;
+    }
+  | {
+      input: "toggle";
+      value?: number;
+      options: number[] | Array<{ label: string; value: undefined | number }>;
     }
   | {
       input: "vec3";

@@ -73,7 +73,7 @@ export type IteratorResult =
   | {
       type: "message-event";
       connectionId?: number;
-      msgEvent: MessageEvent<unknown>;
+      msgEvent: MessageEvent;
     }
   | {
       type: "problem";
@@ -168,7 +168,7 @@ export interface IIterableSource {
    * Load the most recent messages per topic that occurred before or at the target time, if
    * available.
    */
-  getBackfillMessages(args: GetBackfillMessagesArgs): Promise<MessageEvent<unknown>[]>;
+  getBackfillMessages(args: GetBackfillMessagesArgs): Promise<MessageEvent[]>;
 
   /**
    * A source can optionally implement a cursor interface in addition to a messageIterator interface.
