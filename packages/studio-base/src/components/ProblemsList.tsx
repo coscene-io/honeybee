@@ -133,24 +133,6 @@ function ProblemDetails(props: { details: DetailsType; tip?: string }): JSX.Elem
   );
 }
 
-// TODO problemsList.tsx  组件新版本，需要重新控制401 错误
-// const getErrorMessage = useCallback(
-//   (error: string): string => {
-//     switch (error) {
-//       case "Login expired, please login again":
-//         setTimeout(() => {
-//           window.location.href = `/login?redirectToPath=${encodeURIComponent(
-//             window.location.pathname + window.location.search,
-//           )}`;
-//         }, 2000);
-//         return t("loginExpired", { ns: "cosError" });
-//       default:
-//         return error;
-//     }
-//   },
-//   [t],
-// );
-
 export function ProblemsList(): JSX.Element {
   const { classes } = useStyles();
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];

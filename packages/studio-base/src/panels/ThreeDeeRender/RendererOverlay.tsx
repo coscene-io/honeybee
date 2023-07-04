@@ -3,6 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Ruler24Filled } from "@fluentui/react-icons";
+import AddIcon from "@mui/icons-material/Add";
+import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
+import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Button,
   IconButton,
@@ -18,10 +21,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLongPress } from "react-use";
 import { makeStyles } from "tss-react/mui";
-import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
-import { DEFAULT_CAMERA_STATE } from "./camera";
 
 import Logger from "@foxglove/log";
 import { LayoutActions } from "@foxglove/studio";
@@ -43,7 +42,7 @@ import type { PickedRenderable } from "./Picker";
 import { Renderable } from "./Renderable";
 import { useRenderer, useRendererEvent } from "./RendererContext";
 import { Stats } from "./Stats";
-import { MouseEventObject } from "./camera";
+import { DEFAULT_CAMERA_STATE, MouseEventObject } from "./camera";
 import { decodeCompressedImageToBitmap, decodeRawImage } from "./renderables/Images/decodeImage";
 import { PublishClickType } from "./renderables/PublishClickTool";
 import { InterfaceMode } from "./types";

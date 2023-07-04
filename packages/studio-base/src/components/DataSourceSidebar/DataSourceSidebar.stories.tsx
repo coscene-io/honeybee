@@ -111,9 +111,6 @@ export const PlayerNotPresentJapanese: StoryObj = {
   ...PlayerNotPresent,
   parameters: { forceLanguage: "ja" },
 };
-export const PlayerNotPresentChinese = Object.assign(PlayerNotPresent.bind(undefined), {
-  parameters: { forceLanguage: "zh" },
-});
 
 export const PlayerIntializing: StoryObj = {
   render: function Story() {
@@ -136,9 +133,6 @@ export const PlayerIntializingJapanese: StoryObj = {
   ...PlayerIntializing,
   parameters: { forceLanguage: "ja" },
 };
-export const PlayerIntializingChinese = Object.assign(PlayerIntializing.bind(undefined), {
-  parameters: { forceLanguage: "zh" },
-});
 
 const fakeError = (): Error =>
   Object.assign(new Error("Fake Error"), {
@@ -185,9 +179,6 @@ export const PlayerReconnectingJapanese: StoryObj = {
   ...PlayerReconnecting,
   parameters: { forceLanguage: "ja" },
 };
-export const PlayerReconnectingChinese = Object.assign(PlayerReconnecting.bind(undefined), {
-  parameters: { forceLanguage: "zh" },
-});
 
 export const PlayerPresent: StoryObj = {
   render: function Story() {
@@ -203,34 +194,6 @@ export const PlayerPresent: StoryObj = {
     );
   },
 };
-export const PlayerPresentChinese = Object.assign(PlayerPresent.bind(undefined), {
-  parameters: { forceLanguage: "zh" },
-});
-
-export const PlayerPresentWithCustomTimezone = (): JSX.Element => {
-  const [_, setTimezone] = useAppConfigurationValue<string>(AppSetting.TIMEZONE);
-
-  useEffect(() => {
-    setTimezone("Pacific/Ponape").catch(console.error);
-  }, [setTimezone]);
-
-  return (
-    <MockMessagePipelineProvider
-      startTime={fromDate(new Date(2022, 1, 22, 21, 22, 11))}
-      endTime={fromDate(new Date(2022, 1, 22, 23, 22, 22))}
-      topics={TOPICS}
-      presence={PlayerPresence.PRESENT}
-    >
-      <Box height="100%" bgcolor="background.paper">
-        <DataSourceSidebar onSelectDataSourceAction={() => {}} />
-      </Box>
-    </MockMessagePipelineProvider>
-  );
-};
-export const PlayerPresentWithCustomTimezoneChinese = Object.assign(
-  PlayerPresentWithCustomTimezone.bind(undefined),
-  { parameters: { forceLanguage: "zh" } },
-);
 
 export const PlayerPresentChinese: StoryObj = {
   ...PlayerPresent,
@@ -240,9 +203,6 @@ export const PlayerPresentJapanese: StoryObj = {
   ...PlayerPresent,
   parameters: { forceLanguage: "ja" },
 };
-export const WithEventsChinese = Object.assign(WithEvents.bind(undefined), {
-  parameters: { forceLanguage: "zh" },
-});
 
 export const PlayerPresentWithCustomTimezone: StoryObj = {
   render: function Story() {
@@ -349,6 +309,3 @@ export const PlayerWithErrorJapanese: StoryObj = {
   ...PlayerWithError,
   parameters: { forceLanguage: "ja" },
 };
-export const PlayerWithErrorChinese = Object.assign(PlayerWithError.bind(undefined), {
-  parameters: { forceLanguage: "zh" },
-});

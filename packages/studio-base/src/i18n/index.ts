@@ -9,8 +9,8 @@ import { initReactI18next } from "react-i18next";
 import * as cosEn from "./cosEn";
 import * as cosZh from "./cosZh";
 import * as en from "./en";
-import * as zh from "./zh";
 import * as ja from "./ja";
+import * as zh from "./zh";
 
 export const translations: {
   en: typeof en & typeof cosEn;

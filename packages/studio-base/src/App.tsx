@@ -11,7 +11,6 @@ import { DesktopInterfaceChangeWindowReloader } from "@foxglove/studio-base/comp
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
 import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
 import CoSceneRecordProvider from "@foxglove/studio-base/providers/CoSceneRecordProvider";
-
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";

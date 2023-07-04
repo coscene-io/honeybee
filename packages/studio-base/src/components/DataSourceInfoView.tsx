@@ -28,7 +28,6 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { formatDuration } from "@foxglove/studio-base/util/formatTime";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formatTimeRaw, isAbsoluteTime } from "@foxglove/studio-base/util/time";
-import { MultilineMiddleTruncate } from "./MultilineMiddleTruncate";
 
 const useStyles = makeStyles()({
   overline: {
@@ -57,7 +56,15 @@ function DataSourceInfoContent(props: {
   playerSourceId?: string;
   startTime?: Time;
 }): JSX.Element {
-  const { durationRef, endTimeRef, playerPresence, playerSourceId, startTime, playerName } = props;
+  const {
+    durationRef,
+    endTimeRef,
+    playerPresence,
+    playerSourceId,
+    startTime,
+    playerName,
+    disableSource,
+  } = props;
   const { classes } = useStyles();
   const urlState = useMessagePipeline(selectUrlState);
   const record = useRecord(selectRecord);
@@ -68,6 +75,9 @@ function DataSourceInfoContent(props: {
   } = useConsoleApi();
 
   useTitle(`coScene ${record.value?.getTitle() ?? ""}`);
+
+  console.debug("playerName", playerName);
+  console.debug("disableSource", disableSource);
 
   const projectHref =
     process.env.NODE_ENV === "development"
@@ -104,12 +114,6 @@ function DataSourceInfoContent(props: {
         ) : (
           <Typography className={classes.numericValue} variant="inherit">
             &mdash;
-          </Typography>
-        )}
-        {/* TODO: just test what is this */}
-        {playerName && (
-          <Typography variant="inherit" component="span">
-            <MultilineMiddleTruncate text={playerName} />
           </Typography>
         )}
       </Stack>

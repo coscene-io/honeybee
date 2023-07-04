@@ -14,9 +14,9 @@
 import { createContext, useCallback } from "react";
 import { StoreApi, useStore } from "zustand";
 
-import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Immutable } from "@foxglove/studio";
+import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 import type { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 

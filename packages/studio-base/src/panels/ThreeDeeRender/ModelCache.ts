@@ -48,8 +48,6 @@ export class ModelCache {
 
   #dracoLoader?: DRACOLoader;
 
-  private _dracoLoader?: DRACOLoader;
-
   public constructor(public readonly options: ModelCacheOptions) {
     this.#edgeMaterial = options.edgeMaterial;
   }

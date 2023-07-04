@@ -4,8 +4,8 @@
 
 import { ProjectsSyncAdapter } from "@foxglove/studio-base/components/CoSceneProjectSyncAdapter";
 import { RecordsSyncAdapter } from "@foxglove/studio-base/components/CoSceneRecordSyncAdapter";
-import { EventsSyncAdapter } from "@foxglove/studio-base/components/EventsSyncAdapter";
 import { CurrentLayoutSyncAdapter } from "@foxglove/studio-base/components/CurrentLayoutSyncAdapter";
+import { EventsSyncAdapter } from "@foxglove/studio-base/components/EventsSyncAdapter";
 import { URLStateSyncAdapter } from "@foxglove/studio-base/components/URLStateSyncAdapter";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 

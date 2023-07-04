@@ -10,11 +10,11 @@ import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   IDataSourceFactory,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 

@@ -41,11 +41,11 @@ import {
   gs50Layout,
 } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutGaussian";
 import { keenonDefaultLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutKeenon";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/ILayoutManager";
 import { PanelConfig, PlaybackConfig, UserNodes } from "@foxglove/studio-base/types/panels";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
 import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert";

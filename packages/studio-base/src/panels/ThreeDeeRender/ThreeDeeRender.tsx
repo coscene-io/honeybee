@@ -750,7 +750,7 @@ export function ThreeDeeRender(props: {
         };
       });
     }
-  }, [renderer, actionHandler]);
+  }, [renderer, actionHandler, config.followTf]);
 
   const onZoomIn = useCallback(() => {
     if (renderer) {

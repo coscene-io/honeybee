@@ -8,8 +8,8 @@ import { AsyncState } from "react-use/lib/useAsyncFn";
 import { DeepReadonly } from "ts-essentials";
 import { StoreApi, useStore } from "zustand";
 
-import { Time } from "@foxglove/rostime";
 import { useGuaranteedContext } from "@foxglove/hooks";
+import { Time } from "@foxglove/rostime";
 
 /**
  * Represents an event including its fractional position on the timeline.

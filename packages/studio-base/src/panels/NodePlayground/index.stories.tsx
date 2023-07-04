@@ -213,48 +213,29 @@ export const EditorShowsNewCodeWhenUserNodesChange: StoryObj = {
 export const EditorGotoDefinition: StoryObj = {
   render: () => (
     <PanelSetup
-      fixture={{ ...fixture, userNodes }}
-      onMount={(el) => {
-        setTimeout(() => {
-          el.querySelectorAll<HTMLElement>("[data-testid=utils-explorer]")[0]!.click();
-        }, SIDEBAR_OPEN_CLICK_TIMEOUT);
+      fixture={{
+        ...fixture,
+        userNodes: {
+          nodeId1: {
+            name: "/studio_script/script",
+            sourceCode: sourceCodeWithUtils,
+          },
+        },
+        userNodeDiagnostics: { nodeId1: [] },
+        userNodeLogs: { nodeId1: [] },
       }}
     >
-      <NodePlayground overrideConfig={{ selectedNodeId: "nodeId1" }} />
-    </PanelSetup>
-  );
-};
-
-SidebarOpenUtilsExplorerSelectedUtility.storyName =
-  "sidebar open - utils explorer - selected utility";
-
-export const SidebarOpenTemplatesExplorer: StoryFn = () => {
-  return (
-    <PanelSetup
-      fixture={{ ...fixture, userNodes }}
-      onMount={(el) => {
-        setTimeout(() => {
-          el.querySelectorAll<HTMLElement>("[data-testid=templates-explorer]")[0]!.click();
-        }, SIDEBAR_OPEN_CLICK_TIMEOUT);
-      }}
-    >
-      <NodePlayground />
-    </PanelSetup>
-  );
-};
-
-SidebarOpenTemplatesExplorer.storyName = "sidebar open - templates explorer";
-
-export const EditorLoadingState: StoryFn = () => {
-  const NeverLoad = () => {
-    throw new Promise(() => {
-      // no-op
-    });
-  };
-  return (
-    <PanelSetup fixture={{ ...fixture, userNodes }}>
       <NodePlayground
-        overrideConfig={{ selectedNodeId: "nodeId1", editorForStorybook: <NeverLoad /> }}
+        overrideConfig={{
+          selectedNodeId: "nodeId1",
+          additionalBackStackItems: [
+            {
+              filePath: "/studio_script/pointClouds",
+              code: utilsSourceCode,
+              readOnly: true,
+            },
+          ],
+        }}
       />
     </PanelSetup>
   ),

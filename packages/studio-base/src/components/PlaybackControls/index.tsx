@@ -46,8 +46,6 @@ import {
 import PlaybackQualityControls from "@foxglove/studio-base/components/PlaybackControls/PlaybackQualityControls";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
-import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
@@ -92,7 +90,6 @@ const useStyles = makeStyles()((theme) => ({
 
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
-const selectEventsSupported = (store: EventsStore) => store.eventsSupported;
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
 
 export default function PlaybackControls(props: {
@@ -118,8 +115,6 @@ export default function PlaybackControls(props: {
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(false);
 
   const [createEventShortcutKeys] = useKeyboardJs("alt > m");
-  const { currentUser } = useCurrentUser();
-  const eventsSupported = useEvents(selectEventsSupported);
 
   const {
     playbackControlActions: { setRepeat },
