@@ -29,7 +29,7 @@ import {
 import { DataSourceSidebar } from "@foxglove/studio-base/components/DataSourceSidebar";
 import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
 import { TopicList } from "@foxglove/studio-base/components/DataSourceSidebar/TopicList";
-import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
+// import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import LayoutBrowser from "@foxglove/studio-base/components/LayoutBrowser";
@@ -50,10 +50,6 @@ import Sidebars, { SidebarItem } from "@foxglove/studio-base/components/Sidebars
 import { NewSidebarItem } from "@foxglove/studio-base/components/Sidebars/NewSidebar";
 import { SignInFormModal } from "@foxglove/studio-base/components/SignInFormModal";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
-
 import {
   StudioLogsSettings,
   StudioLogsSettingsSidebar,
@@ -61,7 +57,9 @@ import {
 import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   LayoutState,
   useCurrentLayoutActions,
@@ -70,6 +68,7 @@ import {
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
+import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import { useNativeAppMenu } from "@foxglove/studio-base/context/NativeAppMenuContext";
 // import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
@@ -87,13 +86,12 @@ import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFiles
 import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useInitialDeepLinkState";
 import useNativeAppMenuEvent from "@foxglove/studio-base/hooks/useNativeAppMenuEvent";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import { sampleLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutCoScene";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import ICONS from "@foxglove/studio-base/theme/icons";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
-import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-
-import { sampleLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutCoScene";
 
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 
@@ -251,15 +249,15 @@ function WorkspaceContent(props: WorkspaceContentProps): JSX.Element {
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
   // file types we support for drag/drop
-  const allowedDropExtensions = useMemo(() => {
-    const extensions = [".foxe"];
-    for (const source of availableSources) {
-      if (source.type === "file" && source.supportedFileTypes) {
-        extensions.push(...source.supportedFileTypes);
-      }
-    }
-    return extensions;
-  }, [availableSources]);
+  // const allowedDropExtensions = useMemo(() => {
+  //   const extensions = [".foxe"];
+  //   for (const source of availableSources) {
+  //     if (source.type === "file" && source.supportedFileTypes) {
+  //       extensions.push(...source.supportedFileTypes);
+  //     }
+  //   }
+  //   return extensions;
+  // }, [availableSources]);
 
   // We use playerId to detect when a player changes for RemountOnValueChange below
   // see comment below above the RemountOnValueChange component
@@ -393,39 +391,39 @@ function WorkspaceContent(props: WorkspaceContentProps): JSX.Element {
 
   const installExtension = useExtensionCatalog((state) => state.installExtension);
 
-  const openHandle = useCallback(
-    async (
-      handle: FileSystemFileHandle /* foxglove-depcheck-used: @types/wicg-file-system-access */,
-    ) => {
-      log.debug("open handle", handle);
-      const file = await handle.getFile();
+  // const openHandle = useCallback(
+  //   async (
+  //     handle: FileSystemFileHandle /* foxglove-depcheck-used: @types/wicg-file-system-access */,
+  //   ) => {
+  //     log.debug("open handle", handle);
+  //     const file = await handle.getFile();
 
-      if (file.name.endsWith(".foxe")) {
-        // Extension installation
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          const data = new Uint8Array(arrayBuffer);
-          const extension = await installExtension("local", data);
-          enqueueSnackbar(`Installed extension ${extension.id}`, { variant: "success" });
-        } catch (err) {
-          log.error(err);
-          enqueueSnackbar(`Failed to install extension ${file.name}: ${err.message}`, {
-            variant: "error",
-          });
-        }
-      }
+  //     if (file.name.endsWith(".foxe")) {
+  //       // Extension installation
+  //       try {
+  //         const arrayBuffer = await file.arrayBuffer();
+  //         const data = new Uint8Array(arrayBuffer);
+  //         const extension = await installExtension("local", data);
+  //         enqueueSnackbar(`Installed extension ${extension.id}`, { variant: "success" });
+  //       } catch (err) {
+  //         log.error(err);
+  //         enqueueSnackbar(`Failed to install extension ${file.name}: ${err.message}`, {
+  //           variant: "error",
+  //         });
+  //       }
+  //     }
 
-      // Look for a source that supports the file extensions
-      const matchedSource = availableSources.find((source) => {
-        const ext = extname(file.name);
-        return source.supportedFileTypes?.includes(ext);
-      });
-      if (matchedSource) {
-        selectSource(matchedSource.id, { type: "file", handle });
-      }
-    },
-    [availableSources, enqueueSnackbar, installExtension, selectSource],
-  );
+  //     // Look for a source that supports the file extensions
+  //     const matchedSource = availableSources.find((source) => {
+  //       const ext = extname(file.name);
+  //       return source.supportedFileTypes?.includes(ext);
+  //     });
+  //     if (matchedSource) {
+  //       selectSource(matchedSource.id, { type: "file", handle });
+  //     }
+  //   },
+  //   [availableSources, enqueueSnackbar, installExtension, selectSource],
+  // );
 
   const openFiles = useCallback(
     async (files: File[]) => {
@@ -478,20 +476,20 @@ function WorkspaceContent(props: WorkspaceContentProps): JSX.Element {
     }
   }, [filesToOpen, openFiles]);
 
-  const dropHandler = useCallback(
-    (event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
-      const handle = event.handles?.[0];
-      // When selecting sources with handles we can only select with a single handle since we haven't
-      // written the code to store multiple handles for recents. When there are multiple handles, we
-      // fall back to opening regular files.
-      if (handle && event.handles?.length === 1) {
-        void openHandle(handle);
-      } else if (event.files) {
-        void openFiles(event.files);
-      }
-    },
-    [openFiles, openHandle],
-  );
+  // const dropHandler = useCallback(
+  //   (event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
+  //     const handle = event.handles?.[0];
+  //     // When selecting sources with handles we can only select with a single handle since we haven't
+  //     // written the code to store multiple handles for recents. When there are multiple handles, we
+  //     // fall back to opening regular files.
+  //     if (handle && event.handles?.length === 1) {
+  //       void openHandle(handle);
+  //     } else if (event.files) {
+  //       void openFiles(event.files);
+  //     }
+  //   },
+  //   [openFiles, openHandle],
+  // );
 
   // Since the _component_ field of a sidebar item entry is a component and accepts no additional
   // props we need to wrap our DataSourceSidebar component to connect the open data source action to
@@ -672,7 +670,7 @@ function WorkspaceContent(props: WorkspaceContentProps): JSX.Element {
     >
       {props.showSignInForm && <SignInFormModal />}
       {dataSourceDialog.open && <DataSourceDialog />}
-      <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
+      {/* <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} /> */}
       <SyncAdapters />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
