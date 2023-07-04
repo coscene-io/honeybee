@@ -2,7 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { StoryFn } from "@storybook/react";
+import { StoryObj } from "@storybook/react";
+import { fireEvent, within } from "@storybook/testing-library";
 
 import Table from "@foxglove/studio-base/panels/Table";
 import PanelSetup, { Fixture } from "@foxglove/studio-base/stories/PanelSetup";
@@ -30,8 +31,16 @@ const makeArrayData = ({
 const fixture: Fixture = {
   datatypes: new Map(
     Object.entries({
+      arr_item: {
+        definitions: [
+          { type: "int32", name: "val", isConstant: false, isArray: false },
+          { type: "int32", name: "primitiveArray", isConstant: false, isArray: true },
+        ],
+      },
       my_arr: {
-        definitions: [{ type: "json", name: "array", isConstant: false, isArray: true }],
+        definitions: [
+          { type: "arr_item", name: "array", isConstant: false, isArray: true, isComplex: true },
+        ],
       },
     }),
   ),
@@ -53,205 +62,157 @@ export default {
   title: "panels/Table",
 };
 
-export const NoTopicPath: StoryFn = () => {
-  return (
+export const NoTopicPath: StoryObj = {
+  render: () => (
     <PanelSetup fixture={{ frame: {}, topics: [] }}>
       <Table overrideConfig={{ topicPath: "" }} />
     </PanelSetup>
-  );
+  ),
 };
 
-NoTopicPath.storyName = "no topic path";
-
-export const NoData: StoryFn = () => {
-  return (
+export const NoData: StoryObj = {
+  render: () => (
     <PanelSetup fixture={{ frame: {}, topics: [] }}>
       <Table overrideConfig={{ topicPath: "/unknown" }} />
     </PanelSetup>
-  );
+  ),
 };
 
-NoData.storyName = "no data";
-
-export const Arrays: StoryFn = () => {
-  return (
+export const Arrays: StoryObj = {
+  render: () => (
     <PanelSetup fixture={fixture}>
       <Table overrideConfig={{ topicPath: "/my_arr.array" }} />
     </PanelSetup>
-  );
+  ),
 };
 
-Arrays.storyName = "arrays";
-
-export const ExpandRows: StoryFn = () => {
-  return (
-    <PanelSetup
-      fixture={fixture}
-      onMount={() => {
-        setImmediate(() => {
-          (
-            document.querySelectorAll("[data-testid=expand-row-0]")[0] as HTMLTableCellElement
-          ).click();
-        });
-      }}
-    >
+export const ExpandRows: StoryObj = {
+  render: () => (
+    <PanelSetup fixture={fixture}>
       <Table overrideConfig={{ topicPath: "/my_arr.array" }} />
     </PanelSetup>
-  );
+  ),
+  parameters: { colorScheme: "dark" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [target] = await canvas.findAllByTestId("expand-row-0");
+
+    fireEvent.click(target!);
+  },
 };
 
-ExpandRows.storyName = "expand rows";
-ExpandRows.parameters = { colorScheme: "dark" };
-
-export const ExpandCellsWithNestedObjects: StoryFn = () => {
-  return (
-    <PanelSetup
-      fixture={fixture}
-      onMount={() => {
-        setImmediate(() => {
-          (
-            document.querySelectorAll("[data-testid=expand-cell-obj-0]")[0] as HTMLTableCellElement
-          ).click();
-        });
-      }}
-    >
+export const ExpandCellsWithNestedObjects: StoryObj = {
+  render: () => (
+    <PanelSetup fixture={fixture}>
       <Table overrideConfig={{ topicPath: "/my_arr.array" }} />
     </PanelSetup>
-  );
+  ),
+  parameters: { colorScheme: "dark" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [target] = await canvas.findAllByTestId("expand-cell-obj-0");
+
+    fireEvent.click(target!);
+  },
 };
 
-ExpandCellsWithNestedObjects.storyName = "expand cells with nested objects";
-ExpandCellsWithNestedObjects.parameters = { colorScheme: "dark" };
-
-export const ExpandCellsWithNestedArrays: StoryFn = () => {
-  return (
-    <PanelSetup
-      fixture={fixture}
-      onMount={() => {
-        setImmediate(() => {
-          (
-            document.querySelectorAll("[data-testid=expand-cell-arr-0]")[0] as HTMLTableCellElement
-          ).click();
-        });
-      }}
-    >
+export const ExpandCellsWithNestedArrays: StoryObj = {
+  render: () => (
+    <PanelSetup fixture={fixture}>
       <Table overrideConfig={{ topicPath: "/my_arr.array" }} />
     </PanelSetup>
-  );
+  ),
+  parameters: { colorScheme: "dark" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [target] = await canvas.findAllByTestId("expand-cell-arr-0");
+
+    fireEvent.click(target!);
+  },
 };
 
-ExpandCellsWithNestedArrays.storyName = "expand cells with nested arrays";
-ExpandCellsWithNestedArrays.parameters = { colorScheme: "dark" };
-
-export const ExpandNestedCells: StoryFn = () => {
-  return (
-    <PanelSetup
-      fixture={fixture}
-      onMount={() => {
-        setImmediate(() => {
-          (
-            document.querySelectorAll("[data-testid=expand-row-0]")[0] as HTMLTableCellElement
-          ).click();
-          (
-            document.querySelectorAll(
-              "[data-testid=expand-cell-arr-obj-0]",
-            )[0] as HTMLTableCellElement
-          ).click();
-        });
-      }}
-    >
+export const ExpandNestedCells: StoryObj = {
+  render: () => (
+    <PanelSetup fixture={fixture}>
       <Table overrideConfig={{ topicPath: "/my_arr.array" }} />
     </PanelSetup>
-  );
+  ),
+  parameters: { colorScheme: "dark" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    const [targetRow] = await canvas.findAllByTestId("expand-row-0");
+    fireEvent.click(targetRow!);
+
+    const nestedRows = await canvas.findAllByTestId("expand-row-0");
+    fireEvent.click(nestedRows[2]!);
+  },
 };
 
-ExpandNestedCells.storyName = "expand nested cells";
-ExpandNestedCells.parameters = { colorScheme: "dark" };
-
-export const ExpandMultipleRows: StoryFn = () => {
-  return (
-    <PanelSetup
-      fixture={fixture}
-      onMount={() => {
-        setImmediate(() => {
-          (
-            document.querySelectorAll("[data-testid=expand-row-0]")[0] as HTMLTableCellElement
-          ).click();
-          (
-            document.querySelectorAll("[data-testid=expand-row-1]")[0] as HTMLTableCellElement
-          ).click();
-        });
-      }}
-    >
+export const ExpandMultipleRows: StoryObj = {
+  render: () => (
+    <PanelSetup fixture={fixture}>
       <Table overrideConfig={{ topicPath: "/my_arr.array" }} />
     </PanelSetup>
-  );
+  ),
+  parameters: { colorScheme: "dark" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    const [row1] = await canvas.findAllByTestId("expand-row-0");
+    fireEvent.click(row1!);
+
+    const [row2] = await canvas.findAllByTestId("expand-row-1");
+    fireEvent.click(row2!);
+  },
 };
 
-ExpandMultipleRows.storyName = "expand multiple rows";
-ExpandMultipleRows.parameters = { colorScheme: "dark" };
-
-export const Filtering: StoryFn = () => {
-  return (
+export const Filtering: StoryObj = {
+  render: () => (
     <PanelSetup fixture={fixture}>
       <Table overrideConfig={{ topicPath: "/my_arr.array[:]{val==3}" }} />
     </PanelSetup>
-  );
+  ),
 };
 
-Filtering.storyName = "filtering";
-
-export const Sorting: StoryFn = () => {
-  return (
-    <PanelSetup
-      fixture={fixture}
-      onMount={() => {
-        setImmediate(() => {
-          (
-            document.querySelectorAll("[data-testid=column-header-val]")[0] as HTMLTableCellElement
-          ).click();
-          (
-            document.querySelectorAll("[data-testid=column-header-val]")[0] as HTMLTableCellElement
-          ).click();
-        });
-      }}
-    >
+export const Sorting: StoryObj = {
+  render: () => (
+    <PanelSetup fixture={fixture}>
       <Table overrideConfig={{ topicPath: "/my_arr.array" }} />
     </PanelSetup>
-  );
+  ),
+  parameters: { colorScheme: "dark" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    const [targetCol] = await canvas.findAllByTestId("column-header-val");
+    fireEvent.click(targetCol!);
+    fireEvent.click(targetCol!);
+  },
 };
 
-Sorting.storyName = "sorting";
-Sorting.parameters = { colorScheme: "dark" };
-
-export const HandlesPrimitives: StoryFn = () => {
-  return (
+export const HandlesPrimitives: StoryObj = {
+  render: () => (
     <PanelSetup fixture={fixture}>
       <Table overrideConfig={{ topicPath: "/my_arr.array[:].val" }} />
     </PanelSetup>
-  );
+  ),
 };
 
-HandlesPrimitives.storyName = "handles primitives";
-
-export const HandlesArraysOfPrimitives: StoryFn = () => {
-  return (
+export const HandlesArraysOfPrimitives: StoryObj = {
+  render: () => (
     <PanelSetup fixture={fixture}>
       <Table overrideConfig={{ topicPath: "/my_arr.array[:].primitiveArray" }} />
     </PanelSetup>
-  );
+  ),
 };
 
-HandlesArraysOfPrimitives.storyName = "handles arrays of primitives";
-
-export const ConstrainedWidth: StoryFn = () => {
-  return (
+export const ConstrainedWidth: StoryObj = {
+  render: () => (
     <PanelSetup fixture={fixture}>
       <div style={{ width: "100px" }}>
         <Table overrideConfig={{ topicPath: "/my_arr.array[:]{val==3}" }} />
       </div>
     </PanelSetup>
-  );
+  ),
 };
-
-ConstrainedWidth.storyName = "constrained width";

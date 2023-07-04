@@ -48,13 +48,23 @@ const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
   playerState.urlState?.sourceId;
 
 function DataSourceInfoContent(props: {
+  disableSource?: boolean;
   durationRef: MutableRefObject<ReactNull | HTMLDivElement>;
   endTimeRef: MutableRefObject<ReactNull | HTMLDivElement>;
+  playerName?: string;
   playerPresence: PlayerPresence;
   playerSourceId?: string;
   startTime?: Time;
 }): JSX.Element {
-  const { durationRef, endTimeRef, playerPresence, playerSourceId, startTime } = props;
+  const {
+    durationRef,
+    endTimeRef,
+    playerPresence,
+    playerSourceId,
+    startTime,
+    playerName,
+    disableSource,
+  } = props;
   const { classes } = useStyles();
   const urlState = useMessagePipeline(selectUrlState);
   const record = useRecord(selectRecord);
@@ -65,6 +75,9 @@ function DataSourceInfoContent(props: {
   } = useConsoleApi();
 
   useTitle(`coScene ${record.value?.getTitle() ?? ""}`);
+
+  console.debug("playerName", playerName);
+  console.debug("disableSource", disableSource);
 
   const projectHref =
     process.env.NODE_ENV === "development"
@@ -155,7 +168,7 @@ const MemoDataSourceInfoContent = React.memo(DataSourceInfoContent);
 
 const EmDash = "\u2014";
 
-export function DataSourceInfoView(): JSX.Element {
+export function DataSourceInfoView({ disableSource }: { disableSource?: boolean }): JSX.Element {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
@@ -189,6 +202,7 @@ export function DataSourceInfoView(): JSX.Element {
 
   return (
     <MemoDataSourceInfoContent
+      disableSource={disableSource}
       durationRef={durationRef}
       endTimeRef={endTimeRef}
       playerPresence={playerPresence}

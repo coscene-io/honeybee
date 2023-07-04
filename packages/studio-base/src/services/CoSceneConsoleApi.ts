@@ -202,62 +202,62 @@ type LayoutTemplatesIndex = {
 };
 
 class CoSceneConsoleApi {
-  private _baseUrl: string;
-  private _authHeader?: string;
-  private _responseObserver: undefined | ((response: Response) => void);
+  #baseUrl: string;
+  #authHeader?: string;
+  #responseObserver: undefined | ((response: Response) => void);
   public coSceneContext: CoSceneContext;
 
   public constructor(baseUrl: string, coSceneContext?: CoSceneContext) {
-    this._baseUrl = baseUrl;
+    this.#baseUrl = baseUrl;
     this.coSceneContext = coSceneContext ?? {};
   }
 
   public getBaseUrl(): string {
-    return this._baseUrl;
+    return this.#baseUrl;
   }
 
   public setAuthHeader(header: string): void {
-    this._authHeader = header;
+    this.#authHeader = header;
   }
 
   public getAuthHeader(): string | undefined {
-    return this._authHeader;
+    return this.#authHeader;
   }
 
   public setResponseObserver(observer: undefined | ((response: Response) => void)): void {
-    this._responseObserver = observer;
+    this.#responseObserver = observer;
   }
 
   public async orgs(): Promise<Org[]> {
-    return await this.get<Org[]>("/v1/orgs");
+    return await this.#get<Org[]>("/v1/orgs");
   }
 
   public async me(): Promise<User> {
-    return await this.get<User>("/v1/me");
+    return await this.#get<User>("/v1/me");
   }
 
   public async signin(args: SigninArgs): Promise<Session> {
-    return await this.post<Session>("/v1/signin", args);
+    return await this.#post<Session>("/v1/signin", args);
   }
 
   public async signout(): Promise<void> {
-    return await this.post<void>("/v1/signout");
+    return await this.#post<void>("/v1/signout");
   }
 
   public async deviceCode(args: DeviceCodeArgs): Promise<DeviceCodeResponse> {
-    return await this.post<DeviceCodeResponse>("/v1/auth/device-code", {
+    return await this.#post<DeviceCodeResponse>("/v1/auth/device-code", {
       clientId: args.clientId,
     });
   }
 
   public async token(args: TokenArgs): Promise<TokenResponse> {
-    return await this.post<TokenResponse>("/v1/auth/token", {
+    return await this.#post<TokenResponse>("/v1/auth/token", {
       deviceCode: args.deviceCode,
       clientId: args.clientId,
     });
   }
 
-  private async get<T>(
+  async #get<T>(
     apiPath: string,
     query?: Record<string, string | undefined>,
     // eslint-disable-next-line @foxglove/no-boolean-parameters
@@ -276,7 +276,7 @@ class CoSceneConsoleApi {
     }
 
     return (
-      await this.request<T>(
+      await this.#request<T>(
         query == undefined
           ? apiPath
           : `${apiPath}?${new URLSearchParams(queryWithoutUndefined).toString()}`,
@@ -288,19 +288,19 @@ class CoSceneConsoleApi {
   }
 
   public async getExtensions(): Promise<ExtensionResponse[]> {
-    return await this.get<ExtensionResponse[]>("/v1/extensions");
+    return await this.#get<ExtensionResponse[]>("/v1/extensions");
   }
 
   public async getExtension(id: string): Promise<ExtensionResponse> {
-    return await this.get<ExtensionResponse>(`/v1/extensions/${id}`);
+    return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
   }
 
   public async getDevice(id: string): Promise<DeviceResponse> {
-    return await this.get<DeviceResponse>(`/v1/devices/${id}`);
+    return await this.#get<DeviceResponse>(`/v1/devices/${id}`);
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
-    return await this.get<ConsoleApiLayout[]>("/v1/layouts", {
+    return await this.#get<ConsoleApiLayout[]>("/v1/layouts", {
       includeData: options.includeData ? "true" : "false",
     });
   }
@@ -309,7 +309,7 @@ class CoSceneConsoleApi {
     id: LayoutID,
     options: { includeData: boolean },
   ): Promise<ConsoleApiLayout | undefined> {
-    return await this.get<ConsoleApiLayout>(`/v1/layouts/${id}`, {
+    return await this.#get<ConsoleApiLayout>(`/v1/layouts/${id}`, {
       includeData: options.includeData ? "true" : "false",
     });
   }
@@ -321,7 +321,7 @@ class CoSceneConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<ConsoleApiLayout> {
-    return await this.post<ConsoleApiLayout>("/v1/layouts", layout);
+    return await this.#post<ConsoleApiLayout>("/v1/layouts", layout);
   }
 
   public async updateLayout(layout: {
@@ -331,7 +331,7 @@ class CoSceneConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
-    const { status, json: newLayout } = await this.patch<ConsoleApiLayout>(
+    const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
       `/v1/layouts/${layout.id}`,
       layout,
     );
@@ -343,10 +343,10 @@ class CoSceneConsoleApi {
   }
 
   public async deleteLayout(id: LayoutID): Promise<boolean> {
-    return (await this.delete(`/v1/layouts/${id}`)).status === 200;
+    return (await this.#delete(`/v1/layouts/${id}`)).status === 200;
   }
 
-  private async request<T>(
+  async #request<T>(
     url: string,
     config?: RequestInit,
     {
@@ -358,7 +358,7 @@ class CoSceneConsoleApi {
     // eslint-disable-next-line @foxglove/no-boolean-parameters
     customHost?: boolean,
   ): Promise<ApiResponse<T>> {
-    const fullUrl = customHost != undefined && customHost ? url : `${this._baseUrl}${url}`;
+    const fullUrl = customHost != undefined && customHost ? url : `${this.#baseUrl}${url}`;
 
     const headers: Record<string, string> = {};
     const fullConfig: RequestInit = {
@@ -367,7 +367,7 @@ class CoSceneConsoleApi {
     };
 
     const res = await fetch(fullUrl, fullConfig);
-    this._responseObserver?.(res);
+    this.#responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
         throw new Error("Not logged in. Please log in again.");
@@ -391,9 +391,9 @@ class CoSceneConsoleApi {
   }
 
   // eslint-disable-next-line @foxglove/no-boolean-parameters
-  private async post<T>(apiPath: string, body?: unknown, customHost?: boolean): Promise<T> {
+  async #post<T>(apiPath: string, body?: unknown, customHost?: boolean): Promise<T> {
     return (
-      await this.request<T>(
+      await this.#request<T>(
         apiPath,
         {
           method: "POST",
@@ -406,8 +406,8 @@ class CoSceneConsoleApi {
     ).json;
   }
 
-  private async patch<T>(apiPath: string, body?: unknown): Promise<ApiResponse<T>> {
-    return await this.request<T>(
+  async #patch<T>(apiPath: string, body?: unknown): Promise<ApiResponse<T>> {
+    return await this.#request<T>(
       apiPath,
       {
         method: "PATCH",
@@ -418,11 +418,8 @@ class CoSceneConsoleApi {
     );
   }
 
-  private async delete<T>(
-    apiPath: string,
-    query?: Record<string, string>,
-  ): Promise<ApiResponse<T>> {
-    return await this.request<T>(
+  async #delete<T>(apiPath: string, query?: Record<string, string>): Promise<ApiResponse<T>> {
+    return await this.#request<T>(
       query == undefined ? apiPath : `${apiPath}?${new URLSearchParams(query).toString()}`,
       { method: "DELETE" },
       { allowedStatuses: [404] },
@@ -433,13 +430,13 @@ class CoSceneConsoleApi {
   public async topics(
     params: DataPlatformRequestArgs & { includeSchemas?: boolean },
   ): Promise<customTopicResponse> {
-    const topics = await this.get<topicInterfaceReturns>(
+    const topics = await this.#get<topicInterfaceReturns>(
       "/v1/data/getMetadata",
       {
         revisionName: params.revisionName,
         jobRunId: params.jobRunId,
         includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-        accessToken: this._authHeader?.replace(/(^\s*)|(\s*$)/g, ""),
+        accessToken: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, ""),
       },
       undefined,
       {
@@ -469,7 +466,7 @@ class CoSceneConsoleApi {
   public async getPlaylist(
     params: DataPlatformRequestArgs & { includeSchemas?: boolean; accessToken: string },
   ): Promise<getPlaylistResponse> {
-    return await this.get<getPlaylistResponse>(
+    return await this.#get<getPlaylistResponse>(
       "/v1/data/getPlaylist",
       {
         revisionName: params.revisionName,
@@ -487,7 +484,7 @@ class CoSceneConsoleApi {
   }
 
   public getStreamUrl(): string {
-    return `${this._baseUrl}/v1/data/getStreams`;
+    return `${this.#baseUrl}/v1/data/getStreams`;
   }
 
   public async createEvent({
@@ -634,11 +631,11 @@ class CoSceneConsoleApi {
   }
 
   public async getLayoutTemplatesIndex(layoutTemplatesUrl: string): Promise<LayoutTemplatesIndex> {
-    return await this.get<LayoutTemplatesIndex>(layoutTemplatesUrl, undefined, true);
+    return await this.#get<LayoutTemplatesIndex>(layoutTemplatesUrl, undefined, true);
   }
 
   public async getLayoutTemplate(url: string): Promise<LayoutData> {
-    return await this.get<LayoutData>(url, undefined, true);
+    return await this.#get<LayoutData>(url, undefined, true);
   }
 }
 

@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { TypeOptions } from "i18next";
 
-export const cosAccount: TypeOptions["resources"]["cosAccount"] = {
+export const cosAccount: Partial<TypeOptions["resources"]["cosAccount"]> = {
   intro: "创建 coScene 账户你可以:",
   manageData: "管理和存储机器人数据",
   shareLayout: "分享你的布局",

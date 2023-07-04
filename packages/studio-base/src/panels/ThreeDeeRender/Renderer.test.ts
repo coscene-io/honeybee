@@ -3,10 +3,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { fromNanoSec } from "@foxglove/rostime";
+import { setupJestCanvasMock } from "jest-canvas-mock";
+
+import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 import { Renderer } from "@foxglove/studio-base/panels/ThreeDeeRender/Renderer";
 import { DEFAULT_CAMERA_STATE } from "@foxglove/studio-base/panels/ThreeDeeRender/camera";
+import { CameraStateSettings } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/CameraStateSettings";
 import { DEFAULT_PUBLISH_SETTINGS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/PublishSettings";
 import { TFMessage } from "@foxglove/studio-base/panels/ThreeDeeRender/ros";
 
@@ -21,42 +24,46 @@ jest.mock("three", () => {
   const THREE = jest.requireActual("three");
   return {
     ...THREE,
-    WebGLRenderer: jest.fn().mockReturnValue({
-      capabilities: {
-        isWebGL2: true,
-      },
+    WebGLRenderer: function WebGLRenderer() {
+      return {
+        capabilities: {
+          isWebGL2: true,
+        },
 
-      setPixelRatio: jest.fn(),
-      setSize: jest.fn(),
-      render: jest.fn(),
-      clear: jest.fn(),
-      setClearColor: jest.fn(),
-      readRenderTargetPixels: jest.fn(),
-      info: {
-        reset: jest.fn(),
-      },
-      shadowMap: {},
-      dispose: jest.fn(),
-      clearDepth: jest.fn(),
-      getDrawingBufferSize: jest.fn().mockReturnValue({ width: 100, height: 100 }),
-    }),
+        setPixelRatio: jest.fn(),
+        setSize: jest.fn(),
+        render: jest.fn(),
+        clear: jest.fn(),
+        setClearColor: jest.fn(),
+        readRenderTargetPixels: jest.fn(),
+        info: {
+          reset: jest.fn(),
+        },
+        shadowMap: {},
+        dispose: jest.fn(),
+        clearDepth: jest.fn(),
+        getDrawingBufferSize: () => ({ width: 100, height: 100 }),
+      };
+    },
   };
 });
 
-// Copied from: https://jestjs.io/docs/manual-mocks#mocking-methods-which-are-not-implemented-in-jsdom
-// mock matchMedia for `Renderer` class in ThreeDeeRender
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: jest.fn().mockImplementation((query) => ({
-    matches: false,
-    media: query,
-    onchange: ReactNull,
-    addListener: jest.fn(), // deprecated
-    removeListener: jest.fn(), // deprecated
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
+beforeEach(() => {
+  // Copied from: https://jestjs.io/docs/manual-mocks#mocking-methods-which-are-not-implemented-in-jsdom
+  // mock matchMedia for `Renderer` class in ThreeDeeRender
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: jest.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: ReactNull,
+      addListener: jest.fn(), // deprecated
+      removeListener: jest.fn(), // deprecated
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
 });
 
 const defaultRendererConfig: RendererConfig = {
@@ -107,6 +114,7 @@ describe("3D Renderer", () => {
   let parent = document.createElement("div");
   beforeEach(() => {
     jest.clearAllMocks();
+    setupJestCanvasMock();
     parent = document.createElement("div");
     canvas = document.createElement("canvas");
     parent.appendChild(canvas);
@@ -129,6 +137,9 @@ describe("3D Renderer", () => {
       },
       "3d",
     );
+    const cameraState = renderer.sceneExtensions.get(
+      "foxglove.CameraStateSettings",
+    ) as CameraStateSettings;
 
     renderer.setCurrentTime(1n);
 
@@ -141,7 +152,7 @@ describe("3D Renderer", () => {
     tfWithDisplayChild.message.transforms[0]!.transform.translation.x = 1;
     renderer.addMessageEvent(tfWithDisplayChild);
     renderer.animationFrame();
-    expect(renderer.cameraStateSettings.unfollowPoseSnapshot).toBeUndefined();
+    expect(cameraState.unfollowPoseSnapshot).toBeUndefined();
   });
   it("records pose snapshot after changing from follow-pose mode to follow-none", () => {
     const config = {
@@ -151,6 +162,9 @@ describe("3D Renderer", () => {
       scene: { transforms: { enablePreloading: false } },
     };
     const renderer = new Renderer(canvas, config, "3d");
+    const cameraState = renderer.sceneExtensions.get(
+      "foxglove.CameraStateSettings",
+    ) as CameraStateSettings;
 
     renderer.setCurrentTime(1n);
 
@@ -163,11 +177,11 @@ describe("3D Renderer", () => {
     tfWithDisplayChild.message.transforms[0]!.transform.translation.x = 1;
     renderer.addMessageEvent(tfWithDisplayChild);
     renderer.animationFrame();
-    expect(renderer.cameraStateSettings.unfollowPoseSnapshot).toBeUndefined();
+    expect(cameraState.unfollowPoseSnapshot).toBeUndefined();
     renderer.config = { ...config, followMode: "follow-none" };
     renderer.animationFrame();
     // parent is the camera group that holds the pose from the snapshot
-    expect(renderer.cameraStateSettings.unfollowPoseSnapshot?.position).toEqual({
+    expect(cameraState.unfollowPoseSnapshot?.position).toEqual({
       x: 1,
       y: 0,
       z: 0,
@@ -181,6 +195,9 @@ describe("3D Renderer", () => {
       scene: { transforms: { enablePreloading: false } },
     };
     const renderer = new Renderer(canvas, config, "3d");
+    const cameraState = renderer.sceneExtensions.get(
+      "foxglove.CameraStateSettings",
+    ) as CameraStateSettings;
 
     renderer.setCurrentTime(1n);
 
@@ -193,14 +210,14 @@ describe("3D Renderer", () => {
     tfWithDisplayChild.message.transforms[0]!.transform.translation.x = 1;
     renderer.addMessageEvent(tfWithDisplayChild);
     renderer.animationFrame();
-    expect(renderer.cameraStateSettings.unfollowPoseSnapshot?.position).toEqual({
+    expect(cameraState.unfollowPoseSnapshot?.position).toEqual({
       x: 1,
       y: 0,
       z: 0,
     });
     renderer.config = { ...config, followMode: "follow-pose" };
     renderer.animationFrame();
-    expect(renderer.cameraStateSettings.unfollowPoseSnapshot).toBeUndefined();
+    expect(cameraState.unfollowPoseSnapshot).toBeUndefined();
   });
   it("keeps same unfollowPoseSnapshot when switching from follow-none to follow-position", () => {
     const config = {
@@ -210,6 +227,9 @@ describe("3D Renderer", () => {
       scene: { transforms: { enablePreloading: false } },
     };
     const renderer = new Renderer(canvas, config, "3d");
+    const cameraState = renderer.sceneExtensions.get(
+      "foxglove.CameraStateSettings",
+    ) as CameraStateSettings;
 
     renderer.setCurrentTime(1n);
 
@@ -222,14 +242,14 @@ describe("3D Renderer", () => {
     tfWithDisplayChild.message.transforms[0]!.transform.translation.x = 1;
     renderer.addMessageEvent(tfWithDisplayChild);
     renderer.animationFrame();
-    expect(renderer.cameraStateSettings.unfollowPoseSnapshot?.position).toEqual({
+    expect(cameraState.unfollowPoseSnapshot?.position).toEqual({
       x: 1,
       y: 0,
       z: 0,
     });
     renderer.config = { ...config, followMode: "follow-position" };
     renderer.animationFrame();
-    expect(renderer.cameraStateSettings.unfollowPoseSnapshot?.position).toEqual({
+    expect(cameraState.unfollowPoseSnapshot?.position).toEqual({
       x: 1,
       y: 0,
       z: 0,
@@ -246,6 +266,9 @@ describe("3D Renderer", () => {
       },
       "3d",
     );
+    const cameraState = renderer.sceneExtensions.get(
+      "foxglove.CameraStateSettings",
+    ) as CameraStateSettings;
 
     renderer.setCurrentTime(1n);
 
@@ -259,7 +282,7 @@ describe("3D Renderer", () => {
     renderer.addMessageEvent(tfWithDisplayChild);
     renderer.animationFrame();
     expect(renderer.fixedFrameId).toEqual("parentOfDisplay");
-    expect(renderer.cameraStateSettings.unfollowPoseSnapshot?.position).toEqual({
+    expect(cameraState.unfollowPoseSnapshot?.position).toEqual({
       x: 1,
       y: 0,
       z: 0,
@@ -271,7 +294,7 @@ describe("3D Renderer", () => {
     renderer.animationFrame();
     expect(renderer.fixedFrameId).toEqual("root");
     // combines the two translations
-    expect(renderer.cameraStateSettings.unfollowPoseSnapshot?.position).toEqual({
+    expect(cameraState.unfollowPoseSnapshot?.position).toEqual({
       x: 1,
       y: 1,
       z: 0,
@@ -502,6 +525,7 @@ describe("Renderer.handleAllFramesMessages behavior", () => {
   let parent = document.createElement("div");
   beforeEach(() => {
     jest.clearAllMocks();
+    setupJestCanvasMock();
     parent = document.createElement("div");
     canvas = document.createElement("canvas");
     parent.appendChild(canvas);
@@ -626,4 +650,88 @@ describe("Renderer.handleAllFramesMessages behavior", () => {
     // will read all messages in twice
     expect(addMessageEventMock).toHaveBeenCalledTimes(20);
   });
+  it("resets cursor if messages were added before the cursor index", () => {
+    const renderer = new Renderer(canvas, defaultRendererConfig, "3d");
+
+    const msgs = [];
+    let i = 2;
+    for (i; i < 10; i++) {
+      msgs.push(createTFMessageEvent("a", "b", BigInt(i), [BigInt(i)]));
+    }
+    const addMessageEventMock = jest.spyOn(renderer, "addMessageEvent");
+    renderer.setCurrentTime(5n);
+    renderer.handleAllFramesMessages(msgs);
+    const numMessagesBeforeTime = msgs.filter(
+      (msg) => toNanoSec(msg.message.transforms[0]!.header.stamp) <= 5n,
+    ).length;
+    expect(addMessageEventMock).toHaveBeenCalledTimes(numMessagesBeforeTime);
+
+    addMessageEventMock.mockClear();
+
+    // add message to beginning of array, before cursor
+    msgs.unshift(createTFMessageEvent("a", "b", 1n, [1n]));
+
+    const newMessagesHandled = renderer.handleAllFramesMessages(msgs);
+    expect(newMessagesHandled).toBeTruthy();
+    // will read from the beginning of the array again  because cursor was reset
+    expect(addMessageEventMock).toHaveBeenCalledTimes(numMessagesBeforeTime + 1);
+  });
+  it("resets cursor if messages were removed before the cursor index", () => {
+    const renderer = new Renderer(canvas, defaultRendererConfig, "3d");
+
+    const msgs = [];
+    let i = 2;
+    for (i; i < 10; i++) {
+      msgs.push(createTFMessageEvent("a", "b", BigInt(i), [BigInt(i)]));
+    }
+    const addMessageEventMock = jest.spyOn(renderer, "addMessageEvent");
+    renderer.setCurrentTime(5n);
+    renderer.handleAllFramesMessages(msgs);
+    const numMessagesBeforeTime = msgs.filter(
+      (msg) => toNanoSec(msg.message.transforms[0]!.header.stamp) <= 5n,
+    ).length;
+    expect(addMessageEventMock).toHaveBeenCalledTimes(numMessagesBeforeTime);
+
+    addMessageEventMock.mockClear();
+
+    // remove message at beginning of array, before cursor
+    msgs.shift();
+
+    const newMessagesHandled = renderer.handleAllFramesMessages(msgs);
+    expect(newMessagesHandled).toBeTruthy();
+    // will read from the beginning of the array again  because cursor was reset
+    expect(addMessageEventMock).toHaveBeenCalledTimes(numMessagesBeforeTime - 1);
+  });
+  it.failing(
+    "(does not) reset the cursor if number of messages added **and** removed before cursor are equal in a single update",
+    () => {
+      const renderer = new Renderer(canvas, defaultRendererConfig, "3d");
+
+      const msgs = [];
+      let i = 2;
+      for (i; i < 10; i++) {
+        msgs.push(createTFMessageEvent("a", "b", BigInt(i), [BigInt(i)]));
+      }
+      const addMessageEventMock = jest.spyOn(renderer, "addMessageEvent");
+      renderer.setCurrentTime(5n);
+      renderer.handleAllFramesMessages(msgs);
+      const numMessagesBeforeTime = msgs.filter(
+        (msg) => toNanoSec(msg.message.transforms[0]!.header.stamp) <= 5n,
+      ).length;
+      expect(addMessageEventMock).toHaveBeenCalledTimes(numMessagesBeforeTime);
+
+      addMessageEventMock.mockClear();
+
+      // remove message at beginning of array, before cursor
+      msgs.shift();
+
+      // add message to beginning of array, before cursor
+      msgs.unshift(createTFMessageEvent("a", "b", 1n, [1n]));
+
+      const newMessagesHandled = renderer.handleAllFramesMessages(msgs);
+      expect(newMessagesHandled).toBeTruthy();
+      // will read from the beginning of the array again  because cursor was reset
+      expect(addMessageEventMock).toHaveBeenCalledTimes(numMessagesBeforeTime - 1);
+    },
+  );
 });

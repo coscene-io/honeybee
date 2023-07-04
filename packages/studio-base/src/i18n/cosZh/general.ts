@@ -4,7 +4,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const cosGeneral: TypeOptions["resources"]["cosGeneral"] = {
+export const cosGeneral: Partial<TypeOptions["resources"]["cosGeneral"]> = {
   coScene: "coScene",
   apply: "使用",
   refresh: "刷新",

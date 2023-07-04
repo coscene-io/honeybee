@@ -130,60 +130,60 @@ function optionalToRFC3339String(time: Time | undefined): string | undefined {
 type ApiResponse<T> = { status: number; json: T };
 
 class ConsoleApi {
-  private _baseUrl: string;
-  private _authHeader?: string;
-  private _responseObserver: undefined | ((response: Response) => void);
+  #baseUrl: string;
+  #authHeader?: string;
+  #responseObserver: undefined | ((response: Response) => void);
 
   public constructor(baseUrl: string) {
-    this._baseUrl = baseUrl;
+    this.#baseUrl = baseUrl;
   }
 
   public getBaseUrl(): string {
-    return this._baseUrl;
+    return this.#baseUrl;
   }
 
   public setAuthHeader(header: string): void {
-    this._authHeader = header;
+    this.#authHeader = header;
   }
 
   public getAuthHeader(): string | undefined {
-    return this._authHeader;
+    return this.#authHeader;
   }
 
   public setResponseObserver(observer: undefined | ((response: Response) => void)): void {
-    this._responseObserver = observer;
+    this.#responseObserver = observer;
   }
 
   public async orgs(): Promise<Org[]> {
-    return await this.get<Org[]>("/v1/orgs");
+    return await this.#get<Org[]>("/v1/orgs");
   }
 
   public async me(): Promise<User> {
-    return await this.get<User>("/v1/me");
+    return await this.#get<User>("/v1/me");
   }
 
   public async signin(args: SigninArgs): Promise<Session> {
-    return await this.post<Session>("/v1/signin", args);
+    return await this.#post<Session>("/v1/signin", args);
   }
 
   public async signout(): Promise<void> {
-    return await this.post<void>("/v1/signout");
+    return await this.#post<void>("/v1/signout");
   }
 
   public async deviceCode(args: DeviceCodeArgs): Promise<DeviceCodeResponse> {
-    return await this.post<DeviceCodeResponse>("/v1/auth/device-code", {
+    return await this.#post<DeviceCodeResponse>("/v1/auth/device-code", {
       clientId: args.clientId,
     });
   }
 
   public async token(args: TokenArgs): Promise<TokenResponse> {
-    return await this.post<TokenResponse>("/v1/auth/token", {
+    return await this.#post<TokenResponse>("/v1/auth/token", {
       deviceCode: args.deviceCode,
       clientId: args.clientId,
     });
   }
 
-  private async get<T>(apiPath: string, query?: Record<string, string | undefined>): Promise<T> {
+  async #get<T>(apiPath: string, query?: Record<string, string | undefined>): Promise<T> {
     // Strip keys with undefined values from the final query
     let queryWithoutUndefined: Record<string, string> | undefined;
     if (query) {
@@ -196,7 +196,7 @@ class ConsoleApi {
     }
 
     return (
-      await this.request<T>(
+      await this.#request<T>(
         query == undefined
           ? apiPath
           : `${apiPath}?${new URLSearchParams(queryWithoutUndefined).toString()}`,
@@ -206,15 +206,15 @@ class ConsoleApi {
   }
 
   public async getExtensions(): Promise<ExtensionResponse[]> {
-    return await this.get<ExtensionResponse[]>("/v1/extensions");
+    return await this.#get<ExtensionResponse[]>("/v1/extensions");
   }
 
   public async getExtension(id: string): Promise<ExtensionResponse> {
-    return await this.get<ExtensionResponse>(`/v1/extensions/${id}`);
+    return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
   }
 
   public async getDevice(id: string): Promise<DeviceResponse> {
-    return await this.get<DeviceResponse>(`/v1/devices/${id}`);
+    return await this.#get<DeviceResponse>(`/v1/devices/${id}`);
   }
 
   public async createEvent(params: {
@@ -223,7 +223,7 @@ class ConsoleApi {
     durationNanos: string;
     metadata: Record<string, string>;
   }): Promise<ConsoleEvent> {
-    const rawEvent = await this.post<ConsoleEvent>(`/beta/device-events`, params);
+    const rawEvent = await this.#post<ConsoleEvent>(`/beta/device-events`, params);
     return rawEvent;
   }
 
@@ -233,7 +233,7 @@ class ConsoleApi {
     end: string;
     query?: string;
   }): Promise<EventsResponse> {
-    const rawEvents = await this.get<EventsResponse>(`/beta/device-events`, params);
+    const rawEvents = await this.#get<EventsResponse>(`/beta/device-events`, params);
     return rawEvents.map((event) => {
       const startTime = fromNanoSec(BigInt(event.timestampNanos));
       const endTime = add(startTime, fromNanoSec(BigInt(event.durationNanos)));
@@ -248,7 +248,7 @@ class ConsoleApi {
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
-    return await this.get<ConsoleApiLayout[]>("/v1/layouts", {
+    return await this.#get<ConsoleApiLayout[]>("/v1/layouts", {
       includeData: options.includeData ? "true" : "false",
     });
   }
@@ -257,7 +257,7 @@ class ConsoleApi {
     id: LayoutID,
     options: { includeData: boolean },
   ): Promise<ConsoleApiLayout | undefined> {
-    return await this.get<ConsoleApiLayout>(`/v1/layouts/${id}`, {
+    return await this.#get<ConsoleApiLayout>(`/v1/layouts/${id}`, {
       includeData: options.includeData ? "true" : "false",
     });
   }
@@ -269,7 +269,7 @@ class ConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<ConsoleApiLayout> {
-    return await this.post<ConsoleApiLayout>("/v1/layouts", layout);
+    return await this.#post<ConsoleApiLayout>("/v1/layouts", layout);
   }
 
   public async updateLayout(layout: {
@@ -279,7 +279,7 @@ class ConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
-    const { status, json: newLayout } = await this.patch<ConsoleApiLayout>(
+    const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
       `/v1/layouts/${layout.id}`,
       layout,
     );
@@ -291,11 +291,11 @@ class ConsoleApi {
   }
 
   public async deleteLayout(id: LayoutID): Promise<boolean> {
-    return (await this.delete(`/v1/layouts/${id}`)).status === 200;
+    return (await this.#delete(`/v1/layouts/${id}`)).status === 200;
   }
 
   public async coverage(params: DataPlatformRequestArgs): Promise<CoverageResponse[]> {
-    return await this.get<CoverageResponse[]>("/v1/data/coverage", {
+    return await this.#get<CoverageResponse[]>("/v1/data/coverage", {
       ...params,
       start: optionalToRFC3339String(params.start),
       end: optionalToRFC3339String(params.end),
@@ -306,7 +306,7 @@ class ConsoleApi {
     params: DataPlatformRequestArgs & { includeSchemas?: boolean },
   ): Promise<readonly TopicResponse[]> {
     return (
-      await this.get<RawTopicResponse[]>("/v1/data/topics", {
+      await this.#get<RawTopicResponse[]>("/v1/data/topics", {
         ...params,
         start: optionalToRFC3339String(params.start),
         end: optionalToRFC3339String(params.end),
@@ -330,7 +330,7 @@ class ConsoleApi {
       replayLookbackSeconds?: number;
     },
   ): Promise<{ link: string }> {
-    return await this.post<{ link: string }>("/v1/data/stream", {
+    return await this.#post<{ link: string }>("/v1/data/stream", {
       ...params,
       start: optionalToRFC3339String(params.start),
       end: optionalToRFC3339String(params.end),
@@ -339,7 +339,7 @@ class ConsoleApi {
 
   /// ----- private
 
-  private async request<T>(
+  async #request<T>(
     url: string,
     config?: RequestInit,
     {
@@ -349,11 +349,11 @@ class ConsoleApi {
       allowedStatuses?: number[];
     } = {},
   ): Promise<ApiResponse<T>> {
-    const fullUrl = `${this._baseUrl}${url}`;
+    const fullUrl = `${this.#baseUrl}${url}`;
 
     const headers: Record<string, string> = {};
-    if (this._authHeader != undefined) {
-      headers["Authorization"] = this._authHeader;
+    if (this.#authHeader != undefined) {
+      headers["Authorization"] = this.#authHeader;
     }
     const fullConfig: RequestInit = {
       ...config,
@@ -362,7 +362,7 @@ class ConsoleApi {
     };
 
     const res = await fetch(fullUrl, fullConfig);
-    this._responseObserver?.(res);
+    this.#responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
         window.location.replace("/");
@@ -386,9 +386,9 @@ class ConsoleApi {
     }
   }
 
-  private async post<T>(apiPath: string, body?: unknown): Promise<T> {
+  async #post<T>(apiPath: string, body?: unknown): Promise<T> {
     return (
-      await this.request<T>(apiPath, {
+      await this.#request<T>(apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -396,8 +396,8 @@ class ConsoleApi {
     ).json;
   }
 
-  private async patch<T>(apiPath: string, body?: unknown): Promise<ApiResponse<T>> {
-    return await this.request<T>(
+  async #patch<T>(apiPath: string, body?: unknown): Promise<ApiResponse<T>> {
+    return await this.#request<T>(
       apiPath,
       {
         method: "PATCH",
@@ -408,11 +408,8 @@ class ConsoleApi {
     );
   }
 
-  private async delete<T>(
-    apiPath: string,
-    query?: Record<string, string>,
-  ): Promise<ApiResponse<T>> {
-    return await this.request<T>(
+  async #delete<T>(apiPath: string, query?: Record<string, string>): Promise<ApiResponse<T>> {
+    return await this.#request<T>(
       query == undefined ? apiPath : `${apiPath}?${new URLSearchParams(query).toString()}`,
       { method: "DELETE" },
       { allowedStatuses: [404] },

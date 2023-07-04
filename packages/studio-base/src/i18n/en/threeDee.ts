@@ -18,7 +18,7 @@ export const threeDee = {
   followModeHelp: "Change the camera behavior during playback to follow the display frame or not.",
   pose: "Pose",
   fixed: "Fixed",
-  frameNotFound: "Frame {{followFrameId}} not found",
+  frameNotFound: "Frame {{frameId}} not found",
   noCoordinateFramesFound: "No coordinate frames found",
   enablePreloading: "Enable preloading",
   lineColor: "Line color",
@@ -34,6 +34,7 @@ export const threeDee = {
   // Scene
   scene: "Scene",
   renderStats: "Render stats",
+  debugPicking: "Debug picking",
   background: "Background",
   labelScale: "Label scale",
   labelScaleHelp: "Scale factor to apply to all labels",
@@ -71,4 +72,8 @@ export const threeDee = {
   grid: "Grid",
   delete: "Delete",
   addGrid: "Add Grid",
+
+  // Image annotations
+  imageAnnotations: "Image annotations",
+  resetView: "Reset view",
 };

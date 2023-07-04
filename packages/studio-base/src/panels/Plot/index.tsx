@@ -11,7 +11,6 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import DownloadIcon from "@mui/icons-material/Download";
 import { useTheme } from "@mui/material";
 import { compact, isNumber, uniq } from "lodash";
 import { ComponentProps, useCallback, useEffect, useMemo, useState } from "react";
@@ -29,15 +28,15 @@ import {
   useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
+import {
+  PanelContextMenu,
+  PanelContextMenuItem,
+} from "@foxglove/studio-base/components/PanelContextMenu";
 import PanelToolbar, {
   PANEL_TOOLBAR_MIN_HEIGHT,
 } from "@foxglove/studio-base/components/PanelToolbar";
-import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
 import Stack from "@foxglove/studio-base/components/Stack";
-import {
-  ChartDefaultView,
-  TimeBasedChartTooltipData,
-} from "@foxglove/studio-base/components/TimeBasedChart";
+import { ChartDefaultView } from "@foxglove/studio-base/components/TimeBasedChart";
 import { usePlotPanelMessageData } from "@foxglove/studio-base/panels/Plot/usePlotPanelMessageData";
 import { OnClickArg as OnChartClickArgs } from "@foxglove/studio-base/src/components/Chart";
 import { OpenSiblingPanel, PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
@@ -47,7 +46,6 @@ import PlotChart from "./PlotChart";
 import { PlotLegend } from "./PlotLegend";
 import { downloadCSV } from "./csv";
 import { getDatasets } from "./datasets";
-import { DataSet } from "./internalTypes";
 import { usePlotPanelSettings } from "./settings";
 import { PlotConfig } from "./types";
 
@@ -77,20 +75,6 @@ type Props = {
 };
 
 const ZERO_TIME = { sec: 0, nsec: 0 };
-
-/**
- * Builds a lookup map of a compound x:y:index key to a datum, used to map hovered positions
- * on screen to a data point for tooltip display.
- */
-function buildTooltipLookupMap(datasets: DataSet[]): Map<string, TimeBasedChartTooltipData> {
-  const lookup = new Map<string, TimeBasedChartTooltipData>();
-  for (const [index, dataset] of datasets.entries()) {
-    for (const datum of dataset.data) {
-      lookup.set(`${datum.x}:${datum.y}:${index}`, datum);
-    }
-  }
-  return lookup;
-}
 
 function selectStartTime(ctx: MessagePipelineContext) {
   return ctx.playerState.activeData?.startTime;
@@ -214,13 +198,6 @@ function Plot(props: Props) {
     });
   }, [yAxisPaths, combinedPlotData, startTime, xAxisVal, xAxisPath, theme.palette.mode]);
 
-  const tooltips = useMemo(() => {
-    if (showLegend && showPlotValuesInLegend) {
-      return new Map();
-    }
-    return buildTooltipLookupMap(datasets);
-  }, [datasets, showLegend, showPlotValuesInLegend]);
-
   const messagePipeline = useMessagePipelineGetter();
   const onClick = useCallback<NonNullable<ComponentProps<typeof PlotChart>["onClick"]>>(
     ({ x: seekSeconds }: OnChartClickArgs) => {
@@ -248,6 +225,17 @@ function Plot(props: Props) {
     [legendDisplay],
   );
 
+  const getPanelContextMenuItems = useCallback(() => {
+    const items: PanelContextMenuItem[] = [
+      {
+        type: "item",
+        label: "Download plot data as CSV",
+        onclick: () => downloadCSV(datasets, xAxisVal),
+      },
+    ];
+    return items;
+  }, [datasets, xAxisVal]);
+
   return (
     <Stack
       flex="auto"
@@ -256,16 +244,7 @@ function Plot(props: Props) {
       overflow="hidden"
       position="relative"
     >
-      <PanelToolbar
-        additionalIcons={
-          <ToolbarIconButton
-            onClick={() => downloadCSV(datasets, xAxisVal)}
-            title="Download plot data as CSV"
-          >
-            <DownloadIcon fontSize="small" />
-          </ToolbarIconButton>
-        }
-      />
+      <PanelToolbar />
       <Stack
         direction={stackDirection}
         flex="auto"
@@ -295,12 +274,12 @@ function Plot(props: Props) {
             showXAxisLabels={showXAxisLabels}
             showYAxisLabels={showYAxisLabels}
             datasets={datasets}
-            tooltips={tooltips}
             xAxisVal={xAxisVal}
             currentTime={currentTimeSinceStart}
             onClick={onClick}
             defaultView={defaultView}
           />
+          <PanelContextMenu getItems={getPanelContextMenuItems} />
         </Stack>
       </Stack>
     </Stack>
@@ -308,7 +287,6 @@ function Plot(props: Props) {
 }
 
 const defaultConfig: PlotConfig = {
-  title: "Plot",
   paths: [{ value: "", enabled: true, timestampMethod: "receiveTime" }],
   minYValue: undefined,
   maxYValue: undefined,

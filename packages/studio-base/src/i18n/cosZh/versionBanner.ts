@@ -4,7 +4,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const cosVersionBanner: TypeOptions["resources"]["cosVersionBanner"] = {
+export const cosVersionBanner: Partial<TypeOptions["resources"]["cosVersionBanner"]> = {
   outdatedVersion: "您当前使用的浏览器性能过低，",
   unsupportedBrowser: "你正在使用不支持的浏览器",
   requireChrome: "刻行建议您升级到 Chrome 104 以上的版本",

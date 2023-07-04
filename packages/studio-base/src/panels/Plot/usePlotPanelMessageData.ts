@@ -2,11 +2,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Immutable } from "immer";
 import { groupBy, isEmpty, pick } from "lodash";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLatest } from "react-use";
+import { useDebounce } from "use-debounce";
 
 import { isLessThan, isTimeInRangeInclusive, subtract } from "@foxglove/rostime";
+import { Immutable } from "@foxglove/studio";
 import { useBlocksByTopic, useMessageReducer } from "@foxglove/studio-base/PanelAPI";
 import parseRosPath, {
   getTopicsFromPaths,
@@ -62,6 +64,12 @@ export function usePlotPanelMessageData(params: Params): Immutable<PlotDataByPat
 
   const cachedGetMessagePathDataItems = useCachedGetMessagePathDataItems(allPaths);
 
+  // Debounce blocks data to improve handling of large blocks.
+  const [debouncedPlotDataForBlocks] = useDebounce(plotDataForBlocks, 500, {
+    leading: true,
+    maxWait: 2_000,
+  });
+
   const blocksTimeRange = useMemo(
     () => PlotData.findTimeRanges(plotDataForBlocks),
     [plotDataForBlocks],
@@ -74,16 +82,23 @@ export function usePlotPanelMessageData(params: Params): Immutable<PlotDataByPat
   const restore = useCallback(
     (previous?: TaggedPlotDataByPath): TaggedPlotDataByPath => {
       if (!previous) {
-        return { tag: new Date().toISOString(), data: {} };
+        // If we're showing single frames, we don't want to accumulate chunks of messages
+        // across multiple frames, so we put everything into a single restore tag and
+        // each new frame replaces the old one.
+        const tag = showSingleCurrentMessage ? "single" : new Date().toISOString();
+        return { tag, data: {} };
       }
 
       return { ...previous, data: pick(previous.data, allPaths) };
     },
-    [allPaths],
+    [allPaths, showSingleCurrentMessage],
   );
 
+  // Use a reference for the blocks time range to stabilize our addMessages callback.
+  const latestBlocksTimeRange = useLatest(blocksTimeRange);
+
   const addMessages = useCallback(
-    (accumulated: TaggedPlotDataByPath, msgEvents: readonly MessageEvent<unknown>[]) => {
+    (accumulated: TaggedPlotDataByPath, msgEvents: readonly MessageEvent[]) => {
       const lastEventTime = msgEvents[msgEvents.length - 1]?.receiveTime;
       const isFollowing = followingView?.type === "following";
 
@@ -104,7 +119,7 @@ export function usePlotPanelMessageData(params: Params): Immutable<PlotDataByPat
           }
 
           const headerStamp = getTimestampForMessage(msgEvent.message);
-          const existingBlockRange = blocksTimeRange.byPath[path];
+          const existingBlockRange = latestBlocksTimeRange.current.byPath[path];
           if (
             existingBlockRange &&
             isTimeInRangeInclusive(
@@ -158,8 +173,8 @@ export function usePlotPanelMessageData(params: Params): Immutable<PlotDataByPat
       return newAccumulated ?? accumulated;
     },
     [
-      blocksTimeRange,
       cachedGetMessagePathDataItems,
+      latestBlocksTimeRange,
       followingView,
       showSingleCurrentMessage,
       topicToPaths,
@@ -189,8 +204,9 @@ export function usePlotPanelMessageData(params: Params): Immutable<PlotDataByPat
   }, [plotDataByPath, plotDataForBlocks]);
 
   const combinedPlotData = useMemo(
-    () => PlotData.combine([plotDataForBlocks, ...Object.values(accumulatedPathIntervals)]),
-    [accumulatedPathIntervals, plotDataForBlocks],
+    () =>
+      PlotData.combine([debouncedPlotDataForBlocks, ...Object.values(accumulatedPathIntervals)]),
+    [accumulatedPathIntervals, debouncedPlotDataForBlocks],
   );
 
   return combinedPlotData;

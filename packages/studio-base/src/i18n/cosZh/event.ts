@@ -4,7 +4,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const cosEvent: TypeOptions["resources"]["cosEvent"] = {
+export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   assignee: "经办人",
   name: "名称",
   createMoment: "创建一刻",

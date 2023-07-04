@@ -1,6 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 import { difference, isEqual } from "lodash";
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +16,7 @@ import { VariableValue } from "@foxglove/studio";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import CurrentLayoutContext, {
   ICurrentLayout,
+  LayoutID,
   LayoutState,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
@@ -26,7 +28,6 @@ import {
   EndDragPayload,
   MoveTabPayload,
   PanelsActions,
-  LayoutData,
   SaveConfigsPayload,
   SplitPanelPayload,
   StartDragPayload,
@@ -43,18 +44,19 @@ import { keenonDefaultLayout } from "@foxglove/studio-base/providers/CurrentLayo
 import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/ILayoutManager";
-import { LayoutID } from "@foxglove/studio-base/services/ILayoutStorage";
-import { PanelConfig, UserNodes, PlaybackConfig } from "@foxglove/studio-base/types/panels";
+import { PanelConfig, PlaybackConfig, UserNodes } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
+import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert";
+
 const log = Logger.getLogger(__filename);
 
-const SAVE_INTERVAL_MS = 1000;
+export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
 
 /**
- * Concrete implementation of CurrentLayoutContext.Provider which handles automatically saving and
- * restoring the current layout from LayoutStorage.
+ * Concrete implementation of CurrentLayoutContext.Provider which handles
+ * automatically restoring the current layout from LayoutStorage.
  */
 export default function CurrentLayoutProvider({
   children,
@@ -79,6 +81,7 @@ export default function CurrentLayoutProvider({
     selectedLayout: undefined,
   });
   const layoutStateRef = useRef(layoutState);
+  const [incompatibleLayoutVersionError, setIncompatibleLayoutVersionError] = useState(false);
   const setLayoutState = useCallback((newState: LayoutState) => {
     setLayoutStateInternal(newState);
 
@@ -125,9 +128,16 @@ export default function CurrentLayoutProvider({
       try {
         setLayoutState({ selectedLayout: { id, loading: true, data: undefined } });
         const layout = await layoutManager.getLayout(id);
+        const layoutVersion = layout?.baseline.data.version;
+        if (layoutVersion != undefined && layoutVersion > MAX_SUPPORTED_LAYOUT_VERSION) {
+          setIncompatibleLayoutVersionError(true);
+          setLayoutState({ selectedLayout: undefined });
+          return;
+        }
         if (!isMounted()) {
           return;
         }
+        setIncompatibleLayoutVersionError(false);
         if (layout == undefined) {
           setLayoutState({ selectedLayout: undefined });
         } else {
@@ -153,18 +163,13 @@ export default function CurrentLayoutProvider({
         enqueueSnackbar(`The layout could not be loaded. ${error.toString()}`, {
           variant: "error",
         });
+        setIncompatibleLayoutVersionError(false);
         setLayoutState({ selectedLayout: undefined });
       }
     },
     [enqueueSnackbar, isMounted, layoutManager, setLayoutState, setUserProfile],
   );
 
-  type UpdateLayoutParams = { id: LayoutID; data: LayoutData };
-  const unsavedLayoutsRef = useRef(new Map<LayoutID, UpdateLayoutParams>());
-
-  // When the user performs an action, we immediately setLayoutState to update the UI. Saving back
-  // to the LayoutManager is debounced.
-  const debouncedSaveTimeout = useRef<ReturnType<typeof setTimeout> | undefined>();
   const performAction = useCallback(
     (action: PanelsActions) => {
       if (
@@ -176,46 +181,24 @@ export default function CurrentLayoutProvider({
       const oldData = layoutStateRef.current.selectedLayout.data;
       const newData = panelsReducer(oldData, action);
 
-      // the panel state did not change, so no need to perform layout state updates or layout manager updates
+      // The panel state did not change, so no need to perform layout state
+      // updates or layout manager updates.
       if (isEqual(oldData, newData)) {
         log.warn("Panel action resulted in identical config:", action);
         return;
       }
 
-      const newLayout = {
-        id: layoutStateRef.current.selectedLayout.id,
-        data: newData,
-        name: layoutStateRef.current.selectedLayout.name,
-      };
-
-      // store the layout for saving
-      unsavedLayoutsRef.current.set(newLayout.id, newLayout);
-
-      debouncedSaveTimeout.current ??= setTimeout(() => {
-        const layoutsToSave = [...unsavedLayoutsRef.current.values()];
-        unsavedLayoutsRef.current.clear();
-
-        debouncedSaveTimeout.current = undefined;
-        for (const params of layoutsToSave) {
-          void analytics.logEvent(AppEvent.LAYOUT_UPDATE);
-          layoutManager.updateLayout(params).catch((error) => {
-            log.error(error);
-            if (isMounted()) {
-              enqueueSnackbar(`Your changes could not be saved. ${error.toString()}`, {
-                variant: "error",
-                key: "CurrentLayoutProvider.throttledSave",
-              });
-            }
-          });
-        }
-      }, SAVE_INTERVAL_MS);
-
-      // Some actions like CHANGE_PANEL_LAYOUT will cause further downstream effects to update panel
-      // configs (i.e. set default configs). These result in calls to performAction. To ensure the
-      // debounced params are set in the proper order, we invoke setLayoutState at the end.
-      setLayoutState({ selectedLayout: { ...newLayout, loading: false } });
+      setLayoutState({
+        selectedLayout: {
+          id: layoutStateRef.current.selectedLayout.id,
+          data: newData,
+          loading: false,
+          name: layoutStateRef.current.selectedLayout.name,
+          edited: true,
+        },
+      });
     },
-    [analytics, enqueueSnackbar, isMounted, layoutManager, setLayoutState],
+    [setLayoutState],
   );
 
   // Changes to the layout storage from external user actions (such as resetting a layout to a
@@ -240,9 +223,6 @@ export default function CurrentLayoutProvider({
     layoutManager.on("change", listener);
     return () => {
       layoutManager.off("change", listener);
-      if (debouncedSaveTimeout.current) {
-        clearTimeout(debouncedSaveTimeout.current);
-      }
     };
   }, [layoutManager, setLayoutState]);
 
@@ -416,5 +396,12 @@ export default function CurrentLayoutProvider({
     actions,
   });
 
-  return <CurrentLayoutContext.Provider value={value}>{children}</CurrentLayoutContext.Provider>;
+  return (
+    <CurrentLayoutContext.Provider value={value}>
+      {children}
+      {incompatibleLayoutVersionError && (
+        <IncompatibleLayoutVersionAlert onClose={() => setIncompatibleLayoutVersionError(false)} />
+      )}
+    </CurrentLayoutContext.Provider>
+  );
 }

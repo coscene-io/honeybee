@@ -3,10 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { CsWebClient } from "@coscene-io/coscene/queries";
-import { Suspense, Fragment, useEffect } from "react";
+import { Fragment, Suspense, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
+import { DesktopInterfaceChangeWindowReloader } from "@foxglove/studio-base/components/DesktopInterfaceChangeWindowReloader";
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
 import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
 import CoSceneRecordProvider from "@foxglove/studio-base/providers/CoSceneRecordProvider";
@@ -62,6 +63,7 @@ type AppProps = CustomWindowControlsProps & {
   extraProviders?: JSX.Element[];
   onAppBarDoubleClick?: () => void;
   consoleApi: ConsoleApi;
+  onReloadWindow?: () => void;
 };
 
 // Suppress context menu for the entire app except on inputs & textareas.
@@ -91,12 +93,8 @@ export function App(props: AppProps): JSX.Element {
 
   const providers = [
     /* eslint-disable react/jsx-key */
-    <StudioLogsSettingsProvider />,
-    <ConsoleApiContext.Provider value={consoleApi} />,
-    <StudioToastProvider />,
-    <LayoutStorageContext.Provider value={layoutStorage} />,
     <UserProfileLocalStorageProvider />,
-    <LayoutManagerProvider />,
+    <ConsoleApiContext.Provider value={consoleApi} />,
     <TimelineInteractionStateProvider />,
     <UserNodeStateProvider />,
     <CurrentLayoutProvider />,
@@ -119,7 +117,15 @@ export function App(props: AppProps): JSX.Element {
 
   if (extraProviders) {
     providers.unshift(...extraProviders);
+  } else {
+    // Extra providers have their own layout providers
+    providers.unshift(<LayoutManagerProvider />);
+    providers.unshift(<LayoutStorageContext.Provider value={layoutStorage} />);
   }
+
+  // The toast and logs provider comes first so they are available to all downstream providers
+  providers.unshift(<StudioToastProvider />);
+  providers.unshift(<StudioLogsSettingsProvider />);
 
   const MaybeLaunchPreference = enableLaunchPreferenceScreen === true ? LaunchPreference : Fragment;
 
@@ -152,6 +158,9 @@ export function App(props: AppProps): JSX.Element {
                         onUnmaximizeWindow={props.onUnmaximizeWindow}
                         onCloseWindow={props.onCloseWindow}
                       />
+                      {props.onReloadWindow && (
+                        <DesktopInterfaceChangeWindowReloader reloadWindow={props.onReloadWindow} />
+                      )}
                     </PanelCatalogProvider>
                   </Suspense>
                 </DndProvider>

@@ -34,7 +34,6 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     description: t("3DPanelDescription"),
     thumbnail: threeDeeRenderThumbnail,
     module: async () => ({ default: (await import("./ThreeDeeRender")).ThreeDeePanel }),
-    settingsOnboardingTooltip: t("3DPanelSettingsOnboardingTooltip"),
   },
   {
     title: t("ROSDiagnosticsDetail"),
@@ -54,6 +53,13 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
   },
   {
     title: t("image"),
+    type: "Image",
+    description: t("imageDescription"),
+    thumbnail: imageViewThumbnail,
+    module: async () => ({ default: (await import("./ThreeDeeRender")).ImagePanel }),
+  },
+  {
+    title: t("imageLegacy"),
     type: "ImageViewPanel",
     description: t("imageDescription"),
     thumbnail: imageViewThumbnail,
@@ -185,15 +191,3 @@ export const getDebug: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     module: async () => await import("./PlaybackPerformance"),
   },
 ];
-
-export const getLegacyPlot: (t: TFunction<"panels">) => PanelInfo = (t) => ({
-  title: t("legacyPlot"),
-  type: "LegacyPlot",
-  module: async () => await import("./LegacyPlot"),
-});
-
-export const getNewImage: (t: TFunction<"panels">) => PanelInfo = (t) => ({
-  title: t("newImage"),
-  type: "Image",
-  module: async () => ({ default: (await import("./ThreeDeeRender")).ImagePanel }),
-});

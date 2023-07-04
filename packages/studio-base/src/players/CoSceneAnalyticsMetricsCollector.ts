@@ -8,19 +8,19 @@ import CoSceneConsoleApi, { MetricType } from "@foxglove/studio-base/services/Co
 export default class CoSceneAnalyticsMetricsCollector
   implements CoScenePlayerMetricsCollectorInterface
 {
-  private _timeStatistics: number = 0;
-  private _playing: boolean = false;
-  private _consoleApi: CoSceneConsoleApi | undefined;
+  #timeStatistics: number = 0;
+  #playing: boolean = false;
+  #consoleApi: CoSceneConsoleApi | undefined;
 
   public constructor(consoleApi: CoSceneConsoleApi | undefined) {
-    this._timeStatistics = 0;
-    this._consoleApi = consoleApi;
+    this.#timeStatistics = 0;
+    this.#consoleApi = consoleApi;
     setInterval(async () => {
-      if (this._playing) {
-        this._timeStatistics += 0.1;
-        if (~~(this._timeStatistics * 10) % 50 === 0) {
-          if (this._consoleApi) {
-            await this._consoleApi.sendIncCounter({
+      if (this.#playing) {
+        this.#timeStatistics += 0.1;
+        if (~~(this.#timeStatistics * 10) % 50 === 0) {
+          if (this.#consoleApi) {
+            await this.#consoleApi.sendIncCounter({
               name: MetricType.RecordPlaysEveryFiveSecondsTotal,
             });
           }
@@ -30,18 +30,18 @@ export default class CoSceneAnalyticsMetricsCollector
   }
 
   public async playerConstructed(): Promise<void> {
-    if (this._consoleApi) {
-      await this._consoleApi.sendIncCounter({
+    if (this.#consoleApi) {
+      await this.#consoleApi.sendIncCounter({
         name: MetricType.RecordPlaysTotal,
       });
     }
   }
 
   public play(): void {
-    this._playing = true;
+    this.#playing = true;
   }
 
   public pause(): void {
-    this._playing = false;
+    this.#playing = false;
   }
 }

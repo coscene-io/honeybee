@@ -3,12 +3,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  ChatBubblesQuestion24Regular,
-  Cloud24Regular,
+  // ChatBubblesQuestion24Regular,
+  // Cloud24Regular,
   SlideLayout24Regular,
 } from "@fluentui/react-icons";
 import {
-  Divider,
+  // Divider,
   ListItemText,
   ListSubheader,
   Menu,
@@ -17,6 +17,7 @@ import {
   PopoverPosition,
   PopoverReference,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
@@ -69,6 +70,7 @@ export function HelpMenu(props: HelpMenuProps): JSX.Element {
   const { classes } = useStyles();
   const currentUserType = useCurrentUserType();
   const analytics = useAnalytics();
+  const { t } = useTranslation();
 
   return (
     <Menu
@@ -88,7 +90,7 @@ export function HelpMenu(props: HelpMenuProps): JSX.Element {
     >
       <ListSubheader className={classes.subheader}>Documentation</ListSubheader>
       <MenuItem
-        href="https://foxglove.dev/docs/studio"
+        href="https://docs.coscene.cn/docs/category/%E6%95%B0%E6%8D%AE%E5%8F%AF%E8%A7%86%E5%8C%96/"
         className={classes.menuItem}
         component="a"
         target="_blank"
@@ -102,12 +104,12 @@ export function HelpMenu(props: HelpMenuProps): JSX.Element {
       >
         <SlideLayout24Regular className={classes.icon} />
         <ListItemText
-          primary="Studio"
-          secondary="Open source robotics visualization and debugging"
+          primary={t("dataVisualization", { ns: "cosHelp" })}
+          secondary={t("visualizeMachineDataAndAnalysis", { ns: "cosHelp" })}
           secondaryTypographyProps={{ className: classes.menuText }}
         />
       </MenuItem>
-      <MenuItem
+      {/* <MenuItem
         href="https://foxglove.dev/docs/data-platform"
         className={classes.menuItem}
         component="a"
@@ -126,8 +128,8 @@ export function HelpMenu(props: HelpMenuProps): JSX.Element {
           secondary="Scalable data management platform"
           secondaryTypographyProps={{ className: classes.menuText }}
         />
-      </MenuItem>
-      <Divider />
+      </MenuItem> */}
+      {/* <Divider />
       <ListSubheader className={classes.subheader}>Community</ListSubheader>
       <MenuItem
         href="https://foxglove.dev/slack"
@@ -148,7 +150,7 @@ export function HelpMenu(props: HelpMenuProps): JSX.Element {
           secondary="Give us feedback, ask questions, and collaborate with other users"
           secondaryTypographyProps={{ className: classes.menuText }}
         />
-      </MenuItem>
+      </MenuItem> */}
     </Menu>
   );
 }

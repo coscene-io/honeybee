@@ -13,10 +13,10 @@
 
 import ClearIcon from "@mui/icons-material/Clear";
 import {
-  alpha,
-  Autocomplete as MuiAutocomplete,
   MenuItem,
+  Autocomplete as MuiAutocomplete,
   TextField,
+  alpha,
   useTheme,
 } from "@mui/material";
 import { Fzf, FzfResultItem } from "fzf";
@@ -30,6 +30,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useResizeDetector } from "react-resize-detector";
 import { makeStyles } from "tss-react/mui";
 
 import { ReactWindowListboxAdapter } from "@foxglove/studio-base/components/ReactWindowListboxAdapter";
@@ -269,6 +270,17 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
     [onSelectCallback, blur, focus, setSelectionRange],
   );
 
+  // Blur the input on resize to prevent misalignment of the input field and the
+  // autocomplete listbox. Debounce to prevent resize observer loop limit errors.
+  useResizeDetector<HTMLInputElement>({
+    handleHeight: false,
+    onResize: () => inputRef.current?.blur(),
+    refreshMode: "debounce",
+    refreshRate: 0,
+    skipOnMount: true,
+    targetRef: inputRef,
+  });
+
   // Don't filter out options here because we assume that the parent
   // component has already filtered them. This allows completing fragments.
   const filterOptions = useCallback((options: FzfResultItem<T>[]) => options, []);
@@ -303,6 +315,7 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
           {...params}
           variant="filled"
           inputRef={inputRef}
+          data-testid="autocomplete-textfield"
           placeholder={placeholder}
           className={cx({ [classes.inputError]: hasError })}
           size="small"
@@ -317,7 +330,7 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
             key={itemValue}
             component="span"
             data-highlighted={selected}
-            data-test-auto-item
+            data-testid="autocomplete-item"
             className={cx(classes.item, {
               [classes.itemHighlighted]: selected,
               [classes.itemSelected]:

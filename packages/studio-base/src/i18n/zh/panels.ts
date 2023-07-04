@@ -4,20 +4,18 @@
 
 import { TypeOptions } from "i18next";
 
-export const panels: TypeOptions["resources"]["panels"] = {
+export const panels: Partial<TypeOptions["resources"]["panels"]> = {
   "3D": "三维",
-  newImage: "🚧图像",
   "3DPanelDescription": "在三维场景中显示标记、相机图像、网格、URDF 和其他内容。",
-  "3DPanelSettingsOnboardingTooltip": "打开设置以配置主题和层。",
   dataSourceInfo: "数据源信息",
   dataSourceInfoDescription: "查看当前数据源的主题和时间戳等详细信息。",
   gauge: "仪表",
   gaugeDescription: "基于连续值显示彩色仪表。",
   image: "图像",
+  imageLegacy: "图像（Legacy）",
   imageDescription: "显示带注释的图像。",
   indicator: "指示器",
   indicatorDescription: "基于阈值值显示彩色和/或文本指示器。",
-  legacyPlot: "传统图表",
   log: "日志",
   logDescription: "按节点和严重程度级别显示日志。",
   map: "地图",

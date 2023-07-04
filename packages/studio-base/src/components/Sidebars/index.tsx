@@ -6,6 +6,7 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { Badge, Paper, Tab, Tabs } from "@mui/material";
 import {
   ComponentProps,
+  MouseEvent,
   PropsWithChildren,
   useCallback,
   useEffect,
@@ -16,6 +17,7 @@ import { MosaicNode, MosaicWithoutDragDropContext } from "react-mosaic-component
 import { makeStyles } from "tss-react/mui";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { HelpMenu } from "@foxglove/studio-base/components/AppBar/HelpMenu";
 import { BuiltinIcon } from "@foxglove/studio-base/components/BuiltinIcon";
 import ErrorBoundary from "@foxglove/studio-base/components/ErrorBoundary";
 import { MemoryUseIndicator } from "@foxglove/studio-base/components/MemoryUseIndicator";
@@ -25,6 +27,7 @@ import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { NewSidebar, NewSidebarItem } from "./NewSidebar";
 import { TabSpacer } from "./TabSpacer";
+import "react-mosaic-component/react-mosaic-component.css";
 
 function Noop(): ReactNull {
   return ReactNull;
@@ -178,6 +181,17 @@ export default function Sidebars<
     return new Map([...items, ...bottomItems]);
   }, [bottomItems, items]);
 
+  const [helpAnchorEl, setHelpAnchorEl] = useState<undefined | HTMLElement>(undefined);
+
+  const helpMenuOpen = Boolean(helpAnchorEl);
+
+  const handleHelpClick = (event: MouseEvent<HTMLElement>) => {
+    setHelpAnchorEl(event.currentTarget);
+  };
+  const handleHelpClose = () => {
+    setHelpAnchorEl(undefined);
+  };
+
   const oldLeftSidebarOpen = !enableNewTopNav
     ? selectedKey != undefined && allOldLeftItems.has(selectedKey)
     : false;
@@ -323,14 +337,28 @@ export default function Sidebars<
               color="inherit"
               id="help-button"
               aria-label="Help menu button"
+              aria-controls={helpMenuOpen ? "help-menu" : undefined}
               aria-haspopup="true"
-              onClick={() => {
-                window.open("https://docs.coscene.cn/docs/get-started/create-project-flow/");
-              }}
-              icon={<HelpOutlineIcon color="inherit" />}
+              aria-expanded={helpMenuOpen ? "true" : undefined}
+              onClick={(event) => handleHelpClick(event)}
+              icon={<HelpOutlineIcon color={helpMenuOpen ? "primary" : "inherit"} />}
             />
+            {/* window.open("https://docs.coscene.cn/docs/get-started/create-project-flow/"); */}
             {bottomTabs}
           </Tabs>
+          <HelpMenu
+            anchorEl={helpAnchorEl}
+            open={helpMenuOpen}
+            handleClose={handleHelpClose}
+            anchorOrigin={{
+              horizontal: "right",
+              vertical: "bottom",
+            }}
+            transformOrigin={{
+              vertical: "bottom",
+              horizontal: "left",
+            }}
+          />
         </Stack>
       )}
       {

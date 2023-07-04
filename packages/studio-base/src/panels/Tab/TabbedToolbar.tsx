@@ -12,9 +12,9 @@
 //   You may not use this file except in compliance with the License.
 
 import AddIcon from "@mui/icons-material/Add";
-import { ButtonBase, useTheme } from "@mui/material";
+import { ButtonBase } from "@mui/material";
 import { useEffect } from "react";
-import { useDrop } from "react-dnd";
+import { DropTargetMonitor, useDrop } from "react-dnd";
 import { makeStyles } from "tss-react/mui";
 
 import PanelToolbar, {
@@ -53,12 +53,11 @@ type Props = {
 
 export function TabbedToolbar(props: Props): JSX.Element {
   const { panelId, actions, tabs, activeTabIdx, setDraggingTabState } = props;
-  const { classes } = useStyles();
-  const theme = useTheme();
+  const { classes, theme } = useStyles();
 
   const [{ isOver, item }, dropRef] = useDrop({
     accept: TAB_DRAG_TYPE,
-    collect: (monitor) => ({
+    collect: (monitor: DropTargetMonitor<DraggingTabItem>) => ({
       item: monitor.getItem(),
       isOver: monitor.isOver(),
     }),

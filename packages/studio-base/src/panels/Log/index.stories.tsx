@@ -11,10 +11,9 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { screen } from "@testing-library/dom";
-import userEvent from "@testing-library/user-event";
+import { StoryObj } from "@storybook/react";
+import { userEvent, within } from "@storybook/testing-library";
 import { range } from "lodash";
-import TestUtils from "react-dom/test-utils";
 
 import Log from "@foxglove/studio-base/panels/Log";
 import PanelSetup, { Fixture } from "@foxglove/studio-base/stories/PanelSetup";
@@ -104,6 +103,14 @@ const fixture: Fixture = {
   },
 };
 
+function makeMockMessages(topic: any) {
+  return fixture.frame!["/rosout"]!.map((msg: any) => ({
+    ...msg,
+    topic,
+    message: { ...msg.message, name: `${topic}${msg.message.name}` },
+  }));
+}
+
 function makeLongFixture(): Fixture {
   const levels = [1, 2, 4, 8, 16];
 
@@ -129,44 +136,113 @@ function makeLongFixture(): Fixture {
   };
 }
 
+const foxgloveLogFixture: Fixture = {
+  topics: [{ name: "/log", schemaName: "foxglove.Log" }],
+  frame: {
+    "/log": [
+      {
+        topic: "/log",
+        receiveTime: { sec: 123, nsec: 456 },
+        message: {
+          file: "some_topic_utils/src/foo.cpp",
+          timestamp: 123000000000n,
+          level: 1,
+          line: 242,
+          message: "Couldn't find int 83757.",
+        },
+        schemaName: "foxglove.Log",
+        sizeInBytes: 0,
+      },
+      {
+        topic: "/log",
+        receiveTime: { sec: 123, nsec: 456 },
+        message: {
+          file: "other_topic_utils/src/foo.cpp",
+          function: "vector<int> other_node::findInt",
+          timestamp: 123000000000n,
+          level: 2,
+          line: 242,
+          message: "Couldn't find int 2121.",
+        },
+        schemaName: "foxglove.Log",
+        sizeInBytes: 0,
+      },
+      {
+        topic: "/log",
+        receiveTime: { sec: 123, nsec: 456 },
+        message: {
+          file: "other_topic_utils/src/foo.cpp",
+          function: "vector<int> other_node::findInt",
+          timestamp: 123000000000n,
+          level: 3,
+          line: 242,
+          message: "Lorem ipsum blah blah. This message should\nshow up as multiple lines",
+        },
+        schemaName: "foxglove.Log",
+        sizeInBytes: 0,
+      },
+      {
+        topic: "/log",
+        receiveTime: { sec: 0, nsec: 0 },
+        message: {
+          timestamp: 1529678605521518001n,
+          level: 4,
+          message:
+            "26826:\nheader: \n  seq: 0\n  stamp: 1529678605.349576000\n  Adipisicing minim veniam sint occaecat anim laborum irure velit ut non do labore.\n",
+          file: "somefile.cpp",
+          line: 491,
+        },
+        schemaName: "foxglove.Log",
+        sizeInBytes: 0,
+      },
+      {
+        topic: "/log",
+        receiveTime: { sec: 0, nsec: 0 },
+        message: {
+          timestamp: 1529678605521518001n,
+          level: 5,
+          message: "fatal message",
+          file: "somefile.cpp",
+          line: 491,
+        },
+        schemaName: "foxglove.Log",
+        sizeInBytes: 0,
+      },
+    ],
+  },
+};
+
 export default {
   title: "panels/Log",
   component: Log,
 };
 
-export const Simple = (): JSX.Element => {
-  return (
+export const Simple: StoryObj = {
+  render: () => (
     <PanelSetup fixture={fixture}>
       <Log />
     </PanelSetup>
-  );
+  ),
 };
 
-export const Scrolled = (): JSX.Element => {
-  return (
+export const Scrolled: StoryObj = {
+  render: () => (
     <PanelSetup fixture={makeLongFixture()}>
       <Log />
     </PanelSetup>
-  );
+  ),
 };
 
-export const WithSettings = (): JSX.Element => {
-  return (
+export const WithSettings: StoryObj = {
+  render: () => (
     <PanelSetup fixture={fixture} includeSettings>
       <Log />
     </PanelSetup>
-  );
+  ),
 };
 
-export const TopicToRender = (): JSX.Element => {
-  function makeMessages(topic: any) {
-    return fixture.frame!["/rosout"]!.map((msg: any) => ({
-      ...msg,
-      topic,
-      message: { ...msg.message, name: `${topic}${msg.message.name}` },
-    }));
-  }
-  return (
+export const TopicToRenderWithSettings: StoryObj = {
+  render: () => (
     <PanelSetup
       fixture={{
         topics: [
@@ -175,28 +251,20 @@ export const TopicToRender = (): JSX.Element => {
           { name: "/studio_source_2/rosout", schemaName: "rosgraph_msgs/Log" },
         ],
         frame: {
-          "/rosout": makeMessages("/rosout"),
-          "/foo/rosout": makeMessages("/foo/rosout"),
-          "/studio_source_2/rosout": makeMessages("/studio_source_2/rosout"),
+          "/rosout": makeMockMessages("/rosout"),
+          "/foo/rosout": makeMockMessages("/foo/rosout"),
+          "/studio_source_2/rosout": makeMockMessages("/studio_source_2/rosout"),
         },
       }}
-      onMount={() => {
-        TestUtils.Simulate.mouseEnter(
-          document.querySelectorAll("[data-testid~=panel-mouseenter-container]")[0]!,
-        );
-        setTimeout(() => {
-          TestUtils.Simulate.click(document.querySelectorAll("[data-testid=topic-set]")[0]!);
-        }, 0);
-      }}
+      includeSettings
     >
-      <Log overrideConfig={{ searchTerms: [], minLogLevel: 1, topicToRender: "/foo/rosout" }} />
+      <Log overrideConfig={{ topicToRender: "/foo/rosout", searchTerms: [], minLogLevel: 1 }} />
     </PanelSetup>
-  );
+  ),
 };
-TopicToRender.parameters = { colorScheme: "dark" };
 
-export const FilteredTerms = (): JSX.Element => {
-  return (
+export const FilteredTerms: StoryObj = {
+  render: () => (
     <PanelSetup fixture={fixture}>
       <Log
         overrideConfig={{
@@ -206,13 +274,12 @@ export const FilteredTerms = (): JSX.Element => {
         }}
       />
     </PanelSetup>
-  );
+  ),
+  name: `filtered terms: "multiple", "/some_topic"`,
 };
 
-FilteredTerms.title = `filtered terms: "multiple", "/some_topic"`;
-
-export const CaseInsensitiveFilter = (): JSX.Element => {
-  return (
+export const CaseInsensitiveFilter: StoryObj = {
+  render: () => (
     <PanelSetup fixture={fixture}>
       <Log
         overrideConfig={{
@@ -222,13 +289,12 @@ export const CaseInsensitiveFilter = (): JSX.Element => {
         }}
       />
     </PanelSetup>
-  );
+  ),
+  name: `case insensitive message filtering: "could", "Ipsum"`,
 };
 
-CaseInsensitiveFilter.title = `case insensitive message filtering: "could", "Ipsum"`;
-
-export const AutoCompleteItems = (): JSX.Element => {
-  return (
+export const AutoCompleteItems: StoryObj = {
+  render: () => (
     <PanelSetup fixture={fixture}>
       <Log
         overrideConfig={{
@@ -238,94 +304,18 @@ export const AutoCompleteItems = (): JSX.Element => {
         }}
       />
     </PanelSetup>
-  );
-};
-AutoCompleteItems.play = async () => {
-  const user = userEvent.setup();
-  const input = (await screen.findAllByPlaceholderText("Search filter"))[0]!;
-  await user.click(input);
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = (await canvas.findAllByPlaceholderText("Search filter"))[0]!;
+    userEvent.click(input);
+  },
 };
 
-export const FoxgloveLog = (): JSX.Element => {
-  const foxgloveLogFixture: Fixture = {
-    topics: [{ name: "/log", schemaName: "foxglove.Log" }],
-    frame: {
-      "/log": [
-        {
-          topic: "/log",
-          receiveTime: { sec: 123, nsec: 456 },
-          message: {
-            file: "some_topic_utils/src/foo.cpp",
-            timestamp: 123000000000n,
-            level: 1,
-            line: 242,
-            message: "Couldn't find int 83757.",
-          },
-          schemaName: "foxglove.Log",
-          sizeInBytes: 0,
-        },
-        {
-          topic: "/log",
-          receiveTime: { sec: 123, nsec: 456 },
-          message: {
-            file: "other_topic_utils/src/foo.cpp",
-            function: "vector<int> other_node::findInt",
-            timestamp: 123000000000n,
-            level: 2,
-            line: 242,
-            message: "Couldn't find int 2121.",
-          },
-          schemaName: "foxglove.Log",
-          sizeInBytes: 0,
-        },
-        {
-          topic: "/log",
-          receiveTime: { sec: 123, nsec: 456 },
-          message: {
-            file: "other_topic_utils/src/foo.cpp",
-            function: "vector<int> other_node::findInt",
-            timestamp: 123000000000n,
-            level: 3,
-            line: 242,
-            message: "Lorem ipsum blah blah. This message should\nshow up as multiple lines",
-          },
-          schemaName: "foxglove.Log",
-          sizeInBytes: 0,
-        },
-        {
-          topic: "/log",
-          receiveTime: { sec: 0, nsec: 0 },
-          message: {
-            timestamp: 1529678605521518001n,
-            level: 4,
-            message:
-              "26826:\nheader: \n  seq: 0\n  stamp: 1529678605.349576000\n  Adipisicing minim veniam sint occaecat anim laborum irure velit ut non do labore.\n",
-            file: "somefile.cpp",
-            line: 491,
-          },
-          schemaName: "foxglove.Log",
-          sizeInBytes: 0,
-        },
-        {
-          topic: "/log",
-          receiveTime: { sec: 0, nsec: 0 },
-          message: {
-            timestamp: 1529678605521518001n,
-            level: 5,
-            message: "fatal message",
-            file: "somefile.cpp",
-            line: 491,
-          },
-          schemaName: "foxglove.Log",
-          sizeInBytes: 0,
-        },
-      ],
-    },
-  };
-
-  return (
+export const FoxgloveLog: StoryObj = {
+  render: () => (
     <PanelSetup fixture={foxgloveLogFixture}>
       <Log />
     </PanelSetup>
-  );
+  ),
 };

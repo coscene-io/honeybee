@@ -55,36 +55,36 @@ type DataPlatformIterableSourceOptions = {
 };
 
 export class DataPlatformIterableSource implements IIterableSource {
-  private readonly _consoleApi: DataPlatformInterableSourceConsoleApi;
+  readonly #consoleApi: DataPlatformInterableSourceConsoleApi;
 
-  private _knownTopicNames: string[] = [];
-  private _params: DataPlatformSourceParameters;
-  private _start?: Time;
-  private _end?: Time;
+  #knownTopicNames: string[] = [];
+  #params: DataPlatformSourceParameters;
+  #start?: Time;
+  #end?: Time;
 
   /**
    * Cached readers for each schema so we don't have to re-parse definitions on each stream request.
    * Although each topic is usually homogeneous, technically it is possible to have different
    * encoding or schema for each topic, so we store all the ones we've seen.
    */
-  private _parsedChannelsByTopic = new Map<string, ParsedChannelAndEncodings[]>();
+  #parsedChannelsByTopic = new Map<string, ParsedChannelAndEncodings[]>();
 
-  private _coverage: CoverageResponse[] = [];
+  #coverage: CoverageResponse[] = [];
 
   public constructor(options: DataPlatformIterableSourceOptions) {
-    this._consoleApi = options.api;
-    this._params = options.params;
+    this.#consoleApi = options.api;
+    this.#params = options.params;
   }
 
   public async initialize(): Promise<Initalization> {
     const apiParams = {
-      revisionName: this._params.revisionName,
-      jobRunId: this._params.jobRunId,
-      projectName: this._params.projectName,
+      revisionName: this.#params.revisionName,
+      jobRunId: this.#params.jobRunId,
+      projectName: this.#params.projectName,
     };
 
     // get topics
-    const originalTopics = await this._consoleApi.topics({ ...apiParams, includeSchemas: true });
+    const originalTopics = await this.#consoleApi.topics({ ...apiParams, includeSchemas: true });
 
     const rawTopics = originalTopics.metaData;
 
@@ -94,11 +94,11 @@ export class DataPlatformIterableSource implements IIterableSource {
     const coverageStartTime = fromRFC3339String(coverageStart)!;
     const coverageEndTime = fromRFC3339String(coverageEnd)!;
 
-    this._start = coverageStartTime;
-    this._end = coverageEndTime;
+    this.#start = coverageStartTime;
+    this.#end = coverageEndTime;
 
     const params = {
-      ...this._params,
+      ...this.#params,
       start: coverageStartTime,
       end: coverageEndTime,
     };
@@ -114,10 +114,10 @@ export class DataPlatformIterableSource implements IIterableSource {
         continue;
       }
 
-      let parsedChannels = this._parsedChannelsByTopic.get(topic);
+      let parsedChannels = this.#parsedChannelsByTopic.get(topic);
       if (!parsedChannels) {
         parsedChannels = [];
-        this._parsedChannelsByTopic.set(topic, parsedChannels);
+        this.#parsedChannelsByTopic.set(topic, parsedChannels);
       }
       for (const info of parsedChannels) {
         if (
@@ -172,7 +172,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       profile = "ros2";
     }
 
-    this._knownTopicNames = topics.map((topic) => topic.name);
+    this.#knownTopicNames = topics.map((topic) => topic.name);
     return {
       topics,
       topicStats,
@@ -190,11 +190,11 @@ export class DataPlatformIterableSource implements IIterableSource {
   ): AsyncIterableIterator<Readonly<IteratorResult>> {
     log.debug("message iterator", args);
 
-    if (!this._start || !this._end) {
+    if (!this.#start || !this.#end) {
       throw new Error("DataPlatformIterableSource not initialized");
     }
 
-    const parsedChannelsByTopic = this._parsedChannelsByTopic;
+    const parsedChannelsByTopic = this.#parsedChannelsByTopic;
 
     // Data platform treats topic array length 0 as "all topics". Until that is changed, we filter out
     // empty topic requests
@@ -205,30 +205,30 @@ export class DataPlatformIterableSource implements IIterableSource {
     // If the topics available to us don't overlap with the topics we know about then we avoid
     // making any requests since there's no data to return
     const matchingTopics = args.topics.reduce((count, topicName) => {
-      return this._knownTopicNames.includes(topicName) ? count + 1 : count;
+      return this.#knownTopicNames.includes(topicName) ? count + 1 : count;
     }, 0);
     if (matchingTopics === 0) {
       log.debug("no matching topics to stream");
       return;
     }
 
-    const streamStart = args.start ?? this._start;
-    const streamEnd = clampTime(args.end ?? this._end, this._start, this._end);
+    const streamStart = args.start ?? this.#start;
+    const streamEnd = clampTime(args.end ?? this.#end, this.#start, this.#end);
 
     if (args.consumptionType === "full") {
       const streamByParams: StreamParams = {
         start: streamStart,
         end: streamEnd,
-        authHeader: this._consoleApi.getAuthHeader(),
-        revisionName: this._params.revisionName,
-        jobRunId: this._params.jobRunId,
-        projectName: this._params.projectName,
+        authHeader: this.#consoleApi.getAuthHeader(),
+        revisionName: this.#params.revisionName,
+        jobRunId: this.#params.jobRunId,
+        projectName: this.#params.projectName,
         topics: args.topics,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
       const stream = streamMessages({
-        api: this._consoleApi,
+        api: this.#consoleApi,
         parsedChannelsByTopic,
         params: streamByParams,
       });
@@ -244,7 +244,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 
     let localStart = streamStart;
     let localEnd = clampTime(
-      addTime(localStart, { sec: this._params.singleRequestTime, nsec: 0 }),
+      addTime(localStart, { sec: this.#params.singleRequestTime, nsec: 0 }),
       streamStart,
       streamEnd,
     );
@@ -253,16 +253,16 @@ export class DataPlatformIterableSource implements IIterableSource {
       const streamByParams: StreamParams = {
         start: localStart,
         end: localEnd,
-        authHeader: this._consoleApi.getAuthHeader(),
-        revisionName: this._params.revisionName,
-        jobRunId: this._params.jobRunId,
-        projectName: this._params.projectName,
+        authHeader: this.#consoleApi.getAuthHeader(),
+        revisionName: this.#params.revisionName,
+        jobRunId: this.#params.jobRunId,
+        projectName: this.#params.projectName,
         topics: args.topics,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
       const stream = streamMessages({
-        api: this._consoleApi,
+        api: this.#consoleApi,
         parsedChannelsByTopic,
         params: streamByParams,
       });
@@ -282,7 +282,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       localStart = addTime(localEnd, { sec: 0, nsec: 1 });
 
       // Assumes coverage regions are sorted by start time
-      for (const coverage of this._coverage) {
+      for (const coverage of this.#coverage) {
         const end = fromRFC3339String(coverage.end);
         const start = fromRFC3339String(coverage.start);
         if (!start || !end) {
@@ -306,7 +306,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       localStart = clampTime(localStart, streamStart, streamEnd);
       localEnd = clampTime(
-        addTime(localStart, { sec: this._params.singleRequestTime, nsec: 0 }),
+        addTime(localStart, { sec: this.#params.singleRequestTime, nsec: 0 }),
         streamStart,
         streamEnd,
       );
@@ -328,10 +328,10 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamByParams: StreamParams = {
       start: time,
       end: time,
-      authHeader: this._consoleApi.getAuthHeader(),
-      revisionName: this._params.revisionName,
-      jobRunId: this._params.jobRunId,
-      projectName: this._params.projectName,
+      authHeader: this.#consoleApi.getAuthHeader(),
+      revisionName: this.#params.revisionName,
+      jobRunId: this.#params.jobRunId,
+      projectName: this.#params.projectName,
       playbackQualityLevel,
       topics,
     };
@@ -341,8 +341,8 @@ export class DataPlatformIterableSource implements IIterableSource {
 
     const messages: MessageEvent<unknown>[] = [];
     for await (const block of streamMessages({
-      api: this._consoleApi,
-      parsedChannelsByTopic: this._parsedChannelsByTopic,
+      api: this.#consoleApi,
+      parsedChannelsByTopic: this.#parsedChannelsByTopic,
       signal: abortSignal,
       params: streamByParams,
     })) {

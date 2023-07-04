@@ -13,7 +13,7 @@ import type { Annotation, ImagePanelState, SynchronizationItem } from "../types"
 
 export function synchronizedAddMessages(
   state: Pick<ImagePanelState, "imageTopic" | "cameraInfoTopic" | "annotationTopics" | "tree">,
-  messageEvents: readonly MessageEvent<unknown>[],
+  messageEvents: readonly MessageEvent[],
 ): Partial<ImagePanelState> {
   let newState: Partial<ImagePanelState> | undefined;
 
@@ -28,7 +28,7 @@ export function synchronizedAddMessages(
         ? normalizeImageMessage(event.message, event.schemaName)
         : undefined;
     const annotations = normalizeAnnotations(event.message, event.schemaName);
-    if (!cameraInfo && !image && !annotations) {
+    if (!cameraInfo && !image && annotations.length === 0) {
       continue;
     }
 
@@ -50,7 +50,7 @@ export function synchronizedAddMessages(
       }
     }
 
-    if (annotations) {
+    if (annotations.length > 0) {
       // Group annotations by timestamp, then update the annotations by topic at each stamp
       const groups = new Map<bigint, Annotation[]>();
       for (const annotation of annotations) {
