@@ -9,7 +9,7 @@ import { DeepReadonly } from "ts-essentials";
 import { StoreApi, useStore } from "zustand";
 
 import { Time } from "@foxglove/rostime";
-import useGuaranteedContext from "@foxglove/studio-base/hooks/useGuaranteedContext";
+import { useGuaranteedContext } from "@foxglove/hooks";
 
 /**
  * Represents an event including its fractional position on the timeline.

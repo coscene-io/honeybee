@@ -38,13 +38,6 @@ export class DynamicBufferGeometry extends THREE.BufferGeometry {
     }
   }
 
-  public setUsage(usage: THREE.Usage): void {
-    this._usage = usage;
-    for (const attribute of Object.values(this.attributes)) {
-      attribute.setUsage(usage);
-    }
-  }
-
   public createAttribute<T extends TypedArray, C extends TypedArrayConstructor<T>>(
     name: THREE.BuiltinShaderAttributeName | string,
     arrayConstructor: C,

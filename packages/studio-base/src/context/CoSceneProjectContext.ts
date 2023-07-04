@@ -8,7 +8,7 @@ import { AsyncState } from "react-use/lib/useAsyncFn";
 import { DeepReadonly } from "ts-essentials";
 import { StoreApi, useStore } from "zustand";
 
-import useGuaranteedContext from "@foxglove/studio-base/hooks/useGuaranteedContext";
+import { useGuaranteedContext } from "@foxglove/hooks";
 
 export type CoSceneProjectStore = DeepReadonly<{
   project: AsyncState<Project>;

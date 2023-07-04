@@ -18,6 +18,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLongPress } from "react-use";
 import { makeStyles } from "tss-react/mui";
+import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
+import { DEFAULT_CAMERA_STATE } from "./camera";
 
 import Logger from "@foxglove/log";
 import { LayoutActions } from "@foxglove/studio";
@@ -45,6 +49,9 @@ import { PublishClickType } from "./renderables/PublishClickTool";
 import { InterfaceMode } from "./types";
 
 const log = Logger.getLogger(__filename);
+
+const ZOOM_IN_LIMITATION = 1;
+const ZOOM_OUT_LIMITATION = 40;
 
 const PublishClickIcons: Record<PublishClickType, React.ReactNode> = {
   pose: <PublishGoalIcon fontSize="inherit" />,
@@ -100,6 +107,9 @@ export function RendererOverlay(props: {
   onChangePublishClickType: (_: PublishClickType) => void;
   onClickPublish: () => void;
   timezone: string | undefined;
+  onResetCamera: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
   /** Override default downloading behavior, used for Storybook */
   onDownloadImage?: (blob: Blob, fileName: string) => void;
 }): JSX.Element {
@@ -107,6 +117,7 @@ export function RendererOverlay(props: {
   const { enqueueSnackbar } = useSnackbar();
   const { t } = useTranslation("threeDee");
   const { classes } = useStyles();
+  const { onResetCamera, onZoomIn, onZoomOut } = props;
   const [clickedPosition, setClickedPosition] = useState<{ clientX: number; clientY: number }>({
     clientX: 0,
     clientY: 0,
@@ -211,6 +222,21 @@ export function RendererOverlay(props: {
   const longPressPublishEvent = useLongPress(onLongPressPublish);
 
   const theme = useTheme();
+
+  const scaleDisplay = () => {
+    const currentZoomValue = renderer?.getCameraState()?.distance ?? 20;
+
+    if (currentZoomValue === ZOOM_IN_LIMITATION) {
+      return "200%";
+    } else if (currentZoomValue >= ZOOM_OUT_LIMITATION) {
+      return "0  %";
+    } else {
+      return `${(
+        (1 - (currentZoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
+        100
+      ).toFixed(0)}%`;
+    }
+  };
 
   // Publish control is only available if the canPublish prop is true and we have a fixed frame in the renderer
   const showPublishControl =
@@ -427,6 +453,58 @@ export function RendererOverlay(props: {
             {publishControls}
           </Paper>
         )}
+        <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
+          <IconButton
+            color="inherit"
+            title={t("reCenter", { ns: "cosThreeDee" })}
+            onClick={onResetCamera}
+            style={{ pointerEvents: "auto" }}
+          >
+            <FilterCenterFocusIcon
+              style={{
+                fontSize: 16,
+              }}
+            />
+          </IconButton>
+        </Paper>
+        <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
+          <IconButton
+            color="inherit"
+            title={t("zoomIn", { ns: "cosThreeDee" })}
+            onClick={onZoomIn}
+            style={{ pointerEvents: "auto" }}
+          >
+            <AddIcon
+              style={{
+                fontSize: 16,
+              }}
+            />
+          </IconButton>
+          <div
+            style={{
+              pointerEvents: "auto",
+              padding: "10px 0px",
+              width: 32,
+              fontSize: 4,
+              textAlign: "center",
+            }}
+          >
+            {scaleDisplay()}
+          </div>
+
+          <IconButton
+            color="inherit"
+            title={t("zoomOut", { ns: "cosThreeDee" })}
+            onClick={onZoomOut}
+            style={{ pointerEvents: "auto" }}
+          >
+            <RemoveIcon
+              style={{
+                fontSize: 16,
+              }}
+            />
+          </IconButton>
+        </Paper>
       </div>
       {clickedObjects.length > 1 && !selectedObject && (
         <InteractionContextMenu

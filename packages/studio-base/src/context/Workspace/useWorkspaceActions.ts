@@ -14,7 +14,7 @@ import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext
 import {
   IDataSourceFactory,
   usePlayerSelection,
-} from "@foxglove/studio-base/context/PlayerSelectionContext";
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 

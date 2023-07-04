@@ -45,11 +45,9 @@ export function useStateToURLSynchronization(): void {
 
   // Sync current time with the url.
   useEffect(() => {
-    if (debouncedCurrentTime && toSec(debouncedCurrentTime) > 0) {
-      updateUrl({
-        time: canSeek ? debouncedCurrentTime : undefined,
-      });
-    }
+    updateUrl({
+      time: canSeek ? debouncedCurrentTime : undefined,
+    });
   }, [canSeek, debouncedCurrentTime]);
 
   // Sync layoutId with the url.

@@ -9,7 +9,7 @@ import { makeStyles } from "tss-react/mui";
 import { BuiltinIcon } from "@foxglove/studio-base/components/BuiltinIcon";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
