@@ -15,11 +15,10 @@ import BorderAllIcon from "@mui/icons-material/BorderAll";
 import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
 import LibraryAddOutlinedIcon from "@mui/icons-material/LibraryAddOutlined";
 import TabIcon from "@mui/icons-material/Tab";
-import { Button, styled as muiStyled, useTheme } from "@mui/material";
+import { Button, useTheme } from "@mui/material";
 import { last } from "lodash";
 import React, {
   ComponentType,
-  CSSProperties,
   MouseEventHandler,
   Profiler,
   useCallback,
@@ -40,6 +39,7 @@ import {
 } from "react-mosaic-component";
 import { Transition } from "react-transition-group";
 import { useMountedState } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import { useShallowMemo } from "@foxglove/hooks";
 import { useConfigById } from "@foxglove/studio-base/PanelAPI";
@@ -48,6 +48,7 @@ import { MosaicPathContext } from "@foxglove/studio-base/components/MosaicPathCo
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
 import PanelErrorBoundary from "@foxglove/studio-base/components/PanelErrorBoundary";
 import { PanelRoot, PANEL_ROOT_CLASS_NAME } from "@foxglove/studio-base/components/PanelRoot";
+import Stack from "@foxglove/studio-base/components/Stack";
 import {
   useCurrentLayoutActions,
   useSelectedPanels,
@@ -56,7 +57,7 @@ import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogConte
 import {
   useWorkspaceStore,
   WorkspaceStoreSelectors,
-} from "@foxglove/studio-base/context/WorkspaceContext";
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import usePanelDrag from "@foxglove/studio-base/hooks/usePanelDrag";
 import { TabPanelConfig } from "@foxglove/studio-base/types/layouts";
 import { OpenSiblingPanel, PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
@@ -68,70 +69,63 @@ import {
   updateTabPanelLayout,
 } from "@foxglove/studio-base/util/layout";
 
-const ActionsOverlay = muiStyled("div")(({ theme }) => ({
-  cursor: "pointer",
-  position: "absolute",
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  zIndex: 100000, // highest level within panel
-  backgroundColor: theme.palette.background.paper,
-  display: "flex",
-  alignItems: "center",
-  alignContent: "center",
-  justifyContent: "center",
-  flexDirection: "column",
-  flexWrap: "wrap",
-  visibility: "hidden",
-  pointerEvents: "none",
+const useStyles = makeStyles()((theme) => ({
+  actionsOverlay: {
+    cursor: "pointer",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100000, // highest level within panel
+    backgroundColor: theme.palette.background.paper,
+    display: "flex",
+    alignItems: "center",
+    alignContent: "center",
+    justifyContent: "center",
+    flexDirection: "column",
+    flexWrap: "wrap",
+    visibility: "hidden",
+    pointerEvents: "none",
 
-  [`.${PANEL_ROOT_CLASS_NAME}:hover > &`]: {
-    visibility: "visible",
-    pointerEvents: "auto",
+    [`.${PANEL_ROOT_CLASS_NAME}:hover > &`]: {
+      visibility: "visible",
+      pointerEvents: "auto",
+    },
+    // for screenshot tests
+    ".hoverForScreenshot &": {
+      visible: "visible",
+      pointerEvents: "auto",
+    },
   },
-  // for screenshot tests
-  ".hoverForScreenshot &": {
-    visible: "visible",
-    pointerEvents: "auto",
+  perfInfo: {
+    position: "absolute",
+    whiteSpace: "pre-line",
+    bottom: 2,
+    left: 2,
+    fontSize: 9,
+    opacity: 0.7,
+    userSelect: "none",
+    mixBlendMode: "difference",
   },
-}));
+  container: {
+    padding: theme.spacing(2),
+    maxWidth: 300,
+    margin: "auto",
+    gap: theme.spacing(1),
+  },
+  button: {
+    flexDirection: "column",
+    alignItems: "center",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+    padding: theme.spacing(1, 2),
+    width: "50%",
+    flex: "auto",
 
-const PerfInfo = muiStyled("div")({
-  position: "absolute",
-  whiteSpace: "pre-line",
-  bottom: 2,
-  left: 2,
-  fontSize: 9,
-  opacity: 0.7,
-  userSelect: "none",
-  mixBlendMode: "difference",
-});
-
-const Container = muiStyled("div", {
-  shouldForwardProp: (prop) => prop !== "direction",
-})<{
-  direction?: CSSProperties["flexDirection"];
-}>(({ direction = "column", theme }) => ({
-  padding: theme.spacing(2),
-  maxWidth: 300,
-  margin: "auto",
-  display: "flex",
-  flexDirection: direction,
-  gap: theme.spacing(1),
-}));
-
-const StyledButton = muiStyled(Button)(({ theme }) => ({
-  flexDirection: "column",
-  alignItems: "center",
-  textAlign: "center",
-  whiteSpace: "nowrap",
-  padding: theme.spacing(1, 2),
-  width: "50%",
-  flex: "auto",
-
-  ".MuiButton-startIcon": {
-    margin: 0,
+    ".MuiButton-startIcon": {
+      margin: 0,
+    },
   },
 }));
 
@@ -152,6 +146,9 @@ type ComponentConstructorType<P> = { displayName?: string } & (
   | { (props: P): React.ReactElement<unknown> | ReactNull }
 );
 
+/** Used in storybook when panels are renered outside of a <PanelLayout/> */
+const FALLBACK_PANEL_ID = "$unknown_id";
+
 // HOC that wraps panel in an error boundary and flex box.
 // Gives panel a `config` and `saveConfig`.
 //   export default Panel(MyPanelComponent)
@@ -165,8 +162,9 @@ export default function Panel<
   PanelComponent: ComponentConstructorType<PanelProps> & PanelStatics<Config>,
 ): ComponentType<Props<Config> & Omit<PanelProps, "config" | "saveConfig">> & PanelStatics<Config> {
   function ConnectedPanel(props: Props<Config>) {
-    const { childId, overrideConfig, tabId, ...otherProps } = props;
+    const { childId = FALLBACK_PANEL_ID, overrideConfig, tabId, ...otherProps } = props;
     const theme = useTheme();
+    const { classes, cx } = useStyles();
     const isMounted = useMountedState();
 
     const { mosaicActions } = useContext(MosaicContext);
@@ -182,7 +180,7 @@ export default function Panel<
     } = useSelectedPanels();
 
     const isSelected = useMemo(
-      () => childId != undefined && selectedPanelIds.includes(childId),
+      () => selectedPanelIds.includes(childId),
       [childId, selectedPanelIds],
     );
     const numSelectedPanelsIfSelected = useMemo(
@@ -337,9 +335,6 @@ export default function Panel<
 
     const replacePanel = useCallback(
       (newPanelType: string, config: Record<string, unknown>) => {
-        if (childId == undefined) {
-          return;
-        }
         swapPanel({
           tabId,
           originalId: childId,
@@ -356,9 +351,6 @@ export default function Panel<
 
     const onPanelRootClick: MouseEventHandler<HTMLDivElement> = useCallback(
       (e) => {
-        if (childId == undefined) {
-          return;
-        }
         if (panelSettingsOpen) {
           // Allow clicking with no modifiers to select a panel (and deselect others) when panel settings are open
           e.stopPropagation(); // select the deepest clicked panel, not parent tab panels
@@ -411,7 +403,7 @@ export default function Panel<
         return;
       }
       const tabSavedProps = tabId != undefined ? (savedProps[tabId] as TabPanelConfig) : undefined;
-      if (tabId != undefined && tabSavedProps != undefined && childId != undefined) {
+      if (tabId != undefined && tabSavedProps != undefined) {
         const newId = getPanelIdForType(PanelComponent.panelType);
         const activeTabLayout = tabSavedProps.tabs[tabSavedProps.activeTabIdx]?.layout;
         if (activeTabLayout == undefined) {
@@ -531,7 +523,7 @@ export default function Panel<
 
     return (
       <Profiler
-        id={childId ?? "$unknown_id"}
+        id={childId}
         onRender={(
           _id,
           _phase,
@@ -549,7 +541,7 @@ export default function Panel<
         <PanelContext.Provider
           value={{
             type,
-            id: childId ?? "$unknown_id",
+            id: childId,
             title,
             config: panelComponentConfig,
             saveConfig: saveConfig as SaveConfig<PanelConfig>,
@@ -583,7 +575,7 @@ export default function Panel<
                 fullscreenState={fullscreenState}
                 sourceRect={fullscreenSourceRect}
                 selected={isSelected}
-                data-testid={`panel-mouseenter-container ${childId ?? ""}`}
+                data-testid={cx("panel-mouseenter-container", childId)}
                 ref={(el) => {
                   panelRootRef.current = el;
                   // disallow dragging the root panel in a layout
@@ -594,8 +586,8 @@ export default function Panel<
                 }}
               >
                 {isSelected && !fullscreen && numSelectedPanelsIfSelected > 1 && (
-                  <ActionsOverlay>
-                    <Container>
+                  <div className={classes.actionsOverlay}>
+                    <Stack className={classes.container}>
                       <Button
                         fullWidth
                         size="large"
@@ -614,11 +606,12 @@ export default function Panel<
                       >
                         Create {numSelectedPanelsIfSelected} tabs
                       </Button>
-                    </Container>
-                  </ActionsOverlay>
+                    </Stack>
+                  </div>
                 )}
                 {type !== TAB_PANEL_TYPE && quickActionsKeyPressed && !fullscreen && (
-                  <ActionsOverlay
+                  <div
+                    className={classes.actionsOverlay}
                     ref={(el) => {
                       quickActionsOverlayRef.current = el;
                       // disallow dragging the root panel in a layout
@@ -627,8 +620,9 @@ export default function Panel<
                       }
                     }}
                   >
-                    <Container direction="row">
-                      <StyledButton
+                    <Stack className={classes.container} direction="row">
+                      <Button
+                        className={classes.button}
                         size="large"
                         variant="contained"
                         startIcon={<DeleteForeverOutlinedIcon fontSize="large" />}
@@ -638,22 +632,25 @@ export default function Panel<
                         }}
                       >
                         Remove
-                      </StyledButton>
-                      <StyledButton
+                      </Button>
+                      <Button
+                        className={classes.button}
                         size="large"
                         variant="contained"
                         startIcon={<BorderAllIcon fontSize="large" />}
                         onClick={splitPanel}
                       >
                         Split
-                      </StyledButton>
-                    </Container>
-                  </ActionsOverlay>
+                      </Button>
+                    </Stack>
+                  </div>
                 )}
                 <PanelErrorBoundary onRemovePanel={removePanel} onResetPanel={resetPanel}>
                   <React.StrictMode>{child}</React.StrictMode>
                 </PanelErrorBoundary>
-                {process.env.NODE_ENV !== "production" && <PerfInfo ref={perfInfo} />}
+                {process.env.NODE_ENV !== "production" && (
+                  <div className={classes.perfInfo} ref={perfInfo} />
+                )}
               </PanelRoot>
             )}
           </Transition>

@@ -2,8 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useRef, useEffect } from "react";
-import TestUtils from "react-dom/test-utils";
+import { StoryObj } from "@storybook/react";
+import { userEvent, within } from "@storybook/testing-library";
 
 import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
 
@@ -14,66 +14,45 @@ export default {
   component: ImageView,
 };
 
-function useHoverOnPanel(andThen?: () => void) {
-  const timeOutID = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => {
-    return () => {
-      if (timeOutID.current != undefined) {
-        clearTimeout(timeOutID.current);
-      }
-    };
-  }, []);
-
-  const callback = useRef(andThen); // should not change
-  return () => {
-    const container = document.querySelector("[data-testid~='panel-mouseenter-container']");
-    if (!container) {
-      throw new Error("missing mouseenter container");
-    }
-    TestUtils.Simulate.mouseEnter(container);
-
-    // wait for hover to complete
-    timeOutID.current = setTimeout(() => callback.current?.(), 10);
-  };
-}
-
-export function NoTopic(): React.ReactElement {
-  return (
+export const NoTopic: StoryObj = {
+  render: () => (
     <PanelSetup>
       <ImageView />
     </PanelSetup>
-  );
-}
+  ),
+};
 
-export function WithSettings(): JSX.Element {
-  return (
+export const WithSettings: StoryObj = {
+  render: () => (
     <PanelSetup includeSettings>
       <ImageView />
     </PanelSetup>
-  );
-}
-WithSettings.parameters = {
-  colorScheme: "light",
+  ),
+  parameters: { colorScheme: "light" },
 };
 
-export function TopicButNoDataSource(): React.ReactElement {
-  return (
+export const TopicButNoDataSource: StoryObj = {
+  render: () => (
     <PanelSetup>
       <ImageView overrideConfig={{ ...ImageView.defaultConfig, cameraTopic: "a_topic" }} />
     </PanelSetup>
-  );
-}
+  ),
+};
 
-export function TopicButNoDataSourceHovered(): React.ReactElement {
-  const onMount = useHoverOnPanel();
-  return (
-    <PanelSetup onMount={onMount}>
+export const TopicButNoDataSourceHovered: StoryObj = {
+  render: () => (
+    <PanelSetup>
       <ImageView overrideConfig={{ ...ImageView.defaultConfig, cameraTopic: "a_topic" }} />
     </PanelSetup>
-  );
-}
-TopicButNoDataSourceHovered.parameters = { colorScheme: "dark" };
-export const TopicButNoDataSourceHoveredLight = Object.assign(
-  TopicButNoDataSourceHovered.bind(undefined),
-  { parameters: { colorScheme: "light" } },
-);
+  ),
+  parameters: { colorScheme: "dark" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    userEvent.hover(await canvas.findByTestId(/panel-mouseenter-container/));
+  },
+};
+
+export const TopicButNoDataSourceHoveredLight: StoryObj = {
+  ...TopicButNoDataSourceHovered,
+  parameters: { colorScheme: "light" },
+};

@@ -19,12 +19,12 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public displayName = "Coscene Data Platform";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
-  private readAheadDuration = { sec: 30, nsec: 0 };
+  #readAheadDuration = { sec: 30, nsec: 0 };
 
   public constructor() {
     const readAheadDuration = localStorage.getItem("readAheadDuration");
     if (readAheadDuration && !isNaN(+readAheadDuration)) {
-      this.readAheadDuration = { sec: +readAheadDuration, nsec: 0 };
+      this.#readAheadDuration = { sec: +readAheadDuration, nsec: 0 };
     }
   }
 
@@ -70,7 +70,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       source,
       sourceId: this.id,
       urlParams: definedParams,
-      readAheadDuration: this.readAheadDuration,
+      readAheadDuration: this.#readAheadDuration,
     });
   }
 }

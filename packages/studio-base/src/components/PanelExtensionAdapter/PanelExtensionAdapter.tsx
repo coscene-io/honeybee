@@ -7,7 +7,7 @@ import { CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } 
 import { useLatest } from "react-use";
 import { v4 as uuid } from "uuid";
 
-import { useValueChangedDebugLog } from "@foxglove/hooks";
+import { useValueChangedDebugLog, useSynchronousMountedState } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { fromSec, toSec } from "@foxglove/rostime";
 import {
@@ -18,6 +18,7 @@ import {
   RenderState,
   SettingsTree,
   Subscription,
+  Time,
   VariableValue,
 } from "@foxglove/studio";
 import {
@@ -38,7 +39,6 @@ import {
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
-import { useSynchronousMountedState } from "@foxglove/studio-base/hooks/useSynchronousMountedState";
 import {
   AdvertiseOptions,
   PlayerCapabilities,
@@ -52,14 +52,34 @@ import {
 import { PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
 import { assertNever } from "@foxglove/studio-base/util/assertNever";
 
+import { PanelConfigVersionError } from "./PanelConfigVersionError";
 import { initRenderStateBuilder } from "./renderState";
 
 const log = Logger.getLogger(__filename);
 
+type VersionedPanelConfig = Record<string, unknown> & { [VERSION_CONFIG_KEY]: number };
+
+export const VERSION_CONFIG_KEY = "foxgloveConfigVersion";
+
+function isVersionedPanelConfig(config: unknown): config is VersionedPanelConfig {
+  return (
+    config != undefined &&
+    typeof config === "object" &&
+    VERSION_CONFIG_KEY in config &&
+    typeof config[VERSION_CONFIG_KEY] === "number"
+  );
+}
+
 type PanelExtensionAdapterProps = {
   /** function that initializes the panel extension */
   initPanel: ExtensionPanelRegistration["initPanel"];
-
+  /**
+   * If defined, the highest supported version of config the panel supports.
+   * Used to prevent older implementations of a panel from trying to access
+   * newer, incompatible versions of the panel's config. Panels should include a
+   * numbered foxgloveConfigVersion property in their config to control this.
+   */
+  highestSupportedConfigVersion?: number;
   config: unknown;
   saveConfig: SaveConfig<unknown>;
 };
@@ -78,8 +98,10 @@ type RenderFn = NonNullable<PanelExtensionContext["onRender"]>;
  *
  * The adapter creates a PanelExtensionContext and invokes initPanel using the context.
  */
-function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
-  const { initPanel, config, saveConfig } = props;
+function PanelExtensionAdapter(
+  props: React.PropsWithChildren<PanelExtensionAdapterProps>,
+): JSX.Element {
+  const { initPanel, config, saveConfig, highestSupportedConfigVersion } = props;
 
   // Unlike the react data flow, the config is only provided to the panel once on setup.
   // The panel is meant to manage the config and call saveConfig on its own.
@@ -297,11 +319,12 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
       layout,
 
       seekPlayback: seekPlayback
-        ? (stamp: number) => {
+        ? (stamp: number | Time) => {
             if (!isMounted()) {
               return;
             }
-            seekPlayback(fromSec(stamp));
+            const seekTarget = typeof stamp === "object" ? stamp : fromSec(stamp);
+            seekPlayback(seekTarget);
           }
         : undefined,
 
@@ -501,6 +524,15 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
   useValueChangedDebugLog(panelId, "panelId");
   useValueChangedDebugLog(partialExtensionContext, "partialExtensionContext");
 
+  const configTooNew = useMemo(() => {
+    const latestConfig = initialState.current;
+    return (
+      isVersionedPanelConfig(latestConfig) &&
+      highestSupportedConfigVersion != undefined &&
+      latestConfig[VERSION_CONFIG_KEY] > highestSupportedConfigVersion
+    );
+  }, [initialState, highestSupportedConfigVersion]);
+
   // Manage extension lifecycle by calling initPanel() when the panel context changes.
   //
   // If we useEffect here instead of useLayoutEffect, the prevRenderState can get polluted with data
@@ -508,6 +540,12 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
   useLayoutEffect(() => {
     if (!panelContainerRef.current) {
       throw new Error("Expected panel container to be mounted");
+    }
+
+    // If the config is too new for this panel to support we bail and don't do any panel initialization
+    // We will instead show a warning message to the user
+    if (configTooNew) {
+      return;
     }
 
     // Reset local state when the panel element is mounted or changes
@@ -544,7 +582,7 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
       getMessagePipelineContext().setSubscriptions(panelId, []);
       getMessagePipelineContext().setPublishers(panelId, []);
     };
-  }, [initPanel, panelId, partialExtensionContext, getMessagePipelineContext]);
+  }, [initPanel, panelId, partialExtensionContext, getMessagePipelineContext, configTooNew]);
 
   const style: CSSProperties = {};
   if (slowRender) {
@@ -571,6 +609,8 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
       }}
     >
       <PanelToolbar />
+      {configTooNew && <PanelConfigVersionError />}
+      {props.children}
       <div style={{ flex: 1, overflow: "hidden" }} ref={panelContainerRef} />
     </div>
   );

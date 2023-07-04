@@ -8,10 +8,12 @@ import ReactDOM from "react-dom";
 
 import Logger from "@foxglove/log";
 import { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
+import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
 
 import VersionBanner from "./VersionBanner";
+import { canRenderApp } from "./canRenderApp";
 
 const log = Logger.getLogger(__filename);
 
@@ -26,12 +28,12 @@ function LogAfterRender(props: React.PropsWithChildren<unknown>): JSX.Element {
   return <>{props.children}</>;
 }
 
-type MainParams = {
+export type MainParams = {
   dataSources?: CoSceneIDataSourceFactory[];
   extraProviders?: JSX.Element[];
 };
 
-export async function main(params: MainParams = {}): Promise<void> {
+export async function main(getParams: () => Promise<MainParams> = async () => ({})): Promise<void> {
   log.debug("initializing");
 
   bcInstance.listenBroadcastMessage((msg) => {
@@ -78,19 +80,17 @@ export async function main(params: MainParams = {}): Promise<void> {
   const chromeVersion = chromeMatch ? parseInt(chromeMatch[1] ?? "", 10) : 0;
   const isChrome = chromeVersion !== 0;
 
-  const canRenderApp = typeof BigInt64Array === "function" && typeof BigUint64Array === "function";
+  const canRender = canRenderApp();
   const banner = (
-    <VersionBanner
-      isChrome={isChrome}
-      currentVersion={chromeVersion}
-      isDismissable={canRenderApp}
-    />
+    <VersionBanner isChrome={isChrome} currentVersion={chromeVersion} isDismissable={canRender} />
   );
 
-  if (!canRenderApp) {
+  if (!canRender) {
     ReactDOM.render(
       <StrictMode>
-        <LogAfterRender>{banner}</LogAfterRender>
+        <LogAfterRender>
+          <CssBaseline>{banner}</CssBaseline>
+        </LogAfterRender>
       </StrictMode>,
       rootEl,
     );
@@ -107,6 +107,7 @@ export async function main(params: MainParams = {}): Promise<void> {
   await initI18n();
 
   const { Root } = await import("./Root");
+  const params = await getParams();
 
   ReactDOM.render(
     <StrictMode>

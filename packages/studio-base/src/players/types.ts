@@ -11,11 +11,10 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { DeepReadonly } from "ts-essentials";
-
 import { MessageDefinition } from "@foxglove/message-definition";
 import { Time } from "@foxglove/rostime";
 import type { MessageEvent, ParameterValue } from "@foxglove/studio";
+import { Immutable } from "@foxglove/studio";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import { Range } from "@foxglove/studio-base/util/ranges";
@@ -46,7 +45,7 @@ export interface Player {
   close(): void;
   // Set a new set of subscriptions/advertisers. This might trigger fetching
   // new data, which might in turn trigger a backfill of messages.
-  setSubscriptions(subscriptions: SubscribePayload[]): void;
+  setSubscriptions(subscriptions: Immutable<SubscribePayload[]>): void;
   setPublishers(publishers: AdvertiseOptions[]): void;
   // Modify a remote parameter such as a rosparam.
   setParameter(key: string, value: ParameterValue): void;
@@ -86,7 +85,7 @@ export type PlayerProblem = {
   tip?: string;
 };
 
-export type PlayerURLState = DeepReadonly<{
+export type PlayerURLState = Immutable<{
   sourceId: string;
   parameters?: Record<string, string>;
 }>;
@@ -134,7 +133,7 @@ export type PlayerStateActiveData = {
   // and should be immediately following the previous array of messages that was emitted as part of
   // this state. If there is a discontinuity in messages, `lastSeekTime` should be different than
   // the previous state. Panels collect these messages using the `PanelAPI`.
-  messages: readonly MessageEvent<unknown>[];
+  messages: readonly MessageEvent[];
   totalBytesReceived: number; // always-increasing
 
   // The current playback position, which will be shown in the playback bar. This time should be
@@ -195,6 +194,13 @@ export type PlayerStateActiveData = {
   // A map of parameter names to parameter values, used to describe remote parameters such as
   // rosparams.
   parameters?: Map<string, ParameterValue>;
+
+  /** Set to true when `messages` has been recomputed without seek, backfill or playback.
+   * For example: when global variables changes, user-scripts needs to be rerun to recompute
+   * messages. This variable would be set to true to indicate that `messages` may have changed
+   * without a seek or backfill occurring.
+   */
+  messagesRecomputed?: boolean;
 };
 
 // Represents a ROS topic, though the actual data does not need to come from a ROS system.
@@ -246,7 +252,7 @@ export type RosObject = Readonly<{
 // the underlying ArrayBuffers.
 export type MessageBlock = {
   readonly messagesByTopic: {
-    readonly [topic: string]: MessageEvent<unknown>[];
+    readonly [topic: string]: MessageEvent[];
   };
   readonly sizeInBytes: number;
 };

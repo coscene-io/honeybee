@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { TypeOptions } from "i18next";
 
-export const cosSettings: TypeOptions["resources"]["cosSettings"] = {
+export const cosSettings: Partial<TypeOptions["resources"]["cosSettings"]> = {
   high: "高",
   mid: "中",
   low: "低",

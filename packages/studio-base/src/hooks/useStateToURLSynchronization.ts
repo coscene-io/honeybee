@@ -6,7 +6,7 @@ import { isString, pickBy } from "lodash";
 import { useEffect } from "react";
 import { useDebounce } from "use-debounce";
 
-import { toSec } from "@foxglove/rostime";
+import { useDeepMemo } from "@foxglove/hooks";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -16,7 +16,6 @@ import {
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import useDeepMemo from "@foxglove/studio-base/hooks/useDeepMemo";
 import { PlayerCapabilities } from "@foxglove/studio-base/players/types";
 import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
@@ -46,11 +45,9 @@ export function useStateToURLSynchronization(): void {
 
   // Sync current time with the url.
   useEffect(() => {
-    if (debouncedCurrentTime && toSec(debouncedCurrentTime) > 0) {
-      updateUrl({
-        time: canSeek ? debouncedCurrentTime : undefined,
-      });
-    }
+    updateUrl({
+      time: canSeek ? debouncedCurrentTime : undefined,
+    });
   }, [canSeek, debouncedCurrentTime]);
 
   // Sync layoutId with the url.

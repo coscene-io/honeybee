@@ -2,9 +2,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+// import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
-import { Tab, Tabs, styled as muiStyled, Divider } from "@mui/material";
+import {
+  // IconButton,
+  Tab,
+  Tabs,
+  styled as muiStyled,
+  Divider,
+  CircularProgress,
+} from "@mui/material";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -23,21 +31,22 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Stack from "@foxglove/studio-base/components/Stack";
+import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
 import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+// import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import { Playlist } from "./Playlist";
-import { ProblemsList } from "./ProblemsList";
 import { TopicList } from "./TopicList";
 import { DataSourceInfoView } from "../DataSourceInfoView";
+import { ProblemsList } from "../ProblemsList";
 
 type Props = {
   disableToolbar?: boolean;
-  onSelectDataSourceAction: () => void;
 };
 
 const useStyles = makeStyles()((theme) => ({
@@ -91,6 +100,7 @@ const ProblemCount = muiStyled("div")(({ theme }) => ({
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
 const selectPlayerProblems = ({ playerState }: MessagePipelineContext) => playerState.problems;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
+const selectEventsSupported = (store: EventsStore) => store.eventsSupported;
 const selectRecords = (state: CoSceneRecordStore) => state.record;
 const selectBagFiles = (state: CoSceneRecordStore) => state.recordBagFiles;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
@@ -160,7 +170,8 @@ const NoPlayableBagsDialog = ({ open, onClose }: { open: boolean; onClose: () =>
 
 type DataSourceSidebarTab = "topics" | "events" | "playlist" | "more" | "problems";
 
-export default function DataSourceSidebar(_props: Props): JSX.Element {
+export default function DataSourceSidebar(props: Props): JSX.Element {
+  const { disableToolbar = false } = props;
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const { currentUser } = useCurrentUser();
@@ -170,8 +181,20 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
   const record = useRecord(selectRecords);
   const bagFiles = useRecord(selectBagFiles);
   const { t } = useTranslation("dataSourceInfo");
-
+  // const { dialogActions } = useWorkspaceActions();
   const [noPlayableBags, setNoPlayableBags] = useState<boolean>(false);
+
+  const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
+
+  const eventsSupported = useEvents(selectEventsSupported);
+  const showEventsTab = !enableNewTopNav && currentUser != undefined && eventsSupported;
+
+  const isLoading = useMemo(
+    () =>
+      playerPresence === PlayerPresence.INITIALIZING ||
+      playerPresence === PlayerPresence.RECONNECTING,
+    [playerPresence],
+  );
 
   const bags = useMemo(() => bagFiles.value ?? [], [bagFiles]);
 
@@ -183,10 +206,6 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
     }
   }, [bags, record.loading]);
 
-  const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
-
-  const showEventsTab = !enableNewTopNav && currentUser != undefined;
-
   useEffect(() => {
     if (playerPresence === PlayerPresence.ERROR || playerPresence === PlayerPresence.RECONNECTING) {
       setActiveTab("problems");
@@ -196,36 +215,63 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
   }, [playerPresence, showEventsTab, selectedEventId]);
 
   return (
-    <SidebarContent overflow="auto" title={t("dataSource")} disablePadding>
+    <SidebarContent
+      disablePadding
+      disableToolbar={disableToolbar}
+      overflow="auto"
+      title={t("dataSource")}
+      trailingItems={[
+        isLoading && (
+          <Stack key="loading" alignItems="center" justifyContent="center" padding={1}>
+            <CircularProgress size={18} variant="indeterminate" />
+          </Stack>
+        ),
+        // <IconButton
+        //   key="add-connection"
+        //   color="primary"
+        //   title="New connection"
+        //   onClick={() => dialogActions.dataSource.open("start")}
+        // >
+        //   <AddIcon />
+        // </IconButton>,
+      ].filter(Boolean)}
+    >
       <Stack fullHeight>
-        <Stack paddingX={2} paddingBottom={2}>
-          <DataSourceInfoView />
-        </Stack>
+        {!disableToolbar && (
+          <Stack paddingX={2} paddingBottom={2}>
+            <DataSourceInfoView />
+          </Stack>
+        )}
         {playerPresence !== PlayerPresence.NOT_PRESENT && (
           <>
             <Stack flex={1}>
-              <StyledTabs
-                value={activeTab}
-                onChange={(_ev, newValue: DataSourceSidebarTab) => setActiveTab(newValue)}
-                textColor="inherit"
-              >
-                <StyledTab disableRipple label="Playlist" value="playlist" />
-                <StyledTab disableRipple label="Topics" value="topics" />
-                <StyledTab disableRipple label="Moment" value="events" />
-                <StyledTab
-                  disableRipple
-                  label={
-                    <Stack direction="row" alignItems="baseline" gap={1}>
-                      Problems
-                      {playerProblems.length > 0 && (
-                        <ProblemCount>{playerProblems.length}</ProblemCount>
-                      )}
-                    </Stack>
-                  }
-                  value="problems"
-                />
-              </StyledTabs>
-              <Divider />
+              {!disableToolbar && (
+                <>
+                  <StyledTabs
+                    value={activeTab}
+                    onChange={(_ev, newValue: DataSourceSidebarTab) => setActiveTab(newValue)}
+                    textColor="inherit"
+                  >
+                    <StyledTab disableRipple label="Playlist" value="playlist" />
+                    <StyledTab disableRipple label="Topics" value="topics" />
+                    <StyledTab disableRipple label="Moment" value="events" />
+                    {/* {showEventsTab && <StyledTab disableRipple label="Events" value="events" />} */}
+                    <StyledTab
+                      disableRipple
+                      label={
+                        <Stack direction="row" alignItems="baseline" gap={1}>
+                          Problems
+                          {playerProblems.length > 0 && (
+                            <ProblemCount>{playerProblems.length}</ProblemCount>
+                          )}
+                        </Stack>
+                      }
+                      value="problems"
+                    />
+                  </StyledTabs>
+                  <Divider />
+                </>
+              )}
               {activeTab === "playlist" && (
                 <div className={classes.tabContent}>
                   <Playlist />
@@ -243,7 +289,7 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
               )}
               {activeTab === "problems" && (
                 <div className={classes.tabContent}>
-                  <ProblemsList problems={playerProblems} />
+                  <ProblemsList />
                 </div>
               )}
             </Stack>
@@ -256,6 +302,7 @@ export default function DataSourceSidebar(_props: Props): JSX.Element {
           setNoPlayableBags(false);
         }}
       />
+      <WssErrorModal playerProblems={playerProblems} />
     </SidebarContent>
   );
 }

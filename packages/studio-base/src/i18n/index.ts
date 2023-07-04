@@ -9,9 +9,14 @@ import { initReactI18next } from "react-i18next";
 import * as cosEn from "./cosEn";
 import * as cosZh from "./cosZh";
 import * as en from "./en";
+import * as ja from "./ja";
 import * as zh from "./zh";
 
-export const translations: { en: typeof en & typeof cosEn; zh: typeof zh & typeof cosZh } = {
+export const translations: {
+  en: typeof en & typeof cosEn;
+  zh: typeof zh & typeof cosZh;
+  ja: typeof ja;
+} = {
   en: {
     ...en,
     ...cosEn,
@@ -20,6 +25,7 @@ export const translations: { en: typeof en & typeof cosEn; zh: typeof zh & typeo
     ...zh,
     ...cosZh,
   },
+  ja,
 };
 
 export type Language = keyof typeof translations;

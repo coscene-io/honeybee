@@ -22,10 +22,10 @@ import {
   Input,
   Link,
   Typography,
-  useTheme,
-  styled as muiStyled,
+  inputClasses,
 } from "@mui/material";
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
 
 import { SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
@@ -89,25 +89,24 @@ type Props = {
   saveConfig: SaveConfig<Config>;
 };
 
-const UnsavedDot = muiStyled("div", {
-  shouldForwardProp: (prop) => prop !== "isSaved",
-})<{
-  isSaved: boolean;
-}>(({ isSaved, theme }) => ({
-  display: isSaved ? "none" : "initial",
-  width: 6,
-  height: 6,
-  borderRadius: "50%",
-  top: "50%",
-  position: "absolute",
-  right: theme.spacing(1),
-  transform: "translateY(-50%)",
-  backgroundColor: theme.palette.text.secondary,
-}));
-
-const StyledInput = muiStyled(Input)(({ theme }) => ({
-  ".MuiInput-input": {
-    padding: theme.spacing(1),
+const useStyles = makeStyles()((theme) => ({
+  emptyState: {
+    backgroundColor: theme.palette.background.default,
+  },
+  unsavedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: "50%",
+    top: "50%",
+    position: "absolute",
+    right: theme.spacing(1),
+    transform: "translateY(-50%)",
+    backgroundColor: theme.palette.text.secondary,
+  },
+  input: {
+    [`.${inputClasses.input}`]: {
+      padding: theme.spacing(1),
+    },
   },
 }));
 
@@ -128,8 +127,9 @@ function buildSettingsTree(config: Config): SettingsTreeNodes {
 }
 
 const WelcomeScreen = ({ addNewNode }: { addNewNode: (code?: string) => void }) => {
+  const { classes } = useStyles();
   return (
-    <EmptyState>
+    <EmptyState className={classes.emptyState}>
       <Container maxWidth="xs">
         <Stack justifyContent="center" alignItems="center" gap={1} fullHeight>
           <Typography variant="inherit" gutterBottom>
@@ -167,10 +167,10 @@ const userNodeSelector = (state: LayoutState) =>
 
 function NodePlayground(props: Props) {
   const { config, saveConfig } = props;
+  const { classes, theme } = useStyles();
   const { autoFormatOnSave = false, selectedNodeId, editorForStorybook } = config;
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
 
-  const theme = useTheme();
   const [explorer, updateExplorer] = React.useState<Explorer>(undefined);
 
   const userNodes = useCurrentLayoutSelector(userNodeSelector);
@@ -358,7 +358,8 @@ function NodePlayground(props: Props) {
             )}
             {selectedNodeId != undefined && selectedNode && (
               <div style={{ position: "relative" }}>
-                <StyledInput
+                <Input
+                  className={classes.input}
                   size="small"
                   disableUnderline
                   placeholder="script name"
@@ -374,7 +375,7 @@ function NodePlayground(props: Props) {
                   }}
                   inputProps={{ spellCheck: false, style: inputStyle }}
                 />
-                <UnsavedDot isSaved={isNodeSaved} />
+                {!isNodeSaved && <div className={classes.unsavedDot} />}
               </div>
             )}
             <IconButton

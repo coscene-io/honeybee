@@ -5,14 +5,15 @@
 import { createContext, useCallback, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { getLeaves } from "react-mosaic-component";
 
-import { useShallowMemo } from "@foxglove/hooks";
+import {
+  useShallowMemo,
+  selectWithUnstableIdentityWarning,
+  useGuaranteedContext,
+} from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { VariableValue } from "@foxglove/studio";
-import { selectWithUnstableIdentityWarning } from "@foxglove/studio-base/hooks/selectWithUnstableIdentityWarning";
-import useGuaranteedContext from "@foxglove/studio-base/hooks/useGuaranteedContext";
 import useShouldNotChangeOften from "@foxglove/studio-base/hooks/useShouldNotChangeOften";
 import toggleSelectedPanel from "@foxglove/studio-base/providers/CurrentLayoutProvider/toggleSelectedPanel";
-import { LayoutID } from "@foxglove/studio-base/services/ILayoutStorage";
 import { PanelConfig, PlaybackConfig, UserNodes } from "@foxglove/studio-base/types/panels";
 
 import {
@@ -30,6 +31,8 @@ import {
   SwapPanelPayload,
 } from "./actions";
 
+export type LayoutID = string & { __brand: "LayoutID" };
+
 export type LayoutState = Readonly<{
   selectedLayout:
     | {
@@ -37,6 +40,7 @@ export type LayoutState = Readonly<{
         loading?: boolean;
         data: LayoutData | undefined;
         name?: string;
+        edited?: boolean;
       }
     | undefined;
 }>;

@@ -2,10 +2,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Immutable } from "immer";
-
 import { filterMap } from "@foxglove/den/collection";
 import { isTime, subtract, Time, toSec } from "@foxglove/rostime";
+import { Immutable } from "@foxglove/studio";
 import { format } from "@foxglove/studio-base/util/formatTime";
 import { darkColor, getLineColor, lightColor } from "@foxglove/studio-base/util/plotColors";
 import { formatTimeRaw, TimestampMethod } from "@foxglove/studio-base/util/time";
@@ -64,7 +63,7 @@ function getDatumsForMessagePathItem(
   const data: Datum[] = [];
   const elapsedTime = toSec(subtract(timestamp, startTime));
   for (const entry of yItem.queriedData.entries()) {
-    const [innerIdx, { value, path: queriedPath, constantName }] = entry;
+    const [innerIdx, { value, constantName }] = entry;
     if (
       typeof value === "number" ||
       typeof value === "boolean" ||
@@ -79,7 +78,6 @@ function getDatumsForMessagePathItem(
         data.push({
           x: Number(x),
           y: Number(y),
-          path: queriedPath,
           value,
           constantName,
           receiveTime: yItem.receiveTime,
@@ -93,7 +91,6 @@ function getDatumsForMessagePathItem(
       data.push({
         x: Number(x),
         y,
-        path: queriedPath,
         receiveTime: yItem.receiveTime,
         headerStamp: yItem.headerStamp,
         value: `${format(value)} (${formatTimeRaw(value)})`,
@@ -129,7 +126,7 @@ function getDatasetsFromMessagePlotPath({
   dataset: DataSet;
   hasMismatchedData: boolean;
 } {
-  let showLine = true;
+  let showLine = path.showLine !== false;
   let hasMismatchedData =
     isCustomScale(xAxisVal) &&
     xAxisRanges != undefined &&
@@ -207,7 +204,6 @@ function getDatasetsFromMessagePlotPath({
         y: NaN,
         receiveTime: { sec: 0, nsec: 0 },
         value: "",
-        path: path.value,
       });
     }
     for (const datum of rangeData) {

@@ -32,15 +32,15 @@ export class ImageMode extends SceneExtension {
   public constructor(renderer: IRenderer) {
     super("foxglove.ImageMode", renderer);
 
-    renderer.settings.errors.on("update", this.handleErrorChange);
-    renderer.settings.errors.on("clear", this.handleErrorChange);
-    renderer.settings.errors.on("remove", this.handleErrorChange);
+    renderer.settings.errors.on("update", this.#handleErrorChange);
+    renderer.settings.errors.on("clear", this.#handleErrorChange);
+    renderer.settings.errors.on("remove", this.#handleErrorChange);
   }
 
   public override dispose(): void {
-    this.renderer.settings.errors.off("update", this.handleErrorChange);
-    this.renderer.settings.errors.off("clear", this.handleErrorChange);
-    this.renderer.settings.errors.off("remove", this.handleErrorChange);
+    this.renderer.settings.errors.off("update", this.#handleErrorChange);
+    this.renderer.settings.errors.off("clear", this.#handleErrorChange);
+    this.renderer.settings.errors.off("remove", this.#handleErrorChange);
     super.dispose();
   }
 
@@ -215,7 +215,7 @@ export class ImageMode extends SceneExtension {
     this.updateSettingsTree();
   };
 
-  private handleErrorChange = (): void => {
+  #handleErrorChange = (): void => {
     this.updateSettingsTree();
   };
 }

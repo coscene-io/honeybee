@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { TypeOptions } from "i18next";
 
-export const cosThreeDee: TypeOptions["resources"]["cosThreeDee"] = {
+export const cosThreeDee: Partial<TypeOptions["resources"]["cosThreeDee"]> = {
   reCenter: "重新居中",
   zoomIn: "放大",
   zoomOut: "缩小",

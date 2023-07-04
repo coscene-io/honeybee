@@ -13,7 +13,7 @@
 
 import DoubleArrowDownIcon from "@mui/icons-material/KeyboardDoubleArrowDown";
 import DoubleArrowUpIcon from "@mui/icons-material/KeyboardDoubleArrowUp";
-import produce from "immer";
+import { produce } from "immer";
 import { set } from "lodash";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";

@@ -2,17 +2,18 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Menu, PopoverPosition, PopoverReference } from "@mui/material";
+import { Menu, PaperProps, PopoverPosition, PopoverReference } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 
-import PanelList from "@foxglove/studio-base/components/PanelList";
+import { PanelCatalog } from "@foxglove/studio-base/components/PanelCatalog";
 import useAddPanel from "@foxglove/studio-base/hooks/useAddPanel";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   menuList: {
     minWidth: 270,
+    paddingBottom: theme.spacing(1),
   },
-});
+}));
 
 type AddPanelProps = {
   anchorEl?: HTMLElement;
@@ -38,6 +39,7 @@ export function AddPanelMenu(props: AddPanelProps): JSX.Element {
       open={open}
       onClose={handleClose}
       MenuListProps={{
+        dense: true,
         disablePadding: true,
         "aria-labelledby": "add-panel-button",
         className: classes.menuList,
@@ -50,8 +52,14 @@ export function AddPanelMenu(props: AddPanelProps): JSX.Element {
         vertical: "top",
         horizontal: "left",
       }}
+      PaperProps={
+        {
+          "data-tourid": "add-panel-menu",
+        } as Partial<PaperProps & { "data-tourid"?: string }>
+      }
     >
-      <PanelList
+      <PanelCatalog
+        isMenu
         // Close when a drag starts so the modal menu doesn't block the drop targets
         onDragStart={handleClose}
         onPanelSelect={(selection) => {

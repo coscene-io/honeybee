@@ -103,7 +103,11 @@ docker run --rm -p "8080:8080" ghcr.io/foxglove/studio:latest
 
 Honeybee will then be accessible in your browser at [localhost:8080](http://localhost:8080/).
 
-For all list of available image versions, see the [package details](https://github.com/foxglove/studio/pkgs/container/studio).
+## Contributing
+
+Foxglove Studio is written in TypeScript – contributions are welcome!
+
+Note: All contributors must agree to our [Contributor License Agreement](https://github.com/foxglove/cla). See [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
 ## Credits
 

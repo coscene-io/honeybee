@@ -19,7 +19,6 @@ import {
   Tabs,
   Typography,
   useMediaQuery,
-  useTheme,
 } from "@mui/material";
 import { MouseEvent, SyntheticEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -35,7 +34,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import {
   useWorkspaceStore,
   WorkspaceContextStore,
-} from "@foxglove/studio-base/context/WorkspaceContext";
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -183,7 +182,7 @@ export type AppSettingsTab =
   | "about";
 
 const selectWorkspaceInitialActiveTab = (store: WorkspaceContextStore) =>
-  store.prefsDialogState.initialTab;
+  store.dialogs.preferences.initialTab;
 
 export function AppSettingsDialog(
   props: DialogProps & { activeTab?: AppSettingsTab },
@@ -200,8 +199,7 @@ export function AppSettingsDialog(
   const [telemetryEnabled, setTelemetryEnabled] = useAppConfigurationValue<boolean>(
     AppSetting.TELEMETRY_ENABLED,
   );
-  const { classes, cx } = useStyles();
-  const theme = useTheme();
+  const { classes, cx, theme } = useStyles();
   const smUp = useMediaQuery(theme.breakpoints.up("sm"));
 
   // automatic updates are a desktop-only setting
@@ -245,14 +243,14 @@ export function AppSettingsDialog(
           onChange={handleTabChange}
         >
           <Tab className={classes.tab} label={t("general")} value="general" />
-          <Tab className={classes.tab} label={t("privacy")} value="privacy" />
+          {/* <Tab className={classes.tab} label={t("privacy")} value="privacy" /> */}
           <Tab className={classes.tab} label={t("extensions")} value="extensions" />
           <Tab
             className={classes.tab}
             label={t("experimentalFeatures")}
             value="experimental-features"
           />
-          <Tab className={classes.tab} label={t("about")} value="about" />
+          {/* <Tab className={classes.tab} label={t("about")} value="about" /> */}
         </Tabs>
         <Stack direction="row" fullHeight overflowY="auto">
           <section
