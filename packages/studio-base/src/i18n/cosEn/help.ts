@@ -2,8 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { TypeOptions } from "i18next";
-
-export const cosError: Partial<TypeOptions["resources"]["cosError"]> = {
-  loginExpired: "登录已过期，请重新登录",
+export const cosHelp = {
+  dataVisualization: "Data Visualization",
+  visualizeMachineDataAndAnalysis: "Visualization of machine data and analysis issues",
 };

@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { TypeOptions } from "i18next";
 
-export const cosPlaylist: TypeOptions["resources"]["cosPlaylist"] = {
+export const cosPlaylist: Partial<TypeOptions["resources"]["cosPlaylist"]> = {
   noPlayableBag: "当前列表无可播放的bag文件",
   noPlayableBagDesc: "请刷新重试，或前往记录详情页查看与操作",
   viewRecordDetails: "查看记录详情",

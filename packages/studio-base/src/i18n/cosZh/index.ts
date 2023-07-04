@@ -11,3 +11,4 @@ export * from "./error";
 export * from "./layout";
 export * from "./threeDee";
 export * from "./settings";
+export * from "./help";

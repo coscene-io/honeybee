@@ -4,7 +4,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const cosLayout: TypeOptions["resources"]["cosLayout"] = {
+export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   layout: "布局",
   layouts: "布局",
   offline: "离线",
