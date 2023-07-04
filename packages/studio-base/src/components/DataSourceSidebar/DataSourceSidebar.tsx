@@ -2,17 +2,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import AddIcon from "@mui/icons-material/Add";
+// import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import {
-  IconButton,
+  // IconButton,
   Tab,
   Tabs,
   styled as muiStyled,
   Divider,
   CircularProgress,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -32,18 +32,18 @@ import {
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Stack from "@foxglove/studio-base/components/Stack";
 import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
-import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
-import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
+import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
+import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+// import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
+import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
+import { Playlist } from "./Playlist";
 import { TopicList } from "./TopicList";
 import { DataSourceInfoView } from "../DataSourceInfoView";
 import { ProblemsList } from "../ProblemsList";
-import { Playlist } from "./Playlist";
 
 type Props = {
   disableToolbar?: boolean;
@@ -181,7 +181,7 @@ export default function DataSourceSidebar(props: Props): JSX.Element {
   const record = useRecord(selectRecords);
   const bagFiles = useRecord(selectBagFiles);
   const { t } = useTranslation("dataSourceInfo");
-  const { dialogActions } = useWorkspaceActions();
+  // const { dialogActions } = useWorkspaceActions();
   const [noPlayableBags, setNoPlayableBags] = useState<boolean>(false);
 
   const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
@@ -226,14 +226,14 @@ export default function DataSourceSidebar(props: Props): JSX.Element {
             <CircularProgress size={18} variant="indeterminate" />
           </Stack>
         ),
-        <IconButton
-          key="add-connection"
-          color="primary"
-          title="New connection"
-          onClick={() => dialogActions.dataSource.open("start")}
-        >
-          <AddIcon />
-        </IconButton>,
+        // <IconButton
+        //   key="add-connection"
+        //   color="primary"
+        //   title="New connection"
+        //   onClick={() => dialogActions.dataSource.open("start")}
+        // >
+        //   <AddIcon />
+        // </IconButton>,
       ].filter(Boolean)}
     >
       <Stack fullHeight>
