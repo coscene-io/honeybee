@@ -252,7 +252,15 @@ export default function CurrentLayoutProvider({
     if (layout) {
       await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
     } else {
-      if (APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon") {
+      if (APP_CONFIG.VITE_APP_PROJECT_ENV === "saas") {
+        const newSampleLayout = await layoutManager.saveNewLayout({
+          name: `Demo layout`,
+          data: sampleLayout,
+          permission: "CREATOR_WRITE",
+        });
+
+        await setSelectedLayoutId(newSampleLayout.id);
+      } else if (APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon") {
         const defaultLayout = await layoutManager.saveNewLayout({
           name: "default",
           data: keenonDefaultLayout,
