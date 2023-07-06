@@ -175,6 +175,18 @@ export function RecordsSyncAdapter(): ReactNull {
 
         const record = await consoleApi.getRecord({ recordName: recordName ?? "" });
         const recordBagFiles: BagFileInfo[] = [];
+        let filesList = record.getHead()?.getFilesList() ?? [];
+
+        // ps: record.getHead is the latest revision of the file, if revision id is available, get the files from getRevision
+        if (urlState.parameters.revisionId) {
+          const revision = await consoleApi.getRevision({
+            revisionName: recordName
+              ? `${recordName}/revisions/${urlState.parameters.revisionId}`
+              : "",
+          });
+
+          filesList = revision.getFilesList();
+        }
 
         const shadowBags = playlist.value.bagList.filter((bag) => bag.isGhostMode);
         const originalBags = playlist.value.bagList.filter((bag) => !bag.isGhostMode);
@@ -188,7 +200,7 @@ export function RecordsSyncAdapter(): ReactNull {
           bagStartTime = originalBags.find((bag) => bag.fileName === filename);
         }
 
-        (record.getHead()?.getFilesList() ?? []).forEach((ele) => {
+        filesList.forEach((ele) => {
           if (
             ele.getMediaType() === ROS_BAG_MEDIA_TYPE ||
             ele.getMediaType() === CYBER_RT_MEDIA_TYPE ||
@@ -227,17 +239,18 @@ export function RecordsSyncAdapter(): ReactNull {
       }
     }
   }, [
-    consoleApi,
-    setRecord,
     urlState?.parameters?.warehouseId,
     urlState?.parameters?.projectId,
     urlState?.parameters?.recordId,
     urlState?.parameters?.filename,
+    urlState?.parameters?.revisionId,
+    playlist.value,
+    consoleApi,
     seek,
+    setRecordBagFiles,
+    setRecord,
     startTime,
     endTime,
-    setRecordBagFiles,
-    playlist,
   ]);
 
   useEffect(() => {

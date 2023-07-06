@@ -25,6 +25,8 @@ import {
 } from "@coscene-io/coscene/proto/v1alpha2";
 import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
+import { Revision } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/revision_pb";
+import { GetRevisionRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/revision_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
@@ -623,6 +625,13 @@ class CoSceneConsoleApi {
     req.setName(recordName);
 
     return await CsWebClient.getRecordClient().getRecord(req);
+  }
+
+  public async getRevision({ revisionName }: { revisionName: string }): Promise<Revision> {
+    const req = new GetRevisionRequest();
+    req.setName(revisionName);
+
+    return await CsWebClient.getRevisionClient().getRevision(req);
   }
 
   public async getProject({ projectName }: { projectName: string }): Promise<Project> {
