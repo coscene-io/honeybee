@@ -122,7 +122,7 @@ function TopicListItem({
             data-topic={topic.name}
             data-topic-stat="count"
           >
-            &mdash;
+            {topic.messageCount}
           </Typography>
           <Typography
             variant="caption"
@@ -130,7 +130,7 @@ function TopicListItem({
             data-topic={topic.name}
             data-topic-stat="frequency"
           >
-            &mdash;
+            {topic.messageFrequency}
           </Typography>
         </Stack>
       }
