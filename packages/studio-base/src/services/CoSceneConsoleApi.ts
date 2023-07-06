@@ -119,6 +119,8 @@ type TopicResponse = {
   schemaEncoding: string;
   schema?: Uint8Array;
   version: string;
+  messageCount?: number;
+  messageFrequency?: number;
 };
 
 type RawTopicResponse = Omit<TopicResponse, "schema"> & { schema?: string };

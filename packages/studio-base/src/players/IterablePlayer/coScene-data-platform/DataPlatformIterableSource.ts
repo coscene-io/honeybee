@@ -108,7 +108,15 @@ export class DataPlatformIterableSource implements IIterableSource {
     const datatypes: RosDatatypes = new Map();
     const problems: PlayerProblem[] = [];
     rawTopics: for (const rawTopic of rawTopics) {
-      const { topic, encoding: messageEncoding, schemaEncoding, schema, schemaName } = rawTopic;
+      const {
+        topic,
+        encoding: messageEncoding,
+        schemaEncoding,
+        schema,
+        schemaName,
+        messageCount,
+        messageFrequency,
+      } = rawTopic;
       if (schema == undefined) {
         problems.push({ message: `Missing schema for ${topic}`, severity: "error" });
         continue;
@@ -135,7 +143,7 @@ export class DataPlatformIterableSource implements IIterableSource {
           schema: { name: schemaName, data: schema, encoding: schemaEncoding },
         });
 
-        topics.push({ name: topic, schemaName });
+        topics.push({ name: topic, schemaName, messageCount, messageFrequency });
         parsedChannels.push({ messageEncoding, schemaEncoding, schema, parsedChannel });
 
         // Final datatypes is an unholy union of schemas across all channels
