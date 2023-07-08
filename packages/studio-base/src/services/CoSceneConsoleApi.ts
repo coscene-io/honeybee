@@ -512,15 +512,33 @@ class CoSceneConsoleApi {
 
   public async getEvents({
     parent,
+    revisionId,
     recordId,
+    jobRunId,
   }: {
     parent: string;
     recordId: string;
+    revisionId?: string;
+    jobRunId?: string;
   }): Promise<Event[]> {
+    let filter = "";
+
+    if (revisionId && jobRunId) {
+      filter = `record.revision="${revisionId}" OR record.job_run="${jobRunId}"`;
+    } else {
+      if (revisionId) {
+        filter = `record.revision="${revisionId}"`;
+      } else if (jobRunId) {
+        filter = `record.job_run="${jobRunId}"`;
+      } else {
+        filter = `record.id="${recordId}"`;
+      }
+    }
+
     const listEventsRequest = new ListEventsRequest()
       .setParent(parent)
       .setOrderBy("create_time desc")
-      .setFilter(`record.id="${recordId}"`)
+      .setFilter(filter)
       .setPageSize(999);
 
     const events = await CsWebClient.getEventClient().listEvents(listEventsRequest);
