@@ -107,9 +107,16 @@ export function EventsSyncAdapter(): ReactNull {
 
     const recordId = record.value?.getName().split("/").pop();
 
+    const revisionId = urlState?.parameters?.revisionId;
+
+    const jobRunId =
+      urlState?.parameters?.workflowRunsId &&
+      urlState.parameters.jobRunsId &&
+      `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/workflowRuns/${urlState.parameters.workflowRunsId}/jobRuns/${urlState.parameters.jobRunsId}`;
+
     if (parent && recordId && startTime && endTime) {
       try {
-        const eventList = await consoleApi.getEvents({ parent, recordId });
+        const eventList = await consoleApi.getEvents({ parent, recordId, revisionId, jobRunId });
         setEvents({ loading: false, value: positionEvents(eventList, startTime, endTime) });
       } catch (error) {
         log.error(error);
