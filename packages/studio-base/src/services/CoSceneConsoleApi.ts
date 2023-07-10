@@ -524,10 +524,10 @@ class CoSceneConsoleApi {
     let filter = "";
 
     if (revisionId && jobRunId) {
-      filter = `record.revision="${revisionId}" OR record.job_run="${jobRunId}"`;
+      filter = `revision.sha256="${revisionId}" OR record.job_run="${jobRunId}"`;
     } else {
       if (revisionId) {
-        filter = `record.revision="${revisionId}"`;
+        filter = `revision.sha256="${revisionId}"`;
       } else if (jobRunId) {
         filter = `record.job_run="${jobRunId}"`;
       } else {
