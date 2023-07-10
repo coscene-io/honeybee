@@ -62,10 +62,7 @@ function DataSourceInfoContent(props: {
     playerPresence,
     playerSourceId,
     startTime,
-    // foxglove 的变量 我们暂时不会使用 为了减少改动量,防止每次合并foxglove主分支都需要处理一遍 有更好的办法前这里暂时不做删除处理
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     playerName,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     disableSource,
   } = props;
   const { classes } = useStyles();
@@ -78,6 +75,11 @@ function DataSourceInfoContent(props: {
   } = useConsoleApi();
 
   useTitle(`coScene ${record.value?.getTitle() ?? ""}`);
+
+  // foxglove 的变量 我们暂时不会使用 为了减少改动量,防止每次合并foxglove主分支都需要处理一遍 有更好的办法前这里暂时不做删除处理
+  if (playerName != undefined && disableSource != undefined) {
+    console.debug("playerName is always empty so it will never be output");
+  }
 
   const projectHref =
     process.env.NODE_ENV === "development"
