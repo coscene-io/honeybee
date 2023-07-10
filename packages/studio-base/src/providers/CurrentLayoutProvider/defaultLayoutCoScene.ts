@@ -10,19 +10,6 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/a
  */
 export const sampleLayout: LayoutData = {
   configById: {
-    "ImageViewPanel!2oxf7bv": {
-      cameraTopic: "/CAM_FRONT_RIGHT/image_rect_compressed",
-      enabledMarkerTopics: [],
-      mode: "fit",
-      pan: {
-        x: 0,
-        y: 0,
-      },
-      rotation: 0,
-      synchronize: false,
-      transformMarkers: false,
-      zoom: 1,
-    },
     "Plot!t0ra0d": {
       paths: [
         {
@@ -941,6 +928,40 @@ export const sampleLayout: LayoutData = {
       topicToRender: "/rosout",
       reverseOrder: false,
     },
+    "Image!3c2sno8": {
+      imageMode: {
+        imageTopic: "/CAM_FRONT_RIGHT/image_rect_compressed",
+        synchronize: false,
+        rotation: 0,
+        annotations: {},
+      },
+      cameraState: {
+        distance: 20,
+        perspective: true,
+        phi: 60,
+        target: [0, 0, 0],
+        targetOffset: [0, 0, 0],
+        targetOrientation: [0, 0, 0, 1],
+        thetaOffset: 45,
+        fovy: 45,
+        near: 0.5,
+        far: 5000,
+      },
+      followMode: "follow-pose",
+      scene: {},
+      transforms: {},
+      topics: {},
+      layers: {},
+      publish: {
+        type: "point",
+        poseTopic: "/move_base_simple/goal",
+        pointTopic: "/clicked_point",
+        poseEstimateTopic: "/initialpose",
+        poseEstimateXDeviation: 0.5,
+        poseEstimateYDeviation: 0.5,
+        poseEstimateThetaDeviation: 0.26179939,
+      },
+    },
   },
   globalVariables: {},
   userNodes: {},
@@ -951,7 +972,7 @@ export const sampleLayout: LayoutData = {
     direction: "row",
     first: {
       first: {
-        first: "ImageViewPanel!2oxf7bv",
+        first: "Image!3c2sno8",
         second: {
           first: "Plot!t0ra0d",
           second: "RawMessages!3bnxls2",
