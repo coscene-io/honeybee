@@ -130,7 +130,7 @@ function TopicListItem({
             data-topic={topic.name}
             data-topic-stat="frequency"
           >
-            {topic.messageFrequency}
+            {topic.messageFrequency} Hz
           </Typography>
         </Stack>
       }
