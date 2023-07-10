@@ -13,7 +13,6 @@ import {
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { PlayerCapabilities, TopicStats } from "@foxglove/studio-base/players/types";
 
-const EM_DASH = "\u2014";
 const EMPTY_TOPIC_STATS = new Map<string, TopicStats>();
 
 const selectTopicStats = (ctx: MessagePipelineContext) =>
@@ -68,14 +67,14 @@ export function DirectTopicStatsUpdater({ interval = 1 }: { interval?: number })
       if (field.dataset.topicStat === "count") {
         if (stat) {
           field.innerText = stat.numMessages.toLocaleString();
-        } else {
-          field.innerText = EM_DASH;
         }
       }
 
       if (field.dataset.topicStat === "frequency") {
         const frequency = latestFrequenciesByTopic.current[topic];
-        field.innerText = frequency != undefined ? `${frequency.toFixed(2)} Hz` : EM_DASH;
+        if (frequency != undefined) {
+          field.innerText = `${frequency.toFixed(2)} Hz`;
+        }
       }
     });
   }, [latestFrequenciesByTopic, latestStats]);
