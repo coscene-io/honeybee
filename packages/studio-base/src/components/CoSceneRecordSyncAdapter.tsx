@@ -229,6 +229,15 @@ export function RecordsSyncAdapter(): ReactNull {
 
         if (bagStartTime != undefined && seek) {
           seek(timestampToTime(bagStartTime.startTime));
+
+          // Remove the filename parameter from the url
+          // to prevent sharing an url that doesn't jump based
+          // on the timestamp but on the filename.
+          const newURL = new URL(window.location.href);
+
+          newURL.searchParams.delete("ds.filename");
+
+          window.history.replaceState(undefined, "", newURL.href);
         }
 
         setRecordBagFiles({ loading: false, value: recordBagFiles });
