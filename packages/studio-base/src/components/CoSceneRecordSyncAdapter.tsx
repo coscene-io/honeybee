@@ -12,12 +12,12 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoSceneRecordStore,
   useRecord,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoSceneRecordContext";
-import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 import {
   TimelineInteractionStateStore,
   useHoverValue,

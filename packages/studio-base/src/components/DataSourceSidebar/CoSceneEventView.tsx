@@ -15,7 +15,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { toRFC3339String, fromDate } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
-import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   TimelinePositionedEvent,
   EventsStore,
