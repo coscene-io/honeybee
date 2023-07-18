@@ -26,8 +26,8 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
-import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectRecord = (state: CoSceneRecordStore) => state.record;

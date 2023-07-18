@@ -10,11 +10,11 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoSceneProjectStore,
   useProject,
 } from "@foxglove/studio-base/context/CoSceneProjectContext";
-import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
 
 const log = Logger.getLogger(__filename);
 

@@ -25,12 +25,12 @@ import { useLatest, useMountedState } from "react-use";
 import { useShallowMemo, useWarnImmediateReRender } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
+import ConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import PlayerSelectionContext, {
   DataSourceArgs,
   IDataSourceFactory,
   PlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 import {
   LayoutState,
   useCurrentLayoutActions,
