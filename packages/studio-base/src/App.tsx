@@ -27,8 +27,8 @@ import PlayerManager from "./components/PlayerManager";
 import SendNotificationToastAdapter from "./components/SendNotificationToastAdapter";
 import StudioToastProvider from "./components/StudioToastProvider";
 import AppConfigurationContext, { IAppConfiguration } from "./context/AppConfigurationContext";
+import CoSceneConsoleApiContext from "./context/CoSceneConsoleApiContext";
 import { IDataSourceFactory } from "./context/CoScenePlayerSelectionContext";
-import ConsoleApiContext from "./context/ConsoleApiContext";
 import LayoutStorageContext from "./context/LayoutStorageContext";
 import NativeAppMenuContext, { INativeAppMenu } from "./context/NativeAppMenuContext";
 import NativeWindowContext, { INativeWindow } from "./context/NativeWindowContext";
@@ -94,7 +94,7 @@ export function App(props: AppProps): JSX.Element {
   const providers = [
     /* eslint-disable react/jsx-key */
     <UserProfileLocalStorageProvider />,
-    <ConsoleApiContext.Provider value={consoleApi} />,
+    <CoSceneConsoleApiContext.Provider value={consoleApi} />,
     <TimelineInteractionStateProvider />,
     <UserNodeStateProvider />,
     <CurrentLayoutProvider />,

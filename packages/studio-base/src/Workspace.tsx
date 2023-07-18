@@ -27,7 +27,7 @@ import {
   DataSourceDialogItem,
 } from "@foxglove/studio-base/components/DataSourceDialog";
 import { DataSourceSidebar } from "@foxglove/studio-base/components/DataSourceSidebar";
-import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
+import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/CoSceneEventsList";
 import { TopicList } from "@foxglove/studio-base/components/DataSourceSidebar/TopicList";
 // import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";

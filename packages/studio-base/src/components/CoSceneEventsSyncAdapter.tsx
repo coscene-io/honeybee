@@ -75,7 +75,7 @@ const selectRecord = (state: CoSceneRecordStore) => state.record;
 /**
  * Syncs events from server and syncs hovered event with hovered time.
  */
-export function EventsSyncAdapter(): ReactNull {
+export function CoSceneEventsSyncAdapter(): ReactNull {
   const urlState = useMessagePipeline(selectUrlState);
   const consoleApi = useConsoleApi();
   const setEvents = useEvents(selectSetEvents);

@@ -19,7 +19,7 @@ import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
-import { useConsoleApi } from "@foxglove/studio-base/context/ConsoleApiContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
