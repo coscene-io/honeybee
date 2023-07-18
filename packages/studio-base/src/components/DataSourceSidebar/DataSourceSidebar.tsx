@@ -24,7 +24,7 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
-import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
+import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/CoSceneEventsList";
 import {
   MessagePipelineContext,
   useMessagePipeline,
