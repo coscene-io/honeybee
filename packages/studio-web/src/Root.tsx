@@ -33,7 +33,6 @@ import {
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { JoyrideWrapper } from "./Joyride";
-import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -88,7 +87,6 @@ export function Root(props: {
     return props.dataSources ?? sources;
   }, [props.dataSources]);
 
-  const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
   const [extensionLoaders] = useState(() => [
     new IdbExtensionLoader("org"),
     new IdbExtensionLoader("local"),
@@ -110,7 +108,6 @@ export function Root(props: {
         deepLinks={[window.location.href]}
         dataSources={dataSources}
         appConfiguration={appConfiguration}
-        layoutStorage={layoutStorage}
         consoleApi={consoleApi}
         extensionLoaders={extensionLoaders}
         enableGlobalCss

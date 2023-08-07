@@ -2,13 +2,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { StoryObj, StoryFn } from "@storybook/react";
+import { StoryObj } from "@storybook/react";
 import { fireEvent, screen } from "@storybook/testing-library";
 
 import MultiProvider from "@foxglove/studio-base/components/MultiProvider";
 import Panel from "@foxglove/studio-base/components/Panel";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
-import LayoutStorageContext from "@foxglove/studio-base/context/LayoutStorageContext";
 import PanelCatalogContext, {
   PanelCatalog,
   PanelInfo,

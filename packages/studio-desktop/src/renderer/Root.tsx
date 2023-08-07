@@ -25,7 +25,6 @@ import {
 
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
-import NativeStorageLayoutStorage from "./services/NativeStorageLayoutStorage";
 import { NativeWindow } from "./services/NativeWindow";
 import { Desktop, NativeMenuBridge, Storage } from "../common/types";
 
@@ -55,7 +54,6 @@ export default function Root(props: {
     };
   }, [appConfiguration]);
 
-  const layoutStorage = useMemo(() => new NativeStorageLayoutStorage(storageBridge), []);
   const [extensionLoaders] = useState(() => [
     new IdbExtensionLoader("org"),
     new DesktopExtensionLoader(desktopBridge),
@@ -102,22 +100,23 @@ export default function Root(props: {
   const onMaximizeWindow = useCallback(() => nativeWindow.maximize(), [nativeWindow]);
   const onUnmaximizeWindow = useCallback(() => nativeWindow.unmaximize(), [nativeWindow]);
   const onCloseWindow = useCallback(() => nativeWindow.close(), [nativeWindow]);
-  const onReloadWindow = useCallback(() => nativeWindow.reload(), [nativeWindow]);
 
   useEffect(() => {
-    const onEnterFullScreen = () => setFullScreen(true);
-    const onLeaveFullScreen = () => setFullScreen(false);
-    const onMaximize = () => setMaximized(true);
-    const onUnmaximize = () => setMaximized(false);
-    desktopBridge.addIpcEventListener("enter-full-screen", onEnterFullScreen);
-    desktopBridge.addIpcEventListener("leave-full-screen", onLeaveFullScreen);
-    desktopBridge.addIpcEventListener("maximize", onMaximize);
-    desktopBridge.addIpcEventListener("unmaximize", onUnmaximize);
+    const unregisterFull = desktopBridge.addIpcEventListener("enter-full-screen", () =>
+      setFullScreen(true),
+    );
+    const unregisterLeave = desktopBridge.addIpcEventListener("leave-full-screen", () =>
+      setFullScreen(false),
+    );
+    const unregisterMax = desktopBridge.addIpcEventListener("maximize", () => setMaximized(true));
+    const unregisterUnMax = desktopBridge.addIpcEventListener("unmaximize", () =>
+      setMaximized(false),
+    );
     return () => {
-      desktopBridge.removeIpcEventListener("enter-full-screen", onEnterFullScreen);
-      desktopBridge.removeIpcEventListener("leave-full-screen", onLeaveFullScreen);
-      desktopBridge.removeIpcEventListener("maximize", onMaximize);
-      desktopBridge.removeIpcEventListener("unmaximize", onUnmaximize);
+      unregisterFull();
+      unregisterLeave();
+      unregisterMax();
+      unregisterUnMax();
     };
   }, []);
 
@@ -127,7 +126,6 @@ export default function Root(props: {
         deepLinks={deepLinks}
         dataSources={dataSources}
         appConfiguration={appConfiguration}
-        layoutStorage={layoutStorage}
         extensionLoaders={extensionLoaders}
         nativeAppMenu={nativeAppMenu}
         nativeWindow={nativeWindow}
@@ -140,7 +138,6 @@ export default function Root(props: {
         onMaximizeWindow={onMaximizeWindow}
         onUnmaximizeWindow={onUnmaximizeWindow}
         onCloseWindow={onCloseWindow}
-        onReloadWindow={onReloadWindow}
         extraProviders={props.extraProviders}
       />
     </>

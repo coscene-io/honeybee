@@ -7,7 +7,6 @@ import { Fragment, Suspense, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
-import { DesktopInterfaceChangeWindowReloader } from "@foxglove/studio-base/components/DesktopInterfaceChangeWindowReloader";
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
 import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
 import CoSceneRecordProvider from "@foxglove/studio-base/providers/CoSceneRecordProvider";
@@ -29,20 +28,16 @@ import StudioToastProvider from "./components/StudioToastProvider";
 import AppConfigurationContext, { IAppConfiguration } from "./context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "./context/CoSceneConsoleApiContext";
 import { IDataSourceFactory } from "./context/CoScenePlayerSelectionContext";
-import LayoutStorageContext from "./context/LayoutStorageContext";
 import NativeAppMenuContext, { INativeAppMenu } from "./context/NativeAppMenuContext";
 import NativeWindowContext, { INativeWindow } from "./context/NativeWindowContext";
 import { UserNodeStateProvider } from "./context/UserNodeStateContext";
 import CurrentLayoutProvider from "./providers/CurrentLayoutProvider";
 import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
 import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
-import LayoutManagerProvider from "./providers/LayoutManagerProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
-import UserProfileLocalStorageProvider from "./providers/UserProfileLocalStorageProvider";
 import { LaunchPreference } from "./screens/LaunchPreference";
 import ConsoleApi from "./services/CoSceneConsoleApi";
 import { ExtensionLoader } from "./services/ExtensionLoader";
-import { ILayoutStorage } from "./services/ILayoutStorage";
 
 CsWebClient.init({
   hostname: APP_CONFIG.VITE_APP_BASE_API_URL,
@@ -53,7 +48,6 @@ type AppProps = CustomWindowControlsProps & {
   deepLinks: string[];
   appConfiguration: IAppConfiguration;
   dataSources: IDataSourceFactory[];
-  layoutStorage: ILayoutStorage;
   extensionLoaders: readonly ExtensionLoader[];
   nativeAppMenu?: INativeAppMenu;
   nativeWindow?: INativeWindow;
@@ -63,7 +57,6 @@ type AppProps = CustomWindowControlsProps & {
   extraProviders?: JSX.Element[];
   onAppBarDoubleClick?: () => void;
   consoleApi: ConsoleApi;
-  onReloadWindow?: () => void;
 };
 
 // Suppress context menu for the entire app except on inputs & textareas.
@@ -80,7 +73,6 @@ export function App(props: AppProps): JSX.Element {
   const {
     appConfiguration,
     dataSources,
-    layoutStorage,
     extensionLoaders,
     nativeAppMenu,
     nativeWindow,
@@ -93,7 +85,6 @@ export function App(props: AppProps): JSX.Element {
 
   const providers = [
     /* eslint-disable react/jsx-key */
-    <UserProfileLocalStorageProvider />,
     <CoSceneConsoleApiContext.Provider value={consoleApi} />,
     <TimelineInteractionStateProvider />,
     <UserNodeStateProvider />,
@@ -117,10 +108,6 @@ export function App(props: AppProps): JSX.Element {
 
   if (extraProviders) {
     providers.unshift(...extraProviders);
-  } else {
-    // Extra providers have their own layout providers
-    providers.unshift(<LayoutManagerProvider />);
-    providers.unshift(<LayoutStorageContext.Provider value={layoutStorage} />);
   }
 
   // The toast and logs provider comes first so they are available to all downstream providers
@@ -158,9 +145,6 @@ export function App(props: AppProps): JSX.Element {
                         onUnmaximizeWindow={props.onUnmaximizeWindow}
                         onCloseWindow={props.onCloseWindow}
                       />
-                      {props.onReloadWindow && (
-                        <DesktopInterfaceChangeWindowReloader reloadWindow={props.onReloadWindow} />
-                      )}
                     </PanelCatalogProvider>
                   </Suspense>
                 </DndProvider>

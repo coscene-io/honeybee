@@ -23,9 +23,7 @@ export type {
 } from "./context/AppConfigurationContext";
 export { AppContext } from "./context/AppContext";
 export type { IAppContext } from "./context/AppContext";
-export type { LayoutID } from "./context/CurrentLayoutContext";
-export type { Layout, ISO8601Timestamp, ILayoutStorage } from "./services/ILayoutStorage";
-export { migrateLayout } from "./services/migrateLayout";
+export { migratePanelsState } from "./services/migrateLayout";
 export type { INativeAppMenu, NativeAppMenuEvent } from "./context/NativeAppMenuContext";
 export { default as NativeWindowContext } from "./context/NativeWindowContext";
 export type { INativeWindow, NativeWindowEvent } from "./context/NativeWindowContext";

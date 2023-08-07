@@ -11,7 +11,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { CircularProgress, Link, Typography } from "@mui/material";
+import { CircularProgress } from "@mui/material";
 import React, { PropsWithChildren, Suspense, useCallback, useMemo } from "react";
 import { useDrop } from "react-dnd";
 import {
@@ -35,11 +35,7 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
-import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
-import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
-import { defaultPlaybackConfig } from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
 import { MosaicDropResult, PanelConfig } from "@foxglove/studio-base/types/panels";
 import { getPanelIdForType, getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
@@ -200,18 +196,14 @@ function LoadingState(): JSX.Element {
   );
 }
 
-const selectedLayoutLoadingSelector = (state: LayoutState) => state.selectedLayout?.loading;
 const selectedLayoutExistsSelector = (state: LayoutState) =>
   state.selectedLayout?.data != undefined;
 const selectedLayoutMosaicSelector = (state: LayoutState) => state.selectedLayout?.data?.layout;
 
 export default function PanelLayout(): JSX.Element {
   const { layoutEmptyState } = useAppContext();
-  const { changePanelLayout, setSelectedLayoutId } = useCurrentLayoutActions();
-  const { openLayoutBrowser } = useWorkspaceActions();
-  const layoutManager = useLayoutManager();
+  const { changePanelLayout } = useCurrentLayoutActions();
   const layoutExists = useCurrentLayoutSelector(selectedLayoutExistsSelector);
-  const layoutLoading = useCurrentLayoutSelector(selectedLayoutLoadingSelector);
   const mosaicLayout = useCurrentLayoutSelector(selectedLayoutMosaicSelector);
   const registeredExtensions = useExtensionCatalog((state) => state.installedExtensions);
   const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
@@ -263,28 +255,9 @@ export default function PanelLayout(): JSX.Element {
     return <UnconnectedPanelLayout layout={mosaicLayout} onChange={onChange} />;
   }
 
-  if (layoutLoading === true) {
-    return <LoadingState />;
-  }
-
   if (layoutEmptyState) {
     return layoutEmptyState;
   }
 
-  return (
-    <EmptyState>
-      <Typography display="block" variant="body1" color="text.primary">
-        You don&apos;t currently have a layout selected.
-      </Typography>
-      <Link onClick={selectExistingLayout} underline="hover" color="primary" variant="body1">
-        Select an existing layout
-      </Link>{" "}
-      <Typography display="inline-flex" variant="body1" color="text.primary">
-        or
-      </Typography>{" "}
-      <Link onClick={createNewLayout} underline="hover" color="primary" variant="body1">
-        Create a new layout
-      </Link>
-    </EmptyState>
-  );
+  return <></>;
 }

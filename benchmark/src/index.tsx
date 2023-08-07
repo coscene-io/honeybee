@@ -20,14 +20,6 @@ if (!rootEl) {
   throw new Error("missing #root element");
 }
 
-function LogAfterRender(props: React.PropsWithChildren<unknown>): JSX.Element {
-  useEffect(() => {
-    // Integration tests look for this console log to indicate the app has rendered once
-    log.debug("App rendered");
-  }, []);
-  return <>{props.children}</>;
-}
-
 async function main() {
   const { overwriteFetch, waitForFonts } = await import("@foxglove/studio-base");
   overwriteFetch();
@@ -38,12 +30,7 @@ async function main() {
 
   const { Root } = await import("./Root");
 
-  ReactDOM.render(
-    <LogAfterRender>
-      <Root />
-    </LogAfterRender>,
-    rootEl,
-  );
+  ReactDOM.render(<Root />, rootEl);
 }
 
 void main();

@@ -10,7 +10,6 @@ import {
   PanelRight24Regular,
   SlideAdd24Regular,
 } from "@fluentui/react-icons";
-import PersonIcon from "@mui/icons-material/Person";
 import { Avatar, Button, IconButton, Tooltip, AppBar as MuiAppBar } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -168,10 +167,6 @@ const useStyles = makeStyles<{ leftInset?: number; debugDragRegion?: boolean }, 
           },
         },
       },
-      userIconImage: {
-        objectFit: "cover",
-        width: "100%",
-      },
       button: {
         marginInline: theme.spacing(1),
         backgroundColor: theme.palette.appBar.primary,
@@ -193,7 +188,7 @@ type AppBarProps = CustomWindowControlsProps & {
   disableSignIn?: boolean;
 };
 
-const selectCurrentLayoutId = ({ selectedLayout }: LayoutState) => selectedLayout?.id;
+const selectHasCurrentLayout = (state: LayoutState) => state.selectedLayout != undefined;
 const selectWorkspace = (store: WorkspaceContextStore) => store;
 
 export function AppBar(props: AppBarProps): JSX.Element {
@@ -220,7 +215,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
     AppSetting.ENABLE_MEMORY_USE_INDICATOR,
   );
 
-  const currentLayoutId = useCurrentLayoutSelector(selectCurrentLayoutId);
+  const hasCurrentLayout = useCurrentLayoutSelector(selectHasCurrentLayout);
 
   const {
     sidebars: {
@@ -287,7 +282,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
               <AppBarIconButton
                 className={cx({ "Mui-selected": panelMenuOpen })}
                 color="inherit"
-                disabled={currentLayoutId == undefined}
+                disabled={!hasCurrentLayout}
                 id="add-panel-button"
                 data-tourid="add-panel-button"
                 title="Add panel"
@@ -374,17 +369,11 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   onClick={(event) => setUserAnchorEl(event.currentTarget)}
                   data-testid="user-button"
                 >
-                  <Avatar className={classes.avatar} variant="rounded">
-                    {currentUser?.avatarImageUrl ? (
-                      <img
-                        src={currentUser.avatarImageUrl}
-                        referrerPolicy="same-origin"
-                        className={classes.userIconImage}
-                      />
-                    ) : (
-                      <PersonIcon />
-                    )}
-                  </Avatar>
+                  <Avatar
+                    src={currentUser?.avatarImageUrl ?? undefined}
+                    className={classes.avatar}
+                    variant="rounded"
+                  />
                 </IconButton>
               </Tooltip>
               {showCustomWindowControls && (

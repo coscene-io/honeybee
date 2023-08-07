@@ -25,9 +25,6 @@ import {
   nestedTabLayoutFixture,
   nestedTabLayoutFixture2,
 } from "@foxglove/studio-base/panels/Tab/nestedTabLayoutFixture";
-import LayoutManagerProvider from "@foxglove/studio-base/providers/LayoutManagerProvider";
-import LayoutManager from "@foxglove/studio-base/services/LayoutManager/LayoutManager";
-import MockLayoutStorage from "@foxglove/studio-base/services/MockLayoutStorage";
 import { TabPanelConfig } from "@foxglove/studio-base/src/types/layouts";
 import PanelSetup, { Fixture } from "@foxglove/studio-base/stories/PanelSetup";
 import { ExpectedResult } from "@foxglove/studio-base/stories/storyHelpers";
@@ -105,32 +102,27 @@ export default {
           ...storyArgs
         },
       } = ctx;
-      const storage = new MockLayoutStorage(LayoutManager.LOCAL_STORAGE_NAMESPACE, []);
       const panelCatalog = !disableMockCatalog ? new MockPanelCatalog() : undefined;
       const theme = useTheme();
 
       return (
-        <LayoutStorageContext.Provider value={storage}>
-          <LayoutManagerProvider>
-            <PanelSetup panelCatalog={panelCatalog} fixture={fixtureArg}>
-              <Wrapped {...storyArgs} />
-              {showPanelList && (
-                <div
-                  style={{
-                    backgroundColor: theme.palette.background.paper,
-                    borderInlineStart: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <PanelCatalogComponent onPanelSelect={() => {}} />
-                </div>
-              )}
-            </PanelSetup>
-          </LayoutManagerProvider>
-        </LayoutStorageContext.Provider>
+        <PanelSetup panelCatalog={panelCatalog} fixture={fixtureArg}>
+          <Wrapped {...storyArgs} />
+          {showPanelList && (
+            <div
+              style={{
+                backgroundColor: theme.palette.background.paper,
+                borderInlineStart: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <PanelCatalogComponent onPanelSelect={() => {}} />
+            </div>
+          )}
+        </PanelSetup>
       );
     },
   ],
-} as Meta<StoryArgs>;
+} satisfies Meta<StoryArgs>;
 
 type Story = StoryObj<StoryArgs>;
 

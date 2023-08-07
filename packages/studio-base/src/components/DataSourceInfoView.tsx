@@ -44,8 +44,7 @@ const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => player
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectRecord = (store: CoSceneRecordStore) => store.record;
 const selectProject = (store: CoSceneProjectStore) => store.project;
-const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
-  playerState.urlState?.sourceId;
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 
 function DataSourceInfoContent(props: {
   disableSource?: boolean;
@@ -53,17 +52,17 @@ function DataSourceInfoContent(props: {
   endTimeRef: MutableRefObject<ReactNull | HTMLDivElement>;
   playerName?: string;
   playerPresence: PlayerPresence;
-  playerSourceId?: string;
   startTime?: Time;
+  isLiveConnection: boolean;
 }): JSX.Element {
   const {
     durationRef,
     endTimeRef,
     playerPresence,
-    playerSourceId,
     startTime,
     playerName,
     disableSource,
+    isLiveConnection,
   } = props;
   const { classes } = useStyles();
   const urlState = useMessagePipeline(selectUrlState);
@@ -95,11 +94,6 @@ function DataSourceInfoContent(props: {
       {record.value?.getTitle()}
     </Link>,
   ];
-
-  const isLiveConnection =
-    playerSourceId != undefined
-      ? playerSourceId.endsWith("socket") || playerSourceId.endsWith("lidar")
-      : false;
 
   return (
     <Stack gap={1.5}>
@@ -135,7 +129,7 @@ function DataSourceInfoContent(props: {
         )}
       </Stack>
 
-      {!isLiveConnection && (
+      {isLiveConnection && (
         <Stack>
           <Typography className={classes.overline} variant="overline">
             {t("endTime")}
@@ -174,7 +168,8 @@ export function DataSourceInfoView({ disableSource }: { disableSource?: boolean 
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
-  const playerSourceId = useMessagePipeline(selectPlayerSourceId);
+  const seek = useMessagePipeline(selectSeek);
+
   const durationRef = useRef<HTMLDivElement>(ReactNull);
   const endTimeRef = useRef<HTMLDivElement>(ReactNull);
   const { formatDate, formatTime } = useAppTimeFormat();
@@ -208,8 +203,8 @@ export function DataSourceInfoView({ disableSource }: { disableSource?: boolean 
       durationRef={durationRef}
       endTimeRef={endTimeRef}
       playerPresence={playerPresence}
-      playerSourceId={playerSourceId}
       startTime={startTime}
+      isLiveConnection={seek == undefined}
     />
   );
 }

@@ -105,8 +105,6 @@ class MessageOrderTracker {
         }
 
         if (
-          // If we have recomputed the current frame there could be messages from before the lastMessageTime
-          messagesRecomputed !== true &&
           this.#lastMessageTime &&
           this.#lastMessageTopic != undefined &&
           isLessThan(messageTime, this.#lastMessageTime)

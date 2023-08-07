@@ -20,7 +20,6 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-// import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const useStyles = makeStyles()({
   checkbox: {
@@ -55,16 +54,6 @@ function useFeatures(): Feature[] {
       name: t("memoryUseIndicator"),
       description: <>{t("memoryUseIndicatorDescription")}</>,
     },
-    // {
-    //   key: AppSetting.ENABLE_NEW_TOPNAV,
-    //   name: t("newNavigation"),
-    //   description: (
-    //     <>
-    //       {t("newNavigationDescription")}
-    //       {isDesktopApp() && t("restartTheAppForChangesToTakeEffect")}
-    //     </>
-    //   ),
-    // },
   ];
 
   if (process.env.NODE_ENV === "development") {
