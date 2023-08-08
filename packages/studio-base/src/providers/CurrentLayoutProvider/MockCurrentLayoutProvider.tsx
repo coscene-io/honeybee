@@ -7,7 +7,6 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useShallowMemo } from "@foxglove/hooks";
 import CurrentLayoutContext, {
   ICurrentLayout,
-  LayoutID,
   LayoutState,
   SelectedLayout,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";

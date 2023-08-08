@@ -8,9 +8,15 @@ import { StoreApi, useStore } from "zustand";
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
-import { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import { IDataSourceFactory } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 
-export const LeftSidebarItemKeys = ["panel-settings", "topics", "problems"] as const;
+export const LeftSidebarItemKeys = [
+  "playlist",
+  "panel-settings",
+  "topics",
+  "moment",
+  "problems",
+] as const;
 export type LeftSidebarItemKey = (typeof LeftSidebarItemKeys)[number];
 
 export const RightSidebarItemKeys = ["events", "variables", "studio-logs-settings"] as const;

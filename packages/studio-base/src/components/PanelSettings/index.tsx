@@ -42,7 +42,6 @@ const EMPTY_SETTINGS_TREE: SettingsTree = Object.freeze({
 });
 
 export default function PanelSettings({
-  disableToolbar = false,
   selectedPanelIdsForTests,
 }: React.PropsWithChildren<{
   disableToolbar?: boolean;
@@ -56,8 +55,6 @@ export default function PanelSettings({
     selectAllPanels,
   } = useSelectedPanels();
   const selectedPanelIds = selectedPanelIdsForTests ?? originalSelectedPanelIds;
-
-  const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
 
   // If no panel is selected and there is only one panel in the layout, select it
   useEffect(() => {
@@ -141,9 +138,6 @@ export default function PanelSettings({
   if (!config) {
     return <EmptyState>{t("loadingPanelSettings")}</EmptyState>;
   }
-
-  const showTitleField = panelInfo != undefined && panelInfo.hasCustomToolbar !== true;
-  const title = panelInfo?.title ?? t("unknown");
 
   const showTitleField = panelInfo != undefined && panelInfo.hasCustomToolbar !== true;
   const title = panelInfo?.title ?? t("unknown");

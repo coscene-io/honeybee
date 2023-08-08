@@ -3,8 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
+import { v4 as uuidv4 } from "uuid";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
@@ -80,7 +81,8 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
   const consoleApi = useConsoleApi();
   const setEvents = useEvents(selectSetEvents);
   const setEventsAtHoverValue = useTimelineInteractionState(selectSetEventsAtHoverValue);
-  const hoverValue = useHoverValue();
+  const [hoverComponentId] = useState<string>(() => uuidv4());
+  const hoverValue = useHoverValue({ componentId: hoverComponentId, isTimestampScale: true });
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const events = useEvents(selectEvents);

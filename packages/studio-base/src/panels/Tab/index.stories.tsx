@@ -19,7 +19,6 @@ import Panel from "@foxglove/studio-base/components/Panel";
 import { PanelCatalog as PanelCatalogComponent } from "@foxglove/studio-base/components/PanelCatalog";
 import PanelLayout from "@foxglove/studio-base/components/PanelLayout";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
-import LayoutStorageContext from "@foxglove/studio-base/context/LayoutStorageContext";
 import { PanelCatalog, PanelInfo } from "@foxglove/studio-base/context/PanelCatalogContext";
 import {
   nestedTabLayoutFixture,

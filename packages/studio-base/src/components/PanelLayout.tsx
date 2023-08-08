@@ -23,7 +23,6 @@ import {
 } from "react-mosaic-component";
 import { makeStyles } from "tss-react/mui";
 
-import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { EmptyPanelLayout } from "@foxglove/studio-base/components/EmptyPanelLayout";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
@@ -33,7 +32,6 @@ import {
   useCurrentLayoutSelector,
   usePanelMosaicId,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
 import { MosaicDropResult, PanelConfig } from "@foxglove/studio-base/types/panels";
@@ -206,37 +204,6 @@ export default function PanelLayout(): JSX.Element {
   const layoutExists = useCurrentLayoutSelector(selectedLayoutExistsSelector);
   const mosaicLayout = useCurrentLayoutSelector(selectedLayoutMosaicSelector);
   const registeredExtensions = useExtensionCatalog((state) => state.installedExtensions);
-  const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
-
-  const createNewLayout = async () => {
-    const layoutData: Omit<LayoutData, "name" | "id"> = {
-      configById: {},
-      globalVariables: {},
-      userNodes: {},
-      playbackConfig: defaultPlaybackConfig,
-    };
-
-    const layout = await layoutManager.saveNewLayout({
-      name: "Default",
-      data: layoutData,
-      permission: "CREATOR_WRITE",
-    });
-    setSelectedLayoutId(layout.id);
-
-    if (!enableNewTopNav) {
-      openLayoutBrowser();
-    }
-  };
-
-  const selectExistingLayout = async () => {
-    if (!enableNewTopNav) {
-      const layouts = await layoutManager.getLayouts();
-      if (layouts[0]) {
-        setSelectedLayoutId(layouts[0].id);
-      }
-    }
-    openLayoutBrowser();
-  };
 
   const onChange = useCallback(
     (newLayout: MosaicNode<string> | undefined) => {

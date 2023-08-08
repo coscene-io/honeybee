@@ -33,6 +33,7 @@ import {
 import PanelLayout from "@foxglove/studio-base/components/PanelLayout";
 import PanelSettings from "@foxglove/studio-base/components/PanelSettings";
 import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls";
+import { Playlist } from "@foxglove/studio-base/components/Playlist";
 import { ProblemsList } from "@foxglove/studio-base/components/ProblemsList";
 import RemountOnValueChange from "@foxglove/studio-base/components/RemountOnValueChange";
 import { Sidebars, SidebarItem } from "@foxglove/studio-base/components/Sidebars";
@@ -45,7 +46,6 @@ import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDial
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { useNativeAppMenu } from "@foxglove/studio-base/context/NativeAppMenuContext";
@@ -99,7 +99,6 @@ const selectPlay = (ctx: MessagePipelineContext) => ctx.startPlayback;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectPlayUntil = (ctx: MessagePipelineContext) => ctx.playUntil;
 const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
-const selectEventsSupported = (store: EventsStore) => store.eventsSupported;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 
 const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
@@ -154,8 +153,6 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   // We use playerId to detect when a player changes for RemountOnValueChange below
   // see comment below above the RemountOnValueChange component
   const playerId = useMessagePipeline(selectPlayerId);
-
-  const { currentUser } = useCurrentUser();
 
   useDefaultWebLaunchPreference();
 
@@ -348,13 +345,12 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   //   [openFiles, openHandle],
   // );
 
-  const eventsSupported = useEvents(selectEventsSupported);
-  const showEventsTab = currentUser != undefined && eventsSupported;
-
   const leftSidebarItems = useMemo(() => {
     const items = new Map<LeftSidebarItemKey, SidebarItem>([
+      ["playlist", { title: "Playlist", component: Playlist }],
       ["panel-settings", { title: "Panel", component: PanelSettings }],
       ["topics", { title: "Topics", component: TopicList }],
+      ["moment", { title: "Moment", component: EventsList }],
       [
         "problems",
         {
@@ -380,11 +376,8 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     if (enableStudioLogsSidebar) {
       items.set("studio-logs-settings", { title: "Studio Logs", component: StudioLogsSettings });
     }
-    if (showEventsTab) {
-      items.set("events", { title: "Events", component: EventsList });
-    }
     return items;
-  }, [enableStudioLogsSidebar, showEventsTab]);
+  }, [enableStudioLogsSidebar]);
 
   const keyDownHandlers = useMemo(() => {
     return {

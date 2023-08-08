@@ -3,7 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ErrorCircle20Filled } from "@fluentui/react-icons";
-import { CircularProgress, IconButton } from "@mui/material";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import { CircularProgress, IconButton, Link, Breadcrumbs, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -12,10 +13,17 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
 import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
+//CoScene
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import {
+  CoSceneProjectStore,
+  useProject,
+} from "@foxglove/studio-base/context/CoSceneProjectContext";
+import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { EndTimestamp } from "./EndTimestamp";
 
@@ -68,21 +76,33 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
       fontSize: "1rem",
     },
   },
+  numericValue: {
+    fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
+  },
 }));
 
-const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlayerProblems = (ctx: MessagePipelineContext) => ctx.playerState.problems;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+// CoScene
+const selectProject = (store: CoSceneProjectStore) => store.project;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectRecord = (store: CoSceneRecordStore) => store.record;
 
 export function DataSource(): JSX.Element {
   const { t } = useTranslation("appBar");
   const { classes, cx } = useStyles();
 
-  const playerName = useMessagePipeline(selectPlayerName);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const seek = useMessagePipeline(selectSeek);
+  // CoScene
+  const project = useProject(selectProject);
+  const {
+    coSceneContext: { currentOrganizationSlug },
+  } = useConsoleApi();
+  const urlState = useMessagePipeline(selectUrlState);
+  const record = useRecord(selectRecord);
 
   const { sidebarActions } = useWorkspaceActions();
 
@@ -96,12 +116,25 @@ export function DataSource(): JSX.Element {
     playerProblems.some((problem) => problem.severity === "error");
   const loading = reconnecting || initializing;
 
-  const playerDisplayName =
-    initializing && playerName == undefined ? "Initializing..." : playerName;
-
   if (playerPresence === PlayerPresence.NOT_PRESENT) {
     return <div className={classes.sourceName}>{t("noDataSource")}</div>;
   }
+
+  // CoScene
+  const projectHref =
+    process.env.NODE_ENV === "development"
+      ? `https://home.coscene.dev/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`
+      : `/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`;
+  const recordHref = `${projectHref}/records/${record.value?.getName().split("/").pop() ?? ""}`;
+
+  const breadcrumbs = [
+    <Link href={projectHref} target="_blank" underline="hover" key="1" color="inherit">
+      {project.value?.getDisplayName()}
+    </Link>,
+    <Link href={recordHref} target="_blank" underline="hover" key="2" color="inherit">
+      {record.value?.getTitle()}
+    </Link>,
+  ];
 
   return (
     <>
@@ -109,7 +142,18 @@ export function DataSource(): JSX.Element {
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
           <div className={classes.textTruncate}>
-            <TextMiddleTruncate text={playerDisplayName ?? `<${t("unknown")}>`} />
+            {urlState?.parameters?.projectSlug && urlState.parameters.warehouseSlug ? (
+              <Breadcrumbs
+                separator={<NavigateNextIcon fontSize="small" />}
+                aria-label="breadcrumb"
+              >
+                {breadcrumbs}
+              </Breadcrumbs>
+            ) : (
+              <Typography className={classes.numericValue} variant="inherit">
+                {`<${t("unknown")}>`}
+              </Typography>
+            )}
           </div>
           {isLiveConnection && (
             <>

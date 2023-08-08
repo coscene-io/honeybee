@@ -18,6 +18,7 @@ import { makeStyles } from "tss-react/mui";
 import { shallow } from "zustand/shallow";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { AppBarDropdownButton } from "@foxglove/studio-base/components/AppBar/AppBarDropdownButton";
 import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
 import { AppMenu } from "@foxglove/studio-base/components/AppBar/AppMenu";
 import {
@@ -307,6 +308,12 @@ export function AppBar(props: AppBarProps): JSX.Element {
             <div className={classes.endInner}>
               {enableMemoryUseIndicator && <MemoryUseIndicator />}
               {appBarLayoutButton}
+              <AppBarDropdownButton
+                subheader="layout"
+                title="test"
+                selected={false}
+                onClick={() => {}}
+              />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
                 <AppBarIconButton
                   title={

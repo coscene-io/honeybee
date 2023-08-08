@@ -14,9 +14,6 @@ import PanelCatalogContext, {
 } from "@foxglove/studio-base/context/PanelCatalogContext";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
-import LayoutManagerProvider from "@foxglove/studio-base/providers/LayoutManagerProvider";
-import LayoutManager from "@foxglove/studio-base/services/LayoutManager/LayoutManager";
-import MockLayoutStorage from "@foxglove/studio-base/services/MockLayoutStorage";
 import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
 
 import Workspace from "./Workspace";
@@ -27,19 +24,6 @@ export default {
   parameters: {
     colorScheme: "light",
   },
-  decorators: [
-    (Wrapped: StoryFn): JSX.Element => {
-      const storage = new MockLayoutStorage(LayoutManager.LOCAL_STORAGE_NAMESPACE, []);
-
-      return (
-        <LayoutStorageContext.Provider value={storage}>
-          <LayoutManagerProvider>
-            <Wrapped />
-          </LayoutManagerProvider>
-        </LayoutStorageContext.Provider>
-      );
-    },
-  ],
 };
 
 class MockPanelCatalog implements PanelCatalog {

@@ -25,7 +25,7 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 
-import { EventView } from "./EventView";
+import { EventView } from "./CoSceneEventView";
 
 const useStyles = makeStyles()((theme) => ({
   appBar: {

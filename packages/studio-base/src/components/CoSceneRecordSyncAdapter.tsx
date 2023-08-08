@@ -2,8 +2,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
+import { v4 as uuidv4 } from "uuid";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
@@ -102,7 +103,8 @@ export function RecordsSyncAdapter(): ReactNull {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const currentTime = useMessagePipeline(selectCurrentTime);
-  const hoverValue = useHoverValue();
+  const [hoverComponentId] = useState<string>(() => uuidv4());
+  const hoverValue = useHoverValue({ componentId: hoverComponentId, isTimestampScale: true });
   const bagFiles = useRecord(selectBagFiles);
   const seek = useMessagePipeline(selectSeek);
 

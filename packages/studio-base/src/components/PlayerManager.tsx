@@ -199,7 +199,9 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
             const newPlayer = foundSource.initialize({
               metricsCollector,
               params: args.params,
+              consoleApi,
             });
+            console.debug("newPlayer", newPlayer);
             setBasePlayer(newPlayer);
 
             if (args.params?.url) {
@@ -290,7 +292,15 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
         enqueueSnackbar((error as Error).message, { variant: "error" });
       }
     },
-    [playerSources, metricsCollector, enqueueSnackbar, isMounted, addRecent, nativeWindow],
+    [
+      playerSources,
+      metricsCollector,
+      enqueueSnackbar,
+      isMounted,
+      addRecent,
+      nativeWindow,
+      consoleApi,
+    ],
   );
 
   // Select a recent entry by id
