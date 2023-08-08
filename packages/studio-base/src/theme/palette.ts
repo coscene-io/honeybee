@@ -33,10 +33,10 @@ export const dark: PaletteOptions = {
   tonalOffset: 0.15,
   appBar: {
     main: "#35363A",
-    primary: "#9480ed",
+    primary: "#2563eb",
     text: "#ffffff",
   },
-  primary: { main: "#9480ed" },
+  primary: { main: "#2563eb" },
   secondary: { main: "#b1b1b1" },
   error: { main: "#f54966" },
   warning: { main: "#eba800" },
@@ -76,7 +76,7 @@ export const light: PaletteOptions = {
   tonalOffset: 0.22,
   appBar: {
     main: "#27272b",
-    primary: "#9480ed",
+    primary: "#2563eb",
     text: "#ffffff",
   },
   primary: { main: "#6f3be8" },
