@@ -27,15 +27,15 @@ import { useShallowMemo, useWarnImmediateReRender } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
 import ConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import {
+  LayoutState,
+  useCurrentLayoutSelector,
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import PlayerSelectionContext, {
   DataSourceArgs,
   IDataSourceFactory,
   PlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import {
-  LayoutState,
-  useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   ExtensionCatalog,
   useExtensionCatalog,

@@ -13,7 +13,7 @@ import {
   LayoutState,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 
 const SPEED_OPTIONS = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 0.8, 1, 2, 3, 5];
 

@@ -8,6 +8,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
+import CoSceneCurrentLayoutProvider from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider";
 import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
 import CoSceneRecordProvider from "@foxglove/studio-base/providers/CoSceneRecordProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
@@ -27,16 +28,18 @@ import SendNotificationToastAdapter from "./components/SendNotificationToastAdap
 import StudioToastProvider from "./components/StudioToastProvider";
 import AppConfigurationContext, { IAppConfiguration } from "./context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "./context/CoSceneConsoleApiContext";
+import LayoutStorageContext from "./context/CoSceneLayoutStorageContext";
 import { IDataSourceFactory } from "./context/CoScenePlayerSelectionContext";
 import NativeAppMenuContext, { INativeAppMenu } from "./context/NativeAppMenuContext";
 import NativeWindowContext, { INativeWindow } from "./context/NativeWindowContext";
 import { UserNodeStateProvider } from "./context/UserNodeStateContext";
-import CurrentLayoutProvider from "./providers/CurrentLayoutProvider";
+import LayoutManagerProvider from "./providers/CoSceneLayoutManagerProvider";
 import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
 import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
 import { LaunchPreference } from "./screens/LaunchPreference";
 import ConsoleApi from "./services/CoSceneConsoleApi";
+import { ILayoutStorage } from "./services/CoSceneILayoutStorage";
 import { ExtensionLoader } from "./services/ExtensionLoader";
 
 CsWebClient.init({
@@ -48,6 +51,7 @@ type AppProps = CustomWindowControlsProps & {
   deepLinks: string[];
   appConfiguration: IAppConfiguration;
   dataSources: IDataSourceFactory[];
+  layoutStorage: ILayoutStorage;
   extensionLoaders: readonly ExtensionLoader[];
   nativeAppMenu?: INativeAppMenu;
   nativeWindow?: INativeWindow;
@@ -73,6 +77,7 @@ export function App(props: AppProps): JSX.Element {
   const {
     appConfiguration,
     dataSources,
+    layoutStorage,
     extensionLoaders,
     nativeAppMenu,
     nativeWindow,
@@ -88,7 +93,7 @@ export function App(props: AppProps): JSX.Element {
     <CoSceneConsoleApiContext.Provider value={consoleApi} />,
     <TimelineInteractionStateProvider />,
     <UserNodeStateProvider />,
-    <CurrentLayoutProvider />,
+    <CoSceneCurrentLayoutProvider />,
     <ExtensionMarketplaceProvider />,
     <ExtensionCatalogProvider loaders={extensionLoaders} />,
     <PlayerManager playerSources={dataSources} />,
@@ -108,6 +113,10 @@ export function App(props: AppProps): JSX.Element {
 
   if (extraProviders) {
     providers.unshift(...extraProviders);
+  } else {
+    // Extra providers have their own layout providers
+    providers.unshift(<LayoutManagerProvider />);
+    providers.unshift(<LayoutStorageContext.Provider value={layoutStorage} />);
   }
 
   // The toast and logs provider comes first so they are available to all downstream providers

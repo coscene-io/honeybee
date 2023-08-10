@@ -18,9 +18,9 @@ import { makeStyles } from "tss-react/mui";
 import { shallow } from "zustand/shallow";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
-import { AppBarDropdownButton } from "@foxglove/studio-base/components/AppBar/AppBarDropdownButton";
 import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
 import { AppMenu } from "@foxglove/studio-base/components/AppBar/AppMenu";
+import { CoSceneLayoutButton } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
 import {
   CustomWindowControls,
   CustomWindowControlsProps,
@@ -33,7 +33,7 @@ import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   useWorkspaceStore,
@@ -308,12 +308,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
             <div className={classes.endInner}>
               {enableMemoryUseIndicator && <MemoryUseIndicator />}
               {appBarLayoutButton}
-              <AppBarDropdownButton
-                subheader="layout"
-                title="test"
-                selected={false}
-                onClick={() => {}}
-              />
+              <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
                 <AppBarIconButton
                   title={

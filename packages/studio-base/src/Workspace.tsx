@@ -43,9 +43,11 @@ import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
 import { TopicList } from "@foxglove/studio-base/components/TopicList";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { useNativeAppMenu } from "@foxglove/studio-base/context/NativeAppMenuContext";
@@ -63,6 +65,7 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { sampleLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutCoScene";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
@@ -123,9 +126,25 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const rightSidebarItem = useWorkspaceStore(selectWorkspaceRightSidebarItem);
   const rightSidebarOpen = useWorkspaceStore(selectWorkspaceRightSidebarOpen);
   const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
+  const layoutManager = useLayoutManager();
+  const analytics = useAnalytics();
 
   // coScene set demo layout in demo mode
-  const { setCurrentLayout } = useCurrentLayoutActions();
+  const { setSelectedLayoutId } = useCurrentLayoutActions();
+
+  const loadDemoLayout = useCallback(async () => {
+    const newLayout = await layoutManager.saveNewLayout({
+      name: "Demo Layout",
+      data: sampleLayout,
+      permission: "CREATOR_WRITE",
+    });
+    setTimeout(() => {
+      setSelectedLayoutId(newLayout.id);
+    }, 0);
+
+    void analytics.logEvent(AppEvent.LAYOUT_CREATE);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const isDemoSite =
@@ -133,9 +152,9 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       localStorage.getItem("honeybeeDemoStatus") === "start";
 
     if (isDemoSite) {
-      setCurrentLayout({ data: sampleLayout });
+      void loadDemoLayout();
     }
-  }, [setCurrentLayout]);
+  }, [loadDemoLayout]);
 
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
