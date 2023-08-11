@@ -3,8 +3,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import CancelIcon from "@mui/icons-material/Cancel";
 import SearchIcon from "@mui/icons-material/Search";
-import { Menu, PaperProps, Divider, MenuItem as MuiMenuItem } from "@mui/material";
-import { IconButton, TextField, List, Typography } from "@mui/material";
+import {
+  Menu,
+  PaperProps,
+  Divider,
+  MenuItem as MuiMenuItem,
+  IconButton,
+  TextField,
+  List,
+  Typography,
+} from "@mui/material";
 import { partition } from "lodash";
 import moment from "moment";
 import { useSnackbar } from "notistack";

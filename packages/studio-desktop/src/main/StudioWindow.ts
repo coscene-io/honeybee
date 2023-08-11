@@ -23,7 +23,6 @@ import * as palette from "@foxglove/studio-base/src/theme/palette";
 
 import StudioAppUpdater from "./StudioAppUpdater";
 import getDevModeIcon from "./getDevModeIcon";
-import { getAppSetting } from "./settings";
 import { simulateUserClick } from "./simulateUserClick";
 import { getTelemetrySettings } from "./telemetry";
 import { encodeRendererArg } from "../common/rendererArgs";

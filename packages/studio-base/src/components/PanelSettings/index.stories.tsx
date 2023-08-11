@@ -19,7 +19,6 @@ import { SettingsTreeNodes } from "@foxglove/studio";
 import { PanelCatalog, PanelInfo } from "@foxglove/studio-base/context/PanelCatalogContext";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
-import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
 import PanelSettings from ".";
 

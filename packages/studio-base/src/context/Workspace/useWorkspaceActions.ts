@@ -3,8 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Draft, produce } from "immer";
-import { union } from "lodash";
-import { partition } from "lodash";
+import { partition, union } from "lodash";
 import { useSnackbar } from "notistack";
 import path from "path";
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";

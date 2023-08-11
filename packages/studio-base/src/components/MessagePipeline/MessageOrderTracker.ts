@@ -51,7 +51,7 @@ class MessageOrderTracker {
 
     const problems: PlayerProblem[] = [];
 
-    const { messages, currentTime, lastSeekTime, messagesRecomputed } = playerState.activeData;
+    const { messages, currentTime, lastSeekTime } = playerState.activeData;
     let didSeek = false;
 
     if (this.#lastLastSeekTime !== lastSeekTime) {

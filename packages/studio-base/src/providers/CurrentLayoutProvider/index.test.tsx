@@ -10,7 +10,6 @@ import { useEffect } from "react";
 
 import {
   CurrentLayoutActions,
-  LayoutID,
   LayoutState,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
