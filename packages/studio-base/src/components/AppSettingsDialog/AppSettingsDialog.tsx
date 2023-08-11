@@ -42,7 +42,6 @@ import {
   AutoUpdate,
   ColorSchemeSettings,
   LanguageSettings,
-  LaunchDefault,
   MessageFramerate,
   RosPackagePath,
   TimeFormat,
@@ -243,14 +242,14 @@ export function AppSettingsDialog(
           onChange={handleTabChange}
         >
           <Tab className={classes.tab} label={t("general")} value="general" />
-          <Tab className={classes.tab} label={t("privacy")} value="privacy" />
-          <Tab className={classes.tab} label={t("extensions")} value="extensions" />
+          {/* <Tab className={classes.tab} label={t("privacy")} value="privacy" /> */}
+          {/* <Tab className={classes.tab} label={t("extensions")} value="extensions" /> */}
           <Tab
             className={classes.tab}
             label={t("experimentalFeatures")}
             value="experimental-features"
           />
-          <Tab className={classes.tab} label={t("about")} value="about" />
+          {/* <Tab className={classes.tab} label={t("about")} value="about" /> */}
         </Tabs>
         <Stack direction="row" fullHeight overflowY="auto">
           <section
@@ -265,7 +264,6 @@ export function AppSettingsDialog(
               <MessageFramerate />
               <LanguageSettings />
               {supportsAppUpdates && <AutoUpdate />}
-              {!isDesktopApp() && <LaunchDefault />}
               {isDesktopApp() && <RosPackagePath />}
             </Stack>
           </section>

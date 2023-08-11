@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  ChevronDown12Regular,
   PanelLeft24Filled,
   PanelLeft24Regular,
   PanelRight24Filled,
@@ -19,13 +18,12 @@ import { shallow } from "zustand/shallow";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
-import { AppMenu } from "@foxglove/studio-base/components/AppBar/AppMenu";
 import { CoSceneLayoutButton } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
 import {
   CustomWindowControls,
   CustomWindowControlsProps,
 } from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
-import { FoxgloveLogo } from "@foxglove/studio-base/components/FoxgloveLogo";
+import { CoSceneLogo, KeenonLogo } from "@foxglove/studio-base/components/CoSceneLogo";
 import { MemoryUseIndicator } from "@foxglove/studio-base/components/MemoryUseIndicator";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
@@ -42,11 +40,12 @@ import {
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { AddPanelMenu } from "./AddPanelMenu";
+import { UserMenu } from "./CoSceneUserMenu";
 import { DataSource } from "./DataSource";
-import { UserMenu } from "./UserMenu";
 import { APP_BAR_HEIGHT } from "./constants";
 
 const useStyles = makeStyles<{ leftInset?: number; debugDragRegion?: boolean }, "avatar">()(
@@ -95,13 +94,6 @@ const useStyles = makeStyles<{ leftInset?: number; debugDragRegion?: boolean }, 
           backgroundColor: theme.palette.appBar.primary,
           color: theme.palette.common.white,
         },
-        "&.Mui-disabled": {
-          color: "currentColor",
-          opacity: theme.palette.action.disabledOpacity,
-        },
-      },
-      dropDownIcon: {
-        fontSize: "12px !important",
       },
       start: {
         gridArea: "start",
@@ -205,7 +197,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
     onUnmaximizeWindow,
     showCustomWindowControls = false,
   } = props;
-  const { classes, cx, theme } = useStyles({ leftInset, debugDragRegion });
+  const { classes, cx } = useStyles({ leftInset, debugDragRegion });
   const { currentUser, signIn } = useCurrentUser();
   const { t } = useTranslation("appBar");
 
@@ -226,7 +218,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
   } = useWorkspaceStore(selectWorkspace, shallow);
   const { sidebarActions } = useWorkspaceActions();
 
-  const [appMenuEl, setAppMenuEl] = useState<undefined | HTMLElement>(undefined);
+  const [appMenuEl] = useState<undefined | HTMLElement>(undefined);
   const [userAnchorEl, setUserAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const [panelAnchorEl, setPanelAnchorEl] = useState<undefined | HTMLElement>(undefined);
 
@@ -265,21 +257,14 @@ export function AppBar(props: AppBarProps): JSX.Element {
                 aria-haspopup="true"
                 aria-expanded={appMenuOpen ? "true" : undefined}
                 data-tourid="app-menu-button"
-                onClick={(event) => {
-                  setAppMenuEl(event.currentTarget);
-                }}
+                disabled
               >
-                <FoxgloveLogo fontSize="inherit" color="inherit" />
-                <ChevronDown12Regular
-                  className={classes.dropDownIcon}
-                  primaryFill={theme.palette.common.white}
-                />
+                {APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon" ? (
+                  <KeenonLogo fontSize="inherit" color="inherit" />
+                ) : (
+                  <CoSceneLogo fontSize="inherit" color="inherit" />
+                )}
               </IconButton>
-              <AppMenu
-                open={appMenuOpen}
-                anchorEl={appMenuEl}
-                handleClose={() => setAppMenuEl(undefined)}
-              />
               <AppBarIconButton
                 className={cx({ "Mui-selected": panelMenuOpen })}
                 color="inherit"

@@ -15,10 +15,9 @@ import {
   Divider,
   Typography,
   TextField,
+  // eslint-disable-next-line
   styled as muiStyled,
 } from "@mui/material";
-// import { makeStyles as muiStyled } from "tss-react/mui";
-// import styled from ''
 import {
   useCallback,
   useLayoutEffect,
@@ -30,6 +29,8 @@ import {
 } from "react";
 import { useMountedState } from "react-use";
 
+// import { withStyles } from "tss-react/mui";
+import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
@@ -122,6 +123,7 @@ export default React.memo(function LayoutRow({
   anySelectedModifiedLayouts,
   multiSelectedIds,
   selected,
+  searchQuery,
   onSelect,
   onRename,
   onDuplicate,
@@ -136,6 +138,7 @@ export default React.memo(function LayoutRow({
   anySelectedModifiedLayouts: boolean;
   multiSelectedIds: readonly string[];
   selected: boolean;
+  searchQuery: string;
   onSelect: (item: Layout, params?: { selectedViaClick?: boolean; event?: MouseEvent }) => void;
   onRename: (item: Layout, newName: string) => void;
   onDuplicate: (item: Layout) => void;
@@ -445,7 +448,7 @@ export default React.memo(function LayoutRow({
             noWrap
             style={{ display: editingName ? "none" : "block" }}
           >
-            {layout.name}
+            <HighlightedText text={layout.name} highlight={searchQuery} />
           </Typography>
         </ListItemText>
       </ListItemButton>
