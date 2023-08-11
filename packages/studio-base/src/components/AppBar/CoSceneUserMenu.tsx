@@ -56,7 +56,7 @@ export function UserMenu({
   const { dialogActions } = useWorkspaceActions();
 
   const beginSignOut = useCallback(() => {
-    window.location.href = `${APP_CONFIG.CS_HONEYBEE_BASE_URL}/logout`;
+    window.location.href = `${APP_CONFIG.CS_HONEYBEE_BASE_URL}/login`;
   }, []);
 
   const onSignoutClick = useCallback(() => {
