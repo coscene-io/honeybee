@@ -14,7 +14,7 @@ import { Immutable, SettingsTree, SettingsTreeAction, SettingsTreeField } from "
 import { useConfigById } from "@foxglove/studio-base/PanelAPI";
 import { FieldEditor } from "@foxglove/studio-base/components/SettingsTreeEditor/FieldEditor";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
 import { usePanelStateStore } from "@foxglove/studio-base/context/PanelStateContext";
 import { PANEL_TITLE_CONFIG_KEY, getPanelTypeFromId } from "@foxglove/studio-base/util/layout";

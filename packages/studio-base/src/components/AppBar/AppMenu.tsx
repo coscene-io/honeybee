@@ -190,15 +190,15 @@ export function AppMenu(props: AppMenuProps): JSX.Element {
           handleNestedMenuClose();
         },
       },
-      {
-        type: "item",
-        label: t("exportLayoutToFile"),
-        key: "export-layout",
-        onClick: () => {
-          layoutActions.exportToFile();
-          handleNestedMenuClose();
-        },
-      },
+      // {
+      //   type: "item",
+      //   label: t("exportLayoutToFile"),
+      //   key: "export-layout",
+      //   onClick: () => {
+      //     layoutActions.exportToFile();
+      //     handleNestedMenuClose();
+      //   },
+      // },
     ],
     [
       handleNestedMenuClose,

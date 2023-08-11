@@ -19,7 +19,7 @@ import {
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
   useSelectedPanels,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
 import {
   PanelStateStore,

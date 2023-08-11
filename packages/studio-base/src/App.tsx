@@ -34,6 +34,7 @@ import NativeAppMenuContext, { INativeAppMenu } from "./context/NativeAppMenuCon
 import NativeWindowContext, { INativeWindow } from "./context/NativeWindowContext";
 import { UserNodeStateProvider } from "./context/UserNodeStateContext";
 import LayoutManagerProvider from "./providers/CoSceneLayoutManagerProvider";
+import CoSceneUserProfileLocalStorageProvider from "./providers/CoSceneUserProfileLocalStorageProvider";
 import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
 import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
@@ -90,6 +91,7 @@ export function App(props: AppProps): JSX.Element {
 
   const providers = [
     /* eslint-disable react/jsx-key */
+    <CoSceneUserProfileLocalStorageProvider />,
     <CoSceneConsoleApiContext.Provider value={consoleApi} />,
     <TimelineInteractionStateProvider />,
     <UserNodeStateProvider />,

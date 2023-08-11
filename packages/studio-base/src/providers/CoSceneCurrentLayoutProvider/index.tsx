@@ -201,6 +201,20 @@ export default function CoSceneCurrentLayoutProvider({
     [setLayoutState],
   );
 
+  const updateSharedPanelState = useCallback<ICurrentLayout["actions"]["updateSharedPanelState"]>(
+    (type, newSharedState) => {
+      if (layoutStateRef.current.selectedLayout?.data == undefined) {
+        return;
+      }
+
+      setLayoutState({
+        ...layoutStateRef.current,
+        sharedPanelState: { ...layoutStateRef.current.sharedPanelState, [type]: newSharedState },
+      });
+    },
+    [setLayoutState],
+  );
+
   // Changes to the layout storage from external user actions (such as resetting a layout to a
   // previous saved state) need to trigger setLayoutState.
   useEffect(() => {
@@ -314,6 +328,8 @@ export default function CoSceneCurrentLayoutProvider({
       setSelectedLayoutId,
       getCurrentLayoutState: () => layoutStateRef.current,
 
+      updateSharedPanelState,
+
       savePanelConfigs: (payload: SaveConfigsPayload) =>
         performAction({ type: "SAVE_PANEL_CONFIGS", payload }),
       updatePanelConfigs: (panelType: string, perPanelFunc: (config: PanelConfig) => PanelConfig) =>
@@ -382,7 +398,7 @@ export default function CoSceneCurrentLayoutProvider({
       startDrag: (payload: StartDragPayload) => performAction({ type: "START_DRAG", payload }),
       endDrag: (payload: EndDragPayload) => performAction({ type: "END_DRAG", payload }),
     }),
-    [analytics, performAction, setSelectedLayoutId, setSelectedPanelIds],
+    [analytics, performAction, setSelectedLayoutId, setSelectedPanelIds, updateSharedPanelState],
   );
 
   const value: ICurrentLayout = useShallowMemo({

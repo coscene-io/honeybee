@@ -90,6 +90,7 @@
     "@types/text-metrics": "workspace:*",
     "@types/three": "^0.149.0",
     "@types/tinycolor2": "1.4.3",
+    "just-diff": "6.0.2",
     "@types/url-search-params": "1.1.0",
     "@types/uuid": "9.0.2",
     "@types/wicg-file-system-access": "2020.9.6",

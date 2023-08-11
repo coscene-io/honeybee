@@ -4,23 +4,32 @@
 
 import { Draft, produce } from "immer";
 import { union } from "lodash";
+import { partition } from "lodash";
+import { useSnackbar } from "notistack";
+import path from "path";
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
 import { useMountedState } from "react-use";
+import useAsyncFn from "react-use/lib/useAsyncFn";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
+import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/CoSceneUnsavedChangesPrompt";
+import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import {
+  LayoutState,
+  useCurrentLayoutActions,
+  useCurrentLayoutSelector,
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
   IDataSourceFactory,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import {
-  LayoutData,
-  useCurrentLayoutActions,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
+import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
@@ -79,7 +88,7 @@ export type WorkspaceActions = {
     importFromFile: () => void;
     // Export the current layout to a file
     // This will perform a browser download of the current layout to a file
-    exportToFile: () => void;
+    exportToFile: (layout: Layout) => void;
   };
 };
 
@@ -91,20 +100,32 @@ function setterValue<T>(action: SetStateAction<T>, value: T): T {
   return action;
 }
 
+const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
+
 /**
  * Provides various actions to manipulate the workspace state.
  */
 export function useWorkspaceActions(): WorkspaceActions {
   const { setState } = useGuaranteedContext(WorkspaceContext);
+  const layoutManager = useLayoutManager();
+  const { openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
+  const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
+  const { enqueueSnackbar } = useSnackbar();
+  const { setSelectedLayoutId } = useCurrentLayoutActions();
+  const [, dispatch] = useLayoutBrowserReducer({
+    lastSelectedId: currentLayoutId,
+    busy: layoutManager.isBusy,
+    error: layoutManager.error,
+    online: layoutManager.isOnline,
+  });
 
   const { availableSources } = usePlayerSelection();
 
   const analytics = useAnalytics();
-  const appContext = useAppContext();
 
   const isMounted = useMountedState();
 
-  const { getCurrentLayoutState, setCurrentLayout } = useCurrentLayoutActions();
+  // const { getCurrentLayoutState, setCurrentLayout } = useCurrentLayoutActions();
 
   const openFile = useOpenFile(availableSources);
 
@@ -115,9 +136,121 @@ export function useWorkspaceActions(): WorkspaceActions {
     [setState],
   );
 
-  const importLayoutFromFile = useCallbackWithToast(async () => {
+  const [layouts] = useAsyncFn(
+    async () => {
+      const [shared, personal] = partition(
+        await layoutManager.getLayouts(),
+        layoutManager.supportsSharing ? layoutIsShared : () => false,
+      );
+      return {
+        personal: personal.sort((a, b) => a.name.localeCompare(b.name)),
+        shared: shared.sort((a, b) => a.name.localeCompare(b.name)),
+      };
+    },
+    [layoutManager],
+    { loading: true },
+  );
+
+  /**
+   * Don't allow the user to switch away from a personal layout if they have unsaved changes. This
+   * currently has a race condition because of the throttled save in CurrentLayoutProvider -- it's
+   * possible to make changes and switch layouts before they're sent to the layout manager.
+   * @returns true if the original action should continue, false otherwise
+   */
+  const promptForUnsavedChanges = useCallback(async () => {
+    const currentLayout =
+      currentLayoutId != undefined ? await layoutManager.getLayout(currentLayoutId) : undefined;
+    if (
+      currentLayout != undefined &&
+      layoutIsShared(currentLayout) &&
+      currentLayout.working != undefined
+    ) {
+      const result = await openUnsavedChangesPrompt(currentLayout);
+      switch (result.type) {
+        case "cancel":
+          return false;
+        case "discard":
+          await layoutManager.revertLayout({ id: currentLayout.id });
+          void analytics.logEvent(AppEvent.LAYOUT_REVERT, {
+            permission: currentLayout.permission,
+            context: "UnsavedChangesPrompt",
+          });
+          return true;
+        case "overwrite":
+          await layoutManager.overwriteLayout({ id: currentLayout.id });
+          void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, {
+            permission: currentLayout.permission,
+            context: "UnsavedChangesPrompt",
+          });
+          return true;
+        case "makePersonal":
+          // We don't use onMakePersonalCopy() here because it might need to prompt for unsaved changes, and we don't want to select the newly created layout
+          await layoutManager.makePersonalCopy({
+            id: currentLayout.id,
+            name: result.name,
+          });
+          void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
+            permission: currentLayout.permission,
+            syncStatus: currentLayout.syncInfo?.status,
+            context: "UnsavedChangesPrompt",
+          });
+          return true;
+      }
+    }
+    return true;
+  }, [analytics, currentLayoutId, layoutManager, openUnsavedChangesPrompt]);
+
+  const onSelectLayout = useCallbackWithToast(
+    async (
+      item: Layout,
+      { selectedViaClick = false, event }: { selectedViaClick?: boolean; event?: MouseEvent } = {},
+    ) => {
+      if (selectedViaClick) {
+        if (!(await promptForUnsavedChanges())) {
+          return;
+        }
+        void analytics.logEvent(AppEvent.LAYOUT_SELECT, { permission: item.permission });
+      }
+      if (event?.ctrlKey === true || event?.metaKey === true || event?.shiftKey === true) {
+        if (item.id !== currentLayoutId) {
+          dispatch({
+            type: "select-id",
+            id: item.id,
+            layouts: layouts.value,
+            modKey: event.ctrlKey || event.metaKey,
+            shiftKey: event.shiftKey,
+          });
+        }
+      } else {
+        setSelectedLayoutId(item.id);
+        dispatch({ type: "select-id", id: item.id });
+      }
+    },
+    [
+      analytics,
+      currentLayoutId,
+      dispatch,
+      layouts.value,
+      promptForUnsavedChanges,
+      setSelectedLayoutId,
+    ],
+  );
+
+  const onExportLayout = useCallbackWithToast(
+    async (item: Layout) => {
+      const content = JSON.stringify(item.working?.data ?? item.baseline.data, undefined, 2) ?? "";
+      downloadTextFile(content, `${item.name}.json`);
+      void analytics.logEvent(AppEvent.LAYOUT_EXPORT, { permission: item.permission });
+    },
+    [analytics],
+  );
+
+  const importLayout = useCallbackWithToast(async () => {
+    if (!(await promptForUnsavedChanges())) {
+      return;
+    }
     const fileHandles = await showOpenFilePicker({
-      multiple: false,
+      multiple: true,
       excludeAcceptAllOption: false,
       types: [
         {
@@ -128,54 +261,63 @@ export function useWorkspaceActions(): WorkspaceActions {
         },
       ],
     });
+    if (fileHandles.length === 0) {
+      return;
+    }
+
+    const newLayouts = await Promise.all(
+      fileHandles.map(async (fileHandle) => {
+        const file = await fileHandle.getFile();
+        const layoutName = path.basename(file.name, path.extname(file.name));
+        const content = await file.text();
+
+        if (!isMounted()) {
+          return;
+        }
+
+        let parsedState: unknown;
+        try {
+          parsedState = JSON.parse(content);
+        } catch (err) {
+          enqueueSnackbar(`${file.name} is not a valid layout: ${err.message}`, {
+            variant: "error",
+          });
+          return;
+        }
+
+        if (typeof parsedState !== "object" || !parsedState) {
+          enqueueSnackbar(`${file.name} is not a valid layout`, { variant: "error" });
+          return;
+        }
+
+        const data = parsedState as LayoutData;
+        const newLayout = await layoutManager.saveNewLayout({
+          name: layoutName,
+          data,
+          permission: "CREATOR_WRITE",
+        });
+        return newLayout;
+      }),
+    );
+
     if (!isMounted()) {
       return;
     }
-
-    const file = await fileHandles[0].getFile();
-    const content = await file.text();
-
-    if (!isMounted()) {
-      return;
+    const newLayout = newLayouts.find((layout) => layout != undefined);
+    if (newLayout) {
+      void onSelectLayout(newLayout);
     }
+    void analytics.logEvent(AppEvent.LAYOUT_IMPORT, { numLayouts: fileHandles.length });
+  }, [
+    analytics,
+    enqueueSnackbar,
+    isMounted,
+    layoutManager,
+    onSelectLayout,
+    promptForUnsavedChanges,
+  ]);
 
-    let parsedState: unknown;
-    try {
-      parsedState = JSON.parse(content);
-    } catch (err) {
-      throw new Error(`${file.name} is not a valid layout: ${err.message}`);
-    }
-
-    if (typeof parsedState !== "object" || !parsedState) {
-      throw new Error(`${file.name} is not a valid layout`);
-    }
-
-    const data = parsedState as LayoutData;
-
-    // If there's an app context handler for this we let it take over from here
-    if (appContext.importLayoutFile) {
-      await appContext.importLayoutFile(file.name, data);
-      return;
-    }
-
-    setCurrentLayout({ data });
-
-    void analytics.logEvent(AppEvent.LAYOUT_IMPORT);
-  }, [analytics, appContext, isMounted, setCurrentLayout]);
-
-  const exportLayoutToFile = useCallback(() => {
-    // Use a stable getter to fetch the current layout to avoid thrashing the
-    // dependencies array for our hook.
-    const layoutData = getCurrentLayoutState().selectedLayout?.data;
-    if (!layoutData) {
-      return;
-    }
-
-    const name = getCurrentLayoutState().selectedLayout?.name ?? "foxglove-layout";
-    const content = JSON.stringify(layoutData, undefined, 2) ?? "";
-    downloadTextFile(content, `${name}.json`);
-    void analytics.logEvent(AppEvent.LAYOUT_EXPORT);
-  }, [analytics, getCurrentLayoutState]);
+  // const exportAction = useCallback(() => onExportLayout(layout), [layout, onExport]);
 
   return useMemo(() => {
     return {
@@ -310,9 +452,9 @@ export function useWorkspaceActions(): WorkspaceActions {
       },
 
       layoutActions: {
-        importFromFile: importLayoutFromFile,
-        exportToFile: exportLayoutToFile,
+        importFromFile: importLayout,
+        exportToFile: onExportLayout,
       },
     };
-  }, [exportLayoutToFile, importLayoutFromFile, openFile, set]);
+  }, [onExportLayout, importLayout, openFile, set]);
 }

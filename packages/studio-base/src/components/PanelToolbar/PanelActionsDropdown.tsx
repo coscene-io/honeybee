@@ -29,7 +29,7 @@ import PanelContext from "@foxglove/studio-base/components/PanelContext";
 import ChangePanelMenu from "@foxglove/studio-base/components/PanelToolbar/ChangePanelMenu";
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
 import { getPanelTypeFromMosaic } from "@foxglove/studio-base/components/PanelToolbar/utils";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 
 type Props = {
   isUnknownPanel: boolean;

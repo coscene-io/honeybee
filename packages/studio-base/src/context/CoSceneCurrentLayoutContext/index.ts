@@ -11,7 +11,7 @@ import {
   useGuaranteedContext,
 } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
-import { VariableValue } from "@foxglove/studio";
+import { VariableValue, RenderState } from "@foxglove/studio";
 import useShouldNotChangeOften from "@foxglove/studio-base/hooks/useShouldNotChangeOften";
 import toggleSelectedPanel from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/toggleSelectedPanel";
 import { PanelConfig, PlaybackConfig, UserNodes } from "@foxglove/studio-base/types/panels";
@@ -33,6 +33,10 @@ import {
 
 export type LayoutID = string & { __brand: "LayoutID" };
 
+export type SharedPanelState = RenderState["sharedPanelState"];
+
+type PanelType = string;
+
 export type LayoutState = Readonly<{
   selectedLayout:
     | {
@@ -43,6 +47,8 @@ export type LayoutState = Readonly<{
         edited?: boolean;
       }
     | undefined;
+
+  sharedPanelState?: Record<PanelType, SharedPanelState>;
 }>;
 
 /**
@@ -74,6 +80,11 @@ export interface ICurrentLayout {
     getCurrentLayoutState: () => LayoutState;
 
     setSelectedLayoutId: (id: LayoutID | undefined) => void;
+
+    /**
+     * Update the transient state associated with a particular panel type.
+     */
+    updateSharedPanelState: (type: PanelType, data: SharedPanelState) => void;
 
     savePanelConfigs: (payload: SaveConfigsPayload) => void;
     updatePanelConfigs: (panelType: string, updater: (config: PanelConfig) => PanelConfig) => void;

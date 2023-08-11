@@ -28,7 +28,7 @@ import Logger from "@foxglove/log";
 import {
   ConfigsPayload,
   SaveConfigsPayload,
-} from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import { reportError } from "@foxglove/studio-base/reportError";
 import { TabConfig, TabLocation, TabPanelConfig } from "@foxglove/studio-base/types/layouts";
 import {

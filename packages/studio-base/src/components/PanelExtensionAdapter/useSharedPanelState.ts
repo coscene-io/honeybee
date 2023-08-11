@@ -11,7 +11,7 @@ import {
   SharedPanelState,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
 const EmptySharedPanelState: Record<string, SharedPanelState> = Object.freeze({});

@@ -41,7 +41,7 @@ import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TimeBasedChart from "@foxglove/studio-base/components/TimeBasedChart";
 import { ChartData, ChartDatasets } from "@foxglove/studio-base/components/TimeBasedChart/types";
-import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { OnClickArg as OnChartClickArgs } from "@foxglove/studio-base/src/components/Chart";
 import { OpenSiblingPanel, PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";

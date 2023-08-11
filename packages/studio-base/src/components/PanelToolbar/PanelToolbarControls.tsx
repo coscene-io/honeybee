@@ -17,7 +17,7 @@ import { forwardRef, useCallback, useContext, useMemo } from "react";
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import PanelCatalogContext from "@foxglove/studio-base/context/PanelCatalogContext";
 import {
   PanelStateStore,

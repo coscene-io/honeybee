@@ -13,17 +13,22 @@ import {
   SvgIcon,
   MenuItem,
 } from "@mui/material";
-import { IconButton, TextField } from "@mui/material";
-import { useRef, useState, useCallback } from "react";
+import { IconButton, TextField, List } from "@mui/material";
+import { partition } from "lodash";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import useAsyncFn from "react-use/lib/useAsyncFn";
 import { makeStyles } from "tss-react/mui";
 
+import Logger from "@foxglove/log";
 import { AppBarDropdownButton } from "@foxglove/studio-base/components/AppBar/AppBarDropdownButton";
-import {
-  LayoutData,
-  useCurrentLayoutActions,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+
+// import LayoutRow from "./CoSceneLayoutRow";
+
+const log = Logger.getLogger(__filename);
 
 const useStyles = makeStyles()((theme) => {
   const { spacing, palette } = theme;
@@ -164,7 +169,37 @@ export function CoSceneLayoutButton(): JSX.Element {
     setHighlightedPanelIdx(query ? 0 : undefined);
   }, []);
   const { layoutActions } = useWorkspaceActions();
-  const { getCurrentLayoutState, setCurrentLayout } = useCurrentLayoutActions();
+  // const { getCurrentLayoutState, setCurrentLayout } = useCurrentLayoutActions();
+
+  const layoutManager = useLayoutManager();
+
+  const [layouts, reloadLayouts] = useAsyncFn(
+    async () => {
+      const [shared, personal] = partition(
+        await layoutManager.getLayouts(),
+        layoutManager.supportsSharing ? layoutIsShared : () => false,
+      );
+      return {
+        personal: personal.sort((a, b) => a.name.localeCompare(b.name)),
+        shared: shared.sort((a, b) => a.name.localeCompare(b.name)),
+      };
+    },
+    [layoutManager],
+    { loading: true },
+  );
+
+  useEffect(() => {
+    const listener = () => void reloadLayouts();
+    layoutManager.on("change", listener);
+    return () => layoutManager.off("change", listener);
+  }, [layoutManager, reloadLayouts]);
+
+  // Start loading on first mount
+  useEffect(() => {
+    reloadLayouts().catch((err) => log.error(err));
+  }, [reloadLayouts]);
+
+  const items = layouts.value?.personal;
 
   const appBarMenuItems = [
     {
@@ -250,10 +285,29 @@ export function CoSceneLayoutButton(): JSX.Element {
           ),
         )}
 
-        <MuiMenuItem
+        {items?.map((layout) => (
+          <MuiMenuItem
+            key={1}
+            onClick={() => {
+              // console.log(getCurrentLayoutState());
+            }}
+            // onPointerEnter={() => setNestedMenu(undefined)}
+            className={classes.layoutItem}
+          >
+            {layout.name}
+            <ActionMenu
+              key={1}
+              fontSize="small"
+              allowShare={true}
+              onReset={() => {}}
+              onShare={() => {}}
+            />
+          </MuiMenuItem>
+        ))}
+        {/* <MuiMenuItem
           key={1}
           onClick={() => {
-            console.log(getCurrentLayoutState());
+            // console.log(getCurrentLayoutState());
           }}
           // onPointerEnter={() => setNestedMenu(undefined)}
           className={classes.layoutItem}
@@ -266,7 +320,7 @@ export function CoSceneLayoutButton(): JSX.Element {
             onReset={() => {}}
             onShare={() => {}}
           />
-        </MuiMenuItem>
+        </MuiMenuItem> */}
       </Menu>
     </>
   );
