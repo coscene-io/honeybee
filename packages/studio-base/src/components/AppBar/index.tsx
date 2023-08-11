@@ -10,7 +10,7 @@ import {
   SlideAdd24Regular,
 } from "@fluentui/react-icons";
 import { Avatar, Button, IconButton, Tooltip, AppBar as MuiAppBar } from "@mui/material";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
@@ -44,7 +44,7 @@ import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { AddPanelMenu } from "./AddPanelMenu";
-import { UserMenu } from "./CoSceneUserMenu";
+import { UserMenu, UserInfo } from "./CoSceneUserMenu";
 import { DataSource } from "./DataSource";
 import { APP_BAR_HEIGHT } from "./constants";
 
@@ -235,6 +235,12 @@ export function AppBar(props: AppBarProps): JSX.Element {
     [onDoubleClick],
   );
 
+  const userInfo = useMemo(() => {
+    return localStorage.getItem("current_user") != undefined
+      ? (JSON.parse(localStorage.getItem("current_user")!) as UserInfo)
+      : undefined;
+  }, []);
+
   return (
     <>
       <MuiAppBar
@@ -357,7 +363,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   data-testid="user-button"
                 >
                   <Avatar
-                    src={currentUser?.avatarImageUrl ?? undefined}
+                    src={userInfo?.avatarUrl ?? undefined}
                     className={classes.avatar}
                     variant="rounded"
                   />
@@ -385,6 +391,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
         anchorEl={userAnchorEl}
         open={userMenuOpen}
         handleClose={() => setUserAnchorEl(undefined)}
+        userInfo={userInfo}
       />
     </>
   );
