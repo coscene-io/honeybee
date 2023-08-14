@@ -42,7 +42,6 @@ import {
   AutoUpdate,
   ColorSchemeSettings,
   LanguageSettings,
-  LaunchDefault,
   MessageFramerate,
   RosPackagePath,
   TimeFormat,
@@ -124,7 +123,7 @@ const useStyles = makeStyles()((theme) => ({
 
 type SectionKey = "resources" | "products" | "contact" | "legal";
 
-export const aboutItems: Map<
+const aboutItems: Map<
   SectionKey,
   {
     subheader: string;
@@ -244,7 +243,7 @@ export function AppSettingsDialog(
         >
           <Tab className={classes.tab} label={t("general")} value="general" />
           {/* <Tab className={classes.tab} label={t("privacy")} value="privacy" /> */}
-          <Tab className={classes.tab} label={t("extensions")} value="extensions" />
+          {/* <Tab className={classes.tab} label={t("extensions")} value="extensions" /> */}
           <Tab
             className={classes.tab}
             label={t("experimentalFeatures")}
@@ -265,7 +264,6 @@ export function AppSettingsDialog(
               <MessageFramerate />
               <LanguageSettings />
               {supportsAppUpdates && <AutoUpdate />}
-              {!isDesktopApp() && <LaunchDefault />}
               {isDesktopApp() && <RosPackagePath />}
             </Stack>
           </section>

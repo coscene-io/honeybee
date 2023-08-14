@@ -30,8 +30,8 @@ import {
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import SettingsTreeEditor from "@foxglove/studio-base/components/SettingsTreeEditor";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { PanelsActions } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { PanelsActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import PanelCatalogContext, {
   PanelCatalog,
 } from "@foxglove/studio-base/context/PanelCatalogContext";
@@ -90,6 +90,7 @@ export type Fixture = {
   setPublishers?: (publisherId: string, advertisements: AdvertiseOptions[]) => void;
   setSubscriptions?: ComponentProps<typeof MockMessagePipelineProvider>["setSubscriptions"];
   setParameter?: (key: string, value: ParameterValue) => void;
+  fetchAsset?: ComponentProps<typeof MockMessagePipelineProvider>["fetchAsset"];
   messageConverters?: readonly RegisterMessageConverterArgs<unknown>[];
   panelState?: Partial<PanelStateStore>;
 };
@@ -107,18 +108,7 @@ type UnconnectedProps = {
   className?: string;
 };
 
-function setNativeValue(element: unknown, value: unknown) {
-  const valueSetter = Object.getOwnPropertyDescriptor(element, "value")?.set; // eslint-disable-line @typescript-eslint/unbound-method
-  const prototype = Object.getPrototypeOf(element);
-  const prototypeValueSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set; // eslint-disable-line @typescript-eslint/unbound-method
-  if (valueSetter && valueSetter !== prototypeValueSetter) {
-    prototypeValueSetter?.call(element, value);
-  } else {
-    valueSetter?.call(element, value);
-  }
-}
-
-export function makeMockPanelCatalog(t: TFunction<"panels">): PanelCatalog {
+function makeMockPanelCatalog(t: TFunction<"panels">): PanelCatalog {
   const allPanels = [...panels.getBuiltin(t), ...panels.getDebug(t)];
 
   const visiblePanels = [...panels.getBuiltin(t)];
@@ -133,30 +123,12 @@ export function makeMockPanelCatalog(t: TFunction<"panels">): PanelCatalog {
   };
 }
 
-export function triggerInputChange(
-  node: HTMLInputElement | HTMLTextAreaElement,
-  value: string = "",
-): void {
-  // force trigger textarea to change
-  node.value = `${value} `;
-  // trigger input change: https://stackoverflow.com/questions/23892547/what-is-the-best-way-to-trigger-onchange-event-in-react-js
-  setNativeValue(node, value);
-
-  const ev = new Event("input", { bubbles: true });
-  node.dispatchEvent(ev);
-}
-
-export function triggerInputBlur(node: HTMLInputElement | HTMLTextAreaElement): void {
-  const ev = new Event("blur", { bubbles: true });
-  node.dispatchEvent(ev);
-}
-
 export function triggerWheel(target: HTMLElement, deltaX: number): void {
   const event = new WheelEvent("wheel", { deltaX, bubbles: true, cancelable: true });
   target.dispatchEvent(event);
 }
 
-export const MosaicWrapper = ({ children }: { children: React.ReactNode }): JSX.Element => {
+const MosaicWrapper = ({ children }: { children: React.ReactNode }): JSX.Element => {
   return (
     <DndProvider backend={HTML5Backend}>
       <Mosaic
@@ -202,13 +174,25 @@ function PanelWrapper({
     <>
       {includeSettings && (
         <div style={{ overflow: "auto", width: settingsWidth }}>
-          <SettingsTreeEditor settings={settings} />
+          <SettingsTreeEditor variant="panel" settings={settings} />
         </div>
       )}
       {children}
     </>
   );
 }
+
+const defaultFetchAsset: ComponentProps<typeof MockMessagePipelineProvider>["fetchAsset"] = async (
+  uri,
+  options,
+) => {
+  const response = await fetch(uri, options);
+  return {
+    uri,
+    data: new Uint8Array(await response.arrayBuffer()),
+    mediaType: response.headers.get("content-type") ?? undefined,
+  };
+};
 
 function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull {
   const { t } = useTranslation("panels");
@@ -289,6 +273,7 @@ function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull
     setPublishers,
     setSubscriptions,
     setParameter,
+    fetchAsset,
   } = props.fixture ?? {};
   let dTypes = datatypes;
   if (!dTypes) {
@@ -323,6 +308,7 @@ function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull
         setPublishers={setPublishers}
         setSubscriptions={setSubscriptions}
         setParameter={setParameter}
+        fetchAsset={fetchAsset ?? defaultFetchAsset}
       >
         <PanelCatalogContext.Provider value={mockPanelCatalog}>
           <AppConfigurationContext.Provider value={mockAppConfiguration}>

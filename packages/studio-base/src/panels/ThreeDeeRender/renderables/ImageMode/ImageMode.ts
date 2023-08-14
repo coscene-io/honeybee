@@ -2,15 +2,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Immutable } from "immer";
 import * as THREE from "three";
 
 import { filterMap } from "@foxglove/den/collection";
 import { PinholeCameraModel } from "@foxglove/den/image";
 import { toNanoSec } from "@foxglove/rostime";
-import { SettingsTreeAction, SettingsTreeFields, Topic } from "@foxglove/studio";
+import { Immutable, SettingsTreeAction, SettingsTreeFields, Topic } from "@foxglove/studio";
 import {
-  CREATE_BITMAP_ERR_KEY,
   IMAGE_RENDERABLE_DEFAULT_SETTINGS,
   ImageRenderable,
   ImageRenderableSettings,
@@ -45,7 +43,6 @@ import {
 } from "../../ros";
 import { topicIsConvertibleToSchema } from "../../topicIsConvertibleToSchema";
 import { ICameraHandler } from "../ICameraHandler";
-import { decodeCompressedImageToBitmap } from "../Images/decodeImage";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "../Images/topicPrefixMatching";
 
 const IMAGE_TOPIC_PATH = ["imageMode", "imageTopic"];
@@ -101,8 +98,6 @@ export class ImageMode
 
   #imageRenderable: ImageRenderable | undefined;
   #removeImageTimeout: ReturnType<typeof setTimeout> | undefined;
-  #receivedImageSequenceNumber = 0;
-  #displayedImageSequenceNumber = 0;
 
   readonly #messageHandler: MessageHandler;
 
@@ -580,63 +575,19 @@ export class ImageMode
     }
 
     renderable.name = topic;
-    renderable.setImage(image);
-    const isCompressedImage = "format" in image;
-
-    if (!isCompressedImage) {
-      // Raw Images don't need to be decoded asynchronously
+    renderable.userData.receiveTime = receiveTime;
+    renderable.setImage(image, /*resizeWidth=*/ undefined, (size) => {
       if (this.#fallbackCameraModelActive()) {
-        this.#updateFallbackCameraModel(image, getFrameIdFromImage(image));
+        this.#updateFallbackCameraModel(size, getFrameIdFromImage(image));
       }
-      renderable.update();
-      return;
-    }
-
-    const seq = ++this.#receivedImageSequenceNumber;
-    decodeCompressedImageToBitmap(image)
-      .then((maybeBitmap) => {
-        const prevRenderable = renderable;
-        const currentRenderable = this.#imageRenderable;
-        // prevent setting and updating disposed renderables
-        if (currentRenderable !== prevRenderable) {
-          return;
-        }
-        // prevent displaying an image older than the one currently displayed
-        if (this.#displayedImageSequenceNumber > seq) {
-          return;
-        }
-        this.#displayedImageSequenceNumber = seq;
-        this.renderer.settings.errors.remove(IMAGE_TOPIC_PATH, CREATE_BITMAP_ERR_KEY);
-        renderable.setBitmap(maybeBitmap);
-        if (this.#fallbackCameraModelActive()) {
-          this.#updateFallbackCameraModel(maybeBitmap, getFrameIdFromImage(image));
-        }
-
-        renderable.update();
-        this.renderer.queueAnimationFrame();
-      })
-      .catch((err) => {
-        const prevRenderable = renderable;
-        const currentRenderable = this.#imageRenderable;
-        if (currentRenderable !== prevRenderable) {
-          return;
-        }
-        this.renderer.settings.errors.add(
-          IMAGE_TOPIC_PATH,
-          CREATE_BITMAP_ERR_KEY,
-          `Error creating bitmap: ${err.message}`,
-        );
-      });
+    });
   };
 
-  #updateFallbackCameraModel = (
-    image: { width: number; height: number },
-    frameId: string,
-  ): void => {
+  #updateFallbackCameraModel = (size: { width: number; height: number }, frameId: string): void => {
     const cameraInfo = createFallbackCameraInfoForImage({
       frameId,
-      height: image.height,
-      width: image.width,
+      height: size.height,
+      width: size.width,
       focalLength: DEFAULT_FOCAL_LENGTH,
     });
     this.#updateCameraModel(cameraInfo);
@@ -644,7 +595,8 @@ export class ImageMode
   };
 
   #fallbackCameraModelActive = (): boolean => {
-    return this.#getImageModeSettings().calibrationTopic == undefined;
+    // Don't use #getImageModeSettings here for performance reasons
+    return this.renderer.config.imageMode.calibrationTopic == undefined;
   };
 
   #clearCameraModel = (): void => {

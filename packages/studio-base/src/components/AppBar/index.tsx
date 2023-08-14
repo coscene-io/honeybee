@@ -3,16 +3,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  ChevronDown12Regular,
   PanelLeft24Filled,
   PanelLeft24Regular,
   PanelRight24Filled,
   PanelRight24Regular,
   SlideAdd24Regular,
 } from "@fluentui/react-icons";
-import PersonIcon from "@mui/icons-material/Person";
 import { Avatar, Button, IconButton, Tooltip, AppBar as MuiAppBar } from "@mui/material";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
@@ -20,12 +18,12 @@ import { shallow } from "zustand/shallow";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
-import { AppMenu } from "@foxglove/studio-base/components/AppBar/AppMenu";
+import { CoSceneLayoutButton } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
 import {
   CustomWindowControls,
   CustomWindowControlsProps,
 } from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
-import { FoxgloveLogo } from "@foxglove/studio-base/components/FoxgloveLogo";
+import { CoSceneLogo, KeenonLogo } from "@foxglove/studio-base/components/CoSceneLogo";
 import { MemoryUseIndicator } from "@foxglove/studio-base/components/MemoryUseIndicator";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
@@ -33,7 +31,7 @@ import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   useWorkspaceStore,
@@ -42,11 +40,12 @@ import {
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { AddPanelMenu } from "./AddPanelMenu";
+import { UserMenu, UserInfo } from "./CoSceneUserMenu";
 import { DataSource } from "./DataSource";
-import { UserMenu } from "./UserMenu";
 import { APP_BAR_HEIGHT } from "./constants";
 
 const useStyles = makeStyles<{ leftInset?: number; debugDragRegion?: boolean }, "avatar">()(
@@ -95,13 +94,6 @@ const useStyles = makeStyles<{ leftInset?: number; debugDragRegion?: boolean }, 
           backgroundColor: theme.palette.appBar.primary,
           color: theme.palette.common.white,
         },
-        "&.Mui-disabled": {
-          color: "currentColor",
-          opacity: theme.palette.action.disabledOpacity,
-        },
-      },
-      dropDownIcon: {
-        fontSize: "12px !important",
       },
       start: {
         gridArea: "start",
@@ -168,10 +160,6 @@ const useStyles = makeStyles<{ leftInset?: number; debugDragRegion?: boolean }, 
           },
         },
       },
-      userIconImage: {
-        objectFit: "cover",
-        width: "100%",
-      },
       button: {
         marginInline: theme.spacing(1),
         backgroundColor: theme.palette.appBar.primary,
@@ -193,7 +181,7 @@ type AppBarProps = CustomWindowControlsProps & {
   disableSignIn?: boolean;
 };
 
-const selectCurrentLayoutId = ({ selectedLayout }: LayoutState) => selectedLayout?.id;
+const selectHasCurrentLayout = (state: LayoutState) => state.selectedLayout != undefined;
 const selectWorkspace = (store: WorkspaceContextStore) => store;
 
 export function AppBar(props: AppBarProps): JSX.Element {
@@ -209,7 +197,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
     onUnmaximizeWindow,
     showCustomWindowControls = false,
   } = props;
-  const { classes, cx, theme } = useStyles({ leftInset, debugDragRegion });
+  const { classes, cx } = useStyles({ leftInset, debugDragRegion });
   const { currentUser, signIn } = useCurrentUser();
   const { t } = useTranslation("appBar");
 
@@ -220,7 +208,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
     AppSetting.ENABLE_MEMORY_USE_INDICATOR,
   );
 
-  const currentLayoutId = useCurrentLayoutSelector(selectCurrentLayoutId);
+  const hasCurrentLayout = useCurrentLayoutSelector(selectHasCurrentLayout);
 
   const {
     sidebars: {
@@ -230,7 +218,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
   } = useWorkspaceStore(selectWorkspace, shallow);
   const { sidebarActions } = useWorkspaceActions();
 
-  const [appMenuEl, setAppMenuEl] = useState<undefined | HTMLElement>(undefined);
+  const [appMenuEl] = useState<undefined | HTMLElement>(undefined);
   const [userAnchorEl, setUserAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const [panelAnchorEl, setPanelAnchorEl] = useState<undefined | HTMLElement>(undefined);
 
@@ -246,6 +234,12 @@ export function AppBar(props: AppBarProps): JSX.Element {
     },
     [onDoubleClick],
   );
+
+  const userInfo = useMemo(() => {
+    return localStorage.getItem("current_user") != undefined
+      ? (JSON.parse(localStorage.getItem("current_user")!) as UserInfo)
+      : undefined;
+  }, []);
 
   return (
     <>
@@ -269,25 +263,18 @@ export function AppBar(props: AppBarProps): JSX.Element {
                 aria-haspopup="true"
                 aria-expanded={appMenuOpen ? "true" : undefined}
                 data-tourid="app-menu-button"
-                onClick={(event) => {
-                  setAppMenuEl(event.currentTarget);
-                }}
+                disabled
               >
-                <FoxgloveLogo fontSize="inherit" color="inherit" />
-                <ChevronDown12Regular
-                  className={classes.dropDownIcon}
-                  primaryFill={theme.palette.common.white}
-                />
+                {APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon" ? (
+                  <KeenonLogo fontSize="inherit" color="inherit" />
+                ) : (
+                  <CoSceneLogo fontSize="inherit" color="inherit" />
+                )}
               </IconButton>
-              <AppMenu
-                open={appMenuOpen}
-                anchorEl={appMenuEl}
-                handleClose={() => setAppMenuEl(undefined)}
-              />
               <AppBarIconButton
                 className={cx({ "Mui-selected": panelMenuOpen })}
                 color="inherit"
-                disabled={currentLayoutId == undefined}
+                disabled={!hasCurrentLayout}
                 id="add-panel-button"
                 data-tourid="add-panel-button"
                 title="Add panel"
@@ -312,6 +299,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
             <div className={classes.endInner}>
               {enableMemoryUseIndicator && <MemoryUseIndicator />}
               {appBarLayoutButton}
+              <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
                 <AppBarIconButton
                   title={
@@ -374,17 +362,11 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   onClick={(event) => setUserAnchorEl(event.currentTarget)}
                   data-testid="user-button"
                 >
-                  <Avatar className={classes.avatar} variant="rounded">
-                    {currentUser?.avatarImageUrl ? (
-                      <img
-                        src={currentUser.avatarImageUrl}
-                        referrerPolicy="same-origin"
-                        className={classes.userIconImage}
-                      />
-                    ) : (
-                      <PersonIcon />
-                    )}
-                  </Avatar>
+                  <Avatar
+                    src={userInfo?.avatarUrl ?? undefined}
+                    className={classes.avatar}
+                    variant="rounded"
+                  />
                 </IconButton>
               </Tooltip>
               {showCustomWindowControls && (
@@ -409,6 +391,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
         anchorEl={userAnchorEl}
         open={userMenuOpen}
         handleClose={() => setUserAnchorEl(undefined)}
+        userInfo={userInfo}
       />
     </>
   );

@@ -4,7 +4,7 @@
 import { useCallback } from "react";
 
 import { PanelSelection } from "@foxglove/studio-base/components/PanelCatalog";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { getPanelIdForType } from "@foxglove/studio-base/util/layout";
 
 export default function useAddPanel(): (selection: PanelSelection) => void {

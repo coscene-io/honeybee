@@ -33,7 +33,7 @@ import {
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { JoyrideWrapper } from "./Joyride";
-import { IdbLayoutStorage } from "./services/IdbLayoutStorage";
+import { IdbLayoutStorage } from "./services/CoSceneIdbLayoutStorage";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
 const isDevelopment = process.env.NODE_ENV === "development";

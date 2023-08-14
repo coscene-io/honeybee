@@ -105,7 +105,7 @@ describe("BlockLoader", () => {
     let count = 0;
     await loader.startLoading({
       progress: async (progress) => {
-        if (++count < 4) {
+        if (++count < 5) {
           return;
         }
 
@@ -161,6 +161,7 @@ describe("BlockLoader", () => {
         await loader.stopLoading();
       },
     });
+
     expect.assertions(1);
   });
 
@@ -229,7 +230,7 @@ describe("BlockLoader", () => {
     });
     expect(consoleErrorMock.mock.calls[0] ?? []).toContain("cache-full");
     consoleErrorMock.mockClear();
-    expect.assertions(2);
+    expect.assertions(3);
   });
 
   it("should remove unused topics on blocks if cache is full", async () => {

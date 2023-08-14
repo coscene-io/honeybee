@@ -24,7 +24,7 @@ import {
   Typography,
   inputClasses,
 } from "@mui/material";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
 
@@ -37,7 +37,7 @@ import {
   LayoutState,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useUserNodeState } from "@foxglove/studio-base/context/UserNodeStateContext";
 import BottomBar from "@foxglove/studio-base/panels/NodePlayground/BottomBar";
 import Sidebar from "@foxglove/studio-base/panels/NodePlayground/Sidebar";
@@ -319,6 +319,25 @@ function NodePlayground(props: Props) {
     },
     [scriptBackStack],
   );
+
+  const saveOnLeave = useCallback(() => {
+    if (isNodeSaved) {
+      return;
+    }
+    // automatically save script on panel leave
+    saveCurrentNode();
+  }, [isNodeSaved, saveCurrentNode]);
+
+  // The cleanup function below should only run when this component unmounts.
+  // We're using a ref here so that the cleanup useEffect doesn't run whenever one of the callback
+  // dependencies changes, only when the component unmounts and with the most up-to-date callback.
+  const saveOnLeaveRef = useRef(saveOnLeave);
+  saveOnLeaveRef.current = saveOnLeave;
+  useEffect(() => {
+    return () => {
+      saveOnLeaveRef.current();
+    };
+  }, []);
 
   return (
     <Stack fullHeight>

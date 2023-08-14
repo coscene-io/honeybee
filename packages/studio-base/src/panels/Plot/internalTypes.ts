@@ -46,13 +46,17 @@ export type Datum = ChartDatum & {
 
 export type DataSet = ChartDataset<"scatter", Datum[]>;
 
+// Key datasets by the full PlotPath instead of just the string value because we need to
+// generate a new dataset if the plot path is ordered by headerStamp.
+export type DatasetsByPath = Map<PlotPath, DataSet>;
+
 export type PlotDataItem = {
   queriedData: MessagePathDataItem[];
   receiveTime: Time;
   headerStamp?: Time;
 };
 
-export type PlotDataByPath = Record<string, PlotDataItem[][]>;
+export type PlotDataByPath = Record<string, PlotDataItem[]>;
 
 // A "reference line" plot path is a numeric value. It creates a horizontal line on the plot at the specified value.
 export function isReferenceLinePlotPathType(path: BasePlotPath): boolean {

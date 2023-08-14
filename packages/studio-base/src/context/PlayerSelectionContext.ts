@@ -4,7 +4,7 @@
 
 import { createContext, useContext } from "react";
 
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import { Player, PlayerMetricsCollectorInterface } from "@foxglove/studio-base/players/types";
 import { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
 
@@ -49,9 +49,6 @@ export interface IDataSourceFactory {
   badgeText?: string;
   hidden?: boolean;
   warning?: string | JSX.Element;
-
-  /** Whether to wait for a user to be logged in before initializing this source. */
-  currentUserRequired?: boolean;
 
   sampleLayout?: LayoutData;
 

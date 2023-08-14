@@ -12,7 +12,7 @@
 //   You may not use this file except in compliance with the License.
 import { useDrag, useDrop, DropTargetMonitor, ConnectableElement } from "react-dnd";
 
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { TAB_DRAG_TYPE, TabActions } from "@foxglove/studio-base/panels/Tab/TabDndContext";
 import { ToolbarTab } from "@foxglove/studio-base/panels/Tab/ToolbarTab";
 import { TabLocation } from "@foxglove/studio-base/types/layouts";

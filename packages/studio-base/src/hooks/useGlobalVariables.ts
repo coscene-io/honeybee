@@ -16,7 +16,7 @@ import {
   LayoutState,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 
 export type GlobalVariables = { [key: string]: VariableValue };
 
