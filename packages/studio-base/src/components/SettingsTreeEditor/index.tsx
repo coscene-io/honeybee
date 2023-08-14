@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import ClearIcon from "@mui/icons-material/Clear";
+import CancelIcon from "@mui/icons-material/Cancel";
 import SearchIcon from "@mui/icons-material/Search";
 import { IconButton, TextField } from "@mui/material";
 import memoizeWeak from "memoize-weak";
@@ -14,7 +14,7 @@ import { Immutable, SettingsTree, SettingsTreeAction, SettingsTreeField } from "
 import { useConfigById } from "@foxglove/studio-base/PanelAPI";
 import { FieldEditor } from "@foxglove/studio-base/components/SettingsTreeEditor/FieldEditor";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
 import { usePanelStateStore } from "@foxglove/studio-base/context/PanelStateContext";
 import { PANEL_TITLE_CONFIG_KEY, getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
@@ -49,8 +49,10 @@ const useStyles = makeStyles()((theme) => ({
 const makeStablePath = memoizeWeak((key: string) => [key]);
 
 export default function SettingsTreeEditor({
+  variant,
   settings,
 }: {
+  variant: "panel" | "log";
   settings: Immutable<SettingsTree>;
 }): JSX.Element {
   const { classes } = useStyles();
@@ -115,14 +117,16 @@ export default function SettingsTreeEditor({
       {settings.enableFilter === true && (
         <header className={classes.appBar}>
           <TextField
-            id="settings-filter"
+            id={`${variant}-settings-filter`}
             variant="filled"
-            data-testid="settings-filter-field"
             onChange={(event) => setFilterText(event.target.value)}
             value={filterText}
             className={classes.textField}
             fullWidth
             placeholder={t("searchPanelSettings")}
+            inputProps={{
+              "data-testid": `${variant}-settings-filter-input`,
+            }}
             InputProps={{
               size: "small",
               startAdornment: (
@@ -137,7 +141,7 @@ export default function SettingsTreeEditor({
                   onClick={() => setFilterText("")}
                   edge="end"
                 >
-                  <ClearIcon fontSize="small" />
+                  <CancelIcon fontSize="small" />
                 </IconButton>
               ),
             }}

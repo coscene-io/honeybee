@@ -23,7 +23,6 @@ import {
 } from "react-mosaic-component";
 import { makeStyles } from "tss-react/mui";
 
-import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { EmptyPanelLayout } from "@foxglove/studio-base/components/EmptyPanelLayout";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
@@ -32,14 +31,12 @@ import {
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
   usePanelMosaicId,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
-import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
-import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
-import { defaultPlaybackConfig } from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
+import { defaultPlaybackConfig } from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/reducers";
 import { MosaicDropResult, PanelConfig } from "@foxglove/studio-base/types/panels";
 import { getPanelIdForType, getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
@@ -208,13 +205,11 @@ const selectedLayoutMosaicSelector = (state: LayoutState) => state.selectedLayou
 export default function PanelLayout(): JSX.Element {
   const { layoutEmptyState } = useAppContext();
   const { changePanelLayout, setSelectedLayoutId } = useCurrentLayoutActions();
-  const { openLayoutBrowser } = useWorkspaceActions();
   const layoutManager = useLayoutManager();
   const layoutExists = useCurrentLayoutSelector(selectedLayoutExistsSelector);
   const layoutLoading = useCurrentLayoutSelector(selectedLayoutLoadingSelector);
   const mosaicLayout = useCurrentLayoutSelector(selectedLayoutMosaicSelector);
   const registeredExtensions = useExtensionCatalog((state) => state.installedExtensions);
-  const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
 
   const createNewLayout = async () => {
     const layoutData: Omit<LayoutData, "name" | "id"> = {
@@ -230,20 +225,6 @@ export default function PanelLayout(): JSX.Element {
       permission: "CREATOR_WRITE",
     });
     setSelectedLayoutId(layout.id);
-
-    if (!enableNewTopNav) {
-      openLayoutBrowser();
-    }
-  };
-
-  const selectExistingLayout = async () => {
-    if (!enableNewTopNav) {
-      const layouts = await layoutManager.getLayouts();
-      if (layouts[0]) {
-        setSelectedLayoutId(layouts[0].id);
-      }
-    }
-    openLayoutBrowser();
   };
 
   const onChange = useCallback(
@@ -276,12 +257,6 @@ export default function PanelLayout(): JSX.Element {
       <Typography display="block" variant="body1" color="text.primary">
         You don&apos;t currently have a layout selected.
       </Typography>
-      <Link onClick={selectExistingLayout} underline="hover" color="primary" variant="body1">
-        Select an existing layout
-      </Link>{" "}
-      <Typography display="inline-flex" variant="body1" color="text.primary">
-        or
-      </Typography>{" "}
       <Link onClick={createNewLayout} underline="hover" color="primary" variant="body1">
         Create a new layout
       </Link>

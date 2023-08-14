@@ -32,7 +32,7 @@ import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 
 export type User = {

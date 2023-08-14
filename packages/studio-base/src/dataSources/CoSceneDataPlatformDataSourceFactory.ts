@@ -31,6 +31,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const consoleApi = args.consoleApi;
     if (!consoleApi) {
+      console.error("coscene-data-platform initialize: consoleApi is undefined");
       return;
     }
     const singleRequestTime = localStorage.getItem("singleRequestTime");

@@ -11,9 +11,10 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { useTheme } from "@mui/material";
 import { compact, isNumber, uniq } from "lodash";
 import { ComponentProps, useCallback, useEffect, useMemo, useState } from "react";
+import { useLatest } from "react-use";
+import { DeepWritable } from "ts-essentials";
 
 import {
   Time,
@@ -37,7 +38,8 @@ import PanelToolbar, {
 } from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { ChartDefaultView } from "@foxglove/studio-base/components/TimeBasedChart";
-import { usePlotPanelMessageData } from "@foxglove/studio-base/panels/Plot/usePlotPanelMessageData";
+import { DataSet } from "@foxglove/studio-base/panels/Plot/internalTypes";
+import { usePlotPanelData } from "@foxglove/studio-base/panels/Plot/usePlotPanelData";
 import { OnClickArg as OnChartClickArgs } from "@foxglove/studio-base/src/components/Chart";
 import { OpenSiblingPanel, PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
@@ -45,7 +47,6 @@ import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
 import PlotChart from "./PlotChart";
 import { PlotLegend } from "./PlotLegend";
 import { downloadCSV } from "./csv";
-import { getDatasets } from "./datasets";
 import { usePlotPanelSettings } from "./settings";
 import { PlotConfig } from "./types";
 
@@ -53,6 +54,8 @@ export { plotableRosTypes } from "./types";
 export type { PlotConfig } from "./types";
 
 const defaultSidebarDimension = 240;
+
+const EmptyDatasets: DataSet[] = [];
 
 export function openSiblingPlotPanel(openSiblingPanel: OpenSiblingPanel, topicName: string): void {
   openSiblingPanel({
@@ -74,8 +77,6 @@ type Props = {
   saveConfig: SaveConfig<PlotConfig>;
 };
 
-const ZERO_TIME = { sec: 0, nsec: 0 };
-
 function selectStartTime(ctx: MessagePipelineContext) {
   return ctx.playerState.activeData?.startTime;
 }
@@ -86,6 +87,11 @@ function selectCurrentTime(ctx: MessagePipelineContext) {
 
 function selectEndTime(ctx: MessagePipelineContext) {
   return ctx.playerState.activeData?.endTime;
+}
+
+// Hack until we can make all the downstream chart types immutable.
+function castWritable<T>(t: T) {
+  return t as DeepWritable<T>;
 }
 
 function Plot(props: Props) {
@@ -120,8 +126,6 @@ function Plot(props: Props) {
       } as Partial<PlotConfig>);
     }
   }, [customTitle, legacyTitle, saveConfig]);
-
-  const theme = useTheme();
 
   useEffect(() => {
     if (yAxisPaths.length === 0) {
@@ -179,24 +183,19 @@ function Plot(props: Props) {
     return yAxisPaths.map(({ value }) => value).concat(compact([xAxisPath?.value]));
   }, [xAxisPath?.value, yAxisPaths]);
 
-  const combinedPlotData = usePlotPanelMessageData({
+  const {
+    bounds: datasetBounds,
+    datasets,
+    pathsWithMismatchedDataLengths,
+  } = usePlotPanelData({
     allPaths,
     followingView,
     showSingleCurrentMessage,
+    startTime,
+    xAxisVal,
+    xAxisPath,
+    yAxisPaths,
   });
-
-  // Keep disabled paths when passing into getDatasets, because we still want
-  // easy access to the history when turning the disabled paths back on.
-  const { datasets, pathsWithMismatchedDataLengths } = useMemo(() => {
-    return getDatasets({
-      paths: yAxisPaths,
-      itemsByPath: combinedPlotData,
-      startTime: startTime ?? ZERO_TIME,
-      xAxisVal,
-      xAxisPath,
-      invertedTheme: theme.palette.mode === "dark",
-    });
-  }, [yAxisPaths, combinedPlotData, startTime, xAxisVal, xAxisPath, theme.palette.mode]);
 
   const messagePipeline = useMessagePipelineGetter();
   const onClick = useCallback<NonNullable<ComponentProps<typeof PlotChart>["onClick"]>>(
@@ -225,16 +224,21 @@ function Plot(props: Props) {
     [legendDisplay],
   );
 
+  // Access datasets by latest reference to stabilize our getPanelContextMenuItems callback.
+  const latestDatasets = useLatest(datasets);
+
   const getPanelContextMenuItems = useCallback(() => {
     const items: PanelContextMenuItem[] = [
       {
         type: "item",
         label: "Download plot data as CSV",
-        onclick: () => downloadCSV(datasets, xAxisVal),
+        onclick: () => downloadCSV(latestDatasets.current, xAxisVal),
       },
     ];
     return items;
-  }, [datasets, xAxisVal]);
+  }, [latestDatasets, xAxisVal]);
+
+  const onClickPath = useCallback((index: number) => setFocusedPath(["paths", String(index)]), []);
 
   return (
     <Stack
@@ -251,33 +255,35 @@ function Plot(props: Props) {
         fullWidth
         style={{ height: `calc(100% - ${PANEL_TOOLBAR_MIN_HEIGHT}px)` }}
       >
+        {/* Pass stable values here for properties when not showing values so that the legend memoization remains stable. */}
         {legendDisplay !== "none" && (
           <PlotLegend
+            currentTime={showPlotValuesInLegend ? currentTimeSinceStart : undefined}
+            datasets={showPlotValuesInLegend ? datasets : EmptyDatasets}
+            legendDisplay={legendDisplay}
+            onClickPath={onClickPath}
             paths={yAxisPaths}
-            datasets={datasets}
-            currentTime={currentTimeSinceStart}
-            onClickPath={(index: number) => setFocusedPath(["paths", String(index)])}
+            pathsWithMismatchedDataLengths={pathsWithMismatchedDataLengths}
             saveConfig={saveConfig}
             showLegend={showLegend}
-            pathsWithMismatchedDataLengths={pathsWithMismatchedDataLengths}
-            legendDisplay={legendDisplay}
             showPlotValuesInLegend={showPlotValuesInLegend}
             sidebarDimension={sidebarDimension}
           />
         )}
         <Stack flex="auto" alignItems="center" justifyContent="center" overflow="hidden">
           <PlotChart
+            currentTime={currentTimeSinceStart}
+            datasetBounds={datasetBounds}
+            datasets={castWritable(datasets)}
+            defaultView={defaultView}
             isSynced={xAxisVal === "timestamp" && isSynced}
-            paths={yAxisPaths}
-            minYValue={parseFloat((minYValue ?? "").toString())}
             maxYValue={parseFloat((maxYValue ?? "").toString())}
+            minYValue={parseFloat((minYValue ?? "").toString())}
+            onClick={onClick}
+            paths={yAxisPaths}
             showXAxisLabels={showXAxisLabels}
             showYAxisLabels={showYAxisLabels}
-            datasets={datasets}
             xAxisVal={xAxisVal}
-            currentTime={currentTimeSinceStart}
-            onClick={onClick}
-            defaultView={defaultView}
           />
           <PanelContextMenu getItems={getPanelContextMenuItems} />
         </Stack>

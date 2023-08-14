@@ -4,17 +4,14 @@
 
 // Events that are forwarded from the main process
 export type ForwardedMenuEvent =
+  | "open"
   | "open-file"
-  | "open-remote-file"
-  | "open-sample-data"
-  | "open-app-settings"
-  | "open-layouts"
-  | "open-add-panel"
-  | "open-panel-settings"
-  | "open-variables"
-  | "open-extensions"
-  | "open-help"
-  | "open-account";
+  | "open-connection"
+  | "open-demo"
+  | "open-help-about"
+  | "open-help-docs"
+  | "open-help-general"
+  | "open-help-slack";
 
 export type ForwardedWindowEvent =
   | "enter-full-screen"
@@ -22,10 +19,25 @@ export type ForwardedWindowEvent =
   | "maximize"
   | "unmaximize";
 
+/** Registering an event listener returns a function that will un-register the listener */
+export type UnregisterFn = () => void;
+
 interface NativeMenuBridge {
-  // Events from the native window are available in the main process but not the renderer, so we forward them through the bridge.
-  addIpcEventListener(eventName: ForwardedMenuEvent, handler: () => void): void;
-  removeIpcEventListener(eventName: ForwardedMenuEvent, handler: () => void): void;
+  /**
+   * Events from the native window are available in the main process but not the renderer, so we
+   * forward them through the bridge.
+   *
+   * Return a function to remove the registered event handler.
+   *
+   * NOTE: We use an unregister function return value because the preload <-> renderer bridge
+   * intercepts the function. This changes the reference value of the _handler_ function and breaks
+   * the conventional event emitter API of using `.off(event, handler)` to unregister an event
+   * handler since the handler function that renderer would provided will get wrapped and won't
+   * resolve to the same instance as the one in the `.on` call.
+   *
+   * https://www.electronjs.org/docs/latest/api/context-bridge#parameter--error--return-type-support
+   */
+  addIpcEventListener(eventName: ForwardedMenuEvent, handler: () => void): UnregisterFn;
 
   // Manage file menu input source menu items
   menuAddInputSource(name: string, handler: () => void): Promise<void>;
@@ -64,9 +76,7 @@ interface Desktop {
   /** https://www.electronjs.org/docs/tutorial/represented-file */
   setRepresentedFilename(path: string | undefined): Promise<void>;
 
-  // Events from the native window are available in the main process but not the renderer, so we forward them through the bridge.
-  addIpcEventListener(eventName: ForwardedWindowEvent, handler: () => void): void;
-  removeIpcEventListener(eventName: ForwardedWindowEvent, handler: () => void): void;
+  addIpcEventListener(eventName: ForwardedWindowEvent, handler: () => void): UnregisterFn;
 
   /**
    * Notify the app that the color scheme setting has changed and the native theme may need to be

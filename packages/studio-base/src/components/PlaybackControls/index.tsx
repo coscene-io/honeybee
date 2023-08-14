@@ -32,7 +32,6 @@ import useKeyboardJs from "react-use/lib/useKeyboardJs";
 import { makeStyles } from "tss-react/mui";
 
 import { Time, compare } from "@foxglove/rostime";
-import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { CreateEventDialog } from "@foxglove/studio-base/components/CoSceneCreateEventDialog";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import EventIcon from "@foxglove/studio-base/components/EventIcon";
@@ -51,7 +50,6 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
@@ -108,7 +106,6 @@ export default function PlaybackControls(props: {
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("cosEvent");
-  const [enableNewTopNav = false] = useAppConfigurationValue<boolean>(AppSetting.ENABLE_NEW_TOPNAV);
 
   const { classes, cx } = useStyles();
   const repeat = useWorkspaceStore(selectPlaybackRepeat);
@@ -227,24 +224,29 @@ export default function PlaybackControls(props: {
             >
               <p className={classes.createMoment}>{`${t("createMoment")} (⎇ / ⌥ + M)`}</p>
             </HoverableIconButton>
-            {enableNewTopNav && (
-              <Tooltip
-                classes={{ popper: classes.popper }}
-                title={
-                  <Stack paddingY={0.75}>
-                    <DataSourceInfoView disableSource />
-                  </Stack>
-                }
-              >
-                <HoverableIconButton
-                  className={cx(classes.dataSourceInfoButton, {
-                    [classes.disabled]: disableControls,
-                  })}
-                  size="small"
-                  icon={<Info24Regular />}
-                />
-              </Tooltip>
-            )}
+            <Tooltip
+              // A desired workflow is the ability to copy data source info text (start, end, duration)
+              // from the tooltip. However, there's a UX quirk where the tooltip will close if the user
+              // clicks on the <HoverableIconButton> and then goes to copy text from the tooltip.
+              //
+              // Disabling the focus listener fixes this quirk and the tooltip behaves as expected.
+              // https://mui.com/material-ui/api/tooltip/#prop-disableFocusListener
+              disableFocusListener
+              classes={{ popper: classes.popper }}
+              title={
+                <Stack paddingY={0.75}>
+                  <DataSourceInfoView disableSource />
+                </Stack>
+              }
+            >
+              <HoverableIconButton
+                className={cx(classes.dataSourceInfoButton, {
+                  [classes.disabled]: disableControls,
+                })}
+                size="small"
+                icon={<Info24Regular />}
+              />
+            </Tooltip>
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>

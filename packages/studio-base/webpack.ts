@@ -15,7 +15,7 @@ import { createTssReactNameTransformer } from "@foxglove/typescript-transformers
 
 import { WebpackArgv } from "./WebpackArgv";
 
-if (monacoPkg.version !== "0.38.0") {
+if (monacoPkg.version !== "0.40.0") {
   throw new Error(`
     It looks like you are trying to change the version of Monaco.
 
@@ -204,6 +204,10 @@ export function makeConfig(
                 search: `return{module:require(n),modulePath:n,error:void 0}`,
                 replace:
                   "throw new Error('[coScene] This module is not supported in the browser.');",
+              },
+              {
+                search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
+                replace: `throw new Error('[Foxglove] This module is not supported in the browser.');`,
               },
               {
                 search: `return { module:   require(modulePath), modulePath, error: void 0 };`,

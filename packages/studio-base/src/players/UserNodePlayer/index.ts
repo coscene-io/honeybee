@@ -18,10 +18,12 @@ import ReactDOM from "react-dom";
 import shallowequal from "shallowequal";
 import { v4 as uuidv4 } from "uuid";
 
-import { Condvar, MutexLocked } from "@foxglove/den/async";
+import { MutexLocked } from "@foxglove/den/async";
+import { filterMap } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
 import { Time, compare } from "@foxglove/rostime";
 import { ParameterValue } from "@foxglove/studio";
+import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { MemoizedLibGenerator } from "@foxglove/studio-base/players/UserNodePlayer/MemoizedLibGenerator";
 import { generateTypesLib } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/generateTypesLib";
@@ -135,7 +137,6 @@ export default class UserNodePlayer implements Player {
   // keep track of last message on all topics to recompute output topic messages when user nodes change
   #lastMessageByInputTopic = new Map<string, MessageEvent>();
   #userNodeIdsNeedUpdate = new Set<string>();
-  #globalVariablesChanged = false;
 
   #protectedState = new MutexLocked<ProtectedState>({
     userNodes: {},
@@ -229,40 +230,21 @@ export default class UserNodePlayer implements Player {
     result: (MessageBlock | undefined)[];
   } = { result: [] };
 
-  // Basic memoization by remembering the last values passed to getMessages
-  #lastGetMessagesInput: {
-    parsedMessages: readonly MessageEvent[];
-    globalVariables: GlobalVariables;
-    nodeRegistrations: readonly NodeRegistration[];
-  } = { parsedMessages: [], globalVariables: {}, nodeRegistrations: [] };
-  #lastGetMessagesResult: { parsedMessages: readonly MessageEvent[] } = {
-    parsedMessages: [],
-  };
-
   // Processes input messages through nodes to create messages on output topics
-  // Memoized to prevent reprocessing on same input
   async #getMessages(
-    parsedMessages: readonly MessageEvent[],
+    inputMessages: readonly MessageEvent[],
     globalVariables: GlobalVariables,
     nodeRegistrations: readonly NodeRegistration[],
-  ): Promise<{
-    parsedMessages: readonly MessageEvent[];
-  }> {
-    // prevents from memoizing results for empty requests
-    if (parsedMessages.length === 0) {
-      return { parsedMessages };
+  ): Promise<readonly MessageEvent[]> {
+    // fast-track if there's no input and return empty output
+    if (inputMessages.length === 0) {
+      return [];
     }
-    if (
-      shallowequal(this.#lastGetMessagesInput, {
-        parsedMessages,
-        globalVariables,
-        nodeRegistrations,
-      })
-    ) {
-      return this.#lastGetMessagesResult;
-    }
-    const parsedMessagesPromises: Promise<MessageEvent | undefined>[] = [];
-    for (const message of parsedMessages) {
+
+    const identity = <T>(item: T) => item;
+
+    const outputMessages: MessageEvent[] = [];
+    for (const message of inputMessages) {
       const messagePromises = [];
       for (const nodeRegistration of nodeRegistrations) {
         if (
@@ -271,24 +253,13 @@ export default class UserNodePlayer implements Player {
         ) {
           const messagePromise = nodeRegistration.processMessage(message, globalVariables);
           messagePromises.push(messagePromise);
-          parsedMessagesPromises.push(messagePromise);
         }
       }
-      await Promise.all(messagePromises);
+      const output = await Promise.all(messagePromises);
+      outputMessages.push(...filterMap(output, identity));
     }
 
-    const nodeParsedMessages = (await Promise.all(parsedMessagesPromises)).filter(
-      (value): value is MessageEvent => value != undefined,
-    );
-
-    const result = {
-      parsedMessages: parsedMessages
-        .concat(nodeParsedMessages)
-        .sort((a, b) => compare(a.receiveTime, b.receiveTime)),
-    };
-    this.#lastGetMessagesInput = { parsedMessages, globalVariables, nodeRegistrations };
-    this.#lastGetMessagesResult = result;
-    return result;
+    return outputMessages;
   }
 
   async #getBlocks(
@@ -374,12 +345,11 @@ export default class UserNodePlayer implements Player {
 
   public setGlobalVariables(globalVariables: GlobalVariables): void {
     this.#globalVariables = globalVariables;
-    this.#globalVariablesChanged = true;
   }
 
-  // Called when userNode state is updated.
+  // Called when userNode state is updated (i.e. scripts are saved)
   public async setUserNodes(userNodes: UserNodes): Promise<void> {
-    await this.#protectedState.runExclusive(async (state) => {
+    const newPlayerState = await this.#protectedState.runExclusive(async (state) => {
       for (const nodeId of Object.keys(userNodes)) {
         const prevNode = state.userNodes[nodeId];
         const newNode = userNodes[nodeId];
@@ -397,7 +367,35 @@ export default class UserNodePlayer implements Player {
       // This code causes us to reset workers twice because the seeking resets the workers too
       await this.#resetWorkersUnlocked(state);
       this.#setSubscriptionsUnlocked(this.#subscriptions, state);
+
+      const playerState = this.#playerState;
+      const lastActive = state.lastPlayerStateActiveData;
+      // If we have previous player state and are paused, then we re-emit the last active data so
+      // any panels that want our output topic get the updated message.
+      //
+      // Note: Until we learn otherwise, we assume that if a player is playing, it will emit new
+      // player state that will output new messages so we don't emit here while playing.
+      if (playerState && lastActive?.isPlaying === false) {
+        return {
+          ...playerState,
+          activeData: {
+            ...lastActive,
+            // We want to avoid re-emitting upstream data source messages into panels to maintain
+            // the invariant that the player emits a data-source message into "currentFrame" only once.
+            //
+            // Using an empty messages array will make user node player only emit the script output
+            // messages as a result of the updated script.
+            messages: [],
+          },
+        };
+      }
+
+      return undefined;
     });
+
+    if (newPlayerState) {
+      await this.#onPlayerState(newPlayerState);
+    }
   }
 
   // Defines the inputs/outputs and worker interface of a user node.
@@ -442,14 +440,6 @@ export default class UserNodePlayer implements Player {
       // rpc channel for this processor. Lazily created on each message if an unused
       // channel isn't available.
       let rpc: undefined | Rpc;
-
-      // This signals that we have terminated the node registration and we should bail any
-      // message processing that is in-flight.
-      //
-      // These are lazily created in the first message we process and cleared on
-      // terminate.
-      let terminateCondvar: undefined | Condvar;
-      let terminateSignal: undefined | Promise<void>;
 
       const registration = async (msgEvent: MessageEvent, globalVariables: GlobalVariables) => {
         // Register the node within a web worker to be executed.
@@ -520,36 +510,18 @@ export default class UserNodePlayer implements Player {
           this.#addUserNodeLogs(nodeId, userNodeLogs);
         }
 
-        // This signals that we have terminated the node registration and we should bail any message
-        // processing that is in-flight.
-        if (!terminateCondvar) {
-          terminateCondvar = new Condvar();
-          terminateSignal = terminateCondvar.wait();
-        }
-
-        // To send the message over RPC we invoke maybePlainObject which calls toJSON on the message
-        // and builds a plain js object of the entire message. This is expensive so a future enhancement
-        // would be to send the underlying message array and build a lazy message reader
-        const result = await Promise.race([
-          rpc.send<ProcessMessageOutput>("processMessage", {
-            message: {
-              topic: msgEvent.topic,
-              receiveTime: msgEvent.receiveTime,
-              message: maybePlainObject(msgEvent.message),
-              datatype: msgEvent.schemaName,
-            },
-            globalVariables,
-          }),
-          terminateSignal,
-        ]);
-
-        if (!result) {
-          this.#problemStore.set(problemKey, {
-            message: `User Script ${nodeId} timed out`,
-            severity: "warn",
-          });
-          return;
-        }
+        // To send the message over RPC we need to send a plain JS object. We invoke
+        // maybePlainObject which calls toJSON on the message and builds a plain js object of the
+        // entire message.
+        const result = await rpc.send<ProcessMessageOutput>("processMessage", {
+          message: {
+            topic: msgEvent.topic,
+            receiveTime: msgEvent.receiveTime,
+            message: maybePlainObject(msgEvent.message),
+            datatype: msgEvent.schemaName,
+          },
+          globalVariables,
+        });
 
         const allDiagnostics = result.userNodeDiagnostics;
         if (result.error) {
@@ -598,12 +570,6 @@ export default class UserNodePlayer implements Player {
 
       const terminate = () => {
         this.#problemStore.delete(problemKey);
-
-        // Signal any pending in-flight message processing to terminate and clear the state so we can
-        // re-initialize when the next message is processed.
-        terminateCondvar?.notifyAll();
-        terminateCondvar = undefined;
-        terminateSignal = undefined;
 
         if (rpc) {
           this.#unusedNodeRuntimeWorkers.push(rpc);
@@ -936,21 +902,10 @@ export default class UserNodePlayer implements Player {
           }
         }
 
-        // if the globalVariables have changed recompute all last messages for the current frame
-        // there's no way to know which nodes are affected by the globalVariables change to make this more specific
-        if (this.#globalVariablesChanged) {
-          this.#globalVariablesChanged = false;
-          for (const inputTopic of this.#lastMessageByInputTopic.keys()) {
-            inputTopicsForRecompute.add(inputTopic);
-          }
-        }
-
         // remove topics that already have messages in state, because we won't need to take their last message to process
         // this also removes possible duplicate messages to be parsed
         for (const message of messages) {
-          if (inputTopicsForRecompute.has(message.topic)) {
-            inputTopicsForRecompute.delete(message.topic);
-          }
+          inputTopicsForRecompute.delete(message.topic);
         }
 
         const messagesForRecompute: MessageEvent[] = [];
@@ -967,15 +922,26 @@ export default class UserNodePlayer implements Player {
           this.#lastMessageByInputTopic.set(message.topic, message);
         }
 
-        const messagesRecomputed = messagesForRecompute.length > 0;
-
-        const messagesToBeParsed =
-          messagesForRecompute.length > 0 ? messages.concat(messagesForRecompute) : messages;
-        const { parsedMessages } = await this.#getMessages(
-          messagesToBeParsed,
+        // These are new messages generated from input messages
+        const computed = await this.#getMessages(
+          messages,
           globalVariables,
           state.nodeRegistrations,
         );
+
+        // These are messages generated from previously saved messages on input topics
+        const recomputed = await this.#getMessages(
+          messagesForRecompute,
+          globalVariables,
+          state.nodeRegistrations,
+        );
+
+        // The current frame messages are the input messages + recomputed + computed sorted by
+        // receive time
+        const currentFrameMessages = messages
+          .concat(recomputed)
+          .concat(computed)
+          .sort((a, b) => compare(a.receiveTime, b.receiveTime));
 
         const playerProgress = {
           ...playerState.progress,
@@ -999,10 +965,9 @@ export default class UserNodePlayer implements Player {
           progress: playerProgress,
           activeData: {
             ...activeData,
-            messages: parsedMessages,
+            messages: currentFrameMessages,
             topics: this.#getTopics(topics, this.#memoizedNodeTopics),
             datatypes: allDatatypes,
-            messagesRecomputed,
           },
         };
       });
@@ -1132,6 +1097,13 @@ export default class UserNodePlayer implements Player {
     return await this.#player.callService(service, request);
   }
 
+  public async fetchAsset(uri: string): Promise<Asset> {
+    if (this.#player.fetchAsset) {
+      return await this.#player.fetchAsset(uri);
+    }
+    throw Error("Player does not support fetching assets");
+  }
+
   public startPlayback(): void {
     this.#player.startPlayback?.();
   }
@@ -1152,7 +1124,7 @@ export default class UserNodePlayer implements Player {
     this.#player.setPlaybackSpeed?.(speed);
   }
 
-  public seekPlayback(time: Time, backfillDuration?: Time): void {
-    this.#player.seekPlayback?.(time, backfillDuration);
+  public seekPlayback(time: Time): void {
+    this.#player.seekPlayback?.(time);
   }
 }

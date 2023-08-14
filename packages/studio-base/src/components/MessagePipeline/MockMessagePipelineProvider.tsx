@@ -20,6 +20,7 @@ import { createStore } from "zustand";
 
 import { Time, isLessThan } from "@foxglove/rostime";
 import { ParameterValue } from "@foxglove/studio";
+import { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import {
   AdvertiseOptions,
   MessageEvent,
@@ -57,6 +58,7 @@ export type MockMessagePipelineProps = {
   setPublishers?: (arg0: string, arg1: AdvertiseOptions[]) => void;
   setSubscriptions?: (arg0: string, arg1: SubscribePayload[]) => void;
   setParameter?: (key: string, value: ParameterValue) => void;
+  fetchAsset?: BuiltinPanelExtensionContext["unstable_fetchAsset"];
   noActiveData?: boolean;
   activeData?: Partial<PlayerStateActiveData>;
   capabilities?: string[];
@@ -156,6 +158,11 @@ function getPublicState(
     setParameter: props.setParameter ?? noop,
     publish: props.publish ?? noop,
     callService: props.callService ?? (async () => {}),
+    fetchAsset:
+      props.fetchAsset ??
+      (async () => {
+        throw new Error(`not supported`);
+      }),
     startPlayback: props.startPlayback,
     playUntil: noop,
     pausePlayback: props.pausePlayback,

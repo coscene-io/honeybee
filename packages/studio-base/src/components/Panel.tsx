@@ -52,7 +52,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import {
   useCurrentLayoutActions,
   useSelectedPanels,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
 import {
   useWorkspaceStore,

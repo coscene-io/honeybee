@@ -5,11 +5,28 @@
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import { createContext } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
-import { DeepReadonly } from "ts-essentials";
 import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Time } from "@foxglove/rostime";
+import { Immutable } from "@foxglove/studio";
+
+/**
+ * DataSourceEvent representings a single event within a data source.
+ */
+export type DataSourceEvent = {
+  id: string;
+  createdAt: string;
+  deviceId: string;
+  durationNanos: string;
+  endTime: Time;
+  endTimeInSeconds: number;
+  metadata: Record<string, string>;
+  startTime: Time;
+  startTimeInSeconds: number;
+  timestampNanos: string;
+  updatedAt: string;
+};
 
 /**
  * Represents an event including its fractional position on the timeline.
@@ -32,7 +49,7 @@ export type TimelinePositionedEvent = {
   secondsSinceStart: number;
 };
 
-export type EventsStore = DeepReadonly<{
+export type EventsStore = Immutable<{
   /** Used to signal event refreshes. */
   eventFetchCount: number;
 

@@ -85,11 +85,17 @@ export function downsampleTimeseries(
       continue;
     }
 
-    const x = Math.round(datum.x * pixelPerXValue);
-    const y = Math.round(datum.y * pixelPerYValue);
+    // Benchmarking shows, at least as of the time of this writing, that Math.trunc is
+    // *much* faster than Math.round on this data.
+    const x = Math.trunc(datum.x * pixelPerXValue);
+    const y = Math.trunc(datum.y * pixelPerYValue);
 
-    // interval has ended, we determine whether to write additional points for min/max/last
-    if (intFirst?.xPixel !== x) {
+    // interval has ended, we determine whether to write additional points for min/max/last. Always
+    // create a new interval when encountering a new label to preserve the transition from one label to another
+    if (
+      intFirst?.xPixel !== x ||
+      (intLast?.datum?.label != undefined && intLast.datum.label !== datum.label)
+    ) {
       // add the min value from previous interval if it doesn't match the first or last of that interval
       if (intMin && intMin.yPixel !== intFirst?.yPixel && intMin.yPixel !== intLast?.yPixel) {
         downsampled.push(intMin.datum);
@@ -108,13 +114,17 @@ export function downsampleTimeseries(
       // always add the first datum of an new interval
       downsampled.push(datum);
 
-      intFirst = intLast = { xPixel: x, yPixel: y, datum };
+      intFirst = { xPixel: x, yPixel: y, datum };
+      intLast = { xPixel: x, yPixel: y, datum };
       intMin = { xPixel: x, yPixel: y, datum };
       intMax = { xPixel: x, yPixel: y, datum };
       continue;
     }
 
-    intLast = { xPixel: x, yPixel: y, datum };
+    intLast ??= { xPixel: x, yPixel: y, datum };
+    intLast.xPixel = x;
+    intLast.yPixel = y;
+    intLast.datum = datum;
 
     if (intMin && y < intMin.yPixel) {
       intMin.yPixel = y;

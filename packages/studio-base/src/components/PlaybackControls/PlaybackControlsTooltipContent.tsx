@@ -22,7 +22,7 @@ import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formateTimeToReadableFormat } from "@foxglove/studio-base/util/time";
 
-export type PlaybackControlsTooltipItem =
+type PlaybackControlsTooltipItem =
   | { type: "divider" }
   | { type: "item"; title: string; value: string };
 
@@ -153,6 +153,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
             <Typography className={classes.itemKey} noWrap>
               {item.title}
             </Typography>
+            {/* CoScene Line feeds are possible */}
             <Typography variant="subtitle2">{item.value}</Typography>
           </Fragment>
         );
