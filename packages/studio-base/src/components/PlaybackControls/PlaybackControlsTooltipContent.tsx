@@ -81,6 +81,11 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
 
       tooltipItems.push({
         type: "item",
+        title: t("momentName"),
+        value: event.getDisplayName(),
+      });
+      tooltipItems.push({
+        type: "item",
         title: t("start"),
         value: formatTime(eventStartTime),
       });
