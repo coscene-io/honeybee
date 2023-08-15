@@ -5,6 +5,7 @@
 export const cosEvent = {
   assignee: "Assignee",
   name: "Name",
+  momentName: "Moment Name",
   createMoment: "Create Moment",
   startTime: "Start Time",
   duration: "Duration",
