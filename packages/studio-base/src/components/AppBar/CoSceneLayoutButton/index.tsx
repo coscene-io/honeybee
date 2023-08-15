@@ -53,6 +53,7 @@ import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
 import LayoutRow from "./CoSceneLayoutRow";
+import SelectLayoutTemplateModal from "./SelectLayoutTemplateModal";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
@@ -108,6 +109,7 @@ export function CoSceneLayoutButton(): JSX.Element {
   const analytics = useAnalytics();
   const [prompt, promptModal] = usePrompt();
   const [confirm, confirmModal] = useConfirm();
+  const [selectLayoutTemplateModalOpen, setSelectLayoutTemplateModalOpen] = useState(false);
 
   const layoutManager = useLayoutManager();
 
@@ -491,7 +493,7 @@ export function CoSceneLayoutButton(): JSX.Element {
   const appBarMenuItems = [
     {
       type: "item",
-      key: "item2",
+      key: "createNewLayout",
       label: "Create new layout",
       onClick: () => {
         void createNewLayout();
@@ -499,15 +501,40 @@ export function CoSceneLayoutButton(): JSX.Element {
     },
     {
       type: "item",
-      key: "item1",
+      key: "importFromFile",
       label: "import from file...",
       onClick: () => {
         layoutActions.importFromFile();
         setMenuOpen(false);
       },
     },
+    {
+      type: "item",
+      key: "CreateLayoutFromTemplate",
+      label: "Create layout from template",
+      onClick: () => {
+        setMenuOpen(false);
+        setSelectLayoutTemplateModalOpen(true);
+      },
+    },
     { type: "divider" },
   ];
+
+  const handleCloseLayoutTemplateModal = useCallback(() => {
+    setSelectLayoutTemplateModalOpen(false);
+  }, [setSelectLayoutTemplateModalOpen]);
+
+  const handleSelectLayoutTemplate = async (layout: LayoutData, layoutName: string) => {
+    setSelectLayoutTemplateModalOpen(false);
+    const newLayout = await layoutManager.saveNewLayout({
+      name: layoutName,
+      data: layout,
+      permission: "CREATOR_WRITE",
+    });
+    void onSelectLayout(newLayout);
+
+    void analytics.logEvent(AppEvent.LAYOUT_CREATE);
+  };
 
   return (
     <>
@@ -611,6 +638,11 @@ export function CoSceneLayoutButton(): JSX.Element {
       {promptModal}
       {confirmModal}
       {unsavedChangesPrompt}
+      <SelectLayoutTemplateModal
+        open={selectLayoutTemplateModalOpen}
+        onClose={handleCloseLayoutTemplateModal}
+        onSelectedLayout={handleSelectLayoutTemplate}
+      />
     </>
   );
 }
