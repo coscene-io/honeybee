@@ -7,6 +7,7 @@ import { TypeOptions } from "i18next";
 export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   assignee: "经办人",
   name: "名称",
+  momentName: "一刻名称",
   createMoment: "创建一刻",
   startTime: "开始时间",
   duration: "持续时间",

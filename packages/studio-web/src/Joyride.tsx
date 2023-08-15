@@ -43,7 +43,7 @@ export function JoyrideWrapper(): JSX.Element {
             >
               播放记录
             </span>{" "}
-            （1/9）
+            （1/10）
           </div>
           <div>点击开始播放</div>
         </div>
@@ -66,12 +66,13 @@ export function JoyrideWrapper(): JSX.Element {
             >
               三维视图
             </span>{" "}
-            （2/9）
+            （2/10）
           </div>
           <div>展示激光点云，运动状态，地图等信息</div>
         </div>
       ),
-      target: ".mosaic-tile .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile",
+      target:
+        ".mosaic-tile .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile",
     },
     {
       content: (
@@ -88,56 +89,12 @@ export function JoyrideWrapper(): JSX.Element {
             >
               实时视频
             </span>{" "}
-            （3/9）
+            （3/10）
           </div>
           <div>展示摄像头信息</div>
         </div>
       ),
-      target: ".mosaic-tile .mosaic-tile",
-    },
-    {
-      content: (
-        <div style={{ textAlign: "left", fontSize: "14px", lineHeight: "20px" }}>
-          <div
-            style={{
-              paddingBottom: "8px",
-            }}
-          >
-            <span
-              style={{
-                fontWeight: "700",
-              }}
-            >
-              下发速度
-            </span>{" "}
-            （4/9）
-          </div>
-          <div>机器速度曲线图</div>
-        </div>
-      ),
-      target: ".mosaic-tile .mosaic-tile ~ .mosaic-tile",
-    },
-    {
-      content: (
-        <div style={{ textAlign: "left", fontSize: "14px", lineHeight: "20px" }}>
-          <div
-            style={{
-              paddingBottom: "8px",
-            }}
-          >
-            <span
-              style={{
-                fontWeight: "700",
-              }}
-            >
-              原始消息
-            </span>{" "}
-            （5/9）
-          </div>
-          <div>机器原始数据</div>
-        </div>
-      ),
-      target: ".mosaic-tile .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile",
+      target: ".mosaic-tile .mosaic-tile .mosaic-tile .mosaic-tile",
     },
     {
       content: (
@@ -154,14 +111,80 @@ export function JoyrideWrapper(): JSX.Element {
             >
               日志
             </span>{" "}
-            （6/9）
+            （4/10）
           </div>
           <div>机器日志，实时滚动播放</div>
         </div>
       ),
       target:
-        ".mosaic-tile .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile ~ .mosaic-tile",
+        ".mosaic-root > .mosaic-tile:last-child > div > div > .mosaic-root > .mosaic-tile:last-child",
       placement: "left",
+    },
+    {
+      content: (
+        <div style={{ textAlign: "left", fontSize: "14px", lineHeight: "20px" }}>
+          <div
+            style={{
+              paddingBottom: "8px",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: "700",
+              }}
+            >
+              规划信息
+            </span>{" "}
+            （5/10）
+          </div>
+          <div>地图与路径规划</div>
+        </div>
+      ),
+      target: ".mosaic-root  .mosaic-root > .mosaic-tile",
+    },
+    {
+      content: (
+        <div style={{ textAlign: "left", fontSize: "14px", lineHeight: "20px" }}>
+          <div
+            style={{
+              paddingBottom: "8px",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: "700",
+              }}
+            >
+              下发速度
+            </span>{" "}
+            （6/10）
+          </div>
+          <div>机器速度曲线图</div>
+        </div>
+      ),
+      target: ".mosaic-root  .mosaic-root > .mosaic-tile",
+    },
+    {
+      content: (
+        <div style={{ textAlign: "left", fontSize: "14px", lineHeight: "20px" }}>
+          <div
+            style={{
+              paddingBottom: "8px",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: "700",
+              }}
+            >
+              原始消息
+            </span>{" "}
+            （7/10）
+          </div>
+          <div>机器原始数据</div>
+        </div>
+      ),
+      target: ".mosaic-root  .mosaic-root > .mosaic-tile",
     },
     {
       spotlightClicks: true,
@@ -184,7 +207,7 @@ export function JoyrideWrapper(): JSX.Element {
             >
               创建一刻
             </span>{" "}
-            （7/9）
+            （8/10）
           </div>
           <div>点击创建“一刻”，标记发生故障的关键帧</div>
         </div>
@@ -208,7 +231,7 @@ export function JoyrideWrapper(): JSX.Element {
             >
               创建一刻
             </span>{" "}
-            （8/9）
+            （9/10）
           </div>
           <div>在弹窗中填写一刻的名称、持续时间、描述等信息，即可完成一刻的创建</div>
         </div>
@@ -232,7 +255,7 @@ export function JoyrideWrapper(): JSX.Element {
             >
               创建任务
             </span>{" "}
-            （9/9）
+            （10/10）
           </div>
           <div>
             在弹窗中填写任务的名称、描述、经办人等信息，即完成任务的创建；默认“经办人”为您自己
@@ -262,11 +285,51 @@ export function JoyrideWrapper(): JSX.Element {
       }}
       callback={(data) => {
         const { action, index, lifecycle } = data;
+        // switch tab
         if (action === "next" && lifecycle === "complete" && index === stepIndex) {
-          setStepIndex((ele) => ele + 1);
+          if (stepIndex === 3) {
+            document
+              .querySelector("[title=规划]")
+              ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+          }
+          if (stepIndex === 4) {
+            document
+              .querySelector("[title=控制]")
+              ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+          }
+          if (stepIndex === 5) {
+            document
+              .querySelector("[title=诊断]")
+              ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+          }
+          setTimeout(() => {
+            setStepIndex((ele) => ele + 1);
+          }, 100);
         }
         if (action === "prev" && lifecycle === "complete" && index === stepIndex) {
-          setStepIndex((ele) => ele - 1);
+          if (stepIndex === 4) {
+            document
+              .querySelector("[title=洞察]")
+              ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+          }
+          if (stepIndex === 5) {
+            document
+              .querySelector("[title=规划]")
+              ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+          }
+          if (stepIndex === 6) {
+            document
+              .querySelector("[title=控制]")
+              ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+          }
+          if (stepIndex === 7) {
+            document
+              .querySelector("[title=诊断]")
+              ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+          }
+          setTimeout(() => {
+            setStepIndex((ele) => ele - 1);
+          }, 100);
         }
         if (action === "skip") {
           localStorage.setItem("honeybeeDemoStatus", "skip");
