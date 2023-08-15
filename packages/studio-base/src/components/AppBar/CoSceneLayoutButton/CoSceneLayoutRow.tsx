@@ -27,6 +27,7 @@ import {
   useEffect,
   useRef,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 
 // import { withStyles } from "tss-react/mui";
@@ -152,6 +153,7 @@ export default React.memo(function LayoutRow({
   const isMounted = useMountedState();
   const [confirm, confirmModal] = useConfirm();
   const layoutManager = useLayoutManager();
+  const { t } = useTranslation("cosLayout");
 
   const [editingName, setEditingName] = useState(false);
   const [nameFieldValue, setNameFieldValue] = useState("");
@@ -287,7 +289,7 @@ export default React.memo(function LayoutRow({
     {
       type: "item",
       key: "rename",
-      text: "Rename",
+      text: t("rename"),
       onClick: renameAction,
       "data-testid": "rename-layout",
       disabled: (layoutIsShared(layout) && !isOnline) || multiSelection,
@@ -299,8 +301,8 @@ export default React.memo(function LayoutRow({
       key: "duplicate",
       text:
         layoutManager.supportsSharing && layoutIsShared(layout)
-          ? "Make a personal copy"
-          : "Duplicate",
+          ? t("makeAPersonalCopy")
+          : t("duplicate"),
       onClick: duplicateAction,
       "data-testid": "duplicate-layout",
     },
@@ -316,7 +318,7 @@ export default React.memo(function LayoutRow({
     {
       type: "item",
       key: "export",
-      text: "Export…",
+      text: t("export"),
       disabled: multiSelection,
       onClick: exportAction,
     },
@@ -324,7 +326,7 @@ export default React.memo(function LayoutRow({
     {
       type: "item",
       key: "delete",
-      text: "Delete",
+      text: t("delete"),
       onClick: confirmDelete,
       "data-testid": "delete-layout",
     },
@@ -335,7 +337,7 @@ export default React.memo(function LayoutRow({
       {
         type: "item",
         key: "overwrite",
-        text: "Save changes",
+        text: t("saveChanges"),
         onClick: overwriteAction,
         disabled: deletedOnServer || (layoutIsShared(layout) && !isOnline),
         secondaryText: layoutIsShared(layout) && !isOnline ? "Offline" : undefined,
@@ -343,7 +345,7 @@ export default React.memo(function LayoutRow({
       {
         type: "item",
         key: "revert",
-        text: "Revert",
+        text: t("revert"),
         onClick: confirmRevert,
         disabled: deletedOnServer,
       },
@@ -352,21 +354,21 @@ export default React.memo(function LayoutRow({
       sectionItems.push({
         type: "item",
         key: "copy_to_personal",
-        text: "Make a personal copy",
+        text: t("copyToPersonal"),
         disabled: multiSelection,
         onClick: makePersonalCopyAction,
       });
     }
 
     const unsavedChangesMessage = anySelectedModifiedLayouts
-      ? "These layouts have unsaved changes"
-      : "This layout has unsaved changes";
+      ? t("theseLayoutsHaveUnsavedChanges")
+      : t("thisLayoutHasUnsavedChanges");
 
     menuItems.unshift(
       {
         key: "changes",
         type: "header",
-        text: deletedOnServer ? "Someone else has deleted this layout" : unsavedChangesMessage,
+        text: deletedOnServer ? t("someoneElseHasDeletedThisLayout") : unsavedChangesMessage,
       },
       ...sectionItems,
       { key: "changes_divider", type: "divider" },

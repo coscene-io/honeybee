@@ -95,7 +95,7 @@ export function CoSceneLayoutButton(): JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false);
   const { classes, cx } = useStyles();
   const anchorEl = useRef<HTMLButtonElement>(ReactNull);
-  const { t } = useTranslation();
+  const { t } = useTranslation("cosLayout");
   const [searchQuery, setSearchQuery] = useState("");
   const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
@@ -494,7 +494,7 @@ export function CoSceneLayoutButton(): JSX.Element {
     {
       type: "item",
       key: "createNewLayout",
-      label: "Create new layout",
+      label: t("createBlankLayout"),
       onClick: () => {
         void createNewLayout();
       },
@@ -502,7 +502,7 @@ export function CoSceneLayoutButton(): JSX.Element {
     {
       type: "item",
       key: "importFromFile",
-      label: "import from file...",
+      label: t("importFromFile"),
       onClick: () => {
         layoutActions.importFromFile();
         setMenuOpen(false);
@@ -511,7 +511,7 @@ export function CoSceneLayoutButton(): JSX.Element {
     {
       type: "item",
       key: "CreateLayoutFromTemplate",
-      label: "Create layout from template",
+      label: t("createLayoutFromTemplate"),
       onClick: () => {
         setMenuOpen(false);
         setSelectLayoutTemplateModalOpen(true);
@@ -539,8 +539,8 @@ export function CoSceneLayoutButton(): JSX.Element {
   return (
     <>
       <AppBarDropdownButton
-        subheader="layout"
-        title={currentLayouts?.name ?? "no layout"}
+        subheader={t("layout")}
+        title={currentLayouts?.name ?? t("noLayouts")}
         selected={menuOpen}
         onClick={() => {
           setMenuOpen((open) => !open);
@@ -604,13 +604,13 @@ export function CoSceneLayoutButton(): JSX.Element {
           ),
         )}
         <Typography variant="body2" className={classes.subheader}>
-          Layouts
+          {t("layouts")}
         </Typography>
         <List disablePadding>
           {items.length === 0 && (
             <Stack paddingX={2}>
               <Typography variant="body2" color="text.secondary">
-                Add a new layout to get started!
+                {t("addLayoutToGetStart")}
               </Typography>
             </Stack>
           )}
