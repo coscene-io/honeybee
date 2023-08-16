@@ -39,6 +39,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     padding: theme.spacing(1.5),
     paddingInlineEnd: theme.spacing(0.75),
     whiteSpace: "nowrap",
+    maxHeight: "44px",
     minWidth: 0,
   },
   adornment: {
@@ -78,6 +79,14 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
   },
   numericValue: {
     fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
+  },
+  breadcrumbs: {
+    maxWidth: "150px",
+    display: "flex",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    color: theme.palette.appBar.text,
   },
 }));
 
@@ -128,10 +137,24 @@ export function DataSource(): JSX.Element {
   const recordHref = `${projectHref}/records/${record.value?.getName().split("/").pop() ?? ""}`;
 
   const breadcrumbs = [
-    <Link href={projectHref} target="_blank" underline="hover" key="1" color="inherit">
+    <Link
+      href={projectHref}
+      target="_blank"
+      underline="hover"
+      key="1"
+      color="inherit"
+      className={classes.breadcrumbs}
+    >
       {project.value?.getDisplayName()}
     </Link>,
-    <Link href={recordHref} target="_blank" underline="hover" key="2" color="inherit">
+    <Link
+      href={recordHref}
+      target="_blank"
+      underline="hover"
+      key="2"
+      color="inherit"
+      className={classes.breadcrumbs}
+    >
       {record.value?.getTitle()}
     </Link>,
   ];
