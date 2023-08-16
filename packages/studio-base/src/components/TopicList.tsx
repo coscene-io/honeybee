@@ -17,7 +17,7 @@ import { Fzf, FzfResultItem } from "fzf";
 import { useMemo, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 
-import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
+// import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import { HighlightChars } from "@foxglove/studio-base/components/HighlightChars";
 import {
@@ -254,7 +254,8 @@ export function TopicList(): JSX.Element {
           {playerPresence === PlayerPresence.RECONNECTING && "Waiting for connection"}
         </EmptyState>
       )}
-      <DirectTopicStatsUpdater interval={6} />
+      {/* coScene 防止频率数值覆盖 */}
+      {/* <DirectTopicStatsUpdater interval={6} /> */}
     </>
   );
 }

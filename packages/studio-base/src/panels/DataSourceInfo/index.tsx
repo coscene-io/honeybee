@@ -6,7 +6,7 @@ import { Divider, Typography } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 
 import CopyButton from "@foxglove/studio-base/components/CopyButton";
-import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
+// import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import {
   MessagePipelineContext,
@@ -100,10 +100,10 @@ function TopicRow({ topic }: { topic: Topic }): JSX.Element {
         )}
       </td>
       <td data-topic={topic.name} data-topic-stat="count">
-        &mdash;
+        {topic.messageCount}
       </td>
       <td data-topic={topic.name} data-topic-stat="frequency">
-        &mdash;
+        {topic.messageFrequency}
       </td>
     </tr>
   );
@@ -151,7 +151,8 @@ function SourceInfo(): JSX.Element {
             ))}
           </tbody>
         </table>
-        <DirectTopicStatsUpdater interval={6} />
+        {/* coScene 防止频率数值覆盖 */}
+        {/* <DirectTopicStatsUpdater interval={6} /> */}
       </Stack>
     </>
   );

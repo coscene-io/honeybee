@@ -12,7 +12,6 @@ import { useCurrentUserType } from "@foxglove/studio-base/context/CurrentUserCon
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 const useStyles = makeStyles()({
   menuList: {
@@ -56,7 +55,7 @@ export function UserMenu({
   const { dialogActions } = useWorkspaceActions();
 
   const beginSignOut = useCallback(() => {
-    window.location.href = `${APP_CONFIG.CS_HONEYBEE_BASE_URL}/login`;
+    window.location.href = `${window.location.origin}/login`;
   }, []);
 
   const onSignoutClick = useCallback(() => {
