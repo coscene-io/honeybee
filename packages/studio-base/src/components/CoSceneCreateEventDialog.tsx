@@ -14,7 +14,6 @@ import {
   DialogActions,
   FormControlLabel,
   TextField,
-  ToggleButton,
   ToggleButtonGroup,
   Typography,
   FormLabel,
@@ -282,7 +281,6 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                   {t("name")}
                 </>
               }
-              multiline
               maxRows={1}
               value={isDemoSite ? "机器人不动" : event.eventName}
               onChange={(val) => {
@@ -290,6 +288,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               }}
               fullWidth
               variant="standard"
+              autoFocus
             />
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
@@ -323,9 +322,9 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                         }
                       }}
                     >
-                      <ToggleButton className={classes.toggleButton} tabIndex={-1} value="sec">
+                      <div className={classes.toggleButton} tabIndex={-1}>
                         {t("sec")}
-                      </ToggleButton>
+                      </div>
                     </ToggleButtonGroup>
                   ),
                 }}
