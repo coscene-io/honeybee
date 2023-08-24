@@ -79,7 +79,7 @@ export const light: PaletteOptions = {
     primary: "#2563eb",
     text: "#ffffff",
   },
-  primary: { main: "#6f3be8" },
+  primary: { main: "#2563eb" },
   secondary: { main: "#808080" },
   error: { main: "#db3553" },
   warning: { main: "#eba800" },
