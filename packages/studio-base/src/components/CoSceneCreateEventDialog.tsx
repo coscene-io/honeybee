@@ -14,7 +14,6 @@ import {
   DialogActions,
   FormControlLabel,
   TextField,
-  ToggleButton,
   ToggleButtonGroup,
   Typography,
   FormLabel,
@@ -24,14 +23,13 @@ import {
 } from "@mui/material";
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import { countBy } from "lodash";
-import { KeyboardEvent, useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { keyframes } from "tss-react";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
-import Log from "@foxglove/log";
 import { toDate } from "@foxglove/rostime";
 import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
 import {
@@ -43,8 +41,6 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-
-const log = Log.getLogger(__filename);
 
 const fadeInAnimation = keyframes`
   from {
@@ -103,6 +99,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const { onClose } = props;
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("cosEvent");
+  const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
 
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
@@ -234,13 +231,35 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   }, [consoleApi, urlState, event, onClose, refreshEvents, setTask, record.value]);
 
   const onMetaDataKeyDown = useCallback(
-    (keyboardEvent: KeyboardEvent) => {
+    (keyboardEvent: React.KeyboardEvent) => {
       if (keyboardEvent.key === "Enter") {
-        createEvent().catch((error) => log.error(error));
+        createMomentBtnRef.current?.click();
       }
     },
-    [createEvent],
+    [createMomentBtnRef],
   );
+
+  const invokeTabKey = () => {
+    // get the active element when Enter was pressed and
+    // if it is an input, focus the next input
+    // NOTE: You cannot really trigger the browser event -
+    //       even if you do, the browser won't execute the action
+    //       (such as focusing the next input) so you have to define the action
+    let currInput = document.activeElement;
+    if (currInput?.tagName.toLowerCase() === "input") {
+      const inputs = document.getElementsByTagName("input");
+      currInput = document.activeElement;
+      for (let i = 0; i < inputs.length; i++) {
+        if (inputs[i] === currInput) {
+          const next = inputs[i + 1];
+          if (next?.focus) {
+            next.focus();
+          }
+          break;
+        }
+      }
+    }
+  };
 
   const addRow = useCallback(
     (index: number) => {
@@ -282,7 +301,6 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                   {t("name")}
                 </>
               }
-              multiline
               maxRows={1}
               value={isDemoSite ? "机器人不动" : event.eventName}
               onChange={(val) => {
@@ -290,6 +308,8 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               }}
               fullWidth
               variant="standard"
+              autoFocus
+              onKeyDown={onMetaDataKeyDown}
             />
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
@@ -323,9 +343,9 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                         }
                       }}
                     >
-                      <ToggleButton className={classes.toggleButton} tabIndex={-1} value="sec">
+                      <div className={classes.toggleButton} tabIndex={-1}>
                         {t("sec")}
-                      </ToggleButton>
+                      </div>
                     </ToggleButtonGroup>
                   ),
                 }}
@@ -345,7 +365,6 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               <TextField
                 id="description"
                 label={t("description")}
-                multiline
                 rows={2}
                 value={isDemoSite ? "机器人在原地无法移动" : event.description}
                 onChange={(val) => {
@@ -353,6 +372,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                 }}
                 fullWidth
                 variant="standard"
+                onKeyDown={onMetaDataKeyDown}
               />
             </div>
           </Stack>
@@ -368,7 +388,11 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                       value={key}
                       placeholder={`${t("key")} (${t("string")})`}
                       error={hasDuplicate}
-                      onKeyDown={onMetaDataKeyDown}
+                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                        if (keyboardEvent.key === "Enter") {
+                          invokeTabKey();
+                        }
+                      }}
                       onChange={(evt) => updateMetadata(index, "key", evt.currentTarget.value)}
                     />
                     <TextField
@@ -376,7 +400,14 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                       value={value}
                       placeholder={`${t("value")} (${t("string")})`}
                       error={hasDuplicate}
-                      onKeyDown={onMetaDataKeyDown}
+                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                        if (
+                          (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
+                          keyboardEvent.key === "Enter"
+                        ) {
+                          onMetaDataKeyDown(keyboardEvent);
+                        }
+                      }}
                       onChange={(evt) => updateMetadata(index, "value", evt.currentTarget.value)}
                     />
                     <ButtonGroup>
@@ -438,6 +469,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                 }
               }}
               disabled={isDemoSite ? false : !canSubmit || createdEvent.loading || !event.eventName}
+              ref={createMomentBtnRef}
             >
               {createdEvent.loading && (
                 <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />

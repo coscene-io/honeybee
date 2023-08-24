@@ -37,7 +37,7 @@ function createWorkspaceContextStore(
           },
           sidebars: {
             left: {
-              item: "panel-settings",
+              item: "playlist",
               open: true,
               size: undefined,
             },

@@ -16,6 +16,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { KeyboardEvent, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsync, useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -60,6 +61,7 @@ export function CreateTaskDialog({
   const { t } = useTranslation("cosEvent");
   const consoleApi = useConsoleApi();
   const recordInfo = useRecord(selectRecord);
+  const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
 
   const [task, setTask] = useImmer<{
     title: string;
@@ -72,6 +74,15 @@ export function CreateTaskDialog({
     assignee: "",
     assigner: "",
   });
+
+  const onMetaDataKeyDown = useCallback(
+    (keyboardEvent: KeyboardEvent) => {
+      if (keyboardEvent.key === "Enter") {
+        createMomentBtnRef.current?.click();
+      }
+    },
+    [createMomentBtnRef],
+  );
 
   const [createdTask, createTask] = useAsyncFn(async () => {
     const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
@@ -141,19 +152,18 @@ export function CreateTaskDialog({
           fullWidth
           variant="standard"
           label={t("name", { ns: "cosGeneral" })}
-          multiline
           maxRows={1}
           value={task.title}
           onChange={(val) => {
             setTask((state) => ({ ...state, title: val.target.value }));
           }}
+          onKeyDown={onMetaDataKeyDown}
         />
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
         <TextField
           id="description"
           label={t("description")}
-          multiline
           rows={3}
           value={isDemoSite ? "麻烦看一下这个问题，并给出解决方案" : task.description}
           onChange={(val) => {
@@ -161,6 +171,7 @@ export function CreateTaskDialog({
           }}
           fullWidth
           variant="standard"
+          onKeyDown={onMetaDataKeyDown}
         />
       </Stack>
       <Stack paddingX={3} paddingTop={2}>
@@ -170,7 +181,7 @@ export function CreateTaskDialog({
             disableClearable
             options={users ?? []}
             getOptionLabel={(option) => option.getNickname()}
-            renderInput={(params) => <TextField {...params} variant="standard" />}
+            renderInput={(params) => <TextField {...params} autoFocus variant="standard" />}
             renderOption={(props, option) => (
               <Box component="li" {...props}>
                 <img className={classes.avatar} src={option.getAvatar()} />
@@ -184,6 +195,7 @@ export function CreateTaskDialog({
             }}
             disabled={isDemoSite}
             inputValue={isDemoSite ? "demo" : undefined}
+            onKeyDown={onMetaDataKeyDown}
           />
         </FormControl>
       </Stack>
@@ -204,6 +216,7 @@ export function CreateTaskDialog({
               : createTask
           }
           disabled={isDemoSite ? false : createdTask.loading || !task.title || !task.assignee}
+          ref={createMomentBtnRef}
         >
           {createdTask.loading && (
             <CircularProgress color="inherit" size="1rem" className={classes.circularProgress} />
