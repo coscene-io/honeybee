@@ -31,4 +31,11 @@ export const cosEvent = {
   end: "End",
   time: "Time",
   elapsed: "Elapsed",
+  deleteConfirmTitle: "Delete Moment",
+  deleteConfirmPrompt: "Are you sure you want to delete this moment?",
+  delete: "Delete",
+  createTaskSuccess: "Create task success",
+  createTaskFailed: "Create task failed",
+  createMomentSuccess: "Create moment success",
+  createMomentFailed: "Create moment failed",
 };

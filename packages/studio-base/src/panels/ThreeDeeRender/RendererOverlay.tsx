@@ -86,6 +86,13 @@ const useStyles = makeStyles()((theme) => ({
     marginBottom: theme.spacing(1),
     marginRight: theme.spacing(1),
   },
+  scaleDisplay: {
+    pointerEvents: "auto",
+    padding: theme.spacing(1, 0),
+    width: theme.spacing(4),
+    fontSize: "0.5rem",
+    textAlign: "center",
+  },
 }));
 
 /**
@@ -452,58 +459,54 @@ export function RendererOverlay(props: {
             {publishControls}
           </Paper>
         )}
-        <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
-          <IconButton
-            color="inherit"
-            title={t("reCenter", { ns: "cosThreeDee" })}
-            onClick={onResetCamera}
-            style={{ pointerEvents: "auto" }}
-          >
-            <FilterCenterFocusIcon
-              style={{
-                fontSize: 16,
-              }}
-            />
-          </IconButton>
-        </Paper>
-        <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
-          <IconButton
-            color="inherit"
-            title={t("zoomIn", { ns: "cosThreeDee" })}
-            onClick={onZoomIn}
-            style={{ pointerEvents: "auto" }}
-          >
-            <AddIcon
-              style={{
-                fontSize: 16,
-              }}
-            />
-          </IconButton>
-          <div
-            style={{
-              pointerEvents: "auto",
-              padding: "10px 0px",
-              width: 32,
-              fontSize: 4,
-              textAlign: "center",
-            }}
-          >
-            {scaleDisplay()}
-          </div>
 
-          <IconButton
-            color="inherit"
-            title={t("zoomOut", { ns: "cosThreeDee" })}
-            onClick={onZoomOut}
-            style={{ pointerEvents: "auto" }}
-          >
-            <RemoveIcon
-              style={{
-                fontSize: 16,
-              }}
-            />
-          </IconButton>
-        </Paper>
+        {props.interfaceMode === "3d" && (
+          <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
+            <IconButton
+              color="inherit"
+              title={t("reCenter", { ns: "cosThreeDee" })}
+              onClick={onResetCamera}
+              style={{ pointerEvents: "auto" }}
+            >
+              <FilterCenterFocusIcon
+                style={{
+                  fontSize: 16,
+                }}
+              />
+            </IconButton>
+          </Paper>
+        )}
+
+        {props.interfaceMode === "3d" && (
+          <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
+            <IconButton
+              color="inherit"
+              title={t("zoomIn", { ns: "cosThreeDee" })}
+              onClick={onZoomIn}
+              style={{ pointerEvents: "auto" }}
+            >
+              <AddIcon
+                style={{
+                  fontSize: 16,
+                }}
+              />
+            </IconButton>
+            <div className={classes.scaleDisplay}>{scaleDisplay()}</div>
+
+            <IconButton
+              color="inherit"
+              title={t("zoomOut", { ns: "cosThreeDee" })}
+              onClick={onZoomOut}
+              style={{ pointerEvents: "auto" }}
+            >
+              <RemoveIcon
+                style={{
+                  fontSize: 16,
+                }}
+              />
+            </IconButton>
+          </Paper>
+        )}
       </div>
       {clickedObjects.length > 1 && !selectedObject && (
         <InteractionContextMenu

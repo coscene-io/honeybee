@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import { countBy } from "lodash";
+import { useSnackbar } from "notistack";
 import { useCallback, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
@@ -129,10 +130,12 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     enabled: boolean;
     eventName: string;
     title: string;
+    description: string;
   }>({
     enabled: false,
     eventName: "",
     title: "",
+    description: "",
   });
 
   const updateMetadata = useCallback(
@@ -163,6 +166,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     ([key, count]) => key.length > 0 && count > 1,
   );
   const canSubmit = event.startTime != undefined && event.duration != undefined && !duplicateKey;
+  const { enqueueSnackbar } = useSnackbar();
 
   const [createdEvent, createEvent] = useAsyncFn(async () => {
     if (event.startTime == undefined || event.duration == undefined) {
@@ -215,20 +219,41 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
 
-    const result = await consoleApi.createEvent({
-      event: newEvent,
-      parent,
-      recordName,
-    });
-    const eventName = result.getName();
-    if (event.enabledCreateNewTask) {
-      setTask({ enabled: true, eventName, title: event.eventName });
-    } else {
-      onClose();
-    }
+    try {
+      const result = await consoleApi.createEvent({
+        event: newEvent,
+        parent,
+        recordName,
+      });
 
-    refreshEvents();
-  }, [consoleApi, urlState, event, onClose, refreshEvents, setTask, record.value]);
+      const eventName = result.getName();
+      if (event.enabledCreateNewTask) {
+        setTask({
+          enabled: true,
+          eventName,
+          title: event.eventName,
+          description: event.description ?? "",
+        });
+      } else {
+        onClose();
+      }
+
+      refreshEvents();
+      enqueueSnackbar(t("createMomentSuccess"), { variant: "success" });
+    } catch (e) {
+      enqueueSnackbar(t("createMomentFailed"), { variant: "error" });
+    }
+  }, [
+    consoleApi,
+    urlState,
+    event,
+    onClose,
+    refreshEvents,
+    setTask,
+    record.value,
+    enqueueSnackbar,
+    t,
+  ]);
 
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: React.KeyboardEvent) => {
@@ -461,7 +486,12 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                   await createEvent();
                   setCreateEventDialogOpen(false);
                 } else {
-                  setTask({ enabled: true, eventName: "demo", title: "机器人不动" });
+                  setTask({
+                    enabled: true,
+                    eventName: "demo",
+                    title: "机器人不动",
+                    description: "麻烦看一下这个问题，并给出解决方案",
+                  });
                   setTimeout(() => {
                     window.nextStep();
                     setCreateEventDialogOpen(false);
@@ -485,9 +515,13 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       )}
       {task.enabled && (
         <CreateTaskDialog
-          initialTask={{ title: task.title, eventName: task.eventName }}
+          initialTask={{
+            title: task.title,
+            eventName: task.eventName,
+            description: task.description,
+          }}
           onClose={() => {
-            setTask({ enabled: false, eventName: "", title: "" });
+            setTask({ enabled: false, eventName: "", title: "", description: "" });
             onClose();
           }}
         />
