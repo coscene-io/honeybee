@@ -2825,6 +2825,7 @@ __metadata:
     nearley-loader: 2.0.0
     notistack: 3.0.1
     path-browserify: 1.0.1
+    pinyin-match: 1.2.4
     prettier: 2.8.8
     react: 17.0.2
     react-colorful: 5.6.1
@@ -17162,6 +17163,13 @@ __metadata:
   version: 2.0.4
   resolution: "pinkie@npm:2.0.4"
   checksum: b12b10afea1177595aab036fc220785488f67b4b0fc49e7a27979472592e971614fa1c728e63ad3e7eb748b4ec3c3dbd780819331dad6f7d635c77c10537b9db
+  languageName: node
+  linkType: hard
+
+"pinyin-match@npm:1.2.4":
+  version: 1.2.4
+  resolution: "pinyin-match@npm:1.2.4"
+  checksum: 02af74e34c49cf40dfe46d066e4bf21d7c49cc6b1329ea1895519f108decc81f0c9c0ec5059fc2ceeb5c00fd8134f7d6241e7a795eb7df25e1127f85f3e70b96
   languageName: node
   linkType: hard
 

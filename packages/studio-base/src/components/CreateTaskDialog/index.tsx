@@ -16,6 +16,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useSnackbar } from "notistack";
+import PinyinMatch from "pinyin-match";
 import { KeyboardEvent, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsync, useAsyncFn } from "react-use";
@@ -49,7 +51,7 @@ export function CreateTaskDialog({
   initialTask,
 }: {
   onClose: () => void;
-  initialTask: { title: string; eventName: string };
+  initialTask: { title: string; eventName: string; description: string };
 }): JSX.Element {
   const isDemoSite =
     localStorage.getItem("demoSite") === "true" &&
@@ -62,6 +64,7 @@ export function CreateTaskDialog({
   const consoleApi = useConsoleApi();
   const recordInfo = useRecord(selectRecord);
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
+  const { enqueueSnackbar } = useSnackbar();
 
   const [task, setTask] = useImmer<{
     title: string;
@@ -70,7 +73,7 @@ export function CreateTaskDialog({
     assigner: string;
   }>({
     title: initialTask.title,
-    description: "",
+    description: initialTask.description,
     assignee: "",
     assigner: "",
   });
@@ -133,10 +136,14 @@ export function CreateTaskDialog({
           version: 1,
         },
       }) ?? task.description;
-
-    await consoleApi.createTask({ parent, record, task: { ...task, description } });
-    onClose();
-  }, [consoleApi, urlState, task, onClose, eventName, recordInfo.value]);
+    try {
+      await consoleApi.createTask({ parent, record, task: { ...task, description } });
+      enqueueSnackbar(t("createTaskSuccess"), { variant: "success" });
+      onClose();
+    } catch (e) {
+      enqueueSnackbar(t("createTaskFailed"), { variant: "error" });
+    }
+  }, [consoleApi, urlState, task, onClose, eventName, recordInfo.value, enqueueSnackbar, t]);
 
   const { value: users } = useAsync(async () => {
     return await consoleApi.listOrganizationUsers();
@@ -165,7 +172,7 @@ export function CreateTaskDialog({
           id="description"
           label={t("description")}
           rows={3}
-          value={isDemoSite ? "麻烦看一下这个问题，并给出解决方案" : task.description}
+          value={task.description}
           onChange={(val) => {
             setTask((state) => ({ ...state, description: val.target.value }));
           }}
@@ -192,6 +199,15 @@ export function CreateTaskDialog({
             isOptionEqualToValue={(option, value) => option.getName() === value.getName()}
             onChange={(_event, option) => {
               setTask((s) => ({ ...s, assignee: option.getName() }));
+            }}
+            filterOptions={(options, { inputValue }) => {
+              if (!inputValue) {
+                return options;
+              }
+              return options.filter((option) => {
+                const pinyinMatch = PinyinMatch.match(option.getNickname(), inputValue);
+                return option.getNickname().includes(inputValue) || pinyinMatch !== false;
+              });
             }}
             disabled={isDemoSite}
             inputValue={isDemoSite ? "demo" : undefined}

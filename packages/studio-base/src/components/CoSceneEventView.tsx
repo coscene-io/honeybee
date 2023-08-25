@@ -8,7 +8,7 @@ import ShareIcon from "@mui/icons-material/Share";
 import { alpha, Alert, TextField } from "@mui/material";
 import Snackbar from "@mui/material/Snackbar";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -22,6 +22,7 @@ import {
   useEvents,
 } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 
 const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
   (theme, _params, classes) => ({
@@ -116,8 +117,10 @@ function EventViewComponent(params: {
   onClick: (event: TimelinePositionedEvent) => void;
   onHoverStart: (event: TimelinePositionedEvent) => void;
   onHoverEnd: (event: TimelinePositionedEvent) => void;
+  confirm: confirmTypes;
 }): JSX.Element {
-  const { event, filter, isHovered, isSelected, onClick, onHoverStart, onHoverEnd } = params;
+  const { event, filter, isHovered, isSelected, onClick, onHoverStart, onHoverEnd, confirm } =
+    params;
   const { classes, cx } = useStyles();
   const consoleApi = useConsoleApi();
   const refreshEvents = useEvents(selectRefreshEvents);
@@ -153,6 +156,21 @@ function EventViewComponent(params: {
     });
     refreshEvents();
   }, [consoleApi, event, refreshEvents, t]);
+
+  const confirmDelete = useCallback(async () => {
+    const response = await confirm({
+      title: t("deleteConfirmTitle"),
+      prompt: t("deleteConfirmPrompt"),
+      ok: t("delete"),
+      cancel: t("cancel"),
+      variant: "danger",
+    });
+    if (response !== "ok") {
+      return;
+    }
+
+    void deleteEvent();
+  }, [confirm, deleteEvent, t]);
 
   const [updatedEventDesc, updateEventDesc] = useAsyncFn(
     async (desc: string) => {
@@ -255,7 +273,7 @@ function EventViewComponent(params: {
           }}
         >
           <ShareIcon fontSize="small" onClick={handleShareEvent} />
-          <DeleteIcon fontSize="small" onClick={deleteEvent} />
+          <DeleteIcon fontSize="small" onClick={confirmDelete} />
         </div>
       </div>
       <div className={classes.grid}>

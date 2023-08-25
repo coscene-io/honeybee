@@ -51,6 +51,7 @@ import {
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
+import { getOS } from "@foxglove/studio-base/util/coscene";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import { RepeatAdapter } from "./RepeatAdapter";
@@ -71,7 +72,8 @@ const useStyles = makeStyles()((theme) => ({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    margin: 0,
+    margin: theme.spacing(0, 0, 0, 0.5),
+    fontSize: "0.75rem",
   },
   disabled: {
     opacity: theme.palette.action.disabledOpacity,
@@ -112,6 +114,8 @@ export default function PlaybackControls(props: {
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(false);
 
   const [createEventShortcutKeys] = useKeyboardJs("alt > m");
+
+  const currenOSIsMac = useMemo(() => getOS() === "macos", []);
 
   const {
     playbackControlActions: { setRepeat },
@@ -222,7 +226,9 @@ export default function PlaybackControls(props: {
               activeIcon={<EventIcon />}
               onClick={toggleCreateEventDialog}
             >
-              <p className={classes.createMoment}>{`${t("createMoment")} (⎇ / ⌥ + M)`}</p>
+              <p className={classes.createMoment}>{`${t("createMoment")} (${
+                currenOSIsMac ? "⌥ + M" : "alt + M"
+              })`}</p>
             </HoverableIconButton>
             <Tooltip
               // A desired workflow is the ability to copy data source info text (start, end, duration)

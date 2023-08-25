@@ -100,12 +100,12 @@ function ConfirmModal(props: ConfirmModalProps) {
   );
 }
 
+export type confirmTypes = (options: ConfirmOptions) => Promise<ConfirmAction>;
+export type confirmModalTypes = JSX.Element | undefined;
+
 // Returns a function that can be used similarly to the DOM confirm(), but
 // backed by a React element rather than a native modal, and asynchronous.
-export function useConfirm(): [
-  confirm: (options: ConfirmOptions) => Promise<ConfirmAction>,
-  confirmModal: JSX.Element | undefined,
-] {
+export function useConfirm(): [confirm: confirmTypes, confirmModal: confirmModalTypes] {
   const [modal, setModal] = useState<JSX.Element | undefined>();
 
   const openConfirm = useCallback(async (options: ConfirmOptions) => {
