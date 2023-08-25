@@ -24,6 +24,7 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 import { EventView } from "./CoSceneEventView";
 
@@ -66,6 +67,7 @@ export function EventsList(): JSX.Element {
   const filter = useEvents(selectEventFilter);
   const setFilter = useEvents(selectSetEventFilter);
   const { t } = useTranslation("cosEvent");
+  const [confirm, confirmModal] = useConfirm();
 
   const timestampedEvents = useMemo(
     () =>
@@ -163,10 +165,12 @@ export function EventsList(): JSX.Element {
               onClick={onClick}
               onHoverStart={onHoverStart}
               onHoverEnd={onHoverEnd}
+              confirm={confirm}
             />
           );
         })}
       </div>
+      {confirmModal}
     </Stack>
   );
 }

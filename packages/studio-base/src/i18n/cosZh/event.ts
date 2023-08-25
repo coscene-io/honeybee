@@ -33,4 +33,11 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   end: "结束",
   time: "时间",
   elapsed: "经过时间",
+  deleteConfirmTitle: "删除一刻",
+  deleteConfirmPrompt: "确认删除这个一刻吗？",
+  delete: "删除",
+  createTaskSuccess: "创建任务成功",
+  createTaskFailed: "创建任务失败",
+  createMomentSuccess: "创建一刻成功",
+  createMomentFailed: "创建一刻失败",
 };
