@@ -190,7 +190,7 @@ export function CreateTaskDialog({
             getOptionLabel={(option) => option.getNickname()}
             renderInput={(params) => <TextField {...params} autoFocus variant="standard" />}
             renderOption={(props, option) => (
-              <Box component="li" {...props}>
+              <Box component="li" {...props} key={option.getName()}>
                 <img className={classes.avatar} src={option.getAvatar()} />
                 {option.getNickname()}
               </Box>

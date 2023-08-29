@@ -329,7 +329,10 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               maxRows={1}
               value={isDemoSite ? "机器人不动" : event.eventName}
               onChange={(val) => {
-                setEvent((old) => ({ ...old, eventName: val.target.value }));
+                // µ = option + M 是 mac 打开弹窗的快捷键
+                if (val.target.value !== "µ") {
+                  setEvent((old) => ({ ...old, eventName: val.target.value }));
+                }
               }}
               fullWidth
               variant="standard"
