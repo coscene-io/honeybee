@@ -196,7 +196,6 @@ const LogPanel = React.memo(({ config, saveConfig }: Props) => {
     <Stack fullHeight>
       <PanelToolbar>
         <Stack>{config.reverseOrder ? <DoubleArrowUpIcon /> : <DoubleArrowDownIcon />}</Stack>
-      <PanelToolbar />
       <Stack flexGrow={0} padding={0.5}>
         <FilterBar
           searchTerms={searchTermsSet}
@@ -204,6 +203,7 @@ const LogPanel = React.memo(({ config, saveConfig }: Props) => {
           onFilterChange={onFilterChange}
         />
       </Stack>
+      </PanelToolbar>
       <Divider />
       <Stack flexGrow={1}>
         <LogList items={normalizedMessages} reverseOrder={config.reverseOrder} />
