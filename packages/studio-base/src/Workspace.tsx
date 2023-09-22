@@ -13,6 +13,7 @@
 import { useSnackbar } from "notistack";
 import { extname } from "path";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
@@ -45,12 +46,12 @@ import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
+import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
-import { useNativeAppMenu } from "@foxglove/studio-base/context/NativeAppMenuContext";
 import {
   LeftSidebarItemKey,
   RightSidebarItemKey,
@@ -89,6 +90,8 @@ type WorkspaceProps = CustomWindowControlsProps & {
   deepLinks?: string[];
   appBarLeftInset?: number;
   onAppBarDoubleClick?: () => void;
+  // eslint-disable-next-line react/no-unused-prop-types
+  disablePersistenceForStorybook?: boolean;
 };
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
@@ -102,6 +105,7 @@ const selectPlay = (ctx: MessagePipelineContext) => ctx.startPlayback;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectPlayUntil = (ctx: MessagePipelineContext) => ctx.playUntil;
 const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
+const selectEventsSupported = (store: EventsStore) => store.eventsSupported;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 
 const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
@@ -158,6 +162,8 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
+  const { t } = useTranslation("workspace");
+
   // file types we support for drag/drop
   // const allowedDropExtensions = useMemo(() => {
   //   const extensions = [".foxe"];
@@ -172,6 +178,8 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   // We use playerId to detect when a player changes for RemountOnValueChange below
   // see comment below above the RemountOnValueChange component
   const playerId = useMessagePipeline(selectPlayerId);
+
+  const { currentUser } = useCurrentUser();
 
   useDefaultWebLaunchPreference();
 
@@ -200,32 +208,44 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   useNativeAppMenuEvent(
     "open",
-    useCallback(async () => dialogActions.dataSource.open("start"), [dialogActions.dataSource]),
+    useCallback(async () => {
+      dialogActions.dataSource.open("start");
+    }, [dialogActions.dataSource]),
   );
 
   useNativeAppMenuEvent(
     "open-file",
-    useCallback(async () => await dialogActions.openFile.open(), [dialogActions.openFile]),
+    useCallback(async () => {
+      await dialogActions.openFile.open();
+    }, [dialogActions.openFile]),
   );
 
   useNativeAppMenuEvent(
     "open-connection",
-    useCallback(() => dialogActions.dataSource.open("connection"), [dialogActions.dataSource]),
+    useCallback(() => {
+      dialogActions.dataSource.open("connection");
+    }, [dialogActions.dataSource]),
   );
 
   useNativeAppMenuEvent(
     "open-demo",
-    useCallback(() => dialogActions.dataSource.open("demo"), [dialogActions.dataSource]),
+    useCallback(() => {
+      dialogActions.dataSource.open("demo");
+    }, [dialogActions.dataSource]),
   );
 
   useNativeAppMenuEvent(
     "open-help-about",
-    useCallback(() => dialogActions.preferences.open("about"), [dialogActions.preferences]),
+    useCallback(() => {
+      dialogActions.preferences.open("about");
+    }, [dialogActions.preferences]),
   );
 
   useNativeAppMenuEvent(
     "open-help-general",
-    useCallback(() => dialogActions.preferences.open("general"), [dialogActions.preferences]),
+    useCallback(() => {
+      dialogActions.preferences.open("general");
+    }, [dialogActions.preferences]),
   );
 
   useNativeAppMenuEvent("open-help-docs", () => {
@@ -235,30 +255,6 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   useNativeAppMenuEvent("open-help-slack", () => {
     window.open("https://foxglove.dev/slack", "_blank");
   });
-
-  const nativeAppMenu = useNativeAppMenu();
-
-  const connectionSources = useMemo(() => {
-    return availableSources.filter((source) => source.type === "connection");
-  }, [availableSources]);
-
-  useEffect(() => {
-    if (!nativeAppMenu) {
-      return;
-    }
-
-    for (const item of connectionSources) {
-      nativeAppMenu.addFileEntry(item.displayName, () => {
-        dialogActions.dataSource.open("connection", item);
-      });
-    }
-
-    return () => {
-      for (const item of connectionSources) {
-        nativeAppMenu.removeFileEntry(item.displayName);
-      }
-    };
-  }, [connectionSources, dialogActions.dataSource, nativeAppMenu]);
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -364,6 +360,9 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   //   [openFiles, openHandle],
   // );
 
+  const eventsSupported = useEvents(selectEventsSupported);
+  const showEventsTab = currentUser != undefined && eventsSupported;
+
   const leftSidebarItems = useMemo(() => {
     const items = new Map<LeftSidebarItemKey, SidebarItem>([
       ["playlist", { title: "Playlist", component: Playlist }],
@@ -373,7 +372,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       [
         "problems",
         {
-          title: "Problems",
+          title: t("problems"),
           component: ProblemsList,
           badge:
             playerProblems && playerProblems.length > 0
@@ -386,22 +385,29 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       ],
     ]);
     return items;
-  }, [playerProblems]);
+  }, [playerProblems, t]);
 
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
-      ["variables", { title: "Variables", component: VariablesList }],
+      ["variables", { title: t("variables"), component: VariablesList }],
     ]);
     if (enableStudioLogsSidebar) {
-      items.set("studio-logs-settings", { title: "Studio Logs", component: StudioLogsSettings });
+      items.set("studio-logs-settings", { title: t("studioLogs"), component: StudioLogsSettings });
+    }
+    if (showEventsTab) {
+      items.set("events", { title: t("events"), component: EventsList });
     }
     return items;
-  }, [enableStudioLogsSidebar]);
+  }, [enableStudioLogsSidebar, showEventsTab, t]);
 
   const keyDownHandlers = useMemo(() => {
     return {
-      "[": () => sidebarActions.left.setOpen((oldValue) => !oldValue),
-      "]": () => sidebarActions.right.setOpen((oldValue) => !oldValue),
+      "[": () => {
+        sidebarActions.left.setOpen((oldValue) => !oldValue);
+      },
+      "]": () => {
+        sidebarActions.right.setOpen((oldValue) => !oldValue);
+      },
     };
   }, [sidebarActions.left, sidebarActions.right]);
 
@@ -523,6 +529,8 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     AppSetting.SHOW_OPEN_DIALOG_ON_STARTUP,
   );
 
+  const { workspaceStoreCreator } = useAppContext();
+
   const isPlayerPresent = useMessagePipeline(selectPlayerIsPresent);
 
   const initialItem: undefined | DataSourceDialogItem =
@@ -543,7 +551,11 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   };
 
   return (
-    <WorkspaceContextProvider initialState={initialState}>
+    <WorkspaceContextProvider
+      initialState={initialState}
+      workspaceStoreCreator={workspaceStoreCreator}
+      disablePersistenceForStorybook={props.disablePersistenceForStorybook}
+    >
       <WorkspaceContent {...props} />
     </WorkspaceContextProvider>
   );

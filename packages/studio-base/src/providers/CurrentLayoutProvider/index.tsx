@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { difference, isEqual, pick, uniq } from "lodash";
+import * as _ from "lodash-es";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { getNodeAtPath } from "react-mosaic-component";
 import shallowequal from "shallowequal";
@@ -117,17 +117,17 @@ export default function CurrentLayoutProvider({
 
       // The panel state did not change, so no need to perform layout state
       // updates or layout manager updates.
-      if (isEqual(oldData, newData)) {
+      if (_.isEqual(oldData, newData)) {
         log.warn("Panel action resulted in identical config:", action);
         return;
       }
 
       // Get all the panel types that exist in the new config
-      const panelTypesInUse = uniq(Object.keys(newData.configById).map(getPanelTypeFromId));
+      const panelTypesInUse = _.uniq(Object.keys(newData.configById).map(getPanelTypeFromId));
 
       setLayoutState({
         // discared shared panel state for panel types that are no longer in the layout
-        sharedPanelState: pick(layoutStateRef.current.sharedPanelState, panelTypesInUse),
+        sharedPanelState: _.pick(layoutStateRef.current.sharedPanelState, panelTypesInUse),
         selectedLayout: {
           data: newData,
           name: layoutStateRef.current.selectedLayout.name,
@@ -169,25 +169,35 @@ export default function CurrentLayoutProvider({
 
       updateSharedPanelState,
 
-      savePanelConfigs: (payload: SaveConfigsPayload) =>
-        performAction({ type: "SAVE_PANEL_CONFIGS", payload }),
-      updatePanelConfigs: (panelType: string, perPanelFunc: (config: PanelConfig) => PanelConfig) =>
-        performAction({ type: "SAVE_FULL_PANEL_CONFIG", payload: { panelType, perPanelFunc } }),
+      savePanelConfigs: (payload: SaveConfigsPayload) => {
+        performAction({ type: "SAVE_PANEL_CONFIGS", payload });
+      },
+      updatePanelConfigs: (
+        panelType: string,
+        perPanelFunc: (config: PanelConfig) => PanelConfig,
+      ) => {
+        performAction({ type: "SAVE_FULL_PANEL_CONFIG", payload: { panelType, perPanelFunc } });
+      },
       createTabPanel: (payload: CreateTabPanelPayload) => {
         performAction({ type: "CREATE_TAB_PANEL", payload });
         setSelectedPanelIds([]);
         void analytics.logEvent(AppEvent.PANEL_ADD, { type: "Tab" });
       },
-      changePanelLayout: (payload: ChangePanelLayoutPayload) =>
-        performAction({ type: "CHANGE_PANEL_LAYOUT", payload }),
-      overwriteGlobalVariables: (payload: Record<string, VariableValue>) =>
-        performAction({ type: "OVERWRITE_GLOBAL_DATA", payload }),
-      setGlobalVariables: (payload: Record<string, VariableValue>) =>
-        performAction({ type: "SET_GLOBAL_DATA", payload }),
-      setUserNodes: (payload: Partial<UserNodes>) =>
-        performAction({ type: "SET_USER_NODES", payload }),
-      setPlaybackConfig: (payload: Partial<PlaybackConfig>) =>
-        performAction({ type: "SET_PLAYBACK_CONFIG", payload }),
+      changePanelLayout: (payload: ChangePanelLayoutPayload) => {
+        performAction({ type: "CHANGE_PANEL_LAYOUT", payload });
+      },
+      overwriteGlobalVariables: (payload: Record<string, VariableValue>) => {
+        performAction({ type: "OVERWRITE_GLOBAL_DATA", payload });
+      },
+      setGlobalVariables: (payload: Record<string, VariableValue>) => {
+        performAction({ type: "SET_GLOBAL_DATA", payload });
+      },
+      setUserNodes: (payload: Partial<UserNodes>) => {
+        performAction({ type: "SET_USER_NODES", payload });
+      },
+      setPlaybackConfig: (payload: Partial<PlaybackConfig>) => {
+        performAction({ type: "SET_PLAYBACK_CONFIG", payload });
+      },
       closePanel: (payload: ClosePanelPayload) => {
         performAction({ type: "CLOSE_PANEL", payload });
 
@@ -200,7 +210,9 @@ export default function CurrentLayoutProvider({
           typeof closedId === "string" ? { type: getPanelTypeFromId(closedId) } : undefined,
         );
       },
-      splitPanel: (payload: SplitPanelPayload) => performAction({ type: "SPLIT_PANEL", payload }),
+      splitPanel: (payload: SplitPanelPayload) => {
+        performAction({ type: "SPLIT_PANEL", payload });
+      },
       swapPanel: (payload: SwapPanelPayload) => {
         // Select the new panel if the original panel was selected. We don't know what
         // the new panel id will be so we diff the panelIds of the old and
@@ -214,7 +226,7 @@ export default function CurrentLayoutProvider({
           const afterPanelIds = Object.keys(
             layoutStateRef.current.selectedLayout?.data?.configById ?? {},
           );
-          setSelectedPanelIds(difference(afterPanelIds, beforePanelIds));
+          setSelectedPanelIds(_.difference(afterPanelIds, beforePanelIds));
         }
         void analytics.logEvent(AppEvent.PANEL_ADD, { type: payload.type, action: "swap" });
         void analytics.logEvent(AppEvent.PANEL_DELETE, {
@@ -222,7 +234,9 @@ export default function CurrentLayoutProvider({
           action: "swap",
         });
       },
-      moveTab: (payload: MoveTabPayload) => performAction({ type: "MOVE_TAB", payload }),
+      moveTab: (payload: MoveTabPayload) => {
+        performAction({ type: "MOVE_TAB", payload });
+      },
       addPanel: (payload: AddPanelPayload) => {
         performAction({ type: "ADD_PANEL", payload });
         void analytics.logEvent(AppEvent.PANEL_ADD, { type: getPanelTypeFromId(payload.id) });
@@ -234,8 +248,12 @@ export default function CurrentLayoutProvider({
           action: "drop",
         });
       },
-      startDrag: (payload: StartDragPayload) => performAction({ type: "START_DRAG", payload }),
-      endDrag: (payload: EndDragPayload) => performAction({ type: "END_DRAG", payload }),
+      startDrag: (payload: StartDragPayload) => {
+        performAction({ type: "START_DRAG", payload });
+      },
+      endDrag: (payload: EndDragPayload) => {
+        performAction({ type: "END_DRAG", payload });
+      },
     }),
     [analytics, performAction, setCurrentLayout, setSelectedPanelIds, updateSharedPanelState],
   );
@@ -255,7 +273,11 @@ export default function CurrentLayoutProvider({
     <CurrentLayoutContext.Provider value={value}>
       {children}
       {incompatibleLayoutVersionError && (
-        <IncompatibleLayoutVersionAlert onClose={() => setIncompatibleLayoutVersionError(false)} />
+        <IncompatibleLayoutVersionAlert
+          onClose={() => {
+            setIncompatibleLayoutVersionError(false);
+          }}
+        />
       )}
     </CurrentLayoutContext.Provider>
   );

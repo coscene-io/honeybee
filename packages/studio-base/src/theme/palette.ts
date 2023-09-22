@@ -33,6 +33,7 @@ export const dark: PaletteOptions = {
   tonalOffset: 0.15,
   appBar: {
     main: "#35363A",
+    // CoScene
     primary: "#2563eb",
     text: "#ffffff",
   },
@@ -76,6 +77,7 @@ export const light: PaletteOptions = {
   tonalOffset: 0.22,
   appBar: {
     main: "#27272b",
+    // CoScene
     primary: "#2563eb",
     text: "#ffffff",
   },

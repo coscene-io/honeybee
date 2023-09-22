@@ -12,14 +12,13 @@
 //   You may not use this file except in compliance with the License.
 
 import { Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
-// eslint-disable-next-line no-restricted-imports
-import { first, get, isEqual, last, padStart } from "lodash";
+import * as _ from "lodash-es";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactHoverObserver from "react-hover-observer";
 import Tree from "react-json-tree";
 import { makeStyles } from "tss-react/mui";
 
-import { Immutable } from "@foxglove/studio";
+import { Immutable, SettingsTreeAction } from "@foxglove/studio";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import useGetItemStringWithTimezone from "@foxglove/studio-base/components/JsonTree/useGetItemStringWithTimezone";
@@ -44,6 +43,7 @@ import getDiff, {
   diffLabelsByLabelText,
 } from "@foxglove/studio-base/panels/RawMessages/getDiff";
 import { Topic } from "@foxglove/studio-base/players/types";
+import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import { enumValuesByDatatypeAndField } from "@foxglove/studio-base/util/enums";
 import { useJsonTreeTheme } from "@foxglove/studio-base/util/globalConstants";
@@ -59,7 +59,7 @@ import {
   getStructureItemForPath,
   getValueActionForValue,
 } from "./getValueActionForValue";
-import { Constants, RawMessagesPanelConfig } from "./types";
+import { Constants, NodeState, RawMessagesPanelConfig } from "./types";
 import { DATA_ARRAY_PREVIEW_LIMIT, generateDeepKeyPaths, toggleExpansion } from "./utils";
 
 type Props = {
@@ -92,11 +92,6 @@ const useStyles = makeStyles()((theme) => ({
     fontFamily: fonts.SANS_SERIF,
     fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
   },
-  big: {
-    "&.MuiTypography-root": {
-      fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
-    },
-  },
   hoverObserver: {
     display: "inline-flex",
     alignItems: "center",
@@ -113,6 +108,25 @@ function RawMessages(props: Props) {
   const { openSiblingPanel } = usePanelContext();
   const { topicPath, diffMethod, diffTopicPath, diffEnabled, showFullMessageForDiff } = config;
   const { topics, datatypes } = useDataSourceInfo();
+  const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
+  const { setMessagePathDropConfig } = usePanelContext();
+
+  useEffect(() => {
+    setMessagePathDropConfig({
+      getDropStatus(paths) {
+        if (paths.length !== 1) {
+          return { canDrop: false };
+        }
+        return { canDrop: true, effect: "replace" };
+      },
+      handleDrop(paths) {
+        const path = paths[0];
+        if (path) {
+          saveConfig({ topicPath: path.path });
+        }
+      },
+    });
+  }, [setMessagePathDropConfig, saveConfig]);
 
   const defaultGetItemString = useGetItemStringWithTimezone();
   const getItemString = useMemo(
@@ -141,7 +155,11 @@ function RawMessages(props: Props) {
   }, [structures, topic, topicRosPath]);
 
   const [expansion, setExpansion] = useState(config.expansion);
-  const matchedMessages = useMessageDataItem(topicPath, { historySize: 2 });
+  const [customFontSize, setCustomFontSize] = useState<number | undefined>();
+
+  // Pass an empty path to useMessageDataItem if our path doesn't resolve to a valid topic to avoid
+  // spamming the message pipeline with useless subscription requests.
+  const matchedMessages = useMessageDataItem(topic ? topicPath : "", { historySize: 2 });
   const diffMessages = useMessageDataItem(diffEnabled ? diffTopicPath : "");
 
   const diffTopicObj = diffMessages[0];
@@ -168,7 +186,10 @@ function RawMessages(props: Props) {
     if (expansion === "all") {
       return false;
     }
-    if (typeof expansion === "object" && Object.values(expansion).some((v) => v === "c")) {
+    if (
+      typeof expansion === "object" &&
+      Object.values(expansion).some((v) => v === NodeState.Collapsed)
+    ) {
       return true;
     } else {
       return false;
@@ -244,7 +265,7 @@ function RawMessages(props: Props) {
       // A nanosecond label of 099999999 makes it easier to realize this is 0.09 seconds compared to
       // 99999999 which requires some counting to reamize this is also 0.09
       if (keyPath[0] === "nsec" && typeof itemValue === "number") {
-        itemLabel = padStart(itemLabel, 9, "0");
+        itemLabel = _.padStart(itemLabel, 9, "0");
       }
 
       return { arrLabel, itemLabel };
@@ -289,7 +310,7 @@ function RawMessages(props: Props) {
     ) => (
       <ReactHoverObserver className={classes.hoverObserver}>
         {({ isHovering }: { isHovering: boolean }) => {
-          const lastKeyPath = last(keyPath) as number;
+          const lastKeyPath = _.last(keyPath) as number;
           let valueAction: ValueAction | undefined;
           if (isHovering && structureItem) {
             valueAction = getValueActionForValue(
@@ -351,10 +372,10 @@ function RawMessages(props: Props) {
       }
 
       const joinedPath = keypath.join("~");
-      if (expansion && expansion[joinedPath] === "c") {
+      if (expansion && expansion[joinedPath] === NodeState.Collapsed) {
         return false;
       }
-      if (expansion && expansion[joinedPath] === "e") {
+      if (expansion && expansion[joinedPath] === NodeState.Expanded) {
         return true;
       }
 
@@ -414,15 +435,14 @@ function RawMessages(props: Props) {
         />
         {shouldDisplaySingleVal ? (
           <Typography
-            className={classes.big}
             variant="h1"
-            fontWeight="bold"
-            whiteSpace="pre-line"
+            fontSize={customFontSize}
+            whiteSpace="pre-wrap"
             style={{ wordWrap: "break-word" }}
           >
             <MaybeCollapsedValue itemLabel={String(singleVal)} />
           </Typography>
-        ) : diffEnabled && isEqual({}, diff) ? (
+        ) : diffEnabled && _.isEqual({}, diff) ? (
           <EmptyState>No difference found</EmptyState>
         ) : (
           <>
@@ -434,7 +454,9 @@ function RawMessages(props: Props) {
                   <Checkbox
                     size="small"
                     defaultChecked
-                    onChange={() => saveConfig({ showFullMessageForDiff: !showFullMessageForDiff })}
+                    onChange={() => {
+                      saveConfig({ showFullMessageForDiff: !showFullMessageForDiff });
+                    }}
                   />
                 }
                 label="Show full msg"
@@ -443,7 +465,7 @@ function RawMessages(props: Props) {
             <Tree
               labelRenderer={(raw) => (
                 <>
-                  <DiffSpan>{first(raw)}</DiffSpan>
+                  <DiffSpan>{_.first(raw)}</DiffSpan>
                   {/* https://stackoverflow.com/questions/62319014/make-text-selection-treat-adjacent-elements-as-separate-words */}
                   <span style={{ fontSize: 0 }}>&nbsp;</span>
                 </>
@@ -514,6 +536,7 @@ function RawMessages(props: Props) {
                 nestedNode: ({ style }, keyPath: any) => {
                   const baseStyle = {
                     ...style,
+                    fontSize: customFontSize,
                     paddingTop: 2,
                     paddingBottom: 2,
                     marginTop: 2,
@@ -534,7 +557,7 @@ function RawMessages(props: Props) {
                     textDecoration =
                       keyPath[0] === diffLabels.DELETED.labelText ? "line-through" : "none";
                   }
-                  const nestedObj = get(diff, keyPath.slice().reverse(), {});
+                  const nestedObj = _.get(diff, keyPath.slice().reverse(), {});
                   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                   const nestedObjKey = Object.keys(nestedObj)[0];
                   if (nestedObjKey != undefined && diffLabelsByLabelText[nestedObjKey]) {
@@ -563,13 +586,17 @@ function RawMessages(props: Props) {
                 }),
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 value: ({ style }, _nodeType, keyPath: any) => {
-                  const baseStyle = { ...style, textDecoration: "inherit" };
+                  const baseStyle = {
+                    ...style,
+                    fontSize: customFontSize,
+                    textDecoration: "inherit",
+                  };
                   if (!diffEnabled) {
                     return { style: baseStyle };
                   }
                   let backgroundColor;
                   let textDecoration;
-                  const nestedObj = get(diff, keyPath.slice().reverse(), {});
+                  const nestedObj = _.get(diff, keyPath.slice().reverse(), {});
                   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                   const nestedObjKey = Object.keys(nestedObj)[0];
                   if (nestedObjKey != undefined && diffLabelsByLabelText[nestedObjKey]) {
@@ -600,8 +627,8 @@ function RawMessages(props: Props) {
     );
   }, [
     baseItem,
-    classes.big,
     classes.topic,
+    customFontSize,
     diffEnabled,
     diffItem,
     diffMethod,
@@ -619,6 +646,43 @@ function RawMessages(props: Props) {
     topicPath,
     valueRenderer,
   ]);
+
+  const actionHandler = useCallback((action: SettingsTreeAction) => {
+    if (action.action === "update") {
+      if (action.payload.path[0] === "general") {
+        if (action.payload.path[1] === "fontSize") {
+          setCustomFontSize(
+            action.payload.value != undefined ? (action.payload.value as number) : undefined,
+          );
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    updatePanelSettingsTree({
+      actionHandler,
+      nodes: {
+        general: {
+          label: "General",
+          fields: {
+            fontSize: {
+              label: "Font size",
+              input: "select",
+              options: [
+                { label: "auto", value: undefined },
+                ...Constants.FONT_SIZE_OPTIONS.map((value) => ({
+                  label: `${value} px`,
+                  value,
+                })),
+              ],
+              value: customFontSize,
+            },
+          },
+        },
+      },
+    });
+  }, [actionHandler, customFontSize, updatePanelSettingsTree]);
 
   return (
     <Stack flex="auto" overflow="hidden" position="relative">

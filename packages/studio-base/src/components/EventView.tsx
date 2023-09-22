@@ -1,13 +1,9 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 // // This Source Code Form is subject to the terms of the Mozilla Public
 // // License, v2.0. If a copy of the MPL was not distributed with this
 // // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // import { alpha } from "@mui/material";
-// import { compact } from "lodash";
+// import * as _ from "lodash-es";
 // import { Fragment } from "react";
 // import { makeStyles } from "tss-react/mui";
 
@@ -115,7 +111,7 @@
 //     params;
 //   const { classes, cx } = useStyles();
 
-//   const fields = compact([
+//   const fields = _.compact([
 //     ["timestamp", formattedTime],
 //     Number(event.event.durationNanos) > 0 && ["duration", formatEventDuration(event.event)],
 //     ...Object.entries(event.event.metadata),
@@ -128,9 +124,15 @@
 //         [classes.eventSelected]: isSelected,
 //         [classes.eventHovered]: isHovered,
 //       })}
-//       onClick={() => onClick(event)}
-//       onMouseEnter={() => onHoverStart(event)}
-//       onMouseLeave={() => onHoverEnd(event)}
+//       onClick={() => {
+//         onClick(event);
+//       }}
+//       onMouseEnter={() => {
+//         onHoverStart(event);
+//       }}
+//       onMouseLeave={() => {
+//         onHoverEnd(event);
+//       }}
 //     >
 //       {fields.map(([key, value]) => (
 //         <Fragment key={key}>

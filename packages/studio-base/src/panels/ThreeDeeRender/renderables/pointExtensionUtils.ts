@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { t } from "i18next";
 import * as THREE from "three";
 
 import { PackedElementField, PointCloud } from "@foxglove/schemas";
@@ -21,13 +22,13 @@ import { updatePose } from "@foxglove/studio-base/panels/ThreeDeeRender/updatePo
 
 import { LaserScanMaterial } from "./LaserScans";
 import {
-  baseColorModeSettingsNode,
+  colorModeSettingsFields,
   colorHasTransparency,
   ColorModeSettings,
   FS_SRGB_TO_LINEAR,
   INTENSITY_FIELDS,
   RGBA_PACKED_FIELDS,
-} from "./pointClouds/colors";
+} from "./colorMode";
 import { POINTCLOUD_DATATYPES as FOXGLOVE_POINTCLOUD_DATATYPES } from "../foxglove";
 import { PointCloud2, POINTCLOUD_DATATYPES as ROS_POINTCLOUD_DATATYPES, PointField } from "../ros";
 
@@ -63,10 +64,6 @@ export const DEFAULT_POINT_SETTINGS: LayerSettingsPointExtension = {
 };
 
 export const POINT_CLOUD_REQUIRED_FIELDS = ["x", "y", "z"];
-const POINT_SHAPE_OPTIONS = [
-  { label: "Circle", value: "circle" },
-  { label: "Square", value: "square" },
-];
 
 /**
  * Creates settings node for Point cloud and scan topics
@@ -86,36 +83,49 @@ export function pointSettingsNode(
   const pointShape = config.pointShape ?? "circle";
   const decayTime = config.decayTime;
 
-  const node = baseColorModeSettingsNode(messageFields, config, topic, defaultSettings, {
-    supportsPackedRgbModes: ROS_POINTCLOUD_DATATYPES.has(topic.schemaName),
-    supportsRgbaFieldsMode: FOXGLOVE_POINTCLOUD_DATATYPES.has(topic.schemaName),
+  const colorModeFields = colorModeSettingsFields({
+    msgFields: messageFields,
+    config,
+    defaults: defaultSettings,
+    modifiers: {
+      supportsPackedRgbModes: ROS_POINTCLOUD_DATATYPES.has(topic.schemaName),
+      supportsRgbaFieldsMode: FOXGLOVE_POINTCLOUD_DATATYPES.has(topic.schemaName),
+    },
   });
-  node.fields = {
-    pointSize: {
-      label: "Point size",
-      input: "number",
-      step: 1,
-      placeholder: "2",
-      precision: 2,
-      value: pointSize,
-      min: 0,
+
+  const node: SettingsTreeNode = {
+    order: topic.name.toLocaleLowerCase(),
+    visible: config.visible ?? defaultSettings.visible,
+    fields: {
+      pointSize: {
+        label: t("threeDee:pointSize"),
+        input: "number",
+        step: 1,
+        placeholder: "2",
+        precision: 2,
+        value: pointSize,
+        min: 0,
+      },
+      pointShape: {
+        label: t("threeDee:pointShape"),
+        input: "select",
+        options: [
+          { label: t("threeDee:pointShapeCircle"), value: "circle" },
+          { label: t("threeDee:pointShapeSquare"), value: "square" },
+        ],
+        value: pointShape,
+      },
+      decayTime: {
+        label: t("threeDee:decayTime"),
+        input: "number",
+        step: 0.5,
+        placeholder: t("threeDee:decayTimeDefaultZeroSeconds"),
+        min: 0,
+        precision: 3,
+        value: decayTime,
+      },
+      ...colorModeFields,
     },
-    pointShape: {
-      label: "Point shape",
-      input: "select",
-      options: POINT_SHAPE_OPTIONS,
-      value: pointShape,
-    },
-    decayTime: {
-      label: "Decay time",
-      input: "number",
-      step: 0.5,
-      placeholder: "0 seconds",
-      min: 0,
-      precision: 3,
-      value: decayTime,
-    },
-    ...node.fields,
   };
 
   return node;

@@ -7,7 +7,7 @@ import { StrictMode, useEffect } from "react";
 import ReactDOM from "react-dom";
 
 import Logger from "@foxglove/log";
-import { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
+import type { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
 import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";

@@ -44,11 +44,11 @@ function useFeatures(): Feature[] {
   const { t } = useTranslation("appSettings");
 
   const features: Feature[] = [
-    // {
-    //   key: AppSetting.SHOW_DEBUG_PANELS,
-    //   name: t("studioDebugPanels"),
-    //   description: <>{t("studioDebugPanelsDescription")}</>,
-    // },
+    {
+      key: AppSetting.SHOW_DEBUG_PANELS,
+      name: t("studioDebugPanels"),
+      description: <>{t("studioDebugPanelsDescription")}</>,
+    },
     {
       key: AppSetting.ENABLE_MEMORY_USE_INDICATOR,
       name: t("memoryUseIndicator"),

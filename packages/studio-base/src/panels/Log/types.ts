@@ -11,6 +11,7 @@ export type Config = {
   minLogLevel: number;
   reverseOrder: boolean;
   topicToRender?: string;
+  nameFilter?: Record<string, { visible?: boolean }>;
 };
 
 export enum LogLevel {

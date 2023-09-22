@@ -84,3 +84,15 @@ export const Light: StoryObj = {
   render: () => <SignInStates />,
   parameters: { colorScheme: "light" },
 };
+<<<<<<< HEAD
+=======
+
+export const Chinese: StoryObj = {
+  ...Light,
+  parameters: { colorScheme: "light", forceLanguage: "zh" },
+};
+export const Japanese: StoryObj = {
+  ...Light,
+  parameters: { colorScheme: "light", forceLanguage: "ja" },
+};
+>>>>>>> foxglove/release/v1.70.0

@@ -2,10 +2,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { sumBy, transform } from "lodash";
+import * as _ from "lodash-es";
 import { useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
+import { useShallowMemo } from "@foxglove/hooks";
 import { Immutable } from "@foxglove/studio";
 import {
   MessagePipelineContext,
@@ -44,18 +45,13 @@ const selectSetSubscriptions = (ctx: MessagePipelineContext) => ctx.setSubscript
  * @returns flattened per-topic arrays of messages
  */
 export function useAllFramesByTopic(
-  topics: readonly string[],
+  subscriptions: Immutable<SubscribePayload[]>,
 ): Immutable<Record<string, MessageEvent[]>> {
   const [state, setState] = useState(makeInitialState);
 
   const [subscriberId] = useState(() => uuidv4());
 
   const setSubscriptions = useMessagePipeline(selectSetSubscriptions);
-
-  const subscriptions: SubscribePayload[] = useMemo(
-    () => topics.map((topic) => ({ topic, preloadType: "full" })),
-    [topics],
-  );
 
   useEffect(() => {
     setSubscriptions(subscriberId, subscriptions);
@@ -65,12 +61,14 @@ export function useAllFramesByTopic(
     };
   }, [subscriberId, setSubscriptions, subscriptions]);
 
+  const topics = useMemo(() => subscriptions.map((sub) => sub.topic), [subscriptions]);
+
   useEffect(() => {}, [subscriberId, setSubscriptions]);
 
   const blocks = useMessagePipeline(selectBlocks);
 
   const memoryAvailable = useMemo(() => {
-    const messageCount = sumBy(Object.values(state.messages), (msgs) => msgs.length);
+    const messageCount = _.sumBy(Object.values(state.messages), (msgs) => msgs.length);
     if (messageCount >= 1_000_000) {
       // If we have memory stats we can let the user have more points as long as memory is
       // not under pressure.
@@ -98,7 +96,7 @@ export function useAllFramesByTopic(
       // Rebuild message buffers and cursors from last state, resetting if we are
       // rebuilding from scratch, making sure there is an entry in messages for all
       // requested topics even if we don't find messages for each topic in loaded blocks.
-      const newState = transform(
+      const newState = _.transform(
         topics,
         (acc, topic) => {
           acc.cursors[topic] = shouldResetState ? -1 : oldState.cursors[topic] ?? -1;
@@ -113,12 +111,21 @@ export function useAllFramesByTopic(
           break;
         }
 
+        // Only include fully loaded blocks. This is necessary because existing blocks may contain
+        // messages on our topics but that have not been updated to contain the list of fields we're
+        // currently subscribed for.
+        if (block.needTopics?.size !== 0) {
+          break;
+        }
+
         // There is a delay between the time we set new subscriptions and the messages for
         // those subscriptions appear in blocks so we load all topics we find in blocks
         // here.
         for (const [topic, blockMessages] of Object.entries(block.messagesByTopic)) {
           if (idx > (newState.cursors[topic] ?? -1)) {
-            newState.messages[topic] = (newState.messages[topic] ?? []).concat(blockMessages);
+            if (blockMessages.length > 0) {
+              newState.messages[topic] = (newState.messages[topic] ?? []).concat(blockMessages);
+            }
             newState.cursors[topic] = idx;
           }
         }
@@ -128,5 +135,10 @@ export function useAllFramesByTopic(
     });
   }
 
-  return state.messages;
+  // Stablize the flattened messages by shallow memoing the whole set after excluding empty topics.
+  const stableMessagesWithData = useShallowMemo(
+    _.pickBy(state.messages, (msgs) => msgs.length > 0),
+  );
+
+  return stableMessagesWithData;
 }

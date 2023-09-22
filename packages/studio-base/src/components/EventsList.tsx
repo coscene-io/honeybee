@@ -1,7 +1,3 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 // // This Source Code Form is subject to the terms of the Mozilla Public
 // // License, v2.0. If a copy of the MPL was not distributed with this
 // // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -10,7 +6,6 @@
 // import SearchIcon from "@mui/icons-material/Search";
 // import { AppBar, CircularProgress, IconButton, TextField, Typography } from "@mui/material";
 // import { useCallback, useMemo } from "react";
-// import { useTranslation } from "react-i18next";
 // import { makeStyles } from "tss-react/mui";
 
 // import {
@@ -42,6 +37,13 @@
 //     alignItems: "center",
 //     borderBottom: `1px solid ${theme.palette.divider}`,
 //   },
+//   grid: {
+//     display: "grid",
+//     flexShrink: 1,
+//     gridTemplateColumns: "auto 1fr",
+//     overflowY: "auto",
+//     padding: theme.spacing(1),
+//   },
 //   root: {
 //     backgroundColor: theme.palette.background.paper,
 //     maxHeight: "100%",
@@ -69,12 +71,11 @@
 //   const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
 //   const filter = useEvents(selectEventFilter);
 //   const setFilter = useEvents(selectSetEventFilter);
-//   const { t } = useTranslation("cosEvent");
 
 //   const timestampedEvents = useMemo(
 //     () =>
 //       (events.value ?? []).map((event) => {
-//         return { ...event, formattedTime: formatTime(event.startTime) };
+//         return { ...event, formattedTime: formatTime(event.event.startTime) };
 //       }),
 //     [events, formatTime],
 //   );
@@ -85,14 +86,14 @@
 
 //   const onClick = useCallback(
 //     (event: TimelinePositionedEvent) => {
-//       if (event.event.getName() === selectedEventId) {
+//       if (event.event.id === selectedEventId) {
 //         selectEvent(undefined);
 //       } else {
-//         selectEvent(event.event.getName());
+//         selectEvent(event.event.id);
 //       }
 
 //       if (seek) {
-//         seek(event.startTime);
+//         seek(event.event.startTime);
 //       }
 //     },
 //     [seek, selectEvent, selectedEventId],
@@ -118,8 +119,10 @@
 //           variant="filled"
 //           fullWidth
 //           value={filter}
-//           onChange={(event) => setFilter(event.currentTarget.value)}
-//           placeholder={t("searchByKV")}
+//           onChange={(event) => {
+//             setFilter(event.currentTarget.value);
+//           }}
+//           placeholder="Search by key, value, or key:value"
 //           InputProps={{
 //             startAdornment: <SearchIcon fontSize="small" />,
 //             endAdornment: filter !== "" && (
@@ -138,32 +141,33 @@
 //       {events.error && (
 //         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
 //           <Typography align="center" color="error">
-//             {t("errorLoading")}
+//             Error loading events.
 //           </Typography>
 //         </Stack>
 //       )}
 //       {events.value && events.value.length === 0 && (
 //         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
 //           <Typography align="center" color="text.secondary">
-//             {t("noMoment")}
+//             No Events
 //           </Typography>
 //         </Stack>
 //       )}
-//       <div>
+//       <div className={classes.grid}>
 //         {timestampedEvents.map((event) => {
 //           return (
 //             <EventView
-//               key={event.event.getName()}
+//               key={event.event.id}
 //               event={event}
 //               filter={filter}
+//               formattedTime={event.formattedTime}
 //               // When hovering within the event list only show hover state on directly
 //               // hovered event.
 //               isHovered={
 //                 hoveredEvent
-//                   ? event.event.getName() === hoveredEvent.event.getName()
-//                   : eventsAtHoverValue[event.event.getName()] != undefined
+//                   ? event.event.id === hoveredEvent.event.id
+//                   : eventsAtHoverValue[event.event.id] != undefined
 //               }
-//               isSelected={event.event.getName() === selectedEventId}
+//               isSelected={event.event.id === selectedEventId}
 //               onClick={onClick}
 //               onHoverStart={onHoverStart}
 //               onHoverEnd={onHoverEnd}

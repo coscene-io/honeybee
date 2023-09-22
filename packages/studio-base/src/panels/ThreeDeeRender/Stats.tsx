@@ -33,7 +33,9 @@ function update(renderer: IRenderer) {
 export function Stats(): JSX.Element {
   const [div, setDiv] = useState<HTMLDivElement | ReactNull>(ReactNull);
 
-  useRendererEvent("endFrame", (_curTime, curRenderer) => update(curRenderer));
+  useRendererEvent("endFrame", (_curTime, curRenderer) => {
+    update(curRenderer);
+  });
 
   useEffect(() => {
     if (!div) {
@@ -97,7 +99,7 @@ class THREEStats {
     this.#beginTime = performance.now();
     this.#prevTime = this.#beginTime;
 
-    this.#msPanel = this.addPanel(new Panel("MS", "#2563eb", "#1e1a2f"));
+    this.#msPanel = this.addPanel(new Panel("MS", "#9480ed", "#1e1a2f"));
     // this.fpsPanel = this.addPanel(new Panel("FPS", "#0ff", "#002"));
     this.#memPanel = this.addPanel(new Panel("MB", "#f08", "#201"));
 

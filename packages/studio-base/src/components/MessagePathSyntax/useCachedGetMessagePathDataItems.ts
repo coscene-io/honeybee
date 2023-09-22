@@ -11,9 +11,10 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { keyBy } from "lodash";
+import * as _ from "lodash-es";
 import { useCallback, useMemo } from "react";
 
+import { filterMap } from "@foxglove/den/collection";
 import { useDeepMemo, useShallowMemo } from "@foxglove/hooks";
 import { Immutable } from "@foxglove/studio";
 import * as PanelAPI from "@foxglove/studio-base/PanelAPI";
@@ -51,23 +52,25 @@ export function useCachedGetMessagePathDataItems(
   const { globalVariables } = useGlobalVariables();
   const memoizedPaths = useShallowMemo(paths);
 
+  const parsedPaths = useMemo(() => {
+    return filterMap(memoizedPaths, (path) => {
+      const rosPath = parseRosPath(path);
+      return rosPath ? ([path, rosPath] satisfies [string, RosPath]) : undefined;
+    });
+  }, [memoizedPaths]);
+
   // We first fill in global variables in the paths, so we can later see which paths have really
   // changed when the global variables have changed.
-  const unmemoizedFilledInPaths: {
-    [key: string]: RosPath;
-  } = useMemo(() => {
+  const unmemoizedFilledInPaths = useMemo(() => {
     const filledInPaths: Record<string, RosPath> = {};
-    for (const path of memoizedPaths) {
-      const rosPath = parseRosPath(path);
-      if (rosPath) {
-        filledInPaths[path] = fillInGlobalVariablesInPath(rosPath, globalVariables);
-      }
+    for (const [path, parsedPath] of parsedPaths) {
+      filledInPaths[path] = fillInGlobalVariablesInPath(parsedPath, globalVariables);
     }
     return filledInPaths;
-  }, [globalVariables, memoizedPaths]);
-  const memoizedFilledInPaths = useDeepMemo<{
-    [key: string]: RosPath;
-  }>(unmemoizedFilledInPaths);
+  }, [globalVariables, parsedPaths]);
+  const memoizedFilledInPaths = useDeepMemo(unmemoizedFilledInPaths);
+
+  const topicsByName = useMemo(() => _.keyBy(providerTopics, ({ name }) => name), [providerTopics]);
 
   const topicsByName = useMemo(() => keyBy(providerTopics, ({ name }) => name), [providerTopics]);
 
@@ -78,21 +81,18 @@ export function useCachedGetMessagePathDataItems(
   const unmemoizedRelevantTopics = useMemo(() => {
     const seenNames = new Set<string>();
     const result: Topic[] = [];
-    for (const path of memoizedPaths) {
-      const rosPath = parseRosPath(path);
-      if (rosPath) {
-        if (seenNames.has(rosPath.topicName)) {
-          continue;
-        }
-        seenNames.add(rosPath.topicName);
-        const topic = topicsByName[rosPath.topicName];
-        if (topic) {
-          result.push(topic);
-        }
+    for (const [, parsedPath] of parsedPaths) {
+      if (seenNames.has(parsedPath.topicName)) {
+        continue;
+      }
+      seenNames.add(parsedPath.topicName);
+      const topic = topicsByName[parsedPath.topicName];
+      if (topic) {
+        result.push(topic);
       }
     }
     return result;
-  }, [topicsByName, memoizedPaths]);
+  }, [topicsByName, parsedPaths]);
   const relevantTopics = useDeepMemo(unmemoizedRelevantTopics);
 
   const unmemoizedRelevantDatatypes = useMemo(() => {
