@@ -46,12 +46,12 @@ import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
-import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
+import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import {
   LeftSidebarItemKey,
   RightSidebarItemKey,
@@ -365,10 +365,10 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   const leftSidebarItems = useMemo(() => {
     const items = new Map<LeftSidebarItemKey, SidebarItem>([
-      ["playlist", { title: "Playlist", component: Playlist }],
-      ["panel-settings", { title: "Panel", component: PanelSettings }],
-      ["topics", { title: "Topics", component: TopicList }],
-      ["moment", { title: "Moment", component: EventsList }],
+      ["playlist", { title: t("playlist", { ns: "cosWorkspace" }), component: Playlist }],
+      ["panel-settings", { title: t("panel", { ns: "cosWorkspace" }), component: PanelSettings }],
+      ["topics", { title: t("topics", { ns: "cosWorkspace" }), component: TopicList }],
+      ["moment", { title: t("moment", { ns: "cosWorkspace" }), component: EventsList }],
       [
         "problems",
         {

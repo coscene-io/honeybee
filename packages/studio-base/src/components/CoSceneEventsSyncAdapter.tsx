@@ -128,7 +128,9 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
   }, [consoleApi, endTime, setEvents, startTime, urlState?.parameters, record]);
 
   useEffect(() => {
-    syncEvents().catch((error) => log.error(error));
+    syncEvents().catch((error) => {
+      log.error(error);
+    });
   }, [syncEvents, eventFetchCount]);
 
   // Sync hovered value and hovered events.
