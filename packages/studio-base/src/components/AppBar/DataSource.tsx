@@ -14,17 +14,15 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
-import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
-
-//CoScene
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoSceneProjectStore,
   useProject,
 } from "@foxglove/studio-base/context/CoSceneProjectContext";
 import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { EndTimestamp } from "./EndTimestamp";
 
@@ -91,7 +89,6 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
   },
 }));
 
-const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlayerProblems = (ctx: MessagePipelineContext) => ctx.playerState.problems;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
@@ -104,7 +101,6 @@ export function DataSource(): JSX.Element {
   const { t } = useTranslation("appBar");
   const { classes, cx } = useStyles();
 
-  const playerName = useMessagePipeline(selectPlayerName);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const seek = useMessagePipeline(selectSeek);
@@ -127,9 +123,6 @@ export function DataSource(): JSX.Element {
     playerPresence === PlayerPresence.ERROR ||
     playerProblems.some((problem) => problem.severity === "error");
   const loading = reconnecting || initializing;
-
-  const playerDisplayName =
-    initializing && playerName == undefined ? "Initializing..." : playerName;
 
   if (playerPresence === PlayerPresence.NOT_PRESENT) {
     return <div className={classes.sourceName}>{t("noDataSource")}</div>;

@@ -116,7 +116,9 @@ export function EventsList(): JSX.Element {
           variant="filled"
           fullWidth
           value={filter}
-          onChange={(event) => setFilter(event.currentTarget.value)}
+          onChange={(event) => {
+            setFilter(event.currentTarget.value);
+          }}
           placeholder={t("searchByKV")}
           InputProps={{
             startAdornment: <SearchIcon fontSize="small" />,

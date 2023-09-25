@@ -11,8 +11,6 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Immutable } from "@foxglove/studio";
-
 export type MathFunction = (arg: number) => number;
 
 export const mathFunctions: { [fn: string]: MathFunction } = {

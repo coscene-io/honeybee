@@ -72,6 +72,7 @@ export function getColorConverter<
             output.a = settings.explicitAlpha;
           };
       }
+      throw new Error(`Unrecognized color map: ${settings.colorMap}`);
     }
     case "rgb":
       return (output: ColorRGBA, colorValue: number) => {

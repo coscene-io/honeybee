@@ -10,10 +10,10 @@ import {
   TopicSelection,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
+import { CoSceneContext } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 // CoScene
-import { CoSceneContext } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
 export type Initalization = {
   start: Time;

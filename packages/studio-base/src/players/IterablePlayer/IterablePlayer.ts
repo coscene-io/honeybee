@@ -703,15 +703,14 @@ export class IterablePlayer implements Player {
       this.#queueEmitState();
     }, 100);
 
-
     try {
       this.#abort = new AbortController();
       const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
         getPlaybackQualityLevelByLocalStorage();
-        const messages = await this.#bufferedSource.getBackfillMessages({
-          topics: this.#allTopics,
-          time: targetTime,
-          abortSignal: this.#abort.signal,
+      const messages = await this.#bufferedSource.getBackfillMessages({
+        topics: this.#allTopics,
+        time: targetTime,
+        abortSignal: this.#abort.signal,
         playbackQualityLevel,
       });
 

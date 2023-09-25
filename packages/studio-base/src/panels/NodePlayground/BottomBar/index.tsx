@@ -170,6 +170,10 @@ const BottomBar = ({
               disabled={isSaved}
               title="Ctrl/Cmd + S"
               onClick={() => {
+                if (nodeId != undefined) {
+                  save();
+                  clearUserNodeLogs(nodeId);
+                }
               }}
             >
               {isSaved ? "Saved" : "Save"}

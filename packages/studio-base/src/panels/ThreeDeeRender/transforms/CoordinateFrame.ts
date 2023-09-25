@@ -313,7 +313,7 @@ export class CoordinateFrame<ID extends AnyFrameId = UserFrameId> {
         : undefined;
     }
     // Check if the two frames share a common ancestor
-    let curSrcFrame: CoordinateFrame<UserFrameId> | undefined = srcFrame;
+    let curSrcFrame: CoordinateFrame | undefined = srcFrame;
     while (curSrcFrame) {
       const commonAncestor = this.findAncestor(curSrcFrame.id);
       if (commonAncestor) {

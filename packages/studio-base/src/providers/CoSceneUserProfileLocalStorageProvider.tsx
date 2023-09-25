@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { merge } from "lodash";
+import * as _ from "lodash-es";
 import { useCallback, useEffect } from "react";
 
 import { useShallowMemo } from "@foxglove/hooks";
@@ -29,7 +29,7 @@ export default function CoSceneUserProfileLocalStorageProvider({
     async (value: UserProfile | ((prev: UserProfile) => UserProfile)) => {
       const item = localStorage.getItem(LOCAL_STORAGE_KEY);
       const prev = item != undefined ? (JSON.parse(item) as UserProfile) : DEFAULT_PROFILE;
-      const newProfile = typeof value === "function" ? value(prev) : merge(prev, value);
+      const newProfile = typeof value === "function" ? value(prev) : _.merge(prev, value);
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newProfile) ?? "");
     },
     [],

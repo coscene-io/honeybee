@@ -18,14 +18,20 @@ import { makeStyles } from "tss-react/mui";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
 import { AppMenu } from "@foxglove/studio-base/components/AppBar/AppMenu";
+import { CoSceneLayoutButton } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
 import {
   CustomWindowControls,
   CustomWindowControlsProps,
 } from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
+import { CoSceneLogo, KeenonLogo } from "@foxglove/studio-base/components/CoSceneLogo";
 import { MemoryUseIndicator } from "@foxglove/studio-base/components/MemoryUseIndicator";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import {
+  LayoutState,
+  useCurrentLayoutSelector,
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   WorkspaceContextStore,
@@ -34,21 +40,13 @@ import {
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { AddPanelMenu } from "./AddPanelMenu";
 import { AppBarContainer } from "./AppBarContainer";
-import { DataSource } from "./DataSource";
-
-// CoScene
 import { UserMenu, UserInfo } from "./CoSceneUserMenu";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-import {
-  LayoutState,
-  useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { CoSceneLayoutButton } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
-import { CoSceneLogo, KeenonLogo } from "@foxglove/studio-base/components/CoSceneLogo";
+import { DataSource } from "./DataSource";
 
 const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
   theme,
@@ -87,9 +85,6 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
         color: "currentColor",
         opacity: theme.palette.action.disabledOpacity,
       },
-    },
-    dropDownIcon: {
-      fontSize: "12px !important",
     },
     start: {
       gridArea: "start",
@@ -192,7 +187,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
     onUnmaximizeWindow,
     showCustomWindowControls = false,
   } = props;
-  const { classes, cx, theme } = useStyles({ debugDragRegion });
+  const { classes, cx } = useStyles({ debugDragRegion });
   const { currentUser, signIn } = useCurrentUser();
   const { t } = useTranslation("appBar");
 

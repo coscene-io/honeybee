@@ -633,7 +633,7 @@ export class CoSceneIterablePlayer implements Player {
     this.#lastMessageEvent = undefined;
     this.#messages = [];
 
-    const messageEvents: MessageEvent<unknown>[] = [];
+    const messageEvents: MessageEvent[] = [];
 
     // If we take too long to read the data, we set the player into a BUFFERING presence. This
     // indicates that the player is waiting to load more data.

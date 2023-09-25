@@ -13,7 +13,7 @@ import {
   List,
   Typography,
 } from "@mui/material";
-import { partition } from "lodash";
+import * as _ from "lodash-es";
 import moment from "moment";
 import { useSnackbar } from "notistack";
 import {
@@ -115,7 +115,7 @@ export function CoSceneLayoutButton(): JSX.Element {
 
   const [layouts, reloadLayouts] = useAsyncFn(
     async () => {
-      const [shared, personal] = partition(
+      const [shared, personal] = _.partition(
         await layoutManager.getLayouts(),
         layoutManager.supportsSharing ? layoutIsShared : () => false,
       );
@@ -131,12 +131,16 @@ export function CoSceneLayoutButton(): JSX.Element {
   useEffect(() => {
     const listener = () => void reloadLayouts();
     layoutManager.on("change", listener);
-    return () => layoutManager.off("change", listener);
+    return () => {
+      layoutManager.off("change", listener);
+    };
   }, [layoutManager, reloadLayouts]);
 
   // Start loading on first mount
   useEffect(() => {
-    reloadLayouts().catch((err) => log.error(err));
+    reloadLayouts().catch((err) => {
+      log.error(err);
+    });
   }, [reloadLayouts]);
 
   const items = (layouts.value?.personal ?? []).filter((layout) =>
@@ -164,8 +168,12 @@ export function CoSceneLayoutButton(): JSX.Element {
     const busyListener = () => {
       dispatch({ type: "set-busy", value: layoutManager.isBusy });
     };
-    const onlineListener = () => dispatch({ type: "set-online", value: layoutManager.isOnline });
-    const errorListener = () => dispatch({ type: "set-error", value: layoutManager.error });
+    const onlineListener = () => {
+      dispatch({ type: "set-online", value: layoutManager.isOnline });
+    };
+    const errorListener = () => {
+      dispatch({ type: "set-error", value: layoutManager.error });
+    };
     busyListener();
     onlineListener();
     errorListener();
@@ -221,13 +229,17 @@ export function CoSceneLayoutButton(): JSX.Element {
       }
     };
 
-    processAction().catch((err) => log.error(err));
+    processAction().catch((err) => {
+      log.error(err);
+    });
   }, [dispatch, enqueueSnackbar, layoutManager, state.multiAction]);
 
   useEffect(() => {
     const listener = () => void reloadLayouts();
     layoutManager.on("change", listener);
-    return () => layoutManager.off("change", listener);
+    return () => {
+      layoutManager.off("change", listener);
+    };
   }, [layoutManager, reloadLayouts]);
 
   /**
@@ -551,7 +563,9 @@ export function CoSceneLayoutButton(): JSX.Element {
         id="add-panel-menu"
         anchorEl={anchorEl.current}
         open={menuOpen}
-        onClose={() => setMenuOpen(false)}
+        onClose={() => {
+          setMenuOpen(false);
+        }}
         MenuListProps={{
           dense: true,
           disablePadding: true,
@@ -587,7 +601,13 @@ export function CoSceneLayoutButton(): JSX.Element {
             InputProps={{
               startAdornment: <SearchIcon fontSize="small" />,
               endAdornment: searchQuery && (
-                <IconButton size="small" edge="end" onClick={() => setSearchQuery("")}>
+                <IconButton
+                  size="small"
+                  edge="end"
+                  onClick={() => {
+                    setSearchQuery("");
+                  }}
+                >
                   <CancelIcon fontSize="small" />
                 </IconButton>
               ),

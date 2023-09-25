@@ -15,7 +15,9 @@ import {
 function createProjectStore() {
   return createStore<CoSceneProjectStore>((set) => ({
     project: { loading: false, value: new Project() },
-    setProject: (project: AsyncState<Project>) => set({ project }),
+    setProject: (project: AsyncState<Project>) => {
+      set({ project });
+    },
   }));
 }
 

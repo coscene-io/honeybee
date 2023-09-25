@@ -248,10 +248,6 @@ export default function PanelLayout(): JSX.Element {
     return layoutEmptyState;
   }
 
-  if (layoutEmptyState) {
-    return layoutEmptyState;
-  }
-
   return (
     <EmptyState>
       <Typography display="block" variant="body1" color="text.primary">

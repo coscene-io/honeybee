@@ -70,7 +70,7 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
       },
 
       // CoScene
-      setBagsAtHoverValue: (bagsAtHoverValue: BagFileInfo[]) =>{
+      setBagsAtHoverValue: (bagsAtHoverValue: BagFileInfo[]) => {
         set({ bagsAtHoverValue: _.keyBy(bagsAtHoverValue, (bag) => bag.name) });
       },
 

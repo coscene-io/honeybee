@@ -80,6 +80,6 @@ export function buildSettingsTree(
         { id: "show-all", type: "action", label: t("showAll") },
         { id: "hide-all", type: "action", label: t("hideAll") },
       ],
-    }
+    },
   };
 }

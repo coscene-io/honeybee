@@ -171,8 +171,9 @@ const LogPanel = React.memo(({ config, saveConfig }: Props) => {
     nameFilter,
     updatePanelSettingsTree,
     seenNodeNames,
-    seenNodeNames.size, // Needed as we do not create a new Set when node names change
+    seenNodeNames.size,
     t,
+    config.reverseOrder,
   ]);
 
   const searchTermsSet = useMemo(() => new Set(searchTerms), [searchTerms]);
@@ -195,17 +196,19 @@ const LogPanel = React.memo(({ config, saveConfig }: Props) => {
   return (
     <Stack fullHeight>
       <PanelToolbar>
-        <Stack>{config.reverseOrder ? <DoubleArrowUpIcon /> : <DoubleArrowDownIcon />}</Stack>
-      <Stack flexGrow={0} padding={0.5}>
-        <FilterBar
-          searchTerms={searchTermsSet}
-          minLogLevel={minLogLevel}
-          onFilterChange={onFilterChange}
-        />
-      </Stack>
+        <Stack flexGrow={0}>
+          {config.reverseOrder ? <DoubleArrowUpIcon /> : <DoubleArrowDownIcon />}
+        </Stack>
+        <Stack flexGrow={1} padding={0.5}>
+          <FilterBar
+            searchTerms={searchTermsSet}
+            minLogLevel={minLogLevel}
+            onFilterChange={onFilterChange}
+          />
+        </Stack>
       </PanelToolbar>
       <Divider />
-      <Stack flexGrow={1}>
+      <Stack flexGrow={2}>
         <LogList items={normalizedMessages} reverseOrder={config.reverseOrder} />
       </Stack>
     </Stack>

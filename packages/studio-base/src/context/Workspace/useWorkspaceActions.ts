@@ -11,6 +11,7 @@ import { useMountedState } from "react-use";
 import useAsyncFn from "react-use/lib/useAsyncFn";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
+import { Immutable } from "@foxglove/studio";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/CoSceneUnsavedChangesPrompt";
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
@@ -32,7 +33,6 @@ import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneIL
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
-import { Immutable } from "@foxglove/studio";
 
 import {
   WorkspaceContext,

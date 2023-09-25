@@ -858,5 +858,4 @@ export default function (panelsState: Readonly<LayoutData>, action: PanelsAction
     default:
       throw new Error("This reducer should only be used for panel actions");
   }
-
 }

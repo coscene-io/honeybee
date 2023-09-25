@@ -17,9 +17,15 @@ function createRecordStore() {
   return createStore<CoSceneRecordStore>((set) => ({
     record: { loading: true, value: new Record() },
     recordBagFiles: { loading: false, value: [] },
-    setRecord: (record: AsyncState<Record>) => set({ record }),
-    setRecordBagFiles: (recordBagFiles: AsyncState<BagFileInfo[]>) => set({ recordBagFiles }),
-    setCurrentBagFiles: (bagFiles: BagFileInfo[]) => set({ currentBagFiles: bagFiles }),
+    setRecord: (record: AsyncState<Record>) => {
+      set({ record });
+    },
+    setRecordBagFiles: (recordBagFiles: AsyncState<BagFileInfo[]>) => {
+      set({ recordBagFiles });
+    },
+    setCurrentBagFiles: (bagFiles: BagFileInfo[]) => {
+      set({ currentBagFiles: bagFiles });
+    },
   }));
 }
 

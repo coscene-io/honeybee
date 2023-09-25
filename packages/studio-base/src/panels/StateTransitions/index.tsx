@@ -40,6 +40,7 @@ import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TimeBasedChart from "@foxglove/studio-base/components/TimeBasedChart";
 import { ChartData, ChartDatasets } from "@foxglove/studio-base/components/TimeBasedChart/types";
+import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { subscribePayloadFromMessagePath } from "@foxglove/studio-base/players/subscribePayloadFromMessagePath";
 import { SubscribePayload } from "@foxglove/studio-base/players/types";
@@ -54,7 +55,6 @@ import { stateTransitionPathDisplayName } from "./shared";
 import { StateTransitionConfig } from "./types";
 
 // CoScene
-import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 
 export const transitionableRosTypes = [
   "bool",

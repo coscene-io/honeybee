@@ -265,11 +265,15 @@ export function RecordsSyncAdapter(): ReactNull {
   ]);
 
   useEffect(() => {
-    syncPlaylist().catch((error) => log.error(error));
+    syncPlaylist().catch((error) => {
+      log.error(error);
+    });
   }, [syncPlaylist]);
 
   useEffect(() => {
-    syncRecords().catch((error) => log.error(error));
+    syncRecords().catch((error) => {
+      log.error(error);
+    });
   }, [syncRecords]);
 
   // Sync hovered value and hovered bagFiles.

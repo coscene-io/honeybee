@@ -154,7 +154,7 @@ function PanelActionsDropdownComponent({ isUnknownPanel }: Props): JSX.Element {
           onClick: () => {
             split(panelContext?.id, "column");
           },
-        }
+        },
       );
     }
 
