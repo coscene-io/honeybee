@@ -95,7 +95,9 @@ export function Playlist(): JSX.Element {
           variant="filled"
           fullWidth
           value={filterText}
-          onChange={(event) => setFilterText(event.currentTarget.value)}
+          onChange={(event) => {
+            setFilterText(event.currentTarget.value);
+          }}
           placeholder={t("searchByNameTime")}
           InputProps={{
             startAdornment: <SearchIcon fontSize="small" />,
@@ -134,7 +136,7 @@ export function Playlist(): JSX.Element {
               bag={bag}
               filter={filterText}
               isHovered={
-                (hoveredBag && hoveredBag.name === bag.name) ||
+                (hoveredBag && hoveredBag.name === bag.name) ??
                 bagsAtHoverValue[bag.name] != undefined
               }
               isCurrent={

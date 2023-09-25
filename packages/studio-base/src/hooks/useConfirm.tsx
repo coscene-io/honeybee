@@ -50,12 +50,16 @@ function ConfirmModal(props: ConfirmModalProps) {
     [originalOnComplete],
   );
 
-  useKeyPressEvent("Enter", () => onComplete("ok"));
+  useKeyPressEvent("Enter", () => {
+    onComplete("ok");
+  });
 
   // Ensure we still call onComplete(undefined) when the component unmounts, if it hasn't been
   // called already
   useEffect(() => {
-    return () => onComplete("cancel");
+    return () => {
+      onComplete("cancel");
+    };
   }, [onComplete]);
 
   const buttons = [
@@ -65,7 +69,9 @@ function ConfirmModal(props: ConfirmModalProps) {
         variant="outlined"
         color="inherit"
         key="cancel"
-        onClick={() => onComplete("cancel")}
+        onClick={() => {
+          onComplete("cancel");
+        }}
       >
         {props.cancel ?? "Cancel"}
       </Button>
@@ -85,7 +91,14 @@ function ConfirmModal(props: ConfirmModalProps) {
   }
 
   return (
-    <Dialog open onClose={() => onComplete("cancel")} maxWidth="xs" fullWidth>
+    <Dialog
+      open
+      onClose={() => {
+        onComplete("cancel");
+      }}
+      maxWidth="xs"
+      fullWidth
+    >
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -105,7 +118,10 @@ export type confirmModalTypes = JSX.Element | undefined;
 
 // Returns a function that can be used similarly to the DOM confirm(), but
 // backed by a React element rather than a native modal, and asynchronous.
-export function useConfirm(): [confirm: confirmTypes, confirmModal: confirmModalTypes] {
+export function useConfirm(): [
+  confirm: (options: ConfirmOptions) => Promise<ConfirmAction>,
+  confirmModal: JSX.Element | undefined,
+] {
   const [modal, setModal] = useState<JSX.Element | undefined>();
 
   const openConfirm = useCallback(async (options: ConfirmOptions) => {

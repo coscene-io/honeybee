@@ -22,7 +22,7 @@ import {
   ButtonGroup,
 } from "@mui/material";
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
-import { countBy } from "lodash";
+import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
 import { useCallback, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -161,7 +161,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
 
   const { formatTime } = useAppTimeFormat();
 
-  const countedMetadata = countBy(event.metadataEntries, (kv) => kv.key);
+  const countedMetadata = _.countBy(event.metadataEntries, (kv) => kv.key);
   const duplicateKey = Object.entries(countedMetadata).find(
     ([key, count]) => key.length > 0 && count > 1,
   );
@@ -421,7 +421,9 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                           invokeTabKey();
                         }
                       }}
-                      onChange={(evt) => updateMetadata(index, "key", evt.currentTarget.value)}
+                      onChange={(evt) => {
+                        updateMetadata(index, "key", evt.currentTarget.value);
+                      }}
                     />
                     <TextField
                       fullWidth
@@ -436,15 +438,24 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                           onMetaDataKeyDown(keyboardEvent);
                         }
                       }}
-                      onChange={(evt) => updateMetadata(index, "value", evt.currentTarget.value)}
+                      onChange={(evt) => {
+                        updateMetadata(index, "value", evt.currentTarget.value);
+                      }}
                     />
                     <ButtonGroup>
-                      <IconButton tabIndex={-1} onClick={() => addRow(index)}>
+                      <IconButton
+                        tabIndex={-1}
+                        onClick={() => {
+                          addRow(index);
+                        }}
+                      >
                         <AddIcon />
                       </IconButton>
                       <IconButton
                         tabIndex={-1}
-                        onClick={() => removeRow(index)}
+                        onClick={() => {
+                          removeRow(index);
+                        }}
                         style={{
                           visibility: event.metadataEntries.length > 1 ? "visible" : "hidden",
                         }}

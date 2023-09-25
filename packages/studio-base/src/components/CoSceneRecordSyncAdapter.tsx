@@ -104,7 +104,7 @@ export function RecordsSyncAdapter(): ReactNull {
   const endTime = useMessagePipeline(selectEndTime);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const [hoverComponentId] = useState<string>(() => uuidv4());
-  const hoverValue = useHoverValue({ componentId: hoverComponentId, isTimestampScale: true });
+  const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = useRecord(selectBagFiles);
   const seek = useMessagePipeline(selectSeek);
 
@@ -265,11 +265,15 @@ export function RecordsSyncAdapter(): ReactNull {
   ]);
 
   useEffect(() => {
-    syncPlaylist().catch((error) => log.error(error));
+    syncPlaylist().catch((error) => {
+      log.error(error);
+    });
   }, [syncPlaylist]);
 
   useEffect(() => {
-    syncRecords().catch((error) => log.error(error));
+    syncRecords().catch((error) => {
+      log.error(error);
+    });
   }, [syncRecords]);
 
   // Sync hovered value and hovered bagFiles.

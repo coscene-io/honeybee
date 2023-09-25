@@ -81,7 +81,12 @@ const VersionBanner = function ({
       <BannerContainer isDismissable={isDismissable}>
         <Stack padding={2} gap={1.5} alignItems="center">
           {isDismissable && (
-            <DismissButton color="inherit" onClick={() => setShowBanner(false)}>
+            <DismissButton
+              color="inherit"
+              onClick={() => {
+                setShowBanner(false);
+              }}
+            >
               <CloseIcon />
             </DismissButton>
           )}

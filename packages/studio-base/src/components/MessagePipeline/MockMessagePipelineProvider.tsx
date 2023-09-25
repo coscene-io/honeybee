@@ -12,7 +12,7 @@
 //   You may not use this file except in compliance with the License.
 
 import { Immutable } from "immer";
-import { omit } from "lodash";
+import * as _ from "lodash-es";
 import { useEffect, useRef, useState } from "react";
 import shallowequal from "shallowequal";
 import { Writable } from "ts-essentials";
@@ -24,22 +24,23 @@ import { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/P
 import {
   AdvertiseOptions,
   MessageEvent,
+  PlayerCapabilities,
   PlayerPresence,
-  PlayerStateActiveData,
   PlayerProblem,
+  PlayerState,
+  PlayerStateActiveData,
+  PlayerURLState,
   Progress,
   PublishPayload,
   SubscribePayload,
   Topic,
-  PlayerURLState,
   TopicStats,
-  PlayerCapabilities,
-  PlayerState,
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { ContextInternal } from "./index";
 import { MessagePipelineInternalState, MessagePipelineStateAction, reducer } from "./store";
+import { makeSubscriptionMemoizer } from "./subscriptions";
 
 const NO_DATATYPES = new Map();
 
@@ -56,7 +57,7 @@ export type MockMessagePipelineProps = {
   publish?: (request: PublishPayload) => void;
   callService?: (service: string, request: unknown) => Promise<unknown>;
   setPublishers?: (arg0: string, arg1: AdvertiseOptions[]) => void;
-  setSubscriptions?: (arg0: string, arg1: SubscribePayload[]) => void;
+  setSubscriptions?: (arg0: string, arg1: Immutable<SubscribePayload[]>) => void;
   setParameter?: (key: string, value: ParameterValue) => void;
   fetchAsset?: BuiltinPanelExtensionContext["unstable_fetchAsset"];
   noActiveData?: boolean;
@@ -252,11 +253,16 @@ export default function MockMessagePipelineProvider(
           });
         }
       };
+      const reset = () => {
+        throw new Error("not implemented");
+      };
       const initialPublicState = getPublicState(undefined, props, dispatch);
       return {
-        mockProps: omit(props, "children"),
+        mockProps: _.omit(props, "children"),
         player: undefined,
         dispatch,
+        reset,
+        subscriptionMemoizer: makeSubscriptionMemoizer(),
         publishersById: {},
         allPublishers: [],
         subscriptionsById: new Map(),
@@ -273,7 +279,7 @@ export default function MockMessagePipelineProvider(
   );
 
   useEffect(() => {
-    store.getState().dispatch({ type: "set-mock-props", mockProps: omit(props, "children") });
+    store.getState().dispatch({ type: "set-mock-props", mockProps: _.omit(props, "children") });
   }, [props, store]);
 
   return <ContextInternal.Provider value={store}>{props.children}</ContextInternal.Provider>;

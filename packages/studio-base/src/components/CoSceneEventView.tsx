@@ -137,7 +137,7 @@ function EventViewComponent(params: {
   const [show, setShow] = useState(true);
 
   const handleClose = (
-    _event: globalThis.Event | React.SyntheticEvent<unknown, globalThis.Event>,
+    _event: globalThis.Event | React.SyntheticEvent<unknown>,
     reason?: string,
   ) => {
     if (reason === "clickaway") {
@@ -258,9 +258,15 @@ function EventViewComponent(params: {
   return show ? (
     <div
       className={classes.eventBox}
-      onClick={() => onClick(event)}
-      onMouseEnter={() => onHoverStart(event)}
-      onMouseLeave={() => onHoverEnd(event)}
+      onClick={() => {
+        onClick(event);
+      }}
+      onMouseEnter={() => {
+        onHoverStart(event);
+      }}
+      onMouseLeave={() => {
+        onHoverEnd(event);
+      }}
     >
       <div className={classes.eventTitle}>
         <div>

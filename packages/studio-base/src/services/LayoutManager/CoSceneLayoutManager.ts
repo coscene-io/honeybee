@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import EventEmitter from "eventemitter3";
-import { partition } from "lodash";
+import * as _ from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
 
 import { MutexLocked } from "@foxglove/den/async";
@@ -483,7 +483,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   public async syncWithRemote(abortSignal: AbortSignal): Promise<void> {
     if (this.#currentSync) {
       log.debug("Layout sync is already in progress");
-      return await this.#currentSync;
+      await this.#currentSync;
+      return;
     }
     const start = performance.now();
     try {
@@ -517,7 +518,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     }
 
     const syncOperations = computeLayoutSyncOperations(localLayouts, remoteLayouts);
-    const [localOps, remoteOps] = partition(
+    const [localOps, remoteOps] = _.partition(
       syncOperations,
       (op): op is typeof op & { local: true } => op.local,
     );
@@ -666,7 +667,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     );
 
     await this.#local.runExclusive(async (local) => {
-      await Promise.all(cleanups.map(async (cleanup) => await cleanup(local)));
+      await Promise.all(
+        cleanups.map(async (cleanup) => {
+          await cleanup(local);
+        }),
+      );
     });
   }
 }

@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { set } from "lodash";
+import * as _ from "lodash-es";
 
 import { filterMap } from "@foxglove/den/collection";
 import { SettingsTreeAction } from "@foxglove/studio";
@@ -206,7 +206,7 @@ export class ImageMode extends SceneExtension {
     const category = path[0]!;
     const value = action.payload.value;
     if (category === "imageMode") {
-      this.renderer.updateConfig((draft) => set(draft, path, value));
+      this.renderer.updateConfig((draft) => _.set(draft, path, value));
     } else {
       return;
     }
