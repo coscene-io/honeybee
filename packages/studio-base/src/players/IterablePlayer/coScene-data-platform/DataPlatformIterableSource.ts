@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { captureException } from "@sentry/core";
-import { isEqual } from "lodash";
+import * as _ from "lodash-es";
 
 import Logger from "@foxglove/log";
 import { parseChannel } from "@foxglove/mcap-support";
@@ -131,7 +131,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         if (
           info.messageEncoding === messageEncoding &&
           info.schemaEncoding === schemaEncoding &&
-          isEqual(info.schema, schema)
+          _.isEqual(info.schema, schema)
         ) {
           continue rawTopics;
         }
@@ -199,8 +199,6 @@ export class DataPlatformIterableSource implements IIterableSource {
     log.debug("message iterator", args);
 
     const topics = args.topics;
-    const start = args.start ?? this.#start;
-    const end = args.end ?? this.#end;
     const topicNames = Array.from(topics.keys());
 
     if (!this.#start || !this.#end) {
@@ -211,7 +209,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 
     // Data platform treats topic array length 0 as "all topics". Until that is changed, we filter out
     // empty topic requests
-    if (topics.size === 0 || !start || !end) {
+    if (topics.size === 0) {
       return;
     }
 
@@ -225,7 +223,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       return;
     }
 
-    const streamStart = start ?? this.#start;
+    const streamStart = args.start ?? this.#start;
     const streamEnd = clampTime(args.end ?? this.#end, this.#start, this.#end);
 
     if (args.consumptionType === "full") {
