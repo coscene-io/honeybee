@@ -88,7 +88,7 @@ function TopicRow({ topic }: { topic: Topic }): JSX.Element {
           "—"
         ) : (
           <>
-            {topic.schemaName} 123123
+            {topic.schemaName}
             <CopyButton
               className={classes.copyIcon}
               edge="end"
