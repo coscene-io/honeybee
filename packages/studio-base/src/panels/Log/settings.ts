@@ -4,13 +4,27 @@
 
 import { TFunction } from "i18next";
 
-import { SettingsTreeNodes } from "@foxglove/studio";
+import { SettingsTreeChildren, SettingsTreeNodes } from "@foxglove/studio";
 import { Topic } from "@foxglove/studio-base/players/types";
+
+import { LogLevel } from "./types";
+
+// Create the log level options nodes once since they don't change per render.
+const LOG_LEVEL_OPTIONS = [
+  { label: ">= DEBUG", value: LogLevel.DEBUG },
+  { label: ">= INFO", value: LogLevel.INFO },
+  { label: ">= WARN", value: LogLevel.WARN },
+  { label: ">= ERROR", value: LogLevel.ERROR },
+  { label: ">= FATAL", value: LogLevel.FATAL },
+];
 
 export function buildSettingsTree(
   topicToRender: string,
+  minLogLevel: number,
+  nameFilter: Record<string, { visible?: boolean }>,
   availableTopics: Topic[],
   { reverseOrder }: { reverseOrder: boolean },
+  availableNames: string[],
   t: TFunction<"log">,
 ): SettingsTreeNodes {
   const topicOptions = availableTopics.map((topic) => ({ label: topic.name, value: topic.name }));
@@ -19,6 +33,15 @@ export function buildSettingsTree(
     topicOptions.unshift({ value: topicToRender, label: topicToRender });
   }
   const topicError = topicIsAvailable ? undefined : t("topicError", { topic: topicToRender });
+  const nodeChildren: SettingsTreeChildren = Object.fromEntries(
+    availableNames.map((name) => [
+      name,
+      {
+        label: name,
+        visible: nameFilter[name]?.visible ?? true,
+      },
+    ]),
+  );
 
   return {
     general: {
@@ -29,6 +52,12 @@ export function buildSettingsTree(
           value: topicToRender,
           error: topicError,
           options: topicOptions,
+        },
+        minLogLevel: {
+          input: "select",
+          label: t("minLogLevel"),
+          value: minLogLevel,
+          options: LOG_LEVEL_OPTIONS,
         },
       },
     },
@@ -42,6 +71,15 @@ export function buildSettingsTree(
           value: reverseOrder,
         },
       },
+    },
+    nameFilter: {
+      enableVisibilityFilter: true,
+      children: nodeChildren,
+      label: t("nameFilter"),
+      actions: [
+        { id: "show-all", type: "action", label: t("showAll") },
+        { id: "hide-all", type: "action", label: t("hideAll") },
+      ],
     },
   };
 }

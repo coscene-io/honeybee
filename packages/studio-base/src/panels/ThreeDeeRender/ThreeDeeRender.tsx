@@ -2,7 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { cloneDeep, isEqual, merge } from "lodash";
+import { produce } from "immer";
+import * as _ from "lodash-es";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useLatest } from "react-use";
@@ -24,11 +25,14 @@ import {
 } from "@foxglove/studio";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import { ALL_SUPPORTED_IMAGE_SCHEMAS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/ImageMode";
+import { ALL_SUPPORTED_ANNOTATION_SCHEMAS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/annotations/ImageAnnotations";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 import type {
   FollowMode,
   IRenderer,
+  ImageModeConfig,
   RendererConfig,
   RendererEvents,
   RendererSubscription,
@@ -40,11 +44,11 @@ import { RendererContext, useRendererEvent } from "./RendererContext";
 import { RendererOverlay } from "./RendererOverlay";
 import { CameraState, DEFAULT_CAMERA_STATE } from "./camera";
 import {
+  PublishRos1Datatypes,
+  PublishRos2Datatypes,
   makePointMessage,
   makePoseEstimateMessage,
   makePoseMessage,
-  PublishRos1Datatypes,
-  PublishRos2Datatypes,
 } from "./publish";
 import type { LayerSettingsTransform } from "./renderables/FrameAxes";
 import { PublishClickEvent } from "./renderables/PublishClickTool";
@@ -80,7 +84,9 @@ function useRendererProperty<K extends keyof IRenderer>(
     if (!renderer) {
       return;
     }
-    const onChange = () => setValue(() => renderer[key]);
+    const onChange = () => {
+      setValue(() => renderer[key]);
+    };
     onChange();
 
     renderer.addListener(event, onChange);
@@ -110,11 +116,11 @@ export function ThreeDeeRender(props: {
     const partialConfig = initialState as DeepPartial<RendererConfig> | undefined;
 
     // Initialize the camera from default settings overlaid with persisted settings
-    const cameraState: CameraState = merge(
-      cloneDeep(DEFAULT_CAMERA_STATE),
+    const cameraState: CameraState = _.merge(
+      _.cloneDeep(DEFAULT_CAMERA_STATE),
       partialConfig?.cameraState,
     );
-    const publish = merge(cloneDeep(DEFAULT_PUBLISH_SETTINGS), partialConfig?.publish);
+    const publish = _.merge(_.cloneDeep(DEFAULT_PUBLISH_SETTINGS), partialConfig?.publish);
 
     const transforms = (partialConfig?.transforms ?? {}) as Record<
       string,
@@ -130,7 +136,9 @@ export function ThreeDeeRender(props: {
       topics: partialConfig?.topics ?? {},
       layers: partialConfig?.layers ?? {},
       publish,
-      imageMode: partialConfig?.imageMode ?? {},
+      // deep partial on config, makes gradient tuple type [string | undefined, string | undefined]
+      // which is incompatible with `Partial<ColorModeSettings>`
+      imageMode: (partialConfig?.imageMode ?? {}) as Partial<ImageModeConfig>,
     };
   });
   const configRef = useLatest(config);
@@ -158,6 +166,48 @@ export function ThreeDeeRender(props: {
     fetchAsset,
     debugPicking,
   ]);
+
+  useEffect(() => {
+    context.EXPERIMENTAL_setMessagePathDropConfig({
+      getDropStatus(paths) {
+        if (interfaceMode !== "image") {
+          return { canDrop: false };
+        }
+        let effect: "add" | "replace" = "add";
+        for (const path of paths) {
+          if (!path.isTopic || path.rootSchemaName == undefined) {
+            return { canDrop: false };
+          }
+          if (ALL_SUPPORTED_IMAGE_SCHEMAS.has(path.rootSchemaName)) {
+            effect = "replace";
+          } else if (ALL_SUPPORTED_ANNOTATION_SCHEMAS.has(path.rootSchemaName)) {
+            // nothing to do
+          } else {
+            return { canDrop: false };
+          }
+        }
+        return { canDrop: true, effect };
+      },
+      handleDrop(paths) {
+        setConfig((prevConfig) =>
+          produce(prevConfig, (draft) => {
+            for (const path of paths) {
+              if (path.rootSchemaName == undefined) {
+                continue;
+              }
+              if (ALL_SUPPORTED_IMAGE_SCHEMAS.has(path.rootSchemaName)) {
+                draft.imageMode.imageTopic = path.path;
+              } else {
+                draft.imageMode.annotations ??= {};
+                draft.imageMode.annotations[path.path] ??= {};
+                draft.imageMode.annotations[path.path]!.visible = true;
+              }
+            }
+          }),
+        );
+      },
+    });
+  }, [context, interfaceMode]);
 
   const [colorScheme, setColorScheme] = useState<"dark" | "light" | undefined>();
   const [timezone, setTimezone] = useState<string | undefined>();
@@ -217,7 +267,7 @@ export function ThreeDeeRender(props: {
 
   // Handle user changes in the settings sidebar
   const actionHandler = useCallback(
-    (action: SettingsTreeAction) =>
+    (action: SettingsTreeAction) => {
       // Wrapping in unstable_batchedUpdates causes React to run effects _after_ the handleAction
       // function has finished executing. This allows scene extensions that call
       // renderer.updateConfig to read out the new config value and configure their renderables
@@ -236,20 +286,22 @@ export function ThreeDeeRender(props: {
             });
           }
         }
-      }),
+      });
+    },
     [config.followMode, config.scene.syncCamera, context, renderer],
   );
 
   // Maintain the settings tree
   const [settingsTree, setSettingsTree] = useState<SettingsTreeNodes | undefined>(undefined);
-  const updateSettingsTree = useCallback(
-    (curRenderer: IRenderer) => setSettingsTree(curRenderer.settings.tree()),
-    [],
-  );
+  const updateSettingsTree = useCallback((curRenderer: IRenderer) => {
+    setSettingsTree(curRenderer.settings.tree());
+  }, []);
   useRendererEvent("settingsTreeChange", updateSettingsTree, renderer);
 
   // Save the panel configuration when it changes
-  const updateConfig = useCallback((curRenderer: IRenderer) => setConfig(curRenderer.config), []);
+  const updateConfig = useCallback((curRenderer: IRenderer) => {
+    setConfig(curRenderer.config);
+  }, []);
   useRendererEvent("configChange", updateConfig, renderer);
 
   // Write to a global variable when the current selection changes
@@ -301,7 +353,9 @@ export function ThreeDeeRender(props: {
 
   // Save panel settings whenever they change
   const throttledSave = useDebouncedCallback(
-    (newConfig: Immutable<RendererConfig>) => saveState(newConfig),
+    (newConfig: Immutable<RendererConfig>) => {
+      saveState(newConfig);
+    },
     1000,
     { leading: false, trailing: true, maxWait: 1000 },
   );
@@ -419,7 +473,7 @@ export function ThreeDeeRender(props: {
 
     // Sort the list to make comparisons stable
     newSubscriptions.sort((a, b) => a.topic.localeCompare(b.topic));
-    setTopicsToSubscribe((prev) => (isEqual(prev, newSubscriptions) ? prev : newSubscriptions));
+    setTopicsToSubscribe((prev) => (_.isEqual(prev, newSubscriptions) ? prev : newSubscriptions));
   }, [
     topics,
     config.topics,
@@ -430,6 +484,9 @@ export function ThreeDeeRender(props: {
     schemaHandlers,
     topicHandlers,
     config.imageMode.annotations,
+    // Need to update subscriptions when layers change as URDF layers might subscribe to topics
+    // shouldSubscribe values will be re-evaluated
+    config.layers,
   ]);
 
   // Notify the extension context when our subscription list changes
@@ -508,7 +565,7 @@ export function ThreeDeeRender(props: {
 
   // Update the renderer when the camera moves
   useEffect(() => {
-    if (!isEqual(cameraState, renderer?.getCameraState())) {
+    if (!_.isEqual(cameraState, renderer?.getCameraState())) {
       renderer?.setCameraState(cameraState);
       renderRef.current.needsRender = true;
     }
@@ -562,14 +619,20 @@ export function ThreeDeeRender(props: {
   // Create a useCallback wrapper for adding a new panel to the layout, used to open the
   // "Raw Messages" panel from the object inspector
   const addPanel = useCallback(
-    (params: Parameters<LayoutActions["addPanel"]>[0]) => context.layout.addPanel(params),
+    (params: Parameters<LayoutActions["addPanel"]>[0]) => {
+      context.layout.addPanel(params);
+    },
     [context.layout],
   );
 
   const [measureActive, setMeasureActive] = useState(false);
   useEffect(() => {
-    const onStart = () => setMeasureActive(true);
-    const onEnd = () => setMeasureActive(false);
+    const onStart = () => {
+      setMeasureActive(true);
+    };
+    const onEnd = () => {
+      setMeasureActive(false);
+    };
     renderer?.measurementTool.addEventListener("foxglove.measure-start", onStart);
     renderer?.measurementTool.addEventListener("foxglove.measure-end", onEnd);
     return () => {
@@ -623,7 +686,9 @@ export function ThreeDeeRender(props: {
   const latestPublishConfig = useLatest(config.publish);
 
   useEffect(() => {
-    const onStart = () => setPublishActive(true);
+    const onStart = () => {
+      setPublishActive(true);
+    };
     const onSubmit = (event: PublishClickEvent & { type: "foxglove.publish-submit" }) => {
       const frameId = renderer?.followFrameId;
       if (frameId == undefined) {
@@ -667,7 +732,9 @@ export function ThreeDeeRender(props: {
         log.info(error);
       }
     };
-    const onEnd = () => setPublishActive(false);
+    const onEnd = () => {
+      setPublishActive(false);
+    };
     renderer?.publishClickTool.addEventListener("foxglove.publish-start", onStart);
     renderer?.publishClickTool.addEventListener("foxglove.publish-submit", onSubmit);
     renderer?.publishClickTool.addEventListener("foxglove.publish-end", onEnd);
@@ -838,11 +905,11 @@ export function ThreeDeeRender(props: {
               renderer?.publishClickTool.setPublishClickType(type);
               renderer?.publishClickTool.start();
             }}
+            timezone={timezone}
+            onDownloadImage={onDownloadImage}
             onResetCamera={onResetCamera}
             onZoomIn={onZoomIn}
             onZoomOut={onZoomOut}
-            timezone={timezone}
-            onDownloadImage={onDownloadImage}
           />
         </RendererContext.Provider>
       </div>

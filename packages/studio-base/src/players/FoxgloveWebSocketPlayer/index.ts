@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as base64 from "@protobufjs/base64";
-import { isEqual, uniqWith } from "lodash";
+import * as _ from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
 
 import { debouncePromise } from "@foxglove/den/async";
@@ -31,7 +31,6 @@ import {
   Topic,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
-import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import rosDatatypesToMessageDefinition from "@foxglove/studio-base/util/rosDatatypesToMessageDefinition";
 import {
   Channel,
@@ -93,7 +92,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #closed: boolean = false; // Whether the player has been completely closed using close().
   #topics?: Topic[]; // Topics as published by the WebSocket.
   #topicsStats = new Map<string, TopicStats>(); // Topic names to topic statistics.
-  #datatypes: RosDatatypes = new Map(); // Datatypes as published by the WebSocket.
+  #datatypes: MessageDefinitionMap = new Map(); // Datatypes as published by the WebSocket.
   #parsedMessages: MessageEvent[] = []; // Queue of messages that we'll send in next _emitState() call.
   #receivedBytes: number = 0;
   #metricsCollector: PlayerMetricsCollectorInterface;
@@ -139,6 +138,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #nextAssetRequestId = 0;
   #fetchAssetRequests = new Map<number, (response: FetchAssetResponse) => void>();
   #fetchedAssets = new Map<string, Promise<Asset>>();
+  #parameterTypeByName = new Map<string, Parameter["type"]>();
 
   public constructor({
     url,
@@ -425,7 +425,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           } else if (
             channel.encoding === "cdr" &&
             (channel.schemaEncoding == undefined ||
-              ["ros2idl", "ros2msg"].includes(channel.schemaEncoding))
+              ["ros2idl", "ros2msg", "omgidl"].includes(channel.schemaEncoding))
           ) {
             schemaEncoding = channel.schemaEncoding ?? "ros2msg";
             schemaData = textEncoder.encode(channel.schema);
@@ -450,7 +450,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           continue;
         }
         const existingChannel = this.#channelsByTopic.get(channel.topic);
-        if (existingChannel && !isEqual(channel, existingChannel.channel)) {
+        if (existingChannel && !_.isEqual(channel, existingChannel.channel)) {
           this.#problems.addProblem(`duplicate-topic:${channel.topic}`, {
             severity: "error",
             message: `Multiple channels advertise the same topic: ${channel.topic} (${existingChannel.channel.id} and ${channel.id})`,
@@ -568,17 +568,23 @@ export default class FoxgloveWebSocketPlayer implements Player {
             }
           : param;
       });
+      const parameterTypes = parameters.map((p) => [p.name, p.type] as [string, Parameter["type"]]);
+      const parameterTypesMap = new Map<string, Parameter["type"]>(parameterTypes);
 
       const newParameters = mappedParameters.filter((param) => !this.#parameters.has(param.name));
 
       if (id === GET_ALL_PARAMS_REQUEST_ID) {
         // Reset params
         this.#parameters = new Map(mappedParameters.map((param) => [param.name, param.value]));
+        this.#parameterTypeByName = parameterTypesMap;
       } else {
         // Update params
         const updatedParameters = new Map(this.#parameters);
         mappedParameters.forEach((param) => updatedParameters.set(param.name, param.value));
         this.#parameters = updatedParameters;
+        for (const [paramName, paramType] of parameterTypesMap) {
+          this.#parameterTypeByName.set(paramName, paramType);
+        }
       }
 
       this.#emitState();
@@ -674,7 +680,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     this.#client.on("connectionGraphUpdate", (event) => {
       if (event.publishedTopics.length > 0 || event.removedTopics.length > 0) {
-        const newMap: Map<string, Set<string>> = new Map(this.#publishedTopics ?? new Map());
+        const newMap = new Map<string, Set<string>>(this.#publishedTopics ?? new Map());
         for (const { name, publisherIds } of event.publishedTopics) {
           newMap.set(name, new Set(publisherIds));
         }
@@ -682,7 +688,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this.#publishedTopics = newMap;
       }
       if (event.subscribedTopics.length > 0 || event.removedTopics.length > 0) {
-        const newMap: Map<string, Set<string>> = new Map(this.#subscribedTopics ?? new Map());
+        const newMap = new Map<string, Set<string>>(this.#subscribedTopics ?? new Map());
         for (const { name, subscriberIds } of event.subscribedTopics) {
           newMap.set(name, new Set(subscriberIds));
         }
@@ -690,7 +696,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this.#subscribedTopics = newMap;
       }
       if (event.advertisedServices.length > 0 || event.removedServices.length > 0) {
-        const newMap: Map<string, Set<string>> = new Map(this.#advertisedServices ?? new Map());
+        const newMap = new Map<string, Set<string>>(this.#advertisedServices ?? new Map());
         for (const { name, providerIds } of event.advertisedServices) {
           newMap.set(name, new Set(providerIds));
         }
@@ -883,7 +889,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
   public setPublishers(publishers: AdvertiseOptions[]): void {
     // Filter out duplicates.
-    const uniquePublications = uniqWith(publishers, isEqual);
+    const uniquePublications = _.uniqWith(publishers, _.isEqual);
 
     // Save publications and return early if we are not connected or the advertise capability is missing.
     if (
@@ -940,7 +946,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         {
           name: key,
           value: paramValueToSent as Parameter["value"],
-          type: isByteArray ? "byte_array" : undefined,
+          type: isByteArray ? "byte_array" : this.#parameterTypeByName.get(key),
         },
       ],
       uuidv4(),
@@ -1130,7 +1136,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
       // Try to retrieve the ROS message definition for this topic
       let msgdef: MessageDefinition[];
       try {
-        const datatypes = (options?.["datatypes"] as RosDatatypes | undefined) ?? this.#datatypes;
+        const datatypes =
+          (options?.["datatypes"] as MessageDefinitionMap | undefined) ?? this.#datatypes;
         if (!(datatypes instanceof Map)) {
           throw new Error("Datatypes option must be a map");
         }
@@ -1200,10 +1207,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
       });
     }
     this.#fetchAssetRequests.clear();
+    this.#parameterTypeByName.clear();
   }
 
   #updateDataTypes(datatypes: MessageDefinitionMap): void {
-    let updatedDatatypes: RosDatatypes | undefined = undefined;
+    let updatedDatatypes: MessageDefinitionMap | undefined = undefined;
     const maybeRos = ["ros1", "ros2"].includes(this.#profile ?? "");
     for (const [name, types] of datatypes) {
       const knownTypes = this.#datatypes.get(name);

@@ -13,7 +13,7 @@
 
 import { useTheme } from "@mui/material";
 import { TFunction } from "i18next";
-import { flatten } from "lodash";
+import * as _ from "lodash-es";
 import { ComponentProps, ReactNode, useLayoutEffect, useMemo, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -91,6 +91,7 @@ export type Fixture = {
   setSubscriptions?: ComponentProps<typeof MockMessagePipelineProvider>["setSubscriptions"];
   setParameter?: (key: string, value: ParameterValue) => void;
   fetchAsset?: ComponentProps<typeof MockMessagePipelineProvider>["fetchAsset"];
+  callService?: (service: string, request: unknown) => Promise<unknown>;
   messageConverters?: readonly RegisterMessageConverterArgs<unknown>[];
   panelState?: Partial<PanelStateStore>;
 };
@@ -274,6 +275,7 @@ function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull
     setSubscriptions,
     setParameter,
     fetchAsset,
+    callService,
   } = props.fixture ?? {};
   let dTypes = datatypes;
   if (!dTypes) {
@@ -285,7 +287,7 @@ function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull
     }
     dTypes = dummyDatatypes;
   }
-  const allData = flatten(Object.values(frame));
+  const allData = _.flatten(Object.values(frame));
 
   const inner = (
     <div
@@ -309,6 +311,7 @@ function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull
         setSubscriptions={setSubscriptions}
         setParameter={setParameter}
         fetchAsset={fetchAsset ?? defaultFetchAsset}
+        callService={callService}
       >
         <PanelCatalogContext.Provider value={mockPanelCatalog}>
           <AppConfigurationContext.Provider value={mockAppConfiguration}>
@@ -342,7 +345,7 @@ type Props = UnconnectedProps & {
 export default function PanelSetup(props: Props): JSX.Element {
   const theme = useTheme();
   return (
-    <WorkspaceContextProvider>
+    <WorkspaceContextProvider disablePersistenceForStorybook>
       <UserNodeStateProvider>
         <TimelineInteractionStateProvider>
           <MockCurrentLayoutProvider onAction={props.onLayoutAction}>

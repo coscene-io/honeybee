@@ -12,3 +12,5 @@ export * from "./layout";
 export * from "./threeDee";
 export * from "./settings";
 export * from "./help";
+export * from "./workspace";
+export * from "./appBar";

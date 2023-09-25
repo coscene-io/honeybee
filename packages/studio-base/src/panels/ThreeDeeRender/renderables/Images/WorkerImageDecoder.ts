@@ -19,7 +19,7 @@ import { Image as RosImage } from "../../ros";
  */
 export class WorkerImageDecoder {
   #worker: Worker;
-  #remote: Comlink.Remote<typeof import("./WorkerImageDecoder.worker")["service"]>;
+  #remote: Comlink.Remote<(typeof import("./WorkerImageDecoder.worker"))["service"]>;
 
   public constructor() {
     this.#worker = new Worker(
@@ -32,7 +32,10 @@ export class WorkerImageDecoder {
   /**
    * Copies `image` to the worker, and transfers the decoded result back to the main thread.
    */
-  public async decode(image: RosImage | RawImage, options: RawImageOptions): Promise<ImageData> {
+  public async decode(
+    image: RosImage | RawImage,
+    options: Partial<RawImageOptions>,
+  ): Promise<ImageData> {
     return await this.#remote.decode(image, options);
   }
 

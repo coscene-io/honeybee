@@ -127,9 +127,15 @@ function BagViewComponent(params: {
       className={cx(classes.bagBox, {
         [classes.unableToPlay]: !bag.startTime,
       })}
-      onClick={() => onClick(bag)}
-      onMouseEnter={() => onHoverStart(bag)}
-      onMouseLeave={() => onHoverEnd(bag)}
+      onClick={() => {
+        onClick(bag);
+      }}
+      onMouseEnter={() => {
+        onHoverStart(bag);
+      }}
+      onMouseLeave={() => {
+        onHoverEnd(bag);
+      }}
     >
       <div className={classes.bagInfo}>
         <span

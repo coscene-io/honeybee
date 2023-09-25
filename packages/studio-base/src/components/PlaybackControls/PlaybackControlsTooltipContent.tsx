@@ -4,7 +4,7 @@
 
 import { Divider, Typography } from "@mui/material";
 import dayjs from "dayjs";
-import { isEmpty } from "lodash";
+import * as _ from "lodash-es";
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -57,7 +57,7 @@ const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeD
 
 export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNull | JSX.Element {
   const { stamp } = params;
-  const { formatTime, timeFormat } = useAppTimeFormat();
+  const { timeFormat, formatTime } = useAppTimeFormat();
   const hoveredEvents = useTimelineInteractionState(selectHoveredEvents);
   const hoveredBags = useTimelineInteractionState(selectHoveredBags);
   const startTime = useMessagePipeline(selectStartTime);
@@ -72,7 +72,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
 
   const tooltipItems: PlaybackControlsTooltipItem[] = [];
 
-  if (!isEmpty(hoveredEvents)) {
+  if (!_.isEmpty(hoveredEvents)) {
     Object.values(hoveredEvents).forEach(({ event }) => {
       const eventStartTime = fromNanoSec(
         BigInt(event.getTriggerTime()!.getSeconds() * 1e9 + event.getTriggerTime()!.getNanos()),
@@ -95,7 +95,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
         value: formatTime(eventEndTime),
       });
 
-      if (!isEmpty(event.getCustomizedFieldsMap())) {
+      if (!_.isEmpty(event.getCustomizedFieldsMap())) {
         event.getCustomizedFieldsMap().forEach((val, key) => {
           tooltipItems.push({ type: "item", title: key, value: val });
         });
@@ -104,7 +104,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
     });
   }
 
-  if (!isEmpty(hoveredBags)) {
+  if (!_.isEmpty(hoveredBags)) {
     Object.values(hoveredBags).forEach((bag) => {
       if (bag.startTime && bag.endTime) {
         tooltipItems.push({

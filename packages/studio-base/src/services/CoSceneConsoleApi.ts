@@ -245,7 +245,7 @@ class CoSceneConsoleApi {
   }
 
   public async signout(): Promise<void> {
-    return await this.#post<void>("/v1/signout");
+    await this.#post<void>("/v1/signout");
   }
 
   public async deviceCode(args: DeviceCodeArgs): Promise<DeviceCodeResponse> {

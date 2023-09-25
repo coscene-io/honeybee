@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { isEqual, keyBy } from "lodash";
+import * as _ from "lodash-es";
 import { ReactNode, useState } from "react";
 import { createStore, StoreApi } from "zustand";
 
@@ -25,16 +25,15 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
       hoveredBag: undefined,
       hoverValue: undefined,
 
-      clearHoverValue: (componentId: string) =>
+      clearHoverValue: (componentId: string) => {
         set((store) => ({
           hoverValue: store.hoverValue?.componentId === componentId ? undefined : store.hoverValue,
-        })),
+        }));
+      },
 
-      setEventsAtHoverValue: (eventsAtHoverValue: TimelinePositionedEvent[]) =>
-        set({ eventsAtHoverValue: keyBy(eventsAtHoverValue, (event) => event.event.getName()) }),
-
-      setBagsAtHoverValue: (bagsAtHoverValue: BagFileInfo[]) =>
-        set({ bagsAtHoverValue: keyBy(bagsAtHoverValue, (bag) => bag.name) }),
+      setEventsAtHoverValue: (eventsAtHoverValue: TimelinePositionedEvent[]) => {
+        set({ eventsAtHoverValue: _.keyBy(eventsAtHoverValue, (event) => event.event.getName()) });
+      },
 
       setGlobalBounds: (
         newBounds:
@@ -64,6 +63,17 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
         }
       },
 
+      setHoverValue: (newValue: HoverValue) => {
+        set((store) => ({
+          hoverValue: _.isEqual(newValue, store.hoverValue) ? store.hoverValue : newValue,
+        }));
+      },
+
+      // CoScene
+      setBagsAtHoverValue: (bagsAtHoverValue: BagFileInfo[]) => {
+        set({ bagsAtHoverValue: _.keyBy(bagsAtHoverValue, (bag) => bag.name) });
+      },
+
       setHoveredBag(hoveredBag: undefined | BagFileInfo) {
         if (hoveredBag?.secondsSinceStart != undefined) {
           set({
@@ -78,11 +88,6 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
           set({ hoveredBag: undefined, hoverValue: undefined });
         }
       },
-
-      setHoverValue: (newValue: HoverValue) =>
-        set((store) => ({
-          hoverValue: isEqual(newValue, store.hoverValue) ? store.hoverValue : newValue,
-        })),
     };
   });
 }

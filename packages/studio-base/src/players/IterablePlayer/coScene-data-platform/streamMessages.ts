@@ -4,7 +4,7 @@
 
 import { McapStreamReader, McapTypes } from "@mcap/core";
 import { captureException } from "@sentry/core";
-import { isEqual } from "lodash";
+import * as _ from "lodash-es";
 
 import Logger from "@foxglove/log";
 import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/mcap-support";
@@ -72,7 +72,7 @@ export async function* streamMessages({
    * parsedChannelsByTopic (thus mutating parsedChannelsByTopic).
    */
   parsedChannelsByTopic: Map<string, ParsedChannelAndEncodings[]>;
-}): AsyncGenerator<MessageEvent<unknown>[]> {
+}): AsyncGenerator<MessageEvent[]> {
   const controller = new AbortController();
   const abortHandler = () => {
     log.debug("Manual abort of streamMessages", params);
@@ -93,7 +93,7 @@ export async function* streamMessages({
   }
 
   let totalMessages = 0;
-  let messages: MessageEvent<unknown>[] = [];
+  let messages: MessageEvent[] = [];
   const schemasById = new Map<number, McapTypes.TypedMcapRecords["Schema"]>();
   const channelInfoById = new Map<
     number,
@@ -133,7 +133,7 @@ export async function* streamMessages({
           if (
             info.messageEncoding === record.messageEncoding &&
             info.schemaEncoding === schema.encoding &&
-            isEqual(info.schema, schema.data)
+            _.isEqual(info.schema, schema.data)
           ) {
             channelInfoById.set(record.id, {
               channel: record,

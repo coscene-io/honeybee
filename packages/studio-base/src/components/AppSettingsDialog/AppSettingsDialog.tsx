@@ -42,6 +42,7 @@ import {
   AutoUpdate,
   ColorSchemeSettings,
   LanguageSettings,
+  LaunchDefault,
   MessageFramerate,
   RosPackagePath,
   TimeFormat,
@@ -123,13 +124,13 @@ const useStyles = makeStyles()((theme) => ({
 
 type SectionKey = "resources" | "products" | "contact" | "legal";
 
-const aboutItems: Map<
+const aboutItems = new Map<
   SectionKey,
   {
     subheader: string;
     links: { title: string; url?: string }[];
   }
-> = new Map([
+>([
   [
     "resources",
     {
@@ -264,6 +265,7 @@ export function AppSettingsDialog(
               <MessageFramerate />
               <LanguageSettings />
               {supportsAppUpdates && <AutoUpdate />}
+              {!isDesktopApp() && <LaunchDefault />}
               {isDesktopApp() && <RosPackagePath />}
             </Stack>
           </section>

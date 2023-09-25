@@ -4,6 +4,7 @@
 
 import { Menu, MenuItem, PaperProps, PopoverPosition, PopoverReference } from "@mui/material";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
@@ -51,6 +52,7 @@ export function UserMenu({
   const currentUserType = useCurrentUserType();
   const analytics = useAnalytics();
   const [confirm, confirmModal] = useConfirm();
+  const { t } = useTranslation("cosAppBar");
 
   const { dialogActions } = useWorkspaceActions();
 
@@ -60,14 +62,15 @@ export function UserMenu({
 
   const onSignoutClick = useCallback(() => {
     void confirm({
-      title: "Are you sure you want to sign out?",
-      ok: "Sign out",
+      title: t("signOutConfirmTitle"),
+      ok: t("signOutConfirmOk"),
+      cancel: t("signOutConfirmCancel"),
     }).then((response) => {
       if (response === "ok") {
         beginSignOut();
       }
     });
-  }, [beginSignOut, confirm]);
+  }, [beginSignOut, confirm, t]);
 
   const onSettingsClick = useCallback(
     (tab?: AppSettingsTab) => {
@@ -105,9 +108,15 @@ export function UserMenu({
         }
       >
         <MenuItem disabled>{userInfo?.nickName ?? "unknown"}</MenuItem>
-        <MenuItem onClick={() => onSettingsClick()}>Settings</MenuItem>
-        <MenuItem onClick={onDocsClick}>Documentation</MenuItem>
-        <MenuItem onClick={onSignoutClick}>Sign out</MenuItem>
+        <MenuItem
+          onClick={() => {
+            onSettingsClick();
+          }}
+        >
+          {t("settings")}
+        </MenuItem>
+        <MenuItem onClick={onDocsClick}>{t("documentation")}</MenuItem>
+        <MenuItem onClick={onSignoutClick}>{t("signOut")}</MenuItem>
       </Menu>
       {confirmModal}
     </>

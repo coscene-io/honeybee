@@ -3,23 +3,23 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { simplify } from "intervals-fn";
-import { isEqual } from "lodash";
+import * as _ from "lodash-es";
 
 import { Condvar } from "@foxglove/den/async";
 import { filterMap } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
 import {
   Time,
+  add,
+  clampTime,
+  fromNanoSec,
   subtract as subtractTimes,
   toNanoSec,
-  add,
-  fromNanoSec,
-  clampTime,
 } from "@foxglove/rostime";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import { IteratorCursor } from "@foxglove/studio-base/players/IterablePlayer/IteratorCursor";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
-import { MessageBlock, Progress } from "@foxglove/studio-base/players/types";
+import { MessageBlock, Progress, TopicSelection } from "@foxglove/studio-base/players/types";
 import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 
 import { IIterableSource, MessageIteratorArgs } from "./IIterableSource";
@@ -37,7 +37,7 @@ type BlockLoaderArgs = {
 };
 
 type CacheBlock = MessageBlock & {
-  needTopics: Immutable<Set<string>>;
+  needTopics: Immutable<TopicSelection>;
 };
 
 type Blocks = (CacheBlock | undefined)[];
@@ -55,7 +55,7 @@ export class BlockLoader {
   #start: Time;
   #end: Time;
   #blockDurationNanos: number;
-  #topics: Set<string> = new Set();
+  #topics: TopicSelection = new Map();
   #maxCacheSize: number = 0;
   #problemManager: PlayerProblemManager;
   #stopped: boolean = false;
@@ -85,13 +85,12 @@ export class BlockLoader {
     this.#blocks = Array.from({ length: blockCount });
   }
 
-  public setTopics(topics: Set<string>): void {
-    if (isEqual(topics, this.#topics)) {
+  public setTopics(topics: TopicSelection): void {
+    if (_.isEqual(topics, this.#topics)) {
       return;
     }
 
     this.#abortController.abort();
-    this.#topics = topics;
     this.#activeChangeCondvar.notifyAll();
     log.debug(`Preloaded topics: ${[...topics].join(", ")}`);
 
@@ -99,13 +98,19 @@ export class BlockLoader {
     for (const block of this.#blocks) {
       if (block) {
         const blockTopics = Object.keys(block.messagesByTopic);
-        const needTopics = new Set(topics);
+        const needTopics = new Map(topics);
         for (const topic of blockTopics) {
-          needTopics.delete(topic);
+          // We need the topic unless the subscription is identical to the subscription for this
+          // topic at the time the block was loaded.
+          if (this.#topics.get(topic) === topics.get(topic)) {
+            needTopics.delete(topic);
+          }
         }
         block.needTopics = needTopics;
       }
     }
+
+    this.#topics = topics;
   }
 
   /**
@@ -194,7 +199,7 @@ export class BlockLoader {
 
     for (let blockId = 0; blockId < this.#blocks.length; ++blockId) {
       // Topics we will fetch for this range
-      let topicsToFetch: Immutable<Set<string>>;
+      let topicsToFetch: Immutable<TopicSelection>;
 
       // Keep looking for a block that needs loading
       {
@@ -218,7 +223,7 @@ export class BlockLoader {
         const needTopics = this.#blocks[endIdx]?.needTopics ?? topics;
 
         // The topics we need to fetch no longer match the topics we need so we stop the range
-        if (!isEqual(topicsToFetch, needTopics)) {
+        if (!_.isEqual(topicsToFetch, needTopics)) {
           break;
         }
 
@@ -231,8 +236,8 @@ export class BlockLoader {
       const cursorStartTime = this.#blockIdToStartTime(blockId);
       const cursorEndTime = clampTime(this.#blockIdToEndTime(endBlockId), this.#start, this.#end);
 
-      const iteratorArgs: MessageIteratorArgs = {
-        topics: Array.from(topicsToFetch),
+      const iteratorArgs: Immutable<MessageIteratorArgs> = {
+        topics: topicsToFetch,
         start: cursorStartTime,
         end: cursorEndTime,
         consumptionType: "full",
@@ -267,7 +272,7 @@ export class BlockLoader {
         // Set all topics to empty arrays. Since our cursor requested all the topicsToFetch we either will
         // have message on the topic or we don't have message on the topic. Either way the topic entry
         // starts as an empty array.
-        for (const topic of topicsToFetch) {
+        for (const topic of topicsToFetch.keys()) {
           messagesByTopic[topic] = [];
         }
 
@@ -331,7 +336,7 @@ export class BlockLoader {
 
         const existingBlock = this.#blocks[currentBlockId];
         this.#blocks[currentBlockId] = {
-          needTopics: new Set(),
+          needTopics: new Map(),
           messagesByTopic: {
             ...existingBlock?.messagesByTopic,
             // Any new topics override the same previous topic
@@ -344,18 +349,18 @@ export class BlockLoader {
       }
 
       await cursor.end();
-      blockId = endBlockId + 1;
+      blockId = endBlockId;
     }
   }
 
-  #calculateProgress(topics: Set<string>): Progress {
+  #calculateProgress(topics: TopicSelection): Progress {
     const fullyLoadedFractionRanges = simplify(
       filterMap(this.#blocks, (thisBlock, blockIndex) => {
         if (!thisBlock) {
           return;
         }
 
-        for (const topic of topics) {
+        for (const topic of topics.keys()) {
           if (!thisBlock.messagesByTopic[topic]) {
             return;
           }

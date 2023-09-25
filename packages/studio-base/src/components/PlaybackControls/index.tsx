@@ -206,7 +206,7 @@ export default function PlaybackControls(props: {
     if (createEventShortcutKeys) {
       toggleCreateEventDialog();
     }
-  }, [toggleCreateEventDialog, createEventShortcutKeys]);
+  }, [toggleCreateEventDialog, createEventShortcutKeys, pause]);
 
   const disableControls = presence === PlayerPresence.ERROR;
 
@@ -262,7 +262,9 @@ export default function PlaybackControls(props: {
               title="Seek backward"
               icon={<Previous20Regular />}
               activeIcon={<Previous20Filled />}
-              onClick={() => seekBackwardAction()}
+              onClick={() => {
+                seekBackwardAction();
+              }}
             />
             <HoverableIconButton
               disabled={disableControls}
@@ -279,7 +281,9 @@ export default function PlaybackControls(props: {
               title="Seek forward"
               icon={<Next20Regular />}
               activeIcon={<Next20Filled />}
-              onClick={() => seekForwardAction()}
+              onClick={() => {
+                seekForwardAction();
+              }}
             />
           </Stack>
 

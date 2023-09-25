@@ -36,7 +36,9 @@ export function ProjectsSyncAdapter(): ReactNull {
   }, [consoleApi, setProject, urlState?.parameters?.warehouseId, urlState?.parameters?.projectId]);
 
   useEffect(() => {
-    syncProjects().catch((error) => log.error(error));
+    syncProjects().catch((error) => {
+      log.error(error);
+    });
   }, [syncProjects]);
 
   return ReactNull;

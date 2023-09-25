@@ -12,8 +12,9 @@
 //   You may not use this file except in compliance with the License.
 
 import { Mutex } from "async-mutex";
-import { isEqual, unionBy, uniq } from "lodash";
+import * as _ from "lodash-es";
 import memoizeWeak from "memoize-weak";
+import * as R from "ramda";
 import ReactDOM from "react-dom";
 import shallowequal from "shallowequal";
 import { v4 as uuidv4 } from "uuid";
@@ -23,6 +24,7 @@ import { filterMap } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
 import { Time, compare } from "@foxglove/rostime";
 import { ParameterValue } from "@foxglove/studio";
+import { mergeSubscriptions } from "@foxglove/studio-base/components/MessagePipeline/subscriptions";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { MemoizedLibGenerator } from "@foxglove/studio-base/players/UserNodePlayer/MemoizedLibGenerator";
@@ -286,7 +288,7 @@ export default class UserNodePlayer implements Player {
       return blocks;
     }
 
-    const allInputTopics = uniq(fullRegistrations.flatMap((reg) => reg.inputs));
+    const allInputTopics = _.uniq(fullRegistrations.flatMap((reg) => reg.inputs));
 
     const outputBlocks: (MessageBlock | undefined)[] = [];
     for (const block of blocks) {
@@ -331,6 +333,7 @@ export default class UserNodePlayer implements Player {
       // behavior.
       outputBlocks.push({
         messagesByTopic,
+        needTopics: block.needTopics,
         sizeInBytes: block.sizeInBytes,
       });
     }
@@ -407,7 +410,7 @@ export default class UserNodePlayer implements Player {
     typesLib: string,
   ): Promise<NodeRegistration> {
     for (const cacheEntry of state.nodeRegistrationCache) {
-      if (nodeId === cacheEntry.nodeId && isEqual(userNode, cacheEntry.userNode)) {
+      if (nodeId === cacheEntry.nodeId && _.isEqual(userNode, cacheEntry.userNode)) {
         return cacheEntry.result;
       }
     }
@@ -756,12 +759,12 @@ export default class UserNodePlayer implements Player {
     let changedTopicsRequireEmitState = false;
     state.nodeRegistrations = validNodeRegistrations;
     const nodeTopics = state.nodeRegistrations.map(({ output }) => output);
-    if (!isEqual(nodeTopics, this.#memoizedNodeTopics)) {
+    if (!_.isEqual(nodeTopics, this.#memoizedNodeTopics)) {
       this.#memoizedNodeTopics = nodeTopics;
       changedTopicsRequireEmitState = true;
     }
     const nodeDatatypes = state.nodeRegistrations.map(({ nodeData: { datatypes } }) => datatypes);
-    if (!isEqual(nodeDatatypes, this.#memoizedNodeDatatypes)) {
+    if (!_.isEqual(nodeDatatypes, this.#memoizedNodeDatatypes)) {
       this.#memoizedNodeDatatypes = nodeDatatypes;
       changedTopicsRequireEmitState = true;
     }
@@ -789,7 +792,7 @@ export default class UserNodePlayer implements Player {
     // necessary because we won't emit a new state otherwise if there are no other active
     // subscriptions.
     if (changedTopicsRequireEmitState && this.#playerState?.activeData) {
-      const newTopics = unionBy(
+      const newTopics = _.unionBy(
         this.#playerState.activeData.topics,
         this.#memoizedNodeTopics,
         (top) => top.name,
@@ -1021,7 +1024,9 @@ export default class UserNodePlayer implements Player {
     // Delay _player.setListener until our setListener is called because setListener in some cases
     // triggers initialization logic and remote requests. This is an unfortunate API behavior and
     // naming choice, but it's better for us not to do trigger this logic in the constructor.
-    this.#player.setListener(async (state) => await this.#onPlayerState(state));
+    this.#player.setListener(async (state) => {
+      await this.#onPlayerState(state);
+    });
   }
 
   public setSubscriptions(subscriptions: SubscribePayload[]): void {
@@ -1037,36 +1042,77 @@ export default class UserNodePlayer implements Player {
   }
 
   #setSubscriptionsUnlocked(subscriptions: SubscribePayload[], state: ProtectedState): void {
-    const nodeSubscriptions: Record<string, SubscribePayload> = {};
-    const realTopicSubscriptions: SubscribePayload[] = [];
+    // A mapping from the subscription to the input topics needed to satisfy
+    // that request.
+    type SubscriberInputs = [SubscribePayload, readonly string[] | undefined];
 
-    // For each subscription, identify required input topics by looking up the subscribed topic in
-    // the map of output topics -> inputs. Add these required input topics to the set of topic
-    // subscriptions to the underlying player.
-    for (const subscription of subscriptions) {
-      const inputs = state.inputsByOutputTopic.get(subscription.topic);
-      if (!inputs) {
-        nodeSubscriptions[subscription.topic] = subscription;
-        realTopicSubscriptions.push(subscription);
-        continue;
-      }
+    // Pair all subscriptions with their user script input topics (if any)
+    const payloadInputsPairs = R.pipe(
+      R.map((v: SubscribePayload): SubscriberInputs => [v, state.inputsByOutputTopic.get(v.topic)]),
+      R.filter(([, topics]: SubscriberInputs) => topics?.length !== 0),
+    )(subscriptions);
 
-      // If the inputs array is empty then we don't have anything to subscribe to for this output
-      if (inputs.length === 0) {
-        continue;
-      }
+    // An array of all of the input topics used by the user nodes referenced by
+    // `subscriptions`
+    const neededInputTopics = R.pipe(
+      R.chain(([, v]: SubscriberInputs): readonly string[] => v ?? []),
+      R.uniq,
+    )(payloadInputsPairs);
 
-      nodeSubscriptions[subscription.topic] = subscription;
-      for (const inputTopic of inputs) {
-        realTopicSubscriptions.push({
-          topic: inputTopic,
-          preloadType: subscription.preloadType ?? "partial",
-        });
-      }
-    }
+    // #nodeSubscriptions is a mapping from topic name to a SubscribePayload
+    // that contains the resolved preloadType--in other words, the kind of data
+    // (current or block) that this subscription needs
+    this.#nodeSubscriptions = R.pipe(
+      R.map(([subscription]: SubscriberInputs) => subscription),
+      // Gather all of the payloads into subscriptions for the same topic
+      R.groupBy((v: SubscribePayload) => v.topic),
+      // Consolidate subscriptions to the same topic down to a single payload
+      // and ignore `fields`
+      R.mapObjIndexed((payloads: SubscribePayload[] | undefined, topic): SubscribePayload => {
+        // If at least one preloadType is explicitly "full", we need "full",
+        // but default to "partial"
+        const hasFull = R.any((v: SubscribePayload) => v.preloadType === "full", payloads ?? []);
 
-    this.#nodeSubscriptions = nodeSubscriptions;
-    this.#player.setSubscriptions(realTopicSubscriptions);
+        return {
+          topic,
+          preloadType: hasFull ? "full" : "partial",
+        };
+      }),
+    )(payloadInputsPairs);
+
+    const resolvedSubscriptions = R.pipe(
+      R.chain(([subscription, topics]: SubscriberInputs): SubscribePayload[] => {
+        const preloadType = subscription.preloadType ?? "partial";
+
+        // Leave the subscription unmodified if it is not a user script topic
+        if (topics == undefined) {
+          // If this is an input to a user script, we need to upgrade it to a
+          // subscription of all the fields
+          if (neededInputTopics.includes(subscription.topic)) {
+            return [
+              {
+                topic: subscription.topic,
+                preloadType,
+              },
+            ];
+          }
+
+          return [subscription];
+        }
+
+        // Subscribe to all fields for all topics used by this user script
+        // because we can't know what fields the user script actually uses
+        // (for now)
+        return topics.map((v) => ({
+          topic: v,
+          preloadType,
+        }));
+      }),
+      mergeSubscriptions,
+    )(payloadInputsPairs);
+
+    // Merge subscriptions we pass on to the underlying player.
+    this.#player.setSubscriptions(resolvedSubscriptions);
   }
 
   public close = (): void => {
