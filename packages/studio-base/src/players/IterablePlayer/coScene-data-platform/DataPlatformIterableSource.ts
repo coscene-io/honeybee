@@ -198,6 +198,11 @@ export class DataPlatformIterableSource implements IIterableSource {
   ): AsyncIterableIterator<Readonly<IteratorResult>> {
     log.debug("message iterator", args);
 
+    const topics = args.topics;
+    const start = args.start ?? this.#start;
+    const end = args.end ?? this.#end;
+    const topicNames = Array.from(topics.keys());
+
     if (!this.#start || !this.#end) {
       throw new Error("DataPlatformIterableSource not initialized");
     }
@@ -206,13 +211,13 @@ export class DataPlatformIterableSource implements IIterableSource {
 
     // Data platform treats topic array length 0 as "all topics". Until that is changed, we filter out
     // empty topic requests
-    if (args.topics.length === 0) {
+    if (topics.size === 0 || !start || !end) {
       return;
     }
 
     // If the topics available to us don't overlap with the topics we know about then we avoid
     // making any requests since there's no data to return
-    const matchingTopics = args.topics.reduce((count, topicName) => {
+    const matchingTopics = topicNames.reduce((count, topicName) => {
       return this.#knownTopicNames.includes(topicName) ? count + 1 : count;
     }, 0);
     if (matchingTopics === 0) {
@@ -220,7 +225,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       return;
     }
 
-    const streamStart = args.start ?? this.#start;
+    const streamStart = start ?? this.#start;
     const streamEnd = clampTime(args.end ?? this.#end, this.#start, this.#end);
 
     if (args.consumptionType === "full") {
@@ -231,7 +236,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         revisionName: this.#params.revisionName,
         jobRunId: this.#params.jobRunId,
         projectName: this.#params.projectName,
-        topics: args.topics,
+        topics: topicNames,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
@@ -265,7 +270,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         revisionName: this.#params.revisionName,
         jobRunId: this.#params.jobRunId,
         projectName: this.#params.projectName,
-        topics: args.topics,
+        topics: topicNames,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
@@ -326,10 +331,10 @@ export class DataPlatformIterableSource implements IIterableSource {
     time,
     abortSignal,
     playbackQualityLevel,
-  }: GetBackfillMessagesArgs): Promise<MessageEvent<unknown>[]> {
+  }: GetBackfillMessagesArgs): Promise<MessageEvent[]> {
     // Data platform treats topic array length 0 as "all topics". Until that is changed, we filter out
     // empty topic requests
-    if (topics.length === 0) {
+    if (topics.keys.length === 0) {
       return [];
     }
 
@@ -341,13 +346,13 @@ export class DataPlatformIterableSource implements IIterableSource {
       jobRunId: this.#params.jobRunId,
       projectName: this.#params.projectName,
       playbackQualityLevel,
-      topics,
+      topics: Array.from(topics.keys()),
     };
 
     streamByParams.replayPolicy = "lastPerChannel";
     streamByParams.replayLookbackSeconds = 30 * 60;
 
-    const messages: MessageEvent<unknown>[] = [];
+    const messages: MessageEvent[] = [];
     for await (const block of streamMessages({
       api: this.#consoleApi,
       parsedChannelsByTopic: this.#parsedChannelsByTopic,

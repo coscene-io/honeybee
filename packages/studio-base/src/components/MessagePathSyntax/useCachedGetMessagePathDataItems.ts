@@ -72,8 +72,6 @@ export function useCachedGetMessagePathDataItems(
 
   const topicsByName = useMemo(() => _.keyBy(providerTopics, ({ name }) => name), [providerTopics]);
 
-  const topicsByName = useMemo(() => keyBy(providerTopics, ({ name }) => name), [providerTopics]);
-
   // Filter down topics and datatypes to only the ones we need to process the requested paths, so
   // our result can be dependent on the relevant topics only. Without this, adding topics/datatypes
   // dynamically would result in panels clearing out when their message reducers change as a result

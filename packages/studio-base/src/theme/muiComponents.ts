@@ -261,12 +261,6 @@ export default function muiComponents(theme: Theme): Theme["components"] & MuiLa
             2,
           )}) + ${theme.spacing(2)}))`,
         },
-        paper: {
-          // Prevent dialog from going underneath window title bar controls on Windows
-          maxHeight: `calc(100% - 2 * (env(titlebar-area-height, ${theme.spacing(
-            2,
-          )}) + ${theme.spacing(2)}))`,
-        },
       },
     },
     MuiDialogActions: {

@@ -82,7 +82,7 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
   const setEvents = useEvents(selectSetEvents);
   const setEventsAtHoverValue = useTimelineInteractionState(selectSetEventsAtHoverValue);
   const [hoverComponentId] = useState<string>(() => uuidv4());
-  const hoverValue = useHoverValue({ componentId: hoverComponentId, isTimestampScale: true });
+  const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const events = useEvents(selectEvents);

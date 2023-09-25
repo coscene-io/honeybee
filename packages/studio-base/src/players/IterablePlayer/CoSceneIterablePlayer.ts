@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import assert from "assert";
-import { isEqual } from "lodash";
+import * as _ from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
 
 import { debouncePromise } from "@foxglove/den/async";
@@ -32,6 +32,7 @@ import {
   PublishPayload,
   SubscribePayload,
   Topic,
+  TopicSelection,
   PlayerPresence,
   PlayerCapabilities,
   TopicStats,
@@ -137,16 +138,16 @@ export class CoSceneIterablePlayer implements Player {
   #profile: string | undefined;
   #metricsCollector: CoScenePlayerMetricsCollectorInterface;
   #subscriptions: SubscribePayload[] = [];
-  #allTopics: Set<string> = new Set();
-  #preloadTopics: Set<string> = new Set();
+  #allTopics: TopicSelection = new Map();
+  #preloadTopics: TopicSelection = new Map();
 
   #progress: Progress = {};
   #id: string = uuidv4();
-  #messages: MessageEvent<unknown>[] = [];
+  #messages: MessageEvent[] = [];
   #receivedBytes: number = 0;
   #hasError = false;
   #lastRangeMillis?: number;
-  #lastMessageEvent?: MessageEvent<unknown>;
+  #lastMessageEvent?: MessageEvent;
   #lastStamp?: Time;
   #publishedTopics = new Map<string, Set<string>>();
   #seekTarget?: Time;
@@ -176,6 +177,10 @@ export class CoSceneIterablePlayer implements Player {
 
   #untilTime?: Time;
 
+  /** Promise that resolves when the player is closed. Only used for testing currently */
+  public readonly isClosed: Promise<void>;
+  #resolveIsClosed: () => void = () => {};
+
   public constructor(options: IterablePlayerOptions) {
     const {
       metricsCollector,
@@ -197,6 +202,10 @@ export class CoSceneIterablePlayer implements Player {
     this.#metricsCollector.playerConstructed();
     this.#enablePreload = enablePreload ?? true;
     this.#sourceId = sourceId;
+
+    this.isClosed = new Promise((resolveClose) => {
+      this.#resolveIsClosed = resolveClose;
+    });
 
     // Wrap emitStateImpl in a debouncePromise for our states to call. Since we can emit from states
     // or from block loading updates we use debouncePromise to guard against concurrent emits.
@@ -220,7 +229,7 @@ export class CoSceneIterablePlayer implements Player {
   }
 
   #startPlayImpl(opt?: { untilTime: Time }): void {
-    if (this.#isPlaying || this.#untilTime) {
+    if (this.#isPlaying || this.#untilTime != undefined) {
       return;
     }
 
@@ -237,6 +246,8 @@ export class CoSceneIterablePlayer implements Player {
     // finish and it will see that we should be playing
     if (this.#state === "idle" && (!this.#nextState || this.#nextState === "idle")) {
       this.#setState("play");
+    } else {
+      this.#queueEmitState(); // update isPlaying state to UI
     }
   }
 
@@ -249,8 +260,11 @@ export class CoSceneIterablePlayer implements Player {
     this.#lastTickMillis = undefined;
     this.#isPlaying = false;
     this.#untilTime = undefined;
+    this.#lastRangeMillis = undefined;
     if (this.#state === "play") {
       this.#setState("idle");
+    } else {
+      this.#queueEmitState(); // update isPlaying state to UI
     }
   }
 
@@ -287,6 +301,8 @@ export class CoSceneIterablePlayer implements Player {
 
     this.#seekTarget = targetTime;
     this.#untilTime = undefined;
+    this.#lastTickMillis = undefined;
+    this.#lastRangeMillis = undefined;
 
     this.#setState("seek-backfill");
   }
@@ -295,15 +311,17 @@ export class CoSceneIterablePlayer implements Player {
     log.debug("set subscriptions", newSubscriptions);
     this.#subscriptions = newSubscriptions;
 
-    const allTopics = new Set(this.#subscriptions.map((subscription) => subscription.topic));
-    const preloadTopics = new Set(
+    const allTopics: TopicSelection = new Map(
+      this.#subscriptions.map((subscription) => [subscription.topic, subscription]),
+    );
+    const preloadTopics = new Map(
       filterMap(this.#subscriptions, (sub) =>
-        sub.preloadType !== "partial" ? sub.topic : undefined,
+        sub.preloadType === "full" ? [sub.topic, sub] : undefined,
       ),
     );
 
     // If there are no changes to topics there's no reason to perform a "seek" to trigger loading
-    if (isEqual(allTopics, this.#allTopics) && isEqual(preloadTopics, this.#preloadTopics)) {
+    if (_.isEqual(allTopics, this.#allTopics) && _.isEqual(preloadTopics, this.#preloadTopics)) {
       return;
     }
 
@@ -318,6 +336,8 @@ export class CoSceneIterablePlayer implements Player {
       if (!this.#isPlaying && this.#currentTime) {
         this.#seekTarget ??= this.#currentTime;
         this.#untilTime = undefined;
+        this.#lastTickMillis = undefined;
+        this.#lastRangeMillis = undefined;
 
         // Trigger a seek backfill to load any missing messages and reset the forward iterator
         this.#setState("seek-backfill");
@@ -351,6 +371,10 @@ export class CoSceneIterablePlayer implements Player {
 
   /** Request the state to switch to newState */
   #setState(newState: IterablePlayerState) {
+    // nothing should override closing the player
+    if (this.#nextState === "close") {
+      return;
+    }
     log.debug(`Set next state: ${newState}`);
     this.#nextState = newState;
     this.#abort?.abort();
@@ -531,7 +555,9 @@ export class CoSceneIterablePlayer implements Player {
       this.#blockLoader?.setTopics(this.#preloadTopics);
 
       // Block loadings is constantly running and tries to keep the preloaded messages in memory
-      this.#blockLoadingProcess = this.#startBlockLoading();
+      this.#blockLoadingProcess = this.#startBlockLoading().catch((err) => {
+        this.#setError((err as Error).message, err as Error);
+      });
 
       this.#setState("start-play");
     }
@@ -555,7 +581,7 @@ export class CoSceneIterablePlayer implements Player {
 
     log.debug("Initializing forward iterator from", next);
     this.#playbackIterator = this.#bufferedSource.messageIterator({
-      topics: Array.from(this.#allTopics),
+      topics: this.#allTopics,
       start: next,
       consumptionType: "partial",
       playbackQualityLevel,
@@ -598,7 +624,7 @@ export class CoSceneIterablePlayer implements Player {
 
     log.debug("Initializing forward iterator from", this.#start);
     this.#playbackIterator = this.#bufferedSource.messageIterator({
-      topics: Array.from(this.#allTopics),
+      topics: this.#allTopics,
       start: this.#start,
       consumptionType: "partial",
       playbackQualityLevel,
@@ -672,8 +698,11 @@ export class CoSceneIterablePlayer implements Player {
 
     this.#lastMessageEvent = undefined;
 
-    // If the backfill does not complete within 100 milliseconds, we emit a seek event with no messages.
-    // This provides feedback to the user that we've acknowledged their seek request but haven't loaded the data.
+    // If the backfill does not complete within 100 milliseconds, we emit with no messages to
+    // indicate buffering. This provides feedback to the user that we've acknowledged their seek
+    // request but haven't loaded the data.
+    //
+    // Note: we explicitly avoid setting _lastSeekEmitTime so panels do not reset visualizations
     const seekAckTimeout = setTimeout(() => {
       this.#presence = PlayerPresence.BUFFERING;
       this.#messages = [];
@@ -682,14 +711,12 @@ export class CoSceneIterablePlayer implements Player {
       this.#queueEmitState();
     }, 100);
 
-    const topics = Array.from(this.#allTopics);
-
     try {
       this.#abort = new AbortController();
       const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
         getPlaybackQualityLevelByLocalStorage();
       const messages = await this.#bufferedSource.getBackfillMessages({
-        topics,
+        topics: this.#allTopics,
         time: targetTime,
         abortSignal: this.#abort.signal,
         playbackQualityLevel,
@@ -710,7 +737,7 @@ export class CoSceneIterablePlayer implements Player {
       await this.#resetPlaybackIterator();
       this.#setState(this.#isPlaying ? "play" : "idle");
     } catch (err) {
-      if (this.#nextState && err instanceof DOMException && err.name === "AbortError") {
+      if (this.#nextState && err.name === "AbortError") {
         log.debug("Aborted backfill");
       } else {
         throw err;
@@ -732,7 +759,7 @@ export class CoSceneIterablePlayer implements Player {
     }
 
     if (this.#hasError) {
-      return await this.#listener({
+      await this.#listener({
         name: this.#name,
         presence: PlayerPresence.ERROR,
         progress: {},
@@ -746,6 +773,7 @@ export class CoSceneIterablePlayer implements Player {
           parameters: this.#urlParams,
         },
       });
+      return;
     }
 
     const messages = this.#messages;
@@ -784,7 +812,7 @@ export class CoSceneIterablePlayer implements Player {
       },
     };
 
-    return await this.#listener(data);
+    await this.#listener(data);
   }
 
   /**
@@ -951,7 +979,9 @@ export class CoSceneIterablePlayer implements Player {
     };
 
     const abort = (this.#abort = new AbortController());
-    const aborted = new Promise((resolve) => abort.signal.addEventListener("abort", resolve));
+    const aborted = new Promise((resolve) => {
+      abort.signal.addEventListener("abort", resolve);
+    });
 
     const rangeChangeHandler = () => {
       this.#progress = {
@@ -1040,6 +1070,7 @@ export class CoSceneIterablePlayer implements Player {
     await this.#playbackIterator?.return?.();
     this.#playbackIterator = undefined;
     await this.#iterableSource.terminate?.();
+    this.#resolveIsClosed();
   }
 
   async #startBlockLoading() {
@@ -1049,6 +1080,11 @@ export class CoSceneIterablePlayer implements Player {
           fullyLoadedFractionRanges: this.#progress.fullyLoadedFractionRanges,
           messageCache: progress.messageCache,
         };
+
+        // If we are in playback, we will let playback queue state updates
+        if (this.#state === "play") {
+          return;
+        }
 
         this.#queueEmitState();
       },

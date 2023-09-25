@@ -131,6 +131,7 @@
     "jest-canvas-mock": "2.5.2",
     "jest-diff": "29.7.0",
     "jszip": "3.10.1",
+    "just-diff": "6.0.2",
     "keyboardjs": "2.7.0",
     "leaflet": "1.9.4",
     "leaflet-ellipse": "0.9.1",

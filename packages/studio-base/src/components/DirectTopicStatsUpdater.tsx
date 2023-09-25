@@ -95,18 +95,6 @@ export function DirectTopicStatsUpdater({ interval = 1 }: { interval?: number })
           }
         }
       }
-
-      if (field.dataset.topicStat === "frequency") {
-        const frequency = latestFrequenciesByTopic.current[topic];
-        if (frequency != undefined) {
-          field.innerText = `${frequency.toFixed(2)} Hz`;
-        }
-      }
-
-      if (field.dataset.topicStat === "frequency") {
-        const frequency = latestFrequenciesByTopic.current[topic];
-        field.innerText = frequency != undefined ? `${frequency.toFixed(2)} Hz` : EM_DASH;
-      }
     });
     observer.observe(rootRef.current.parentElement, { childList: true, subtree: true });
     return () => {
