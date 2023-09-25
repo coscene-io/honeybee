@@ -13,7 +13,7 @@ import { useDebounce } from "use-debounce";
 
 import { DraggedMessagePath } from "@foxglove/studio";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
-import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
+// import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import {
   MessagePipelineContext,
@@ -220,7 +220,8 @@ export function TopicList(): JSX.Element {
             {playerPresence === PlayerPresence.RECONNECTING && t("waitingForConnection")}
           </EmptyState>
         )}
-        <DirectTopicStatsUpdater interval={6} />
+        {/* coScene 防止频率数值覆盖 */}
+        {/* <DirectTopicStatsUpdater interval={6} /> */}
       </div>
     </MessagePathSelectionProvider>
   );

@@ -105,7 +105,11 @@ export function TopicRow({
           )}
         </Typography>
       </Stack>
-      <TopicStatsChip topicName={topic.name} />
+      <TopicStatsChip
+        topicName={topic.name}
+        messageFrequency={topic.messageFrequency ?? 0}
+        messageCount={topic.messageCount ?? 0}
+      />
       <div data-testid="TopicListDragHandle" className={classes.dragHandle}>
         <ReOrderDotsVertical16Regular />
       </div>

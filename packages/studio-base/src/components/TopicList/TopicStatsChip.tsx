@@ -39,17 +39,25 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export function TopicStatsChip({ topicName }: { topicName: string }): JSX.Element {
+export function TopicStatsChip({
+  topicName,
+  messageFrequency,
+  messageCount,
+}: {
+  topicName: string;
+  messageFrequency: number;
+  messageCount: number;
+}): JSX.Element {
   const { classes } = useStyles();
 
   return (
     <Paper variant="outlined" className={classes.root}>
       <div className={classes.stat} data-topic={topicName} data-topic-stat="frequency">
-        &ndash;
+        {messageFrequency}
       </div>
       <Divider className={classes.divider} orientation="vertical" flexItem />
       <div className={classes.stat} data-topic={topicName} data-topic-stat="count">
-        &ndash;
+        {messageCount}
       </div>
     </Paper>
   );
