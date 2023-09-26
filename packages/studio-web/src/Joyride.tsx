@@ -3,11 +3,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Joyride, { Step } from "react-joyride";
 
 export function JoyrideWrapper(): JSX.Element {
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const { t } = useTranslation("cosGuide");
   const isDemoSite =
     localStorage.getItem("demoSite") === "true" &&
     localStorage.getItem("honeybeeDemoStatus") === "start";
@@ -41,11 +43,11 @@ export function JoyrideWrapper(): JSX.Element {
                 fontWeight: "700",
               }}
             >
-              播放记录
+              {t("playbackRecord")}
             </span>{" "}
             （1/10）
           </div>
-          <div>点击开始播放</div>
+          <div>{t("clickToStartPlaying")}</div>
         </div>
       ),
       target: "#play-pause-button",
@@ -64,11 +66,11 @@ export function JoyrideWrapper(): JSX.Element {
                 fontWeight: "700",
               }}
             >
-              三维视图
+              {t("threeDeeView")}
             </span>{" "}
             （2/10）
           </div>
-          <div>展示激光点云，运动状态，地图等信息</div>
+          <div>{t("threeDeeViewDesc")}</div>
         </div>
       ),
       target:
@@ -87,11 +89,11 @@ export function JoyrideWrapper(): JSX.Element {
                 fontWeight: "700",
               }}
             >
-              实时视频
+              {t("liveVideo")}
             </span>{" "}
             （3/10）
           </div>
-          <div>展示摄像头信息</div>
+          <div>{t("liveVideoDesc")}</div>
         </div>
       ),
       target: ".mosaic-tile .mosaic-tile .mosaic-tile .mosaic-tile",
@@ -109,11 +111,11 @@ export function JoyrideWrapper(): JSX.Element {
                 fontWeight: "700",
               }}
             >
-              日志
+              {t("log")}
             </span>{" "}
             （4/10）
           </div>
-          <div>机器日志，实时滚动播放</div>
+          <div>{t("logDesc")}</div>
         </div>
       ),
       target:
@@ -133,11 +135,11 @@ export function JoyrideWrapper(): JSX.Element {
                 fontWeight: "700",
               }}
             >
-              规划信息
+              {t("planningInformation")}
             </span>{" "}
             （5/10）
           </div>
-          <div>地图与路径规划</div>
+          <div>{t("planningInformationDesc")}</div>
         </div>
       ),
       target: ".mosaic-root  .mosaic-root > .mosaic-tile",
@@ -155,11 +157,11 @@ export function JoyrideWrapper(): JSX.Element {
                 fontWeight: "700",
               }}
             >
-              下发速度
+              {t("dispatchSpeed")}
             </span>{" "}
             （6/10）
           </div>
-          <div>机器速度曲线图</div>
+          <div>{t("dispatchSpeedDesc")}</div>
         </div>
       ),
       target: ".mosaic-root  .mosaic-root > .mosaic-tile",
@@ -177,11 +179,11 @@ export function JoyrideWrapper(): JSX.Element {
                 fontWeight: "700",
               }}
             >
-              原始消息
+              {t("originalMessage")}
             </span>{" "}
             （7/10）
           </div>
-          <div>机器原始数据</div>
+          <div>{t("originalMessageDesc")}</div>
         </div>
       ),
       target: ".mosaic-root  .mosaic-root > .mosaic-tile",
@@ -205,11 +207,11 @@ export function JoyrideWrapper(): JSX.Element {
                 fontWeight: "700",
               }}
             >
-              创建一刻
+              {t("createMoment")}
             </span>{" "}
             （8/10）
           </div>
-          <div>点击创建“一刻”，标记发生故障的关键帧</div>
+          <div>{t("createMomentDesc")}</div>
         </div>
       ),
       target: "#create-moment-dialog-button",
@@ -229,11 +231,11 @@ export function JoyrideWrapper(): JSX.Element {
                 fontWeight: "700",
               }}
             >
-              创建一刻
+              {t("createMoment")}
             </span>{" "}
             （9/10）
           </div>
-          <div>在弹窗中填写一刻的名称、持续时间、描述等信息，即可完成一刻的创建</div>
+          <div>{t("createMomentFormDesc")}</div>
         </div>
       ),
       target: "#create-moment",
@@ -253,13 +255,11 @@ export function JoyrideWrapper(): JSX.Element {
                 fontWeight: "700",
               }}
             >
-              创建任务
+              {t("createTask")}
             </span>{" "}
             （10/10）
           </div>
-          <div>
-            在弹窗中填写任务的名称、描述、经办人等信息，即完成任务的创建；默认“经办人”为您自己
-          </div>
+          <div>{t("createTaskDesc")}</div>
         </div>
       ),
       target: "#create-task-btn",
@@ -278,10 +278,10 @@ export function JoyrideWrapper(): JSX.Element {
       stepIndex={stepIndex}
       run={isDemoSite ? run : false}
       locale={{
-        back: "上一步",
-        next: "下一步",
-        skip: "全部跳过",
-        last: "下一步",
+        back: t("previousStep"),
+        next: t("nextStep"),
+        skip: t("skipAll"),
+        last: t("nextStep"),
       }}
       callback={(data) => {
         const { action, index, lifecycle } = data;

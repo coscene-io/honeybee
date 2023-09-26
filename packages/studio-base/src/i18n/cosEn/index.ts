@@ -14,3 +14,4 @@ export * from "./settings";
 export * from "./help";
 export * from "./workspace";
 export * from "./appBar";
+export * from "./guide";
