@@ -332,7 +332,7 @@ export class DataPlatformIterableSource implements IIterableSource {
   }: GetBackfillMessagesArgs): Promise<MessageEvent[]> {
     // Data platform treats topic array length 0 as "all topics". Until that is changed, we filter out
     // empty topic requests
-    if (topics.keys.length === 0) {
+    if (topics.size === 0) {
       return [];
     }
 
