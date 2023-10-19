@@ -40,4 +40,8 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   createTaskFailed: "创建任务失败",
   createMomentSuccess: "创建一刻成功",
   createMomentFailed: "创建一刻失败",
+  syncTaskFailed: "同步任务失败",
+  syncTaskSuccess: "同步任务成功",
+  syncTask: "同步任务",
+  syncTaskTooltip: "未检测到集成服务配置信息，请前往 项目管理 > 集成服务 进行配置",
 };

@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import {
   Autocomplete,
   Alert,
@@ -15,6 +16,9 @@ import {
   FormControl,
   TextField,
   Typography,
+  FormControlLabel,
+  Checkbox,
+  Tooltip,
 } from "@mui/material";
 import { useSnackbar } from "notistack";
 import PinyinMatch from "pinyin-match";
@@ -49,9 +53,11 @@ const useStyles = makeStyles()(() => ({
 export function CreateTaskDialog({
   onClose,
   initialTask,
+  event,
 }: {
   onClose: () => void;
   initialTask: { title: string; eventName: string; description: string };
+  event: Event;
 }): JSX.Element {
   const isDemoSite =
     localStorage.getItem("demoSite") === "true" &&
@@ -65,6 +71,7 @@ export function CreateTaskDialog({
   const recordInfo = useRecord(selectRecord);
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
   const { enqueueSnackbar } = useSnackbar();
+  const [needSyncTask, setNeedSyncTask] = useImmer<boolean>(false);
 
   const [task, setTask] = useImmer<{
     title: string;
@@ -86,6 +93,23 @@ export function CreateTaskDialog({
     },
     [createMomentBtnRef],
   );
+
+  const { value: syncedTask } = useAsync(async () => {
+    const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}/ticketSystem`;
+    return await consoleApi.getTicketSystemMetadata({ parent });
+  });
+
+  const jiraEnabled = syncedTask?.getJiraEnabled() === true;
+  const onesEnabled = syncedTask?.getOnesEnabled() === true;
+
+  const [, syncTask] = useAsyncFn(async (name: string) => {
+    try {
+      await consoleApi.syncTask({ name });
+      enqueueSnackbar(t("syncTaskSuccess"), { variant: "success" });
+    } catch (e) {
+      enqueueSnackbar(t("syncTaskFailed"), { variant: "error" });
+    }
+  });
 
   const [createdTask, createTask] = useAsyncFn(async () => {
     const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
@@ -137,13 +161,33 @@ export function CreateTaskDialog({
         },
       }) ?? task.description;
     try {
-      await consoleApi.createTask({ parent, record, task: { ...task, description } });
+      const newTask = await consoleApi.createTask({
+        parent,
+        record,
+        task: { ...task, description },
+        event,
+      });
       enqueueSnackbar(t("createTaskSuccess"), { variant: "success" });
+      if (needSyncTask) {
+        await syncTask(newTask.getName());
+      }
       onClose();
     } catch (e) {
       enqueueSnackbar(t("createTaskFailed"), { variant: "error" });
     }
-  }, [consoleApi, urlState, task, onClose, eventName, recordInfo.value, enqueueSnackbar, t]);
+  }, [
+    consoleApi,
+    urlState,
+    task,
+    onClose,
+    eventName,
+    recordInfo.value,
+    enqueueSnackbar,
+    t,
+    event,
+    needSyncTask,
+    syncTask,
+  ]);
 
   const { value: users } = useAsync(async () => {
     return await consoleApi.listOrganizationUsers();
@@ -214,6 +258,42 @@ export function CreateTaskDialog({
             onKeyDown={onMetaDataKeyDown}
           />
         </FormControl>
+      </Stack>
+      <Stack paddingX={3} paddingTop={2}>
+        {!jiraEnabled && !onesEnabled ? (
+          <Tooltip title={t("syncTaskTooltip")} placement="top-start">
+            <FormControlLabel
+              disableTypography
+              checked={needSyncTask}
+              control={
+                <Checkbox
+                  size="medium"
+                  checked={needSyncTask}
+                  onChange={(e) => {
+                    setNeedSyncTask(e.target.checked);
+                  }}
+                  disabled={true}
+                />
+              }
+              label={t("syncTask")}
+            />
+          </Tooltip>
+        ) : (
+          <FormControlLabel
+            disableTypography
+            checked={needSyncTask}
+            control={
+              <Checkbox
+                size="medium"
+                checked={needSyncTask}
+                onChange={(e) => {
+                  setNeedSyncTask(e.target.checked);
+                }}
+              />
+            }
+            label={t("syncTask")}
+          />
+        )}
       </Stack>
       <DialogActions>
         <Button variant="outlined" size="large" onClick={onClose}>
