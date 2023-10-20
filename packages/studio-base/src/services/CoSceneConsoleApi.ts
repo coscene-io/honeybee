@@ -24,8 +24,8 @@ import {
   UpsertTaskRequest,
   GetTicketSystemMetadataRequest,
   SyncTaskRequest,
+  TicketSystemMetadata,
 } from "@coscene-io/coscene/proto/v1alpha2";
-import { TicketSystemMetadata } from "@coscene-io/coscene/proto/v1alpha2";
 import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
 import { Revision } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/revision_pb";
