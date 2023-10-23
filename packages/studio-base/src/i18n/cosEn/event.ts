@@ -38,4 +38,9 @@ export const cosEvent = {
   createTaskFailed: "Create task failed",
   createMomentSuccess: "Create moment success",
   createMomentFailed: "Create moment failed",
+  syncTaskFailed: "Sync task failed",
+  syncTaskSuccess: "Sync task success",
+  syncTask: "Sync task",
+  syncTaskTooltip:
+    "No integration service configuration information detected, go to Project Management > Integration Services to configure it",
 };

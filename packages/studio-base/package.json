@@ -14,7 +14,7 @@
   "homepage": "https://foxglove.dev/",
   "main": "src/index",
   "devDependencies": {
-    "@coscene-io/coscene": "0.3.84",
+    "@coscene-io/coscene": "0.3.119",
     "@emotion/cache": "11.11.0",
     "@emotion/react": "11.11.1",
     "@emotion/styled": "11.11.0",

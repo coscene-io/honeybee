@@ -20,8 +20,11 @@ import {
   UpdateEventRequest,
   GetRecordRequest,
   Record as CoSceneRecord,
-  CreateTaskRequest,
   Task,
+  UpsertTaskRequest,
+  GetTicketSystemMetadataRequest,
+  SyncTaskRequest,
+  TicketSystemMetadata,
 } from "@coscene-io/coscene/proto/v1alpha2";
 import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
@@ -580,6 +583,7 @@ class CoSceneConsoleApi {
     parent,
     record,
     task,
+    event,
   }: {
     parent: string;
     record: string;
@@ -589,6 +593,7 @@ class CoSceneConsoleApi {
       assignee: string;
       assigner: string;
     };
+    event: Event;
   }): Promise<Task> {
     const currentUser = await this.getUser("users/current");
     const newTask = new Task()
@@ -601,9 +606,25 @@ class CoSceneConsoleApi {
       .setAssignee(task.assignee)
       .setAssigner(currentUser.getName());
 
-    const request = new CreateTaskRequest().setParent(parent).setTask(newTask);
-    const result = await CsWebClient.getTaskClient().createTask(request);
+    const request = new UpsertTaskRequest().setParent(parent).setTask(newTask).setEvent(event);
+    const result = await CsWebClient.getTaskClient().upsertTask(request);
     return result;
+  }
+
+  public async getTicketSystemMetadata({
+    parent,
+  }: {
+    parent: string;
+  }): Promise<TicketSystemMetadata> {
+    const request = new GetTicketSystemMetadataRequest().setName(parent);
+    const result = await CsWebClient.getTicketSystemClient().getTicketSystemMetadata(request);
+    return result;
+  }
+
+  public async syncTask({ name }: { name: string }): Promise<void> {
+    const req = new SyncTaskRequest().setName(name);
+
+    await CsWebClient.getTaskClient().syncTask(req);
   }
 
   public async listOrganizationUsers(): Promise<CoUser[]> {

@@ -138,6 +138,8 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     description: "",
   });
 
+  const [targetEvent, setTargetEvent] = useState<Event | undefined>(undefined);
+
   const updateMetadata = useCallback(
     (index: number, updateType: keyof KeyValue, value: string) => {
       setEvent((draft) => {
@@ -227,6 +229,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       });
 
       const eventName = result.getName();
+      setTargetEvent(result);
       if (event.enabledCreateNewTask) {
         setTask({
           enabled: true,
@@ -527,7 +530,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
           )}
         </Dialog>
       )}
-      {task.enabled && (
+      {task.enabled && targetEvent && (
         <CreateTaskDialog
           initialTask={{
             title: task.title,
@@ -538,6 +541,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
             setTask({ enabled: false, eventName: "", title: "", description: "" });
             onClose();
           }}
+          event={targetEvent}
         />
       )}
     </>
