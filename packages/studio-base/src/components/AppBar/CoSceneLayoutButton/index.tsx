@@ -315,8 +315,8 @@ export function CoSceneLayoutButton(): JSX.Element {
       } else {
         setSelectedLayoutId(item.id);
         dispatch({ type: "select-id", id: item.id });
+        setMenuOpen(false);
       }
-      setMenuOpen(false);
     },
     [
       analytics,

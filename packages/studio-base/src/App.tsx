@@ -33,8 +33,10 @@ import { IDataSourceFactory } from "./context/CoScenePlayerSelectionContext";
 import NativeAppMenuContext, { INativeAppMenu } from "./context/NativeAppMenuContext";
 import NativeWindowContext, { INativeWindow } from "./context/NativeWindowContext";
 import { UserNodeStateProvider } from "./context/UserNodeStateContext";
+import CoSceneConsoleApiRemoteLayoutStorageProvider from "./providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
 import LayoutManagerProvider from "./providers/CoSceneLayoutManagerProvider";
 import CoSceneUserProfileLocalStorageProvider from "./providers/CoSceneUserProfileLocalStorageProvider";
+import CoSceneUserProvider from "./providers/CoSceneUserProvider";
 import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
 import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
@@ -92,7 +94,11 @@ export function App(props: AppProps): JSX.Element {
   const providers = [
     /* eslint-disable react/jsx-key */
     <CoSceneUserProfileLocalStorageProvider />,
+    <CoSceneUserProvider />,
     <CoSceneConsoleApiContext.Provider value={consoleApi} />,
+    <CoSceneConsoleApiRemoteLayoutStorageProvider />,
+    <LayoutStorageContext.Provider value={layoutStorage} />,
+    <LayoutManagerProvider />,
     <TimelineInteractionStateProvider />,
     <UserNodeStateProvider />,
     <CoSceneCurrentLayoutProvider />,
@@ -113,13 +119,13 @@ export function App(props: AppProps): JSX.Element {
     providers.push(<NativeWindowContext.Provider value={nativeWindow} />);
   }
 
-  if (extraProviders) {
-    providers.unshift(...extraProviders);
-  } else {
-    // Extra providers have their own layout providers
-    providers.unshift(<LayoutManagerProvider />);
-    providers.unshift(<LayoutStorageContext.Provider value={layoutStorage} />);
-  }
+  // if (extraProviders) {
+  //   providers.unshift(...extraProviders);
+  // } else {
+  // Extra providers have their own layout providers
+  // providers.unshift(<LayoutManagerProvider />);
+  // providers.unshift(<LayoutStorageContext.Provider value={layoutStorage} />);
+  // }
 
   // The toast and logs provider comes first so they are available to all downstream providers
   providers.unshift(<StudioToastProvider />);

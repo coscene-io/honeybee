@@ -9,6 +9,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useCurrentUserType } from "@foxglove/studio-base/context/CurrentUserContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
@@ -20,22 +21,13 @@ const useStyles = makeStyles()({
   },
 });
 
-export type UserInfo = {
-  agreedAgreement: string;
-  avatarUrl: string;
-  nickName: string;
-  phoneNumber: string;
-  role: string;
-  userId: string;
-};
-
 type UserMenuProps = {
   handleClose: () => void;
   anchorEl?: HTMLElement;
   anchorReference?: PopoverReference;
   anchorPosition?: PopoverPosition;
   disablePortal?: boolean;
-  userInfo?: UserInfo;
+  userInfo?: User;
   open: boolean;
 };
 
