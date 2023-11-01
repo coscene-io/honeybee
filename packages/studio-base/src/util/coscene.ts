@@ -3,8 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // coScene custom tools
-import { createPromiseClient, PromiseClient } from "@bufbuild/connect";
-import { Interceptor } from "@bufbuild/connect";
+import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
 import { ServiceType } from "@bufbuild/protobuf";
 import {
@@ -14,8 +13,6 @@ import {
 } from "@coscene-io/coscene/queries";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
-
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 export function getPlaybackQualityLevelByLocalStorage(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
   const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
@@ -76,7 +73,6 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/return-await
     return await next(req);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -104,14 +100,13 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/return-await
   return await next(req);
 };
 
 const setLocaleInfoUnaryInterceptor: Interceptor = (next) => async (req) => {
   req.header.set("x-cos-utc-offset", String(new Date().getTimezoneOffset()));
   req.header.set("x-cos-language-code", i18next.language);
-  // eslint-disable-next-line @typescript-eslint/return-await
+
   return await next(req);
 };
 

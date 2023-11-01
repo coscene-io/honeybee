@@ -709,7 +709,7 @@ class CoSceneConsoleApi {
       },
     });
     const configMapClient = getPromiseClient(ConfigMapService);
-    return configMapClient.upsertConfigMap(req);
+    return await configMapClient.upsertConfigMap(req);
   }
 
   public async getUserConfigMap({
@@ -722,7 +722,7 @@ class CoSceneConsoleApi {
     const configName = `users/${userId}/configMaps/${configId}`;
     const req = new GetConfigMapRequest({ name: configName });
     const configMapClient = getPromiseClient(ConfigMapService);
-    return configMapClient.getConfigMap(req).catch((err) => {
+    return await configMapClient.getConfigMap(req).catch((err) => {
       if (err.code === StatusCode.NOT_FOUND) {
         return undefined;
       }
