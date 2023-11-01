@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Value } from "@bufbuild/protobuf";
 import {
   GetProjectRequest,
   GetUserRequest,
@@ -30,12 +31,20 @@ import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
 import { Revision } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/revision_pb";
 import { GetRevisionRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/revision_pb";
+import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
+import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
+import {
+  UpsertConfigMapRequest,
+  GetConfigMapRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
+import { StatusCode } from "grpc-web";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 
 export type User = {
@@ -52,6 +61,15 @@ export type User = {
     isEnterprise: boolean;
     allowsUploads: boolean;
     supportsEdgeSites: boolean;
+  };
+};
+
+export type UserPersonalInfo = {
+  history?: {
+    visitedProject?: string[];
+  };
+  settings?: {
+    language?: string;
   };
 };
 
@@ -673,6 +691,42 @@ class CoSceneConsoleApi {
     req.setName(revisionName);
 
     return await CsWebClient.getRevisionClient().getRevision(req);
+  }
+
+  public async upsertUserConfig({
+    userId,
+    configId,
+    obj,
+  }: {
+    userId: string;
+    configId: string;
+    obj: UserPersonalInfo;
+  }): Promise<ConfigMap> {
+    const req = new UpsertConfigMapRequest({
+      configMap: {
+        name: `users/${userId}/configMaps/${configId}`,
+        value: Object.keys(obj).length > 0 ? Value.fromJson(obj) : undefined,
+      },
+    });
+    const configMapClient = getPromiseClient(ConfigMapService);
+    return await configMapClient.upsertConfigMap(req);
+  }
+
+  public async getUserConfigMap({
+    userId,
+    configId,
+  }: {
+    userId: string;
+    configId: string;
+  }): Promise<ConfigMap | undefined> {
+    const configName = `users/${userId}/configMaps/${configId}`;
+    const req = new GetConfigMapRequest({ name: configName });
+    const configMapClient = getPromiseClient(ConfigMapService);
+    return await configMapClient.getConfigMap(req).catch((err) => {
+      if (err.code === StatusCode.NOT_FOUND) {
+        return undefined;
+      }
+    });
   }
 
   public async getProject({ projectName }: { projectName: string }): Promise<Project> {

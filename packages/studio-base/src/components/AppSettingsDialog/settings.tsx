@@ -33,11 +33,14 @@ import { makeStyles } from "tss-react/mui";
 import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
+import { UserInfo } from "@foxglove/studio-base/components/AppBar/CoSceneUserMenu";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
+import { UserPersonalInfo } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 // import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
@@ -365,18 +368,42 @@ export function RosPackagePath(): React.ReactElement {
 
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
+  const consoleApi = useConsoleApi();
   const [selectedLanguage = "en", setSelectedLanguage] = useAppConfigurationValue<Language>(
     AppSetting.LANGUAGE,
   );
+  const userInfo = useMemo(() => {
+    return localStorage.getItem("current_user") != undefined
+      ? (JSON.parse(localStorage.getItem("current_user")!) as UserInfo)
+      : undefined;
+  }, []);
+
   const onChangeLanguage = useCallback(
-    (event: SelectChangeEvent<Language>) => {
+    async (event: SelectChangeEvent<Language>) => {
       const lang = event.target.value as Language;
       void setSelectedLanguage(lang);
       i18n.changeLanguage(lang).catch((error) => {
         console.error("Failed to switch languages", error);
         reportError(error as Error);
       });
+      const userConfigMap = await consoleApi.getUserConfigMap({
+        userId: userInfo?.userId ?? "",
+        configId: "personalInfo",
+      });
+
+      const userConfig = userConfigMap?.value?.toJson() as UserPersonalInfo | undefined;
+      if ((lang === "zh" || lang === "en") && userConfig != undefined) {
+        void consoleApi.upsertUserConfig({
+          userId: userInfo?.userId ?? "",
+          configId: "personalInfo",
+          obj: {
+            ...userConfig,
+            settings: { ...userConfig.settings, language: lang },
+          },
+        });
+      }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [i18n, setSelectedLanguage],
   );
   const options: { key: string; text: string; data: string }[] = useMemo(
