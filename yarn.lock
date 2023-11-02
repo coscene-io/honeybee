@@ -1770,40 +1770,40 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/coscene@npm:0.3.119":
-  version: 0.3.119
-  resolution: "@coscene-io/coscene@npm:0.3.119::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.3.119%2Fc00cc95b7ca33b9b0aae50a354408930298482f2"
+"@coscene-io/coscene@npm:0.3.120":
+  version: 0.3.120
+  resolution: "@coscene-io/coscene@npm:0.3.120::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.3.120%2F7858294d277ddeaeb4a58f7fbf5c676745cf9680"
   dependencies:
-    "@coscene-io/cosceneapis": 0.0.337
+    "@coscene-io/cosceneapis": 0.0.348
     "@coscene-io/cosel": 23.20.0
-    "@tanstack/react-query": ^4.33.0
-    ahooks: ^3.7.8
-    i18next: ^22.5.0
-    lodash: ^4.17.21
-    react-router-dom: ^6.17.0
-    recoil: ^0.7.7
+    "@tanstack/react-query": 4.33.0
+    ahooks: 3.7.8
+    i18next: 22.5.0
+    lodash: 4.17.21
+    react-router-dom: 6.17.0
+    recoil: 0.7.7
   peerDependencies:
     "@types/google-protobuf": 3.15.6
     google-protobuf: 3.21.2
     grpc-web: 1.4.2
-  checksum: 28b5fe71c1fa12225c35b90486fa5d682925ee32cbca4d0b1bb41522d23160ed712b37aab639ae9c5e9fc01e486f7d0fde14e03155ef13018cc89ee74b866d28
+  checksum: e9ecc65442a240889a792947af643da9b232d00a74515cf4f73174f52910c0ff8a5e26d6ff7f69f35999fbaf9087093f2ee5ba149d51db4163125a1947e08474
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis-es@npm:0.0.99":
-  version: 0.0.99
-  resolution: "@coscene-io/cosceneapis-es@npm:0.0.99::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es%2F0.0.99%2F39525e28a25a1028cf8c722c3f63c770fc044e9d"
+"@coscene-io/cosceneapis-es@npm:0.0.101":
+  version: 0.0.101
+  resolution: "@coscene-io/cosceneapis-es@npm:0.0.101::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es%2F0.0.101%2Fb6e5db16f683bf57c13829d634705f2ba87a2ad8"
   dependencies:
     "@buf/coscene-io_argo-workflows-apis.bufbuild_es": 1.2.0-20230525123417-60301f3766e7.1
     "@buf/coscene-io_kubernetes-apis.bufbuild_es": 1.2.0-20230525122111-b678ebd95a88.1
     "@buf/googleapis_googleapis.bufbuild_es": 1.2.0-20230502210827-cc916c318597.1
-  checksum: 2dd20f4720e1b83d33faf9e2f2d16ec5caf694532d795eb955f3b91864f361d3363e9c33675e697679bcb5dc0318776f9f24811363d95e8588faf57c653445d0
+  checksum: b3104b4ccd0aa2a941d0f36de6f18efc2895762f299ce4d4215cc4ea654009c431067919dc6b7cabbf421f6ab61b1f9277d945a495f858bbca67e8e1df0d46ed
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis@npm:0.0.337":
-  version: 0.0.337
-  resolution: "@coscene-io/cosceneapis@npm:0.0.337::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.337%2F7599558ed50753c704f593f7bc0ffac949dfc0ec"
+"@coscene-io/cosceneapis@npm:0.0.348":
+  version: 0.0.348
+  resolution: "@coscene-io/cosceneapis@npm:0.0.348::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.348%2Fbfa9614a2d5aa68c3e11e86fb2cf61a47b9b70ba"
   dependencies:
     "@buf/coscene-io_argo-workflows-apis.grpc_web": 1.4.2-20230525123417-60301f3766e7.2
     "@buf/coscene-io_kubernetes-apis.grpc_web": 1.4.2-20230525122111-b678ebd95a88.2
@@ -1812,7 +1812,7 @@ __metadata:
     "@types/google-protobuf": 3.15.6
     google-protobuf: 3.21.2
     grpc-web: 1.4.2
-  checksum: 49934eb962429f8d48f5d713f8f2c52520116bd2e471c271e7e1a7a4c4d68b579025ed9dfe7d45c8a79daded8282b4cd62609775b4ea137406bd676e3fb50c1d
+  checksum: 567621cf14cf9fb8b265394058850da4d08fed66ba7ca559a6257de1b9d4fbdf8cac695d363d6fe1d2ae86cf431a69b961c84900c6fa6d843b76727e9958822e
   languageName: node
   linkType: hard
 
@@ -2836,8 +2836,8 @@ __metadata:
     "@bufbuild/connect": 0.13.0
     "@bufbuild/connect-web": 0.13.0
     "@bufbuild/protobuf": 1.3.0
-    "@coscene-io/coscene": 0.3.119
-    "@coscene-io/cosceneapis-es": 0.0.99
+    "@coscene-io/coscene": 0.3.120
+    "@coscene-io/cosceneapis-es": 0.0.101
     "@emotion/cache": 11.11.0
     "@emotion/react": 11.11.1
     "@emotion/styled": 11.11.0
@@ -6301,18 +6301,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tanstack/query-core@npm:4.36.1":
-  version: 4.36.1
-  resolution: "@tanstack/query-core@npm:4.36.1"
-  checksum: 47672094da20d89402d9fe03bb7b0462be73a76ff9ca715169738bc600a719d064d106d083a8eedae22a2c22de22f87d5eb5d31ef447aba771d9190f2117ed10
+"@tanstack/query-core@npm:4.33.0":
+  version: 4.33.0
+  resolution: "@tanstack/query-core@npm:4.33.0"
+  checksum: fae325f1d79b936435787797c32367331d5b8e9c5ced84852bf2085115e3aafef57a7ae530a6b0af46da4abafb4b0afaef885926b71715a0e6f166d74da61c7f
   languageName: node
   linkType: hard
 
-"@tanstack/react-query@npm:^4.33.0":
-  version: 4.36.1
-  resolution: "@tanstack/react-query@npm:4.36.1"
+"@tanstack/react-query@npm:4.33.0":
+  version: 4.33.0
+  resolution: "@tanstack/react-query@npm:4.33.0"
   dependencies:
-    "@tanstack/query-core": 4.36.1
+    "@tanstack/query-core": 4.33.0
     use-sync-external-store: ^1.2.0
   peerDependencies:
     react: ^16.8.0 || ^17.0.0 || ^18.0.0
@@ -6323,7 +6323,7 @@ __metadata:
       optional: true
     react-native:
       optional: true
-  checksum: 1aff0a476859386f8d32253fa0d0bde7b81769a6d4d4d9cbd78778f0f955459a3bdb7ee27a0d2ee7373090f12998b45df80db0b5b313bd0a7a39d36c6e8e51c5
+  checksum: b3cf4afa427435e464e077b3f23c891e38e5f78873518f15c1d061ad55f1464d6241ecd92d796a5dbc9412b4fd7eb30b01f2a9cfc285ee9f30dfdd2ca0ecaf4b
   languageName: node
   linkType: hard
 
@@ -8202,7 +8202,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ahooks@npm:^3.7.8":
+"ahooks@npm:3.7.8":
   version: 3.7.8
   resolution: "ahooks@npm:3.7.8"
   dependencies:
@@ -14236,21 +14236,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"i18next@npm:22.5.0":
+  version: 22.5.0
+  resolution: "i18next@npm:22.5.0"
+  dependencies:
+    "@babel/runtime": ^7.20.6
+  checksum: 291c0e02fda20bd1827b6529dad74c01867892c7ac000befe0f69e10ad97ab074a2ae5b4ce1e0638c28ae1a6f59d1ed8503ea05bd1c324d731a44dd94c43a49a
+  languageName: node
+  linkType: hard
+
 "i18next@npm:23.5.1":
   version: 23.5.1
   resolution: "i18next@npm:23.5.1"
   dependencies:
     "@babel/runtime": ^7.22.5
   checksum: 4be043bd72287bfae9777a3252b9458d2e3f5e9a97ea62cf434e6e3767b45df4365d8780d0dd14efd4e9da5eb0f90534510b138f1372d1cb9012000a69bbedaf
-  languageName: node
-  linkType: hard
-
-"i18next@npm:^22.5.0":
-  version: 22.5.1
-  resolution: "i18next@npm:22.5.1"
-  dependencies:
-    "@babel/runtime": ^7.20.6
-  checksum: 175f8ab7fac2abcee147b00cc2d8e7d4fa9b05cdc227f02cac841fc2fd9545ed4a6d88774f594f8ad12dc944e4d34cc8e88aa00c8b9947baef9e859d93abd305
   languageName: node
   linkType: hard
 
@@ -16223,7 +16223,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash@npm:^4.17.15, lodash@npm:^4.17.20, lodash@npm:^4.17.21, lodash@npm:^4.7.0":
+"lodash@npm:4.17.21, lodash@npm:^4.17.15, lodash@npm:^4.17.20, lodash@npm:^4.17.21, lodash@npm:^4.7.0":
   version: 4.17.21
   resolution: "lodash@npm:4.17.21"
   checksum: eb835a2e51d381e561e508ce932ea50a8e5a68f4ebdd771ea240d3048244a8d13658acbd502cd4829768c56f2e16bdd4340b9ea141297d472517b83868e677f7
@@ -19351,7 +19351,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-router-dom@npm:^6.17.0":
+"react-router-dom@npm:6.17.0":
   version: 6.17.0
   resolution: "react-router-dom@npm:6.17.0"
   dependencies:
@@ -19695,7 +19695,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"recoil@npm:^0.7.7":
+"recoil@npm:0.7.7":
   version: 0.7.7
   resolution: "recoil@npm:0.7.7"
   dependencies:

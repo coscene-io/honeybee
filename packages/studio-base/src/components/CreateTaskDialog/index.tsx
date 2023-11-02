@@ -193,6 +193,8 @@ export function CreateTaskDialog({
     return await consoleApi.listOrganizationUsers();
   });
 
+  const activatedUsers = users?.filter((user) => user.getActive());
+
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
       <Stack paddingX={3} paddingTop={2}>
@@ -230,7 +232,7 @@ export function CreateTaskDialog({
           <FormLabel>{t("assignee")}</FormLabel>
           <Autocomplete
             disableClearable
-            options={users ?? []}
+            options={activatedUsers ?? []}
             getOptionLabel={(option) => option.getNickname()}
             renderInput={(params) => <TextField {...params} autoFocus variant="standard" />}
             renderOption={(props, option) => (
@@ -239,7 +241,7 @@ export function CreateTaskDialog({
                 {option.getNickname()}
               </Box>
             )}
-            value={users?.find((user) => user.getName() === task.assignee)}
+            value={activatedUsers?.find((user) => user.getName() === task.assignee)}
             isOptionEqualToValue={(option, value) => option.getName() === value.getName()}
             onChange={(_event, option) => {
               setTask((s) => ({ ...s, assignee: option.getName() }));
