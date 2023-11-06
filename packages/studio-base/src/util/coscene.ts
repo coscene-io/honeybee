@@ -5,14 +5,25 @@
 // coScene custom tools
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
+import { Timestamp } from "@bufbuild/protobuf";
 import { ServiceType } from "@bufbuild/protobuf";
+import { Value, JsonObject } from "@bufbuild/protobuf";
 import {
   ACCESS_TOKEN_NAME,
   SUPER_TOKEN_ACCESS_TOKEN_NAME,
   uuidv4,
 } from "@coscene-io/coscene/queries";
+import { LayoutDetail } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
+
+import {
+  ConsoleApiLayout,
+  LayoutID,
+  ISO8601Timestamp,
+  Permission,
+} from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
 export function getPlaybackQualityLevelByLocalStorage(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
   const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
@@ -119,3 +130,38 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
     }),
   );
 }
+
+export const coSceneLayoutToConsoleApiLayout = (layout: Layout): ConsoleApiLayout => {
+  return {
+    id: layout.name.split("layouts/").pop() as LayoutID,
+    name: layout.value?.name ?? "",
+    createdAt: layout.value?.createTime?.toDate().toISOString() as ISO8601Timestamp,
+    updatedAt: layout.value?.updateTime?.toDate().toISOString() as ISO8601Timestamp,
+    savedAt: layout.value?.saveTime?.toDate().toISOString() as ISO8601Timestamp,
+    permission: layout.value?.permission as Permission,
+    data: layout.value?.data?.toJson() as Record<string, unknown>,
+  };
+};
+
+export const getCoSceneLayout = (layout: {
+  id: LayoutID | undefined;
+  savedAt: ISO8601Timestamp | undefined;
+  name: string | undefined;
+  permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
+  data: Record<string, unknown> | undefined;
+}): Layout => {
+  const newLayout = new Layout();
+  newLayout.name = "layouts/" + layout.id;
+  const layoutDetail = new LayoutDetail();
+
+  layoutDetail.name = layout.name ?? "";
+  layoutDetail.permission = layout.permission ?? "";
+  layoutDetail.createTime = Timestamp.fromDate(new Date());
+  layoutDetail.updateTime = Timestamp.fromDate(new Date());
+  layoutDetail.saveTime = Timestamp.fromDate(new Date(layout.savedAt ?? ""));
+  layoutDetail.data = layout.data ? Value.fromJson(layout.data as JsonObject) : undefined;
+
+  newLayout.value = layoutDetail;
+
+  return newLayout;
+};

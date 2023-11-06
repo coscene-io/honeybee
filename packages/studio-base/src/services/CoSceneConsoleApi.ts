@@ -37,6 +37,13 @@ import {
   UpsertConfigMapRequest,
   GetConfigMapRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
+import { LayoutService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_connect";
+import {
+  GetLayoutRequest,
+  ListLayoutsRequest,
+  UpsertLayoutRequest,
+  DeleteLayoutRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
@@ -44,8 +51,14 @@ import { StatusCode } from "grpc-web";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import {
+  coSceneLayoutToConsoleApiLayout,
+  getCoSceneLayout,
+} from "@foxglove/studio-base/util/coscene";
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
+
+const MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE = 1000;
 
 export type User = {
   id: string;
@@ -181,6 +194,7 @@ type DeviceResponse = {
 
 export type LayoutID = string & { __brand: "LayoutID" };
 export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
+export type Permission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
 
 export type ConsoleApiLayout = {
   id: LayoutID;
@@ -188,7 +202,7 @@ export type ConsoleApiLayout = {
   createdAt: ISO8601Timestamp;
   updatedAt: ISO8601Timestamp;
   savedAt?: ISO8601Timestamp;
-  permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+  permission: Permission;
   data?: Record<string, unknown>;
 };
 
@@ -215,6 +229,7 @@ export type CoSceneContext = {
   currentOrganizationDisplayName?: string;
   currentRecordId?: string;
   isCurrentProjectArchived?: boolean;
+  currentUserId?: string;
 };
 
 type ApiResponse<T> = { status: number; json: T };
@@ -325,18 +340,36 @@ class CoSceneConsoleApi {
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
-    return await this.#get<ConsoleApiLayout[]>("/v1/layouts", {
-      includeData: options.includeData ? "true" : "false",
-    });
+    const req = new ListLayoutsRequest();
+    req.pageSize = MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE;
+
+    console.debug("options", options);
+
+    const layouts = await getPromiseClient(LayoutService).listLayouts(req);
+
+    const layoutsInfo: ConsoleApiLayout[] = layouts.layouts
+      .filter((layout) => layout.value?.data != undefined)
+      .map((layout) => {
+        return coSceneLayoutToConsoleApiLayout(layout);
+      });
+
+    console.debug("layoutsInfo", layoutsInfo);
+
+    return layoutsInfo;
   }
 
   public async getLayout(
     id: LayoutID,
     options: { includeData: boolean },
   ): Promise<ConsoleApiLayout | undefined> {
-    return await this.#get<ConsoleApiLayout>(`/v1/layouts/${id}`, {
-      includeData: options.includeData ? "true" : "false",
-    });
+    console.debug("getSingleLayout:", id, "includeData", options.includeData);
+    const req = new GetLayoutRequest();
+
+    req.name = "layouts/" + id;
+
+    const layout = await getPromiseClient(LayoutService).getLayout(req);
+
+    return coSceneLayoutToConsoleApiLayout(layout);
   }
 
   public async createLayout(layout: {
@@ -346,7 +379,20 @@ class CoSceneConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<ConsoleApiLayout> {
-    return await this.#post<ConsoleApiLayout>("/v1/layouts", layout);
+    console.debug("createLayout", layout);
+    if (!layout.id) {
+      throw new Error("id is required");
+    }
+
+    const newLayout = getCoSceneLayout(layout);
+
+    console.debug("newLayout", newLayout.toJsonString());
+    const req = new UpsertLayoutRequest();
+    req.layout = newLayout;
+
+    const currentLayout = await getPromiseClient(LayoutService).upsertLayout(req);
+
+    return coSceneLayoutToConsoleApiLayout(currentLayout);
   }
 
   public async updateLayout(layout: {
@@ -356,19 +402,35 @@ class CoSceneConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
-    const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
-      `/v1/layouts/${layout.id}`,
-      layout,
-    );
-    if (status === 200) {
-      return { status: "success", newLayout };
-    } else {
-      return { status: "conflict" };
-    }
+    console.debug("updateLayout", layout);
+
+    const req = new UpsertLayoutRequest();
+    // req.parent = "layouts/" + layout.id;
+
+    const newLayout = getCoSceneLayout(layout);
+
+    console.debug("newLayout", newLayout.toJsonString());
+
+    req.layout = newLayout;
+
+    const currentLayout = await getPromiseClient(LayoutService).upsertLayout(req);
+
+    return { status: "success", newLayout: coSceneLayoutToConsoleApiLayout(currentLayout) };
   }
 
   public async deleteLayout(id: LayoutID): Promise<boolean> {
-    return (await this.#delete(`/v1/layouts/${id}`)).status === 200;
+    console.debug("deleteLayout", id);
+
+    const req = new DeleteLayoutRequest();
+    req.name = "layouts/" + id;
+
+    try {
+      await getPromiseClient(LayoutService).deleteLayout(req);
+      return true;
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
   }
 
   async #request<T>(
