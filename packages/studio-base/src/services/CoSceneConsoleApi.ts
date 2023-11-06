@@ -340,22 +340,31 @@ class CoSceneConsoleApi {
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
-    const req = new ListLayoutsRequest();
-    req.pageSize = MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE;
+    console.debug("getLayouts", options);
+    const orgReq = new ListLayoutsRequest();
+    orgReq.pageSize = MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE;
 
-    console.debug("options", options);
+    const orgLayouts = await getPromiseClient(LayoutService).listLayouts(orgReq);
 
-    const layouts = await getPromiseClient(LayoutService).listLayouts(req);
-
-    const layoutsInfo: ConsoleApiLayout[] = layouts.layouts
+    const orgLayoutsInfo: ConsoleApiLayout[] = orgLayouts.layouts
       .filter((layout) => layout.value?.data != undefined)
       .map((layout) => {
         return coSceneLayoutToConsoleApiLayout(layout);
       });
 
-    console.debug("layoutsInfo", layoutsInfo);
+    const userReq = new ListLayoutsRequest();
+    userReq.parent = "users/" + this.coSceneContext.currentUserId;
+    userReq.pageSize = MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE;
 
-    return layoutsInfo;
+    const userLayouts = await getPromiseClient(LayoutService).listLayouts(userReq);
+
+    const userLayoutsInfo: ConsoleApiLayout[] = userLayouts.layouts
+      .filter((layout) => layout.value?.data != undefined)
+      .map((layout) => {
+        return coSceneLayoutToConsoleApiLayout(layout);
+      });
+
+    return [...orgLayoutsInfo, ...userLayoutsInfo];
   }
 
   public async getLayout(
@@ -363,9 +372,24 @@ class CoSceneConsoleApi {
     options: { includeData: boolean },
   ): Promise<ConsoleApiLayout | undefined> {
     console.debug("getSingleLayout:", id, "includeData", options.includeData);
+
+    const userReq = new ListLayoutsRequest();
+    userReq.parent = "users/" + this.coSceneContext.currentUserId;
+    userReq.pageSize = MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE;
+
+    const userLayouts = await getPromiseClient(LayoutService).listLayouts(userReq);
+
+    const userLayoutsInfo = userLayouts.layouts
+      .filter((layout) => layout.value?.data != undefined)
+      .find((layout) => layout.name.split("layouts/").pop() === id);
+
+    if (userLayoutsInfo) {
+      return coSceneLayoutToConsoleApiLayout(userLayoutsInfo);
+    }
+
     const req = new GetLayoutRequest();
 
-    req.name = "layouts/" + id;
+    req.name = `users/${this.coSceneContext.currentUserId}/layouts/${id}`;
 
     const layout = await getPromiseClient(LayoutService).getLayout(req);
 
@@ -384,10 +408,15 @@ class CoSceneConsoleApi {
       throw new Error("id is required");
     }
 
-    const newLayout = getCoSceneLayout(layout);
+    const newLayout = getCoSceneLayout({
+      ...layout,
+      userId: this.coSceneContext.currentUserId ?? "",
+    });
 
-    console.debug("newLayout", newLayout.toJsonString());
     const req = new UpsertLayoutRequest();
+    if (layout.permission === "CREATOR_WRITE") {
+      req.parent = "users/" + this.coSceneContext.currentUserId;
+    }
     req.layout = newLayout;
 
     const currentLayout = await getPromiseClient(LayoutService).upsertLayout(req);
@@ -405,11 +434,14 @@ class CoSceneConsoleApi {
     console.debug("updateLayout", layout);
 
     const req = new UpsertLayoutRequest();
-    // req.parent = "layouts/" + layout.id;
+    if (layout.permission === "CREATOR_WRITE") {
+      req.parent = "users/" + this.coSceneContext.currentUserId;
+    }
 
-    const newLayout = getCoSceneLayout(layout);
-
-    console.debug("newLayout", newLayout.toJsonString());
+    const newLayout = getCoSceneLayout({
+      ...layout,
+      userId: this.coSceneContext.currentUserId ?? "",
+    });
 
     req.layout = newLayout;
 
@@ -421,8 +453,23 @@ class CoSceneConsoleApi {
   public async deleteLayout(id: LayoutID): Promise<boolean> {
     console.debug("deleteLayout", id);
 
+    const userReq = new ListLayoutsRequest();
+    userReq.parent = "users/" + this.coSceneContext.currentUserId;
+    userReq.pageSize = MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE;
+
+    const userLayouts = await getPromiseClient(LayoutService).listLayouts(userReq);
+
+    const userLayoutsInfo = userLayouts.layouts
+      .filter((layout) => layout.value?.data != undefined)
+      .find((layout) => layout.name.split("layouts/").pop() === id);
+
     const req = new DeleteLayoutRequest();
-    req.name = "layouts/" + id;
+
+    if (userLayoutsInfo) {
+      req.name = `users/${this.coSceneContext.currentUserId}/layouts/${id}`;
+    } else {
+      req.name = `layouts/${id}`;
+    }
 
     try {
       await getPromiseClient(LayoutService).deleteLayout(req);

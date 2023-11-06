@@ -10,8 +10,6 @@ import {
   MenuItem as MuiMenuItem,
   IconButton,
   TextField,
-  List,
-  Typography,
 } from "@mui/material";
 import * as _ from "lodash-es";
 import moment from "moment";
@@ -52,7 +50,8 @@ import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneIL
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
-import LayoutRow from "./CoSceneLayoutRow";
+// import LayoutRow from "./CoSceneLayoutRow";
+import LayoutSection from "./LayoutSection";
 import SelectLayoutTemplateModal from "./SelectLayoutTemplateModal";
 
 const log = Logger.getLogger(__filename);
@@ -83,11 +82,11 @@ const useStyles = makeStyles()((theme) => {
         1.5,
       )}) !important`,
     },
-    subheader: {
-      fontSize: 12,
-      opacity: 0.6,
-      padding: theme.spacing(1, 2),
-    },
+    // subheader: {
+    //   fontSize: 12,
+    //   opacity: 0.6,
+    //   padding: theme.spacing(1, 2),
+    // },
   };
 });
 
@@ -143,12 +142,10 @@ export function CoSceneLayoutButton(): JSX.Element {
     });
   }, [reloadLayouts]);
 
-  const items = (layouts.value?.personal ?? []).filter((layout) =>
-    layout.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
   const currentLayouts = useMemo(() => {
-    return (layouts.value?.personal ?? []).find((layout) => layout.id === currentLayoutId);
+    return [...(layouts.value?.personal ?? []), ...(layouts.value?.shared ?? [])].find(
+      (layout) => layout.id === currentLayoutId,
+    );
   }, [layouts, currentLayoutId]);
 
   const [state, dispatch] = useLayoutBrowserReducer({
@@ -157,6 +154,8 @@ export function CoSceneLayoutButton(): JSX.Element {
     error: layoutManager.error,
     online: layoutManager.isOnline,
   });
+
+  const pendingMultiAction = state.multiAction?.ids != undefined;
 
   const anySelectedModifiedLayouts = useMemo(() => {
     return [layouts.value?.personal ?? [], layouts.value?.shared ?? []]
@@ -559,6 +558,9 @@ export function CoSceneLayoutButton(): JSX.Element {
         }}
         ref={anchorEl}
       />
+      {promptModal}
+      {confirmModal}
+      {unsavedChangesPrompt}
       <Menu
         id="add-panel-menu"
         anchorEl={anchorEl.current}
@@ -623,25 +625,32 @@ export function CoSceneLayoutButton(): JSX.Element {
             </MuiMenuItem>
           ),
         )}
-        <Typography variant="body2" className={classes.subheader}>
-          {t("layouts")}
-        </Typography>
-        <List disablePadding>
-          {items.length === 0 && (
-            <Stack paddingX={2}>
-              <Typography variant="body2" color="text.secondary">
-                {t("addLayoutToGetStart")}
-              </Typography>
-            </Stack>
-          )}
-          {items.map((layout) => (
-            <LayoutRow
+        <Stack fullHeight gap={2} style={{ pointerEvents: pendingMultiAction ? "none" : "auto" }}>
+          <LayoutSection
+            title={layoutManager.supportsSharing ? "Personal" : undefined}
+            emptyText="Add a new layout to get started with Foxglove Studio!"
+            items={layouts.value?.personal}
+            anySelectedModifiedLayouts={anySelectedModifiedLayouts}
+            multiSelectedIds={state.selectedIds}
+            selectedId={currentLayoutId}
+            onSelect={onSelectLayout}
+            onRename={onRenameLayout}
+            onDuplicate={onDuplicateLayout}
+            onDelete={onDeleteLayout}
+            onShare={onShareLayout}
+            onExport={onExportLayout}
+            onOverwrite={onOverwriteLayout}
+            onRevert={onRevertLayout}
+            onMakePersonalCopy={onMakePersonalCopy}
+          />
+          {layoutManager.supportsSharing && (
+            <LayoutSection
+              title="Organization"
+              emptyText="Your organization doesn’t have any shared layouts yet. Share a layout to collaborate with others."
+              items={layouts.value?.shared}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}
-              selected={layout.id === currentLayoutId}
-              key={layout.id}
-              layout={layout}
-              searchQuery={searchQuery}
+              selectedId={currentLayoutId}
               onSelect={onSelectLayout}
               onRename={onRenameLayout}
               onDuplicate={onDuplicateLayout}
@@ -652,12 +661,10 @@ export function CoSceneLayoutButton(): JSX.Element {
               onRevert={onRevertLayout}
               onMakePersonalCopy={onMakePersonalCopy}
             />
-          ))}
-        </List>
+          )}
+          <Stack flexGrow={1} />
+        </Stack>
       </Menu>
-      {promptModal}
-      {confirmModal}
-      {unsavedChangesPrompt}
       <SelectLayoutTemplateModal
         open={selectLayoutTemplateModalOpen}
         onClose={handleCloseLayoutTemplateModal}

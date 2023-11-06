@@ -131,6 +131,18 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
   );
 }
 
+// protobuf => JsonObject is not support undefind type so we need to replace undefined with null
+function replaceUndefinedWithNull(obj: Record<string, unknown>) {
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] != undefined && typeof obj[key] === "object") {
+      replaceUndefinedWithNull(obj[key] as Record<string, unknown>);
+    } else if (obj[key] == undefined) {
+      obj[key] = ReactNull;
+    }
+  });
+  return obj;
+}
+
 export const coSceneLayoutToConsoleApiLayout = (layout: Layout): ConsoleApiLayout => {
   return {
     id: layout.name.split("layouts/").pop() as LayoutID,
@@ -149,9 +161,13 @@ export const getCoSceneLayout = (layout: {
   name: string | undefined;
   permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
   data: Record<string, unknown> | undefined;
+  userId: string;
 }): Layout => {
   const newLayout = new Layout();
-  newLayout.name = "layouts/" + layout.id;
+  newLayout.name =
+    layout.permission === "CREATOR_WRITE"
+      ? `users/${layout.userId}/layouts/${layout.id}`
+      : "layouts/" + layout.id;
   const layoutDetail = new LayoutDetail();
 
   layoutDetail.name = layout.name ?? "";
@@ -159,7 +175,8 @@ export const getCoSceneLayout = (layout: {
   layoutDetail.createTime = Timestamp.fromDate(new Date());
   layoutDetail.updateTime = Timestamp.fromDate(new Date());
   layoutDetail.saveTime = Timestamp.fromDate(new Date(layout.savedAt ?? ""));
-  layoutDetail.data = layout.data ? Value.fromJson(layout.data as JsonObject) : undefined;
+
+  layoutDetail.data = Value.fromJson(replaceUndefinedWithNull(layout.data ?? {}) as JsonObject);
 
   newLayout.value = layoutDetail;
 

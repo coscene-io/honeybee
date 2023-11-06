@@ -94,13 +94,20 @@ export function Root(props: {
     new IdbExtensionLoader("local"),
   ]);
 
+  const currentUser = localStorage.getItem("current_user") ?? "{}";
+  const currentUserId = JSON.parse(currentUser).userId ?? "";
+
+  if (currentUserId == undefined || currentUserId === "") {
+    throw new Error("currentUserId is empty");
+  }
+
   const consoleApi = useMemo(
     () =>
-      new ConsoleApi(
-        APP_CONFIG.CS_HONEYBEE_BASE_URL,
-        JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}") as CoSceneContext,
-      ),
-    [],
+      new ConsoleApi(APP_CONFIG.CS_HONEYBEE_BASE_URL, {
+        ...JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
+        currentUserId,
+      } as CoSceneContext),
+    [currentUserId],
   );
 
   return (

@@ -90,6 +90,10 @@ export function App(props: AppProps): JSX.Element {
     extraProviders,
     consoleApi,
   } = props;
+  // foxglove 原始代码 为减少冲突 暂不删除
+  if (extraProviders) {
+    console.debug("extraProviders", extraProviders);
+  }
 
   const providers = [
     /* eslint-disable react/jsx-key */
