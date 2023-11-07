@@ -26,7 +26,7 @@ import {
 // import { captureException } from "@sentry/core";
 // import dayjs from "dayjs";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo } from "react";
+import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -369,9 +369,7 @@ export function RosPackagePath(): React.ReactElement {
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
   const consoleApi = useConsoleApi();
-  const [selectedLanguage = "en", setSelectedLanguage] = useAppConfigurationValue<Language>(
-    i18n.language,
-  );
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>(i18n.language as Language);
   const userInfo = useMemo(() => {
     return localStorage.getItem("current_user") != undefined
       ? (JSON.parse(localStorage.getItem("current_user")!) as UserInfo)
@@ -381,7 +379,7 @@ export function LanguageSettings(): React.ReactElement {
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {
       const lang = event.target.value as Language;
-      void setSelectedLanguage(lang);
+      setSelectedLanguage(lang);
       i18n.changeLanguage(lang).catch((error) => {
         console.error("Failed to switch languages", error);
         reportError(error as Error);
