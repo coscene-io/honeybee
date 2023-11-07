@@ -370,7 +370,7 @@ export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
   const consoleApi = useConsoleApi();
   const [selectedLanguage = "en", setSelectedLanguage] = useAppConfigurationValue<Language>(
-    AppSetting.LANGUAGE,
+    i18n.language,
   );
   const userInfo = useMemo(() => {
     return localStorage.getItem("current_user") != undefined
