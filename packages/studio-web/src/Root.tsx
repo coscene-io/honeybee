@@ -103,7 +103,7 @@ export function Root(props: {
 
   const consoleApi = useMemo(
     () =>
-      new ConsoleApi(APP_CONFIG.CS_HONEYBEE_BASE_URL, {
+      new ConsoleApi(APP_CONFIG.CS_HONEYBEE_BASE_URL, APP_CONFIG.VITE_APP_BFF_URL, {
         ...JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
         currentUserId,
       } as CoSceneContext),

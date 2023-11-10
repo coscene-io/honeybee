@@ -416,7 +416,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     singleRequestTime: singleRequestTime ?? 5,
   };
 
-  const consoleApi = new CoSceneConsoleApi(api.baseUrl, {
+  const consoleApi = new CoSceneConsoleApi(api.baseUrl, api.bffUrl, {
     ...coSceneContext,
     currentUserId: userId,
   });

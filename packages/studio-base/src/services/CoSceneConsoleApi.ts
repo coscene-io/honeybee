@@ -230,12 +230,14 @@ type LayoutTemplatesIndex = {
 
 class CoSceneConsoleApi {
   #baseUrl: string;
+  #bffUrl: string;
   #authHeader?: string;
   #responseObserver: undefined | ((response: Response) => void);
   public coSceneContext: CoSceneContext;
 
-  public constructor(baseUrl: string, coSceneContext?: CoSceneContext) {
+  public constructor(baseUrl: string, bffUrl: string, coSceneContext?: CoSceneContext) {
     this.#baseUrl = baseUrl;
+    this.#bffUrl = bffUrl;
     this.coSceneContext = coSceneContext ?? {};
   }
 
@@ -385,7 +387,12 @@ class CoSceneConsoleApi {
     // eslint-disable-next-line @foxglove/no-boolean-parameters
     customHost?: boolean,
   ): Promise<ApiResponse<T>> {
-    const fullUrl = customHost != undefined && customHost ? url : `${this.#baseUrl}${url}`;
+    const fullUrl =
+      customHost != undefined && customHost
+        ? url
+        : url.startsWith("/bff")
+        ? `${this.#bffUrl}${url}`
+        : `${this.#baseUrl}${url}`;
 
     const headers: Record<string, string> = {
       Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
