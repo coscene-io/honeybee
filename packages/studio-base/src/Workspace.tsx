@@ -443,7 +443,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       log.debug("Initialising source from url", unappliedSourceArgs);
       selectSource(unappliedSourceArgs.ds, {
         type: "connection",
-        params: unappliedSourceArgs.dsParams,
+        params: { ...unappliedSourceArgs.dsParams, userId: currentUser?.userId },
       });
       selectEvent(unappliedSourceArgs.dsParams?.eventId);
       setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });

@@ -28,4 +28,12 @@ export const cosLayout = {
   revert: "Revert",
   copyToPersonal: "Copy to personal",
   someoneElseHasDeletedThisLayout: "Someone else has deleted this layout",
+  noPersonalLayouts: "Add a new layout to get started!",
+  noOrgnizationLayouts:
+    "Your organization doesn’t have any shared layouts yet. Share a layout to collaborate with others.",
+  shareWithTeam: "Share with team ...",
+  shareDialogTitle: "Share a copy with your organization",
+  shareDialogDescription:
+    "Shared layouts can be used and changed by other members of your organization.",
+  layoutName: "Layout name",
 };

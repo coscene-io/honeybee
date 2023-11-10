@@ -318,7 +318,7 @@ export default React.memo(function LayoutRow({
       !layoutIsShared(layout) && {
         type: "item",
         key: "share",
-        text: "Share with team…",
+        text: t("shareWithTeam"),
         onClick: shareAction,
         disabled: !isOnline || multiSelection,
         secondaryText: !isOnline ? "Offline" : undefined,

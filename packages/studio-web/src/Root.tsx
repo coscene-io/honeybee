@@ -110,6 +110,8 @@ export function Root(props: {
     [currentUserId],
   );
 
+  consoleApi.setAuthHeader(localStorage.getItem("coScene_org_jwt") ?? "");
+
   return (
     <>
       <App

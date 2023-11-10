@@ -82,11 +82,6 @@ const useStyles = makeStyles()((theme) => {
         1.5,
       )}) !important`,
     },
-    // subheader: {
-    //   fontSize: 12,
-    //   opacity: 0.6,
-    //   padding: theme.spacing(1, 2),
-    // },
   };
 });
 
@@ -398,10 +393,10 @@ export function CoSceneLayoutButton(): JSX.Element {
   const onShareLayout = useCallbackWithToast(
     async (item: Layout) => {
       const name = await prompt({
-        title: "Share a copy with your organization",
-        subText: "Shared layouts can be used and changed by other members of your organization.",
+        title: t("shareDialogTitle"),
+        subText: t("shareDialogDescription"),
         initialValue: item.name,
-        label: "Layout name",
+        label: t("layoutName"),
       });
       if (name != undefined) {
         const newLayout = await layoutManager.saveNewLayout({
@@ -413,7 +408,7 @@ export function CoSceneLayoutButton(): JSX.Element {
         await onSelectLayout(newLayout);
       }
     },
-    [analytics, layoutManager, onSelectLayout, prompt],
+    [analytics, t, layoutManager, onSelectLayout, prompt],
   );
 
   const onExportLayout = useCallbackWithToast(
@@ -628,7 +623,7 @@ export function CoSceneLayoutButton(): JSX.Element {
         <Stack fullHeight gap={2} style={{ pointerEvents: pendingMultiAction ? "none" : "auto" }}>
           <LayoutSection
             title={layoutManager.supportsSharing ? "Personal" : undefined}
-            emptyText="Add a new layout to get started with Foxglove Studio!"
+            emptyText={t("noPersonalLayouts")}
             items={layouts.value?.personal}
             anySelectedModifiedLayouts={anySelectedModifiedLayouts}
             multiSelectedIds={state.selectedIds}
@@ -642,11 +637,12 @@ export function CoSceneLayoutButton(): JSX.Element {
             onOverwrite={onOverwriteLayout}
             onRevert={onRevertLayout}
             onMakePersonalCopy={onMakePersonalCopy}
+            searchQuery={searchQuery}
           />
           {layoutManager.supportsSharing && (
             <LayoutSection
               title="Organization"
-              emptyText="Your organization doesn’t have any shared layouts yet. Share a layout to collaborate with others."
+              emptyText={t("noOrgnizationLayouts")}
               items={layouts.value?.shared}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}
@@ -660,6 +656,7 @@ export function CoSceneLayoutButton(): JSX.Element {
               onOverwrite={onOverwriteLayout}
               onRevert={onRevertLayout}
               onMakePersonalCopy={onMakePersonalCopy}
+              searchQuery={searchQuery}
             />
           )}
           <Stack flexGrow={1} />

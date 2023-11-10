@@ -26,6 +26,7 @@ export default function LayoutSection({
   onOverwrite,
   onRevert,
   onMakePersonalCopy,
+  searchQuery,
 }: {
   title: string | undefined;
   emptyText: string | undefined;
@@ -42,6 +43,7 @@ export default function LayoutSection({
   onOverwrite: (item: Layout) => void;
   onRevert: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
+  searchQuery: string;
 }): JSX.Element {
   return (
     <Stack>
@@ -62,8 +64,7 @@ export default function LayoutSection({
         )}
         {items?.map((layout) => (
           <LayoutRow
-            // need search query
-            searchQuery=""
+            searchQuery={searchQuery}
             anySelectedModifiedLayouts={anySelectedModifiedLayouts}
             multiSelectedIds={multiSelectedIds}
             selected={layout.id === selectedId}

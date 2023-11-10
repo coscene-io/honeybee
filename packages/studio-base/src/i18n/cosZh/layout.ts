@@ -30,4 +30,10 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   revert: "撤销更改",
   copyToPersonal: "复制到个人",
   someoneElseHasDeletedThisLayout: "其他人已删除此布局",
+  noPersonalLayouts: "添加一个新布局来开始使用！",
+  noOrgnizationLayouts: "您的组织尚未共享任何布局。共享布局以与他人协作。",
+  shareWithTeam: "与团队共享...",
+  shareDialogTitle: "分享副本给您的组织",
+  shareDialogDescription: "共享布局可以被您的组织的其他成员使用和更改。",
+  layoutName: "布局名称",
 };

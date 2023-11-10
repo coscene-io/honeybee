@@ -37,13 +37,6 @@ import {
   UpsertConfigMapRequest,
   GetConfigMapRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
-import { LayoutService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_connect";
-import {
-  GetLayoutRequest,
-  ListLayoutsRequest,
-  UpsertLayoutRequest,
-  DeleteLayoutRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
@@ -51,14 +44,8 @@ import { StatusCode } from "grpc-web";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
-import {
-  coSceneLayoutToConsoleApiLayout,
-  getCoSceneLayout,
-} from "@foxglove/studio-base/util/coscene";
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
-
-const MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE = 1000;
 
 export type User = {
   id: string;
@@ -340,60 +327,18 @@ class CoSceneConsoleApi {
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
-    console.debug("getLayouts", options);
-    const orgReq = new ListLayoutsRequest();
-    orgReq.pageSize = MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE;
-
-    const orgLayouts = await getPromiseClient(LayoutService).listLayouts(orgReq);
-
-    const orgLayoutsInfo: ConsoleApiLayout[] = orgLayouts.layouts
-      .filter((layout) => layout.value?.data != undefined)
-      .map((layout) => {
-        return coSceneLayoutToConsoleApiLayout(layout);
-      });
-
-    const userReq = new ListLayoutsRequest();
-    userReq.parent = "users/" + this.coSceneContext.currentUserId;
-    userReq.pageSize = MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE;
-
-    const userLayouts = await getPromiseClient(LayoutService).listLayouts(userReq);
-
-    const userLayoutsInfo: ConsoleApiLayout[] = userLayouts.layouts
-      .filter((layout) => layout.value?.data != undefined)
-      .map((layout) => {
-        return coSceneLayoutToConsoleApiLayout(layout);
-      });
-
-    return [...orgLayoutsInfo, ...userLayoutsInfo];
+    return await this.#get<ConsoleApiLayout[]>("/bff/honeybee/layout/v1/layouts", {
+      includeData: options.includeData ? "true" : "false",
+    });
   }
 
   public async getLayout(
     id: LayoutID,
     options: { includeData: boolean },
   ): Promise<ConsoleApiLayout | undefined> {
-    console.debug("getSingleLayout:", id, "includeData", options.includeData);
-
-    const userReq = new ListLayoutsRequest();
-    userReq.parent = "users/" + this.coSceneContext.currentUserId;
-    userReq.pageSize = MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE;
-
-    const userLayouts = await getPromiseClient(LayoutService).listLayouts(userReq);
-
-    const userLayoutsInfo = userLayouts.layouts
-      .filter((layout) => layout.value?.data != undefined)
-      .find((layout) => layout.name.split("layouts/").pop() === id);
-
-    if (userLayoutsInfo) {
-      return coSceneLayoutToConsoleApiLayout(userLayoutsInfo);
-    }
-
-    const req = new GetLayoutRequest();
-
-    req.name = `users/${this.coSceneContext.currentUserId}/layouts/${id}`;
-
-    const layout = await getPromiseClient(LayoutService).getLayout(req);
-
-    return coSceneLayoutToConsoleApiLayout(layout);
+    return await this.#get<ConsoleApiLayout>(`/bff/honeybee/layout/v1/layouts/${id}`, {
+      includeData: options.includeData ? "true" : "false",
+    });
   }
 
   public async createLayout(layout: {
@@ -403,25 +348,7 @@ class CoSceneConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<ConsoleApiLayout> {
-    console.debug("createLayout", layout);
-    if (!layout.id) {
-      throw new Error("id is required");
-    }
-
-    const newLayout = getCoSceneLayout({
-      ...layout,
-      userId: this.coSceneContext.currentUserId ?? "",
-    });
-
-    const req = new UpsertLayoutRequest();
-    if (layout.permission === "CREATOR_WRITE") {
-      req.parent = "users/" + this.coSceneContext.currentUserId;
-    }
-    req.layout = newLayout;
-
-    const currentLayout = await getPromiseClient(LayoutService).upsertLayout(req);
-
-    return coSceneLayoutToConsoleApiLayout(currentLayout);
+    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v1/layouts", layout);
   }
 
   public async updateLayout(layout: {
@@ -431,53 +358,19 @@ class CoSceneConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
-    console.debug("updateLayout", layout);
-
-    const req = new UpsertLayoutRequest();
-    if (layout.permission === "CREATOR_WRITE") {
-      req.parent = "users/" + this.coSceneContext.currentUserId;
+    const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
+      `/bff/honeybee/layout/v1/layouts/${layout.id}`,
+      layout,
+    );
+    if (status === 200) {
+      return { status: "success", newLayout };
+    } else {
+      return { status: "conflict" };
     }
-
-    const newLayout = getCoSceneLayout({
-      ...layout,
-      userId: this.coSceneContext.currentUserId ?? "",
-    });
-
-    req.layout = newLayout;
-
-    const currentLayout = await getPromiseClient(LayoutService).upsertLayout(req);
-
-    return { status: "success", newLayout: coSceneLayoutToConsoleApiLayout(currentLayout) };
   }
 
   public async deleteLayout(id: LayoutID): Promise<boolean> {
-    console.debug("deleteLayout", id);
-
-    const userReq = new ListLayoutsRequest();
-    userReq.parent = "users/" + this.coSceneContext.currentUserId;
-    userReq.pageSize = MAXIMUM_NUMBER_OF_ARTICLES_PER_PAGE;
-
-    const userLayouts = await getPromiseClient(LayoutService).listLayouts(userReq);
-
-    const userLayoutsInfo = userLayouts.layouts
-      .filter((layout) => layout.value?.data != undefined)
-      .find((layout) => layout.name.split("layouts/").pop() === id);
-
-    const req = new DeleteLayoutRequest();
-
-    if (userLayoutsInfo) {
-      req.name = `users/${this.coSceneContext.currentUserId}/layouts/${id}`;
-    } else {
-      req.name = `layouts/${id}`;
-    }
-
-    try {
-      await getPromiseClient(LayoutService).deleteLayout(req);
-      return true;
-    } catch (error) {
-      console.error(error);
-      return false;
-    }
+    return (await this.#delete(`/bff/honeybee/layout/v1/layouts/${id}`)).status === 200;
   }
 
   async #request<T>(
@@ -494,7 +387,9 @@ class CoSceneConsoleApi {
   ): Promise<ApiResponse<T>> {
     const fullUrl = customHost != undefined && customHost ? url : `${this.#baseUrl}${url}`;
 
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
+    };
     const fullConfig: RequestInit = {
       ...config,
       headers: { ...headers, ...config?.headers },
