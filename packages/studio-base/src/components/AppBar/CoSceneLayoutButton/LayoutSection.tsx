@@ -57,30 +57,37 @@ export default function LayoutSection({
       <List>
         {items != undefined && items.length === 0 && (
           <Stack paddingX={2}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" maxWidth="320px" color="text.secondary">
               {emptyText}
             </Typography>
           </Stack>
         )}
-        {items?.map((layout) => (
-          <LayoutRow
-            searchQuery={searchQuery}
-            anySelectedModifiedLayouts={anySelectedModifiedLayouts}
-            multiSelectedIds={multiSelectedIds}
-            selected={layout.id === selectedId}
-            key={layout.id}
-            layout={layout}
-            onSelect={onSelect}
-            onRename={onRename}
-            onDuplicate={onDuplicate}
-            onDelete={onDelete}
-            onShare={onShare}
-            onExport={onExport}
-            onOverwrite={onOverwrite}
-            onRevert={onRevert}
-            onMakePersonalCopy={onMakePersonalCopy}
-          />
-        ))}
+        {items
+          ?.filter((layout) => {
+            if (searchQuery === "") {
+              return true;
+            }
+            return layout.name.toLowerCase().includes(searchQuery.toLowerCase());
+          })
+          ?.map((layout) => (
+            <LayoutRow
+              searchQuery={searchQuery}
+              anySelectedModifiedLayouts={anySelectedModifiedLayouts}
+              multiSelectedIds={multiSelectedIds}
+              selected={layout.id === selectedId}
+              key={layout.id}
+              layout={layout}
+              onSelect={onSelect}
+              onRename={onRename}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+              onShare={onShare}
+              onExport={onExport}
+              onOverwrite={onOverwrite}
+              onRevert={onRevert}
+              onMakePersonalCopy={onMakePersonalCopy}
+            />
+          ))}
       </List>
     </Stack>
   );

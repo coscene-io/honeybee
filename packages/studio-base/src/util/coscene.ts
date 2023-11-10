@@ -5,16 +5,16 @@
 // coScene custom tools
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { Timestamp } from "@bufbuild/protobuf";
-import { ServiceType } from "@bufbuild/protobuf";
-import { Value, JsonObject } from "@bufbuild/protobuf";
+import { ServiceType, Timestamp, Value, JsonObject } from "@bufbuild/protobuf";
 import {
   ACCESS_TOKEN_NAME,
   SUPER_TOKEN_ACCESS_TOKEN_NAME,
   uuidv4,
 } from "@coscene-io/coscene/queries";
-import { LayoutDetail } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
-import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import {
+  Layout,
+  LayoutDetail,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
 

@@ -8,4 +8,5 @@ export const cosGeneral = {
   refresh: "Refresh",
   name: "Name",
   cancel: "Cancel",
+  delete: "Delete",
 };

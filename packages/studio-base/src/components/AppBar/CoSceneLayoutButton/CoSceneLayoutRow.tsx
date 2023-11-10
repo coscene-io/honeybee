@@ -185,9 +185,14 @@ export default React.memo(function LayoutRow({
 
   const confirmRevert = useCallback(async () => {
     const response = await confirm({
-      title: multiSelection ? `Revert layouts` : `Revert “${layout.name}”?`,
-      prompt: "Your changes will be permantly discarded. This cannot be undone.",
-      ok: "Discard changes",
+      title: multiSelection
+        ? t("revertLayouts")
+        : t("revertTargetLayout", {
+            layoutName: layout.name,
+          }),
+      prompt: t("revertLayoutsPrompt"),
+      ok: t("revertLayoutsConfim"),
+      cancel: t("cancel", { ns: "cosGeneral" }),
       variant: "danger",
     });
     if (response !== "ok") {
@@ -195,7 +200,7 @@ export default React.memo(function LayoutRow({
     }
 
     onRevert(layout);
-  }, [confirm, layout, multiSelection, onRevert]);
+  }, [confirm, layout, multiSelection, t, onRevert]);
 
   const makePersonalCopyAction = useCallback(() => {
     onMakePersonalCopy(layout);
@@ -255,22 +260,25 @@ export default React.memo(function LayoutRow({
 
   const confirmDelete = useCallback(() => {
     const layoutWarning =
-      !multiSelection && layoutIsShared(layout)
-        ? "Organization members will no longer be able to access this layout. "
-        : "";
-    const prompt = `${layoutWarning}This action cannot be undone.`;
-    const title = multiSelection ? "Delete selected layouts?" : `Delete “${layout.name}”?`;
+      !multiSelection && layoutIsShared(layout) ? t("deleteLayoutsWarning") : "";
+    const prompt = t("deleteLayoutsPrompt", { layoutWarning });
+    const title = multiSelection
+      ? t("deleteSelectedLayoutsTitle")
+      : t("deleteLayoutsTitle", {
+          layoutName: layout.name,
+        });
     void confirm({
       title,
       prompt,
-      ok: "Delete",
+      ok: t("delete", { ns: "cosGeneral" }),
+      cancel: t("cancel", { ns: "cosGeneral" }),
       variant: "danger",
     }).then((response) => {
       if (response === "ok" && isMounted()) {
         onDelete(layout);
       }
     });
-  }, [confirm, isMounted, layout, multiSelection, onDelete]);
+  }, [confirm, isMounted, layout, multiSelection, t, onDelete]);
 
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
     event.preventDefault();

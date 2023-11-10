@@ -36,4 +36,14 @@ export const cosLayout = {
   shareDialogDescription:
     "Shared layouts can be used and changed by other members of your organization.",
   layoutName: "Layout name",
+  revertLayouts: "Revert layouts",
+  revertTargetLayout: "Revert “{{layoutName}}“?",
+  revertLayoutsPrompt: "Your changes will be permantly discarded. This cannot be undone.",
+  revertLayoutsConfim: "Discard changes",
+  deleteLayoutsWarning: "Organization members will no longer be able to access this layout. ",
+  deleteLayoutsPrompt: "{{layoutWarning}}This action cannot be undone.",
+  deleteSelectedLayoutsTitle: "Delete selected layouts?",
+  deleteLayoutsTitle: "Delete “{{layoutName}}“?",
+  personal: "Personal",
+  organization: "Organization",
 };

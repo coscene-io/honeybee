@@ -50,7 +50,6 @@ import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneIL
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
-// import LayoutRow from "./CoSceneLayoutRow";
 import LayoutSection from "./LayoutSection";
 import SelectLayoutTemplateModal from "./SelectLayoutTemplateModal";
 
@@ -622,7 +621,7 @@ export function CoSceneLayoutButton(): JSX.Element {
         )}
         <Stack fullHeight gap={2} style={{ pointerEvents: pendingMultiAction ? "none" : "auto" }}>
           <LayoutSection
-            title={layoutManager.supportsSharing ? "Personal" : undefined}
+            title={layoutManager.supportsSharing ? t("personal") : undefined}
             emptyText={t("noPersonalLayouts")}
             items={layouts.value?.personal}
             anySelectedModifiedLayouts={anySelectedModifiedLayouts}
@@ -641,7 +640,7 @@ export function CoSceneLayoutButton(): JSX.Element {
           />
           {layoutManager.supportsSharing && (
             <LayoutSection
-              title="Organization"
+              title={t("organization")}
               emptyText={t("noOrgnizationLayouts")}
               items={layouts.value?.shared}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
