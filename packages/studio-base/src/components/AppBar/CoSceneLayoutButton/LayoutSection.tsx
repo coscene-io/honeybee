@@ -57,7 +57,7 @@ export default function LayoutSection({
       <List>
         {items != undefined && items.length === 0 && (
           <Stack paddingX={2}>
-            <Typography variant="body2" maxWidth="320px" color="text.secondary">
+            <Typography variant="body2" color="text.secondary">
               {emptyText}
             </Typography>
           </Stack>
