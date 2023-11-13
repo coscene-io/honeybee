@@ -28,4 +28,22 @@ export const cosLayout = {
   revert: "Revert",
   copyToPersonal: "Copy to personal",
   someoneElseHasDeletedThisLayout: "Someone else has deleted this layout",
+  noPersonalLayouts: "Add a new layout to get started!",
+  noOrgnizationLayouts:
+    "Your organization doesn’t have any shared layouts yet. Share a layout to collaborate with others.",
+  shareWithTeam: "Share with team ...",
+  shareDialogTitle: "Share a copy with your organization",
+  shareDialogDescription:
+    "Shared layouts can be used and changed by other members of your organization.",
+  layoutName: "Layout name",
+  revertLayouts: "Revert layouts",
+  revertTargetLayout: "Revert “{{layoutName}}“?",
+  revertLayoutsPrompt: "Your changes will be permantly discarded. This cannot be undone.",
+  revertLayoutsConfim: "Discard changes",
+  deleteLayoutsWarning: "Organization members will no longer be able to access this layout. ",
+  deleteLayoutsPrompt: "{{layoutWarning}}This action cannot be undone.",
+  deleteSelectedLayoutsTitle: "Delete selected layouts?",
+  deleteLayoutsTitle: "Delete “{{layoutName}}“?",
+  personal: "Personal",
+  organization: "Organization",
 };

@@ -47,9 +47,9 @@ import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDial
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import {
@@ -179,7 +179,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   // see comment below above the RemountOnValueChange component
   const playerId = useMessagePipeline(selectPlayerId);
 
-  const { currentUser } = useCurrentUser();
+  const currentUser = useCurrentUser();
 
   useDefaultWebLaunchPreference();
 
@@ -443,12 +443,12 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       log.debug("Initialising source from url", unappliedSourceArgs);
       selectSource(unappliedSourceArgs.ds, {
         type: "connection",
-        params: unappliedSourceArgs.dsParams,
+        params: { ...unappliedSourceArgs.dsParams, userId: currentUser?.userId },
       });
       selectEvent(unappliedSourceArgs.dsParams?.eventId);
       setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
     }
-  }, [selectEvent, selectSource, unappliedSourceArgs, setUnappliedSourceArgs]);
+  }, [currentUser, selectEvent, selectSource, unappliedSourceArgs, setUnappliedSourceArgs]);
 
   const [unappliedTime, setUnappliedTime] = useState(
     targetUrlState ? { time: targetUrlState.time } : undefined,

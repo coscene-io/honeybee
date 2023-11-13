@@ -381,6 +381,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   const revisionId = params.revisionId ?? "";
   const workflowRunsId = params.workflowRunsId ?? "";
   const jobRunsId = params.jobRunsId ?? "";
+  const userId = params.userId ?? "";
 
   if (!projectId) {
     throw new Error("projectId is required for data platform source");
@@ -398,6 +399,10 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("warehouseSlug is required for data platform source");
   }
 
+  if (!userId) {
+    throw new Error("user id is undefined");
+  }
+
   const dpSourceParams: DataPlatformSourceParameters = {
     revisionName:
       recordId &&
@@ -411,7 +416,10 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     singleRequestTime: singleRequestTime ?? 5,
   };
 
-  const consoleApi = new CoSceneConsoleApi(api.baseUrl, coSceneContext);
+  const consoleApi = new CoSceneConsoleApi(api.baseUrl, api.bffUrl, {
+    ...coSceneContext,
+    currentUserId: userId,
+  });
 
   if (api.auth) {
     consoleApi.setAuthHeader(api.auth);

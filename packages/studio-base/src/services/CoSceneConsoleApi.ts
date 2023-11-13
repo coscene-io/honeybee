@@ -181,6 +181,7 @@ type DeviceResponse = {
 
 export type LayoutID = string & { __brand: "LayoutID" };
 export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
+export type Permission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
 
 export type ConsoleApiLayout = {
   id: LayoutID;
@@ -188,7 +189,7 @@ export type ConsoleApiLayout = {
   createdAt: ISO8601Timestamp;
   updatedAt: ISO8601Timestamp;
   savedAt?: ISO8601Timestamp;
-  permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+  permission: Permission;
   data?: Record<string, unknown>;
 };
 
@@ -215,6 +216,7 @@ export type CoSceneContext = {
   currentOrganizationDisplayName?: string;
   currentRecordId?: string;
   isCurrentProjectArchived?: boolean;
+  currentUserId?: string;
 };
 
 type ApiResponse<T> = { status: number; json: T };
@@ -228,12 +230,14 @@ type LayoutTemplatesIndex = {
 
 class CoSceneConsoleApi {
   #baseUrl: string;
+  #bffUrl: string;
   #authHeader?: string;
   #responseObserver: undefined | ((response: Response) => void);
   public coSceneContext: CoSceneContext;
 
-  public constructor(baseUrl: string, coSceneContext?: CoSceneContext) {
+  public constructor(baseUrl: string, bffUrl: string, coSceneContext?: CoSceneContext) {
     this.#baseUrl = baseUrl;
+    this.#bffUrl = bffUrl;
     this.coSceneContext = coSceneContext ?? {};
   }
 
@@ -325,7 +329,7 @@ class CoSceneConsoleApi {
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
-    return await this.#get<ConsoleApiLayout[]>("/v1/layouts", {
+    return await this.#get<ConsoleApiLayout[]>("/bff/honeybee/layout/v1/layouts", {
       includeData: options.includeData ? "true" : "false",
     });
   }
@@ -334,7 +338,7 @@ class CoSceneConsoleApi {
     id: LayoutID,
     options: { includeData: boolean },
   ): Promise<ConsoleApiLayout | undefined> {
-    return await this.#get<ConsoleApiLayout>(`/v1/layouts/${id}`, {
+    return await this.#get<ConsoleApiLayout>(`/bff/honeybee/layout/v1/layouts/${id}`, {
       includeData: options.includeData ? "true" : "false",
     });
   }
@@ -346,7 +350,7 @@ class CoSceneConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<ConsoleApiLayout> {
-    return await this.#post<ConsoleApiLayout>("/v1/layouts", layout);
+    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v1/layouts", layout);
   }
 
   public async updateLayout(layout: {
@@ -357,7 +361,7 @@ class CoSceneConsoleApi {
     data: Record<string, unknown> | undefined;
   }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
     const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
-      `/v1/layouts/${layout.id}`,
+      `/bff/honeybee/layout/v1/layouts/${layout.id}`,
       layout,
     );
     if (status === 200) {
@@ -368,7 +372,7 @@ class CoSceneConsoleApi {
   }
 
   public async deleteLayout(id: LayoutID): Promise<boolean> {
-    return (await this.#delete(`/v1/layouts/${id}`)).status === 200;
+    return (await this.#delete(`/bff/honeybee/layout/v1/layouts/${id}`)).status === 200;
   }
 
   async #request<T>(
@@ -383,9 +387,16 @@ class CoSceneConsoleApi {
     // eslint-disable-next-line @foxglove/no-boolean-parameters
     customHost?: boolean,
   ): Promise<ApiResponse<T>> {
-    const fullUrl = customHost != undefined && customHost ? url : `${this.#baseUrl}${url}`;
+    const fullUrl =
+      customHost != undefined && customHost
+        ? url
+        : url.startsWith("/bff")
+        ? `${this.#bffUrl}${url}`
+        : `${this.#baseUrl}${url}`;
 
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
+    };
     const fullConfig: RequestInit = {
       ...config,
       headers: { ...headers, ...config?.headers },

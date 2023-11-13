@@ -14,6 +14,7 @@ declare global {
       VITE_APP_BASE_API_PORT?: string;
       VITE_APP_BASE_API_URL?: string;
       VITE_APP_PROJECT_ENV?: string;
+      VITE_APP_BFF_URL?: string;
     };
   }
 }
@@ -31,6 +32,8 @@ export const APP_CONFIG = {
     cosConfig.VITE_APP_PROJECT_ENV ?? process.env.VITE_APP_PROJECT_ENV ?? "local",
   CS_HONEYBEE_BASE_URL:
     cosConfig.CS_HONEYBEE_BASE_URL ?? process.env.CS_HONEYBEE_BASE_URL ?? "http://localhost:8080",
+  VITE_APP_BFF_URL:
+    cosConfig.VITE_APP_BFF_URL ?? process.env.VITE_APP_BFF_URL ?? "https://bff.coscene.dev",
   IMAGE_TAG: process.env.IMAGE_TAG,
   GITHUB_SHA: process.env.GITHUB_SHA,
   RELEASE_TAG:

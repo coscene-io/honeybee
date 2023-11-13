@@ -57,6 +57,11 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
         secure: false,
         changeOrigin: true,
       },
+      "/bff": {
+        target: "https://bff.coscene.dev",
+        secure: false,
+        changeOrigin: true,
+      },
     },
   },
 

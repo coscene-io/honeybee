@@ -10,8 +10,6 @@ import {
   MenuItem as MuiMenuItem,
   IconButton,
   TextField,
-  List,
-  Typography,
 } from "@mui/material";
 import * as _ from "lodash-es";
 import moment from "moment";
@@ -52,7 +50,7 @@ import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneIL
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
-import LayoutRow from "./CoSceneLayoutRow";
+import LayoutSection from "./LayoutSection";
 import SelectLayoutTemplateModal from "./SelectLayoutTemplateModal";
 
 const log = Logger.getLogger(__filename);
@@ -82,11 +80,6 @@ const useStyles = makeStyles()((theme) => {
       backgroundImage: `linear-gradient(to top, transparent, ${palette.background.menu} ${spacing(
         1.5,
       )}) !important`,
-    },
-    subheader: {
-      fontSize: 12,
-      opacity: 0.6,
-      padding: theme.spacing(1, 2),
     },
   };
 });
@@ -143,12 +136,10 @@ export function CoSceneLayoutButton(): JSX.Element {
     });
   }, [reloadLayouts]);
 
-  const items = (layouts.value?.personal ?? []).filter((layout) =>
-    layout.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
   const currentLayouts = useMemo(() => {
-    return (layouts.value?.personal ?? []).find((layout) => layout.id === currentLayoutId);
+    return [...(layouts.value?.personal ?? []), ...(layouts.value?.shared ?? [])].find(
+      (layout) => layout.id === currentLayoutId,
+    );
   }, [layouts, currentLayoutId]);
 
   const [state, dispatch] = useLayoutBrowserReducer({
@@ -157,6 +148,8 @@ export function CoSceneLayoutButton(): JSX.Element {
     error: layoutManager.error,
     online: layoutManager.isOnline,
   });
+
+  const pendingMultiAction = state.multiAction?.ids != undefined;
 
   const anySelectedModifiedLayouts = useMemo(() => {
     return [layouts.value?.personal ?? [], layouts.value?.shared ?? []]
@@ -315,8 +308,8 @@ export function CoSceneLayoutButton(): JSX.Element {
       } else {
         setSelectedLayoutId(item.id);
         dispatch({ type: "select-id", id: item.id });
+        setMenuOpen(false);
       }
-      setMenuOpen(false);
     },
     [
       analytics,
@@ -399,10 +392,10 @@ export function CoSceneLayoutButton(): JSX.Element {
   const onShareLayout = useCallbackWithToast(
     async (item: Layout) => {
       const name = await prompt({
-        title: "Share a copy with your organization",
-        subText: "Shared layouts can be used and changed by other members of your organization.",
+        title: t("shareDialogTitle"),
+        subText: t("shareDialogDescription"),
         initialValue: item.name,
-        label: "Layout name",
+        label: t("layoutName"),
       });
       if (name != undefined) {
         const newLayout = await layoutManager.saveNewLayout({
@@ -414,7 +407,7 @@ export function CoSceneLayoutButton(): JSX.Element {
         await onSelectLayout(newLayout);
       }
     },
-    [analytics, layoutManager, onSelectLayout, prompt],
+    [analytics, t, layoutManager, onSelectLayout, prompt],
   );
 
   const onExportLayout = useCallbackWithToast(
@@ -559,6 +552,9 @@ export function CoSceneLayoutButton(): JSX.Element {
         }}
         ref={anchorEl}
       />
+      {promptModal}
+      {confirmModal}
+      {unsavedChangesPrompt}
       <Menu
         id="add-panel-menu"
         anchorEl={anchorEl.current}
@@ -623,25 +619,33 @@ export function CoSceneLayoutButton(): JSX.Element {
             </MuiMenuItem>
           ),
         )}
-        <Typography variant="body2" className={classes.subheader}>
-          {t("layouts")}
-        </Typography>
-        <List disablePadding>
-          {items.length === 0 && (
-            <Stack paddingX={2}>
-              <Typography variant="body2" color="text.secondary">
-                {t("addLayoutToGetStart")}
-              </Typography>
-            </Stack>
-          )}
-          {items.map((layout) => (
-            <LayoutRow
+        <Stack fullHeight gap={2} style={{ pointerEvents: pendingMultiAction ? "none" : "auto" }}>
+          <LayoutSection
+            title={layoutManager.supportsSharing ? t("personal") : undefined}
+            emptyText={t("noPersonalLayouts")}
+            items={layouts.value?.personal}
+            anySelectedModifiedLayouts={anySelectedModifiedLayouts}
+            multiSelectedIds={state.selectedIds}
+            selectedId={currentLayoutId}
+            onSelect={onSelectLayout}
+            onRename={onRenameLayout}
+            onDuplicate={onDuplicateLayout}
+            onDelete={onDeleteLayout}
+            onShare={onShareLayout}
+            onExport={onExportLayout}
+            onOverwrite={onOverwriteLayout}
+            onRevert={onRevertLayout}
+            onMakePersonalCopy={onMakePersonalCopy}
+            searchQuery={searchQuery}
+          />
+          {layoutManager.supportsSharing && (
+            <LayoutSection
+              title={t("organization")}
+              emptyText={t("noOrgnizationLayouts")}
+              items={layouts.value?.shared}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}
-              selected={layout.id === currentLayoutId}
-              key={layout.id}
-              layout={layout}
-              searchQuery={searchQuery}
+              selectedId={currentLayoutId}
               onSelect={onSelectLayout}
               onRename={onRenameLayout}
               onDuplicate={onDuplicateLayout}
@@ -651,13 +655,12 @@ export function CoSceneLayoutButton(): JSX.Element {
               onOverwrite={onOverwriteLayout}
               onRevert={onRevertLayout}
               onMakePersonalCopy={onMakePersonalCopy}
+              searchQuery={searchQuery}
             />
-          ))}
-        </List>
+          )}
+          <Stack flexGrow={1} />
+        </Stack>
       </Menu>
-      {promptModal}
-      {confirmModal}
-      {unsavedChangesPrompt}
       <SelectLayoutTemplateModal
         open={selectLayoutTemplateModalOpen}
         onClose={handleCloseLayoutTemplateModal}
