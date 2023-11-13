@@ -10,7 +10,7 @@ import {
   SlideAdd24Regular,
 } from "@fluentui/react-icons";
 import { Avatar, Button, IconButton, Tooltip } from "@mui/material";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
@@ -32,6 +32,7 @@ import {
   LayoutState,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useCurrentUser as useCoSceneCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   WorkspaceContextStore,
@@ -45,7 +46,7 @@ import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { AddPanelMenu } from "./AddPanelMenu";
 import { AppBarContainer } from "./AppBarContainer";
-import { UserMenu, UserInfo } from "./CoSceneUserMenu";
+import { UserMenu } from "./CoSceneUserMenu";
 import { DataSource } from "./DataSource";
 
 const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
@@ -215,12 +216,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
   const appMenuOpen = Boolean(appMenuEl);
   const userMenuOpen = Boolean(userAnchorEl);
   const panelMenuOpen = Boolean(panelAnchorEl);
-
-  const userInfo = useMemo(() => {
-    return localStorage.getItem("current_user") != undefined
-      ? (JSON.parse(localStorage.getItem("current_user")!) as UserInfo)
-      : undefined;
-  }, []);
+  const userInfo = useCoSceneCurrentUser();
 
   return (
     <>

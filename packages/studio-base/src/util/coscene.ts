@@ -5,14 +5,25 @@
 // coScene custom tools
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { ServiceType } from "@bufbuild/protobuf";
+import { ServiceType, Timestamp, Value, JsonObject } from "@bufbuild/protobuf";
 import {
   ACCESS_TOKEN_NAME,
   SUPER_TOKEN_ACCESS_TOKEN_NAME,
   uuidv4,
 } from "@coscene-io/coscene/queries";
+import {
+  Layout,
+  LayoutDetail,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
+
+import {
+  ConsoleApiLayout,
+  LayoutID,
+  ISO8601Timestamp,
+  Permission,
+} from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
 export function getPlaybackQualityLevelByLocalStorage(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
   const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
@@ -119,3 +130,55 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
     }),
   );
 }
+
+// protobuf => JsonObject is not support undefind type so we need to replace undefined with null
+function replaceUndefinedWithNull(obj: Record<string, unknown>) {
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] != undefined && typeof obj[key] === "object") {
+      replaceUndefinedWithNull(obj[key] as Record<string, unknown>);
+    } else if (obj[key] == undefined) {
+      obj[key] = ReactNull;
+    }
+  });
+  return obj;
+}
+
+export const coSceneLayoutToConsoleApiLayout = (layout: Layout): ConsoleApiLayout => {
+  return {
+    id: layout.name.split("layouts/").pop() as LayoutID,
+    name: layout.value?.name ?? "",
+    createdAt: layout.value?.createTime?.toDate().toISOString() as ISO8601Timestamp,
+    updatedAt: layout.value?.updateTime?.toDate().toISOString() as ISO8601Timestamp,
+    savedAt: layout.value?.saveTime?.toDate().toISOString() as ISO8601Timestamp,
+    permission: layout.value?.permission as Permission,
+    data: layout.value?.data?.toJson() as Record<string, unknown>,
+  };
+};
+
+export const getCoSceneLayout = (layout: {
+  id: LayoutID | undefined;
+  savedAt: ISO8601Timestamp | undefined;
+  name: string | undefined;
+  permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
+  data: Record<string, unknown> | undefined;
+  userId: string;
+}): Layout => {
+  const newLayout = new Layout();
+  newLayout.name =
+    layout.permission === "CREATOR_WRITE"
+      ? `users/${layout.userId}/layouts/${layout.id}`
+      : "layouts/" + layout.id;
+  const layoutDetail = new LayoutDetail();
+
+  layoutDetail.name = layout.name ?? "";
+  layoutDetail.permission = layout.permission ?? "";
+  layoutDetail.createTime = Timestamp.fromDate(new Date());
+  layoutDetail.updateTime = Timestamp.fromDate(new Date());
+  layoutDetail.saveTime = Timestamp.fromDate(new Date(layout.savedAt ?? ""));
+
+  layoutDetail.data = Value.fromJson(replaceUndefinedWithNull(layout.data ?? {}) as JsonObject);
+
+  newLayout.value = layoutDetail;
+
+  return newLayout;
+};

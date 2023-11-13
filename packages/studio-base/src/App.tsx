@@ -33,8 +33,10 @@ import { IDataSourceFactory } from "./context/CoScenePlayerSelectionContext";
 import NativeAppMenuContext, { INativeAppMenu } from "./context/NativeAppMenuContext";
 import NativeWindowContext, { INativeWindow } from "./context/NativeWindowContext";
 import { UserNodeStateProvider } from "./context/UserNodeStateContext";
+import CoSceneConsoleApiRemoteLayoutStorageProvider from "./providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
 import LayoutManagerProvider from "./providers/CoSceneLayoutManagerProvider";
 import CoSceneUserProfileLocalStorageProvider from "./providers/CoSceneUserProfileLocalStorageProvider";
+import CoSceneUserProvider from "./providers/CoSceneUserProvider";
 import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
 import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
@@ -88,11 +90,19 @@ export function App(props: AppProps): JSX.Element {
     extraProviders,
     consoleApi,
   } = props;
+  // foxglove 原始代码 为减少冲突 暂不删除
+  if (extraProviders) {
+    console.debug("extraProviders", extraProviders);
+  }
 
   const providers = [
     /* eslint-disable react/jsx-key */
     <CoSceneUserProfileLocalStorageProvider />,
+    <CoSceneUserProvider />,
     <CoSceneConsoleApiContext.Provider value={consoleApi} />,
+    <CoSceneConsoleApiRemoteLayoutStorageProvider />,
+    <LayoutStorageContext.Provider value={layoutStorage} />,
+    <LayoutManagerProvider />,
     <TimelineInteractionStateProvider />,
     <UserNodeStateProvider />,
     <CoSceneCurrentLayoutProvider />,
@@ -111,14 +121,6 @@ export function App(props: AppProps): JSX.Element {
 
   if (nativeWindow) {
     providers.push(<NativeWindowContext.Provider value={nativeWindow} />);
-  }
-
-  if (extraProviders) {
-    providers.unshift(...extraProviders);
-  } else {
-    // Extra providers have their own layout providers
-    providers.unshift(<LayoutManagerProvider />);
-    providers.unshift(<LayoutStorageContext.Provider value={layoutStorage} />);
   }
 
   // The toast and logs provider comes first so they are available to all downstream providers

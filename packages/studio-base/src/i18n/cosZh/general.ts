@@ -10,4 +10,5 @@ export const cosGeneral: Partial<TypeOptions["resources"]["cosGeneral"]> = {
   refresh: "刷新",
   name: "名称",
   cancel: "取消",
+  delete: "删除",
 };

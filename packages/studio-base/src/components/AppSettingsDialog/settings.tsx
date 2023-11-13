@@ -33,9 +33,9 @@ import { makeStyles } from "tss-react/mui";
 import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
-import { UserInfo } from "@foxglove/studio-base/components/AppBar/CoSceneUserMenu";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Language } from "@foxglove/studio-base/i18n";
@@ -370,11 +370,7 @@ export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
   const consoleApi = useConsoleApi();
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(i18n.language as Language);
-  const userInfo = useMemo(() => {
-    return localStorage.getItem("current_user") != undefined
-      ? (JSON.parse(localStorage.getItem("current_user")!) as UserInfo)
-      : undefined;
-  }, []);
+  const userInfo = useCurrentUser();
 
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {
