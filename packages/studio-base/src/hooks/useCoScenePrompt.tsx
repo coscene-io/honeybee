@@ -4,6 +4,7 @@
 
 import { Button, Dialog, DialogActions, DialogContent, TextField, Typography } from "@mui/material";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useKeyPressEvent } from "react-use";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -37,6 +38,7 @@ function ModalPrompt({
   transformer,
 }: ModalPromptProps) {
   const [value, setValue] = useState(initialValue ?? "");
+  const { t } = useTranslation("cosGeneral");
   const errorMessage = useMemo<string | undefined>(() => {
     if (value === "") {
       return undefined;
@@ -128,7 +130,7 @@ function ModalPrompt({
               onComplete(undefined);
             }}
           >
-            Cancel
+            {t("cancel")}
           </Button>
           <Button
             type="submit"
@@ -136,7 +138,7 @@ function ModalPrompt({
             size="large"
             disabled={value === "" || errorMessage != undefined}
           >
-            OK
+            {t("ok")}
           </Button>
         </DialogActions>
       </form>
