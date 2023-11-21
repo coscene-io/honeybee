@@ -11,4 +11,5 @@ export const cosGeneral: Partial<TypeOptions["resources"]["cosGeneral"]> = {
   name: "名称",
   cancel: "取消",
   delete: "删除",
+  ok: "确定",
 };

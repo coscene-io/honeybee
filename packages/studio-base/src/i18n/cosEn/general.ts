@@ -9,4 +9,5 @@ export const cosGeneral = {
   name: "Name",
   cancel: "Cancel",
   delete: "Delete",
+  ok: "OK",
 };
