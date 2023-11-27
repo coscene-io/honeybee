@@ -54,6 +54,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const url = args.params?.url;
+    const hostName = args.params?.hostName ?? "";
     if (!url) {
       return;
     }
@@ -62,6 +63,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       url,
       metricsCollector: args.metricsCollector,
       sourceId: this.id,
+      hostName,
     });
   }
 }

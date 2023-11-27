@@ -129,6 +129,8 @@ export function DataSource(): JSX.Element {
   const playerDisplayName =
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
+  const hostName = urlState?.parameters?.hostName;
+
   if (playerPresence === PlayerPresence.NOT_PRESENT) {
     return <div className={classes.sourceName}>{t("noDataSource")}</div>;
   }
@@ -178,7 +180,7 @@ export function DataSource(): JSX.Element {
               </Breadcrumbs>
             ) : (
               <Typography className={classes.numericValue} variant="inherit">
-                {isLiveConnection ? `${playerDisplayName}` : `<${t("unknown")}>`}
+                {isLiveConnection ? `${hostName ?? playerDisplayName}` : `<${t("unknown")}>`}
               </Typography>
             )}
           </div>
