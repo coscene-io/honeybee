@@ -83,6 +83,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
   #url: string; // WebSocket URL.
   #name: string;
+  // coscene devicename
+  #hostName: string = "";
   #client?: FoxgloveClient; // The client when we're connected.
   #id: string = uuidv4(); // Unique ID for this player session.
   #serverCapabilities: string[] = [];
@@ -144,19 +146,22 @@ export default class FoxgloveWebSocketPlayer implements Player {
     url,
     metricsCollector,
     sourceId,
+    hostName,
   }: {
     url: string;
     metricsCollector: PlayerMetricsCollectorInterface;
     sourceId: string;
+    hostName: string;
   }) {
     this.#metricsCollector = metricsCollector;
     this.#url = url;
+    this.#hostName = hostName;
     this.#name = url;
     this.#metricsCollector.playerConstructed();
     this.#sourceId = sourceId;
     this.#urlState = {
       sourceId: this.#sourceId,
-      parameters: { url: this.#url },
+      parameters: { url: this.#url, hostName: this.#hostName },
     };
     this.#open();
   }
@@ -1215,7 +1220,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
     const maybeRos = ["ros1", "ros2"].includes(this.#profile ?? "");
     for (const [name, types] of datatypes) {
       const knownTypes = this.#datatypes.get(name);
-      if (knownTypes && !isMsgDefEqual(types, knownTypes)) {
+      if (
+        knownTypes &&
+        !isMsgDefEqual(types, knownTypes) &&
+        // foxglove 暂不支持 fox 格式 前端暂时放过当前的问题
+        name !== "rcl_interfaces/ParameterDescriptor"
+      ) {
         this.#problems.addProblem(`schema-changed-${name}`, {
           message: `Definition of schema '${name}' has changed during the server's runtime`,
           severity: "error",
