@@ -10,7 +10,7 @@ import FoxgloveWebSocketPlayer from "@foxglove/studio-base/players/FoxgloveWebSo
 import { Player } from "@foxglove/studio-base/players/types";
 
 export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFactory {
-  public id = "foxglove-websocket";
+  public id = "coscene-websocket";
   public type: IDataSourceFactory["type"] = "connection";
   public displayName = "Foxglove WebSocket";
   public iconName: IDataSourceFactory["iconName"] = "Flow";
@@ -19,15 +19,15 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
   public docsLinks = [
     {
       label: "ROS 1",
-      url: "https://foxglove.dev/docs/studio/connection/ros1#foxglove-websocket",
+      url: "https://foxglove.dev/docs/studio/connection/ros1#coscene-websocket",
     },
     {
       label: "ROS 2",
-      url: "https://foxglove.dev/docs/studio/connection/ros2#foxglove-websocket",
+      url: "https://foxglove.dev/docs/studio/connection/ros2#coscene-websocket",
     },
     {
       label: "custom data",
-      url: "https://foxglove.dev/docs/studio/connection/custom#foxglove-websocket",
+      url: "https://foxglove.dev/docs/studio/connection/custom#coscene-websocket",
     },
   ];
 

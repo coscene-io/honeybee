@@ -2,12 +2,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { CoScenePlayerMetricsCollectorInterface } from "@foxglove/studio-base/players/types";
+import { Time } from "@foxglove/rostime";
+import {
+  PlayerMetricsCollectorInterface,
+  SubscribePayload,
+} from "@foxglove/studio-base/players/types";
 import CoSceneConsoleApi, { MetricType } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
-export default class CoSceneAnalyticsMetricsCollector
-  implements CoScenePlayerMetricsCollectorInterface
-{
+export default class CoSceneAnalyticsMetricsCollector implements PlayerMetricsCollectorInterface {
   #timeStatistics: number = 0;
   #playing: boolean = false;
   #consoleApi: CoSceneConsoleApi | undefined;
@@ -28,6 +30,35 @@ export default class CoSceneAnalyticsMetricsCollector
       }
     }, 100);
   }
+  public setProperty(key: string, value: string | number | boolean): void {
+    console.debug(`coScene setProperty: ${key}=${value}`);
+  }
+  public seek(time: Time): void {
+    console.debug(`coScene seek: ${time.sec}.${time.nsec}`);
+  }
+  public setSpeed(speed: number): void {
+    console.debug(`coScene setSpeed: ${speed}`);
+  }
+  public close(): void {
+    console.debug(`coScene close`);
+  }
+  public setSubscriptions(subscriptions: SubscribePayload[]): void {
+    console.debug(`coScene setSubscriptions: ${JSON.stringify(subscriptions)}`);
+  }
+  public recordBytesReceived(bytes: number): void {
+    console.debug(`coScene recordBytesReceived: ${bytes}`);
+  }
+  public recordPlaybackTime(time: Time, params: { stillLoadingData: boolean }): void {
+    console.debug(
+      `coScene recordPlaybackTime: ${time.sec}.${time.nsec}, ${params.stillLoadingData}`,
+    );
+  }
+  public recordUncachedRangeRequest(): void {
+    console.debug(`coScene recordUncachedRangeRequest`);
+  }
+  public recordTimeToFirstMsgs(): void {
+    console.debug(`coScene recordTimeToFirstMsgs`);
+  }
 
   public async playerConstructed(): Promise<void> {
     if (this.#consoleApi) {
@@ -37,7 +68,8 @@ export default class CoSceneAnalyticsMetricsCollector
     }
   }
 
-  public play(): void {
+  public play(speed?: number): void {
+    console.debug(`coScene play: ${speed}`);
     this.#playing = true;
   }
 

@@ -215,7 +215,7 @@ const remoteSources: MockMessagePipelineProps[] = [
   "ros1-socket",
   "ros2-socket",
   "rosbridge-websocket",
-  "foxglove-websocket",
+  "coscene-websocket",
   "velodyne-device",
   "some other source type",
 ].map((sourceId) => ({
