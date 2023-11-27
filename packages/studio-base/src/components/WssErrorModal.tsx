@@ -5,6 +5,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import { Dialog, IconButton, Stack, Typography } from "@mui/material";
 import { useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { Immutable } from "@foxglove/studio";
@@ -26,6 +27,7 @@ export default function WssErrorModal(
 
   const [open, setOpen] = useState(true);
   const [hasDismissedWssErrorModal, setHasDismissedWssErrorModal] = useState(false);
+  const { t } = useTranslation("cosWebsocket");
 
   const handleClose = () => {
     setOpen(false);
@@ -51,7 +53,7 @@ export default function WssErrorModal(
         paddingTop={2}
       >
         <Typography variant="h3" paddingTop={1}>
-          WebSocket SSL Error
+          {t("websocketSSLError")}
         </Typography>
         <IconButton
           onClick={() => {
@@ -64,13 +66,16 @@ export default function WssErrorModal(
       </Stack>
       <Stack paddingX={3} paddingY={2} rowGap={2}>
         <Typography variant="body1" color="text.secondary">
-          By default, Chrome prevents a secure <code>https://</code> page from connecting to an
-          insecure <code>ws://</code> WebSocket server. To allow the connection, enable &quot;Unsafe
-          Scripts&quot; for this page.
+          <Trans
+            t={t}
+            i18nKey="websocketSSLErrorDesc"
+            components={{
+              code: <code />,
+            }}
+          />
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Click the shield icon at the end of your address bar, and then click &quot;Load Unsafe
-          Scripts.&quot;
+          {t("websocketSSLErrorDesc2")}
         </Typography>
         <img src={WssErrorModalScreenshot} alt="WSS screenshot" className={classes.image} />
       </Stack>

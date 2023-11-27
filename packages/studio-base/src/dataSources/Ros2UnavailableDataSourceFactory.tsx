@@ -16,7 +16,7 @@ export default class Ros2UnavailableDataSourceFactory implements IDataSourceFact
     <>
       Use the{" "}
       <Link
-        href="https://foxglove.dev/docs/studio/connection/ros2#foxglove-websocket"
+        href="https://foxglove.dev/docs/studio/connection/ros2#coscene-websocket"
         target="_blank"
         rel="noreferrer"
       >

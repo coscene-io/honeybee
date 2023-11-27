@@ -89,6 +89,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
   },
 }));
 
+const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlayerProblems = (ctx: MessagePipelineContext) => ctx.playerState.problems;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
@@ -102,6 +103,7 @@ export function DataSource(): JSX.Element {
   const { classes, cx } = useStyles();
 
   const playerPresence = useMessagePipeline(selectPlayerPresence);
+  const playerName = useMessagePipeline(selectPlayerName);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const seek = useMessagePipeline(selectSeek);
   // CoScene
@@ -123,6 +125,11 @@ export function DataSource(): JSX.Element {
     playerPresence === PlayerPresence.ERROR ||
     playerProblems.some((problem) => problem.severity === "error");
   const loading = reconnecting || initializing;
+
+  const playerDisplayName =
+    initializing && playerName == undefined ? "Initializing..." : playerName;
+
+  const hostName = urlState?.parameters?.hostName;
 
   if (playerPresence === PlayerPresence.NOT_PRESENT) {
     return <div className={classes.sourceName}>{t("noDataSource")}</div>;
@@ -173,7 +180,7 @@ export function DataSource(): JSX.Element {
               </Breadcrumbs>
             ) : (
               <Typography className={classes.numericValue} variant="inherit">
-                {`<${t("unknown")}>`}
+                {isLiveConnection ? `${hostName ?? playerDisplayName}` : `<${t("unknown")}>`}
               </Typography>
             )}
           </div>
