@@ -11,4 +11,8 @@ export const cosPlaylist: Partial<TypeOptions["resources"]["cosPlaylist"]> = {
   noLoadingBag: "加载bag文件错误",
   noBag: "没有bag文件",
   shadowMode: "影子模式",
+  addFiles: "添加文件",
+  selectedFilesCount: "已选择：{{count}}个文件",
+  selecteFilesFromRecord: "从记录中选择文件",
+  duplicateFile: "该文件与文件{{filename}}是同一文件",
 };

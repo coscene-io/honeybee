@@ -11,4 +11,8 @@ export const cosPlaylist = {
   noLoadingBag: "Error loading bag files.",
   noBag: "No bag files.",
   shadowMode: "Shadow mode",
+  addFiles: "Add files",
+  selectedFilesCount: "Selected: {{count}} files",
+  selecteFilesFromRecord: "Select files from record",
+  duplicateFile: "This file is the same file as file {{filename}}",
 };

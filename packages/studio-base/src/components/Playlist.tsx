@@ -2,13 +2,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import Add from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
-import { AppBar, IconButton, TextField, Typography, CircularProgress } from "@mui/material";
+import { AppBar, Button, IconButton, TextField, Typography, CircularProgress } from "@mui/material";
 import { useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import CoSceneChooser from "@foxglove/studio-base/components/CoSceneChooser";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -48,11 +50,17 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.background.paper,
     maxHeight: "100%",
   },
+  addFileButton: {
+    display: "flex",
+    gap: theme.spacing(0.5),
+    whiteSpace: "nowrap",
+  },
 }));
 
 export function Playlist(): JSX.Element {
   const [filterText, setFilterText] = useState<string>("");
   const bagFiles = useRecord(selectBagFiles);
+  const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);
   const currentBagFiles = useRecord(selectCurrentBagFiles);
   const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
@@ -98,6 +106,7 @@ export function Playlist(): JSX.Element {
           onChange={(event) => {
             setFilterText(event.currentTarget.value);
           }}
+          size="small"
           placeholder={t("searchByNameTime")}
           InputProps={{
             startAdornment: <SearchIcon fontSize="small" />,
@@ -108,6 +117,14 @@ export function Playlist(): JSX.Element {
             ),
           }}
         />
+        <Button
+          className={classes.addFileButton}
+          onClick={() => {
+            setAddFileDialogOpen(true);
+          }}
+        >
+          <Add /> {t("addFiles")}
+        </Button>
       </AppBar>
       {bagFiles.loading && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
@@ -149,6 +166,16 @@ export function Playlist(): JSX.Element {
           );
         })}
       </div>
+      <CoSceneChooser
+        open={addFileDialogOpen}
+        closeDialog={() => {
+          setAddFileDialogOpen(false);
+        }}
+        onConfirm={(files) => {
+          console.log("add files", files);
+        }}
+        type="files"
+      />
     </Stack>
   );
 }

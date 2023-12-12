@@ -31,12 +31,27 @@ import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
 import { Revision } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/revision_pb";
 import { GetRevisionRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/revision_pb";
+import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
+import {
+  ListUserProjectsRequest,
+  ListUserProjectsResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
 import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
 import {
   UpsertConfigMapRequest,
   GetConfigMapRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
+import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_connect";
+import {
+  ListFilesRequest,
+  ListFilesResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
+import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
+import {
+  ListRecordsRequest,
+  ListRecordsResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
@@ -499,6 +514,10 @@ class CoSceneConsoleApi {
     };
   }
 
+  public getStreamUrl(): string {
+    return `${this.#baseUrl}/v1/data/getStreams`;
+  }
+
   public async getPlaylist(
     params: DataPlatformRequestArgs & { includeSchemas?: boolean; accessToken: string },
   ): Promise<getPlaylistResponse> {
@@ -519,10 +538,7 @@ class CoSceneConsoleApi {
     );
   }
 
-  public getStreamUrl(): string {
-    return `${this.#baseUrl}/v1/data/getStreams`;
-  }
-
+  // event
   public async createEvent({
     event,
     parent,
@@ -751,6 +767,78 @@ class CoSceneConsoleApi {
 
   public async getLayoutTemplate(url: string): Promise<LayoutData> {
     return await this.#get<LayoutData>(url, undefined, true);
+  }
+
+  public async listUserProjects({
+    userId,
+    pageSize,
+    filter,
+    currentPage,
+  }: {
+    userId: string;
+    pageSize: number;
+    filter?: string;
+    currentPage: number;
+  }): Promise<ListUserProjectsResponse> {
+    const req = new ListUserProjectsRequest({
+      parent: `users/${userId}`,
+      pageSize,
+      skip: pageSize * currentPage,
+    });
+
+    if (filter) {
+      req.filter = filter;
+    }
+
+    const projectClient = getPromiseClient(ProjectService);
+
+    return await projectClient.listUserProjects(req);
+  }
+
+  public async listRecord({
+    projectName,
+    pageSize,
+    filter,
+    currentPage,
+  }: {
+    projectName: string;
+    pageSize: number;
+    filter: string;
+    currentPage: number;
+  }): Promise<ListRecordsResponse> {
+    const req = new ListRecordsRequest({
+      parent: projectName,
+      filter,
+      pageSize,
+      skip: pageSize * currentPage,
+    });
+
+    const recordClient = getPromiseClient(RecordService);
+
+    return await recordClient.listRecords(req);
+  }
+
+  public async listFiles({
+    revisionName,
+    pageSize,
+    filter,
+    currentPage,
+  }: {
+    revisionName: string;
+    pageSize: number;
+    filter: string;
+    currentPage: number;
+  }): Promise<ListFilesResponse> {
+    const req = new ListFilesRequest({
+      parent: revisionName,
+      filter,
+      pageSize,
+      skip: pageSize * currentPage,
+    });
+
+    const fileClient = getPromiseClient(FileService);
+
+    return await fileClient.listFiles(req);
   }
 }
 

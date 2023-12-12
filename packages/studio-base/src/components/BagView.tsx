@@ -1,9 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 import { ImageShadow20Filled } from "@fluentui/react-icons";
 import BarChartIcon from "@mui/icons-material/BarChart";
+import Clear from "@mui/icons-material/Clear";
 import { alpha } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
@@ -107,6 +107,17 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
   hiddenBarChartIcon: {
     display: "none",
   },
+  hideDeleteButton: {
+    display: "none",
+  },
+  deleteButton: {
+    position: "absolute",
+    cursor: "pointer",
+    top: "50%",
+    transform: "translateY(-50%)",
+    right: theme.spacing(2),
+    padding: theme.spacing(0.5),
+  },
 }));
 
 function BagViewComponent(params: {
@@ -122,6 +133,12 @@ function BagViewComponent(params: {
   const { classes, cx } = useStyles();
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosPlaylist");
+
+  const deleteBag = () => {
+    // console.log("deleteLog");
+    // console.info("deleteLog");
+  };
+
   return (
     <div
       className={cx(classes.bagBox, {
@@ -187,6 +204,13 @@ function BagViewComponent(params: {
           </div>
         </Tooltip>
       )}
+      <Clear
+        className={cx({
+          [classes.hideDeleteButton]: !isHovered,
+          [classes.deleteButton]: isHovered,
+        })}
+        onClick={deleteBag}
+      />
     </div>
   );
 }
