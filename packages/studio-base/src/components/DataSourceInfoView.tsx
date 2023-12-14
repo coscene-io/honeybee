@@ -15,7 +15,10 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import Timestamp from "@foxglove/studio-base/components/Timestamp";
-import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import {
+  CoSceneRecordStore,
+  useRecord,
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { subtractTimes } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/typescript/userUtils/time";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";

@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Record } from "@coscene-io/coscene/proto/v1alpha2";
 import { createContext } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { DeepReadonly } from "ts-essentials";
@@ -32,28 +31,32 @@ export type BagFileInfo = {
   secondsSinceStart?: number;
 };
 
-export type CoSceneRecordStore = DeepReadonly<{
-  record: AsyncState<Record>;
-
-  recordBagFiles: AsyncState<BagFileInfo[]>;
+export type CoScenePlaylistStore = DeepReadonly<{
+  bagFiles: AsyncState<BagFileInfo[]>;
 
   currentBagFiles?: BagFileInfo[];
 
-  setRecord: (record: AsyncState<Record>) => void;
-
-  setRecordBagFiles: (bagFile: AsyncState<BagFileInfo[]>) => void;
+  setBagFiles: (bagFile: AsyncState<BagFileInfo[]>) => void;
 
   setCurrentBagFiles: (bagFile: BagFileInfo[]) => void;
 }>;
 
-export const CoSceneRecordContext = createContext<undefined | StoreApi<CoSceneRecordStore>>(
+export type ParamsFile =
+  | {
+      filename: string;
+    }
+  | {
+      jobRunsName: string;
+    };
+
+export const CoScenePlaylistContext = createContext<undefined | StoreApi<CoScenePlaylistStore>>(
   undefined,
 );
 
-export function useRecord<T>(
-  selector: (store: CoSceneRecordStore) => T,
+export function usePlaylist<T>(
+  selector: (store: CoScenePlaylistStore) => T,
   equalityFn?: (a: T, b: T) => boolean,
 ): T {
-  const context = useGuaranteedContext(CoSceneRecordContext);
+  const context = useGuaranteedContext(CoScenePlaylistContext);
   return useStore(context, selector, equalityFn);
 }

@@ -9,8 +9,8 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
 import CoSceneCurrentLayoutProvider from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider";
+import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
-import CoSceneRecordProvider from "@foxglove/studio-base/providers/CoSceneRecordProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
@@ -110,7 +110,7 @@ export function App(props: AppProps): JSX.Element {
     <ExtensionCatalogProvider loaders={extensionLoaders} />,
     <PlayerManager playerSources={dataSources} />,
     <EventsProvider />,
-    <CoSceneRecordProvider />,
+    <CoScenePlaylistProvider />,
     <CoSceneProjectProvider />,
     /* eslint-enable react/jsx-key */
   ];

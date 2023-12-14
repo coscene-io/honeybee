@@ -6,8 +6,8 @@ import { useMemo } from "react";
 
 import { CurrentLayoutSyncAdapter } from "@foxglove/studio-base/components/CoSceneCurrentLayoutSyncAdapter";
 import { CoSceneEventsSyncAdapter } from "@foxglove/studio-base/components/CoSceneEventsSyncAdapter";
+import { PlaylistSyncAdapter } from "@foxglove/studio-base/components/CoScenePlaylistSyncAdapter";
 import { ProjectsSyncAdapter } from "@foxglove/studio-base/components/CoSceneProjectSyncAdapter";
-import { RecordsSyncAdapter } from "@foxglove/studio-base/components/CoSceneRecordSyncAdapter";
 // import { CurrentLayoutLocalStorageSyncAdapter } from "@foxglove/studio-base/components/CurrentLayoutLocalStorageSyncAdapter";
 import { URLStateSyncAdapter } from "@foxglove/studio-base/components/URLStateSyncAdapter";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
@@ -24,7 +24,7 @@ export function SyncAdapters(): JSX.Element {
     return (
       <>
         <CoSceneEventsSyncAdapter />
-        <RecordsSyncAdapter />
+        <PlaylistSyncAdapter />
         <ProjectsSyncAdapter />
         <URLStateSyncAdapter />
         <CurrentLayoutSyncAdapter />

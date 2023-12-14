@@ -15,7 +15,10 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import {
+  CoSceneRecordStore,
+  useRecord,
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   EventsStore,
   TimelinePositionedEvent,

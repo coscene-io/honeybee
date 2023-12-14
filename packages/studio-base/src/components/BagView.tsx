@@ -12,7 +12,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { subtract, toDate } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
-import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 
 const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) => ({

@@ -174,12 +174,14 @@ type customTopicResponse = {
 };
 
 export type getPlaylistResponse = {
-  bagList: {
-    fileName: string;
+  fileList: {
+    source: string;
+    displayName: string;
     startTime: number;
     endTime: number;
-    isGhostMode: boolean;
+    projectName: string;
     recordName: string;
+    isGhostMode: boolean;
   }[];
 };
 
@@ -518,23 +520,20 @@ class CoSceneConsoleApi {
     return `${this.#baseUrl}/v1/data/getStreams`;
   }
 
-  public async getPlaylist(
-    params: DataPlatformRequestArgs & { includeSchemas?: boolean; accessToken: string },
-  ): Promise<getPlaylistResponse> {
-    return await this.#get<getPlaylistResponse>(
+  public async getPlaylist({
+    jobRuns,
+    fileNames,
+  }: {
+    jobRuns: string[];
+    fileNames: string[];
+  }): Promise<getPlaylistResponse> {
+    return await this.#post<getPlaylistResponse>(
       "/v1/data/getPlaylist",
       {
-        revisionName: params.revisionName,
-        jobRunId: params.jobRunId,
-        includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-        accessToken: params.accessToken.replace(/(^\s*)|(\s*$)/g, ""),
+        jobRuns,
+        fileNames,
       },
       undefined,
-      {
-        headers: {
-          ProjectName: params.projectName ?? "",
-        },
-      },
     );
   }
 

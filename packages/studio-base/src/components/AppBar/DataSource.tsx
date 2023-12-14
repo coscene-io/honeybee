@@ -16,10 +16,13 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
+  CoSceneRecordStore,
+  useRecord,
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import {
   CoSceneProjectStore,
   useProject,
 } from "@foxglove/studio-base/context/CoSceneProjectContext";
-import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";

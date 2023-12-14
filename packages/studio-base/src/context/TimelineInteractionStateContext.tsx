@@ -16,7 +16,7 @@ import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Immutable } from "@foxglove/studio";
-import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 import type { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 

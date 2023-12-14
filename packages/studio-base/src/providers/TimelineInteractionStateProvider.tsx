@@ -6,7 +6,7 @@ import * as _ from "lodash-es";
 import { ReactNode, useState } from "react";
 import { createStore, StoreApi } from "zustand";
 
-import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 import {
   TimelineInteractionStateContext,

@@ -9,7 +9,7 @@ import {
   CoSceneRecordStore,
   BagFileInfo,
   useRecord,
-} from "@foxglove/studio-base/context/CoSceneRecordContext";
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,

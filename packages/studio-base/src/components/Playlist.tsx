@@ -17,10 +17,10 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import {
-  CoSceneRecordStore,
-  useRecord,
+  CoScenePlaylistStore,
+  usePlaylist,
   BagFileInfo,
-} from "@foxglove/studio-base/context/CoSceneRecordContext";
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
@@ -28,8 +28,8 @@ import {
 
 import { BagView } from "./BagView";
 
-const selectBagFiles = (state: CoSceneRecordStore) => state.recordBagFiles;
-const selectCurrentBagFiles = (state: CoSceneRecordStore) => state.currentBagFiles;
+const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
+const selectCurrentBagFiles = (state: CoScenePlaylistStore) => state.currentBagFiles;
 const selectBagsAtHoverValue = (store: TimelineInteractionStateStore) => store.bagsAtHoverValue;
 const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
 const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHoveredBag;
@@ -59,9 +59,9 @@ const useStyles = makeStyles()((theme) => ({
 
 export function Playlist(): JSX.Element {
   const [filterText, setFilterText] = useState<string>("");
-  const bagFiles = useRecord(selectBagFiles);
+  const bagFiles = usePlaylist(selectBagFiles);
   const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);
-  const currentBagFiles = useRecord(selectCurrentBagFiles);
+  const currentBagFiles = usePlaylist(selectCurrentBagFiles);
   const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
   const { t } = useTranslation("cosPlaylist");
