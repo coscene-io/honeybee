@@ -172,7 +172,7 @@ export function Playlist(): JSX.Element {
           setAddFileDialogOpen(false);
         }}
         onConfirm={(files) => {
-          console.log("add files", files);
+          // console.log("add files", files);
         }}
         type="files"
       />

@@ -144,6 +144,7 @@ export function PlaylistSyncAdapter(): ReactNull {
     ) {
       try {
         const filename = urlState.parameters.filename;
+        const urlFilesInfo: ParamsFile[] = JSON.parse(urlState.parameters.files ?? "{}");
 
         const recordBagFiles: BagFileInfo[] = [];
 
@@ -159,6 +160,41 @@ export function PlaylistSyncAdapter(): ReactNull {
         playListFiles.forEach((ele) => {
           recordBagFiles.push(positionBag(ele));
         });
+
+        const fileNameIdentifier: string[] = [];
+        const jobrunsIdentifier: string[] = [];
+
+        urlFilesInfo.forEach((file) => {
+          if ("filename" in file) {
+            fileNameIdentifier.push(file.filename);
+          }
+
+          if ("jobRunsName" in file) {
+            jobrunsIdentifier.push(file.jobRunsName);
+          }
+        });
+
+        // 文件在url中但是不在playlist中，说明文件已经被删除或者没有权限访问
+        const allPlayListFilesSource = playListFiles.map((ele) => ele.source);
+
+        fileNameIdentifier
+          .filter((ele) => !allPlayListFilesSource.includes(ele))
+          .forEach((ele) => {
+            recordBagFiles.push({
+              name: ele,
+              displayName: ele.split("/").pop() ?? "unknow",
+            });
+          });
+
+        jobrunsIdentifier
+          .filter((ele) => !allPlayListFilesSource.includes(ele))
+          .forEach((ele) => {
+            recordBagFiles.push({
+              name: ele,
+              displayName: "unknow",
+            });
+          });
+        // ----
 
         recordBagFiles.sort((a, b) =>
           a.startTime && b.startTime ? compare(a.startTime, b.startTime) : a.startTime ? -1 : 1,
@@ -186,6 +222,7 @@ export function PlaylistSyncAdapter(): ReactNull {
     urlState?.parameters?.warehouseId,
     urlState?.parameters?.projectId,
     urlState?.parameters?.filename,
+    urlState?.parameters?.files,
     playlist.value,
     seek,
     setRecordBagFiles,
