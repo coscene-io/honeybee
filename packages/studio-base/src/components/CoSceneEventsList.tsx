@@ -83,10 +83,10 @@ export function EventsList(): JSX.Element {
 
   const onClick = useCallback(
     (event: TimelinePositionedEvent) => {
-      if (event.event.getName() === selectedEventId) {
+      if (event.event.name === selectedEventId) {
         selectEvent(undefined);
       } else {
-        selectEvent(event.event.getName());
+        selectEvent(event.event.name);
       }
 
       if (seek) {
@@ -153,17 +153,17 @@ export function EventsList(): JSX.Element {
         {timestampedEvents.map((event) => {
           return (
             <EventView
-              key={event.event.getName()}
+              key={event.event.name}
               event={event}
               filter={filter}
               // When hovering within the event list only show hover state on directly
               // hovered event.
               isHovered={
                 hoveredEvent
-                  ? event.event.getName() === hoveredEvent.event.getName()
-                  : eventsAtHoverValue[event.event.getName()] != undefined
+                  ? event.event.name === hoveredEvent.event.name
+                  : eventsAtHoverValue[event.event.name] != undefined
               }
-              isSelected={event.event.getName() === selectedEventId}
+              isSelected={event.event.name === selectedEventId}
               onClick={onClick}
               onHoverStart={onHoverStart}
               onHoverEnd={onHoverEnd}

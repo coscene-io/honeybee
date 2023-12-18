@@ -16,10 +16,6 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
-  CoSceneRecordStore,
-  useRecord,
-} from "@foxglove/studio-base/context/CoScenePlaylistContext";
-import {
   CoSceneProjectStore,
   useProject,
 } from "@foxglove/studio-base/context/CoSceneProjectContext";
@@ -99,7 +95,6 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 // CoScene
 const selectProject = (store: CoSceneProjectStore) => store.project;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
-const selectRecord = (store: CoSceneRecordStore) => store.record;
 
 export function DataSource(): JSX.Element {
   const { t } = useTranslation("appBar");
@@ -115,7 +110,6 @@ export function DataSource(): JSX.Element {
     coSceneContext: { currentOrganizationSlug },
   } = useConsoleApi();
   const urlState = useMessagePipeline(selectUrlState);
-  const record = useRecord(selectRecord);
 
   const { sidebarActions } = useWorkspaceActions();
 
@@ -143,7 +137,8 @@ export function DataSource(): JSX.Element {
     process.env.NODE_ENV === "development"
       ? `https://home.coscene.dev/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`
       : `/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`;
-  const recordHref = `${projectHref}/records/${record.value?.getName().split("/").pop() ?? ""}`;
+
+  const recordHref = `${projectHref}/records/${urlState?.parameters?.recordId}`;
 
   const breadcrumbs = [
     <Link
@@ -164,7 +159,7 @@ export function DataSource(): JSX.Element {
       color="inherit"
       className={classes.breadcrumbs}
     >
-      {record.value?.getTitle()}
+      {urlState?.parameters?.displayName}
     </Link>,
   ];
 

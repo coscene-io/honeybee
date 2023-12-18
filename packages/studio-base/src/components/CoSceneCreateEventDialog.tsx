@@ -39,10 +39,6 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import {
-  CoSceneRecordStore,
-  useRecord,
-} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 
@@ -93,7 +89,6 @@ type KeyValue = { key: string; value: string };
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
-const selectRecord = (state: CoSceneRecordStore) => state.record;
 
 export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const isDemoSite =
@@ -109,7 +104,6 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const consoleApi = useConsoleApi();
 
   const refreshEvents = useEvents(selectRefreshEvents);
-  const record = useRecord(selectRecord);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const [event, setEvent] = useImmer<{
     eventName: string;
@@ -189,7 +183,9 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     const workflowRunsId = urlState?.parameters?.workflowRunsId;
     const revisionId = urlState?.parameters?.revisionId;
     const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
-    const recordName = record.value?.getName() ?? "";
+
+    // const recordName = record.value?.getName() ?? "";
+    const recordName = "need to get recordName";
 
     const newEvent = new Event();
 
@@ -249,17 +245,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     } catch (e) {
       enqueueSnackbar(t("createMomentFailed"), { variant: "error" });
     }
-  }, [
-    consoleApi,
-    urlState,
-    event,
-    onClose,
-    refreshEvents,
-    setTask,
-    record.value,
-    enqueueSnackbar,
-    t,
-  ]);
+  }, [consoleApi, urlState, event, onClose, refreshEvents, setTask, enqueueSnackbar, t]);
 
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: React.KeyboardEvent) => {

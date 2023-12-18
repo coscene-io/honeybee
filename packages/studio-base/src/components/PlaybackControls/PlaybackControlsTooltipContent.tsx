@@ -75,14 +75,14 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
   if (!_.isEmpty(hoveredEvents)) {
     Object.values(hoveredEvents).forEach(({ event }) => {
       const eventStartTime = fromNanoSec(
-        BigInt(event.getTriggerTime()!.getSeconds() * 1e9 + event.getTriggerTime()!.getNanos()),
+        event.triggerTime!.seconds * BigInt(1e9) + BigInt(event.triggerTime!.nanos),
       );
-      const eventEndTime = add(startTime, fromNanoSec(BigInt(event.getDuration() * 1e9)));
+      const eventEndTime = add(startTime, fromNanoSec(BigInt(event.duration * 1e9)));
 
       tooltipItems.push({
         type: "item",
         title: t("momentName"),
-        value: event.getDisplayName(),
+        value: event.displayName,
       });
       tooltipItems.push({
         type: "item",
@@ -95,8 +95,8 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
         value: formatTime(eventEndTime),
       });
 
-      if (!_.isEmpty(event.getCustomizedFieldsMap())) {
-        event.getCustomizedFieldsMap().forEach((val, key) => {
+      if (!_.isEmpty(event.customizedFields)) {
+        Object.entries(event.customizedFields).forEach(([key, val]) => {
           tooltipItems.push({ type: "item", title: key, value: val });
         });
       }

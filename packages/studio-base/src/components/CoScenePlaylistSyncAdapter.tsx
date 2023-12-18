@@ -84,7 +84,7 @@ const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBa
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 
 export function PlaylistSyncAdapter(): ReactNull {
-  const setRecordBagFiles = usePlaylist(selectSetBagFiles);
+  const setBagFiles = usePlaylist(selectSetBagFiles);
   const setBagsAtHoverValue = useTimelineInteractionState(selectSetBagsAtHoverValue);
   const setCurrentRecordBagFiles = usePlaylist(selectSetCurrentRecordBagFiles);
   const hoveredBag = useTimelineInteractionState(selectHoverBag);
@@ -130,10 +130,10 @@ export function PlaylistSyncAdapter(): ReactNull {
         });
       }
     } catch (error) {
-      setRecordBagFiles({ loading: false, error });
+      setBagFiles({ loading: false, error });
     }
     return false;
-  }, [consoleApi, urlState?.parameters?.files, setRecordBagFiles, startTime, endTime]);
+  }, [consoleApi, urlState?.parameters?.files, setBagFiles, startTime, endTime]);
 
   const [_records, syncRecords] = useAsyncFn(async () => {
     if (
@@ -213,9 +213,9 @@ export function PlaylistSyncAdapter(): ReactNull {
           window.history.replaceState(undefined, "", newURL.href);
         }
 
-        setRecordBagFiles({ loading: false, value: recordBagFiles });
+        setBagFiles({ loading: false, value: recordBagFiles });
       } catch (error) {
-        setRecordBagFiles({ loading: false, error });
+        setBagFiles({ loading: false, error });
       }
     }
   }, [
@@ -225,7 +225,7 @@ export function PlaylistSyncAdapter(): ReactNull {
     urlState?.parameters?.files,
     playlist.value,
     seek,
-    setRecordBagFiles,
+    setBagFiles,
   ]);
 
   useEffect(() => {

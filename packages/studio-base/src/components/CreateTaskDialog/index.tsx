@@ -34,13 +34,8 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import {
-  CoSceneRecordStore,
-  useRecord,
-} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
-const selectRecord = (state: CoSceneRecordStore) => state.record;
 
 const useStyles = makeStyles()(() => ({
   avatar: {
@@ -71,7 +66,6 @@ export function CreateTaskDialog({
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("cosEvent");
   const consoleApi = useConsoleApi();
-  const recordInfo = useRecord(selectRecord);
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
   const { enqueueSnackbar } = useSnackbar();
   const [needSyncTask, setNeedSyncTask] = useImmer<boolean>(false);
@@ -116,7 +110,7 @@ export function CreateTaskDialog({
 
   const [createdTask, createTask] = useAsyncFn(async () => {
     const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
-    const record = recordInfo.value?.getName() ?? "";
+    const record = "need select record";
 
     const description =
       JSON.stringify({
@@ -184,7 +178,6 @@ export function CreateTaskDialog({
     task,
     onClose,
     eventName,
-    recordInfo.value,
     enqueueSnackbar,
     t,
     event,

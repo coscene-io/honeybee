@@ -2,14 +2,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Event } from "@coscene-io/coscene/proto/v1alpha2";
+import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { createContext } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Time } from "@foxglove/rostime";
-import { Immutable } from "@foxglove/studio";
 
 /**
  * DataSourceEvent representings a single event within a data source.
@@ -49,7 +48,7 @@ export type TimelinePositionedEvent = {
   secondsSinceStart: number;
 };
 
-export type EventsStore = Immutable<{
+export type EventsStore = {
   /** Used to signal event refreshes. */
   eventFetchCount: number;
 
@@ -86,7 +85,7 @@ export type EventsStore = Immutable<{
 
   /** Set the active device. */
   setDeviceId: (deviceId: string | undefined) => void;
-}>;
+};
 
 export const EventsContext = createContext<undefined | StoreApi<EventsStore>>(undefined);
 

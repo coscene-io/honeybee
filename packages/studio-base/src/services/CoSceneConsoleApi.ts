@@ -14,9 +14,7 @@ import {
   User as CoUser,
 } from "@coscene-io/coscene/proto/v1alpha1";
 import {
-  ListEventsRequest,
   CreateEventRequest,
-  Event,
   DeleteEventRequest,
   UpdateEventRequest,
   GetRecordRequest,
@@ -26,6 +24,7 @@ import {
   GetTicketSystemMetadataRequest,
   SyncTaskRequest,
   TicketSystemMetadata,
+  Event,
 } from "@coscene-io/coscene/proto/v1alpha2";
 import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
@@ -37,6 +36,7 @@ import {
   ListUserProjectsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
+import { Event as Event_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
 import {
   UpsertConfigMapRequest,
@@ -245,6 +245,16 @@ type LayoutTemplatesIndex = {
   };
 };
 
+export type SingleFileGetEventsRequest = {
+  projectName: string;
+  filter: string;
+  startTime: number;
+  endTime: number;
+};
+
+export type GetEventsResponse = {
+  events: Uint8Array[];
+};
 class CoSceneConsoleApi {
   #baseUrl: string;
   #bffUrl: string;
@@ -557,40 +567,11 @@ class CoSceneConsoleApi {
     return newEvent;
   }
 
-  public async getEvents({
-    parent,
-    revisionId,
-    recordId,
-    jobRunId,
-  }: {
-    parent: string;
-    recordId: string;
-    revisionId?: string;
-    jobRunId?: string;
-  }): Promise<Event[]> {
-    let filter = "";
-
-    if (revisionId && jobRunId) {
-      filter = `revision.sha256="${revisionId}" OR record.job_run="${jobRunId}"`;
-    } else {
-      if (revisionId) {
-        filter = `revision.sha256="${revisionId}"`;
-      } else if (jobRunId) {
-        filter = `record.job_run="${jobRunId}"`;
-      } else {
-        filter = `record.id="${recordId}"`;
-      }
-    }
-
-    const listEventsRequest = new ListEventsRequest()
-      .setParent(parent)
-      .setOrderBy("create_time desc")
-      .setFilter(filter)
-      .setPageSize(999);
-
-    const events = await CsWebClient.getEventClient().listEvents(listEventsRequest);
-
-    return events.getEventsList();
+  public async getEvents(params: SingleFileGetEventsRequest[]): Promise<Event_es[]> {
+    const eventBinaryArray = await this.#post<GetEventsResponse>("/v1/data/getEvents", params);
+    return eventBinaryArray.events.map((eventBinary) => {
+      return Event_es.fromBinary(eventBinary);
+    });
   }
 
   public async deleteEvent({
