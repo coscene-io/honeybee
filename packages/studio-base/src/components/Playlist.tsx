@@ -20,11 +20,13 @@ import {
   CoScenePlaylistStore,
   usePlaylist,
   BagFileInfo,
+  ParamsFile,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { BagView } from "./BagView";
 
@@ -34,6 +36,7 @@ const selectBagsAtHoverValue = (store: TimelineInteractionStateStore) => store.b
 const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
 const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHoveredBag;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const useStyles = makeStyles()((theme) => ({
   appBar: {
@@ -57,6 +60,11 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
+function updateUrl(newState: AppURLState) {
+  const newStateUrl = updateAppURLState(new URL(window.location.href), newState);
+  window.history.replaceState(undefined, "", newStateUrl.href);
+}
+
 export function Playlist(): JSX.Element {
   const [filterText, setFilterText] = useState<string>("");
   const bagFiles = usePlaylist(selectBagFiles);
@@ -69,6 +77,7 @@ export function Playlist(): JSX.Element {
   const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);
   const hoveredBag = useTimelineInteractionState(selectHoverBag);
   const setHoveredBag = useTimelineInteractionState(selectSetHoverBag);
+  const urlState = useMessagePipeline(selectUrlState);
 
   const bags = useMemo(() => bagFiles.value ?? [], [bagFiles]);
 
@@ -95,6 +104,42 @@ export function Playlist(): JSX.Element {
     },
     [setHoveredBag],
   );
+
+  const handleAddFiles = (fileNames: string[]) => {
+    const files: ParamsFile[] = JSON.parse(urlState?.parameters?.files ?? "{}");
+    const fileNamesSet = new Set(fileNames);
+
+    files.forEach((bag) => {
+      if ("filename" in bag) {
+        fileNamesSet.add(bag.filename);
+      }
+    });
+
+    const newFiles: ParamsFile[] = Array.from(fileNamesSet).map((fileName) => {
+      return {
+        filename: fileName,
+      };
+    });
+
+    files.forEach((bag) => {
+      if ("jobRunsName" in bag) {
+        newFiles.push({
+          jobRunsName: bag.jobRunsName,
+        });
+      }
+    });
+
+    if (urlState != undefined) {
+      updateUrl({
+        dsParams: {
+          ...urlState.parameters,
+          files: JSON.stringify(newFiles) ?? "",
+        },
+      });
+    }
+
+    location.reload();
+  };
 
   return (
     <Stack className={classes.root} fullHeight>
@@ -159,6 +204,7 @@ export function Playlist(): JSX.Element {
               isCurrent={
                 currentBagFiles?.find((currentBag) => currentBag.name === bag.name) != undefined
               }
+              updateUrl={updateUrl}
               onClick={onClick}
               onHoverStart={onHoverStart}
               onHoverEnd={onHoverEnd}
@@ -172,7 +218,8 @@ export function Playlist(): JSX.Element {
           setAddFileDialogOpen(false);
         }}
         onConfirm={(files) => {
-          // console.log("add files", files);
+          const fileNames = files.map((file) => file.file.name);
+          handleAddFiles(fileNames);
         }}
         type="files"
       />

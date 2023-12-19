@@ -1,7 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 import { Value } from "@bufbuild/protobuf";
 import {
   GetProjectRequest,
@@ -181,7 +180,7 @@ export type getPlaylistResponse = {
     endTime: number;
     projectName: string;
     recordName: string;
-    isGhostMode: boolean;
+    fileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
   }[];
 };
 
@@ -211,9 +210,8 @@ export type ConsoleApiLayout = {
 };
 
 export type DataPlatformRequestArgs = {
-  revisionName?: string;
-  jobRunId?: string;
-  projectName?: string;
+  files: string[];
+  jobRuns: string[];
 };
 
 export enum MetricType {
@@ -253,8 +251,9 @@ export type SingleFileGetEventsRequest = {
 };
 
 export type GetEventsResponse = {
-  events: Uint8Array[];
+  events: string[];
 };
+
 class CoSceneConsoleApi {
   #baseUrl: string;
   #bffUrl: string;
@@ -490,23 +489,14 @@ class CoSceneConsoleApi {
   }
 
   // coScene-----------------------------------------------------------
-  public async topics(
-    params: DataPlatformRequestArgs & { includeSchemas?: boolean },
-  ): Promise<customTopicResponse> {
-    const topics = await this.#get<topicInterfaceReturns>(
+  public async topics(params: DataPlatformRequestArgs): Promise<customTopicResponse> {
+    const topics = await this.#post<topicInterfaceReturns>(
       "/v1/data/getMetadata",
       {
-        revisionName: params.revisionName,
-        jobRunId: params.jobRunId,
-        includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-        accessToken: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, ""),
+        files: params.files,
+        jobRuns: params.jobRuns,
       },
       undefined,
-      {
-        headers: {
-          ProjectName: params.projectName ?? "",
-        },
-      },
     );
 
     const metaData = topics.topics.map((topic) => {
@@ -532,16 +522,16 @@ class CoSceneConsoleApi {
 
   public async getPlaylist({
     jobRuns,
-    fileNames,
+    files,
   }: {
     jobRuns: string[];
-    fileNames: string[];
+    files: string[];
   }): Promise<getPlaylistResponse> {
     return await this.#post<getPlaylistResponse>(
       "/v1/data/getPlaylist",
       {
         jobRuns,
-        fileNames,
+        files,
       },
       undefined,
     );
@@ -567,10 +557,19 @@ class CoSceneConsoleApi {
     return newEvent;
   }
 
-  public async getEvents(params: SingleFileGetEventsRequest[]): Promise<Event_es[]> {
-    const eventBinaryArray = await this.#post<GetEventsResponse>("/v1/data/getEvents", params);
+  public async getEvents(params: { fileList: SingleFileGetEventsRequest[] }): Promise<Event_es[]> {
+    const eventBinaryArray = await this.#post<GetEventsResponse>(
+      "/bff/honeybee/event/v1/listEvents",
+      params,
+    );
+
     return eventBinaryArray.events.map((eventBinary) => {
-      return Event_es.fromBinary(eventBinary);
+      const binaryString = atob(eventBinary);
+      const uint8Array = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i);
+      }
+      return Event_es.fromBinary(uint8Array);
     });
   }
 

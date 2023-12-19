@@ -19,7 +19,7 @@ export type BagFileInfo = {
 
   endTime?: Time;
 
-  isGhostMode?: boolean;
+  fileType?: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
 
   projectDisplayName?: string;
 

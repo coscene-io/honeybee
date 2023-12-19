@@ -114,7 +114,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     (bag) =>
       bag.startTime != undefined &&
       bag.endTime != undefined &&
-      bag.isGhostMode === false &&
+      bag.fileType !== "GHOST_RESULT_FILE" &&
       currentTime &&
       isLessThan(bag.startTime, currentTime) &&
       isGreaterThan(bag.endTime, currentTime),

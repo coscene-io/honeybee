@@ -7,13 +7,19 @@ import Clear from "@mui/icons-material/Clear";
 import { alpha } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
+import * as _ from "lodash-es";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { subtract, toDate } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
-import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
+import { ParamsFile, BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { AppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) => ({
   bagBox: {
@@ -120,23 +126,52 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
   },
 }));
 
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+
 function BagViewComponent(params: {
   bag: BagFileInfo;
   filter: string;
   isHovered: boolean;
   isCurrent: boolean;
+  updateUrl: (newState: AppURLState) => void;
   onClick: (bag: BagFileInfo) => void;
   onHoverStart: (bag: BagFileInfo) => void;
   onHoverEnd: (bag: BagFileInfo) => void;
 }) {
-  const { bag, filter, isHovered, isCurrent, onClick, onHoverStart, onHoverEnd } = params;
+  const { bag, filter, isHovered, isCurrent, updateUrl, onClick, onHoverStart, onHoverEnd } =
+    params;
   const { classes, cx } = useStyles();
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosPlaylist");
+  const urlState = useMessagePipeline(selectUrlState);
+
+  const files: ParamsFile[] = JSON.parse(urlState?.parameters?.files ?? "{}");
 
   const deleteBag = () => {
-    // console.log("deleteLog");
-    // console.info("deleteLog");
+    const newFiles = files.filter((file) => {
+      if ("filename" in file) {
+        return file.filename !== bag.name;
+      }
+      if ("jobRunsName" in file) {
+        return file.jobRunsName !== bag.name;
+      }
+
+      return false;
+    });
+
+    if (urlState != undefined) {
+      updateUrl({
+        dsParams: _.pickBy(
+          {
+            ...urlState.parameters,
+            files: JSON.stringify(newFiles),
+          },
+          _.isString,
+        ),
+      });
+    }
+
+    location.reload();
   };
 
   return (
@@ -196,7 +231,7 @@ function BagViewComponent(params: {
           />
         </div>
       )}
-      {bag.isGhostMode === true && (
+      {bag.fileType === "GHOST_RESULT_FILE" && (
         <Tooltip title={t("shadowMode")} placement="top" className={classes.tooltip}>
           <div>
             <div className={classes.triangle} />

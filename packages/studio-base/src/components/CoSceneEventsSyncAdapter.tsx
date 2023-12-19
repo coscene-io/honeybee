@@ -118,11 +118,11 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
           return;
         }
 
-        const fileSource = bagFile.name.replace("shadow/", "");
+        const fileSource = bagFile.name;
         const currentBagStartTime = toSec(bagFile.startTime);
         const currentBagEndTime = toSec(bagFile.endTime);
 
-        if (bagFile.isGhostMode != undefined && bagFile.isGhostMode) {
+        if (bagFile.fileType === "GHOST_RESULT_FILE") {
           const projectName = fileSource.split("/workflowRuns/")[0];
           const filter = `record.job_run="${fileSource}"`;
 
