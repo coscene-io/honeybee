@@ -159,7 +159,7 @@ export function DataSource(): JSX.Element {
       color="inherit"
       className={classes.breadcrumbs}
     >
-      {urlState?.parameters?.displayName}
+      {urlState?.parameters?.recordDisplayName}
     </Link>,
   ];
 

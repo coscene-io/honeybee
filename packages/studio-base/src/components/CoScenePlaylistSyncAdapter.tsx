@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
-import { subtract, toSec, fromNanoSec, compare } from "@foxglove/rostime";
+import { subtract, toSec, Time, fromNanoSec, compare } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -37,21 +37,26 @@ function positionBag({
   startTime,
   endTime,
   isGhostMode,
+  projectName,
+  recordName,
+  currentFileStartTime,
+  currentFileEndTime,
 }: {
   source: string;
   displayName: string;
-  startTime: number;
-  endTime: number;
+  startTime: Time;
+  endTime: Time;
+  currentFileStartTime: number;
+  currentFileEndTime: number;
   projectName: string;
   recordName: string;
   isGhostMode: boolean;
 }): BagFileInfo {
-  const startSecs = Math.floor(startTime / 1000);
-  const endSecs = Math.floor(endTime / 1000);
+  const startSecs = toSec(startTime);
+  const endSecs = toSec(endTime);
 
-  const bagFileStartTime = fromNanoSec(BigInt(startTime * 1e6));
-
-  const bagFileEndTime = fromNanoSec(BigInt(endTime * 1e6));
+  const bagFileStartTime = fromNanoSec(BigInt(currentFileStartTime * 1e6));
+  const bagFileEndTime = fromNanoSec(BigInt(currentFileEndTime * 1e6));
 
   const startTimeInSeconds = toSec(bagFileStartTime);
   const endTimeInSeconds = toSec(bagFileEndTime);
@@ -63,9 +68,11 @@ function positionBag({
     startTime: bagFileStartTime,
     endTime: bagFileEndTime,
     secondsSinceStart: startTimeInSeconds - startSecs,
-    isGhostMode,
+    isGhostMode: !!isGhostMode,
     startPosition,
     endPosition,
+    projectDisplayName: projectName,
+    recordDisplayName: recordName,
     name: isGhostMode ? "shadow/" + source : source,
     displayName: isGhostMode ? `shadow/${displayName}` : displayName,
   };
@@ -126,7 +133,7 @@ export function PlaylistSyncAdapter(): ReactNull {
 
         return await consoleApi.getPlaylist({
           jobRuns,
-          fileNames,
+          files: fileNames,
         });
       }
     } catch (error) {
@@ -140,7 +147,9 @@ export function PlaylistSyncAdapter(): ReactNull {
       urlState?.parameters?.warehouseId &&
       urlState.parameters.projectId &&
       playlist.value != undefined &&
-      playlist.value !== false
+      playlist.value !== false &&
+      startTime != undefined &&
+      endTime != undefined
     ) {
       try {
         const filename = urlState.parameters.filename;
@@ -158,7 +167,15 @@ export function PlaylistSyncAdapter(): ReactNull {
         }
 
         playListFiles.forEach((ele) => {
-          recordBagFiles.push(positionBag(ele));
+          recordBagFiles.push(
+            positionBag({
+              ...ele,
+              startTime,
+              endTime,
+              currentFileStartTime: ele.startTime,
+              currentFileEndTime: ele.endTime,
+            }),
+          );
         });
 
         const fileNameIdentifier: string[] = [];
@@ -226,6 +243,8 @@ export function PlaylistSyncAdapter(): ReactNull {
     playlist.value,
     seek,
     setBagFiles,
+    startTime,
+    endTime,
   ]);
 
   useEffect(() => {

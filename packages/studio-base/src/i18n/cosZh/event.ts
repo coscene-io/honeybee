@@ -45,4 +45,6 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   syncTask: "同步任务",
   syncTaskTooltip: "未检测到集成服务配置信息，请前往 项目管理 > 集成服务 进行配置",
   selectRecordToSaveTheMoment: "选择存储一刻的记录",
+  record: "记录",
+  creationUnavailableInCurrentPeriod: "当前时间段不支持创建一刻",
 };

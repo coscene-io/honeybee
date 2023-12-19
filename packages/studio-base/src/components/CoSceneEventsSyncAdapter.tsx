@@ -156,7 +156,7 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
 
       if (startTime && endTime) {
         try {
-          const eventList = await consoleApi.getEvents(getEventsRequest);
+          const eventList = await consoleApi.getEvents({ fileList: getEventsRequest });
           setEvents({ loading: false, value: positionEvents(eventList, startTime, endTime) });
         } catch (error) {
           log.error(error);

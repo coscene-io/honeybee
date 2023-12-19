@@ -23,19 +23,14 @@ import {
 import { useSnackbar } from "notistack";
 import PinyinMatch from "pinyin-match";
 import { KeyboardEvent, useCallback, useRef } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsync, useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
-import {
-  MessagePipelineContext,
-  useMessagePipeline,
-} from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-
-const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const useStyles = makeStyles()(() => ({
   avatar: {
@@ -52,10 +47,12 @@ export function CreateTaskDialog({
   onClose,
   initialTask,
   event,
+  fileName,
 }: {
   onClose: () => void;
   initialTask: { title: string; eventName: string; description: string };
   event: Event;
+  fileName: string;
 }): JSX.Element {
   const isDemoSite =
     localStorage.getItem("demoSite") === "true" &&
@@ -63,12 +60,15 @@ export function CreateTaskDialog({
 
   const { classes } = useStyles();
   const { eventName } = initialTask;
-  const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("cosEvent");
   const consoleApi = useConsoleApi();
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
   const { enqueueSnackbar } = useSnackbar();
   const [needSyncTask, setNeedSyncTask] = useImmer<boolean>(false);
+
+  const projectName = fileName.split("/records/")[0];
+
+  const recordName = fileName.split("/revisions/")[0];
 
   const [task, setTask] = useImmer<{
     title: string;
@@ -92,7 +92,7 @@ export function CreateTaskDialog({
   );
 
   const { value: syncedTask } = useAsync(async () => {
-    const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}/ticketSystem`;
+    const parent = `${projectName}/ticketSystem`;
     return await consoleApi.getTicketSystemMetadata({ parent });
   });
 
@@ -109,8 +109,13 @@ export function CreateTaskDialog({
   });
 
   const [createdTask, createTask] = useAsyncFn(async () => {
-    const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
-    const record = "need select record";
+    const parent = projectName;
+    const record = recordName;
+
+    if (parent == undefined || record == undefined) {
+      toast.error("createTaskFailed");
+      return;
+    }
 
     const description =
       JSON.stringify({
@@ -173,15 +178,16 @@ export function CreateTaskDialog({
       enqueueSnackbar(t("createTaskFailed"), { variant: "error" });
     }
   }, [
-    consoleApi,
-    urlState,
-    task,
-    onClose,
+    projectName,
+    recordName,
     eventName,
+    task,
+    consoleApi,
+    event,
     enqueueSnackbar,
     t,
-    event,
     needSyncTask,
+    onClose,
     syncTask,
   ]);
 

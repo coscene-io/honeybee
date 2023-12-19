@@ -21,6 +21,10 @@ export type BagFileInfo = {
 
   isGhostMode?: boolean;
 
+  projectDisplayName?: string;
+
+  recordDisplayName?: string;
+
   /** The end position of the bag, as a value 0-1 relative to the timeline. */
   endPosition?: number;
 
