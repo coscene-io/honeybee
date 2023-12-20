@@ -2,36 +2,41 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import Add from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
-import { AppBar, IconButton, TextField, Typography, CircularProgress } from "@mui/material";
+import { AppBar, Button, IconButton, TextField, Typography, CircularProgress } from "@mui/material";
 import { useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import CoSceneChooser from "@foxglove/studio-base/components/CoSceneChooser";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import {
-  CoSceneRecordStore,
-  useRecord,
+  CoScenePlaylistStore,
+  usePlaylist,
   BagFileInfo,
-} from "@foxglove/studio-base/context/CoSceneRecordContext";
+  ParamsFile,
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { BagView } from "./BagView";
 
-const selectBagFiles = (state: CoSceneRecordStore) => state.recordBagFiles;
-const selectCurrentBagFiles = (state: CoSceneRecordStore) => state.currentBagFiles;
+const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
+const selectCurrentBagFiles = (state: CoScenePlaylistStore) => state.currentBagFiles;
 const selectBagsAtHoverValue = (store: TimelineInteractionStateStore) => store.bagsAtHoverValue;
 const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
 const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHoveredBag;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const useStyles = makeStyles()((theme) => ({
   appBar: {
@@ -48,12 +53,23 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.background.paper,
     maxHeight: "100%",
   },
+  addFileButton: {
+    display: "flex",
+    gap: theme.spacing(0.5),
+    whiteSpace: "nowrap",
+  },
 }));
+
+function updateUrl(newState: AppURLState) {
+  const newStateUrl = updateAppURLState(new URL(window.location.href), newState);
+  window.history.replaceState(undefined, "", newStateUrl.href);
+}
 
 export function Playlist(): JSX.Element {
   const [filterText, setFilterText] = useState<string>("");
-  const bagFiles = useRecord(selectBagFiles);
-  const currentBagFiles = useRecord(selectCurrentBagFiles);
+  const bagFiles = usePlaylist(selectBagFiles);
+  const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);
+  const currentBagFiles = usePlaylist(selectCurrentBagFiles);
   const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
   const { t } = useTranslation("cosPlaylist");
@@ -61,6 +77,7 @@ export function Playlist(): JSX.Element {
   const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);
   const hoveredBag = useTimelineInteractionState(selectHoverBag);
   const setHoveredBag = useTimelineInteractionState(selectSetHoverBag);
+  const urlState = useMessagePipeline(selectUrlState);
 
   const bags = useMemo(() => bagFiles.value ?? [], [bagFiles]);
 
@@ -88,6 +105,42 @@ export function Playlist(): JSX.Element {
     [setHoveredBag],
   );
 
+  const handleAddFiles = (fileNames: string[]) => {
+    const files: ParamsFile[] = JSON.parse(urlState?.parameters?.files ?? "{}");
+    const fileNamesSet = new Set(fileNames);
+
+    files.forEach((bag) => {
+      if ("filename" in bag) {
+        fileNamesSet.add(bag.filename);
+      }
+    });
+
+    const newFiles: ParamsFile[] = Array.from(fileNamesSet).map((fileName) => {
+      return {
+        filename: fileName,
+      };
+    });
+
+    files.forEach((bag) => {
+      if ("jobRunsName" in bag) {
+        newFiles.push({
+          jobRunsName: bag.jobRunsName,
+        });
+      }
+    });
+
+    if (urlState != undefined) {
+      updateUrl({
+        dsParams: {
+          ...urlState.parameters,
+          files: JSON.stringify(newFiles) ?? "",
+        },
+      });
+    }
+
+    location.reload();
+  };
+
   return (
     <Stack className={classes.root} fullHeight>
       <AppBar className={classes.appBar} position="sticky" color="inherit" elevation={0}>
@@ -98,6 +151,7 @@ export function Playlist(): JSX.Element {
           onChange={(event) => {
             setFilterText(event.currentTarget.value);
           }}
+          size="small"
           placeholder={t("searchByNameTime")}
           InputProps={{
             startAdornment: <SearchIcon fontSize="small" />,
@@ -108,6 +162,14 @@ export function Playlist(): JSX.Element {
             ),
           }}
         />
+        <Button
+          className={classes.addFileButton}
+          onClick={() => {
+            setAddFileDialogOpen(true);
+          }}
+        >
+          <Add /> {t("addFiles")}
+        </Button>
       </AppBar>
       {bagFiles.loading && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
@@ -142,6 +204,7 @@ export function Playlist(): JSX.Element {
               isCurrent={
                 currentBagFiles?.find((currentBag) => currentBag.name === bag.name) != undefined
               }
+              updateUrl={updateUrl}
               onClick={onClick}
               onHoverStart={onHoverStart}
               onHoverEnd={onHoverEnd}
@@ -149,6 +212,17 @@ export function Playlist(): JSX.Element {
           );
         })}
       </div>
+      <CoSceneChooser
+        open={addFileDialogOpen}
+        closeDialog={() => {
+          setAddFileDialogOpen(false);
+        }}
+        onConfirm={(files) => {
+          const fileNames = files.map((file) => file.file.name);
+          handleAddFiles(fileNames);
+        }}
+        type="files"
+      />
     </Stack>
   );
 }

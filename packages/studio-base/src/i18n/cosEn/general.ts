@@ -10,4 +10,6 @@ export const cosGeneral = {
   cancel: "Cancel",
   delete: "Delete",
   ok: "OK",
+  search: "Search",
+  project: "Project",
 };

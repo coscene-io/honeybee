@@ -6,10 +6,10 @@ import * as _ from "lodash-es";
 import { makeStyles } from "tss-react/mui";
 
 import {
-  CoSceneRecordStore,
+  CoScenePlaylistStore,
+  usePlaylist,
   BagFileInfo,
-  useRecord,
-} from "@foxglove/studio-base/context/CoSceneRecordContext";
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
@@ -40,7 +40,7 @@ const useStyles = makeStyles()(({ transitions, palette }) => ({
   },
 }));
 
-const selectBags = (store: CoSceneRecordStore) => store.recordBagFiles;
+const selectBags = (store: CoScenePlaylistStore) => store.bagFiles;
 const selectHoveredBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
 const selectBagsAtHoverValue = (store: TimelineInteractionStateStore) => store.bagsAtHoverValue;
 
@@ -67,7 +67,7 @@ function BagTick({ bag }: { bag: BagFileInfo }): JSX.Element {
 const MemoBagTick = React.memo(BagTick);
 
 export function BagsOverlay(): JSX.Element {
-  const bags = useRecord(selectBags);
+  const bags = usePlaylist(selectBags);
   const { classes } = useStyles();
 
   return (

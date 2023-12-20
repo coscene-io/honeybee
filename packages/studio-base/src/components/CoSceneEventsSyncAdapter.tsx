@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Event } from "@coscene-io/coscene/proto/v1alpha2";
+import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
@@ -15,7 +15,10 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import {
+  CoScenePlaylistStore,
+  usePlaylist,
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   EventsStore,
   TimelinePositionedEvent,
@@ -26,6 +29,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { SingleFileGetEventsRequest } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
 const HOVER_TOLERANCE = 0.01;
 
@@ -40,10 +44,13 @@ function positionEvents(
   const endSecs = toSec(endTime);
 
   return events.map((event) => {
+    if (!event.triggerTime) {
+      throw new Error("Event does not have a trigger time");
+    }
     const eventStartTime = fromNanoSec(
-      BigInt(event.getTriggerTime()!.getSeconds() * 1e9 + event.getTriggerTime()!.getNanos()),
+      event.triggerTime.seconds * BigInt(1e9) + event.triggerTime.seconds,
     );
-    const eventEndTime = add(eventStartTime, fromNanoSec(BigInt(event.getDuration() * 1e9)));
+    const eventEndTime = add(eventStartTime, fromNanoSec(BigInt(event.duration * 1e9)));
 
     const startTimeInSeconds = toSec(eventStartTime);
     const endTimeInSeconds = toSec(eventEndTime);
@@ -65,19 +72,17 @@ function positionEvents(
 
 const selectEventFetchCount = (store: EventsStore) => store.eventFetchCount;
 const selectEvents = (store: EventsStore) => store.events;
-const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectSetEvents = (store: EventsStore) => store.setEvents;
 const selectSetEventsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setEventsAtHoverValue;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
-const selectRecord = (state: CoSceneRecordStore) => state.record;
+const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 
 /**
  * Syncs events from server and syncs hovered event with hovered time.
  */
 export function CoSceneEventsSyncAdapter(): ReactNull {
-  const urlState = useMessagePipeline(selectUrlState);
   const consoleApi = useConsoleApi();
   const setEvents = useEvents(selectSetEvents);
   const setEventsAtHoverValue = useTimelineInteractionState(selectSetEventsAtHoverValue);
@@ -87,7 +92,7 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
   const endTime = useMessagePipeline(selectEndTime);
   const events = useEvents(selectEvents);
   const eventFetchCount = useEvents(selectEventFetchCount);
-  const record = useRecord(selectRecord);
+  const bagFiles = usePlaylist(selectBagFiles);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -105,27 +110,61 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
     // datasource bootstraps through the state where they are not
     // completely determined.
 
-    const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
+    if (!bagFiles.loading && bagFiles.value && bagFiles.value.length > 0) {
+      const getEventsRequest: SingleFileGetEventsRequest[] = [];
 
-    const recordId = record.value?.getName().split("/").pop();
+      bagFiles.value.forEach((bagFile) => {
+        if (!bagFile.startTime || !bagFile.endTime) {
+          return;
+        }
 
-    const revisionId = urlState?.parameters?.revisionId;
+        const fileSource = bagFile.name;
+        const currentBagStartTime = toSec(bagFile.startTime);
+        const currentBagEndTime = toSec(bagFile.endTime);
 
-    const jobRunId =
-      urlState?.parameters?.workflowRunsId &&
-      urlState.parameters.jobRunsId &&
-      `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/workflowRuns/${urlState.parameters.workflowRunsId}/jobRuns/${urlState.parameters.jobRunsId}`;
+        if (bagFile.fileType === "GHOST_RESULT_FILE") {
+          const projectName = fileSource.split("/workflowRuns/")[0];
+          const filter = `record.job_run="${fileSource}"`;
 
-    if (parent && recordId && startTime && endTime) {
-      try {
-        const eventList = await consoleApi.getEvents({ parent, recordId, revisionId, jobRunId });
-        setEvents({ loading: false, value: positionEvents(eventList, startTime, endTime) });
-      } catch (error) {
-        log.error(error);
-        setEvents({ loading: false, error });
+          if (projectName == undefined) {
+            throw new Error("wrong source name");
+          }
+
+          getEventsRequest.push({
+            projectName,
+            filter,
+            startTime: currentBagStartTime,
+            endTime: currentBagEndTime,
+          });
+        } else {
+          const projectName = fileSource.split("/records/")[0];
+          const revisionSha256 = fileSource.split("/revisions/")[1]?.split("/files/")[0];
+          const filter = `revision.sha256="${revisionSha256}"`;
+
+          if (projectName == undefined) {
+            throw new Error("wrong source name");
+          }
+
+          getEventsRequest.push({
+            projectName,
+            filter,
+            startTime: currentBagStartTime,
+            endTime: currentBagEndTime,
+          });
+        }
+      });
+
+      if (startTime && endTime) {
+        try {
+          const eventList = await consoleApi.getEvents({ fileList: getEventsRequest });
+          setEvents({ loading: false, value: positionEvents(eventList, startTime, endTime) });
+        } catch (error) {
+          log.error(error);
+          setEvents({ loading: false, error });
+        }
       }
     }
-  }, [consoleApi, endTime, setEvents, startTime, urlState?.parameters, record]);
+  }, [bagFiles.loading, bagFiles.value, startTime, endTime, consoleApi, setEvents]);
 
   useEffect(() => {
     syncEvents().catch((error) => {

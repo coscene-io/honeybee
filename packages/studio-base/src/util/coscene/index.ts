@@ -25,6 +25,8 @@ import {
   Permission,
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
+export * from "./cosel";
+
 export function getPlaybackQualityLevelByLocalStorage(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
   const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
   let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";

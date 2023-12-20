@@ -20,18 +20,21 @@ import {
   FormControl,
   IconButton,
   ButtonGroup,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { keyframes } from "tss-react";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
-import { toDate } from "@foxglove/rostime";
+import { toDate, isLessThan, isGreaterThan } from "@foxglove/rostime";
 import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
 import {
   MessagePipelineContext,
@@ -39,7 +42,10 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import {
+  CoScenePlaylistStore,
+  usePlaylist,
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 
@@ -87,10 +93,9 @@ const useStyles = makeStyles<void, "toggleButton">()((theme, _params, classes) =
 
 type KeyValue = { key: string; value: string };
 
+const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
-const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
-const selectRecord = (state: CoSceneRecordStore) => state.record;
 
 export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const isDemoSite =
@@ -98,16 +103,25 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     localStorage.getItem("honeybeeDemoStatus") === "start";
 
   const { onClose } = props;
-  const urlState = useMessagePipeline(selectUrlState);
+  const refreshEvents = useEvents(selectRefreshEvents);
+  const currentTime = useMessagePipeline(selectCurrentTime);
+
   const { t } = useTranslation("cosEvent");
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
+  const bagFiles = usePlaylist(selectBagFiles);
+  const passingFile = bagFiles.value?.filter(
+    (bag) =>
+      bag.startTime != undefined &&
+      bag.endTime != undefined &&
+      bag.fileType !== "GHOST_RESULT_FILE" &&
+      currentTime &&
+      isLessThan(bag.startTime, currentTime) &&
+      isGreaterThan(bag.endTime, currentTime),
+  );
 
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
 
-  const refreshEvents = useEvents(selectRefreshEvents);
-  const record = useRecord(selectRecord);
-  const currentTime = useMessagePipeline(selectCurrentTime);
   const [event, setEvent] = useImmer<{
     eventName: string;
     startTime: undefined | Date;
@@ -116,6 +130,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     description: undefined | string;
     metadataEntries: KeyValue[];
     enabledCreateNewTask: boolean;
+    fileName: string;
   }>({
     eventName: "",
     startTime: currentTime ? toDate(currentTime) : undefined,
@@ -124,7 +139,15 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     description: "",
     metadataEntries: [{ key: "", value: "" }],
     enabledCreateNewTask: false,
+    fileName: passingFile?.[0]?.name ?? "",
   });
+
+  useEffect(() => {
+    if (passingFile == undefined || passingFile.length === 0) {
+      onClose();
+      toast.error(t("creationUnavailableInCurrentPeriod"));
+    }
+  }, [passingFile, onClose, t]);
 
   const [task, setTask] = useImmer<{
     enabled: boolean;
@@ -182,11 +205,13 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
     );
 
-    const jobRunsId = urlState?.parameters?.jobRunsId;
-    const workflowRunsId = urlState?.parameters?.workflowRunsId;
-    const revisionId = urlState?.parameters?.revisionId;
-    const parent = `warehouses/${urlState?.parameters?.warehouseId}/projects/${urlState?.parameters?.projectId}`;
-    const recordName = record.value?.getName() ?? "";
+    const fileName = event.fileName;
+
+    const projectName = fileName.split("/records/")[0];
+
+    const recordName = fileName.split("/revisions/")[0];
+
+    const revisionId = fileName.split("/files/")[0];
 
     const newEvent = new Event();
 
@@ -207,24 +232,23 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       newEvent.setDescription(event.description);
     }
 
-    if (jobRunsId && workflowRunsId) {
-      newEvent.setJobRun(
-        `warehouses/${urlState.parameters.warehouseId}/projects/${urlState.parameters.projectId}/workflowRuns/${workflowRunsId}/jobRuns/${jobRunsId}`,
-      );
-    }
-
     if (revisionId) {
-      newEvent.setRevision(`${recordName}/revisions/${revisionId}`);
+      newEvent.setRevision(revisionId);
     }
 
     Object.keys(keyedMetadata).forEach((key) => {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
 
+    if (projectName == undefined || recordName == undefined) {
+      toast.error(t("createMomentFailed"));
+      return;
+    }
+
     try {
       const result = await consoleApi.createEvent({
         event: newEvent,
-        parent,
+        parent: projectName,
         recordName,
       });
 
@@ -246,17 +270,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     } catch (e) {
       enqueueSnackbar(t("createMomentFailed"), { variant: "error" });
     }
-  }, [
-    consoleApi,
-    urlState,
-    event,
-    onClose,
-    refreshEvents,
-    setTask,
-    record.value,
-    enqueueSnackbar,
-    t,
-  ]);
+  }, [consoleApi, event, onClose, refreshEvents, setTask, enqueueSnackbar, t]);
 
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: React.KeyboardEvent) => {
@@ -316,7 +330,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   return (
     <>
       {createEventDialogOpen && (
-        <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+        <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
           <Stack paddingX={3} paddingTop={2}>
             <Typography variant="h2">{t("createMoment")}</Typography>
           </Stack>
@@ -337,7 +351,6 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                   setEvent((old) => ({ ...old, eventName: val.target.value }));
                 }
               }}
-              fullWidth
               variant="standard"
               autoFocus
               onKeyDown={onMetaDataKeyDown}
@@ -351,7 +364,6 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               </FormControl>
               <TextField
                 value={event.duration ?? ""}
-                fullWidth
                 label={t("duration")}
                 onChange={(ev) => {
                   const duration = Number(ev.currentTarget.value);
@@ -392,20 +404,17 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
             </div>
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
-            <div>
-              <TextField
-                id="description"
-                label={t("description")}
-                rows={2}
-                value={isDemoSite ? "机器人在原地无法移动" : event.description}
-                onChange={(val) => {
-                  setEvent((old) => ({ ...old, description: val.target.value }));
-                }}
-                fullWidth
-                variant="standard"
-                onKeyDown={onMetaDataKeyDown}
-              />
-            </div>
+            <TextField
+              id="description"
+              label={t("description")}
+              rows={2}
+              value={isDemoSite ? "机器人在原地无法移动" : event.description}
+              onChange={(val) => {
+                setEvent((old) => ({ ...old, description: val.target.value }));
+              }}
+              variant="standard"
+              onKeyDown={onMetaDataKeyDown}
+            />
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("metadata")}</FormLabel>
@@ -415,7 +424,6 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                 return (
                   <div className={classes.row} key={index}>
                     <TextField
-                      fullWidth
                       value={key}
                       placeholder={`${t("key")} (${t("string")})`}
                       error={hasDuplicate}
@@ -429,7 +437,6 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                       }}
                     />
                     <TextField
-                      fullWidth
                       value={value}
                       placeholder={`${t("value")} (${t("string")})`}
                       error={hasDuplicate}
@@ -490,6 +497,22 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               label={t("createNewTask")}
             />
           </Stack>
+          <Stack paddingX={3} paddingTop={2}>
+            <FormLabel>{t("record")}</FormLabel>
+            <Select
+              value={event.fileName}
+              disabled={passingFile == undefined || passingFile.length <= 1}
+              onChange={(e) => {
+                setEvent((old) => ({ ...old, fileName: e.target.value }));
+              }}
+            >
+              {(passingFile ?? []).map((bag) => (
+                <MenuItem key={bag.name} value={bag.name}>
+                  {bag.recordDisplayName}
+                </MenuItem>
+              ))}
+            </Select>
+          </Stack>
           <DialogActions>
             <Button variant="outlined" size="large" onClick={onClose}>
               {t("cancel")}
@@ -542,6 +565,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
             onClose();
           }}
           event={targetEvent}
+          fileName={event.fileName}
         />
       )}
     </>

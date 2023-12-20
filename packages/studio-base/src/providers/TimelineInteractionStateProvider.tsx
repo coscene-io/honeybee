@@ -6,7 +6,7 @@ import * as _ from "lodash-es";
 import { ReactNode, useState } from "react";
 import { createStore, StoreApi } from "zustand";
 
-import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 import {
   TimelineInteractionStateContext,
@@ -32,7 +32,7 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
       },
 
       setEventsAtHoverValue: (eventsAtHoverValue: TimelinePositionedEvent[]) => {
-        set({ eventsAtHoverValue: _.keyBy(eventsAtHoverValue, (event) => event.event.getName()) });
+        set({ eventsAtHoverValue: _.keyBy(eventsAtHoverValue, (event) => event.event.name) });
       },
 
       setGlobalBounds: (
@@ -53,7 +53,7 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
           set({
             hoveredEvent,
             hoverValue: {
-              componentId: `event_${hoveredEvent.event.getName()}`,
+              componentId: `event_${hoveredEvent.event.name}`,
               type: "PLAYBACK_SECONDS",
               value: hoveredEvent.secondsSinceStart,
             },

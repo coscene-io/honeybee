@@ -43,4 +43,7 @@ export const cosEvent = {
   syncTask: "Sync task",
   syncTaskTooltip:
     "No integration service configuration information detected, go to Project Management > Integration Services to configure it",
+  selectRecordToSaveTheMoment: "Select where to save the moment",
+  record: "Record",
+  creationUnavailableInCurrentPeriod: "The current time period does not support creating a moment",
 };

@@ -12,4 +12,6 @@ export const cosGeneral: Partial<TypeOptions["resources"]["cosGeneral"]> = {
   cancel: "取消",
   delete: "删除",
   ok: "确定",
+  search: "搜索",
+  project: "项目",
 };
