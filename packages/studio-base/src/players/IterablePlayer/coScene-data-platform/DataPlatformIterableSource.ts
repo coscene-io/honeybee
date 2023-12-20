@@ -8,6 +8,7 @@ import * as _ from "lodash-es";
 import Logger from "@foxglove/log";
 import { parseChannel } from "@foxglove/mcap-support";
 import { clampTime, fromRFC3339String, add as addTime, compare, Time } from "@foxglove/rostime";
+import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   PlayerProblem,
   Topic,
@@ -44,8 +45,8 @@ export type DataPlatformInterableSourceConsoleApi = Pick<
 
 type DataPlatformSourceParameters = {
   projectName?: string;
-  revisionName?: string;
-  jobRunId?: string;
+  files?: string[];
+  jobRuns?: string[];
   singleRequestTime: number;
 };
 
@@ -78,9 +79,8 @@ export class DataPlatformIterableSource implements IIterableSource {
 
   public async initialize(): Promise<Initalization> {
     const apiParams = {
-      revisionName: this.#params.revisionName,
-      jobRunId: this.#params.jobRunId,
-      projectName: this.#params.projectName,
+      files: this.#params.files,
+      jobRuns: this.#params.jobRuns,
     };
 
     // get topics
@@ -231,8 +231,8 @@ export class DataPlatformIterableSource implements IIterableSource {
         start: streamStart,
         end: streamEnd,
         authHeader: this.#consoleApi.getAuthHeader(),
-        revisionName: this.#params.revisionName,
-        jobRunId: this.#params.jobRunId,
+        files: this.#params.files,
+        jobRuns: this.#params.jobRuns,
         projectName: this.#params.projectName,
         topics: topicNames,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
@@ -265,8 +265,8 @@ export class DataPlatformIterableSource implements IIterableSource {
         start: localStart,
         end: localEnd,
         authHeader: this.#consoleApi.getAuthHeader(),
-        revisionName: this.#params.revisionName,
-        jobRunId: this.#params.jobRunId,
+        files: this.#params.files,
+        jobRuns: this.#params.jobRuns,
         projectName: this.#params.projectName,
         topics: topicNames,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
@@ -340,8 +340,8 @@ export class DataPlatformIterableSource implements IIterableSource {
       start: time,
       end: time,
       authHeader: this.#consoleApi.getAuthHeader(),
-      revisionName: this.#params.revisionName,
-      jobRunId: this.#params.jobRunId,
+      files: this.#params.files,
+      jobRuns: this.#params.jobRuns,
       projectName: this.#params.projectName,
       playbackQualityLevel,
       topics: Array.from(topics.keys()),
@@ -377,10 +377,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   const projectSlug = params.projectSlug ?? "";
   const warehouseId = params.warehouseId ?? "";
   const warehouseSlug = params.warehouseSlug ?? "";
-  const recordId = params.recordId ?? "";
-  const revisionId = params.revisionId ?? "";
-  const workflowRunsId = params.workflowRunsId ?? "";
-  const jobRunsId = params.jobRunsId ?? "";
   const userId = params.userId ?? "";
 
   if (!projectId) {
@@ -403,15 +399,23 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("user id is undefined");
   }
 
+  const files: ParamsFile[] = JSON.parse(params.files ?? "{}");
+  const jobRuns: string[] = [];
+  const fileNames: string[] = [];
+
+  files.forEach((file) => {
+    if ("filename" in file) {
+      fileNames.push(file.filename);
+    }
+
+    if ("jobRunsName" in file) {
+      jobRuns.push(file.jobRunsName);
+    }
+  });
+
   const dpSourceParams: DataPlatformSourceParameters = {
-    revisionName:
-      recordId &&
-      revisionId &&
-      `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}/revisions/${revisionId}`,
-    jobRunId:
-      workflowRunsId &&
-      jobRunsId &&
-      `warehouses/${warehouseId}/projects/${projectId}/workflowRuns/${workflowRunsId}/jobRuns/${jobRunsId}`,
+    files: fileNames,
+    jobRuns,
     projectName: `warehouses/${warehouseId}/projects/${projectId}`,
     singleRequestTime: singleRequestTime ?? 5,
   };

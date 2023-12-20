@@ -1,7 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 import { Value } from "@bufbuild/protobuf";
 import {
   GetProjectRequest,
@@ -14,9 +13,7 @@ import {
   User as CoUser,
 } from "@coscene-io/coscene/proto/v1alpha1";
 import {
-  ListEventsRequest,
   CreateEventRequest,
-  Event,
   DeleteEventRequest,
   UpdateEventRequest,
   GetRecordRequest,
@@ -26,17 +23,34 @@ import {
   GetTicketSystemMetadataRequest,
   SyncTaskRequest,
   TicketSystemMetadata,
+  Event,
 } from "@coscene-io/coscene/proto/v1alpha2";
 import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
 import { Revision } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/revision_pb";
 import { GetRevisionRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/revision_pb";
+import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
+import {
+  ListUserProjectsRequest,
+  ListUserProjectsResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
+import { Event as Event_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
 import {
   UpsertConfigMapRequest,
   GetConfigMapRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
+import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_connect";
+import {
+  ListFilesRequest,
+  ListFilesResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
+import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
+import {
+  ListRecordsRequest,
+  ListRecordsResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
@@ -159,12 +173,14 @@ type customTopicResponse = {
 };
 
 export type getPlaylistResponse = {
-  bagList: {
-    fileName: string;
+  fileList: {
+    source: string;
+    displayName: string;
     startTime: number;
     endTime: number;
-    isGhostMode: boolean;
+    projectName: string;
     recordName: string;
+    fileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
   }[];
 };
 
@@ -194,9 +210,8 @@ export type ConsoleApiLayout = {
 };
 
 export type DataPlatformRequestArgs = {
-  revisionName?: string;
-  jobRunId?: string;
-  projectName?: string;
+  files: string[];
+  jobRuns: string[];
 };
 
 export enum MetricType {
@@ -226,6 +241,17 @@ type LayoutTemplatesIndex = {
     path: string;
     updateTime: string;
   };
+};
+
+export type SingleFileGetEventsRequest = {
+  projectName: string;
+  filter: string;
+  startTime: number;
+  endTime: number;
+};
+
+export type GetEventsResponse = {
+  events: string[];
 };
 
 class CoSceneConsoleApi {
@@ -463,23 +489,14 @@ class CoSceneConsoleApi {
   }
 
   // coScene-----------------------------------------------------------
-  public async topics(
-    params: DataPlatformRequestArgs & { includeSchemas?: boolean },
-  ): Promise<customTopicResponse> {
-    const topics = await this.#get<topicInterfaceReturns>(
+  public async topics(params: DataPlatformRequestArgs): Promise<customTopicResponse> {
+    const topics = await this.#post<topicInterfaceReturns>(
       "/v1/data/getMetadata",
       {
-        revisionName: params.revisionName,
-        jobRunId: params.jobRunId,
-        includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-        accessToken: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, ""),
+        files: params.files,
+        jobRuns: params.jobRuns,
       },
       undefined,
-      {
-        headers: {
-          ProjectName: params.projectName ?? "",
-        },
-      },
     );
 
     const metaData = topics.topics.map((topic) => {
@@ -499,30 +516,28 @@ class CoSceneConsoleApi {
     };
   }
 
-  public async getPlaylist(
-    params: DataPlatformRequestArgs & { includeSchemas?: boolean; accessToken: string },
-  ): Promise<getPlaylistResponse> {
-    return await this.#get<getPlaylistResponse>(
-      "/v1/data/getPlaylist",
-      {
-        revisionName: params.revisionName,
-        jobRunId: params.jobRunId,
-        includeSchemas: params.includeSchemas ?? false ? "true" : "false",
-        accessToken: params.accessToken.replace(/(^\s*)|(\s*$)/g, ""),
-      },
-      undefined,
-      {
-        headers: {
-          ProjectName: params.projectName ?? "",
-        },
-      },
-    );
-  }
-
   public getStreamUrl(): string {
     return `${this.#baseUrl}/v1/data/getStreams`;
   }
 
+  public async getPlaylist({
+    jobRuns,
+    files,
+  }: {
+    jobRuns: string[];
+    files: string[];
+  }): Promise<getPlaylistResponse> {
+    return await this.#post<getPlaylistResponse>(
+      "/v1/data/getPlaylist",
+      {
+        jobRuns,
+        files,
+      },
+      undefined,
+    );
+  }
+
+  // event
   public async createEvent({
     event,
     parent,
@@ -542,40 +557,20 @@ class CoSceneConsoleApi {
     return newEvent;
   }
 
-  public async getEvents({
-    parent,
-    revisionId,
-    recordId,
-    jobRunId,
-  }: {
-    parent: string;
-    recordId: string;
-    revisionId?: string;
-    jobRunId?: string;
-  }): Promise<Event[]> {
-    let filter = "";
+  public async getEvents(params: { fileList: SingleFileGetEventsRequest[] }): Promise<Event_es[]> {
+    const eventBinaryArray = await this.#post<GetEventsResponse>(
+      "/bff/honeybee/event/v1/listEvents",
+      params,
+    );
 
-    if (revisionId && jobRunId) {
-      filter = `revision.sha256="${revisionId}" OR record.job_run="${jobRunId}"`;
-    } else {
-      if (revisionId) {
-        filter = `revision.sha256="${revisionId}"`;
-      } else if (jobRunId) {
-        filter = `record.job_run="${jobRunId}"`;
-      } else {
-        filter = `record.id="${recordId}"`;
+    return eventBinaryArray.events.map((eventBinary) => {
+      const binaryString = atob(eventBinary);
+      const uint8Array = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i);
       }
-    }
-
-    const listEventsRequest = new ListEventsRequest()
-      .setParent(parent)
-      .setOrderBy("create_time desc")
-      .setFilter(filter)
-      .setPageSize(999);
-
-    const events = await CsWebClient.getEventClient().listEvents(listEventsRequest);
-
-    return events.getEventsList();
+      return Event_es.fromBinary(uint8Array);
+    });
   }
 
   public async deleteEvent({
@@ -751,6 +746,78 @@ class CoSceneConsoleApi {
 
   public async getLayoutTemplate(url: string): Promise<LayoutData> {
     return await this.#get<LayoutData>(url, undefined, true);
+  }
+
+  public async listUserProjects({
+    userId,
+    pageSize,
+    filter,
+    currentPage,
+  }: {
+    userId: string;
+    pageSize: number;
+    filter?: string;
+    currentPage: number;
+  }): Promise<ListUserProjectsResponse> {
+    const req = new ListUserProjectsRequest({
+      parent: `users/${userId}`,
+      pageSize,
+      skip: pageSize * currentPage,
+    });
+
+    if (filter) {
+      req.filter = filter;
+    }
+
+    const projectClient = getPromiseClient(ProjectService);
+
+    return await projectClient.listUserProjects(req);
+  }
+
+  public async listRecord({
+    projectName,
+    pageSize,
+    filter,
+    currentPage,
+  }: {
+    projectName: string;
+    pageSize: number;
+    filter: string;
+    currentPage: number;
+  }): Promise<ListRecordsResponse> {
+    const req = new ListRecordsRequest({
+      parent: projectName,
+      filter,
+      pageSize,
+      skip: pageSize * currentPage,
+    });
+
+    const recordClient = getPromiseClient(RecordService);
+
+    return await recordClient.listRecords(req);
+  }
+
+  public async listFiles({
+    revisionName,
+    pageSize,
+    filter,
+    currentPage,
+  }: {
+    revisionName: string;
+    pageSize: number;
+    filter: string;
+    currentPage: number;
+  }): Promise<ListFilesResponse> {
+    const req = new ListFilesRequest({
+      parent: revisionName,
+      filter,
+      pageSize,
+      skip: pageSize * currentPage,
+    });
+
+    const fileClient = getPromiseClient(FileService);
+
+    return await fileClient.listFiles(req);
   }
 }
 

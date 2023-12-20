@@ -15,7 +15,6 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import Timestamp from "@foxglove/studio-base/components/Timestamp";
-import { CoSceneRecordStore, useRecord } from "@foxglove/studio-base/context/CoSceneRecordContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { subtractTimes } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/typescript/userUtils/time";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
@@ -35,7 +34,7 @@ const useStyles = makeStyles()({
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
-const selectRecord = (store: CoSceneRecordStore) => store.record;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 function DataSourceInfoContent(props: {
   disableSource?: boolean;
@@ -45,12 +44,13 @@ function DataSourceInfoContent(props: {
   playerPresence: PlayerPresence;
   startTime?: Time;
 }): JSX.Element {
+  const urlState = useMessagePipeline(selectUrlState);
+
   const { durationRef, endTimeRef, playerPresence, startTime, playerName, disableSource } = props;
   const { classes } = useStyles();
-  const record = useRecord(selectRecord);
   const { t } = useTranslation("dataSourceInfo");
 
-  useTitle(`coScene ${record.value?.getTitle() ?? ""}`);
+  useTitle(`coScene ${urlState?.parameters?.recordDisplayName ?? ""}`);
 
   // foxglove 的变量 我们暂时不会使用 为了减少改动量,防止每次合并foxglove主分支都需要处理一遍 有更好的办法前这里暂时不做删除处理
   if (playerName != undefined && disableSource != undefined) {

@@ -1,19 +1,25 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 import { ImageShadow20Filled } from "@fluentui/react-icons";
 import BarChartIcon from "@mui/icons-material/BarChart";
+import Clear from "@mui/icons-material/Clear";
 import { alpha } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
+import * as _ from "lodash-es";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { subtract, toDate } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
-import { BagFileInfo } from "@foxglove/studio-base/context/CoSceneRecordContext";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
+import { ParamsFile, BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { AppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) => ({
   bagBox: {
@@ -107,21 +113,67 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
   hiddenBarChartIcon: {
     display: "none",
   },
+  hideDeleteButton: {
+    display: "none",
+  },
+  deleteButton: {
+    position: "absolute",
+    cursor: "pointer",
+    top: "50%",
+    transform: "translateY(-50%)",
+    right: theme.spacing(2),
+    padding: theme.spacing(0.5),
+  },
 }));
+
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 function BagViewComponent(params: {
   bag: BagFileInfo;
   filter: string;
   isHovered: boolean;
   isCurrent: boolean;
+  updateUrl: (newState: AppURLState) => void;
   onClick: (bag: BagFileInfo) => void;
   onHoverStart: (bag: BagFileInfo) => void;
   onHoverEnd: (bag: BagFileInfo) => void;
 }) {
-  const { bag, filter, isHovered, isCurrent, onClick, onHoverStart, onHoverEnd } = params;
+  const { bag, filter, isHovered, isCurrent, updateUrl, onClick, onHoverStart, onHoverEnd } =
+    params;
   const { classes, cx } = useStyles();
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosPlaylist");
+  const urlState = useMessagePipeline(selectUrlState);
+
+  const files: ParamsFile[] = JSON.parse(urlState?.parameters?.files ?? "{}");
+
+  const deleteBag = () => {
+    const newFiles = files.filter((file) => {
+      if ("filename" in file) {
+        return file.filename !== bag.name;
+      }
+      if ("jobRunsName" in file) {
+        return file.jobRunsName !== bag.name;
+      }
+
+      return false;
+    });
+
+    if (urlState != undefined) {
+      updateUrl({
+        dsParams: _.pickBy(
+          {
+            ...urlState.parameters,
+            files: JSON.stringify(newFiles),
+          },
+          _.isString,
+        ),
+      });
+    }
+
+    location.reload();
+  };
+
   return (
     <div
       className={cx(classes.bagBox, {
@@ -179,7 +231,7 @@ function BagViewComponent(params: {
           />
         </div>
       )}
-      {bag.isGhostMode === true && (
+      {bag.fileType === "GHOST_RESULT_FILE" && (
         <Tooltip title={t("shadowMode")} placement="top" className={classes.tooltip}>
           <div>
             <div className={classes.triangle} />
@@ -187,6 +239,13 @@ function BagViewComponent(params: {
           </div>
         </Tooltip>
       )}
+      <Clear
+        className={cx({
+          [classes.hideDeleteButton]: !isHovered,
+          [classes.deleteButton]: isHovered,
+        })}
+        onClick={deleteBag}
+      />
     </div>
   );
 }

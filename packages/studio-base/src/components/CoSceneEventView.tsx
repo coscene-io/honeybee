@@ -148,7 +148,7 @@ function EventViewComponent(params: {
   };
 
   const [deletedEvent, deleteEvent] = useAsyncFn(async () => {
-    await consoleApi.deleteEvent({ eventName: event.event.getName() });
+    await consoleApi.deleteEvent({ eventName: event.event.name });
     setOpen(true);
     setToastInfo({
       message: t("momentDeleted"),
@@ -177,7 +177,7 @@ function EventViewComponent(params: {
       const fieldMask = new FieldMask();
       fieldMask.addPaths("description");
       await consoleApi.updateEvent({
-        event: new Event().setName(event.event.getName()).setDescription(desc),
+        event: new Event().setName(event.event.name).setDescription(desc),
         updateMask: fieldMask,
       });
       setOpen(true);
@@ -190,11 +190,11 @@ function EventViewComponent(params: {
     [consoleApi, event, refreshEvents, t],
   );
 
-  const displayName = event.event.getDisplayName();
-  const triggerTime = formatTime(fromDate(event.event.getTriggerTime()!.toDate()));
-  const duration = `${event.event.getDuration().toString()} s`;
-  const description = event.event.getDescription();
-  const metadataMap = event.event.getCustomizedFieldsMap().toArray();
+  const displayName = event.event.displayName;
+  const triggerTime = formatTime(fromDate(event.event.triggerTime?.toDate() ?? new Date()));
+  const duration = `${event.event.duration.toString()} s`;
+  const description = event.event.description;
+  const metadataMap = Object.entries(event.event.customizedFields);
 
   useEffect(() => {
     if (deletedEvent.error) {
@@ -242,7 +242,7 @@ function EventViewComponent(params: {
     const copyLink = link.replace(
       /time=.+Z&|time=.+Z$/,
       `time=${encodeURIComponent(
-        toRFC3339String(fromDate(event.event.getTriggerTime()!.toDate())),
+        toRFC3339String(fromDate(event.event.triggerTime?.toDate() ?? new Date())),
       )}&`,
     );
 

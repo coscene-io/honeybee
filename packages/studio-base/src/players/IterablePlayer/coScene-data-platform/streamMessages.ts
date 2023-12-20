@@ -31,8 +31,8 @@ export type ParsedChannelAndEncodings = {
 export type StreamParams = {
   start: Time;
   end: Time;
-  revisionName?: string;
-  jobRunId?: string;
+  files?: string[];
+  jobRuns?: string[];
   projectName?: string;
   authHeader?: string;
   replayPolicy?: "lastPerChannel" | "";
@@ -210,8 +210,8 @@ export async function* streamMessages({
         start: toMillis(params.start),
         end: toMillis(params.end),
         topics: params.topics,
-        revisionName: params.revisionName,
-        jobRunId: params.jobRunId,
+        files: params.files,
+        jobRuns: params.jobRuns,
       }),
     });
     if (response.status === 401) {
