@@ -34,8 +34,7 @@ import { keyframes } from "tss-react";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
-import { isLessThan, isGreaterThan } from "@foxglove/rostime";
-import { toDate } from "@foxglove/rostime";
+import { toDate, isLessThan, isGreaterThan } from "@foxglove/rostime";
 import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
 import {
   MessagePipelineContext,
