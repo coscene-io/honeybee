@@ -4,9 +4,11 @@
 
 export const appSettings = {
   about: "About",
+  advanced: "Advanced",
   askEachTime: "Ask each time",
   colorScheme: "Color scheme",
   dark: "Dark",
+  debugModeDescription: "Enable panels and features for debugging Foxglove",
   desktopApp: "Desktop app",
   displayTimestampsIn: "Display timestamps in",
   experimentalFeatures: "Experimental features",
@@ -18,9 +20,9 @@ export const appSettings = {
   layoutDebugging: "Layout debugging",
   layoutDebuggingDescription: "Show extra controls for developing and debugging layout storage.",
   light: "Light",
-  memoryUseIndicator: "Memory use indicator",
-  memoryUseIndicatorDescription: "Show the app memory use in the sidebar.",
   messageRate: "Message rate",
+  newAppMenu: "Enable unified navigation",
+  newAppMenuDescription: "Show the new menu and navigation.",
   noExperimentalFeatures: "Currently there are no experimental features.",
   openLinksIn: "Open links in",
   privacy: "Privacy",
@@ -29,8 +31,6 @@ export const appSettings = {
   sendAnonymizedCrashReports: "Send anonymized crash reports",
   sendAnonymizedUsageData: "Send anonymized usage data to help us improve Foxglove Studio",
   settings: "Settings",
-  studioDebugPanels: "Studio debug panels",
-  studioDebugPanelsDescription: "Show Foxglove Studio debug panels in the “Add panel” list.",
   timestampFormat: "Timestamp format",
   webApp: "Web app",
 };

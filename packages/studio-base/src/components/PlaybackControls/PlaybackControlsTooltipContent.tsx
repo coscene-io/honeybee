@@ -19,7 +19,6 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formateTimeToReadableFormat } from "@foxglove/studio-base/util/time";
 
 type PlaybackControlsTooltipItem =
@@ -34,7 +33,8 @@ const useStyles = makeStyles()((theme) => ({
   },
   tooltipWrapper: {
     fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
-    fontFamily: fonts.SANS_SERIF,
+    fontFamily: theme.typography.body1.fontFamily,
+    whiteSpace: "nowrap",
     columnGap: theme.spacing(0.5),
     display: "grid",
     alignItems: "center",
@@ -57,7 +57,7 @@ const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeD
 
 export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNull | JSX.Element {
   const { stamp } = params;
-  const { timeFormat, formatTime } = useAppTimeFormat();
+  const { timeFormat, formatTime, formatDate } = useAppTimeFormat();
   const hoveredEvents = useTimelineInteractionState(selectHoveredEvents);
   const hoveredBags = useTimelineInteractionState(selectHoveredBags);
   const startTime = useMessagePipeline(selectStartTime);
@@ -135,6 +135,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
   switch (timeFormat) {
     case "TOD":
       tooltipItems.push({ type: "item", title: t("time"), value: formatTime(stamp) });
+      tooltipItems.push({ type: "item", title: "Date", value: formatDate(stamp) });
       break;
     case "SEC":
       tooltipItems.push({ type: "item", title: "SEC", value: formatTime(stamp) });

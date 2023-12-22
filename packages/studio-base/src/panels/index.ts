@@ -12,7 +12,6 @@ import imageThumbnail from "./Image/thumbnail.png";
 import indicatorThumbnail from "./Indicator/thumbnail.png";
 import logThumbnail from "./Log/thumbnail.png";
 import mapThumbnail from "./Map/thumbnail.png";
-import nodePlaygroundThumbnail from "./NodePlayground/thumbnail.png";
 import parametersThumbnail from "./Parameters/thumbnail.png";
 import plotThumbnail from "./Plot/thumbnail.png";
 import publishThumbnail from "./Publish/thumbnail.png";
@@ -167,27 +166,11 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     module: async () => await import("./VariableSlider"),
   },
   {
-    title: t("userScripts"),
-    type: "NodePlayground",
-    description: t("userScriptsDescription"),
-    thumbnail: nodePlaygroundThumbnail,
-    module: async () => await import("./NodePlayground"),
-  },
-  {
     title: t("tab"),
     type: TAB_PANEL_TYPE,
     description: t("tabDescription"),
     thumbnail: tabThumbnail,
     module: async () => await import("./Tab"),
     hasCustomToolbar: true,
-  },
-];
-
-export const getDebug: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
-  {
-    title: t("studioPlaybackPerformance"),
-    type: "PlaybackPerformance",
-    description: t("studioPlaybackPerformanceDescription"),
-    module: async () => await import("./PlaybackPerformance"),
   },
 ];

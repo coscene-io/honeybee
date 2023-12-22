@@ -10,6 +10,7 @@ import { Immutable as Im } from "@foxglove/studio";
 import { iterateTyped, getTypedLength } from "@foxglove/studio-base/components/Chart/datasets";
 import { RosPath } from "@foxglove/studio-base/components/MessagePathSyntax/constants";
 import { getMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
+import { ProviderState } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { getTypedBounds } from "@foxglove/studio-base/components/TimeBasedChart/useProvider";
 import {
   getDatasetsFromMessagePlotPath,
@@ -95,7 +96,7 @@ function findXRanges(data: Im<PlotData>): {
   return { all: { start, end }, byPath };
 }
 
-export function mapDatasets(
+function mapDatasets(
   map: (dataset: TypedDataSet, path: PlotPath) => TypedDataSet,
   datasets: DatasetsByPath,
 ): DatasetsByPath {
@@ -182,19 +183,6 @@ export function reducePlotData(data: PlotData[]): PlotData {
   }, EmptyPlotData);
 
   return reduced;
-}
-
-export function getPaths(paths: readonly PlotPath[], xAxisPath?: BasePlotPath): string[] {
-  return R.chain(
-    (path: BasePlotPath | undefined): string[] => {
-      if (path == undefined) {
-        return [];
-      }
-
-      return [path.value];
-    },
-    [xAxisPath, ...paths],
-  );
 }
 
 type PathData = [PlotPath, PlotDataItem[] | undefined];
@@ -300,6 +288,25 @@ export const applyDerivativeToPlotData = createPlotMapping((dataset, path) => {
   };
 });
 
+export const sortDataByHeaderStamp = (data: TypedData[]): TypedData[] => {
+  const indices: [index: number, timestamp: number][] = [];
+  for (const datum of iterateTyped(data)) {
+    indices.push([datum.index, datum.x]);
+  }
+
+  indices.sort(([, ax], [, bx]) => ax - bx);
+
+  const resolved = resolveTypedIndices(
+    data,
+    indices.map(([index]) => index),
+  );
+  if (resolved == undefined) {
+    return data;
+  }
+
+  return resolved;
+};
+
 /**
  * Sorts datsets by header stamp, which at this point in the processing chain is the x value of each point.
  * This has to be done on the complete dataset, not point by point.
@@ -316,25 +323,23 @@ export const sortPlotDataByHeaderStamp = createPlotMapping((dataset: TypedDataSe
   if (path.timestampMethod !== "headerStamp") {
     return dataset;
   }
+  return {
+    ...dataset,
+    data: sortDataByHeaderStamp(dataset.data),
+  };
+});
 
-  const indices: [index: number, timestamp: number][] = [];
-  for (const datum of iterateTyped(dataset.data)) {
-    indices.push([datum.index, datum.x]);
-  }
-
-  indices.sort(([, ax], [, bx]) => ax - bx);
-
-  const resolved = resolveTypedIndices(
-    dataset.data,
-    indices.map(([index]) => index),
-  );
-
-  if (resolved == undefined) {
-    return dataset;
+export function getProvidedData(data: PlotData): ProviderState<TypedData[]> {
+  const { bounds } = data;
+  const datasets = [];
+  for (const dataset of data.datasets.values()) {
+    datasets.push(dataset);
   }
 
   return {
-    ...dataset,
-    data: resolved,
+    bounds,
+    data: {
+      datasets,
+    },
   };
-});
+}

@@ -14,7 +14,7 @@
 import {
   ArrowRepeatAll20Regular,
   ArrowRepeatAllOff20Regular,
-  Info24Regular,
+  Info20Regular,
   Next20Filled,
   Next20Regular,
   Pause20Filled,
@@ -89,8 +89,8 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
-const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 export default function PlaybackControls(props: {
   play: NonNullable<Player["startPlayback"]>;
@@ -250,7 +250,7 @@ export default function PlaybackControls(props: {
                   [classes.disabled]: disableControls,
                 })}
                 size="small"
-                icon={<Info24Regular />}
+                icon={<Info20Regular />}
               />
             </Tooltip>
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />

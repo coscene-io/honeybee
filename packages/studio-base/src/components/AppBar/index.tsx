@@ -3,30 +3,22 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
+  ChevronDown12Regular,
   PanelLeft24Filled,
   PanelLeft24Regular,
   PanelRight24Filled,
   PanelRight24Regular,
   SlideAdd24Regular,
 } from "@fluentui/react-icons";
-import { Avatar, Button, IconButton, Tooltip } from "@mui/material";
+import { Avatar, IconButton, Tooltip } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
-import { AppSetting } from "@foxglove/studio-base/AppSetting";
-import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
-import { AppMenu } from "@foxglove/studio-base/components/AppBar/AppMenu";
 import { CoSceneLayoutButton } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
-import {
-  CustomWindowControls,
-  CustomWindowControlsProps,
-} from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
 import { CoSceneLogo, KeenonLogo } from "@foxglove/studio-base/components/CoSceneLogo";
-import { MemoryUseIndicator } from "@foxglove/studio-base/components/MemoryUseIndicator";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import {
   LayoutState,
@@ -36,17 +28,17 @@ import { useCurrentUser as useCoSceneCurrentUser } from "@foxglove/studio-base/c
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   WorkspaceContextStore,
-  useWorkspaceStoreWithShallowSelector,
+  useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
-import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { AddPanelMenu } from "./AddPanelMenu";
 import { AppBarContainer } from "./AppBarContainer";
+import { AppBarIconButton } from "./AppBarIconButton";
+import { AppMenu } from "./AppMenu";
 import { UserMenu } from "./CoSceneUserMenu";
+import { CustomWindowControls, CustomWindowControlsProps } from "./CustomWindowControls";
 import { DataSource } from "./DataSource";
 
 const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
@@ -87,6 +79,9 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
         opacity: theme.palette.action.disabledOpacity,
       },
     },
+    dropDownIcon: {
+      fontSize: "12px !important",
+    },
     start: {
       gridArea: "start",
       display: "flex",
@@ -117,7 +112,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
       ...NOT_DRAGGABLE_STYLE, // make buttons clickable for desktop app
     },
     keyEquivalent: {
-      fontFamily: fonts.MONOSPACE,
+      fontFamily: theme.typography.fontMonospace,
       background: tc(theme.palette.common.white).darken(45).toString(),
       padding: theme.spacing(0, 0.5),
       aspectRatio: 1,
@@ -152,16 +147,6 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
         },
       },
     },
-    button: {
-      marginInline: theme.spacing(1),
-      backgroundColor: theme.palette.appBar.primary,
-
-      "&:hover": {
-        backgroundColor: theme.palette.augmentColor({
-          color: { main: theme.palette.appBar.primary as string },
-        }).dark,
-      },
-    },
   };
 });
 
@@ -169,16 +154,15 @@ type AppBarProps = CustomWindowControlsProps & {
   leftInset?: number;
   onDoubleClick?: () => void;
   debugDragRegion?: boolean;
-  disableSignIn?: boolean;
 };
 
 const selectHasCurrentLayout = (state: LayoutState) => state.selectedLayout != undefined;
-const selectWorkspace = (store: WorkspaceContextStore) => store;
+const selectLeftSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.left.open;
+const selectRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.right.open;
 
 export function AppBar(props: AppBarProps): JSX.Element {
   const {
     debugDragRegion,
-    disableSignIn = false,
     isMaximized,
     leftInset,
     onCloseWindow,
@@ -188,25 +172,17 @@ export function AppBar(props: AppBarProps): JSX.Element {
     onUnmaximizeWindow,
     showCustomWindowControls = false,
   } = props;
-  const { classes, cx } = useStyles({ debugDragRegion });
-  const { currentUser, signIn } = useCurrentUser();
+  const { classes, cx, theme } = useStyles({ debugDragRegion });
+  const { currentUser } = useCurrentUser();
   const { t } = useTranslation("appBar");
 
   const { appBarLayoutButton } = useAppContext();
 
-  const analytics = useAnalytics();
-  const [enableMemoryUseIndicator = false] = useAppConfigurationValue<boolean>(
-    AppSetting.ENABLE_MEMORY_USE_INDICATOR,
-  );
-
   const hasCurrentLayout = useCurrentLayoutSelector(selectHasCurrentLayout);
 
-  const {
-    sidebars: {
-      left: { open: leftSidebarOpen },
-      right: { open: rightSidebarOpen },
-    },
-  } = useWorkspaceStoreWithShallowSelector(selectWorkspace);
+  const leftSidebarOpen = useWorkspaceStore(selectLeftSidebarOpen);
+  const rightSidebarOpen = useWorkspaceStore(selectRightSidebarOpen);
+
   const { sidebarActions } = useWorkspaceActions();
 
   const [appMenuEl, setAppMenuEl] = useState<undefined | HTMLElement>(undefined);
@@ -233,12 +209,26 @@ export function AppBar(props: AppBarProps): JSX.Element {
                 aria-haspopup="true"
                 aria-expanded={appMenuOpen ? "true" : undefined}
                 data-tourid="app-menu-button"
-                disabled
+                onClick={(event) => {
+                  setAppMenuEl(event.currentTarget);
+                }}
               >
                 {APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon" ? (
-                  <KeenonLogo fontSize="inherit" color="inherit" />
+                  <>
+                    <KeenonLogo fontSize="inherit" color="inherit" />
+                    <ChevronDown12Regular
+                      className={classes.dropDownIcon}
+                      primaryFill={theme.palette.common.white}
+                    />
+                  </>
                 ) : (
-                  <CoSceneLogo fontSize="inherit" color="inherit" />
+                  <>
+                    <CoSceneLogo fontSize="inherit" color="inherit" />
+                    <ChevronDown12Regular
+                      className={classes.dropDownIcon}
+                      primaryFill={theme.palette.common.white}
+                    />
+                  </>
                 )}
               </IconButton>
               <AppMenu
@@ -274,7 +264,6 @@ export function AppBar(props: AppBarProps): JSX.Element {
 
           <div className={classes.end}>
             <div className={classes.endInner}>
-              {enableMemoryUseIndicator && <MemoryUseIndicator />}
               {appBarLayoutButton}
               <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
@@ -309,23 +298,6 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   {rightSidebarOpen ? <PanelRight24Filled /> : <PanelRight24Regular />}
                 </AppBarIconButton>
               </Stack>
-              {!disableSignIn && !currentUser && signIn != undefined && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  className={classes.button}
-                  size="small"
-                  onClick={() => {
-                    signIn();
-                    void analytics.logEvent(AppEvent.APP_BAR_CLICK_CTA, {
-                      user: "unauthenticated",
-                      cta: "sign-in",
-                    });
-                  }}
-                >
-                  {t("signIn")}
-                </Button>
-              )}
               <Tooltip
                 classes={{ tooltip: classes.tooltip }}
                 title={currentUser?.email ?? "Profile"}

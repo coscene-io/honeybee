@@ -19,15 +19,15 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
   public docsLinks = [
     {
       label: "ROS 1",
-      url: "https://foxglove.dev/docs/studio/connection/ros1#coscene-websocket",
+      url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros1#foxglove-websocket",
     },
     {
       label: "ROS 2",
-      url: "https://foxglove.dev/docs/studio/connection/ros2#coscene-websocket",
+      url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros2#foxglove-websocket",
     },
     {
       label: "custom data",
-      url: "https://foxglove.dev/docs/studio/connection/custom#coscene-websocket",
+      url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/custom#foxglove-websocket",
     },
   ];
 
