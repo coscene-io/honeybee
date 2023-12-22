@@ -150,7 +150,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
   };
 });
 
-type AppBarProps = CustomWindowControlsProps & {
+export type AppBarProps = CustomWindowControlsProps & {
   leftInset?: number;
   onDoubleClick?: () => void;
   debugDragRegion?: boolean;

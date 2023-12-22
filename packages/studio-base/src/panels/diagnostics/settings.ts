@@ -52,7 +52,6 @@ export function buildSummarySettingsTree(
 export function buildStatusPanelSettingsTree(
   config: DiagnosticStatusConfig,
   topicToRender: string,
-  numericPrecision: number | undefined,
   availableTopics: readonly string[],
 ): SettingsTreeNodes {
   const topicOptions = availableTopics.map((topic) => ({ label: topic, value: topic }));

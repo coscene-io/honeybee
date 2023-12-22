@@ -8,7 +8,7 @@ import { StoreApi, useStore } from "zustand";
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
-import { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import { IDataSourceFactory } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 
 export const LeftSidebarItemKeys = [
   "playlist",

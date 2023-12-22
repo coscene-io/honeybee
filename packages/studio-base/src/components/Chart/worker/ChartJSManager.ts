@@ -36,10 +36,6 @@ import { lineSegmentLabelColor } from "./lineSegments";
 import { proxyTyped } from "./proxy";
 import { TypedChartData } from "../types";
 
-import { lineSegmentLabelColor } from "./lineSegments";
-import { proxyTyped } from "./proxy";
-import { TypedChartData } from "../types";
-
 const log = Logger.getLogger(__filename);
 
 export type InitOpts = {
