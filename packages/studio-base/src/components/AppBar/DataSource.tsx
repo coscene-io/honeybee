@@ -21,7 +21,6 @@ import {
 } from "@foxglove/studio-base/context/CoSceneProjectContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { EndTimestamp } from "./EndTimestamp";
 
@@ -76,7 +75,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     },
   },
   numericValue: {
-    fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
+    fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
   },
   breadcrumbs: {
     maxWidth: "150px",

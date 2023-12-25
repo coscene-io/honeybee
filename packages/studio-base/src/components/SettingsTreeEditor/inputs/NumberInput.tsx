@@ -14,10 +14,6 @@ const Constants = {
   ScrubPrecision: 4,
 } as const;
 
-const Constants = {
-  ScrubPrecision: 4,
-} as const;
-
 const useStyles = makeStyles()((theme) => ({
   iconButton: {
     "&.MuiIconButton-edgeStart": {
