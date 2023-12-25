@@ -11,7 +11,7 @@ import ConsoleApiRemoteLayoutStorage from "@foxglove/studio-base/services/CoScen
 
 export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
   children,
-}: React.PropsWithChildren<unknown>): JSX.Element {
+}: React.PropsWithChildren): JSX.Element {
   const api = useConsoleApi();
   const currentUser = useCurrentUser();
   const apiStorage = useMemo(

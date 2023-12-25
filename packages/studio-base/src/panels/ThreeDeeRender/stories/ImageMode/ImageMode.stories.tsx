@@ -302,8 +302,8 @@ const ImageModeFoxgloveImage = ({
 
   let mono16Raw: MessageEvent<Partial<RawImage>>;
   {
-    const width = 640;
-    const height = 480;
+    const width = 160;
+    const height = 120;
     const mono16Data = new DataView(new ArrayBuffer(width * height * 2));
     for (let r = 0; r < height; r++) {
       for (let c = 0; c < width; c++) {
@@ -441,8 +441,13 @@ export const DownloadRawImage: StoryObj<React.ComponentProps<typeof ImageModeFox
   args: { imageType: "raw" },
   play: async () => {
     const { click, pointer } = userEvent.setup();
+    // need to wait until the images are done decoding
+    await delay(500);
     await pointer({ target: document.querySelector("canvas")!, keys: "[MouseRight]" });
-    await click(await screen.findByText("Download image"));
+    const downloadButton = await screen.findByText("Download image");
+    await click(downloadButton);
+    // Add an extra delay after rendering the downloaded image to avoid flaky stores
+    await delay(800);
   },
 };
 
@@ -693,8 +698,8 @@ export const UnsupportedEncodingError: StoryObj = {
   play: async () => {
     const errorIcon = await waitFor(async () => {
       const icons = await screen.findAllByTestId("ErrorIcon");
-      if (icons.length !== 2) {
-        throw new Error("Expected 2 error icons");
+      if (icons.length !== 1) {
+        throw new Error("Expected 1 error icon. (unsupported encoding)");
       }
       return icons[0];
     });
@@ -736,8 +741,8 @@ export const DecompressionError: StoryObj = {
   play: async () => {
     const errorIcon = await waitFor(async () => {
       const icons = await screen.findAllByTestId("ErrorIcon");
-      if (icons.length !== 2) {
-        throw new Error("Expected 2 error icons");
+      if (icons.length !== 1) {
+        throw new Error("Expected 1 error icon (decompression error)");
       }
       return icons[0];
     });
@@ -1095,4 +1100,82 @@ export const RationalPolynomialDistortion: StoryObj = {
       deltaY: 100,
     });
   },
+};
+
+const ImageModeEmptyLayout = ({
+  type,
+}: {
+  type: "no-topics" | "no-messages" | "image-topic-DNE";
+}): JSX.Element => {
+  let fixture: Fixture | undefined;
+  let calibrationTopic: string | undefined = "calibration";
+  switch (type) {
+    case "no-topics":
+      fixture = {
+        topics: [],
+        frame: {},
+        capabilities: [],
+        activeData: {
+          currentTime: { sec: 0, nsec: 0 },
+        },
+      };
+      break;
+    case "image-topic-DNE": {
+      calibrationTopic = undefined;
+      fixture = {
+        topics: [],
+        frame: {},
+        capabilities: [],
+        activeData: {
+          currentTime: { sec: 0, nsec: 0 },
+        },
+      };
+      break;
+    }
+    case "no-messages":
+      fixture = {
+        topics: [
+          { name: "calibration", schemaName: "foxglove.CameraCalibration" },
+          { name: "camera", schemaName: "foxglove.RawImage" },
+        ],
+        frame: {},
+        capabilities: [],
+        activeData: {
+          currentTime: { sec: 0, nsec: 0 },
+        },
+      };
+      break;
+  }
+  return (
+    <PanelSetup fixture={fixture} includeSettings={true}>
+      <ImagePanel
+        overrideConfig={{
+          ...ImagePanel.defaultConfig,
+          imageMode: {
+            calibrationTopic,
+            imageTopic: "camera",
+          },
+        }}
+      />
+    </PanelSetup>
+  );
+};
+
+export const ImageModeEmptyNoTopics: StoryObj<React.ComponentProps<typeof ImageModeEmptyLayout>> = {
+  render: ImageModeEmptyLayout,
+  args: { type: "no-topics" },
+};
+
+export const ImageModeEmptyNoMessages: StoryObj<React.ComponentProps<typeof ImageModeEmptyLayout>> =
+  {
+    render: ImageModeEmptyLayout,
+    args: { type: "no-messages" },
+  };
+
+// when calibration == "None", then we display an empty state when only the image topic does not exist
+export const ImageModeEmptyOnlyImageTopicDNE: StoryObj<
+  React.ComponentProps<typeof ImageModeEmptyLayout>
+> = {
+  render: ImageModeEmptyLayout,
+  args: { type: "image-topic-DNE" },
 };

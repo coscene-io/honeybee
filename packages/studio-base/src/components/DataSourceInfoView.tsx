@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useTitle } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
-import { Time } from "@foxglove/rostime";
+import { subtract as subtractTimes, Time } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -16,25 +16,24 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import Timestamp from "@foxglove/studio-base/components/Timestamp";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-import { subtractTimes } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/typescript/userUtils/time";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { formatDuration } from "@foxglove/studio-base/util/formatTime";
-import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 import { formatTimeRaw, isAbsoluteTime } from "@foxglove/studio-base/util/time";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   overline: {
     opacity: 0.6,
   },
   numericValue: {
-    fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
+    fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
   },
-});
+}));
 
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 
 function DataSourceInfoContent(props: {
   disableSource?: boolean;
@@ -43,10 +42,19 @@ function DataSourceInfoContent(props: {
   playerName?: string;
   playerPresence: PlayerPresence;
   startTime?: Time;
+  isLiveConnection: boolean;
 }): JSX.Element {
   const urlState = useMessagePipeline(selectUrlState);
 
-  const { durationRef, endTimeRef, playerPresence, startTime, playerName, disableSource } = props;
+  const {
+    durationRef,
+    isLiveConnection,
+    endTimeRef,
+    playerPresence,
+    startTime,
+    playerName,
+    disableSource,
+  } = props;
   const { classes } = useStyles();
   const { t } = useTranslation("dataSourceInfo");
 
@@ -57,50 +65,56 @@ function DataSourceInfoContent(props: {
     console.debug("playerName is always empty so it will never be output");
   }
 
-  return (
-    <Stack gap={1.5}>
-      <Stack>
-        <Typography className={classes.overline} variant="overline">
-          {t("startTime")}
-        </Typography>
-        {playerPresence === PlayerPresence.INITIALIZING ? (
-          <Skeleton animation="wave" width="50%" />
-        ) : startTime ? (
-          <Timestamp horizontal time={startTime} />
-        ) : (
-          <Typography className={classes.numericValue} variant="inherit">
-            &mdash;
-          </Typography>
-        )}
-      </Stack>
+  if (isLiveConnection) {
+    console.debug("isLiveConnection is always true so it will never be output");
+  }
 
-      <Stack>
-        <Typography className={classes.overline} variant="overline">
-          {t("endTime")}
-        </Typography>
-        {playerPresence === PlayerPresence.INITIALIZING ? (
-          <Skeleton animation="wave" width="50%" />
-        ) : (
-          <Typography className={classes.numericValue} variant="inherit" ref={endTimeRef}>
-            &mdash;
+  {
+    return (
+      <Stack gap={1.5}>
+        <Stack>
+          <Typography className={classes.overline} variant="overline">
+            {t("startTime")}
           </Typography>
-        )}
-      </Stack>
+          {playerPresence === PlayerPresence.INITIALIZING ? (
+            <Skeleton animation="wave" width="50%" />
+          ) : startTime ? (
+            <Timestamp horizontal time={startTime} />
+          ) : (
+            <Typography className={classes.numericValue} variant="inherit">
+              &mdash;
+            </Typography>
+          )}
+        </Stack>
 
-      <Stack>
-        <Typography className={classes.overline} variant="overline">
-          {t("duration")}
-        </Typography>
-        {playerPresence === PlayerPresence.INITIALIZING ? (
-          <Skeleton animation="wave" width={100} />
-        ) : (
-          <Typography className={classes.numericValue} variant="inherit" ref={durationRef}>
-            &mdash;
+        <Stack>
+          <Typography className={classes.overline} variant="overline">
+            {t("endTime")}
           </Typography>
-        )}
+          {playerPresence === PlayerPresence.INITIALIZING ? (
+            <Skeleton animation="wave" width="50%" />
+          ) : (
+            <Typography className={classes.numericValue} variant="inherit" ref={endTimeRef}>
+              &mdash;
+            </Typography>
+          )}
+        </Stack>
+
+        <Stack>
+          <Typography className={classes.overline} variant="overline">
+            {t("duration")}
+          </Typography>
+          {playerPresence === PlayerPresence.INITIALIZING ? (
+            <Skeleton animation="wave" width={100} />
+          ) : (
+            <Typography className={classes.numericValue} variant="inherit" ref={durationRef}>
+              &mdash;
+            </Typography>
+          )}
+        </Stack>
       </Stack>
-    </Stack>
-  );
+    );
+  }
 }
 
 const MemoDataSourceInfoContent = React.memo(DataSourceInfoContent);
@@ -111,6 +125,7 @@ export function DataSourceInfoView({ disableSource }: { disableSource?: boolean 
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
+  const seek = useMessagePipeline(selectSeek);
 
   const durationRef = useRef<HTMLDivElement>(ReactNull);
   const endTimeRef = useRef<HTMLDivElement>(ReactNull);
@@ -146,6 +161,7 @@ export function DataSourceInfoView({ disableSource }: { disableSource?: boolean 
       endTimeRef={endTimeRef}
       playerPresence={playerPresence}
       startTime={startTime}
+      isLiveConnection={seek == undefined}
     />
   );
 }

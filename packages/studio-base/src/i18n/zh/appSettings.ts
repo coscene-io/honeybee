@@ -6,9 +6,11 @@ import { TypeOptions } from "i18next";
 
 export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   about: "关于",
+  advanced: undefined,
   askEachTime: "每次询问",
   colorScheme: "配色方案",
   dark: "暗色",
+  debugModeDescription: undefined,
   desktopApp: "桌面应用",
   displayTimestampsIn: "显示时间戳在",
   experimentalFeatures: "实验性功能",
@@ -20,8 +22,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   layoutDebugging: "布局调试",
   layoutDebuggingDescription: "显示用于开发和调试布局存储的额外控件。",
   light: "亮色",
-  memoryUseIndicator: "内存使用指示器",
-  memoryUseIndicatorDescription: "在侧边栏显示应用程序的内存使用情况。",
   messageRate: "消息速率",
   noExperimentalFeatures: "目前没有实验性的功能。",
   openLinksIn: "打开链接",
@@ -31,8 +31,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   sendAnonymizedCrashReports: "发送匿名崩溃报告",
   sendAnonymizedUsageData: "发送匿名使用数据以帮助我们改进 Foxglove Studio",
   settings: "设置",
-  studioDebugPanels: "Studio 调试面板",
-  studioDebugPanelsDescription: "在“添加面板”列表中显示 Foxglove Studio 调试面板。",
   timestampFormat: "时间戳格式",
   webApp: "网页应用",
 };

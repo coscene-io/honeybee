@@ -6,6 +6,7 @@ import { ROS2_TO_DEFINITIONS, Rosbag2, SqliteSqljs } from "@foxglove/rosbag2-web
 import { stringify } from "@foxglove/rosmsg";
 import { Time, add as addTime } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
+import { estimateObjectSize } from "@foxglove/studio-base/players/messageMemoryEstimation";
 import {
   MessageDefinitionsByTopic,
   ParsedMessageDefinitionsByTopic,
@@ -14,6 +15,7 @@ import {
   TopicStats,
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
+import { basicDatatypes } from "@foxglove/studio-base/util/basicDatatypes";
 
 import {
   IIterableSource,
@@ -28,6 +30,7 @@ export class RosDb3IterableSource implements IIterableSource {
   #bag?: Rosbag2;
   #start: Time = { sec: 0, nsec: 0 };
   #end: Time = { sec: 0, nsec: 0 };
+  #messageSizeEstimateByTopic: Record<string, number> = {};
 
   public constructor(files: File[]) {
     this.#files = files;
@@ -63,7 +66,8 @@ export class RosDb3IterableSource implements IIterableSource {
     const problems: PlayerProblem[] = [];
     const topics: Topic[] = [];
     const topicStats = new Map<string, TopicStats>();
-    const datatypes: RosDatatypes = new Map();
+    // ROS 2 .db3 files do not contain message definitions, so we can only support well-known ROS types.
+    const datatypes: RosDatatypes = new Map([...ROS2_TO_DEFINITIONS, ...basicDatatypes]);
     const messageDefinitionsByTopic: MessageDefinitionsByTopic = {};
     const parsedMessageDefinitionsByTopic: ParsedMessageDefinitionsByTopic = {};
 
@@ -75,12 +79,12 @@ export class RosDb3IterableSource implements IIterableSource {
         topicStats.set(topicDef.name, { numMessages });
       }
 
-      const parsedMsgdef = ROS2_TO_DEFINITIONS.get(topicDef.type);
+      const parsedMsgdef = datatypes.get(topicDef.type);
       if (parsedMsgdef == undefined) {
         problems.push({
           severity: "warn",
           message: `Topic "${topicDef.name}" has unsupported datatype "${topicDef.type}"`,
-          tip: "ROS 2 .db3 files do not contain message definitions, so only well-known ROS types are supported in Foxglove Studio. As a workaround, you can convert the db3 file to mcap using the mcap CLI. For more information, see: https://foxglove.dev/docs/studio/connection/ros2",
+          tip: "ROS 2 .db3 files do not contain message definitions, so only well-known ROS types are supported in Foxglove Studio. As a workaround, you can convert the db3 file to mcap using the mcap CLI. For more information, see: https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros2",
         });
         continue;
       }
@@ -131,13 +135,20 @@ export class RosDb3IterableSource implements IIterableSource {
       topics: Array.from(topics.keys()),
     });
     for await (const msg of msgIterator) {
+      // Lookup the size estimate for this topic or compute it if not found in the cache.
+      let msgSizeEstimate = this.#messageSizeEstimateByTopic[msg.topic.name];
+      if (msgSizeEstimate == undefined) {
+        msgSizeEstimate = estimateObjectSize(msg.value);
+        this.#messageSizeEstimateByTopic[msg.topic.name] = msgSizeEstimate;
+      }
+
       yield {
         type: "message-event",
         msgEvent: {
           topic: msg.topic.name,
           receiveTime: msg.timestamp,
           message: msg.value,
-          sizeInBytes: msg.data.byteLength,
+          sizeInBytes: Math.max(msg.data.byteLength, msgSizeEstimate),
           schemaName: msg.topic.type,
         },
       };

@@ -70,8 +70,6 @@ export interface Player {
   // If the Player supports non-real-time speeds (i.e. PlayerState#capabilities contains
   // PlayerCapabilities.setSpeed), set that speed. E.g. 1.0 is real time, 0.2 is 20% of real time.
   setPlaybackSpeed?(speedFraction: number): void;
-  // Set the globalVariables for Players that support it.
-  // This is generally used to pass new globalVariables to the UserNodePlayer
   setGlobalVariables(globalVariables: GlobalVariables): void;
 }
 
@@ -286,6 +284,9 @@ export type Progress = Readonly<{
   // A raw view into the cached binary data stored by the MemoryCacheDataProvider. Only present when
   // using the RandomAccessPlayer.
   readonly messageCache?: BlockCache;
+
+  /** Memory usage information, e.g. the memory size occupied by preloaded or buffered messages. */
+  readonly memoryInfo?: Record<string, number>;
 }>;
 
 export type SubscriptionPreloadType =

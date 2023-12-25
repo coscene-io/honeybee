@@ -18,13 +18,14 @@ import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
-import { AppBar } from "@foxglove/studio-base/components/AppBar";
+import { AppBarProps, AppBar } from "@foxglove/studio-base/components/AppBar";
 import { CustomWindowControlsProps } from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
 import { EventsList } from "@foxglove/studio-base/components/CoSceneEventsList";
 import {
   DataSourceDialog,
   DataSourceDialogItem,
 } from "@foxglove/studio-base/components/DataSourceDialog";
+import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -61,7 +62,6 @@ import {
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDefaultWebLaunchPreference";
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
-import useNativeAppMenuEvent from "@foxglove/studio-base/hooks/useNativeAppMenuEvent";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { sampleLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutCoScene";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
@@ -87,11 +87,12 @@ const useStyles = makeStyles()({
 });
 
 type WorkspaceProps = CustomWindowControlsProps & {
-  deepLinks?: string[];
+  deepLinks?: readonly string[];
   appBarLeftInset?: number;
   onAppBarDoubleClick?: () => void;
   // eslint-disable-next-line react/no-unused-prop-types
   disablePersistenceForStorybook?: boolean;
+  AppBarComponent?: (props: AppBarProps) => JSX.Element;
 };
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
@@ -117,6 +118,7 @@ const selectWorkspaceRightSidebarOpen = (store: WorkspaceContextStore) => store.
 const selectWorkspaceRightSidebarSize = (store: WorkspaceContextStore) => store.sidebars.right.size;
 
 function WorkspaceContent(props: WorkspaceProps): JSX.Element {
+  const { PerformanceSidebarComponent } = useAppContext();
   const { classes } = useStyles();
   const containerRef = useRef<HTMLDivElement>(ReactNull);
   const { availableSources, selectSource } = usePlayerSelection();
@@ -163,17 +165,19 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
   const { t } = useTranslation("workspace");
+  const { AppBarComponent = AppBar } = props;
 
   // file types we support for drag/drop
-  // const allowedDropExtensions = useMemo(() => {
-  //   const extensions = [".foxe"];
-  //   for (const source of availableSources) {
-  //     if (source.type === "file" && source.supportedFileTypes) {
-  //       extensions.push(...source.supportedFileTypes);
-  //     }
-  //   }
-  //   return extensions;
-  // }, [availableSources]);
+  const allowedDropExtensions = useMemo(() => {
+    // const extensions = [".foxe"];
+    // for (const source of availableSources) {
+    //   if (source.type === "file" && source.supportedFileTypes) {
+    //     extensions.push(...source.supportedFileTypes);
+    //   }
+    // }
+    // return extensions;
+    return [];
+  }, []);
 
   // We use playerId to detect when a player changes for RemountOnValueChange below
   // see comment below above the RemountOnValueChange component
@@ -183,11 +187,9 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   useDefaultWebLaunchPreference();
 
-  const [enableStudioLogsSidebar = false] = useAppConfigurationValue<boolean>(
-    AppSetting.SHOW_DEBUG_PANELS,
-  );
+  const [enableDebugMode = false] = useAppConfigurationValue<boolean>(AppSetting.SHOW_DEBUG_PANELS);
 
-  const { workspaceExtensions } = useAppContext();
+  const { workspaceExtensions = [] } = useAppContext();
 
   // When a player is activated, hide the open dialog.
   useLayoutEffect(() => {
@@ -205,56 +207,6 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       containerRef.current.focus();
     }
   }, []);
-
-  useNativeAppMenuEvent(
-    "open",
-    useCallback(async () => {
-      dialogActions.dataSource.open("start");
-    }, [dialogActions.dataSource]),
-  );
-
-  useNativeAppMenuEvent(
-    "open-file",
-    useCallback(async () => {
-      await dialogActions.openFile.open();
-    }, [dialogActions.openFile]),
-  );
-
-  useNativeAppMenuEvent(
-    "open-connection",
-    useCallback(() => {
-      dialogActions.dataSource.open("connection");
-    }, [dialogActions.dataSource]),
-  );
-
-  useNativeAppMenuEvent(
-    "open-demo",
-    useCallback(() => {
-      dialogActions.dataSource.open("demo");
-    }, [dialogActions.dataSource]),
-  );
-
-  useNativeAppMenuEvent(
-    "open-help-about",
-    useCallback(() => {
-      dialogActions.preferences.open("about");
-    }, [dialogActions.preferences]),
-  );
-
-  useNativeAppMenuEvent(
-    "open-help-general",
-    useCallback(() => {
-      dialogActions.preferences.open("general");
-    }, [dialogActions.preferences]),
-  );
-
-  useNativeAppMenuEvent("open-help-docs", () => {
-    window.open("https://foxglove.dev/docs", "_blank");
-  });
-
-  useNativeAppMenuEvent("open-help-slack", () => {
-    window.open("https://foxglove.dev/slack", "_blank");
-  });
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -345,20 +297,18 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     }
   }, [filesToOpen, openFiles]);
 
-  // const dropHandler = useCallback(
-  //   (event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
-  //     const handle = event.handles?.[0];
-  //     // When selecting sources with handles we can only select with a single handle since we haven't
-  //     // written the code to store multiple handles for recents. When there are multiple handles, we
-  //     // fall back to opening regular files.
-  //     if (handle && event.handles?.length === 1) {
-  //       void openHandle(handle);
-  //     } else if (event.files) {
-  //       void openFiles(event.files);
-  //     }
-  //   },
-  //   [openFiles, openHandle],
-  // );
+  const dropHandler = useCallback((event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
+    log.debug("drop event", event);
+    // const handle = event.handles?.[0];
+    // // When selecting sources with handles we can only select with a single handle since we haven't
+    // // written the code to store multiple handles for recents. When there are multiple handles, we
+    // // fall back to opening regular files.
+    // if (handle && event.handles?.length === 1) {
+    //   void openHandle(handle);
+    // } else if (event.files) {
+    //   void openFiles(event.files);
+    // }
+  }, []);
 
   const eventsSupported = useEvents(selectEventsSupported);
   const showEventsTab = currentUser != undefined && eventsSupported;
@@ -391,14 +341,23 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
       ["variables", { title: t("variables"), component: VariablesList }],
     ]);
-    if (enableStudioLogsSidebar) {
+    if (enableDebugMode) {
+      if (PerformanceSidebarComponent) {
+        items.set("performance", {
+          title: t("performance"),
+          component: PerformanceSidebarComponent,
+        });
+      }
       items.set("studio-logs-settings", { title: t("studioLogs"), component: StudioLogsSettings });
     }
     if (showEventsTab) {
       items.set("events", { title: t("events"), component: EventsList });
     }
     return items;
-  }, [enableStudioLogsSidebar, showEventsTab, t]);
+  }, [enableDebugMode, showEventsTab, t, PerformanceSidebarComponent]);
+
+  const keyboardEventHasModifier = (event: KeyboardEvent) =>
+    navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;
 
   const keyDownHandlers = useMemo(() => {
     return {
@@ -408,8 +367,19 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       "]": () => {
         sidebarActions.right.setOpen((oldValue) => !oldValue);
       },
+      o: (ev: KeyboardEvent) => {
+        if (!keyboardEventHasModifier(ev)) {
+          return;
+        }
+        ev.preventDefault();
+        if (ev.shiftKey) {
+          dialogActions.dataSource.open("connection");
+          return;
+        }
+        void dialogActions.openFile.open().catch(console.error);
+      },
     };
-  }, [sidebarActions.left, sidebarActions.right]);
+  }, [dialogActions.dataSource, dialogActions.openFile, sidebarActions.left, sidebarActions.right]);
 
   const play = useMessagePipeline(selectPlay);
   const playUntil = useMessagePipeline(selectPlayUntil);
@@ -438,7 +408,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       return;
     }
 
-    // Apply any available datasource args
+    // Apply any available data source args
     if (unappliedSourceArgs.ds) {
       log.debug("Initialising source from url", unappliedSourceArgs);
       selectSource(unappliedSourceArgs.ds, {
@@ -469,23 +439,40 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     setUnappliedTime({ time: undefined });
   }, [playerPresence, seek, unappliedTime]);
 
+  const appBar = useMemo(
+    () => (
+      <AppBarComponent
+        leftInset={props.appBarLeftInset}
+        onDoubleClick={props.onAppBarDoubleClick}
+        showCustomWindowControls={props.showCustomWindowControls}
+        isMaximized={props.isMaximized}
+        onMinimizeWindow={props.onMinimizeWindow}
+        onMaximizeWindow={props.onMaximizeWindow}
+        onUnmaximizeWindow={props.onUnmaximizeWindow}
+        onCloseWindow={props.onCloseWindow}
+      />
+    ),
+    [
+      AppBarComponent,
+      props.appBarLeftInset,
+      props.isMaximized,
+      props.onAppBarDoubleClick,
+      props.onCloseWindow,
+      props.onMaximizeWindow,
+      props.onMinimizeWindow,
+      props.onUnmaximizeWindow,
+      props.showCustomWindowControls,
+    ],
+  );
+
   return (
     <PanelStateContextProvider>
       {dataSourceDialog.open && <DataSourceDialog />}
-      {/* <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} /> */}
+      <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
-        <AppBar
-          leftInset={props.appBarLeftInset}
-          onDoubleClick={props.onAppBarDoubleClick}
-          showCustomWindowControls={props.showCustomWindowControls}
-          isMaximized={props.isMaximized}
-          onMinimizeWindow={props.onMinimizeWindow}
-          onMaximizeWindow={props.onMaximizeWindow}
-          onUnmaximizeWindow={props.onUnmaximizeWindow}
-          onCloseWindow={props.onCloseWindow}
-        />
+        {appBar}
         <Sidebars
           leftItems={leftSidebarItems}
           selectedLeftKey={leftSidebarOpen ? leftSidebarItem : undefined}
@@ -518,7 +505,8 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
           </div>
         )}
       </div>
-      {workspaceExtensions}
+      {/* Splat to avoid requiring unique a `key` on each item in workspaceExtensions */}
+      {...workspaceExtensions}
       <WorkspaceDialogs />
     </PanelStateContextProvider>
   );

@@ -3,12 +3,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ReOrderDotsVertical16Regular } from "@fluentui/react-icons";
-import { Typography } from "@mui/material";
+import { Badge, Typography } from "@mui/material";
 import { FzfResultItem } from "fzf";
 import { useCallback, useMemo } from "react";
 
-import { DraggedMessagePath } from "@foxglove/studio";
 import { HighlightChars } from "@foxglove/studio-base/components/HighlightChars";
+import { quoteTopicNameIfNeeded } from "@foxglove/studio-base/components/MessagePathSyntax/parseRosPath";
+import { DraggedMessagePath } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { Topic } from "@foxglove/studio-base/players/types";
 import { useMessagePathDrag } from "@foxglove/studio-base/services/messagePathDragging";
@@ -21,11 +22,13 @@ export function TopicRow({
   style,
   selected,
   onClick,
+  onContextMenu,
 }: {
   topicResult: FzfResultItem<Topic>;
   style: React.CSSProperties;
   selected: boolean;
   onClick: React.MouseEventHandler<HTMLDivElement>;
+  onContextMenu: React.MouseEventHandler<HTMLDivElement>;
 }): JSX.Element {
   const { cx, classes } = useTopicListStyles();
 
@@ -33,7 +36,7 @@ export function TopicRow({
 
   const item: DraggedMessagePath = useMemo(
     () => ({
-      path: topic.name,
+      path: quoteTopicNameIfNeeded(topic.name),
       rootSchemaName: topic.schemaName,
       isTopic: true,
       isLeaf: false,
@@ -54,11 +57,6 @@ export function TopicRow({
     [connectDragPreview, connectDragSource],
   );
 
-  const cancelDragEvent = useCallback((event: React.DragEvent<HTMLSpanElement>) => {
-    event.stopPropagation();
-    event.preventDefault();
-  }, []);
-
   return (
     <div
       ref={combinedRef}
@@ -68,17 +66,14 @@ export function TopicRow({
       })}
       style={{ ...style, cursor }}
       onClick={onClick}
+      onContextMenu={onContextMenu}
     >
-      {draggedItemCount > 1 && <div className={classes.countBadge}>{draggedItemCount}</div>}
+      {draggedItemCount > 1 && (
+        <Badge color="primary" className={classes.countBadge} badgeContent={draggedItemCount} />
+      )}
       {/* Extra Stack wrapper to enable growing without the  */}
       <Stack flex="auto" alignItems="flex-start" overflow="hidden">
-        <Typography
-          variant="body2"
-          noWrap
-          draggable
-          onDragStart={cancelDragEvent}
-          className={classes.textContent}
-        >
+        <Typography variant="body2" noWrap className={classes.textContent}>
           <HighlightChars str={topic.name} indices={topicResult.positions} />
           {topic.aliasedFromName != undefined && (
             <Typography variant="caption" className={classes.aliasedTopicName}>
@@ -86,26 +81,23 @@ export function TopicRow({
             </Typography>
           )}
         </Typography>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          noWrap
-          draggable
-          onDragStart={cancelDragEvent}
-          className={classes.textContent}
-        >
-          {topic.schemaName == undefined ? (
-            "—"
-          ) : (
+        {topic.schemaName != undefined && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            noWrap
+            className={classes.textContent}
+          >
             <HighlightChars
               str={topic.schemaName}
               indices={topicResult.positions}
               offset={topic.name.length + 1}
             />
-          )}
-        </Typography>
+          </Typography>
+        )}
       </Stack>
       <TopicStatsChip
+        selected={selected}
         topicName={topic.name}
         messageFrequency={topic.messageFrequency ?? 0}
         messageCount={topic.messageCount ?? 0}

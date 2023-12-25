@@ -7,6 +7,7 @@ import { BlobReader } from "@foxglove/rosbag/web";
 import { parse as parseMessageDefinition } from "@foxglove/rosmsg";
 import { MessageReader } from "@foxglove/rosmsg-serialization";
 import { compare } from "@foxglove/rostime";
+import { estimateObjectSize } from "@foxglove/studio-base/players/messageMemoryEstimation";
 import {
   PlayerProblem,
   MessageEvent,
@@ -36,6 +37,7 @@ export class BagIterableSource implements IIterableSource {
   #bag: Bag | undefined;
   #readersByConnectionId = new Map<number, MessageReader>();
   #datatypesByConnectionId = new Map<number, string>();
+  #messageSizeEstimateByTopic: Record<string, number> = {};
 
   public constructor(source: BagSource) {
     this.#source = source;
@@ -142,7 +144,6 @@ export class BagIterableSource implements IIterableSource {
       const parsedDefinition = parseMessageDefinition(connection.messageDefinition);
       const reader = new MessageReader(parsedDefinition);
       this.#readersByConnectionId.set(id, reader);
-      this.#datatypesByConnectionId.set(id, schemaName);
 
       for (const definition of parsedDefinition) {
         // In parsed definitions, the first definition (root) does not have a name as is meant to
@@ -153,6 +154,8 @@ export class BagIterableSource implements IIterableSource {
           datatypes.set(definition.name, definition);
         }
       }
+
+      this.#datatypesByConnectionId.set(id, schemaName);
     }
 
     return {
@@ -218,13 +221,19 @@ export class BagIterableSource implements IIterableSource {
         const dataCopy = bagMsgEvent.data.slice();
         const parsedMessage = reader.readMessage(dataCopy);
 
+        // Lookup the size estimate for this topic or compute it if not found in the cache.
+        let msgSizeEstimate = this.#messageSizeEstimateByTopic[bagMsgEvent.topic];
+        if (msgSizeEstimate == undefined) {
+          msgSizeEstimate = estimateObjectSize(parsedMessage);
+          this.#messageSizeEstimateByTopic[bagMsgEvent.topic] = msgSizeEstimate;
+        }
+
         yield {
           type: "message-event",
-          connectionId,
           msgEvent: {
             topic: bagMsgEvent.topic,
             receiveTime: bagMsgEvent.timestamp,
-            sizeInBytes: bagMsgEvent.data.byteLength,
+            sizeInBytes: Math.max(bagMsgEvent.data.byteLength, msgSizeEstimate),
             message: parsedMessage,
             schemaName,
           },

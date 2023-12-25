@@ -5,11 +5,10 @@
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
 import { ThemeProvider as MuiThemeProvider } from "@mui/material";
+import * as React from "react";
 import { useEffect, useLayoutEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 
-import { Language } from "@foxglove/studio-base/i18n";
-import { createMuiTheme } from "@foxglove/studio-base/theme";
+import { createMuiTheme } from "@foxglove/theme";
 
 // Make sure mui styles are loaded first so that our makeStyles customizations
 // take precedence.
@@ -18,7 +17,9 @@ const muiCache = createCache({ key: "mui", prepend: true });
 // By default the ThemeProvider adds an extra div to the DOM tree. We can disable this with a
 // custom `as` component to FluentThemeProvider. The component must support a `ref` property
 // otherwise we get react warnings.
-const ThemeContainer = React.forwardRef((props, _ref) => <>{props.children}</>);
+const ThemeContainer = React.forwardRef((props: React.PropsWithChildren, _ref) => (
+  <>{props.children}</>
+));
 ThemeContainer.displayName = "ThemeContainer";
 
 export default function ThemeProvider({
@@ -33,11 +34,7 @@ export default function ThemeProvider({
     document.querySelector("#loading-styles")?.remove();
   }, [isDark]);
 
-  const { i18n } = useTranslation();
-  const muiTheme = useMemo(
-    () => createMuiTheme(isDark ? "dark" : "light", i18n.language as Language | undefined),
-    [i18n.language, isDark],
-  );
+  const muiTheme = useMemo(() => createMuiTheme(isDark ? "dark" : "light"), [isDark]);
 
   useLayoutEffect(() => {
     // Set the theme color to match the sidebar and playback bar

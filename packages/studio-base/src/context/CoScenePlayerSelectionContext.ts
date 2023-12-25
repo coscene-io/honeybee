@@ -106,10 +106,10 @@ export interface PlayerSelection {
   selectedSource?: IDataSourceFactory;
 
   /** List of available data sources */
-  availableSources: IDataSourceFactory[];
+  availableSources: readonly IDataSourceFactory[];
 
   /** Recently selected sources */
-  recentSources: RecentSource[];
+  recentSources: readonly RecentSource[];
 }
 
 const PlayerSelectionContext = createContext<PlayerSelection>({

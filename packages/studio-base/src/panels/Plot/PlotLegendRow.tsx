@@ -4,12 +4,14 @@
 
 import {
   Dismiss12Regular,
+  Add12Regular,
   ErrorCircle16Filled,
-  Square24Filled,
-  Square24Regular,
+  Square12Filled,
+  Square12Regular,
 } from "@fluentui/react-icons";
-import { ButtonBase, Checkbox, Tooltip, Typography } from "@mui/material";
-import { useMemo, useState } from "react";
+import { ButtonBase, Checkbox, Tooltip, Typography, buttonBaseClasses } from "@mui/material";
+import { MouseEventHandler, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
 
@@ -21,7 +23,6 @@ import { useHoverValue } from "@foxglove/studio-base/context/TimelineInteraction
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { plotPathDisplayName } from "@foxglove/studio-base/panels/Plot/types";
 import { getLineColor } from "@foxglove/studio-base/util/plotColors";
-import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { PlotPath, TypedDataSet, TypedData } from "./internalTypes";
 
@@ -37,9 +38,9 @@ type PlotLegendRowProps = Immutable<{
   showPlotValuesInLegend: boolean;
 }>;
 
-const ROW_HEIGHT = 28;
+export const ROW_HEIGHT = 30;
 
-const useStyles = makeStyles<void, "plotName" | "removeButton">()((theme, _params, classes) => ({
+const useStyles = makeStyles<void, "plotName" | "actionButton">()((theme, _params, classes) => ({
   root: {
     display: "contents",
     cursor: "pointer",
@@ -55,7 +56,7 @@ const useStyles = makeStyles<void, "plotName" | "removeButton">()((theme, _param
       },
     },
     ":not(:hover)": {
-      [`& .${classes.removeButton}`]: {
+      [`& .${classes.actionButton}`]: {
         opacity: 0,
       },
     },
@@ -74,13 +75,10 @@ const useStyles = makeStyles<void, "plotName" | "removeButton">()((theme, _param
     left: 0,
   },
   checkbox: {
-    fontSize: "1em",
-    padding: theme.spacing(0.975),
+    height: ROW_HEIGHT,
+    width: ROW_HEIGHT,
     borderRadius: 0,
 
-    "svg:not(.MuiSvgIcon-root)": {
-      fontSize: "1em",
-    },
     ":hover": {
       backgroundColor: theme.palette.action.hover,
     },
@@ -91,10 +89,13 @@ const useStyles = makeStyles<void, "plotName" | "removeButton">()((theme, _param
   plotName: {
     display: "flex",
     alignItems: "center",
+    justifyContent: "space-between",
+    justifySelf: "stretch",
+    gap: theme.spacing(0.5),
     height: ROW_HEIGHT,
     paddingInline: theme.spacing(0.75, 2.5),
     gridColumn: "span 2",
-    fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
+    fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
 
     ".MuiTypography-root": {
       whiteSpace: "nowrap",
@@ -103,21 +104,28 @@ const useStyles = makeStyles<void, "plotName" | "removeButton">()((theme, _param
   plotValue: {
     display: "flex",
     alignItems: "center",
+    justifySelf: "stretch",
     height: ROW_HEIGHT,
     padding: theme.spacing(0.25, 1, 0.25, 0.25),
+    whiteSpace: "pre-wrap",
   },
   errorIcon: {
     color: theme.palette.error.main,
   },
-  removeButton: {
-    height: ROW_HEIGHT,
-    width: ROW_HEIGHT,
+  actionButton: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+    position: "sticky",
+    right: 0,
 
-    ":hover": {
-      backgroundColor: theme.palette.action.hover,
+    [`.${buttonBaseClasses.root}`]: {
+      height: ROW_HEIGHT,
+      width: ROW_HEIGHT,
+
+      ":hover": {
+        backgroundColor: theme.palette.action.hover,
+      },
     },
   },
 }));
@@ -137,6 +145,7 @@ export function PlotLegendRow({
   const { id: panelId } = usePanelContext();
   const { setSelectedPanelIds } = useSelectedPanels();
   const { classes, cx } = useStyles();
+  const { t } = useTranslation("plot");
 
   const correspondingData = useMemo(() => {
     if (!showPlotValuesInLegend) {
@@ -163,10 +172,27 @@ export function PlotLegendRow({
       if (timeToCompare == undefined || pt.x > timeToCompare) {
         break;
       }
-      value = pt.y;
+      value = pt.value;
     }
-    return value;
+    return value?.toString();
   }, [showPlotValuesInLegend, hoverValue?.value, currentTime, correspondingData]);
+
+  // When there are no series configured we render an extra row to show an "add series" button.
+  const isAddSeriesRow = paths.length === 0;
+
+  const handleDeletePath: MouseEventHandler<HTMLButtonElement> = (ev) => {
+    // Deleting a path is a "quick action" and we want to avoid opening the settings sidebar
+    // so whatever sidebar the user is already viewing says active.
+    //
+    // This prevents the click event from going up to the entire row and showing the sidebar.
+    ev.stopPropagation();
+
+    const newPaths = paths.slice();
+    if (newPaths.length > 0) {
+      newPaths.splice(index, 1);
+    }
+    savePaths(newPaths);
+  };
 
   return (
     <div
@@ -186,8 +212,8 @@ export function PlotLegendRow({
           size="small"
           title="Toggle visibility"
           style={{ color: getLineColor(path.color, index) }}
-          icon={<Square24Regular />}
-          checkedIcon={<Square24Filled />}
+          icon={<Square12Regular />}
+          checkedIcon={<Square12Filled />}
           onClick={(event) => {
             event.stopPropagation();
           }} // prevent toggling from opening settings
@@ -212,7 +238,7 @@ export function PlotLegendRow({
           variant="body2"
           className={cx({ [classes.disabledPathLabel]: !path.enabled })}
         >
-          {plotPathDisplayName(path, index)}
+          {isAddSeriesRow ? t("clickToAddASeries") : plotPathDisplayName(path, index)}
         </Typography>
         {hasMismatchedDataLength && (
           <Tooltip
@@ -230,25 +256,21 @@ export function PlotLegendRow({
             align="right"
             color={hoverValue?.value != undefined ? "warning.main" : "text.secondary"}
           >
+            {currentValue && !(+currentValue < 0) && " "}
             {currentValue ?? ""}
           </Typography>
         </div>
       )}
-      <div>
-        <ButtonBase
-          title="Delete series"
-          aria-label="Delete series"
-          className={classes.removeButton}
-          onClick={() => {
-            const newPaths = paths.slice();
-            if (newPaths.length > 0) {
-              newPaths.splice(index, 1);
-            }
-            savePaths(newPaths);
-          }}
-        >
-          <Dismiss12Regular />
-        </ButtonBase>
+      <div className={classes.actionButton}>
+        {index === paths.length ? (
+          <ButtonBase title="Add series" aria-label="Add series" onClick={onClickPath}>
+            <Add12Regular />
+          </ButtonBase>
+        ) : (
+          <ButtonBase title="Delete series" aria-label="Delete series" onClick={handleDeletePath}>
+            <Dismiss12Regular />
+          </ButtonBase>
+        )}
       </div>
     </div>
   );

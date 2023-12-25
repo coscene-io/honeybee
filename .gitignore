@@ -8,6 +8,8 @@ dist/
 node_modules/
 storybook-screenshots/
 storybook-static/
+# for jest --coverage
+coverage/
 
 # Yarn
 .yarn/*
