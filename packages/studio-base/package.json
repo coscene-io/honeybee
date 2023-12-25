@@ -128,6 +128,7 @@
     "immer": "10.0.2",
     "intervals-fn": "3.0.3",
     "jest-canvas-mock": "2.5.2",
+    "jszip": "3.10.1",
     "just-diff": "6.0.2",
     "keyboardjs": "2.7.0",
     "leaflet": "1.9.4",
