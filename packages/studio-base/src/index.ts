@@ -46,5 +46,6 @@ export { default as CoSceneDataPlatformDataSourceFactory } from "./dataSources/C
 export { default as ConsoleApi } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 export type { CoSceneContext } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 export type { LayoutID } from "./context/CoSceneCurrentLayoutContext";
+export { IdbExtensionLoader } from "./services/IdbExtensionLoader";
 
 export type { AppBarProps } from "./components/AppBar";

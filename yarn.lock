@@ -2911,6 +2911,7 @@ __metadata:
     hammerjs: 2.0.8
     i18next: 23.5.1
     i18next-browser-languagedetector: 7.1.0
+    idb: 7.1.1
     idb-keyval: 6.2.1
     immer: 10.0.2
     intervals-fn: 3.0.3
@@ -14418,6 +14419,13 @@ __metadata:
   version: 6.2.1
   resolution: "idb-keyval@npm:6.2.1"
   checksum: 7c0836f832096086e99258167740181132a71dd2694c8b8454a4f5ec69114ba6d70983115153306f0b6de1c8d3bad04f67eed3dff8f50c96815b9985d6d78470
+  languageName: node
+  linkType: hard
+
+"idb@npm:7.1.1":
+  version: 7.1.1
+  resolution: "idb@npm:7.1.1"
+  checksum: 1973c28d53c784b177bdef9f527ec89ec239ec7cf5fcbd987dae75a16c03f5b7dfcc8c6d3285716fd0309dd57739805390bd9f98ce23b1b7d8849a3b52de8d56
   languageName: node
   linkType: hard
 

@@ -3,32 +3,32 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useMemo } from "react";
+import { Toaster } from "react-hot-toast";
 
 import {
+  CoSceneIDataSourceFactory,
+  CoSceneDataPlatformDataSourceFactory,
+  FoxgloveWebSocketDataSourceFactory,
+  SharedRoot,
   AppBarProps,
   AppSetting,
-  IDataSourceFactory,
-  Ros1LocalBagDataSourceFactory,
-  Ros2LocalBagDataSourceFactory,
-  RosbridgeDataSourceFactory,
-  RemoteDataSourceFactory,
-  FoxgloveWebSocketDataSourceFactory,
-  UlogLocalDataSourceFactory,
-  McapLocalDataSourceFactory,
-  SampleNuscenesDataSourceFactory,
-  SharedRoot,
 } from "@foxglove/studio-base";
 
+import { useCoSceneInit } from "./CoSceneInit";
+import { CoSceneProviders } from "./CoSceneProviders";
+import { JoyrideWrapper } from "./Joyride";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
 export function WebRoot(props: {
   extraProviders: JSX.Element[] | undefined;
-  dataSources: IDataSourceFactory[] | undefined;
+  dataSources: CoSceneIDataSourceFactory[] | undefined;
   AppBarComponent?: (props: AppBarProps) => JSX.Element;
   children: JSX.Element;
 }): JSX.Element {
+  useCoSceneInit();
+
   const appConfiguration = useMemo(
     () =>
       new LocalStorageAppConfiguration({
@@ -41,30 +41,38 @@ export function WebRoot(props: {
 
   const dataSources = useMemo(() => {
     const sources = [
-      new Ros1LocalBagDataSourceFactory(),
-      new Ros2LocalBagDataSourceFactory(),
       new FoxgloveWebSocketDataSourceFactory(),
-      new RosbridgeDataSourceFactory(),
-      new UlogLocalDataSourceFactory(),
-      new SampleNuscenesDataSourceFactory(),
-      new McapLocalDataSourceFactory(),
-      new RemoteDataSourceFactory(),
+      new CoSceneDataPlatformDataSourceFactory(),
     ];
 
     return props.dataSources ?? sources;
   }, [props.dataSources]);
 
+  const coSceneProviders = CoSceneProviders();
+
+  const extraProviders = useMemo(() => {
+    const providers = coSceneProviders;
+    if (props.extraProviders != undefined) {
+      providers.push(...props.extraProviders);
+    }
+    return providers;
+  }, [coSceneProviders, props.extraProviders]);
+
   return (
-    <SharedRoot
-      enableLaunchPreferenceScreen
-      deepLinks={[window.location.href]}
-      dataSources={dataSources}
-      appConfiguration={appConfiguration}
-      enableGlobalCss
-      extraProviders={props.extraProviders}
-      AppBarComponent={props.AppBarComponent}
-    >
-      {props.children}
-    </SharedRoot>
+    <>
+      <SharedRoot
+        enableLaunchPreferenceScreen
+        deepLinks={[window.location.href]}
+        dataSources={dataSources}
+        appConfiguration={appConfiguration}
+        enableGlobalCss
+        extraProviders={extraProviders}
+        AppBarComponent={props.AppBarComponent}
+      >
+        {props.children}
+      </SharedRoot>
+      <JoyrideWrapper />
+      <Toaster />
+    </>
   );
 }
