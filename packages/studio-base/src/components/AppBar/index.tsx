@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  ChevronDown12Regular,
   PanelLeft24Filled,
   PanelLeft24Regular,
   PanelRight24Filled,
@@ -78,9 +77,6 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
         color: "currentColor",
         opacity: theme.palette.action.disabledOpacity,
       },
-    },
-    dropDownIcon: {
-      fontSize: "12px !important",
     },
     start: {
       gridArea: "start",
@@ -172,7 +168,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
     onUnmaximizeWindow,
     showCustomWindowControls = false,
   } = props;
-  const { classes, cx, theme } = useStyles({ debugDragRegion });
+  const { classes, cx } = useStyles({ debugDragRegion });
   const { currentUser } = useCurrentUser();
   const { t } = useTranslation("appBar");
 
@@ -209,25 +205,17 @@ export function AppBar(props: AppBarProps): JSX.Element {
                 aria-haspopup="true"
                 aria-expanded={appMenuOpen ? "true" : undefined}
                 data-tourid="app-menu-button"
-                onClick={(event) => {
-                  setAppMenuEl(event.currentTarget);
+                onClick={() => {
+                  window.location.href = window.location.origin;
                 }}
               >
                 {APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon" ? (
                   <>
                     <KeenonLogo fontSize="inherit" color="inherit" />
-                    <ChevronDown12Regular
-                      className={classes.dropDownIcon}
-                      primaryFill={theme.palette.common.white}
-                    />
                   </>
                 ) : (
                   <>
                     <CoSceneLogo fontSize="inherit" color="inherit" />
-                    <ChevronDown12Regular
-                      className={classes.dropDownIcon}
-                      primaryFill={theme.palette.common.white}
-                    />
                   </>
                 )}
               </IconButton>

@@ -58,7 +58,7 @@ const fadeInAnimation = keyframes`
   }
 `;
 
-const useStyles = makeStyles<void, "toggleButton">()((theme, _params, classes) => ({
+const useStyles = makeStyles()((theme, _params) => ({
   grid: {
     alignItems: "center",
     display: "grid",
@@ -71,19 +71,9 @@ const useStyles = makeStyles<void, "toggleButton">()((theme, _params, classes) =
     animation: `${fadeInAnimation} 0.2s ease-in-out`,
     display: "contents",
   },
-  toggleButton: {
-    border: "none",
-    lineHeight: 1,
-  },
   toggleButtonGroup: {
     marginRight: theme.spacing(-1),
     gap: theme.spacing(0.25),
-
-    [`.${classes.toggleButton}`]: {
-      borderRadius: `${theme.shape.borderRadius}px !important`,
-      marginLeft: "0px !important",
-      borderLeft: "none !important",
-    },
   },
   requiredFlags: {
     color: "#ff4d4f",
@@ -351,7 +341,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                   setEvent((old) => ({ ...old, eventName: val.target.value }));
                 }
               }}
-              variant="standard"
+              variant="outlined"
               autoFocus
               onKeyDown={onMetaDataKeyDown}
             />
@@ -386,9 +376,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
                         }
                       }}
                     >
-                      <div className={classes.toggleButton} tabIndex={-1}>
-                        {t("sec")}
-                      </div>
+                      <Stack paddingX={1}>{t("sec")}</Stack>
                     </ToggleButtonGroup>
                   ),
                 }}
@@ -412,8 +400,8 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               onChange={(val) => {
                 setEvent((old) => ({ ...old, description: val.target.value }));
               }}
-              variant="standard"
               onKeyDown={onMetaDataKeyDown}
+              variant="outlined"
             />
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
