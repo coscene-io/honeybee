@@ -32,6 +32,7 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
       },
 
       setEventsAtHoverValue: (eventsAtHoverValue: TimelinePositionedEvent[]) => {
+        // CoScene
         set({ eventsAtHoverValue: _.keyBy(eventsAtHoverValue, (event) => event.event.name) });
       },
 

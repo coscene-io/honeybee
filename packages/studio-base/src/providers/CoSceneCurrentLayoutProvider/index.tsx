@@ -44,7 +44,7 @@ import { keenonDefaultLayout } from "@foxglove/studio-base/providers/CoSceneCurr
 import panelsReducer from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/reducers";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { PanelConfig, PlaybackConfig, UserNodes } from "@foxglove/studio-base/types/panels";
+import { PanelConfig, PlaybackConfig, UserScripts } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
@@ -60,7 +60,7 @@ export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
  */
 export default function CoSceneCurrentLayoutProvider({
   children,
-}: React.PropsWithChildren<unknown>): JSX.Element {
+}: React.PropsWithChildren): JSX.Element {
   const { enqueueSnackbar } = useSnackbar();
   const { getUserProfile, setUserProfile } = useUserProfileStorage();
   const layoutManager = useLayoutManager();
@@ -355,7 +355,7 @@ export default function CoSceneCurrentLayoutProvider({
       setGlobalVariables: (payload: Record<string, VariableValue>) => {
         performAction({ type: "SET_GLOBAL_DATA", payload });
       },
-      setUserNodes: (payload: Partial<UserNodes>) => {
+      setUserScripts: (payload: Partial<UserScripts>) => {
         performAction({ type: "SET_USER_NODES", payload });
       },
       setPlaybackConfig: (payload: Partial<PlaybackConfig>) => {

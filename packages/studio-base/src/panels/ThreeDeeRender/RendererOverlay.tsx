@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Ruler24Filled } from "@fluentui/react-icons";
+import { Ruler20Filled, Ruler20Regular } from "@fluentui/react-icons";
 import AddIcon from "@mui/icons-material/Add";
 import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -16,13 +16,11 @@ import {
   Paper,
   useTheme,
 } from "@mui/material";
-import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLongPress } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
-import Logger from "@foxglove/log";
 import { LayoutActions } from "@foxglove/studio";
 import {
   PanelContextMenu,
@@ -31,11 +29,8 @@ import {
 import PublishGoalIcon from "@foxglove/studio-base/components/PublishGoalIcon";
 import PublishPointIcon from "@foxglove/studio-base/components/PublishPointIcon";
 import PublishPoseEstimateIcon from "@foxglove/studio-base/components/PublishPoseEstimateIcon";
-import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { usePanelMousePresence } from "@foxglove/studio-base/hooks/usePanelMousePresence";
-import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { downloadFiles } from "@foxglove/studio-base/util/download";
-import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
+import { HUD } from "@foxglove/studio-base/panels/ThreeDeeRender/HUD";
 
 import { InteractionContextMenu, Interactions, SelectionObject, TabType } from "./Interactions";
 import type { PickedRenderable } from "./Picker";
@@ -43,37 +38,42 @@ import { Renderable } from "./Renderable";
 import { useRenderer, useRendererEvent } from "./RendererContext";
 import { Stats } from "./Stats";
 import { DEFAULT_CAMERA_STATE, MouseEventObject } from "./camera";
-import { decodeCompressedImageToBitmap, decodeRawImage } from "./renderables/Images/decodeImage";
 import { PublishClickType } from "./renderables/PublishClickTool";
 import { InterfaceMode } from "./types";
-
-const log = Logger.getLogger(__filename);
 
 const ZOOM_IN_LIMITATION = 1;
 const ZOOM_OUT_LIMITATION = 40;
 
 const PublishClickIcons: Record<PublishClickType, React.ReactNode> = {
-  pose: <PublishGoalIcon fontSize="inherit" />,
-  point: <PublishPointIcon fontSize="inherit" />,
-  pose_estimate: <PublishPoseEstimateIcon fontSize="inherit" />,
+  pose: <PublishGoalIcon fontSize="small" />,
+  point: <PublishPointIcon fontSize="small" />,
+  pose_estimate: <PublishPoseEstimateIcon fontSize="small" />,
 };
 
 const useStyles = makeStyles()((theme) => ({
+  root: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: 10,
+    pointerEvents: "none",
+  },
   iconButton: {
     position: "relative",
-    fontSize: "1rem !important",
     pointerEvents: "auto",
-    aspectRatio: "1",
-
-    "& svg:not(.MuiSvgIcon-root)": {
-      fontSize: "1rem !important",
-    },
+    aspectRatio: "1/1",
   },
   rulerIcon: {
     transform: "rotate(45deg)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
   threeDeeButton: {
-    fontFamily: fonts.MONOSPACE,
+    fontFamily: theme.typography.fontMonospace,
     fontFeatureSettings: theme.typography.caption.fontFeatureSettings,
     fontSize: theme.typography.caption.fontSize,
     fontWeight: theme.typography.fontWeightBold,
@@ -95,32 +95,31 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-/**
- * Provides DOM overlay elements on top of the 3D scene (e.g. stats, debug GUI).
- */
-export function RendererOverlay(props: {
-  interfaceMode: InterfaceMode;
-  canvas: HTMLCanvasElement | ReactNull;
+type Props = {
   addPanel: LayoutActions["addPanel"];
-  enableStats: boolean;
-  perspective: boolean;
-  onTogglePerspective: () => void;
-  measureActive: boolean;
-  onClickMeasure: () => void;
   canPublish: boolean;
+  canvas: HTMLCanvasElement | ReactNull;
+  enableStats: boolean;
+  interfaceMode: InterfaceMode;
+  measureActive: boolean;
+  onChangePublishClickType: (_: PublishClickType) => void;
+  onClickMeasure: () => void;
+  onClickPublish: () => void;
+  onShowTopicSettings: (topic: string) => void;
+  onTogglePerspective: () => void;
+  perspective: boolean;
   publishActive: boolean;
   publishClickType: PublishClickType;
-  onChangePublishClickType: (_: PublishClickType) => void;
-  onClickPublish: () => void;
   timezone: string | undefined;
   onResetCamera: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
-  /** Override default downloading behavior, used for Storybook */
-  onDownloadImage?: (blob: Blob, fileName: string) => void;
-}): JSX.Element {
-  const analytics = useAnalytics();
-  const { enqueueSnackbar } = useSnackbar();
+};
+
+/**
+ * Provides DOM overlay elements on top of the 3D scene (e.g. stats, debug GUI).
+ */
+export function RendererOverlay(props: Props): JSX.Element {
   const { t } = useTranslation("threeDee");
   const { classes } = useStyles();
   const { onResetCamera, onZoomIn, onZoomOut } = props;
@@ -251,12 +250,13 @@ export function RendererOverlay(props: {
     <>
       <IconButton
         {...longPressPublishEvent}
+        className={classes.iconButton}
+        size="small"
         color={props.publishActive ? "info" : "inherit"}
         title={props.publishActive ? "Click to cancel" : "Click to publish"}
         ref={publickClickButtonRef}
         onClick={props.onClickPublish}
         data-testid="publish-button"
-        style={{ fontSize: "1rem", pointerEvents: "auto" }}
       >
         {selectedPublishClickIcon}
         <div
@@ -329,83 +329,9 @@ export function RendererOverlay(props: {
     </Button>
   );
 
-  const { onDownloadImage } = props;
-  const doDownloadImage = useCallback(async () => {
-    const currentImage = renderer?.getCurrentImage();
-    if (!currentImage) {
-      return;
-    }
-
-    const { topic, image, rotation, flipHorizontal, flipVertical } = currentImage;
-    const stamp = "header" in image ? image.header.stamp : image.timestamp;
-    let bitmap: ImageBitmap;
-    try {
-      if ("format" in image) {
-        bitmap = await decodeCompressedImageToBitmap(image);
-      } else {
-        const imageData = new ImageData(image.width, image.height);
-        // currentImage passed for color settings access
-        decodeRawImage(image, currentImage, imageData.data);
-        bitmap = await createImageBitmap(imageData);
-      }
-
-      const width = rotation === 90 || rotation === 270 ? bitmap.height : bitmap.width;
-      const height = rotation === 90 || rotation === 270 ? bitmap.width : bitmap.height;
-
-      // re-render the image onto a new canvas to download the original image
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        throw new Error("Unable to create rendering context for image download");
-      }
-
-      // Draw the image in the selected orientation so it aligns with the canvas viewport
-      ctx.translate(width / 2, height / 2);
-      ctx.scale(flipHorizontal ? -1 : 1, flipVertical ? -1 : 1);
-      ctx.rotate((rotation / 180) * Math.PI);
-      ctx.translate(-bitmap.width / 2, -bitmap.height / 2);
-      ctx.drawImage(bitmap, 0, 0);
-
-      // read the canvas data as an image (png)
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((result) => {
-          if (result) {
-            resolve(result);
-          } else {
-            reject(`Failed to create an image from ${width}x${height} canvas`);
-          }
-        }, "image/png");
-      });
-      // name the image the same name as the topic
-      // note: the / characters in the file name will be replaced with _ by the browser
-      // remove any leading / so the image name doesn't start with _
-      const topicName = topic.replace(/^\/+/, "");
-      const fileName = `${topicName}-${stamp.sec}-${stamp.nsec}`;
-      void analytics.logEvent(AppEvent.IMAGE_DOWNLOAD);
-      if (onDownloadImage) {
-        onDownloadImage(blob, fileName);
-      } else {
-        downloadFiles([{ blob, fileName }]);
-      }
-    } catch (error) {
-      log.error(error);
-      enqueueSnackbar((error as Error).toString(), { variant: "error" });
-    }
-  }, [renderer, onDownloadImage, enqueueSnackbar, analytics]);
-
-  const getContextMenuItems = useCallback(
-    (): PanelContextMenuItem[] => [
-      {
-        type: "item",
-        label: "Download image",
-        onclick: doDownloadImage,
-        disabled: renderer?.getCurrentImage() == undefined,
-      },
-    ],
-    [doDownloadImage, renderer],
-  );
+  const getContextMenuItems = useCallback((): PanelContextMenuItem[] => {
+    return renderer?.getContextMenuItems() ?? [];
+  }, [renderer]);
 
   const mousePresenceRef = useRef<HTMLDivElement>(ReactNull);
   const mousePresent = usePanelMousePresence(mousePresenceRef);
@@ -413,26 +339,15 @@ export function RendererOverlay(props: {
   return (
     <>
       {props.interfaceMode === "image" && <PanelContextMenu getItems={getContextMenuItems} />}
-      <div
-        ref={mousePresenceRef}
-        style={{
-          position: "absolute",
-          top: "10px",
-          right: "10px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          gap: 10,
-          pointerEvents: "none",
-        }}
-      >
+      <div ref={mousePresenceRef} className={classes.root}>
         {
           // Only show on hover for image panel
           (props.interfaceMode === "3d" || mousePresent) && (
             <Interactions
               addPanel={props.addPanel}
-              selectedObject={selectedObject}
               interactionsTabType={interactionsTabType}
+              onShowTopicSettings={props.onShowTopicSettings}
+              selectedObject={selectedObject}
               setInteractionsTabType={setInteractionsTabType}
               timezone={props.timezone}
             />
@@ -442,6 +357,7 @@ export function RendererOverlay(props: {
           <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
             <IconButton
               className={classes.iconButton}
+              size="small"
               color={props.perspective ? "info" : "inherit"}
               title={props.perspective ? "Switch to 2D camera" : "Switch to 3D camera"}
               onClick={props.onTogglePerspective}
@@ -451,11 +367,14 @@ export function RendererOverlay(props: {
             <IconButton
               data-testid="measure-button"
               className={classes.iconButton}
+              size="small"
               color={props.measureActive ? "info" : "inherit"}
               title={props.measureActive ? "Cancel measuring" : "Measure distance"}
               onClick={props.onClickMeasure}
             >
-              <Ruler24Filled className={classes.rulerIcon} />
+              <div className={classes.rulerIcon}>
+                {props.measureActive ? <Ruler20Filled /> : <Ruler20Regular />}
+              </div>
             </IconButton>
 
             {publishControls}
@@ -529,6 +448,7 @@ export function RendererOverlay(props: {
           }}
         />
       )}
+      <HUD renderer={renderer} />
       {stats}
       {resetViewButton}
     </>

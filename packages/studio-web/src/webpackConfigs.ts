@@ -9,11 +9,14 @@ import CopyPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import path from "path";
 import { Configuration, WebpackPluginInstance, DefinePlugin } from "webpack";
-import type { Configuration as WebpackDevServerConfiguration } from "webpack-dev-server";
+import type {
+  ConnectHistoryApiFallbackOptions,
+  Configuration as WebpackDevServerConfiguration,
+} from "webpack-dev-server";
 
 import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
-import * as palette from "@foxglove/studio-base/src/theme/palette";
 import { makeConfig } from "@foxglove/studio-base/webpack";
+import * as palette from "@foxglove/theme/src/palette";
 
 export interface WebpackConfiguration extends Configuration {
   devServer?: WebpackDevServerConfiguration;
@@ -24,10 +27,15 @@ export type ConfigParams = {
   contextPath: string;
   entrypoint: string;
   outputPath: string;
+  publicPath?: string;
   /** Source map (`devtool`) setting to use for production builds */
   prodSourceMap: string | false;
   /** Set the app version information */
   version: string;
+  /** Needs to be overridden for react-router */
+  historyApiFallback?: ConnectHistoryApiFallbackOptions;
+  /** Customizations to index.html */
+  indexHtmlOptions?: Partial<HtmlWebpackPlugin.Options>;
 };
 
 export const devServerConfig = (params: ConfigParams): WebpackConfiguration => ({
@@ -36,7 +44,7 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
 
   // Output path must be specified here for HtmlWebpackPlugin within render config to work
   output: {
-    publicPath: "",
+    publicPath: params.publicPath ?? "",
     path: params.outputPath,
   },
 
@@ -44,6 +52,7 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
     static: {
       directory: params.outputPath,
     },
+    historyApiFallback: params.historyApiFallback,
     hot: true,
     // The problem and solution are described at <https://github.com/webpack/webpack-dev-server/issues/1604>.
     // When running in dev mode two errors are logged to the dev console:
@@ -62,6 +71,11 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
         secure: false,
         changeOrigin: true,
       },
+    },
+    headers: {
+      // Enable cross-origin isolation: https://resourcepolicy.fyi
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-embedder-policy": "credentialless",
     },
   },
 

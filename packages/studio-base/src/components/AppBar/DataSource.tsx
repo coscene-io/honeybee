@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ErrorCircle20Filled } from "@fluentui/react-icons";
+import { ErrorCircle16Filled } from "@fluentui/react-icons";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { CircularProgress, IconButton, Link, Breadcrumbs, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
@@ -21,7 +21,6 @@ import {
 } from "@foxglove/studio-base/context/CoSceneProjectContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { EndTimestamp } from "./EndTimestamp";
 
@@ -76,7 +75,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     },
   },
   numericValue: {
-    fontFeatureSettings: `${fonts.SANS_SERIF_FEATURE_SETTINGS}, "zero"`,
+    fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
   },
   breadcrumbs: {
     maxWidth: "150px",
@@ -207,7 +206,7 @@ export function DataSource(): JSX.Element {
                 sidebarActions.left.selectItem("problems");
               }}
             >
-              <ErrorCircle20Filled />
+              <ErrorCircle16Filled />
             </IconButton>
           )}
         </div>

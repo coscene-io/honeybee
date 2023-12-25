@@ -58,21 +58,17 @@ type RpcUpdateEvent = {
 // to fix a crash a large portion of Windows users were seeing where the rendering thread would
 // crash in skia code related to DirectWrite font loading when the system display scaling is set
 // >100%. For more info on this crash, see util/waitForFonts.ts.
-async function loadDefaultFont(): Promise<FontFace | undefined> {
-  const fontFace = new FontFace("IBM Plex Mono", `url(${PlexMono}) format('woff2')`);
+async function loadDefaultFont(): Promise<FontFace> {
+  // Passing a `url(data:...) format('woff2')` string does not work in Safari, which complains it
+  // cannot load the data url due to it being cross-origin.
+  // https://bugs.webkit.org/show_bug.cgi?id=265000
+  const fontFace = new FontFace("IBM Plex Mono", await (await fetch(PlexMono)).arrayBuffer());
   if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) {
     (self as unknown as WorkerGlobalScope).fonts.add(fontFace);
   } else {
     document.fonts.add(fontFace);
   }
-  let font = undefined;
-  try {
-    font = await fontFace.load();
-  } catch (error) {
-    console.error("Failed to load font", error);
-  }
-
-  return font;
+  return await fontFace.load();
 }
 
 // Immediately start font loading in the Worker thread. Each ChartJSManager we instantiate will

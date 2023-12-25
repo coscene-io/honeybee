@@ -47,7 +47,6 @@ import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/Pane
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import { enumValuesByDatatypeAndField } from "@foxglove/studio-base/util/enums";
 import { useJsonTreeTheme } from "@foxglove/studio-base/util/globalConstants";
-import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { DiffSpan } from "./DiffSpan";
 import DiffStats from "./DiffStats";
@@ -78,18 +77,9 @@ const dataWithoutWrappingArray = (data: unknown) => {
   return isSingleElemArray(data) && typeof data[0] === "object" ? data[0] : data;
 };
 
-// lazy messages don't have own properties so we need to invoke "toJSON" to get the message
-// as a regular object
-function maybeDeepParse(val: unknown) {
-  if (typeof val === "object" && val != undefined && "toJSON" in val) {
-    return (val as { toJSON: () => unknown }).toJSON();
-  }
-  return val;
-}
-
 const useStyles = makeStyles()((theme) => ({
   topic: {
-    fontFamily: fonts.SANS_SERIF,
+    fontFamily: theme.typography.body1.fontFamily,
     fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
   },
   hoverObserver: {
@@ -106,7 +96,8 @@ function RawMessages(props: Props) {
   const jsonTreeTheme = useJsonTreeTheme();
   const { config, saveConfig } = props;
   const { openSiblingPanel } = usePanelContext();
-  const { topicPath, diffMethod, diffTopicPath, diffEnabled, showFullMessageForDiff } = config;
+  const { topicPath, diffMethod, diffTopicPath, diffEnabled, showFullMessageForDiff, fontSize } =
+    config;
   const { topics, datatypes } = useDataSourceInfo();
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const { setMessagePathDropConfig } = usePanelContext();
@@ -155,7 +146,6 @@ function RawMessages(props: Props) {
   }, [structures, topic, topicRosPath]);
 
   const [expansion, setExpansion] = useState(config.expansion);
-  const [customFontSize, setCustomFontSize] = useState<number | undefined>();
 
   // Pass an empty path to useMessageDataItem if our path doesn't resolve to a valid topic to avoid
   // spamming the message pipeline with useless subscription requests.
@@ -173,7 +163,7 @@ function RawMessages(props: Props) {
   const nodes = useMemo(() => {
     if (baseItem) {
       const data = dataWithoutWrappingArray(baseItem.queriedData.map(({ value }) => value));
-      return generateDeepKeyPaths(maybeDeepParse(data), 5);
+      return generateDeepKeyPaths(data, 5);
     } else {
       return new Set<string>();
     }
@@ -253,7 +243,7 @@ function RawMessages(props: Props) {
         const array = itemValue as Uint8Array;
         const itemPart = array.slice(0, DATA_ARRAY_PREVIEW_LIMIT).join(", ");
         const length = array.length;
-        arrLabel = `(${length}) [${itemPart}${length >= DATA_ARRAY_PREVIEW_LIMIT ? ", ..." : ""}] `;
+        arrLabel = `(${length}) [${itemPart}${length >= DATA_ARRAY_PREVIEW_LIMIT ? ", …" : ""}] `;
         itemLabel = itemValue.constructor.name;
       }
       if (constantName != undefined) {
@@ -312,7 +302,7 @@ function RawMessages(props: Props) {
         {({ isHovering }: { isHovering: boolean }) => {
           const lastKeyPath = _.last(keyPath) as number;
           let valueAction: ValueAction | undefined;
-          if (isHovering && structureItem) {
+          if (isHovering) {
             valueAction = getValueActionForValue(
               data[lastKeyPath],
               structureItem,
@@ -392,7 +382,7 @@ function RawMessages(props: Props) {
     }
 
     if (!baseItem) {
-      return <EmptyState>Waiting for next message</EmptyState>;
+      return <EmptyState>Waiting for next message…</EmptyState>;
     }
 
     const data = dataWithoutWrappingArray(baseItem.queriedData.map(({ value }) => value));
@@ -406,12 +396,10 @@ function RawMessages(props: Props) {
     const diffData =
       diffItem && dataWithoutWrappingArray(diffItem.queriedData.map(({ value }) => value));
 
-    // json parse/stringify round trip is used to deep parse data and diff data which may be lazy messages
-    // lazy messages have non-enumerable getters but do have a toJSON method to turn themselves into an object
     const diff = diffEnabled
       ? getDiff({
-          before: maybeDeepParse(data),
-          after: maybeDeepParse(diffData),
+          before: data,
+          after: diffData,
           idLabel: undefined,
           showFullMessageForDiff,
         })
@@ -436,7 +424,7 @@ function RawMessages(props: Props) {
         {shouldDisplaySingleVal ? (
           <Typography
             variant="h1"
-            fontSize={customFontSize}
+            fontSize={fontSize}
             whiteSpace="pre-wrap"
             style={{ wordWrap: "break-word" }}
           >
@@ -527,7 +515,7 @@ function RawMessages(props: Props) {
                 ) {
                   return addedValue ?? changedValue ?? deletedValue;
                 }
-                return maybeDeepParse(rawVal);
+                return rawVal;
               }}
               theme={{
                 ...jsonTreeTheme,
@@ -536,7 +524,7 @@ function RawMessages(props: Props) {
                 nestedNode: ({ style }, keyPath: any) => {
                   const baseStyle = {
                     ...style,
-                    fontSize: customFontSize,
+                    fontSize,
                     paddingTop: 2,
                     paddingBottom: 2,
                     marginTop: 2,
@@ -588,7 +576,7 @@ function RawMessages(props: Props) {
                 value: ({ style }, _nodeType, keyPath: any) => {
                   const baseStyle = {
                     ...style,
-                    fontSize: customFontSize,
+                    fontSize,
                     textDecoration: "inherit",
                   };
                   if (!diffEnabled) {
@@ -628,7 +616,7 @@ function RawMessages(props: Props) {
   }, [
     baseItem,
     classes.topic,
-    customFontSize,
+    fontSize,
     diffEnabled,
     diffItem,
     diffMethod,
@@ -647,17 +635,21 @@ function RawMessages(props: Props) {
     valueRenderer,
   ]);
 
-  const actionHandler = useCallback((action: SettingsTreeAction) => {
-    if (action.action === "update") {
-      if (action.payload.path[0] === "general") {
-        if (action.payload.path[1] === "fontSize") {
-          setCustomFontSize(
-            action.payload.value != undefined ? (action.payload.value as number) : undefined,
-          );
+  const actionHandler = useCallback(
+    (action: SettingsTreeAction) => {
+      if (action.action === "update") {
+        if (action.payload.path[0] === "general") {
+          if (action.payload.path[1] === "fontSize") {
+            saveConfig({
+              fontSize:
+                action.payload.value != undefined ? (action.payload.value as number) : undefined,
+            });
+          }
         }
       }
-    }
-  }, []);
+    },
+    [saveConfig],
+  );
 
   useEffect(() => {
     updatePanelSettingsTree({
@@ -676,13 +668,13 @@ function RawMessages(props: Props) {
                   value,
                 })),
               ],
-              value: customFontSize,
+              value: fontSize,
             },
           },
         },
       },
     });
-  }, [actionHandler, customFontSize, updatePanelSettingsTree]);
+  }, [actionHandler, fontSize, updatePanelSettingsTree]);
 
   return (
     <Stack flex="auto" overflow="hidden" position="relative">
@@ -709,6 +701,7 @@ const defaultConfig: RawMessagesPanelConfig = {
   diffTopicPath: "",
   showFullMessageForDiff: false,
   topicPath: "",
+  fontSize: undefined,
 };
 
 export default Panel(

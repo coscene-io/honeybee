@@ -15,6 +15,7 @@ import { useTheme } from "@mui/material";
 import * as _ from "lodash-es";
 import { ComponentProps, useCallback, useEffect, useMemo, useState } from "react";
 
+import { useDeepMemo } from "@foxglove/hooks";
 import {
   Time,
   add as addTimes,
@@ -128,11 +129,7 @@ function Plot(props: Props) {
         saveConfig((prevConfig) => ({
           ...prevConfig,
           paths: [
-            // If there was only a single series and its path was empty (the default state of the
-            // panel), replace the series rather than adding to it
-            ...(prevConfig.paths.length === 1 && prevConfig.paths[0]?.value === ""
-              ? []
-              : prevConfig.paths),
+            ...prevConfig.paths,
             ...paths.map((path) => ({
               value: path.path,
               enabled: true,
@@ -154,12 +151,6 @@ function Plot(props: Props) {
       } as Partial<PlotConfig>);
     }
   }, [customTitle, legacyTitle, saveConfig]);
-
-  useEffect(() => {
-    if (yAxisPaths.length === 0) {
-      saveConfig({ paths: [{ value: "", enabled: true, timestampMethod: "receiveTime" }] });
-    }
-  }, [saveConfig, yAxisPaths.length]);
 
   const startTime = useMessagePipeline(selectStartTime);
   const currentTime = useMessagePipeline(selectCurrentTime);
@@ -252,6 +243,10 @@ function Plot(props: Props) {
     };
   }, [plotData, yAxisPaths]);
 
+  // We use a deep memo here as React's default equality check Object.is() returns false for
+  // two empty lists which causes unnecessary re-rendering of the PlotLegend component.
+  const memoizedPathsWithMismatchedDataLengths = useDeepMemo(pathsWithMismatchedDataLengths);
+
   const messagePipeline = useMessagePipelineGetter();
   const onClick = useCallback<NonNullable<ComponentProps<typeof PlotChart>["onClick"]>>(
     ({ x: seekSeconds }: OnChartClickArgs) => {
@@ -319,6 +314,7 @@ function Plot(props: Props) {
         flex="auto"
         fullWidth
         style={{ height: `calc(100% - ${PANEL_TOOLBAR_MIN_HEIGHT}px)` }}
+        position="relative"
       >
         {/* Pass stable values here for properties when not showing values so that the legend memoization remains stable. */}
         {legendDisplay !== "none" && (
@@ -328,7 +324,7 @@ function Plot(props: Props) {
             legendDisplay={legendDisplay}
             onClickPath={onClickPath}
             paths={yAxisPaths}
-            pathsWithMismatchedDataLengths={pathsWithMismatchedDataLengths}
+            pathsWithMismatchedDataLengths={memoizedPathsWithMismatchedDataLengths}
             saveConfig={saveConfig}
             showLegend={showLegend}
             showPlotValuesInLegend={showPlotValuesInLegend}
@@ -358,7 +354,7 @@ function Plot(props: Props) {
 }
 
 const defaultConfig: PlotConfig = {
-  paths: [{ value: "", enabled: true, timestampMethod: "receiveTime" }],
+  paths: [],
   minYValue: undefined,
   maxYValue: undefined,
   showXAxisLabels: true,

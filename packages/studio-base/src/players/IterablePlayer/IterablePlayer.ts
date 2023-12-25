@@ -29,13 +29,13 @@ import {
   PlayerMetricsCollectorInterface,
   PlayerPresence,
   PlayerState,
+  PlayerStateActiveData,
   Progress,
   PublishPayload,
   SubscribePayload,
   Topic,
   TopicSelection,
   TopicStats,
-  PlayerStateActiveData,
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
@@ -68,6 +68,8 @@ const MAX_BLOCKS = 400;
 // Amount to seek into the data source from the start when loading the player. The purpose of this
 // is to provide some initial data to subscribers.
 const SEEK_ON_START_NS = BigInt(99 * 1e6);
+
+const MEMORY_INFO_BUFFERED_MSGS = "Buffered messages";
 
 type IterablePlayerOptions = {
   metricsCollector?: PlayerMetricsCollectorInterface;
@@ -323,9 +325,14 @@ export class IterablePlayer implements Player {
     this.#blockLoader?.setTopics(this.#preloadTopics);
 
     // If the player is playing, the playing state will detect any subscription changes and adjust
-    // iterators accordignly. However if we are idle or already seeking then we need to manually
+    // iterators accordingly. However if we are idle or already seeking then we need to manually
     // trigger the backfill.
-    if (this.#state === "idle" || this.#state === "seek-backfill" || this.#state === "play") {
+    if (
+      this.#state === "idle" ||
+      this.#state === "seek-backfill" ||
+      this.#state === "play" ||
+      this.#state === "start-play"
+    ) {
       if (!this.#isPlaying && this.#currentTime) {
         this.#seekTarget ??= this.#currentTime;
         this.#untilTime = undefined;
@@ -586,7 +593,7 @@ export class IterablePlayer implements Player {
     this.#setState(this.#isPlaying ? "play" : "idle");
   }
 
-  // Read a small amount of data from the datasource with the hope of producing a message or two.
+  // Read a small amount of data from the data source with the hope of producing a message or two.
   // Without an initial read, the user would be looking at a blank layout since no messages have yet
   // been delivered.
   async #stateStartPlay() {
@@ -982,6 +989,10 @@ export class IterablePlayer implements Player {
       this.#progress = {
         fullyLoadedFractionRanges: this.#bufferedSource.loadedRanges(),
         messageCache: this.#progress.messageCache,
+        memoryInfo: {
+          ...this.#progress.memoryInfo,
+          [MEMORY_INFO_BUFFERED_MSGS]: this.#bufferedSource.getCacheSize(),
+        },
       };
       this.#queueEmitState();
     };
@@ -1033,6 +1044,10 @@ export class IterablePlayer implements Player {
         this.#progress = {
           fullyLoadedFractionRanges: this.#bufferedSource.loadedRanges(),
           messageCache: this.#progress.messageCache,
+          memoryInfo: {
+            ...this.#progress.memoryInfo,
+            [MEMORY_INFO_BUFFERED_MSGS]: this.#bufferedSource.getCacheSize(),
+          },
         };
 
         // If subscriptions changed, update to the new subscriptions
@@ -1078,8 +1093,11 @@ export class IterablePlayer implements Player {
         this.#progress = {
           fullyLoadedFractionRanges: this.#progress.fullyLoadedFractionRanges,
           messageCache: progress.messageCache,
+          memoryInfo: {
+            ...this.#progress.memoryInfo,
+            ...progress.memoryInfo,
+          },
         };
-
         // If we are in playback, we will let playback queue state updates
         if (this.#state === "play") {
           return;

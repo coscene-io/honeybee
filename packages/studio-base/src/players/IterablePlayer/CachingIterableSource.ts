@@ -10,6 +10,7 @@ import Log from "@foxglove/log";
 import { add, compare, subtract, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent, Time } from "@foxglove/studio";
 import { TopicSelection } from "@foxglove/studio-base/players/types";
+// CoScene
 import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 import { Range } from "@foxglove/studio-base/util/ranges";
 
@@ -120,6 +121,10 @@ class CachingIterableSource extends EventEmitter<EventTypes> implements IIterabl
 
   public loadedRanges(): Range[] {
     return this.#loadedRangesCache;
+  }
+
+  public getCacheSize(): number {
+    return this.#totalSizeBytes;
   }
 
   public async *messageIterator(

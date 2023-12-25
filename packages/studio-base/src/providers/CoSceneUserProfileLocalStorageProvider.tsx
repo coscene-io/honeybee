@@ -19,7 +19,7 @@ const LOCAL_STORAGE_KEY = "studio.profile-data";
  */
 export default function CoSceneUserProfileLocalStorageProvider({
   children,
-}: React.PropsWithChildren<unknown>): JSX.Element {
+}: React.PropsWithChildren): JSX.Element {
   const getUserProfile = useCallback(async (): Promise<UserProfile> => {
     const item = localStorage.getItem(LOCAL_STORAGE_KEY);
     return item != undefined ? (JSON.parse(item) as UserProfile) : DEFAULT_PROFILE;

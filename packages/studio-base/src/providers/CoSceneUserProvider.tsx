@@ -8,9 +8,7 @@ import CoSceneCurrentUserContext, {
   User,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 
-export default function CoSceneUserProvider({
-  children,
-}: React.PropsWithChildren<unknown>): JSX.Element {
+export default function CoSceneUserProvider({ children }: React.PropsWithChildren): JSX.Element {
   const currentUser = useMemo(() => {
     return localStorage.getItem("current_user") != undefined
       ? (JSON.parse(localStorage.getItem("current_user")!) as User)

@@ -218,7 +218,7 @@ const splitPanel = (
         : undefined;
     newPanelsState = savePanelConfigs(
       newPanelsState,
-      getSaveConfigsPayloadForAddedPanel({ id: newId, config, relatedConfigs }),
+      getSaveConfigsPayloadForAddedPanel({ id: newId, config, savedProps: relatedConfigs ?? {} }),
     );
   }
   return newPanelsState;
@@ -261,7 +261,7 @@ const swapPanel = (
 
   newPanelsState = savePanelConfigs(
     newPanelsState,
-    getSaveConfigsPayloadForAddedPanel({ id: newId, config, relatedConfigs }),
+    getSaveConfigsPayloadForAddedPanel({ id: newId, config, savedProps: relatedConfigs ?? {} }),
   );
   return newPanelsState;
 };
@@ -349,7 +349,11 @@ const addPanel = (
   let newPanelsState = { ...panelsState };
   let saveConfigsPayload: { configs: ConfigsPayload[] } = { configs: [] };
   if (config) {
-    saveConfigsPayload = getSaveConfigsPayloadForAddedPanel({ id, config, relatedConfigs });
+    saveConfigsPayload = getSaveConfigsPayloadForAddedPanel({
+      id,
+      config,
+      savedProps: relatedConfigs ?? {},
+    });
   }
   let layout: MosaicNode<string> | undefined;
   if (tabId != undefined) {
@@ -419,7 +423,7 @@ const dropPanel = (
     const { configs: newConfigs } = getSaveConfigsPayloadForAddedPanel({
       id,
       config,
-      relatedConfigs,
+      savedProps: relatedConfigs ?? {},
     });
     configs.push(...newConfigs);
   }
