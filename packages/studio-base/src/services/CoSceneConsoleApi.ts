@@ -459,11 +459,7 @@ class CoSceneConsoleApi {
         apiPath,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ProjectName:
-              "warehouses/7d58a141-3cdd-457e-bef2-cac3556b70fd/projects/d900046a-3278-494b-ab32-dd1d6861eb7f",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         },
         {},
