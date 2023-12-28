@@ -100,6 +100,15 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     module: async () => await import("./Plot"),
   },
   {
+    title: t("annotatedPlot", {
+      ns: "cosAnnotatedPlot",
+    }),
+    type: "AnnotatedPlot",
+    description: t("plotDescription"),
+    thumbnail: plotThumbnail,
+    module: async () => await import("./AnnotatedPlot"),
+  },
+  {
     title: t("publish"),
     type: "Publish",
     description: t("publishDescription"),

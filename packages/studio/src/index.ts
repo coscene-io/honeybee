@@ -559,6 +559,14 @@ export type SettingsTreeFieldValue =
       /** True if the input should allow math modifiers like @abs. */
       supportsMathModifiers?: boolean;
     }
+  // CoScene custom input types
+  | {
+      input: "deduplicatedMessagePath";
+      value?: string;
+      validTypes?: string[];
+      /** True if the input should allow math modifiers like @abs. */
+      supportsMathModifiers?: boolean;
+    }
   | {
       input: "number";
       value?: number;

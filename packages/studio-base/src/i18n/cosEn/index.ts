@@ -16,3 +16,4 @@ export * from "./workspace";
 export * from "./appBar";
 export * from "./guide";
 export * from "./websocket";
+export * from "./annotatedPlot";
