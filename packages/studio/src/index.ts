@@ -600,6 +600,13 @@ export type SettingsTreeFieldValue =
       placeholder?: string;
     }
   | {
+      // CoScene Custom
+      input: "multipleSelect";
+      value?: string | string[];
+      options: Array<{ label: string; value: undefined | string; disabled?: boolean }>;
+      placeholder?: string;
+    }
+  | {
       input: "toggle";
       value?: string;
       options: string[] | Array<{ label: string; value: undefined | string }>;

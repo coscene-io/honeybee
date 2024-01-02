@@ -3,14 +3,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  Dismiss12Regular,
   Add12Regular,
   ErrorCircle16Filled,
   Square12Filled,
   Square12Regular,
 } from "@fluentui/react-icons";
 import { ButtonBase, Checkbox, Tooltip, Typography, buttonBaseClasses } from "@mui/material";
-import { MouseEventHandler, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
@@ -34,7 +33,7 @@ type PlotLegendRowProps = Immutable<{
   onClickPath: () => void;
   path: PlotPath;
   paths: PlotPath[];
-  savePaths: (paths: PlotPath[]) => void;
+  enablePath: (value: string) => void;
   showPlotValuesInLegend: boolean;
 }>;
 
@@ -138,7 +137,7 @@ export function PlotLegendRow({
   onClickPath,
   path,
   paths,
-  savePaths,
+  enablePath,
   showPlotValuesInLegend,
 }: PlotLegendRowProps): JSX.Element {
   const { openPanelSettings } = useWorkspaceActions();
@@ -180,20 +179,6 @@ export function PlotLegendRow({
   // When there are no series configured we render an extra row to show an "add series" button.
   const isAddSeriesRow = paths.length === 0;
 
-  const handleDeletePath: MouseEventHandler<HTMLButtonElement> = (ev) => {
-    // Deleting a path is a "quick action" and we want to avoid opening the settings sidebar
-    // so whatever sidebar the user is already viewing says active.
-    //
-    // This prevents the click event from going up to the entire row and showing the sidebar.
-    ev.stopPropagation();
-
-    const newPaths = paths.slice();
-    if (newPaths.length > 0) {
-      newPaths.splice(index, 1);
-    }
-    savePaths(newPaths);
-  };
-
   return (
     <div
       className={cx(classes.root, {
@@ -222,9 +207,8 @@ export function PlotLegendRow({
             const newPath = newPaths[index];
 
             if (newPath) {
-              newPaths[index] = { ...newPath, enabled: !newPath.enabled };
+              enablePath(newPath.value);
             }
-            savePaths(newPaths);
           }}
         />
       </div>
@@ -262,15 +246,9 @@ export function PlotLegendRow({
         </div>
       )}
       <div className={classes.actionButton}>
-        {index === paths.length ? (
-          <ButtonBase title="Add series" aria-label="Add series" onClick={onClickPath}>
-            <Add12Regular />
-          </ButtonBase>
-        ) : (
-          <ButtonBase title="Delete series" aria-label="Delete series" onClick={handleDeletePath}>
-            <Dismiss12Regular />
-          </ButtonBase>
-        )}
+        <ButtonBase title="Add series" aria-label="Add series" onClick={onClickPath}>
+          <Add12Regular />
+        </ButtonBase>
       </div>
     </div>
   );

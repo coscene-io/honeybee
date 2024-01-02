@@ -39,6 +39,7 @@ import PanelToolbar, {
 } from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { ChartDefaultView } from "@foxglove/studio-base/components/TimeBasedChart";
+import { useEvents, EventsStore } from "@foxglove/studio-base/context/EventsContext";
 import { OnClickArg as OnChartClickArgs } from "@foxglove/studio-base/src/components/Chart";
 import { OpenSiblingPanel, PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
@@ -48,6 +49,7 @@ import PlotChart from "./PlotChart";
 import { PlotLegend } from "./PlotLegend";
 import { downloadCSV } from "./csv";
 import { TypedDataSet } from "./internalTypes";
+import { PlotPath } from "./internalTypes";
 import { EmptyPlotData, EmptyData } from "./plotData";
 import { usePlotPanelSettings } from "./settings";
 import { PlotConfig } from "./types";
@@ -68,7 +70,7 @@ export function openSiblingPlotPanel(openSiblingPanel: OpenSiblingPanel, topicNa
       ...config,
       paths: _.uniq(
         (config as PlotConfig).paths
-          .concat([{ value: topicName, enabled: true, timestampMethod: "receiveTime" }])
+          .concat([{ value: topicName, lines: [] }])
           .filter(({ value }) => value),
       ),
     }),
@@ -94,12 +96,14 @@ function selectEndTime(ctx: MessagePipelineContext) {
 
 const ZERO_TIME = Object.freeze({ sec: 0, nsec: 0 });
 
+const selectEvents = (store: EventsStore) => store.events;
+
 function Plot(props: Props) {
   const { saveConfig, config } = props;
   const {
     title: legacyTitle,
     followingViewWidth,
-    paths: yAxisPaths,
+    paths: originalPaths,
     minXValue,
     maxXValue,
     minYValue,
@@ -114,31 +118,40 @@ function Plot(props: Props) {
     xAxisPath,
     sidebarDimension = config.sidebarWidth ?? defaultSidebarDimension,
     [PANEL_TITLE_CONFIG_KEY]: customTitle,
+    showMoments,
+    momentsFilter,
+    selectRecords,
   } = config;
+
+  const yAxisPaths = useMemo(() => {
+    const linePaths: PlotPath[] = [];
+    originalPaths.forEach((path) => {
+      path.lines.forEach((line) => {
+        linePaths.push({
+          value: line.value,
+          enabled: line.enabled,
+          color: line.color,
+          label: line.label,
+          timestampMethod: line.timestampMethod,
+          showLine: line.showLine,
+          lineSize: line.lineSize,
+        });
+      });
+    });
+
+    return linePaths;
+  }, [originalPaths]);
+
+  const events = useEvents(selectEvents);
 
   const { setMessagePathDropConfig } = usePanelContext();
 
   useEffect(() => {
     setMessagePathDropConfig({
-      getDropStatus(paths) {
-        if (paths.some((path) => !path.isLeaf)) {
-          return { canDrop: false };
-        }
-        return { canDrop: true, effect: "add" };
+      getDropStatus() {
+        return { canDrop: false };
       },
-      handleDrop(paths) {
-        saveConfig((prevConfig) => ({
-          ...prevConfig,
-          paths: [
-            ...prevConfig.paths,
-            ...paths.map((path) => ({
-              value: path.path,
-              enabled: true,
-              timestampMethod: "receiveTime" as const,
-            })),
-          ],
-        }));
-      },
+      handleDrop() {},
     });
   }, [saveConfig, setMessagePathDropConfig]);
 
@@ -169,7 +182,32 @@ function Plot(props: Props) {
 
   const currentTimeSinceStart = timeSincePreloadedStart(currentTime);
 
-  console.log("currentTimeSinceStart", currentTimeSinceStart);
+  const filteredEvents = useMemo(() => {
+    if (!showMoments) {
+      return [];
+    }
+    if (momentsFilter == undefined || momentsFilter === "") {
+      return events.value ?? [];
+    }
+    return (events.value ?? [])
+      .filter((event) => {
+        return selectRecords.length === 0 || selectRecords.includes(event.event.record);
+      })
+      .filter((event) => {
+        const eventString =
+          event.event.displayName +
+          event.event.description +
+          Object.entries(event.event.customizedFields)
+            .map(([key, value]) => `${key}${value}`)
+            .join("");
+        // const eventString = event.event.toJsonString();
+        return eventString.includes(momentsFilter);
+      });
+  }, [events, momentsFilter, showMoments, selectRecords]);
+
+  const eventsTimeSinceStart = filteredEvents.map((event) => {
+    return { time: timeSincePreloadedStart(event.startTime) ?? 0, color: event.color };
+  });
 
   const followingView = useMemo<ChartDefaultView | undefined>(() => {
     if (followingViewWidth != undefined && +followingViewWidth > 0) {
@@ -327,6 +365,7 @@ function Plot(props: Props) {
             legendDisplay={legendDisplay}
             onClickPath={onClickPath}
             paths={yAxisPaths}
+            originalPaths={originalPaths}
             pathsWithMismatchedDataLengths={memoizedPathsWithMismatchedDataLengths}
             saveConfig={saveConfig}
             showLegend={showLegend}
@@ -337,6 +376,7 @@ function Plot(props: Props) {
         <Stack flex="auto" alignItems="center" justifyContent="center" overflow="hidden">
           <PlotChart
             currentTime={currentTimeSinceStart}
+            eventsTimes={showMoments ? eventsTimeSinceStart : undefined}
             datasetBounds={datasetBounds}
             provider={provider}
             defaultView={defaultView}
@@ -350,7 +390,7 @@ function Plot(props: Props) {
             xAxisVal={xAxisVal}
           />
           <PanelContextMenu getItems={getPanelContextMenuItems} />
-          <MomentsList />
+          {showMoments && <MomentsList events={filteredEvents} />}
         </Stack>
       </Stack>
     </Stack>
@@ -369,6 +409,8 @@ const defaultConfig: PlotConfig = {
   isSynced: true,
   xAxisVal: "timestamp",
   sidebarDimension: defaultSidebarDimension,
+  showMoments: true,
+  selectRecords: [],
 };
 
 export default Panel(

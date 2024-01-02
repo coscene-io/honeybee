@@ -22,7 +22,6 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
-const selectEvents = (store: EventsStore) => store.events;
 const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hoveredEvent;
 const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
 const selectSetHoveredEvent = (store: TimelineInteractionStateStore) => store.setHoveredEvent;
@@ -139,8 +138,11 @@ const SingleMomentView: ({
   );
 };
 
-export default function MomentsList(): JSX.Element {
-  const events = useEvents(selectEvents);
+export default function MomentsList({
+  events,
+}: {
+  events: TimelinePositionedEvent[];
+}): JSX.Element {
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
   const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
@@ -176,7 +178,7 @@ export default function MomentsList(): JSX.Element {
     [seek, selectEvent, selectedEventId],
   );
 
-  return (events.value ?? []).length > 0 ? (
+  return events.length > 0 ? (
     <Stack
       width={1}
       display="flex"
@@ -186,7 +188,7 @@ export default function MomentsList(): JSX.Element {
       overflow="auto"
       className={classes.container}
     >
-      {(events.value ?? []).map((event) => (
+      {events.map((event) => (
         <SingleMomentView
           event={event}
           key={event.event.name}

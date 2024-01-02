@@ -207,11 +207,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     variant = "standard",
   } = props;
   const { classes } = useStyles();
-  // all topics
   const topicFields = useMemo(() => getFieldPaths(topics, datatypes), [datatypes, topics]);
-  console.log("topicFields", topicFields);
-  // const deduplicatedTopicsFields = topicFields;
-
   const onChangeProp = props.onChange;
   const onChange = useCallback(
     (event: React.SyntheticEvent, rawValue: string) => {
@@ -279,7 +275,8 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     }
 
     const { topicName } = rosPath;
-    return topics.find(({ name }) => name === topicName);
+
+    return topics.find(({ name }) => name.endsWith(topicName));
   }, [rosPath, topics]);
 
   const messagePathStructuresForDataype = useMemo(
@@ -358,10 +355,15 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     } else if (autocompleteType === "topicName") {
       // If the path is empty, return topic names only to show the full list of topics. Otherwise,
       // use the full set of topic names and field paths to autocomplete
+      const items = path ? topicNamesAndFieldsAutocompleteItems : topicNamesAutocompleteItems;
+
       return {
-        autocompleteItems: path
-          ? topicNamesAndFieldsAutocompleteItems
-          : topicNamesAutocompleteItems,
+        // CoScene Drop down box options
+        autocompleteItems: Array.from(
+          new Set(
+            items.map((item) => (item.split("@").pop() ? '"' + item.split("@").pop() : "unknow")),
+          ),
+        ).sort(),
         autocompleteFilterText: path,
         autocompleteRange: { start: 0, end: Infinity },
       };

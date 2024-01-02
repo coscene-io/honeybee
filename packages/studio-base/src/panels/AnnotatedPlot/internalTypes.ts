@@ -30,6 +30,22 @@ export type BasePlotPath = {
   enabled: boolean;
 };
 
+export type PlotLine = {
+  enabled: boolean;
+  color?: string;
+  value: string;
+  label?: string;
+  timestampMethod: TimestampMethod;
+  showLine?: boolean;
+  lineSize?: number;
+};
+
+export type SettingsPlotPath = {
+  value: string;
+  label?: string;
+  lines: PlotLine[];
+};
+
 export type PlotPath = BasePlotPath & {
   color?: string;
   label?: string;

@@ -65,6 +65,7 @@ type PlotChartProps = {
   datasetBounds: PlotData["bounds"];
   xAxisVal: PlotXAxisVal;
   currentTime?: number;
+  eventsTimes?: { time: number; color: string }[];
   defaultView?: ChartDefaultView;
   onClick?: TimeBasedChartProps["onClick"];
 };
@@ -72,6 +73,7 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
   const theme = useTheme();
   const {
     currentTime,
+    eventsTimes,
     datasetBounds,
     provider,
     defaultView,
@@ -131,6 +133,7 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
         xAxisIsPlaybackTime={xAxisVal === "timestamp"}
         showXAxisLabels={showXAxisLabels}
         currentTime={currentTime}
+        eventsTimes={eventsTimes}
         defaultView={defaultView}
         onClick={onClick}
       />

@@ -17,13 +17,18 @@ import tinycolor from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
 import { Immutable } from "@foxglove/studio";
-import { PlotLegendRow, ROW_HEIGHT } from "@foxglove/studio-base/panels/Plot/PlotLegendRow";
-import { PlotPath } from "@foxglove/studio-base/panels/Plot/internalTypes";
-import { PlotConfig } from "@foxglove/studio-base/panels/Plot/types";
+import {
+  PlotLegendRow,
+  ROW_HEIGHT,
+} from "@foxglove/studio-base/panels/AnnotatedPlot/PlotLegendRow";
+import {
+  PlotPath,
+  SettingsPlotPath,
+} from "@foxglove/studio-base/panels/AnnotatedPlot/internalTypes";
+import { PlotConfig } from "@foxglove/studio-base/panels/AnnotatedPlot/types";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { TypedDataSet } from "./internalTypes";
-import { DEFAULT_PATH } from "./settings";
 
 const minLegendWidth = 25;
 const maxLegendWidth = 800;
@@ -39,7 +44,9 @@ type Props = Immutable<{
   showLegend: boolean;
   showPlotValuesInLegend: boolean;
   sidebarDimension: number;
-}>;
+}> & {
+  originalPaths: SettingsPlotPath[];
+};
 
 const useStyles = makeStyles<void, "grid" | "toggleButton" | "toggleButtonFloating">()(
   ({ palette, shadows, shape, spacing }, _params, classes) => ({
@@ -155,8 +162,14 @@ function PlotLegendComponent(props: Props): JSX.Element {
     showLegend,
     showPlotValuesInLegend,
     sidebarDimension,
+    originalPaths,
   } = props;
   const { classes, cx } = useStyles();
+  const DEFAULT_PLOT_PATH: PlotPath = {
+    value: "",
+    enabled: true,
+    timestampMethod: "receiveTime",
+  };
 
   const dragStart = useRef({ x: 0, y: 0, sidebarDimension: 0 });
 
@@ -206,11 +219,31 @@ function PlotLegendComponent(props: Props): JSX.Element {
     event.currentTarget.releasePointerCapture(event.pointerId);
   }, []);
 
-  const savePaths = useCallback(
-    (newPaths: PlotPath[]) => {
+  // handle line enable/disable
+  const enablePath = useCallback(
+    (value: string) => {
+      const newPaths: SettingsPlotPath[] = [];
+      for (const path of originalPaths) {
+        for (const line of path.lines) {
+          if (line.value === value) {
+            newPaths.push({
+              ...path,
+              lines: [
+                ...path.lines.slice(0, path.lines.indexOf(line)),
+                { ...line, enabled: !line.enabled },
+                ...path.lines.slice(path.lines.indexOf(line) + 1),
+              ],
+            });
+            break;
+          } else {
+            newPaths.push(path);
+          }
+        }
+      }
+
       saveConfig({ paths: newPaths });
     },
-    [saveConfig],
+    [originalPaths, saveConfig],
   );
 
   return (
@@ -237,7 +270,7 @@ function PlotLegendComponent(props: Props): JSX.Element {
             width: legendDisplay === "left" ? Math.round(sidebarDimension) : undefined,
           }}
         >
-          {(paths.length === 0 ? [DEFAULT_PATH] : paths).map((path, index) => (
+          {(paths.length === 0 ? [DEFAULT_PLOT_PATH] : paths).map((path, index) => (
             <PlotLegendRow
               currentTime={currentTime}
               datasets={datasets}
@@ -249,7 +282,7 @@ function PlotLegendComponent(props: Props): JSX.Element {
               }}
               path={path}
               paths={paths}
-              savePaths={savePaths}
+              enablePath={enablePath}
               showPlotValuesInLegend={showPlotValuesInLegend}
             />
           ))}

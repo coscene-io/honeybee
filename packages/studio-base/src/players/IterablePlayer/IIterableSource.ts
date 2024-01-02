@@ -208,6 +208,7 @@ export type IterableSourceInitializeArgs = {
   api?: {
     baseUrl: string;
     bffUrl: string;
+    addTopicPrefix: string;
     auth?: string;
   };
   coSceneContext?: CoSceneContext;

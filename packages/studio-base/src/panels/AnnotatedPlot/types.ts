@@ -4,7 +4,7 @@
 
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
 
-import type { BasePlotPath, PlotPath, PlotXAxisVal } from "./internalTypes";
+import type { BasePlotPath, SettingsPlotPath, PlotXAxisVal } from "./internalTypes";
 
 /**
  * Coalesces null, undefined and empty string to undefined.
@@ -17,7 +17,7 @@ function presence<T>(value: undefined | T): undefined | T {
   return value ?? undefined;
 }
 
-export function plotPathDisplayName(path: Readonly<PlotPath>, index: number): string {
+export function plotPathDisplayName(path: Readonly<SettingsPlotPath>, index: number): string {
   return presence(path.label) ?? presence(path.value) ?? `Series ${index + 1}`;
 }
 
@@ -29,7 +29,7 @@ type DeprecatedPlotConfig = {
 export type PlotConfig = DeprecatedPlotConfig & {
   /** @deprecated Replaced by global panel rename functionality https://github.com/foxglove/studio/pull/5225 */
   title?: string;
-  paths: PlotPath[];
+  paths: SettingsPlotPath[];
   minXValue?: number;
   maxXValue?: number;
   minYValue?: string | number;
@@ -45,6 +45,9 @@ export type PlotConfig = DeprecatedPlotConfig & {
   followingViewWidth?: number;
   sidebarDimension: number;
   [PANEL_TITLE_CONFIG_KEY]?: string;
+  showMoments: boolean;
+  momentsFilter?: string;
+  selectRecords: string[];
 };
 
 export const plotableRosTypes = [

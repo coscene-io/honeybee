@@ -90,6 +90,16 @@ const useStyles = makeStyles()((theme) => ({
   playbackBar: {
     backgroundColor: "#aaa",
   },
+  eventLineTriangle: {
+    position: "absolute",
+    bottom: 0,
+    left: -4,
+    width: 0,
+    height: 0,
+    borderLeft: "4px solid transparent",
+    borderRight: "4px solid transparent",
+    borderBottom: "8px solid",
+  },
 }));
 
 type ChartComponentProps = ComponentProps<typeof ChartComponent>;
@@ -130,6 +140,7 @@ export type Props = {
   showXAxisLabels: boolean;
   plugins?: ChartOptions["plugins"];
   currentTime?: number;
+  eventsTimes?: { time: number; color: string }[];
   defaultView?: ChartDefaultView;
 };
 
@@ -141,6 +152,7 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
   const requestID = useRef<number>(0);
   const {
     currentTime,
+    eventsTimes,
     data,
     provider,
     typedData,
@@ -803,11 +815,26 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
                 <div className={cx(classes.bar, classes.playbackBar)} />
               </VerticalBarWrapper>
             )}
-
+            {/* moments line */}
+            {eventsTimes?.map((event, index) => (
+              <VerticalBarWrapper scales={currentScalesRef.current} xValue={event.time} key={index}>
+                <div
+                  className={classes.bar}
+                  style={{
+                    border: "1px dashed" + event.color,
+                  }}
+                />
+                <div
+                  className={classes.eventLineTriangle}
+                  style={{
+                    borderBottomColor: event.color,
+                  }}
+                />
+              </VerticalBarWrapper>
+            ))}
             <div ref={canvasContainer} onMouseMove={onMouseMove} onMouseOut={onMouseOut}>
               <ChartComponent {...chartProps} />
             </div>
-
             {showReset && (
               <div
                 className={classes.resetZoomButton}

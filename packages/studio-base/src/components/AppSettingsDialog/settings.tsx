@@ -422,3 +422,39 @@ export function LanguageSettings(): React.ReactElement {
     </Stack>
   );
 }
+
+export function AddTopicPrefix(): React.ReactElement {
+  const addPrefix = localStorage.getItem("CoScene_addTopicPrefix") ?? "false";
+
+  function setAddPrefix(value: string) {
+    localStorage.setItem("CoScene_addTopicPrefix", value);
+  }
+
+  const { t } = useTranslation("appSettings");
+
+  return (
+    <Stack>
+      <FormLabel>{t("addTopicPrefix", { ns: "cosAppSettings" })}:</FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={addPrefix === "true" ? "true" : "false"}
+        onChange={(_, value?: TimeDisplayMethod) => {
+          if (value != undefined) {
+            setAddPrefix(value);
+            location.reload();
+          }
+        }}
+      >
+        <ToggleButton value="false" data-testid="timeformat-seconds">
+          {t("off", { ns: "cosAppSettings" })}
+        </ToggleButton>
+        <ToggleButton value="true" data-testid="timeformat-local">
+          {t("on", { ns: "cosAppSettings" })}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}

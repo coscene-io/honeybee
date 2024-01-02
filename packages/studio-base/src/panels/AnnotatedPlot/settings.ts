@@ -6,26 +6,89 @@ import { TFunction } from "i18next";
 import { produce } from "immer";
 import * as _ from "lodash-es";
 import memoizeWeak from "memoize-weak";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SettingsTreeAction, SettingsTreeNode, SettingsTreeNodes } from "@foxglove/studio";
-import { PlotPath } from "@foxglove/studio-base/panels/Plot/internalTypes";
+import * as PanelAPI from "@foxglove/studio-base/PanelAPI";
+import {
+  CoScenePlaylistStore,
+  usePlaylist,
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import {
+  SettingsPlotPath,
+  PlotLine,
+} from "@foxglove/studio-base/panels/AnnotatedPlot/internalTypes";
 import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import { lineColors } from "@foxglove/studio-base/util/plotColors";
 
 import { plotableRosTypes, PlotConfig, plotPathDisplayName } from "./types";
 
-export const DEFAULT_PATH: PlotPath = Object.freeze({
-  timestampMethod: "receiveTime",
+export const DEFAULT_PATH: SettingsPlotPath = Object.freeze({
+  value: "",
+  label: "",
+  lines: [],
+});
+
+const DEFAULT_PLOT_LINE: PlotLine = {
   value: "",
   enabled: true,
+  timestampMethod: "receiveTime",
+};
+const makeSeriesLineNode = memoizeWeak((line: PlotLine, t: TFunction<"plot">): SettingsTreeNode => {
+  return {
+    label: line.label,
+    visible: line.enabled,
+    fields: {
+      label: {
+        input: "string",
+        label: t("label"),
+        value: line.label,
+      },
+      color: {
+        input: "rgb",
+        label: t("color"),
+        value: line.color ?? lineColors[0],
+      },
+      lineSize: {
+        input: "number",
+        label: t("lineSize"),
+        value: line.lineSize,
+        step: 0.2,
+        min: 0,
+        placeholder: "auto",
+      },
+      showLine: {
+        label: t("showLine"),
+        input: "boolean",
+        value: line.showLine !== false,
+      },
+      timestampMethod: {
+        input: "select",
+        label: t("timestamp"),
+        value: line.timestampMethod,
+        options: [
+          { label: t("receiveTime"), value: "receiveTime" },
+          { label: t("headerStamp"), value: "headerStamp" },
+        ],
+      },
+    },
+  };
 });
 
 const makeSeriesNode = memoizeWeak(
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
-  (path: PlotPath, index: number, canDelete: boolean, t: TFunction<"plot">): SettingsTreeNode => {
+  (
+    path: SettingsPlotPath,
+    index: number,
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    canDelete: boolean,
+    t: TFunction<"plot">,
+  ): SettingsTreeNode => {
+    const children = Object.fromEntries(
+      path.lines.map((line, lineIndex) => [`${lineIndex}`, makeSeriesLineNode(line, t)]),
+    );
+
     return {
       actions: canDelete
         ? [
@@ -39,7 +102,6 @@ const makeSeriesNode = memoizeWeak(
           ]
         : [],
       label: plotPathDisplayName(path, index),
-      visible: path.enabled,
       fields: {
         value: {
           label: t("messagePath"),
@@ -53,40 +115,14 @@ const makeSeriesNode = memoizeWeak(
           label: t("label"),
           value: path.label,
         },
-        color: {
-          input: "rgb",
-          label: t("color"),
-          value: path.color ?? lineColors[index % lineColors.length],
-        },
-        lineSize: {
-          input: "number",
-          label: t("lineSize"),
-          value: path.lineSize,
-          step: 0.2,
-          min: 0,
-          placeholder: "auto",
-        },
-        showLine: {
-          label: t("showLine"),
-          input: "boolean",
-          value: path.showLine !== false,
-        },
-        timestampMethod: {
-          input: "select",
-          label: t("timestamp"),
-          value: path.timestampMethod,
-          options: [
-            { label: t("receiveTime"), value: "receiveTime" },
-            { label: t("headerStamp"), value: "headerStamp" },
-          ],
-        },
       },
+      children,
     };
   },
 );
 
 const makeRootSeriesNode = memoizeWeak(
-  (paths: PlotPath[], t: TFunction<"plot">): SettingsTreeNode => {
+  (paths: SettingsPlotPath[], t: TFunction<"plot">): SettingsTreeNode => {
     const children = Object.fromEntries(
       paths.length === 0
         ? [["0", makeSeriesNode(DEFAULT_PATH, 0, /*canDelete=*/ false, t)]]
@@ -111,7 +147,11 @@ const makeRootSeriesNode = memoizeWeak(
   },
 );
 
-function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTreeNodes {
+function buildSettingsTree(
+  config: PlotConfig,
+  t: TFunction<"plot">,
+  selectRecordsOptions: { label: string; value: string }[],
+): SettingsTreeNodes {
   const maxYError =
     _.isNumber(config.minYValue) &&
     _.isNumber(config.maxYValue) &&
@@ -131,6 +171,39 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
       label: t("general"),
       fields: {
         isSynced: { label: t("syncWithOtherPlots"), input: "boolean", value: config.isSynced },
+      },
+    },
+    moments: {
+      label: t("moments", {
+        ns: "cosEvent",
+      }),
+      fields: {
+        showMoments: {
+          label: t("showMoments", {
+            ns: "cosEvent",
+          }),
+          input: "boolean",
+          value: config.showMoments,
+        },
+        selectRecords: {
+          label: t("filterByRecord", {
+            ns: "cosEvent",
+          }),
+          input: "multipleSelect",
+          value: config.selectRecords,
+          options: selectRecordsOptions,
+          placeholder: "test",
+        },
+        momentsFilter: {
+          label: t("filterMoments", {
+            ns: "cosEvent",
+          }),
+          input: "string",
+          value: config.momentsFilter,
+          placeholder: t("searchByKV", {
+            ns: "cosEvent",
+          }),
+        },
       },
     },
     legend: {
@@ -232,6 +305,20 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
   };
 }
 
+/**
+ * Filter targetValue for values ending with the same content as the topicNames quotes.
+ * @param targetValue string array, like ["/woodiiTest/new data/Data.mcap@温度02", "/woodiiTest/new data/Data.mcap@温度07"]
+ * @param topicNames string, like "温度02".value
+ * @returns string array, The string matched in the target value
+ */
+function matchingFields(targetValue: string, topicNames: string[]): string[] {
+  const topic = targetValue.replace(/"/g, "").split(".")[0];
+
+  return topicNames.filter((item) => item.endsWith("@" + topic));
+}
+
+const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
+
 export function usePlotPanelSettings(
   config: PlotConfig,
   saveConfig: SaveConfig<PlotConfig>,
@@ -239,11 +326,32 @@ export function usePlotPanelSettings(
 ): void {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const { t } = useTranslation("plot");
+  const { topics } = PanelAPI.useDataSourceInfo();
+
+  const bagFiles = usePlaylist(selectBagFiles);
+
+  const topicNames = useMemo(() => topics.map((topic) => topic.name), [topics]);
+
+  const records = useMemo(() => {
+    return bagFiles.value
+      ?.filter((file) => {
+        return (
+          (file.fileType === "GHOST_SOURCE_FILE" || file.fileType === "NORMAL_FILE") &&
+          file.recordDisplayName != undefined &&
+          file.name.split("/revisions/")[0] != undefined
+        );
+      })
+      .map((file) => ({
+        label: file.recordDisplayName ?? "",
+        value: file.name.split("/revisions/")[0] ?? "",
+      }));
+  }, [bagFiles.value]);
 
   const actionHandler = useCallback(
     (action: SettingsTreeAction) => {
       if (action.action === "update") {
         const { path, value } = action.payload;
+
         saveConfig(
           produce((draft) => {
             if (path[0] === "paths") {
@@ -253,7 +361,29 @@ export function usePlotPanelSettings(
               if (path[2] === "visible") {
                 _.set(draft, [...path.slice(0, 2), "enabled"], value);
               } else {
-                _.set(draft, path, value);
+                if (path.length === 4) {
+                  // set child lines
+                  if (path[2] != undefined && path[3] === "visible") {
+                    _.set(draft, [...path.slice(0, 2), "lines", path[2], "enabled"], value);
+                  } else {
+                    _.set(draft, [...path.slice(0, 2), "lines", ...path.slice(2)], value);
+                  }
+                } else {
+                  _.set(draft, path, value);
+                  if (path[2] === "value") {
+                    if (value != undefined && typeof value === "string" && path[1] != undefined) {
+                      const matchingTopicNames = matchingFields(value, topicNames);
+                      // add sub line
+                      draft.paths[path[1]].lines = matchingTopicNames.map((topicName) => {
+                        return {
+                          ...DEFAULT_PLOT_LINE,
+                          value: `"${topicName}".${value.split(".")[1]}`,
+                          label: `"${topicName}".${value.split(".")[1]}`,
+                        };
+                      });
+                    }
+                  }
+                }
               }
             } else if (_.isEqual(path, ["legend", "legendDisplay"])) {
               draft.legendDisplay = value;
@@ -293,14 +423,14 @@ export function usePlotPanelSettings(
         }
       }
     },
-    [saveConfig],
+    [saveConfig, topicNames],
   );
 
   useEffect(() => {
     updatePanelSettingsTree({
       actionHandler,
       focusedPath,
-      nodes: buildSettingsTree(config, t),
+      nodes: buildSettingsTree(config, t, records ?? []),
     });
-  }, [actionHandler, config, focusedPath, updatePanelSettingsTree, t]);
+  }, [actionHandler, config, focusedPath, updatePanelSettingsTree, t, records]);
 }

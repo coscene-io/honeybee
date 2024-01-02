@@ -45,6 +45,13 @@ function positionEvents(
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
 
+  events.sort((a, b) => {
+    if (!a.triggerTime || !b.triggerTime) {
+      return 0;
+    }
+    return Number(a.triggerTime.seconds - b.triggerTime.seconds);
+  });
+
   return events.map((event) => {
     if (!event.triggerTime) {
       throw new Error("Event does not have a trigger time");

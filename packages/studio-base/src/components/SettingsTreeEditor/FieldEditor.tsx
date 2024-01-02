@@ -379,6 +379,51 @@ function FieldInput({
         </Select>
       );
     }
+
+    case "multipleSelect": {
+      const isEmpty = field.options.length === 0;
+      let selectValue = field.value;
+      if (selectValue == undefined) {
+        // We can't pass value={undefined} or we get a React error "A component is changing an
+        // uncontrolled input to be controlled" when changing the value to be non-undefined.
+        selectValue = [];
+      }
+
+      return (
+        <Select
+          size="small"
+          displayEmpty
+          fullWidth
+          disabled={field.disabled}
+          readOnly={field.readonly}
+          variant="filled"
+          value={selectValue}
+          multiple
+          placeholder={field.placeholder}
+          onChange={(event) => {
+            actionHandler({
+              action: "update",
+              payload: {
+                path,
+                input: "multipleSelect",
+                value:
+                  event.target.value === UNDEFINED_SENTINEL_VALUE
+                    ? undefined
+                    : (event.target.value as undefined | string | string[]),
+              },
+            });
+          }}
+          MenuProps={{ MenuListProps: { dense: true } }}
+        >
+          {field.options.map(({ label, value, disabled }) => (
+            <MenuItem key={value} value={value} disabled={disabled}>
+              {label}
+            </MenuItem>
+          ))}
+          {isEmpty && <MenuItem disabled>No options</MenuItem>}
+        </Select>
+      );
+    }
     case "gradient":
       return (
         <ColorGradientInput
