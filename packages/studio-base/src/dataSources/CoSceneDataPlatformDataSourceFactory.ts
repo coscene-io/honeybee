@@ -50,6 +50,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
         api: {
           baseUrl: APP_CONFIG.CS_HONEYBEE_BASE_URL,
           bffUrl: APP_CONFIG.VITE_APP_BFF_URL,
+          addTopicPrefix: localStorage.getItem("CoScene_addTopicPrefix") ?? "false",
           auth: `${localStorage.getItem("coScene_org_jwt")}`,
         },
         params: args.params,

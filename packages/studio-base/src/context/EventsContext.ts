@@ -38,6 +38,9 @@ export type TimelinePositionedEvent = {
 
   endTime: Time;
 
+  /** The color mapped to the recordId of this event. */
+  color: string;
+
   /** The end position of the event, as a value 0-1 relative to the timeline. */
   endPosition: number;
 

@@ -40,7 +40,7 @@ const log = Logger.getLogger(__filename);
  */
 export type DataPlatformInterableSourceConsoleApi = Pick<
   CoSceneConsoleApi,
-  "topics" | "getDevice" | "getAuthHeader" | "getStreamUrl"
+  "topics" | "getDevice" | "getAuthHeader" | "getStreamUrl" | "getAddTopicPrefix"
 >;
 
 type DataPlatformSourceParameters = {
@@ -79,12 +79,12 @@ export class DataPlatformIterableSource implements IIterableSource {
 
   public async initialize(): Promise<Initalization> {
     const apiParams = {
-      files: this.#params.files,
-      jobRuns: this.#params.jobRuns,
+      files: this.#params.files ?? [],
+      jobRuns: this.#params.jobRuns ?? [],
     };
 
     // get topics
-    const originalTopics = await this.#consoleApi.topics({ ...apiParams, includeSchemas: true });
+    const originalTopics = await this.#consoleApi.topics({ ...apiParams });
 
     const rawTopics = originalTopics.metaData;
 
@@ -420,7 +420,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     singleRequestTime: singleRequestTime ?? 5,
   };
 
-  const consoleApi = new CoSceneConsoleApi(api.baseUrl, api.bffUrl, {
+  const consoleApi = new CoSceneConsoleApi(api.baseUrl, api.bffUrl, api.addTopicPrefix, {
     ...coSceneContext,
     currentUserId: userId,
   });

@@ -27,10 +27,15 @@ export function CoSceneProviders(): JSX.Element[] {
 
   const consoleApi = useMemo(
     () =>
-      new ConsoleApi(APP_CONFIG.CS_HONEYBEE_BASE_URL, APP_CONFIG.VITE_APP_BFF_URL, {
-        ...JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
-        currentUserId,
-      } as CoSceneContext),
+      new ConsoleApi(
+        APP_CONFIG.CS_HONEYBEE_BASE_URL,
+        APP_CONFIG.VITE_APP_BFF_URL,
+        localStorage.getItem("CoScene_addTopicPrefix") ?? "false",
+        {
+          ...JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
+          currentUserId,
+        } as CoSceneContext,
+      ),
     [currentUserId],
   );
 

@@ -20,6 +20,7 @@ import { makeStyles } from "tss-react/mui";
 import { v4 as uuid } from "uuid";
 
 import { Immutable, SettingsTreeAction, SettingsTreeField } from "@foxglove/studio";
+import CoSceneDeduplicatedMessagePath from "@foxglove/studio-base/components/CoSceneDeduplicatedMessagePath/MessagePathInput";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
@@ -297,6 +298,23 @@ function FieldInput({
           validTypes={field.validTypes}
         />
       );
+    case "deduplicatedMessagePath":
+      return (
+        <CoSceneDeduplicatedMessagePath
+          variant="filled"
+          path={field.value ?? ""}
+          disabled={field.disabled}
+          readOnly={field.readonly}
+          supportsMathModifiers={field.supportsMathModifiers}
+          onChange={(value) => {
+            actionHandler({
+              action: "update",
+              payload: { path, input: "deduplicatedMessagePath", value },
+            });
+          }}
+          validTypes={field.validTypes}
+        />
+      );
     case "select": {
       const selectedOptionIndex = // use findIndex instead of find to avoid confusing TypeScript with union of arrays
         field.options.findIndex((option) => option.value === field.value);
@@ -358,6 +376,51 @@ function FieldInput({
           {!selectedOption && (
             <MenuItem style={{ display: "none" }} value={INVALID_SENTINEL_VALUE} />
           )}
+        </Select>
+      );
+    }
+
+    case "multipleSelect": {
+      const isEmpty = field.options.length === 0;
+      let selectValue = field.value;
+      if (selectValue == undefined) {
+        // We can't pass value={undefined} or we get a React error "A component is changing an
+        // uncontrolled input to be controlled" when changing the value to be non-undefined.
+        selectValue = [];
+      }
+
+      return (
+        <Select
+          size="small"
+          displayEmpty
+          fullWidth
+          disabled={field.disabled}
+          readOnly={field.readonly}
+          variant="filled"
+          value={selectValue}
+          multiple
+          placeholder={field.placeholder}
+          onChange={(event) => {
+            actionHandler({
+              action: "update",
+              payload: {
+                path,
+                input: "multipleSelect",
+                value:
+                  event.target.value === UNDEFINED_SENTINEL_VALUE
+                    ? undefined
+                    : (event.target.value as undefined | string | string[]),
+              },
+            });
+          }}
+          MenuProps={{ MenuListProps: { dense: true } }}
+        >
+          {field.options.map(({ label, value, disabled }) => (
+            <MenuItem key={value} value={value} disabled={disabled}>
+              {label}
+            </MenuItem>
+          ))}
+          {isEmpty && <MenuItem disabled>No options</MenuItem>}
         </Select>
       );
     }
