@@ -559,6 +559,14 @@ export type SettingsTreeFieldValue =
       /** True if the input should allow math modifiers like @abs. */
       supportsMathModifiers?: boolean;
     }
+  // CoScene custom input types
+  | {
+      input: "deduplicatedMessagePath";
+      value?: string;
+      validTypes?: string[];
+      /** True if the input should allow math modifiers like @abs. */
+      supportsMathModifiers?: boolean;
+    }
   | {
       input: "number";
       value?: number;
@@ -589,6 +597,13 @@ export type SettingsTreeFieldValue =
       /**
        * Optional placeholder text displayed in the field input when value is undefined
        */
+      placeholder?: string;
+    }
+  | {
+      // CoScene Custom
+      input: "multipleSelect";
+      value?: string | string[];
+      options: Array<{ label: string; value: undefined | string; disabled?: boolean }>;
       placeholder?: string;
     }
   | {

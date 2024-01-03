@@ -49,6 +49,7 @@ import {
   RosPackagePath,
   TimeFormat,
   TimezoneSettings,
+  AddTopicPrefix,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -269,6 +270,7 @@ export function AppSettingsDialog(
               <ColorSchemeSettings />
               <TimezoneSettings />
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
+              <AddTopicPrefix />
               <MessageFramerate />
               <LanguageSettings />
               {supportsAppUpdates && <AutoUpdate />}

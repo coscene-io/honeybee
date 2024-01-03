@@ -47,4 +47,8 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   selectRecordToSaveTheMoment: "选择存储一刻的记录",
   record: "记录",
   creationUnavailableInCurrentPeriod: "当前时间段不支持创建一刻",
+  moments: "一刻",
+  showMoments: "显示一刻",
+  filterMoments: "过滤一刻",
+  filterByRecord: "按记录过滤",
 };

@@ -46,4 +46,8 @@ export const cosEvent = {
   selectRecordToSaveTheMoment: "Select where to save the moment",
   record: "Record",
   creationUnavailableInCurrentPeriod: "The current time period does not support creating a moment",
+  moments: "Moments",
+  showMoments: "Show Moments",
+  filterMoments: "Filter Moments",
+  filterByRecord: "Filter by Record",
 };

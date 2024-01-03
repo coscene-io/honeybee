@@ -259,12 +259,19 @@ class CoSceneConsoleApi {
   #bffUrl: string;
   #authHeader?: string;
   #responseObserver: undefined | ((response: Response) => void);
+  #addTopicPrefix: string;
   public coSceneContext: CoSceneContext;
 
-  public constructor(baseUrl: string, bffUrl: string, coSceneContext?: CoSceneContext) {
+  public constructor(
+    baseUrl: string,
+    bffUrl: string,
+    addTopicPrefix: string,
+    coSceneContext?: CoSceneContext,
+  ) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
     this.coSceneContext = coSceneContext ?? {};
+    this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
   }
 
   public getBaseUrl(): string {
@@ -277,6 +284,14 @@ class CoSceneConsoleApi {
 
   public getAuthHeader(): string | undefined {
     return this.#authHeader;
+  }
+
+  public getAddTopicPrefix(): string {
+    return this.#addTopicPrefix;
+  }
+
+  public setAddTopicPrefix(prefix: string): void {
+    this.#addTopicPrefix = prefix;
   }
 
   public setResponseObserver(observer: undefined | ((response: Response) => void)): void {
@@ -425,7 +440,7 @@ class CoSceneConsoleApi {
     };
     const fullConfig: RequestInit = {
       ...config,
-      headers: { ...headers, ...config?.headers },
+      headers: { ...headers, ...config?.headers, usePrefix: this.#addTopicPrefix },
     };
 
     const res = await fetch(fullUrl, fullConfig);
@@ -493,8 +508,12 @@ class CoSceneConsoleApi {
     const topics = await this.#post<topicInterfaceReturns>(
       "/v1/data/getMetadata",
       {
-        files: params.files,
-        jobRuns: params.jobRuns,
+        files: params.files.map((path) => ({
+          path,
+        })),
+        jobRuns: params.jobRuns.map((path) => ({
+          path,
+        })),
       },
       undefined,
     );
@@ -530,8 +549,12 @@ class CoSceneConsoleApi {
     return await this.#post<getPlaylistResponse>(
       "/v1/data/getPlaylist",
       {
-        jobRuns,
-        files,
+        jobRuns: jobRuns.map((path) => ({
+          path,
+        })),
+        files: files.map((path) => ({
+          path,
+        })),
       },
       undefined,
     );

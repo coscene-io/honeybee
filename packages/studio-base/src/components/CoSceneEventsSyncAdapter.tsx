@@ -30,6 +30,7 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { SingleFileGetEventsRequest } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
 const HOVER_TOLERANCE = 0.01;
 
@@ -39,9 +40,17 @@ function positionEvents(
   events: Event[],
   startTime: Time,
   endTime: Time,
+  color: string,
 ): TimelinePositionedEvent[] {
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
+
+  events.sort((a, b) => {
+    if (!a.triggerTime || !b.triggerTime) {
+      return 0;
+    }
+    return Number(a.triggerTime.seconds - b.triggerTime.seconds);
+  });
 
   return events.map((event) => {
     if (!event.triggerTime) {
@@ -66,6 +75,7 @@ function positionEvents(
       startPosition,
       time: startTimeInSeconds,
       secondsSinceStart: startTimeInSeconds - startSecs,
+      color,
     };
   });
 }
@@ -112,6 +122,7 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
 
     if (!bagFiles.loading && bagFiles.value && bagFiles.value.length > 0) {
       const getEventsRequest: SingleFileGetEventsRequest[] = [];
+      let color = "#ffffff";
 
       bagFiles.value.forEach((bagFile) => {
         if (!bagFile.startTime || !bagFile.endTime) {
@@ -139,7 +150,10 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
         } else {
           const projectName = fileSource.split("/records/")[0];
           const revisionSha256 = fileSource.split("/revisions/")[1]?.split("/files/")[0];
+          const recordId = fileSource.split("/records/")[1]?.split("/revisions/")[0];
           const filter = `revision.sha256="${revisionSha256}"`;
+
+          color = stringToColor(recordId ?? "");
 
           if (projectName == undefined) {
             throw new Error("wrong source name");
@@ -157,7 +171,10 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
       if (startTime && endTime) {
         try {
           const eventList = await consoleApi.getEvents({ fileList: getEventsRequest });
-          setEvents({ loading: false, value: positionEvents(eventList, startTime, endTime) });
+          setEvents({
+            loading: false,
+            value: positionEvents(eventList, startTime, endTime, color),
+          });
         } catch (error) {
           log.error(error);
           setEvents({ loading: false, error });
