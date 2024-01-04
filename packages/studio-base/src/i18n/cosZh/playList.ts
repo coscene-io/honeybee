@@ -15,4 +15,6 @@ export const cosPlaylist: Partial<TypeOptions["resources"]["cosPlaylist"]> = {
   selectedFilesCount: "已选择：{{count}}个文件",
   selecteFilesFromRecord: "从记录中选择文件",
   duplicateFile: "该文件与文件{{filename}}是同一文件",
+  deleteConfirmTitle: "删除文件",
+  deleteConfirmPrompt: "确定要删除文件{{filename}}吗？",
 };

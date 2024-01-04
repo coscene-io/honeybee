@@ -26,6 +26,7 @@ import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { BagView } from "./BagView";
@@ -73,6 +74,7 @@ export function Playlist(): JSX.Element {
   const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
   const { t } = useTranslation("cosPlaylist");
+  const [confirm, confirmModal] = useConfirm();
 
   const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);
   const hoveredBag = useTimelineInteractionState(selectHoverBag);
@@ -208,6 +210,7 @@ export function Playlist(): JSX.Element {
               onClick={onClick}
               onHoverStart={onHoverStart}
               onHoverEnd={onHoverEnd}
+              confirm={confirm}
             />
           );
         })}
@@ -223,6 +226,7 @@ export function Playlist(): JSX.Element {
         }}
         type="files"
       />
+      {confirmModal}
     </Stack>
   );
 }

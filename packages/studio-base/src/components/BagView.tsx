@@ -8,6 +8,7 @@ import { alpha } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
 import * as _ from "lodash-es";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -19,6 +20,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { ParamsFile, BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) => ({
@@ -124,9 +126,14 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     right: theme.spacing(2),
     padding: theme.spacing(0.5),
   },
+  bagFileName: {
+    color: theme.palette.text.primary,
+  },
 }));
 
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+
+const checkIsLogFile = (bag: BagFileInfo) => bag.displayName.endsWith(".log");
 
 function BagViewComponent(params: {
   bag: BagFileInfo;
@@ -137,17 +144,30 @@ function BagViewComponent(params: {
   onClick: (bag: BagFileInfo) => void;
   onHoverStart: (bag: BagFileInfo) => void;
   onHoverEnd: (bag: BagFileInfo) => void;
+  confirm: confirmTypes;
 }) {
-  const { bag, filter, isHovered, isCurrent, updateUrl, onClick, onHoverStart, onHoverEnd } =
-    params;
+  const {
+    bag,
+    filter,
+    isHovered,
+    isCurrent,
+    updateUrl,
+    onClick,
+    onHoverStart,
+    onHoverEnd,
+    confirm,
+  } = params;
   const { classes, cx } = useStyles();
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosPlaylist");
+  const [boxIsHovered, setBoxIsHovered] = useState<boolean>(false);
   const urlState = useMessagePipeline(selectUrlState);
+
+  const isLogFile = checkIsLogFile(bag);
 
   const files: ParamsFile[] = JSON.parse(urlState?.parameters?.files ?? "{}");
 
-  const deleteBag = () => {
+  const deleteBag = useCallback(() => {
     const newFiles = files.filter((file) => {
       if ("filename" in file) {
         return file.filename !== bag.name;
@@ -172,21 +192,44 @@ function BagViewComponent(params: {
     }
 
     location.reload();
-  };
+  }, [bag.name, files, updateUrl, urlState]);
+
+  const onDeleteBag = useCallback(async () => {
+    const response = await confirm({
+      title: t("deleteConfirmTitle"),
+      prompt: t("deleteConfirmPrompt", {
+        filename: bag.displayName,
+      }),
+      ok: t("delete", {
+        ns: "cosGeneral",
+      }),
+      cancel: t("cancel", {
+        ns: "cosGeneral",
+      }),
+      variant: "danger",
+    });
+    if (response !== "ok") {
+      return;
+    }
+
+    deleteBag();
+  }, [confirm, bag, deleteBag, t]);
 
   return (
     <div
       className={cx(classes.bagBox, {
-        [classes.unableToPlay]: !bag.startTime,
+        [classes.unableToPlay]: !bag.startTime && !isLogFile,
       })}
       onClick={() => {
         onClick(bag);
       }}
       onMouseEnter={() => {
         onHoverStart(bag);
+        setBoxIsHovered(true);
       }}
       onMouseLeave={() => {
         onHoverEnd(bag);
+        setBoxIsHovered(false);
       }}
     >
       <div className={classes.bagInfo}>
@@ -200,23 +243,29 @@ function BagViewComponent(params: {
               [classes.hiddenBarChartIcon]: !isCurrent,
             })}
           />
-          <HighlightedText text={bag.displayName} highlight={filter} />
+          {isLogFile ? (
+            <span className={classes.bagFileName}>{bag.displayName}</span>
+          ) : (
+            <HighlightedText text={bag.displayName} highlight={filter} />
+          )}
         </span>
         <span
           className={cx(classes.bagStartTime, {
             [classes.isCurrentBag]: isCurrent || isHovered,
           })}
         >
-          <HighlightedText
-            text={
-              bag.startTime
-                ? `${dayjs(toDate(bag.startTime)).format("YYYY-MM-DD")} ${formatTime(
-                    bag.startTime,
-                  )}`
-                : "-"
-            }
-            highlight={filter}
-          />
+          {!isLogFile && (
+            <HighlightedText
+              text={
+                bag.startTime
+                  ? `${dayjs(toDate(bag.startTime)).format("YYYY-MM-DD")} ${formatTime(
+                      bag.startTime,
+                    )}`
+                  : "-"
+              }
+              highlight={filter}
+            />
+          )}
         </span>
       </div>
       {bag.startTime && bag.endTime && (
@@ -240,11 +289,10 @@ function BagViewComponent(params: {
         </Tooltip>
       )}
       <Clear
-        className={cx({
-          [classes.hideDeleteButton]: !isHovered,
-          [classes.deleteButton]: isHovered,
+        className={cx(classes.deleteButton, {
+          [classes.hideDeleteButton]: !boxIsHovered,
         })}
-        onClick={deleteBag}
+        onClick={onDeleteBag}
       />
     </div>
   );
