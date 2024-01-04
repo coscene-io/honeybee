@@ -15,4 +15,6 @@ export const cosPlaylist = {
   selectedFilesCount: "Selected: {{count}} files",
   selecteFilesFromRecord: "Select files from record",
   duplicateFile: "This file is the same file as file {{filename}}",
+  deleteConfirmTitle: "Delete file",
+  deleteConfirmPrompt: "Are you sure you want to delete file {{filename}}?",
 };
