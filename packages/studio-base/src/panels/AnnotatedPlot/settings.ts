@@ -192,7 +192,6 @@ function buildSettingsTree(
           input: "multipleSelect",
           value: config.selectRecords,
           options: selectRecordsOptions,
-          placeholder: "test",
         },
         momentsFilter: {
           label: t("filterMoments", {
@@ -237,7 +236,7 @@ function buildSettingsTree(
           value: config.showYAxisLabels,
         },
         minYValue: {
-          label: "test",
+          label: t("min"),
           input: "number",
           value: config.minYValue != undefined ? Number(config.minYValue) : undefined,
           placeholder: "auto",
