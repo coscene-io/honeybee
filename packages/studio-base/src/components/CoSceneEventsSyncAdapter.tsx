@@ -19,6 +19,7 @@ import {
   CoScenePlaylistStore,
   usePlaylist,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   EventsStore,
   TimelinePositionedEvent,
@@ -38,6 +39,8 @@ const log = Logger.getLogger(__filename);
 
 function positionEvents(
   events: Event[],
+  bagFiles: readonly BagFileInfo[],
+  timeMode: "relativeTime" | "absoluteTime",
   startTime: Time,
   endTime: Time,
   color: string,
@@ -56,10 +59,26 @@ function positionEvents(
     if (!event.triggerTime) {
       throw new Error("Event does not have a trigger time");
     }
-    const eventStartTime = fromNanoSec(
+
+    const bagFile = bagFiles.find((file) => {
+      if (!file.startTime || !file.endTime) {
+        return false;
+      }
+      if (file.name.includes(event.record)) {
+        return true;
+      }
+      return false;
+    });
+
+    let eventStartTime = fromNanoSec(
       event.triggerTime.seconds * BigInt(1e9) + event.triggerTime.seconds,
     );
-    const eventEndTime = add(eventStartTime, fromNanoSec(BigInt(event.duration * 1e9)));
+    let eventEndTime = add(eventStartTime, fromNanoSec(BigInt(event.duration * 1e9)));
+
+    if (timeMode === "relativeTime" && bagFile?.startTime != undefined) {
+      eventStartTime = subtract(eventStartTime, bagFile.startTime);
+      eventEndTime = subtract(eventEndTime, bagFile.startTime);
+    }
 
     const startTimeInSeconds = toSec(eventStartTime);
     const endTimeInSeconds = toSec(eventEndTime);
@@ -111,6 +130,12 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
 
     return toSec(subtract(endTime, startTime));
   }, [endTime, startTime]);
+
+  const timeMode = useMemo(() => {
+    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
+      ? "relativeTime"
+      : "absoluteTime";
+  }, []);
 
   // const currentUserPresent = currentUser != undefined;
 
@@ -173,7 +198,7 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
           const eventList = await consoleApi.getEvents({ fileList: getEventsRequest });
           setEvents({
             loading: false,
-            value: positionEvents(eventList, startTime, endTime, color),
+            value: positionEvents(eventList, bagFiles.value, timeMode, startTime, endTime, color),
           });
         } catch (error) {
           log.error(error);
@@ -181,7 +206,7 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
         }
       }
     }
-  }, [bagFiles.loading, bagFiles.value, startTime, endTime, consoleApi, setEvents]);
+  }, [bagFiles.loading, bagFiles.value, startTime, endTime, consoleApi, timeMode, setEvents]);
 
   useEffect(() => {
     syncEvents().catch((error) => {
