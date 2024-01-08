@@ -203,8 +203,8 @@ export async function* streamMessages({
         // Include the version of studio in the request Useful when scraping logs to determine what
         // versions of the app are making requests.
         "Content-Type": "application/json",
-        usePrefix: api.getAddTopicPrefix(),
-        playbackQualityLevel: params.playbackQualityLevel,
+        "Topic-Prefix": api.getAddTopicPrefix(),
+        "Playback-Quality-Level": params.playbackQualityLevel,
         Authorization: params.authHeader.replace(/(^\s*)|(\s*$)/g, ""),
         ProjectName: params.projectName ?? "",
       },

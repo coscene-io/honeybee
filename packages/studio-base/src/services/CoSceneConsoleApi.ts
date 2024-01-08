@@ -440,7 +440,7 @@ class CoSceneConsoleApi {
     };
     const fullConfig: RequestInit = {
       ...config,
-      headers: { ...headers, ...config?.headers, usePrefix: this.#addTopicPrefix },
+      headers: { ...headers, ...config?.headers, "Topic-Prefix": this.#addTopicPrefix },
     };
 
     const res = await fetch(fullUrl, fullConfig);
