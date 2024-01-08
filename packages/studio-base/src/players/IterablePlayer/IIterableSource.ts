@@ -209,6 +209,7 @@ export type IterableSourceInitializeArgs = {
     baseUrl: string;
     bffUrl: string;
     addTopicPrefix: string;
+    timeMode: "relativeTime" | "absoluteTime";
     auth?: string;
   };
   coSceneContext?: CoSceneContext;

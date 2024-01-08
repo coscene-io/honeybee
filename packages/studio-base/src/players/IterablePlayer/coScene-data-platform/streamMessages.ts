@@ -48,6 +48,7 @@ export type StreamParams = {
 interface StreamMessageApi {
   getStreamUrl: CoSceneConsoleApi["getStreamUrl"];
   getAddTopicPrefix: CoSceneConsoleApi["getAddTopicPrefix"];
+  getTimeMode: CoSceneConsoleApi["getTimeMode"];
 }
 
 export async function* streamMessages({
@@ -205,6 +206,7 @@ export async function* streamMessages({
         "Content-Type": "application/json",
         "Topic-Prefix": api.getAddTopicPrefix(),
         "Playback-Quality-Level": params.playbackQualityLevel,
+        "Relative-Time": api.getTimeMode() === "relativeTime" ? "true" : "false",
         Authorization: params.authHeader.replace(/(^\s*)|(\s*$)/g, ""),
         ProjectName: params.projectName ?? "",
       },

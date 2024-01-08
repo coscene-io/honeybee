@@ -10,4 +10,6 @@ export const cosSettings: Partial<TypeOptions["resources"]["cosSettings"]> = {
   original: "原始值",
   quality: "画质",
   willTakeEffectOnTheNextStartup: "将在下次启动时生效",
+  relativeTime: "相对时间",
+  absoluteTime: "绝对时间",
 };
