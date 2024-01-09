@@ -1754,13 +1754,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/coscene@npm:0.3.120":
-  version: 0.3.120
-  resolution: "@coscene-io/coscene@npm:0.3.120::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.3.120%2F7858294d277ddeaeb4a58f7fbf5c676745cf9680"
+"@coscene-io/coscene@npm:0.3.122":
+  version: 0.3.122
+  resolution: "@coscene-io/coscene@npm:0.3.122::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.3.122%2F6400903dbc95ec478a17446fe839516ff3f8b09a"
   dependencies:
-    "@coscene-io/cosceneapis": 0.0.348
-    "@coscene-io/cosel": 23.20.0
-    "@tanstack/react-query": 4.33.0
+    "@coscene-io/cosceneapis": 0.0.389
+    "@coscene-io/cosel": 23.50.0
+    "@tanstack/react-query": 5.8.4
     ahooks: 3.7.8
     i18next: 22.5.0
     lodash: 4.17.21
@@ -1770,24 +1770,24 @@ __metadata:
     "@types/google-protobuf": 3.15.6
     google-protobuf: 3.21.2
     grpc-web: 1.4.2
-  checksum: e9ecc65442a240889a792947af643da9b232d00a74515cf4f73174f52910c0ff8a5e26d6ff7f69f35999fbaf9087093f2ee5ba149d51db4163125a1947e08474
+  checksum: 80604464f846689f89b1db8522c3cb00f5af07989488ae4d8494855bbaed775d8b34e5449a1b17cbd193bb0a62f4693e3345cb30dfc70be2cf1eb814409e2798
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis-es@npm:0.0.101":
-  version: 0.0.101
-  resolution: "@coscene-io/cosceneapis-es@npm:0.0.101::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es%2F0.0.101%2Fb6e5db16f683bf57c13829d634705f2ba87a2ad8"
+"@coscene-io/cosceneapis-es@npm:0.0.141":
+  version: 0.0.141
+  resolution: "@coscene-io/cosceneapis-es@npm:0.0.141::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es%2F0.0.141%2F54bd365b84f9fdedfde5cd860943ba96d3931fea"
   dependencies:
     "@buf/coscene-io_argo-workflows-apis.bufbuild_es": 1.2.0-20230525123417-60301f3766e7.1
     "@buf/coscene-io_kubernetes-apis.bufbuild_es": 1.2.0-20230525122111-b678ebd95a88.1
     "@buf/googleapis_googleapis.bufbuild_es": 1.2.0-20230502210827-cc916c318597.1
-  checksum: b3104b4ccd0aa2a941d0f36de6f18efc2895762f299ce4d4215cc4ea654009c431067919dc6b7cabbf421f6ab61b1f9277d945a495f858bbca67e8e1df0d46ed
+  checksum: fd755fd7508dc206abcbf785e216f0999fb5df72544b88a131d4e110af6c753ba670a7606d56281916f81548338ea524ad0740b40a63593d296944f0e26ea96c
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis@npm:0.0.348":
-  version: 0.0.348
-  resolution: "@coscene-io/cosceneapis@npm:0.0.348::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.348%2Fbfa9614a2d5aa68c3e11e86fb2cf61a47b9b70ba"
+"@coscene-io/cosceneapis@npm:0.0.389":
+  version: 0.0.389
+  resolution: "@coscene-io/cosceneapis@npm:0.0.389::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.389%2F73fe45a2b7c5fff59aee32d52ba70872fe0fce22"
   dependencies:
     "@buf/coscene-io_argo-workflows-apis.grpc_web": 1.4.2-20230525123417-60301f3766e7.2
     "@buf/coscene-io_kubernetes-apis.grpc_web": 1.4.2-20230525122111-b678ebd95a88.2
@@ -1796,14 +1796,7 @@ __metadata:
     "@types/google-protobuf": 3.15.6
     google-protobuf: 3.21.2
     grpc-web: 1.4.2
-  checksum: 567621cf14cf9fb8b265394058850da4d08fed66ba7ca559a6257de1b9d4fbdf8cac695d363d6fe1d2ae86cf431a69b961c84900c6fa6d843b76727e9958822e
-  languageName: node
-  linkType: hard
-
-"@coscene-io/cosel@npm:23.20.0":
-  version: 23.20.0
-  resolution: "@coscene-io/cosel@npm:23.20.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosel%2F23.20.0%2F0741d84f6331c92b039bc176a18a984958381198"
-  checksum: 86a215a5815f8da4afda90d6647c4fe4877a3f177d7d9bb4be1c37835d035ab1ddee3706bf75b0e1ab52334115c6d6c0137b1808b35232eca3773c2c6bc4b9ff
+  checksum: d63fd757b0374224b2715685b3029ce413617c7efb40c2acdce2c0640e1d2fef3ab64c6e75bc6782ee1fb2da69aa3160cb2e9e5eb3b3791aa24a0c281a97e7fc
   languageName: node
   linkType: hard
 
@@ -1811,6 +1804,13 @@ __metadata:
   version: 23.49.2
   resolution: "@coscene-io/cosel@npm:23.49.2::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosel%2F23.49.2%2Fc14bdc8f4226ed187a0c339fb8f989f5e49b845b"
   checksum: d69448a65574efc452f4d7ec0fe0b448fbed99a7d562426ce03f2859f6a8359152e8d34a76e6beaa5e974a74935030fa679a51491dec8dd7f36d32bd038f1316
+  languageName: node
+  linkType: hard
+
+"@coscene-io/cosel@npm:23.50.0":
+  version: 23.50.0
+  resolution: "@coscene-io/cosel@npm:23.50.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosel%2F23.50.0%2Fbf7fe88703f25f159f55913a2efe1193b25fb37c"
+  checksum: 6cb98515ecc3fc6be418a86060bc1947d2a4cfb4ab73881dec8c21895bbdc44984666ac7b8ca262052f6bb085f5906ccf2fea65359c7c19f522d111e58058f6d
   languageName: node
   linkType: hard
 
@@ -2696,8 +2696,8 @@ __metadata:
     "@bufbuild/connect": 0.13.0
     "@bufbuild/connect-web": 0.13.0
     "@bufbuild/protobuf": 1.3.0
-    "@coscene-io/coscene": 0.3.120
-    "@coscene-io/cosceneapis-es": 0.0.101
+    "@coscene-io/coscene": 0.3.122
+    "@coscene-io/cosceneapis-es": 0.0.141
     "@coscene-io/cosel": 23.49.2
     "@emotion/cache": 11.11.0
     "@emotion/react": 11.11.1
@@ -6090,29 +6090,28 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tanstack/query-core@npm:4.33.0":
-  version: 4.33.0
-  resolution: "@tanstack/query-core@npm:4.33.0"
-  checksum: fae325f1d79b936435787797c32367331d5b8e9c5ced84852bf2085115e3aafef57a7ae530a6b0af46da4abafb4b0afaef885926b71715a0e6f166d74da61c7f
+"@tanstack/query-core@npm:5.8.3":
+  version: 5.8.3
+  resolution: "@tanstack/query-core@npm:5.8.3"
+  checksum: 65ce30fcae252a18b9cb8ffb64a6f2d6361de1f0f9b9481dd9b42b8387ebeffe30c48add26aa2d4ed0a36b23ac5f1a872fdf3afbe2fb84deca3f07cca2152888
   languageName: node
   linkType: hard
 
-"@tanstack/react-query@npm:4.33.0":
-  version: 4.33.0
-  resolution: "@tanstack/react-query@npm:4.33.0"
+"@tanstack/react-query@npm:5.8.4":
+  version: 5.8.4
+  resolution: "@tanstack/react-query@npm:5.8.4"
   dependencies:
-    "@tanstack/query-core": 4.33.0
-    use-sync-external-store: ^1.2.0
+    "@tanstack/query-core": 5.8.3
   peerDependencies:
-    react: ^16.8.0 || ^17.0.0 || ^18.0.0
-    react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0
+    react: ^18.0.0
+    react-dom: ^18.0.0
     react-native: "*"
   peerDependenciesMeta:
     react-dom:
       optional: true
     react-native:
       optional: true
-  checksum: b3cf4afa427435e464e077b3f23c891e38e5f78873518f15c1d061ad55f1464d6241ecd92d796a5dbc9412b4fd7eb30b01f2a9cfc285ee9f30dfdd2ca0ecaf4b
+  checksum: da3b28244267577e70760661fd7726b14a0f6c4cc3a542dedd78c946cd2c657b95557ca6fc6f72de2c8140839c79b17d1cd4dcb264f93b3f491364d0ffa7c0ac
   languageName: node
   linkType: hard
 
@@ -21092,7 +21091,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"use-sync-external-store@npm:1.2.0, use-sync-external-store@npm:^1.2.0":
+"use-sync-external-store@npm:1.2.0":
   version: 1.2.0
   resolution: "use-sync-external-store@npm:1.2.0"
   peerDependencies:
