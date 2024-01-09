@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ReactRefreshPlugin from "@pmmmwh/react-refresh-webpack-plugin";
-import SentryWebpackPlugin from "@sentry/webpack-plugin";
+// import SentryWebpackPlugin from "@sentry/webpack-plugin";
 import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import CopyPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
