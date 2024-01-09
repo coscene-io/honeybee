@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ReactRefreshPlugin from "@pmmmwh/react-refresh-webpack-plugin";
-// import SentryWebpackPlugin from "@sentry/webpack-plugin";
+import SentryWebpackPlugin from "@sentry/webpack-plugin";
 import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import CopyPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
@@ -103,21 +103,24 @@ export const mainConfig =
     }
 
     // Source map upload if configuration permits
-    // if (!isDev) {
-    //   plugins.push(
-    //     new SentryWebpackPlugin({
-    //       url: "https://sentry.coscene.site/",
-    //       authToken: process.env.SENTRY_AUTH_TOKEN,
-    //       release:
-    //         process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
-    //           ? process.env.GITHUB_SHA
-    //           : process.env.IMAGE_TAG,
-    //       org: "coscene",
-    //       project: "honeybee-web",
-    //       include: path.resolve(__dirname, ".webpack"),
-    //     }),
-    //   );
-    // }
+    if (!isDev) {
+      plugins.push(
+        new SentryWebpackPlugin({
+          url: "https://sentry.coscene.site/",
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+          release:
+            process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
+              ? process.env.GITHUB_SHA
+              : process.env.IMAGE_TAG,
+          org: "coscene",
+          project: "honeybee-web",
+          include: path.resolve(__dirname, ".webpack"),
+          errorHandler: (err) => {
+            console.warn(err);
+          },
+        }),
+      );
+    }
 
     const appWebpackConfig = makeConfig(env, argv, {
       allowUnusedVariables,
