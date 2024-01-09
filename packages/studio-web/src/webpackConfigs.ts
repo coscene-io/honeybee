@@ -103,21 +103,21 @@ export const mainConfig =
     }
 
     // Source map upload if configuration permits
-    if (!isDev) {
-      plugins.push(
-        new SentryWebpackPlugin({
-          url: "https://sentry.coscene.site/",
-          authToken: process.env.SENTRY_AUTH_TOKEN,
-          release:
-            process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
-              ? process.env.GITHUB_SHA
-              : process.env.IMAGE_TAG,
-          org: "coscene",
-          project: "honeybee-web",
-          include: path.resolve(__dirname, ".webpack"),
-        }),
-      );
-    }
+    // if (!isDev) {
+    //   plugins.push(
+    //     new SentryWebpackPlugin({
+    //       url: "https://sentry.coscene.site/",
+    //       authToken: process.env.SENTRY_AUTH_TOKEN,
+    //       release:
+    //         process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
+    //           ? process.env.GITHUB_SHA
+    //           : process.env.IMAGE_TAG,
+    //       org: "coscene",
+    //       project: "honeybee-web",
+    //       include: path.resolve(__dirname, ".webpack"),
+    //     }),
+    //   );
+    // }
 
     const appWebpackConfig = makeConfig(env, argv, {
       allowUnusedVariables,
