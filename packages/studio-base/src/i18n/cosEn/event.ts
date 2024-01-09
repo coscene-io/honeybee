@@ -50,4 +50,7 @@ export const cosEvent = {
   showMoments: "Show Moments",
   filterMoments: "Filter Moments",
   filterByRecord: "Filter by Record",
+  photo: "Photo",
+  addPhoto: "Add Photo",
+  maxFilesNumber: "Select at most {{maxFilesNumber}} file",
 };
