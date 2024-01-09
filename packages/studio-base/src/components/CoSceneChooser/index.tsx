@@ -33,6 +33,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { useCallback, useState, useMemo, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -54,6 +55,10 @@ const SupportedFileTypes = [
   "application/vnd.mcap",
 ];
 
+const checkBagFileSupported = (file: File) => {
+  return !!(file.mediaStorageUri && SupportedFileTypes.includes(file.mediaType));
+};
+
 type ChooserDialogProps =
   | {
       open: boolean;
@@ -61,13 +66,18 @@ type ChooserDialogProps =
       onConfirm: (files: Record) => void;
       backdropAnimation?: boolean;
       type: "record";
+      // adapter files type
+      checkFileSupportedFunc?: undefined;
+      maxFilesNumber?: undefined;
     }
   | {
       open: boolean;
       closeDialog: () => void;
       onConfirm: (files: SelectedFile[]) => void;
       backdropAnimation?: boolean;
+      checkFileSupportedFunc?: (file: File) => boolean;
       type: "files";
+      maxFilesNumber?: number;
     };
 
 type SelectedFile = {
@@ -241,11 +251,13 @@ function ChooserComponent({
   type,
   files,
   setFiles,
+  checkFileSupportedFunc,
 }: {
   setTargetRecordName: (recordName?: Record) => void;
   files: SelectedFile[];
   setFiles: (files: SelectedFile[]) => void;
   type: "record" | "files";
+  checkFileSupportedFunc: (file: File) => boolean;
 }) {
   const { classes } = useStyles();
   const { t } = useTranslation("cosGeneral");
@@ -498,9 +510,7 @@ function ChooserComponent({
           {listType === "files" && (
             <List>
               {filesList.value?.files.map((value) => {
-                const supportedImport = !!(
-                  value.mediaStorageUri && SupportedFileTypes.includes(value.mediaType)
-                );
+                const supportedImport = checkFileSupportedFunc(value);
 
                 const repeatFile = files.find(
                   (file) => file.file.sha256 === value.sha256 && file.file.name !== value.name,
@@ -584,7 +594,15 @@ function ChooserComponent({
 }
 
 function CoSceneChooser(props: ChooserDialogProps): JSX.Element {
-  const { backdropAnimation, open, closeDialog, onConfirm, type } = props;
+  const {
+    backdropAnimation,
+    open,
+    closeDialog,
+    onConfirm,
+    type,
+    checkFileSupportedFunc,
+    maxFilesNumber,
+  } = props;
   const { classes } = useStyles();
   const [targetRecordName, setTargetRecordName] = useState<Record | undefined>(undefined);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
@@ -600,6 +618,14 @@ function CoSceneChooser(props: ChooserDialogProps): JSX.Element {
     }
     return;
   }, [backdropAnimation]);
+
+  useEffect(() => {
+    if (maxFilesNumber != undefined && selectedFiles.length > maxFilesNumber) {
+      toast.error(t("maxFilesNumber", { maxFilesNumber, ns: "cosEvent" }));
+      const newFiles = selectedFiles.slice(0, maxFilesNumber);
+      setSelectedFiles(newFiles);
+    }
+  }, [maxFilesNumber, selectedFiles, t]);
 
   const onModalClose = useCallback(() => {
     setSelectedFiles([]);
@@ -637,6 +663,7 @@ function CoSceneChooser(props: ChooserDialogProps): JSX.Element {
             files={selectedFiles}
             setFiles={setSelectedFiles}
             type={type}
+            checkFileSupportedFunc={checkFileSupportedFunc ?? checkBagFileSupported}
           />
           <FilesList files={selectedFiles} setFiles={setSelectedFiles} />
         </Stack>
@@ -650,10 +677,13 @@ function CoSceneChooser(props: ChooserDialogProps): JSX.Element {
             onClick={() => {
               if (type === "files") {
                 onConfirm(selectedFiles);
+                setSelectedFiles([]);
+                closeDialog();
                 return;
               }
               if (targetRecordName != undefined) {
                 onConfirm(targetRecordName);
+                closeDialog();
               }
             }}
             variant="contained"

@@ -51,4 +51,7 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   showMoments: "显示一刻",
   filterMoments: "过滤一刻",
   filterByRecord: "按记录过滤",
+  photo: "照片",
+  addPhoto: "添加照片",
+  maxFilesNumber: "最多选择{{maxFilesNumber}}个文件",
 };
