@@ -224,6 +224,7 @@ function PlotLegendComponent(props: Props): JSX.Element {
     (value: string) => {
       const newPaths: SettingsPlotPath[] = [];
       for (const path of originalPaths) {
+        let isMatched = false;
         for (const line of path.lines) {
           if (line.value === value) {
             newPaths.push({
@@ -234,13 +235,14 @@ function PlotLegendComponent(props: Props): JSX.Element {
                 ...path.lines.slice(path.lines.indexOf(line) + 1),
               ],
             });
+            isMatched = true;
             break;
-          } else {
-            newPaths.push(path);
           }
         }
+        if (!isMatched) {
+          newPaths.push(path);
+        }
       }
-
       saveConfig({ paths: newPaths });
     },
     [originalPaths, saveConfig],

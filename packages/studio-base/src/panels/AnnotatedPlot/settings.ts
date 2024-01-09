@@ -346,6 +346,27 @@ export function usePlotPanelSettings(
       }));
   }, [bagFiles.value]);
 
+  useEffect(() => {
+    if (topicNames.length > 0) {
+      saveConfig(
+        produce((draft) => {
+          config.paths.forEach((path, index) => {
+            const value = path.value;
+            const matchingTopicNames = matchingFields(value, topicNames);
+            draft.paths[index].lines = matchingTopicNames.map((topicName) => {
+              return {
+                ...DEFAULT_PLOT_LINE,
+                value: `"${topicName}".${value.split(".")[1]}`,
+                label: `"${topicName}".${value.split(".")[1]}`,
+              };
+            });
+          });
+        }),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topicNames]);
+
   const actionHandler = useCallback(
     (action: SettingsTreeAction) => {
       if (action.action === "update") {
