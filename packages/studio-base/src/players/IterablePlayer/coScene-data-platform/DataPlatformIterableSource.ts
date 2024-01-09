@@ -40,7 +40,7 @@ const log = Logger.getLogger(__filename);
  */
 export type DataPlatformInterableSourceConsoleApi = Pick<
   CoSceneConsoleApi,
-  "topics" | "getDevice" | "getAuthHeader" | "getStreamUrl" | "getAddTopicPrefix"
+  "topics" | "getDevice" | "getAuthHeader" | "getStreamUrl" | "getAddTopicPrefix" | "getTimeMode"
 >;
 
 type DataPlatformSourceParameters = {
@@ -420,10 +420,16 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     singleRequestTime: singleRequestTime ?? 5,
   };
 
-  const consoleApi = new CoSceneConsoleApi(api.baseUrl, api.bffUrl, api.addTopicPrefix, {
-    ...coSceneContext,
-    currentUserId: userId,
-  });
+  const consoleApi = new CoSceneConsoleApi(
+    api.baseUrl,
+    api.bffUrl,
+    api.addTopicPrefix,
+    api.timeMode,
+    {
+      ...coSceneContext,
+      currentUserId: userId,
+    },
+  );
 
   if (api.auth) {
     consoleApi.setAuthHeader(api.auth);

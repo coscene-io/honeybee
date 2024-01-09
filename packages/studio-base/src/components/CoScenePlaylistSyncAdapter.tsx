@@ -41,6 +41,7 @@ function positionBag({
   recordName,
   currentFileStartTime,
   currentFileEndTime,
+  timeMode,
 }: {
   source: string;
   displayName: string;
@@ -51,6 +52,7 @@ function positionBag({
   projectName: string;
   recordName: string;
   fileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
+  timeMode: "relativeTime" | "absoluteTime";
 }): BagFileInfo {
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
@@ -61,8 +63,14 @@ function positionBag({
   const startTimeInSeconds = toSec(bagFileStartTime);
   const endTimeInSeconds = toSec(bagFileEndTime);
 
-  const startPosition = scale(startTimeInSeconds, startSecs, endSecs, 0, 1);
-  const endPosition = scale(endTimeInSeconds, startSecs, endSecs, 0, 1);
+  const startPosition =
+    timeMode === "absoluteTime"
+      ? scale(startTimeInSeconds, startSecs, endSecs, 0, 1)
+      : scale(0, startSecs, endSecs, 0, 1);
+  const endPosition =
+    timeMode === "absoluteTime"
+      ? scale(endTimeInSeconds, startSecs, endSecs, 0, 1)
+      : scale(endTimeInSeconds - startTimeInSeconds, startSecs, endSecs, 0, 1);
 
   return {
     startTime: bagFileStartTime,
@@ -105,6 +113,12 @@ export function PlaylistSyncAdapter(): ReactNull {
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
   const seek = useMessagePipeline(selectSeek);
+
+  const timeMode = useMemo(() => {
+    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
+      ? "relativeTime"
+      : "absoluteTime";
+  }, []);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -174,6 +188,7 @@ export function PlaylistSyncAdapter(): ReactNull {
               endTime,
               currentFileStartTime: ele.startTime,
               currentFileEndTime: ele.endTime,
+              timeMode,
             }),
           );
         });
@@ -245,6 +260,7 @@ export function PlaylistSyncAdapter(): ReactNull {
     setBagFiles,
     startTime,
     endTime,
+    timeMode,
   ]);
 
   useEffect(() => {

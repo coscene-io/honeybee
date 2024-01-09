@@ -42,6 +42,7 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import CoScenePlabackTimeMode from "@foxglove/studio-base/components/PlaybackControls/CoScenePlabackTimeMode";
 import PlaybackQualityControls from "@foxglove/studio-base/components/PlaybackControls/PlaybackQualityControls";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -304,6 +305,7 @@ export default function PlaybackControls(props: {
             />
             <PlaybackSpeedControls />
             <PlaybackQualityControls />
+            <CoScenePlabackTimeMode />
           </Stack>
         </Stack>
         {createEventDialogOpen && <CreateEventDialog onClose={toggleCreateEventDialog} />}
