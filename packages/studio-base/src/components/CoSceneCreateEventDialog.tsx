@@ -26,7 +26,7 @@ import {
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
-import { useCallback, useState, useRef, useEffect } from "react";
+import { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
@@ -34,7 +34,7 @@ import { keyframes } from "tss-react";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
-import { toDate, isLessThan, isGreaterThan } from "@foxglove/rostime";
+import { toDate, isLessThan, subtract, isGreaterThan, add } from "@foxglove/rostime";
 import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
 import {
   MessagePipelineContext,
@@ -99,15 +99,27 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const { t } = useTranslation("cosEvent");
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
   const bagFiles = usePlaylist(selectBagFiles);
-  const passingFile = bagFiles.value?.filter(
-    (bag) =>
-      bag.startTime != undefined &&
-      bag.endTime != undefined &&
+  const timeMode = useMemo(() => {
+    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
+      ? "relativeTime"
+      : "absoluteTime";
+  }, []);
+
+  const passingFile = bagFiles.value?.filter((bag) => {
+    if (bag.startTime == undefined || bag.endTime == undefined) {
+      return false;
+    }
+    const bagStartTime = timeMode === "absoluteTime" ? bag.startTime : { sec: 0, nsec: 0 };
+    const bagEndTime =
+      timeMode === "absoluteTime" ? bag.endTime : subtract(bag.endTime, bag.startTime);
+
+    return (
       bag.fileType !== "GHOST_RESULT_FILE" &&
       currentTime &&
-      isLessThan(bag.startTime, currentTime) &&
-      isGreaterThan(bag.endTime, currentTime),
-  );
+      isLessThan(bagStartTime, currentTime) &&
+      isGreaterThan(bagEndTime, currentTime)
+    );
+  });
 
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
@@ -131,6 +143,21 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     enabledCreateNewTask: false,
     fileName: passingFile?.[0]?.name ?? "",
   });
+
+  const currentFile = useMemo(() => {
+    return passingFile?.find((bag) => bag.name === event.fileName);
+  }, [passingFile, event.fileName]);
+
+  useEffect(() => {
+    setEvent((old) => ({
+      ...old,
+      startTime: currentTime
+        ? timeMode === "relativeTime"
+          ? toDate(add(currentTime, currentFile?.startTime ?? { sec: 0, nsec: 0 }))
+          : toDate(currentTime)
+        : undefined,
+    }));
+  }, [currentFile?.startTime, currentTime, setEvent, timeMode]);
 
   useEffect(() => {
     if (passingFile == undefined || passingFile.length === 0) {
@@ -313,7 +340,18 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     [setEvent],
   );
 
-  const formattedStartTime = currentTime ? formatTime(currentTime) : "-";
+  let formattedStartTime = currentTime ? formatTime(currentTime) : "-";
+  if (currentTime) {
+    if (timeMode === "relativeTime") {
+      formattedStartTime = formatTime(
+        add(currentTime, currentFile?.startTime ?? { sec: 0, nsec: 0 }),
+      );
+    } else {
+      formattedStartTime = formatTime(currentTime);
+    }
+  } else {
+    formattedStartTime = "-";
+  }
 
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(true);
 

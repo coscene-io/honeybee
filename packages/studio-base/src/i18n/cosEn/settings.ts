@@ -9,4 +9,6 @@ export const cosSettings = {
   original: "Original",
   quality: "Quality",
   willTakeEffectOnTheNextStartup: "Will take effect on the next startup",
+  relativeTime: "Relative Time",
+  absoluteTime: "Absolute Time",
 };

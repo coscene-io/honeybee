@@ -48,6 +48,7 @@ export type StreamParams = {
 interface StreamMessageApi {
   getStreamUrl: CoSceneConsoleApi["getStreamUrl"];
   getAddTopicPrefix: CoSceneConsoleApi["getAddTopicPrefix"];
+  getTimeMode: CoSceneConsoleApi["getTimeMode"];
 }
 
 export async function* streamMessages({
@@ -203,8 +204,9 @@ export async function* streamMessages({
         // Include the version of studio in the request Useful when scraping logs to determine what
         // versions of the app are making requests.
         "Content-Type": "application/json",
-        usePrefix: api.getAddTopicPrefix(),
-        playbackQualityLevel: params.playbackQualityLevel,
+        "Topic-Prefix": api.getAddTopicPrefix(),
+        "Playback-Quality-Level": params.playbackQualityLevel,
+        "Relative-Time": api.getTimeMode() === "relativeTime" ? "true" : "false",
         Authorization: params.authHeader.replace(/(^\s*)|(\s*$)/g, ""),
         ProjectName: params.projectName ?? "",
       },

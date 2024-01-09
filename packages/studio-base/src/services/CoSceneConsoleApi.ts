@@ -260,18 +260,29 @@ class CoSceneConsoleApi {
   #authHeader?: string;
   #responseObserver: undefined | ((response: Response) => void);
   #addTopicPrefix: string;
+  #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   public coSceneContext: CoSceneContext;
 
   public constructor(
     baseUrl: string,
     bffUrl: string,
     addTopicPrefix: string,
+    timeMode: "absoluteTime" | "relativeTime",
     coSceneContext?: CoSceneContext,
   ) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
     this.coSceneContext = coSceneContext ?? {};
     this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
+    this.#timeMode = timeMode;
+  }
+
+  public getTimeMode(): "absoluteTime" | "relativeTime" {
+    return this.#timeMode;
+  }
+
+  public setTimeMode(timeMode: "absoluteTime" | "relativeTime"): void {
+    this.#timeMode = timeMode;
   }
 
   public getBaseUrl(): string {
@@ -440,7 +451,12 @@ class CoSceneConsoleApi {
     };
     const fullConfig: RequestInit = {
       ...config,
-      headers: { ...headers, ...config?.headers, usePrefix: this.#addTopicPrefix },
+      headers: {
+        ...headers,
+        ...config?.headers,
+        "Topic-Prefix": this.#addTopicPrefix,
+        "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
+      },
     };
 
     const res = await fetch(fullUrl, fullConfig);
