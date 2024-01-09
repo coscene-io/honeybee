@@ -4,6 +4,7 @@
 
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Alert,
@@ -35,6 +36,7 @@ import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
 import { toDate, isLessThan, subtract, isGreaterThan, add } from "@foxglove/rostime";
+import CoSceneChooser from "@foxglove/studio-base/components/CoSceneChooser";
 import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
 import {
   MessagePipelineContext,
@@ -79,6 +81,11 @@ const useStyles = makeStyles()((theme, _params) => ({
     color: "#ff4d4f",
     marginRight: "3px",
   },
+  addFileButton: {
+    display: "flex",
+    gap: theme.spacing(0.5),
+    whiteSpace: "nowrap",
+  },
 }));
 
 type KeyValue = { key: string; value: string };
@@ -95,6 +102,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
   const { onClose } = props;
   const refreshEvents = useEvents(selectRefreshEvents);
   const currentTime = useMessagePipeline(selectCurrentTime);
+  const [imageUrl, setImageUrl] = useState<string>("");
 
   const { t } = useTranslation("cosEvent");
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
@@ -104,6 +112,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       ? "relativeTime"
       : "absoluteTime";
   }, []);
+  const [addPhotoDialogOpen, setAddPhotoDialogOpen] = useState<boolean>(false);
 
   const passingFile = bagFiles.value?.filter((bag) => {
     if (bag.startTime == undefined || bag.endTime == undefined) {
@@ -133,6 +142,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     metadataEntries: KeyValue[];
     enabledCreateNewTask: boolean;
     fileName: string;
+    imageFile?: File;
   }>({
     eventName: "",
     startTime: currentTime ? toDate(currentTime) : undefined,
@@ -251,6 +261,10 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
 
     if (revisionId) {
       newEvent.setRevision(revisionId);
+    }
+
+    if (event.imageFile) {
+      newEvent.setFilesList([event.imageFile.name]);
     }
 
     Object.keys(keyedMetadata).forEach((key) => {
@@ -443,6 +457,45 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
             />
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
+            <FormLabel>{t("photo")}</FormLabel>
+            {imageUrl && (
+              <Stack>
+                <img
+                  src={imageUrl}
+                  style={{
+                    maxHeight: "200px",
+                    objectFit: "contain",
+                  }}
+                />
+              </Stack>
+            )}
+            <Button
+              className={classes.addFileButton}
+              onClick={() => {
+                if (imageUrl) {
+                  setImageUrl("");
+                  setEvent((old) => ({ ...old, imageFile: undefined }));
+                } else {
+                  setAddPhotoDialogOpen(true);
+                }
+              }}
+            >
+              {imageUrl ? (
+                <>
+                  <DeleteForeverIcon />
+                  {t("delete", {
+                    ns: "cosGeneral",
+                  })}
+                </>
+              ) : (
+                <>
+                  <AddIcon />
+                  {t("addPhoto")}
+                </>
+              )}
+            </Button>
+          </Stack>
+          <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("metadata")}</FormLabel>
             <div className={classes.grid}>
               {event.metadataEntries.map(({ key, value }, index) => {
@@ -594,6 +647,32 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
           fileName={event.fileName}
         />
       )}
+      <CoSceneChooser
+        open={addPhotoDialogOpen}
+        closeDialog={() => {
+          setAddPhotoDialogOpen(false);
+        }}
+        onConfirm={async (files) => {
+          const file = files[0];
+          if (file == undefined) {
+            return;
+          }
+          const resp = await consoleApi.generateFileDownloadUrl(file.file);
+
+          const url = `${
+            resp.preSignedUrl
+          }&response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(
+            file.file.filename,
+          )}`;
+          setImageUrl(url);
+          setEvent((old) => ({ ...old, imageFile: file.file }));
+        }}
+        type="files"
+        checkFileSupportedFunc={(file) => {
+          return file.mediaType.startsWith("image");
+        }}
+        maxFilesNumber={1}
+      />
     </>
   );
 }
