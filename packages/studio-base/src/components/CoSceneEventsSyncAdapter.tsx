@@ -18,8 +18,8 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import {
   CoScenePlaylistStore,
   usePlaylist,
+  BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
-import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   EventsStore,
   TimelinePositionedEvent,
