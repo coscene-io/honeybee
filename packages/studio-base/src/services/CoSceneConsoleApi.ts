@@ -43,11 +43,11 @@ import {
   GetConfigMapRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
 import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_connect";
-import { GenerateFileDownloadUrlRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
-import { GenerateFileDownloadUrlResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
 import {
   ListFilesRequest,
   ListFilesResponse,
+  GenerateFileDownloadUrlRequest,
+  GenerateFileDownloadUrlResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
