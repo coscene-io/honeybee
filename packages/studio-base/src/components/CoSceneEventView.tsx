@@ -4,6 +4,7 @@
 
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import ShareIcon from "@mui/icons-material/Share";
 import { alpha, Alert, TextField } from "@mui/material";
 import Snackbar from "@mui/material/Snackbar";
@@ -14,6 +15,7 @@ import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import { toRFC3339String, fromDate } from "@foxglove/rostime";
+import { ToModifyEvent } from "@foxglove/studio-base/components/CoSceneCreateEventDialog";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
@@ -120,10 +122,20 @@ function EventViewComponent(params: {
   onClick: (event: TimelinePositionedEvent) => void;
   onHoverStart: (event: TimelinePositionedEvent) => void;
   onHoverEnd: (event: TimelinePositionedEvent) => void;
+  onEdit: (event: ToModifyEvent) => void;
   confirm: confirmTypes;
 }): JSX.Element {
-  const { event, filter, isHovered, isSelected, onClick, onHoverStart, onHoverEnd, confirm } =
-    params;
+  const {
+    event,
+    filter,
+    isHovered,
+    isSelected,
+    onClick,
+    onHoverStart,
+    onHoverEnd,
+    confirm,
+    onEdit,
+  } = params;
   const { classes, cx } = useStyles();
   const consoleApi = useConsoleApi();
   const refreshEvents = useEvents(selectRefreshEvents);
@@ -259,6 +271,25 @@ function EventViewComponent(params: {
     });
   };
 
+  const handleEditEvent = () => {
+    onEdit({
+      name: event.event.name,
+      eventName: event.event.displayName,
+      startTime: event.event.triggerTime?.toDate() ?? new Date(),
+      duration: event.event.duration,
+      durationUnit: "sec",
+      description: event.event.description,
+      metadataEntries: metadataMap.map(([key, value]: string[]) => {
+        return {
+          key: key ?? "",
+          value: value ?? "",
+        };
+      }),
+      enabledCreateNewTask: false,
+      fileName: "",
+    });
+  };
+
   return show ? (
     <div
       className={classes.eventBox}
@@ -282,6 +313,7 @@ function EventViewComponent(params: {
             e.stopPropagation();
           }}
         >
+          <EditIcon fontSize="small" onClick={handleEditEvent} />
           <ShareIcon fontSize="small" onClick={handleShareEvent} />
           <DeleteIcon fontSize="small" onClick={confirmDelete} />
         </div>
