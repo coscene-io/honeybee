@@ -24,6 +24,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
+import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
@@ -50,6 +51,19 @@ import {
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+
+export type ToModifyEvent = {
+  name: string;
+  eventName: string;
+  startTime: undefined | Date;
+  duration: undefined | number;
+  durationUnit: "sec" | "nsec";
+  description: undefined | string;
+  metadataEntries: KeyValue[];
+  enabledCreateNewTask: boolean;
+  fileName: string;
+  imageFile?: File;
+};
 
 const fadeInAnimation = keyframes`
   from {
@@ -94,12 +108,18 @@ const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 
-export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
+export function CreateEventDialog(props: {
+  onClose: () => void;
+  toModifyEvent?: ToModifyEvent;
+}): JSX.Element {
   const isDemoSite =
     localStorage.getItem("demoSite") === "true" &&
     localStorage.getItem("honeybeeDemoStatus") === "start";
 
-  const { onClose } = props;
+  const { onClose, toModifyEvent } = props;
+
+  const isEditing = toModifyEvent != undefined;
+
   const refreshEvents = useEvents(selectRefreshEvents);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const [imageUrl, setImageUrl] = useState<string>("");
@@ -153,6 +173,26 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     enabledCreateNewTask: false,
     fileName: passingFile?.[0]?.name ?? "",
   });
+
+  useEffect(() => {
+    if (toModifyEvent != undefined) {
+      setEvent((old) => ({
+        ...old,
+        eventName: toModifyEvent.eventName,
+        startTime: toModifyEvent.startTime,
+        duration: toModifyEvent.duration,
+        durationUnit: toModifyEvent.durationUnit,
+        description: toModifyEvent.description,
+        metadataEntries:
+          toModifyEvent.metadataEntries.length > 0
+            ? toModifyEvent.metadataEntries
+            : [{ key: "", value: "" }],
+        enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
+        fileName: toModifyEvent.fileName,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const currentFile = useMemo(() => {
     return passingFile?.find((bag) => bag.name === event.fileName);
@@ -303,6 +343,79 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
     }
   }, [consoleApi, event, onClose, refreshEvents, setTask, enqueueSnackbar, t]);
 
+  const [_editedEvent, editEvent] = useAsyncFn(async () => {
+    if (event.startTime == undefined || event.duration == undefined) {
+      return;
+    }
+
+    const filteredMeta = event.metadataEntries.filter(
+      (entry) => entry.key.length > 0 && entry.value.length > 0,
+    );
+    const keyedMetadata = Object.fromEntries(
+      filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
+    );
+
+    const newEvent = new Event();
+
+    newEvent.setName(toModifyEvent?.name ?? "");
+
+    newEvent.setDisplayName(event.eventName);
+    const timestamp = new Timestamp();
+
+    timestamp.fromDate(event.startTime);
+
+    newEvent.setTriggerTime(timestamp);
+
+    if (event.durationUnit === "sec") {
+      newEvent.setDuration(event.duration);
+    } else {
+      newEvent.setDuration(event.duration / 1e9);
+    }
+
+    if (event.description) {
+      newEvent.setDescription(event.description);
+    }
+
+    if (event.imageFile) {
+      newEvent.setFilesList([event.imageFile.name]);
+    }
+
+    Object.keys(keyedMetadata).forEach((key) => {
+      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
+    });
+
+    const fieldMask = new FieldMask();
+    fieldMask.setPathsList(["displayName", "description", "duration", "customizedFields", "files"]);
+
+    try {
+      await consoleApi.updateEvent({
+        event: newEvent,
+        updateMask: fieldMask,
+      });
+
+      onClose();
+
+      refreshEvents();
+      enqueueSnackbar(t("editMomentSuccess"), { variant: "success" });
+    } catch (e) {
+      enqueueSnackbar(t("editMomentFailed"), { variant: "error" });
+    }
+  }, [
+    consoleApi,
+    enqueueSnackbar,
+    event.description,
+    event.duration,
+    event.durationUnit,
+    event.eventName,
+    event.imageFile,
+    event.metadataEntries,
+    event.startTime,
+    onClose,
+    refreshEvents,
+    t,
+    toModifyEvent?.name,
+  ]);
+
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: React.KeyboardEvent) => {
       if (keyboardEvent.key === "Enter") {
@@ -374,7 +487,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
       {createEventDialogOpen && (
         <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
           <Stack paddingX={3} paddingTop={2}>
-            <Typography variant="h2">{t("createMoment")}</Typography>
+            <Typography variant="h2">{isEditing ? t("editMoment") : t("createMoment")}</Typography>
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
             <TextField
@@ -557,41 +670,45 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               })}
             </div>
           </Stack>
-          <Stack paddingX={3} paddingTop={2}>
-            <FormControlLabel
-              disableTypography
-              checked={event.enabledCreateNewTask}
-              control={
-                <Checkbox
-                  size="medium"
-                  checked={isDemoSite ? true : event.enabledCreateNewTask}
-                  onChange={() => {
-                    setEvent((old) => ({
-                      ...old,
-                      enabledCreateNewTask: !old.enabledCreateNewTask,
-                    }));
-                  }}
-                />
-              }
-              label={t("createNewTask")}
-            />
-          </Stack>
-          <Stack paddingX={3} paddingTop={2}>
-            <FormLabel>{t("record")}</FormLabel>
-            <Select
-              value={event.fileName}
-              disabled={passingFile == undefined || passingFile.length <= 1}
-              onChange={(e) => {
-                setEvent((old) => ({ ...old, fileName: e.target.value }));
-              }}
-            >
-              {(passingFile ?? []).map((bag) => (
-                <MenuItem key={bag.name} value={bag.name}>
-                  {bag.recordDisplayName}
-                </MenuItem>
-              ))}
-            </Select>
-          </Stack>
+          {!isEditing && (
+            <Stack paddingX={3} paddingTop={2}>
+              <FormControlLabel
+                disableTypography
+                checked={event.enabledCreateNewTask}
+                control={
+                  <Checkbox
+                    size="medium"
+                    checked={isDemoSite ? true : event.enabledCreateNewTask}
+                    onChange={() => {
+                      setEvent((old) => ({
+                        ...old,
+                        enabledCreateNewTask: !old.enabledCreateNewTask,
+                      }));
+                    }}
+                  />
+                }
+                label={t("createNewTask")}
+              />
+            </Stack>
+          )}
+          {!isEditing && (
+            <Stack paddingX={3} paddingTop={2}>
+              <FormLabel>{t("record")}</FormLabel>
+              <Select
+                value={event.fileName}
+                disabled={passingFile == undefined || passingFile.length <= 1}
+                onChange={(e) => {
+                  setEvent((old) => ({ ...old, fileName: e.target.value }));
+                }}
+              >
+                {(passingFile ?? []).map((bag) => (
+                  <MenuItem key={bag.name} value={bag.name}>
+                    {bag.recordDisplayName}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Stack>
+          )}
           <DialogActions>
             <Button variant="outlined" size="large" onClick={onClose}>
               {t("cancel")}
@@ -602,7 +719,11 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               id="create-moment"
               onClick={async () => {
                 if (!isDemoSite) {
-                  await createEvent();
+                  if (isEditing) {
+                    await editEvent();
+                  } else {
+                    await createEvent();
+                  }
                   setCreateEventDialogOpen(false);
                 } else {
                   setTask({
@@ -623,7 +744,7 @@ export function CreateEventDialog(props: { onClose: () => void }): JSX.Element {
               {createdEvent.loading && (
                 <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
               )}
-              {t("createMoment")}
+              {isEditing ? t("edit") : t("createMoment")}
             </Button>
           </DialogActions>
           {duplicateKey && <Alert severity="error">Duplicate key {duplicateKey[0]}</Alert>}

@@ -53,4 +53,8 @@ export const cosEvent = {
   photo: "Photo",
   addPhoto: "Add Photo",
   maxFilesNumber: "Select at most {{maxFilesNumber}} file",
+  editMoment: "Edit Moment",
+  editMomentSuccess: "Edit Moment Success",
+  editMomentFailed: "Edit Moment Failed",
+  edit: "Edit",
 };

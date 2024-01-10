@@ -5,10 +5,14 @@
 import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 import { AppBar, CircularProgress, IconButton, TextField, Typography } from "@mui/material";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import {
+  CreateEventDialog as EditEventDialog,
+  ToModifyEvent,
+} from "@foxglove/studio-base/components/CoSceneCreateEventDialog";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -68,6 +72,8 @@ export function EventsList(): JSX.Element {
   const setFilter = useEvents(selectSetEventFilter);
   const { t } = useTranslation("cosEvent");
   const [confirm, confirmModal] = useConfirm();
+  const [editEventDialogOpen, setEditEventDialogOpen] = useState(false);
+  const [toModifyEvent, setToModifyEvent] = useState<ToModifyEvent | undefined>(undefined);
 
   const timestampedEvents = useMemo(
     () =>
@@ -167,12 +173,24 @@ export function EventsList(): JSX.Element {
               onClick={onClick}
               onHoverStart={onHoverStart}
               onHoverEnd={onHoverEnd}
+              onEdit={(currentEvent: ToModifyEvent) => {
+                setEditEventDialogOpen(true);
+                setToModifyEvent(currentEvent);
+              }}
               confirm={confirm}
             />
           );
         })}
       </div>
       {confirmModal}
+      {editEventDialogOpen && (
+        <EditEventDialog
+          onClose={() => {
+            setEditEventDialogOpen(false);
+          }}
+          toModifyEvent={toModifyEvent}
+        />
+      )}
     </Stack>
   );
 }
