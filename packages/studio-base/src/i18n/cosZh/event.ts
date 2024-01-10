@@ -54,4 +54,8 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   photo: "照片",
   addPhoto: "添加照片",
   maxFilesNumber: "最多选择{{maxFilesNumber}}个文件",
+  editMoment: "编辑事件",
+  editMomentSuccess: "编辑事件成功",
+  editMomentFailed: "编辑事件失败",
+  edit: "编辑",
 };
