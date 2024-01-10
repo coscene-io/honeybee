@@ -286,7 +286,7 @@ function EventViewComponent(params: {
         };
       }),
       enabledCreateNewTask: false,
-      fileName: "",
+      fileName: event.event.files[0] ?? "",
     });
   };
 
