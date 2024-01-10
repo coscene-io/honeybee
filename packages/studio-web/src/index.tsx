@@ -45,7 +45,7 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
     console.error(...args);
   };
 
-  if (APP_CONFIG.VITE_APP_PROJECT_ENV !== "local") {
+  if (APP_CONFIG.VITE_APP_PROJECT_ENV !== "local" && APP_CONFIG.SENTRY_ENABLED) {
     log.info("initializing Sentry");
     Sentry.init({
       dsn: APP_CONFIG.SENTRY_HONEYBEE_DSN,
