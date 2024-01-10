@@ -67,6 +67,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
   },
   bagInfo: {
     display: "flex",
+    width: "100%",
     flexDirection: "column",
     gap: "4px",
   },
@@ -79,6 +80,9 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     color: "#374151",
   },
   bagStartTime: {
+    display: "flex",
+    width: "100%",
+    justifyContent: "space-between",
     fontFamily: "Inter",
     fontStyle: "normal",
     fontWeight: "400",
@@ -90,11 +94,10 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     padding: theme.spacing(1),
   },
   bagLength: {
+    position: "absolute",
+    float: "right",
+    right: theme.spacing(2),
     width: "70px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: "auto 0",
     fontFamily: "Inter",
     fontStyle: "normal",
     fontWeight: "400",
@@ -254,6 +257,10 @@ function BagViewComponent(params: {
             [classes.isCurrentBag]: isCurrent || isHovered,
           })}
         >
+          <HighlightedText
+            text={`${bag.projectDisplayName}/${bag.recordDisplayName}`}
+            highlight={filter}
+          />
           {!isLogFile && (
             <HighlightedText
               text={
