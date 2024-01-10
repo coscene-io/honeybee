@@ -376,8 +376,11 @@ export function CreateEventDialog(props: {
       newEvent.setDescription(event.description);
     }
 
+    const maskArray = ["displayName", "description", "duration", "customizedFields"];
+
     if (event.imageFile) {
       newEvent.setFilesList([event.imageFile.name]);
+      maskArray.push("files");
     }
 
     Object.keys(keyedMetadata).forEach((key) => {
@@ -385,7 +388,7 @@ export function CreateEventDialog(props: {
     });
 
     const fieldMask = new FieldMask();
-    fieldMask.setPathsList(["displayName", "description", "duration", "customizedFields", "files"]);
+    fieldMask.setPathsList(maskArray);
 
     try {
       await consoleApi.updateEvent({
