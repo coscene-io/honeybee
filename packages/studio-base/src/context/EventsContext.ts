@@ -38,6 +38,8 @@ export type TimelinePositionedEvent = {
 
   endTime: Time;
 
+  imgUrl?: string;
+
   /** The color mapped to the recordId of this event. */
   color: string;
 

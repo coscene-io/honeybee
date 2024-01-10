@@ -104,6 +104,9 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
     toast: {
       bottom: "85px !important",
     },
+    eventImg: {
+      maxWidth: "100%",
+    },
   }),
 );
 
@@ -195,6 +198,7 @@ function EventViewComponent(params: {
   const duration = `${event.event.duration.toString()} s`;
   const description = event.event.description;
   const metadataMap = Object.entries(event.event.customizedFields);
+  const imgUrl = event.imgUrl;
 
   useEffect(() => {
     if (deletedEvent.error) {
@@ -336,6 +340,15 @@ function EventViewComponent(params: {
               />
             </div>
           </Fragment>
+
+          {imgUrl && (
+            <Fragment key="img">
+              <div className={classes.eventMetadata}>{t("photo")}</div>
+              <div className={classes.eventMetadata}>
+                <img src={imgUrl} className={classes.eventImg} />
+              </div>
+            </Fragment>
+          )}
 
           {metadataMap.map(([key, value]: string[]) => (
             <Fragment key={key}>
