@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
+import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -190,6 +191,21 @@ export function CreateEventDialog(props: {
         enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
         fileName: toModifyEvent.fileName,
       }));
+      if (toModifyEvent.fileName) {
+        const imgFile = new File({
+          name: toModifyEvent.fileName,
+        });
+        consoleApi
+          .generateFileDownloadUrl(imgFile)
+          .then((resp) => {
+            const url = resp.preSignedUrl;
+
+            setImageUrl(url);
+          })
+          .catch((e) => {
+            console.error(e);
+          });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
