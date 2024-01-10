@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import { useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
@@ -30,21 +31,24 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { SingleFileGetEventsRequest } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import CoSceneConsoleApi, {
+  SingleFileGetEventsRequest,
+} from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
 const HOVER_TOLERANCE = 0.01;
 
 const log = Logger.getLogger(__filename);
 
-function positionEvents(
+async function positionEvents(
   events: Event[],
+  consoleApi: CoSceneConsoleApi,
   bagFiles: readonly BagFileInfo[],
   timeMode: "relativeTime" | "absoluteTime",
   startTime: Time,
   endTime: Time,
   color: string,
-): TimelinePositionedEvent[] {
+): Promise<TimelinePositionedEvent[]> {
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
 
@@ -55,48 +59,64 @@ function positionEvents(
     return Number(a.triggerTime.seconds - b.triggerTime.seconds);
   });
 
-  return events.map((event) => {
-    if (!event.triggerTime) {
-      throw new Error("Event does not have a trigger time");
-    }
+  return await Promise.all(
+    events.map(async (event) => {
+      if (!event.triggerTime) {
+        throw new Error("Event does not have a trigger time");
+      }
 
-    const bagFile = bagFiles.find((file) => {
-      if (!file.startTime || !file.endTime) {
+      const bagFile = bagFiles.find((file) => {
+        if (!file.startTime || !file.endTime) {
+          return false;
+        }
+        if (file.name.includes(event.record)) {
+          return true;
+        }
         return false;
+      });
+
+      let eventStartTime = fromNanoSec(
+        event.triggerTime.seconds * BigInt(1e9) + event.triggerTime.seconds,
+      );
+      let eventEndTime = add(eventStartTime, fromNanoSec(BigInt(event.duration * 1e9)));
+
+      if (timeMode === "relativeTime" && bagFile?.startTime != undefined) {
+        eventStartTime = subtract(eventStartTime, bagFile.startTime);
+        eventEndTime = subtract(eventEndTime, bagFile.startTime);
       }
-      if (file.name.includes(event.record)) {
-        return true;
+
+      const imgFileName = event.files[0];
+      let url = "";
+
+      if (imgFileName != undefined) {
+        const imgFile = new File({
+          name: imgFileName,
+        });
+
+        const resp = await consoleApi.generateFileDownloadUrl(imgFile);
+
+        url = resp.preSignedUrl;
       }
-      return false;
-    });
 
-    let eventStartTime = fromNanoSec(
-      event.triggerTime.seconds * BigInt(1e9) + event.triggerTime.seconds,
-    );
-    let eventEndTime = add(eventStartTime, fromNanoSec(BigInt(event.duration * 1e9)));
+      const startTimeInSeconds = toSec(eventStartTime);
+      const endTimeInSeconds = toSec(eventEndTime);
 
-    if (timeMode === "relativeTime" && bagFile?.startTime != undefined) {
-      eventStartTime = subtract(eventStartTime, bagFile.startTime);
-      eventEndTime = subtract(eventEndTime, bagFile.startTime);
-    }
+      const startPosition = scale(startTimeInSeconds, startSecs, endSecs, 0, 1);
+      const endPosition = scale(endTimeInSeconds, startSecs, endSecs, 0, 1);
 
-    const startTimeInSeconds = toSec(eventStartTime);
-    const endTimeInSeconds = toSec(eventEndTime);
-
-    const startPosition = scale(startTimeInSeconds, startSecs, endSecs, 0, 1);
-    const endPosition = scale(endTimeInSeconds, startSecs, endSecs, 0, 1);
-
-    return {
-      event,
-      startTime: eventStartTime,
-      endTime: eventEndTime,
-      endPosition,
-      startPosition,
-      time: startTimeInSeconds,
-      secondsSinceStart: startTimeInSeconds - startSecs,
-      color,
-    };
-  });
+      return {
+        event,
+        startTime: eventStartTime,
+        endTime: eventEndTime,
+        endPosition,
+        startPosition,
+        time: startTimeInSeconds,
+        secondsSinceStart: startTimeInSeconds - startSecs,
+        color,
+        imgUrl: url,
+      };
+    }),
+  );
 }
 
 const selectEventFetchCount = (store: EventsStore) => store.eventFetchCount;
@@ -198,7 +218,15 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
           const eventList = await consoleApi.getEvents({ fileList: getEventsRequest });
           setEvents({
             loading: false,
-            value: positionEvents(eventList, bagFiles.value, timeMode, startTime, endTime, color),
+            value: await positionEvents(
+              eventList,
+              consoleApi,
+              bagFiles.value,
+              timeMode,
+              startTime,
+              endTime,
+              color,
+            ),
           });
         } catch (error) {
           log.error(error);

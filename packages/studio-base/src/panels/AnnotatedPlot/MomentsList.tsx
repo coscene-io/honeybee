@@ -125,7 +125,9 @@ const SingleMomentView: ({
             >
               {currentEvent.event.displayName}
             </Typography>
-            <img className={classes.momentImage} src="https://mui.com/static/images/avatar/1.jpg" />
+            {currentEvent.imgUrl && (
+              <img className={classes.momentImage} src={currentEvent.imgUrl} />
+            )}
           </Stack>
           <Stack flex={1} justifyContent="center" flexDirection="column-reverse">
             <Typography variant="caption" display="block" gutterBottom>
