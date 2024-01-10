@@ -399,7 +399,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("user id is undefined");
   }
 
-  const files: ParamsFile[] = JSON.parse(params.files ?? "{}");
+  const files: ParamsFile[] = JSON.parse(params.files ?? "[]");
   const jobRuns: string[] = [];
   const fileNames: string[] = [];
 
