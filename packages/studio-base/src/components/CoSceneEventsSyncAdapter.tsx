@@ -47,7 +47,6 @@ async function positionEvents(
   timeMode: "relativeTime" | "absoluteTime",
   startTime: Time,
   endTime: Time,
-  color: string,
 ): Promise<TimelinePositionedEvent[]> {
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
@@ -113,7 +112,7 @@ async function positionEvents(
         startPosition,
         time: startTimeInSeconds,
         secondsSinceStart: startTimeInSeconds - startSecs,
-        color,
+        color: stringToColor(event.record),
         imgUrl: url,
         recordDisplayName: eventInfo.recordDisplayName,
         projectDisplayName: eventInfo.projectDisplayName,
@@ -170,7 +169,6 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
 
     if (!bagFiles.loading && bagFiles.value && bagFiles.value.length > 0) {
       const getEventsRequest: SingleFileGetEventsRequest[] = [];
-      let color = "#ffffff";
 
       bagFiles.value.forEach((bagFile) => {
         if (!bagFile.startTime || !bagFile.endTime) {
@@ -200,10 +198,7 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
         } else {
           const projectName = fileSource.split("/records/")[0];
           const revisionSha256 = fileSource.split("/revisions/")[1]?.split("/files/")[0];
-          const recordId = fileSource.split("/records/")[1]?.split("/revisions/")[0];
           const filter = `revision.sha256="${revisionSha256}"`;
-
-          color = stringToColor(recordId ?? "");
 
           if (projectName == undefined) {
             throw new Error("wrong source name");
@@ -232,7 +227,6 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
               timeMode,
               startTime,
               endTime,
-              color,
             ),
           });
         } catch (error) {
