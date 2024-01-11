@@ -14,6 +14,8 @@
 import { useTheme } from "@mui/material";
 import * as _ from "lodash-es";
 import { ComponentProps, useCallback, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 import { useDeepMemo } from "@foxglove/hooks";
 import {
@@ -40,6 +42,10 @@ import PanelToolbar, {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { ChartDefaultView } from "@foxglove/studio-base/components/TimeBasedChart";
 import { useEvents, EventsStore } from "@foxglove/studio-base/context/EventsContext";
+import {
+  TimelineInteractionStateStore,
+  useTimelineInteractionState,
+} from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { OnClickArg as OnChartClickArgs } from "@foxglove/studio-base/src/components/Chart";
 import { OpenSiblingPanel, PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
@@ -96,9 +102,11 @@ function selectEndTime(ctx: MessagePipelineContext) {
 const ZERO_TIME = Object.freeze({ sec: 0, nsec: 0 });
 
 const selectEvents = (store: EventsStore) => store.events;
+const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hoveredEvent;
 
 function Plot(props: Props) {
   const { saveConfig, config } = props;
+  const { t } = useTranslation("cosAnnotatedPlot");
   const {
     title: legacyTitle,
     followingViewWidth,
@@ -142,8 +150,17 @@ function Plot(props: Props) {
   }, [originalPaths]);
 
   const events = useEvents(selectEvents);
+  const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
 
   const { setMessagePathDropConfig } = usePanelContext();
+
+  useEffect(() => {
+    const addPrefix = localStorage.getItem("CoScene_addTopicPrefix") ?? "false";
+
+    if (addPrefix !== "true") {
+      toast.error(t("prefixTip"));
+    }
+  }, [t]);
 
   useEffect(() => {
     setMessagePathDropConfig({
@@ -205,7 +222,11 @@ function Plot(props: Props) {
   }, [events, momentsFilter, showMoments, selectRecords]);
 
   const eventsTimeSinceStart = filteredEvents.map((event) => {
-    return { time: timeSincePreloadedStart(event.startTime) ?? 0, color: event.color };
+    return {
+      time: timeSincePreloadedStart(event.startTime) ?? 0,
+      color: event.color,
+      isHovered: hoveredEvent != undefined && event.event.name === hoveredEvent.event.name,
+    };
   });
 
   const followingView = useMemo<ChartDefaultView | undefined>(() => {

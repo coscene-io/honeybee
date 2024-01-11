@@ -140,7 +140,7 @@ export type Props = {
   showXAxisLabels: boolean;
   plugins?: ChartOptions["plugins"];
   currentTime?: number;
-  eventsTimes?: { time: number; color: string }[];
+  eventsTimes?: { time: number; color: string; isHovered: boolean }[];
   defaultView?: ChartDefaultView;
 };
 
@@ -821,7 +821,10 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
                 <div
                   className={classes.bar}
                   style={{
-                    border: "1px dashed" + event.color,
+                    border: event.isHovered
+                      ? "2px dashed" + event.color
+                      : "1px dashed" + event.color,
+                    left: event.isHovered ? -1 : 0,
                   }}
                 />
                 <div
