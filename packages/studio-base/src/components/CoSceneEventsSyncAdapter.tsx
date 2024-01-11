@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import { useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
@@ -33,6 +32,7 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
+  EventList,
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
@@ -41,7 +41,7 @@ const HOVER_TOLERANCE = 0.01;
 const log = Logger.getLogger(__filename);
 
 async function positionEvents(
-  events: Event[],
+  events: EventList,
   consoleApi: CoSceneConsoleApi,
   bagFiles: readonly BagFileInfo[],
   timeMode: "relativeTime" | "absoluteTime",
@@ -53,14 +53,15 @@ async function positionEvents(
   const endSecs = toSec(endTime);
 
   events.sort((a, b) => {
-    if (!a.triggerTime || !b.triggerTime) {
+    if (!a.event.triggerTime || !b.event.triggerTime) {
       return 0;
     }
-    return Number(a.triggerTime.seconds - b.triggerTime.seconds);
+    return Number(a.event.triggerTime.seconds - b.event.triggerTime.seconds);
   });
 
   return await Promise.all(
-    events.map(async (event) => {
+    events.map(async (eventInfo) => {
+      const event = eventInfo.event;
       if (!event.triggerTime) {
         throw new Error("Event does not have a trigger time");
       }
@@ -114,6 +115,8 @@ async function positionEvents(
         secondsSinceStart: startTimeInSeconds - startSecs,
         color,
         imgUrl: url,
+        recordDisplayName: eventInfo.recordDisplayName,
+        projectDisplayName: eventInfo.projectDisplayName,
       };
     }),
   );
@@ -191,6 +194,8 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
             filter,
             startTime: currentBagStartTime,
             endTime: currentBagEndTime,
+            projectDisplayName: bagFile.projectDisplayName ?? "",
+            recordDisplayName: bagFile.recordDisplayName ?? "",
           });
         } else {
           const projectName = fileSource.split("/records/")[0];
@@ -209,6 +214,8 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
             filter,
             startTime: currentBagStartTime,
             endTime: currentBagEndTime,
+            projectDisplayName: bagFile.projectDisplayName ?? "",
+            recordDisplayName: bagFile.recordDisplayName ?? "",
           });
         }
       });

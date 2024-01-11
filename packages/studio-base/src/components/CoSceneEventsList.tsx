@@ -3,8 +3,18 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ClearIcon from "@mui/icons-material/Clear";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SearchIcon from "@mui/icons-material/Search";
-import { AppBar, CircularProgress, IconButton, TextField, Typography } from "@mui/material";
+import {
+  AppBar,
+  CircularProgress,
+  IconButton,
+  TextField,
+  Typography,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+} from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -47,6 +57,19 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.background.paper,
     maxHeight: "100%",
   },
+  accordionTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+  },
+  accordion: {
+    padding: 0,
+  },
+  colorBlock: {
+    width: "8px",
+    height: "8px",
+    borderRadius: "2px",
+  },
 }));
 
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
@@ -75,13 +98,34 @@ export function EventsList(): JSX.Element {
   const [editEventDialogOpen, setEditEventDialogOpen] = useState(false);
   const [toModifyEvent, setToModifyEvent] = useState<ToModifyEvent | undefined>(undefined);
 
-  const timestampedEvents = useMemo(
-    () =>
-      (events.value ?? []).map((event) => {
-        return { ...event, formattedTime: formatTime(event.startTime) };
-      }),
-    [events, formatTime],
-  );
+  const timestampedEvents = useMemo(() => {
+    const classifiedEvents = new Map<
+      string,
+      (TimelinePositionedEvent & { formattedTime: string })[]
+    >();
+    events.value?.forEach((event) => {
+      const recordTitle: string = `${event.projectDisplayName}/${event.recordDisplayName}`;
+
+      if (classifiedEvents.has(recordTitle)) {
+        classifiedEvents.set(recordTitle, [
+          ...(classifiedEvents.get(recordTitle) ?? []),
+          {
+            ...event,
+            formattedTime: formatTime(event.startTime),
+          },
+        ]);
+      } else {
+        classifiedEvents.set(recordTitle, [
+          {
+            ...event,
+            formattedTime: formatTime(event.startTime),
+          },
+        ]);
+      }
+    });
+
+    return classifiedEvents;
+  }, [events, formatTime]);
 
   const clearFilter = useCallback(() => {
     setFilter("");
@@ -156,29 +200,80 @@ export function EventsList(): JSX.Element {
         </Stack>
       )}
       <div>
-        {timestampedEvents.map((event) => {
+        {Array.from(timestampedEvents.keys()).map((recordTitle) => {
           return (
-            <EventView
-              key={event.event.name}
-              event={event}
-              filter={filter}
-              // When hovering within the event list only show hover state on directly
-              // hovered event.
-              isHovered={
-                hoveredEvent
-                  ? event.event.name === hoveredEvent.event.name
-                  : eventsAtHoverValue[event.event.name] != undefined
-              }
-              isSelected={event.event.name === selectedEventId}
-              onClick={onClick}
-              onHoverStart={onHoverStart}
-              onHoverEnd={onHoverEnd}
-              onEdit={(currentEvent: ToModifyEvent) => {
-                setEditEventDialogOpen(true);
-                setToModifyEvent(currentEvent);
-              }}
-              confirm={confirm}
-            />
+            <div key={recordTitle}>
+              <Accordion>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="panel1-content"
+                  id="panel1-header"
+                >
+                  <div className={classes.accordionTitle}>
+                    <span
+                      className={classes.colorBlock}
+                      style={{
+                        backgroundColor: (timestampedEvents.get(recordTitle) ?? [])[0]?.color,
+                      }}
+                    />
+                    {recordTitle}
+                  </div>
+                </AccordionSummary>
+                <AccordionDetails className={classes.accordion}>
+                  {(timestampedEvents.get(recordTitle) ?? []).map((event) => {
+                    return (
+                      <EventView
+                        key={event.event.name}
+                        event={event}
+                        filter={filter}
+                        // When hovering within the event list only show hover state on directly
+                        // hovered event.
+                        isHovered={
+                          hoveredEvent
+                            ? event.event.name === hoveredEvent.event.name
+                            : eventsAtHoverValue[event.event.name] != undefined
+                        }
+                        isSelected={event.event.name === selectedEventId}
+                        onClick={onClick}
+                        onHoverStart={onHoverStart}
+                        onHoverEnd={onHoverEnd}
+                        onEdit={(currentEvent: ToModifyEvent) => {
+                          setEditEventDialogOpen(true);
+                          setToModifyEvent(currentEvent);
+                        }}
+                        confirm={confirm}
+                      />
+                    );
+                  })}
+                </AccordionDetails>
+              </Accordion>
+              {/* {recordTitle}
+              {(timestampedEvents.get(recordTitle) ?? []).map((event) => {
+                return (
+                  <EventView
+                    key={event.event.name}
+                    event={event}
+                    filter={filter}
+                    // When hovering within the event list only show hover state on directly
+                    // hovered event.
+                    isHovered={
+                      hoveredEvent
+                        ? event.event.name === hoveredEvent.event.name
+                        : eventsAtHoverValue[event.event.name] != undefined
+                    }
+                    isSelected={event.event.name === selectedEventId}
+                    onClick={onClick}
+                    onHoverStart={onHoverStart}
+                    onHoverEnd={onHoverEnd}
+                    onEdit={(currentEvent: ToModifyEvent) => {
+                      setEditEventDialogOpen(true);
+                      setToModifyEvent(currentEvent);
+                    }}
+                    confirm={confirm}
+                  />
+                );
+              })} */}
+            </div>
           );
         })}
       </div>
