@@ -7,15 +7,20 @@ import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 export function useCoSceneInit(): void {
   let favicon = "";
-  switch (APP_CONFIG.VITE_APP_PROJECT_ENV) {
-    case "local":
-      favicon = "/logo-light.svg";
-      break;
-    case "keenon":
-      favicon = "/viz/keenon_favicon.svg";
-      break;
-    default:
-      favicon = "/viz/logo-light.svg";
+
+  if (APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor") {
+    favicon = "/viz/supor.ico";
+  } else {
+    switch (APP_CONFIG.VITE_APP_PROJECT_ENV) {
+      case "local":
+        favicon = "/logo-light.svg";
+        break;
+      case "keenon":
+        favicon = "/viz/keenon_favicon.svg";
+        break;
+      default:
+        favicon = "/viz/logo-light.svg";
+    }
   }
 
   useFavicon(favicon);
