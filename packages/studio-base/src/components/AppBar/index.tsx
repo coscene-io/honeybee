@@ -16,7 +16,7 @@ import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
 import { CoSceneLayoutButton } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
-import { CoSceneLogo, KeenonLogo } from "@foxglove/studio-base/components/CoSceneLogo";
+import { Logo } from "@foxglove/studio-base/components/CoSceneLogo";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import {
@@ -30,7 +30,6 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { AddPanelMenu } from "./AddPanelMenu";
 import { AppBarContainer } from "./AppBarContainer";
@@ -209,15 +208,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   window.location.href = window.location.origin;
                 }}
               >
-                {APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon" ? (
-                  <>
-                    <KeenonLogo fontSize="inherit" color="inherit" />
-                  </>
-                ) : (
-                  <>
-                    <CoSceneLogo fontSize="inherit" color="inherit" />
-                  </>
-                )}
+                <Logo />
               </IconButton>
               <AppMenu
                 open={appMenuOpen}

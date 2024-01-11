@@ -4,6 +4,16 @@
 
 import { SvgIcon, SvgIconProps } from "@mui/material";
 
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+
+export function Logo(): JSX.Element {
+  if (APP_CONFIG.VITE_APP_BASE_API_PORT === "keenon") {
+    return <KeenonLogo fontSize="inherit" color="inherit" />;
+  } else {
+    return <CoSceneLogo fontSize="inherit" color="inherit" />;
+  }
+}
+
 export function CoSceneLogo(props: SvgIconProps): JSX.Element {
   return (
     <SvgIcon
