@@ -2,13 +2,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import ShareIcon from "@mui/icons-material/Share";
-import { alpha, Alert, TextField } from "@mui/material";
+import { alpha, Alert } from "@mui/material";
 import Snackbar from "@mui/material/Snackbar";
-import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
@@ -187,24 +185,6 @@ function EventViewComponent(params: {
     void deleteEvent();
   }, [confirm, deleteEvent, t]);
 
-  const [updatedEventDesc, updateEventDesc] = useAsyncFn(
-    async (desc: string) => {
-      const fieldMask = new FieldMask();
-      fieldMask.addPaths("description");
-      await consoleApi.updateEvent({
-        event: new Event().setName(event.event.name).setDescription(desc),
-        updateMask: fieldMask,
-      });
-      setOpen(true);
-      setToastInfo({
-        message: t("momentUpdated"),
-        type: "success",
-      });
-      refreshEvents();
-    },
-    [consoleApi, event, refreshEvents, t],
-  );
-
   const displayName = event.event.displayName;
   const triggerTime = formatTime(fromDate(event.event.triggerTime?.toDate() ?? new Date()));
   const duration = `${event.event.duration.toString()} s`;
@@ -220,15 +200,7 @@ function EventViewComponent(params: {
       });
       setOpen(true);
     }
-
-    if (updatedEventDesc.error) {
-      setToastInfo({
-        message: t("errorUpdatingEvent"),
-        type: "error",
-      });
-      setOpen(true);
-    }
-  }, [deletedEvent, updatedEventDesc, t]);
+  }, [deletedEvent, t]);
 
   useEffect(() => {
     if (!filter) {
@@ -354,22 +326,7 @@ function EventViewComponent(params: {
                 e.stopPropagation();
               }}
             >
-              <TextField
-                hiddenLabel
-                id="filled-hidden-label-small"
-                defaultValue={description}
-                variant="filled"
-                size="small"
-                fullWidth
-                onBlur={async (e) => {
-                  await updateEventDesc(e.target.value);
-                }}
-                onKeyDown={async (e) => {
-                  if (e.key === "Enter") {
-                    (e.target as HTMLElement).blur();
-                  }
-                }}
-              />
+              <HighlightedText text={description} highlight={filter} />
             </div>
           </Fragment>
 
