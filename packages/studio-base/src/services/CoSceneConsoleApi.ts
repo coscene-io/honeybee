@@ -248,13 +248,25 @@ type LayoutTemplatesIndex = {
 
 export type SingleFileGetEventsRequest = {
   projectName: string;
+  projectDisplayName: string;
+  recordDisplayName: string;
   filter: string;
   startTime: number;
   endTime: number;
 };
 
+export type EventList = {
+  event: Event_es;
+  projectDisplayName: string;
+  recordDisplayName: string;
+}[];
+
 export type GetEventsResponse = {
-  events: string[];
+  eventList: {
+    event: string;
+    projectDisplayName: string;
+    recordDisplayName: string;
+  }[];
 };
 
 class CoSceneConsoleApi {
@@ -599,19 +611,24 @@ class CoSceneConsoleApi {
     return newEvent;
   }
 
-  public async getEvents(params: { fileList: SingleFileGetEventsRequest[] }): Promise<Event_es[]> {
+  public async getEvents(params: { fileList: SingleFileGetEventsRequest[] }): Promise<EventList> {
     const eventBinaryArray = await this.#post<GetEventsResponse>(
       "/bff/honeybee/event/v1/listEvents",
       params,
     );
 
-    return eventBinaryArray.events.map((eventBinary) => {
-      const binaryString = atob(eventBinary);
+    return eventBinaryArray.eventList.map((event) => {
+      const binaryEvent = event.event;
+      const binaryString = atob(binaryEvent);
       const uint8Array = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         uint8Array[i] = binaryString.charCodeAt(i);
       }
-      return Event_es.fromBinary(uint8Array);
+      return {
+        event: Event_es.fromBinary(uint8Array),
+        projectDisplayName: event.projectDisplayName,
+        recordDisplayName: event.recordDisplayName,
+      };
     });
   }
 
