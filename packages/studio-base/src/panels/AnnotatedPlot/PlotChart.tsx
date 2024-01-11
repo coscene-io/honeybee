@@ -65,7 +65,7 @@ type PlotChartProps = {
   datasetBounds: PlotData["bounds"];
   xAxisVal: PlotXAxisVal;
   currentTime?: number;
-  eventsTimes?: { time: number; color: string }[];
+  eventsTimes?: { time: number; color: string; isHovered: boolean }[];
   defaultView?: ChartDefaultView;
   onClick?: TimeBasedChartProps["onClick"];
 };

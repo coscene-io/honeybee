@@ -4,4 +4,6 @@
 
 export const cosAnnotatedPlot = {
   annotatedPlot: "Annotated Plot",
+  prefixTip:
+    "To use annotated plot component, turn on the add topic prefix option on the settings page",
 };

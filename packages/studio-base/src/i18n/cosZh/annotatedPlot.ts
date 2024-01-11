@@ -5,4 +5,5 @@ import { TypeOptions } from "i18next";
 
 export const cosAnnotatedPlot: Partial<TypeOptions["resources"]["cosAnnotatedPlot"]> = {
   annotatedPlot: "标注图表",
+  prefixTip: "要使用标注图表组件，请在设置页面上打开添加主题前缀选项",
 };
