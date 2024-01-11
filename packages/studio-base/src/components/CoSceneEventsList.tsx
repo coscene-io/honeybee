@@ -247,32 +247,6 @@ export function EventsList(): JSX.Element {
                   })}
                 </AccordionDetails>
               </Accordion>
-              {/* {recordTitle}
-              {(timestampedEvents.get(recordTitle) ?? []).map((event) => {
-                return (
-                  <EventView
-                    key={event.event.name}
-                    event={event}
-                    filter={filter}
-                    // When hovering within the event list only show hover state on directly
-                    // hovered event.
-                    isHovered={
-                      hoveredEvent
-                        ? event.event.name === hoveredEvent.event.name
-                        : eventsAtHoverValue[event.event.name] != undefined
-                    }
-                    isSelected={event.event.name === selectedEventId}
-                    onClick={onClick}
-                    onHoverStart={onHoverStart}
-                    onHoverEnd={onHoverEnd}
-                    onEdit={(currentEvent: ToModifyEvent) => {
-                      setEditEventDialogOpen(true);
-                      setToModifyEvent(currentEvent);
-                    }}
-                    confirm={confirm}
-                  />
-                );
-              })} */}
             </div>
           );
         })}
