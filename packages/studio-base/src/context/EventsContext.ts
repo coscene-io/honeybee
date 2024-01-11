@@ -40,6 +40,10 @@ export type TimelinePositionedEvent = {
 
   imgUrl?: string;
 
+  projectDisplayName?: string;
+
+  recordDisplayName?: string;
+
   /** The color mapped to the recordId of this event. */
   color: string;
 
