@@ -16,7 +16,7 @@ import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
 import { CoSceneLayoutButton } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
-import { Logo } from "@foxglove/studio-base/components/CoSceneLogo";
+import { CoSceneLogo } from "@foxglove/studio-base/components/CoSceneLogo";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import {
@@ -208,7 +208,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   window.location.href = window.location.origin;
                 }}
               >
-                <Logo />
+                <CoSceneLogo />
               </IconButton>
               <AppMenu
                 open={appMenuOpen}
