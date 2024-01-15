@@ -33,6 +33,7 @@ const useStyles = makeStyles()((theme, _params) => ({
     cursor: "pointer",
     wordBreak: "break-all",
     backgroundColor: theme.palette.background.default,
+    border: `1px solid rgba(0, 0, 0, 0)`,
   },
   momentDisplayName: {
     overflow: "hidden",
@@ -53,6 +54,7 @@ const useStyles = makeStyles()((theme, _params) => ({
   },
   eventHovered: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.hoverOpacity),
+    border: `1px solid ${theme.palette.info.main}`,
   },
 }));
 
