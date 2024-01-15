@@ -89,7 +89,7 @@ export function CoSceneProviders(): JSX.Element[] {
     const fileNames: ParamsFile[] = [];
 
     if (jobRunsId) {
-      const jobRunsName = `warehouses/${warehouseId}/projects/${projectId}/matrix/workflow-runs/${workflowRunsId}/jobRuns/${jobRunsId}`;
+      const jobRunsName = `warehouses/${warehouseId}/projects/${projectId}/workflowRuns/${workflowRunsId}/jobRuns/${jobRunsId}`;
       consoleApi
         .getJobRun(jobRunsName)
         .then((jobRun) => {
