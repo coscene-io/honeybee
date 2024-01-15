@@ -138,7 +138,7 @@ export function DataSource(): JSX.Element {
       : `/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`;
 
   const recordHref = `${projectHref}/records/${urlState?.parameters?.recordId}`;
-  const jobHref = `${projectHref}/matrix/workflow-runs/${urlState?.parameters?.workflowRunsId}/jobRuns/${urlState?.parameters?.jobRunsId}`;
+  const jobHref = `${projectHref}/matrix/workflow-runs/${urlState?.parameters?.workflowRunsId}/job-runs/${urlState?.parameters?.jobRunsId}`;
 
   const secondaryHref = urlState?.parameters?.jobRunsDisplayName ? jobHref : recordHref;
 
