@@ -144,7 +144,7 @@ export function DataSource(): JSX.Element {
 
   const breadcrumbs = [
     <Link
-      href={secondaryHref}
+      href={projectHref}
       target="_blank"
       underline="hover"
       key="1"
@@ -154,7 +154,7 @@ export function DataSource(): JSX.Element {
       {project.value?.getDisplayName()}
     </Link>,
     <Link
-      href={recordHref}
+      href={secondaryHref}
       target="_blank"
       underline="hover"
       key="2"
