@@ -316,7 +316,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             syncInfo: { status: "tracked", lastRemoteSavedAt: updatedBaseline.savedAt },
           }),
       );
-      this.#notifyChangeListeners({ type: "change", updatedLayout: result });
+      // 当 busyCount > 1 时，代表着有多个更新 layout 的任务在排队，这时不应该出发 change 事件，否则会导致 layout 跳回上一个版本
+      if (this.#busyCount === 1) {
+        this.#notifyChangeListeners({ type: "change", updatedLayout: result });
+      }
       return result;
     } else {
       const isRename =
