@@ -82,43 +82,72 @@ export function CoSceneProviders(): JSX.Element[] {
 
     const revisionId = url.searchParams.get("ds.revisionId");
 
-    const recordName = `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
-    const revisionName = `${recordName}/revisions/${revisionId}`;
+    const jobRunsId = url.searchParams.get("ds.jobRunsId");
+
+    const workflowRunsId = url.searchParams.get("ds.workflowRunsId");
 
     const fileNames: ParamsFile[] = [];
 
-    consoleApi
-      .getRecord({ recordName })
-      .then((record) => {
-        const params = new URLSearchParams(url.search);
-        params.set("ds.recordDisplayName", record.getTitle() || "unknow");
+    if (jobRunsId) {
+      const jobRunsName = `warehouses/${warehouseId}/projects/${projectId}/matrix/workflow-runs/${workflowRunsId}/jobRuns/${jobRunsId}`;
+      consoleApi
+        .getJobRun(jobRunsName)
+        .then((jobRun) => {
+          const jobRunDisplayName = jobRun.spec?.spec?.name ?? "";
+          const params = new URLSearchParams(url.search);
+          params.set("ds.jobRunsDisplayName", jobRunDisplayName);
+          params.set(
+            "ds.files",
+            JSON.stringify([
+              {
+                jobRunsName: `warehouses/${warehouseId}/projects/${projectId}/workflowRuns/${workflowRunsId}/jobRuns/${jobRunsId}`,
+              },
+            ]) ?? "[]",
+          );
 
-        consoleApi
-          .listFiles({
-            revisionName,
-            pageSize: 100,
-            filter: "",
-            currentPage: 0,
-          })
-          .then((res) => {
-            log.info(res.toJsonString());
-            res.files.forEach((file) => {
-              if (checkBagFileSupported(file)) {
-                fileNames.push({ filename: file.name });
-              }
+          url.search = params.toString();
+          window.location.href = url.href;
+        })
+        .catch((err) => {
+          log.error(err);
+        });
+    } else {
+      const recordName = `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
+      const revisionName = `${recordName}/revisions/${revisionId}`;
+
+      consoleApi
+        .getRecord({ recordName })
+        .then((record) => {
+          const params = new URLSearchParams(url.search);
+          params.set("ds.recordDisplayName", record.getTitle() || "unknow");
+
+          consoleApi
+            .listFiles({
+              revisionName,
+              pageSize: 100,
+              filter: "",
+              currentPage: 0,
+            })
+            .then((res) => {
+              log.info(res.toJsonString());
+              res.files.forEach((file) => {
+                if (checkBagFileSupported(file)) {
+                  fileNames.push({ filename: file.name });
+                }
+              });
+
+              params.set("ds.files", JSON.stringify(fileNames) ?? "[]");
+              url.search = params.toString();
+              window.location.href = url.href;
+            })
+            .catch((err) => {
+              log.error(err);
             });
-
-            params.set("ds.files", JSON.stringify(fileNames) ?? "[]");
-            url.search = params.toString();
-            window.location.href = url.href;
-          })
-          .catch((err) => {
-            log.error(err);
-          });
-      })
-      .catch((err) => {
-        log.error(err);
-      });
+        })
+        .catch((err) => {
+          log.error(err);
+        });
+    }
   }
 
   const providers = useMemo(
