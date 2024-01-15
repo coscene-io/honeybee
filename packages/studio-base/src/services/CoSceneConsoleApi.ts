@@ -54,6 +54,9 @@ import {
   ListRecordsRequest,
   ListRecordsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
+import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resources/job_run_pb";
+import { JobRunService } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_connect";
+import { GetJobRunRequest } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_pb";
 import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
@@ -887,6 +890,16 @@ class CoSceneConsoleApi {
     });
 
     return await fileClient.generateFileDownloadUrl(req);
+  }
+
+  public async getJobRun(jobRunName: string): Promise<JobRun> {
+    const jobRunClient = getPromiseClient(JobRunService);
+
+    const req = new GetJobRunRequest({
+      name: jobRunName,
+    });
+
+    return await jobRunClient.getJobRun(req);
   }
 }
 
