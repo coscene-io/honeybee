@@ -103,6 +103,7 @@ const ZERO_TIME = Object.freeze({ sec: 0, nsec: 0 });
 
 const selectEvents = (store: EventsStore) => store.events;
 const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hoveredEvent;
+const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
 
 function Plot(props: Props) {
   const { saveConfig, config } = props;
@@ -151,6 +152,7 @@ function Plot(props: Props) {
 
   const events = useEvents(selectEvents);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
+  const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
 
   const { setMessagePathDropConfig } = usePanelContext();
 
@@ -225,7 +227,10 @@ function Plot(props: Props) {
     return {
       time: timeSincePreloadedStart(event.startTime) ?? 0,
       color: event.color,
-      isHovered: hoveredEvent != undefined && event.event.name === hoveredEvent.event.name,
+      // isHovered: hoveredEvent != undefined && event.event.name === hoveredEvent.event.name,
+      isHovered: hoveredEvent
+        ? event.event.name === hoveredEvent.event.name
+        : eventsAtHoverValue[event.event.name] != undefined,
     };
   });
 
