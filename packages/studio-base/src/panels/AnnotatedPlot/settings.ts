@@ -36,46 +36,48 @@ const DEFAULT_PLOT_LINE: PlotLine = {
   enabled: true,
   timestampMethod: "receiveTime",
 };
-const makeSeriesLineNode = memoizeWeak((line: PlotLine, t: TFunction<"plot">): SettingsTreeNode => {
-  return {
-    label: line.label,
-    visible: line.enabled,
-    fields: {
-      label: {
-        input: "string",
-        label: t("label"),
-        value: line.label,
+const makeSeriesLineNode = memoizeWeak(
+  (line: PlotLine, t: TFunction<"plot">, index: number): SettingsTreeNode => {
+    return {
+      label: line.label,
+      visible: line.enabled,
+      fields: {
+        label: {
+          input: "string",
+          label: t("label"),
+          value: line.label,
+        },
+        color: {
+          input: "rgb",
+          label: t("color"),
+          value: line.color ?? lineColors[index],
+        },
+        lineSize: {
+          input: "number",
+          label: t("lineSize"),
+          value: line.lineSize,
+          step: 0.2,
+          min: 0,
+          placeholder: "auto",
+        },
+        showLine: {
+          label: t("showLine"),
+          input: "boolean",
+          value: line.showLine !== false,
+        },
+        timestampMethod: {
+          input: "select",
+          label: t("timestamp"),
+          value: line.timestampMethod,
+          options: [
+            { label: t("receiveTime"), value: "receiveTime" },
+            { label: t("headerStamp"), value: "headerStamp" },
+          ],
+        },
       },
-      color: {
-        input: "rgb",
-        label: t("color"),
-        value: line.color ?? lineColors[0],
-      },
-      lineSize: {
-        input: "number",
-        label: t("lineSize"),
-        value: line.lineSize,
-        step: 0.2,
-        min: 0,
-        placeholder: "auto",
-      },
-      showLine: {
-        label: t("showLine"),
-        input: "boolean",
-        value: line.showLine !== false,
-      },
-      timestampMethod: {
-        input: "select",
-        label: t("timestamp"),
-        value: line.timestampMethod,
-        options: [
-          { label: t("receiveTime"), value: "receiveTime" },
-          { label: t("headerStamp"), value: "headerStamp" },
-        ],
-      },
-    },
-  };
-});
+    };
+  },
+);
 
 const makeSeriesNode = memoizeWeak(
   (
@@ -86,7 +88,7 @@ const makeSeriesNode = memoizeWeak(
     t: TFunction<"plot">,
   ): SettingsTreeNode => {
     const children = Object.fromEntries(
-      path.lines.map((line, lineIndex) => [`${lineIndex}`, makeSeriesLineNode(line, t)]),
+      path.lines.map((line, lineIndex) => [`${lineIndex}`, makeSeriesLineNode(line, t, lineIndex)]),
     );
 
     return {
