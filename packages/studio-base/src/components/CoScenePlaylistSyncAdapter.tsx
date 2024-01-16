@@ -264,10 +264,12 @@ export function PlaylistSyncAdapter(): ReactNull {
   ]);
 
   useEffect(() => {
+    setBagFiles({ loading: true });
     syncPlaylist().catch((error) => {
       log.error(error);
+      setBagFiles({ loading: false, error });
     });
-  }, [syncPlaylist]);
+  }, [setBagFiles, syncPlaylist]);
 
   useEffect(() => {
     syncRecords().catch((error) => {

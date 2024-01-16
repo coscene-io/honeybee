@@ -14,7 +14,6 @@ import {
   DialogProps,
   DialogTitle,
   FormControlLabel,
-  FormLabel,
   IconButton,
   Link,
   Tab,
@@ -44,9 +43,7 @@ import {
   AutoUpdate,
   ColorSchemeSettings,
   LanguageSettings,
-  LaunchDefault,
   MessageFramerate,
-  RosPackagePath,
   TimeFormat,
   TimezoneSettings,
   AddTopicPrefix,
@@ -203,9 +200,9 @@ export function AppSettingsDialog(
   const [telemetryEnabled, setTelemetryEnabled] = useAppConfigurationValue<boolean>(
     AppSetting.TELEMETRY_ENABLED,
   );
-  const [debugModeEnabled = false, setDebugModeEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.SHOW_DEBUG_PANELS,
-  );
+  // const [debugModeEnabled = false, setDebugModeEnabled] = useAppConfigurationValue<boolean>(
+  //   AppSetting.SHOW_DEBUG_PANELS,
+  // );
   const { classes, cx, theme } = useStyles();
   const smUp = useMediaQuery(theme.breakpoints.up("sm"));
 
@@ -244,7 +241,8 @@ export function AppSettingsDialog(
           onChange={handleTabChange}
         >
           <Tab className={classes.tab} label={t("general")} value="general" />
-          <Tab className={classes.tab} label={t("privacy")} value="privacy" />
+          {/* CoScene */}
+          {/* <Tab className={classes.tab} label={t("privacy")} value="privacy" /> */}
           {extensionSettings && (
             <Tab className={classes.tab} label={t("extensions")} value="extensions" />
           )}
@@ -253,7 +251,8 @@ export function AppSettingsDialog(
             label={t("experimentalFeatures")}
             value="experimental-features"
           />
-          <Tab className={classes.tab} label={t("about")} value="about" />
+          {/* CoScene */}
+          {/* <Tab className={classes.tab} label={t("about")} value="about" /> */}
         </Tabs>
         <Stack direction="row" fullHeight overflowY="auto">
           <section
@@ -269,9 +268,10 @@ export function AppSettingsDialog(
               <MessageFramerate />
               <LanguageSettings />
               {supportsAppUpdates && <AutoUpdate />}
-              {!isDesktopApp() && <LaunchDefault />}
-              {isDesktopApp() && <RosPackagePath />}
-              <Stack>
+              {/* CoScene */}
+              {/* {!isDesktopApp() && <LaunchDefault />} */}
+              {/* {isDesktopApp() && <RosPackagePath />} */}
+              {/* <Stack>
                 <FormLabel>{t("advanced")}:</FormLabel>
                 <FormControlLabel
                   className={classes.formControlLabel}
@@ -286,7 +286,7 @@ export function AppSettingsDialog(
                   }
                   label={t("debugModeDescription")}
                 />
-              </Stack>
+              </Stack> */}
             </Stack>
           </section>
 

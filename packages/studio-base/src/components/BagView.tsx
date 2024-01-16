@@ -78,6 +78,11 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     fontSize: "14px",
     lineHeight: "20px",
     color: "#374151",
+    display: "block",
+    maxWidth: "calc(100% - 100px)", // 16px is the width of the bar chart icon
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   bagStartTime: {
     display: "flex",
