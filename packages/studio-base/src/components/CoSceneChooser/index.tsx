@@ -466,7 +466,7 @@ function ChooserComponent({
           <CircularProgress />
         </Stack>
       ) : (
-        <Stack flex={1} overflow="auto" fullWidth>
+        <Stack flex={1} overflowY="scroll" fullWidth>
           {listType === "projects" && (
             <List>
               {projects.value?.userProjects.map((value) => {
