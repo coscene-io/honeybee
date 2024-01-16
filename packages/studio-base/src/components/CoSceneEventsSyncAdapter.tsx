@@ -51,14 +51,7 @@ async function positionEvents(
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
 
-  events.sort((a, b) => {
-    if (!a.event.triggerTime || !b.event.triggerTime) {
-      return 0;
-    }
-    return Number(a.event.triggerTime.seconds - b.event.triggerTime.seconds);
-  });
-
-  return await Promise.all(
+  const fullEvents = await Promise.all(
     events.map(async (eventInfo) => {
       const event = eventInfo.event;
       if (!event.triggerTime) {
@@ -119,6 +112,8 @@ async function positionEvents(
       };
     }),
   );
+
+  return fullEvents.sort((a, b) => a.startPosition - b.startPosition);
 }
 
 const selectEventFetchCount = (store: EventsStore) => store.eventFetchCount;

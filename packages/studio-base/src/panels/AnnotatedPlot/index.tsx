@@ -204,7 +204,7 @@ function Plot(props: Props) {
     if (!showMoments) {
       return [];
     }
-    if (momentsFilter == undefined || momentsFilter === "") {
+    if (selectRecords.length === 0 && (momentsFilter == undefined || momentsFilter === "")) {
       return events.value ?? [];
     }
     return (events.value ?? [])
@@ -218,8 +218,9 @@ function Plot(props: Props) {
           Object.entries(event.event.customizedFields)
             .map(([key, value]) => `${key}${value}`)
             .join("");
-        // const eventString = event.event.toJsonString();
-        return eventString.includes(momentsFilter);
+        return (
+          momentsFilter == undefined || momentsFilter === "" || eventString.includes(momentsFilter)
+        );
       });
   }, [events, momentsFilter, showMoments, selectRecords]);
 
