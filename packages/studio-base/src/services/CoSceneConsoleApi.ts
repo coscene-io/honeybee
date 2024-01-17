@@ -61,9 +61,13 @@ import * as base64 from "@protobufjs/base64";
 import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 import { StatusCode } from "grpc-web";
+import { t } from "i18next";
+import toast from "react-hot-toast";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
+import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 
@@ -279,6 +283,8 @@ class CoSceneConsoleApi {
   #responseObserver: undefined | ((response: Response) => void);
   #addTopicPrefix: string;
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
+  #problemManager = new PlayerProblemManager();
+
   public coSceneContext: CoSceneContext;
 
   public constructor(
@@ -293,6 +299,10 @@ class CoSceneConsoleApi {
     this.coSceneContext = coSceneContext ?? {};
     this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
     this.#timeMode = timeMode;
+  }
+
+  public getProblemManager(): PlayerProblemManager {
+    return this.#problemManager;
   }
 
   public getTimeMode(): "absoluteTime" | "relativeTime" {
@@ -489,8 +499,19 @@ class CoSceneConsoleApi {
       }
       const json = (await res.json().catch((err) => {
         throw new Error(`Status ${res.status}: ${err.message}`);
-      })) as { message?: string; error?: string };
+      })) as { message?: string; error?: string; errorCode?: number };
       const message = json.message ?? json.error;
+      if (json.errorCode != undefined) {
+        const coSceneErrorMessageKey = CoSceneErrors[json.errorCode];
+        if (coSceneErrorMessageKey) {
+          toast.error(`${t(coSceneErrorMessageKey, "error", { ns: "cosError" })}`);
+        }
+
+        this.#problemManager.addProblem("CoScene:request-error", {
+          message: String(json.errorCode),
+          severity: "error",
+        });
+      }
       throw new Error(`Status ${res.status}${message != undefined ? `: ${message}` : ""}`);
     }
 
