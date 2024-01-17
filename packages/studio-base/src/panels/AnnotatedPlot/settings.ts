@@ -85,10 +85,14 @@ const makeSeriesNode = memoizeWeak(
     index: number,
     // eslint-disable-next-line @foxglove/no-boolean-parameters
     canDelete: boolean,
+    lineStartIndex: number,
     t: TFunction<"plot">,
   ): SettingsTreeNode => {
     const children = Object.fromEntries(
-      path.lines.map((line, lineIndex) => [`${lineIndex}`, makeSeriesLineNode(line, t, lineIndex)]),
+      path.lines.map((line, lineIndex) => [
+        `${lineIndex}`,
+        makeSeriesLineNode(line, t, lineStartIndex + lineIndex),
+      ]),
     );
 
     return {
@@ -125,13 +129,15 @@ const makeSeriesNode = memoizeWeak(
 
 const makeRootSeriesNode = memoizeWeak(
   (paths: SettingsPlotPath[], t: TFunction<"plot">): SettingsTreeNode => {
+    let lineStartIndex = 0;
     const children = Object.fromEntries(
       paths.length === 0
-        ? [["0", makeSeriesNode(DEFAULT_PATH, 0, /*canDelete=*/ false, t)]]
-        : paths.map((path, index) => [
-            `${index}`,
-            makeSeriesNode(path, index, /*canDelete=*/ true, t),
-          ]),
+        ? [["0", makeSeriesNode(DEFAULT_PATH, 0, /*canDelete=*/ false, lineStartIndex, t)]]
+        : paths.map((path, index) => {
+            const lineIndex = lineStartIndex;
+            lineStartIndex += path.lines.length;
+            return [`${index}`, makeSeriesNode(path, index, /*canDelete=*/ true, lineIndex, t)];
+          }),
     );
     return {
       label: t("series"),
