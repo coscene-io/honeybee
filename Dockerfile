@@ -19,7 +19,8 @@ RUN yarn run web:build:prod
 FROM caddy:2.5.2-alpine
 WORKDIR /src
 COPY --from=build /src/web/.webpack ./
+COPY --from=build /src/web/Caddyfile ./
 
 EXPOSE 8080
 
-CMD ["caddy", "file-server", "--listen", ":8080"]
+CMD ["caddy", "run"]
