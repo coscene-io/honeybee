@@ -1,6 +1,6 @@
 {
   servers {
-		max_header_size 1mb
+    max_header_size 1mb
   }
 }
 
