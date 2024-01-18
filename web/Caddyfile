@@ -1,0 +1,10 @@
+{
+  servers {
+		max_header_size 1mb
+  }
+}
+
+:8080 {
+  file_server
+  try_files {path} /index.html
+}
