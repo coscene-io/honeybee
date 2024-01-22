@@ -44,7 +44,7 @@ export async function initI18n(options?: { context?: "browser" | "electron-main"
       context === "browser"
         ? { order: ["localStorage", "navigator"], caches: ["localStorage"] }
         : undefined,
-    fallbackLng: "en",
+    fallbackLng: "zh",
     defaultNS,
     interpolation: {
       escapeValue: false, // not needed for react as it escapes by default
