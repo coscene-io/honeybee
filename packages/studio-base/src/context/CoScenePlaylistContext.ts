@@ -57,10 +57,7 @@ export const CoScenePlaylistContext = createContext<undefined | StoreApi<CoScene
   undefined,
 );
 
-export function usePlaylist<T>(
-  selector: (store: CoScenePlaylistStore) => T,
-  equalityFn?: (a: T, b: T) => boolean,
-): T {
+export function usePlaylist<T>(selector: (store: CoScenePlaylistStore) => T): T {
   const context = useGuaranteedContext(CoScenePlaylistContext);
-  return useStore(context, selector, equalityFn);
+  return useStore(context, selector);
 }

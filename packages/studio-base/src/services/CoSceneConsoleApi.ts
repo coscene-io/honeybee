@@ -66,6 +66,7 @@ import toast from "react-hot-toast";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
+import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
@@ -921,6 +922,15 @@ class CoSceneConsoleApi {
     });
 
     return await jobRunClient.getJobRun(req);
+  }
+
+  public async getBaseInfo(key: string): Promise<BaseInfo> {
+    let baseInfoString: string = await this.#get<string>(`/bff/shortenUrl/${key}`);
+
+    baseInfoString =
+      '{"files":"[{\\"filename\\":\\"warehouses/7d58a141-3cdd-457e-bef2-cac3556b70fd/projects/edc909d8-f8ba-4ecb-b8f6-36295217db1f/records/c8130830-914a-4114-9d31-ee02d9f2a848/revisions/b92a421fd81c7b2b83c73bcd7cf8c2ae2571b4d15df84e56c168886adfd8240f/files/aligned_20.bag\\"}]","projectId":"edc909d8-f8ba-4ecb-b8f6-36295217db1f","projectSlug":"woodiitest","recordDisplayName":"最常用的bag","recordId":"c8130830-914a-4114-9d31-ee02d9f2a848","revisionId":"b92a421fd81c7b2b83c73bcd7cf8c2ae2571b4d15df84e56c168886adfd8240f","warehouseId":"7d58a141-3cdd-457e-bef2-cac3556b70fd","warehouseSlug":"default"}';
+
+    return JSON.parse(baseInfoString);
   }
 }
 
