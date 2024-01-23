@@ -64,6 +64,7 @@ type PlotChartProps = {
   provider: TimeBasedChartProps["typedProvider"];
   datasetBounds: PlotData["bounds"];
   xAxisVal: PlotXAxisVal;
+  xAxisName?: string;
   currentTime?: number;
   eventsTimes?: { time: number; color: string; isHovered: boolean }[];
   defaultView?: ChartDefaultView;
@@ -85,6 +86,7 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
     showXAxisLabels,
     showYAxisLabels,
     xAxisVal,
+    xAxisName,
   } = props;
 
   const annotations = useMemo(() => getAnnotations(paths), [paths]);
@@ -132,6 +134,7 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
         yAxes={yAxes}
         xAxisIsPlaybackTime={xAxisVal === "timestamp"}
         showXAxisLabels={showXAxisLabels}
+        xAxisName={xAxisName}
         currentTime={currentTime}
         eventsTimes={eventsTimes}
         defaultView={defaultView}

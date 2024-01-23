@@ -32,8 +32,8 @@ import { v4 as uuidv4 } from "uuid";
 import type { ZoomOptions } from "@foxglove/chartjs-plugin-zoom/types/options";
 import { filterMap } from "@foxglove/den/collection";
 import Logger from "@foxglove/log";
-import ChartComponent from "@foxglove/studio-base/components/Chart/index";
 import { RpcElement, RpcScales } from "@foxglove/studio-base/components/Chart/types";
+import ChartComponent from "@foxglove/studio-base/components/CoSceneChart/index";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -138,6 +138,7 @@ export type Props = {
   // Note, this setting should not be used for other time values.
   xAxisIsPlaybackTime: boolean;
   showXAxisLabels: boolean;
+  xAxisName?: string;
   plugins?: ChartOptions["plugins"];
   currentTime?: number;
   eventsTimes?: { time: number; color: string; isHovered: boolean }[];
@@ -549,10 +550,14 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
         ...defaultXTicksSettings,
         ...xAxes?.ticks,
       },
+      title: {
+        display: props.xAxisName != undefined && props.xAxisName.length > 0,
+        text: props.xAxisName,
+      },
     };
 
     return scale;
-  }, [theme.palette, showXAxisLabels, xAxes, minX, maxX]);
+  }, [theme.palette, showXAxisLabels, props.xAxisName, xAxes, minX, maxX]);
 
   const yScale = useMemo<ScaleOptions>(() => {
     const defaultYTicksSettings: ScaleOptions["ticks"] = {

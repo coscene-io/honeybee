@@ -158,6 +158,7 @@ const makeRootSeriesNode = memoizeWeak(
 function buildSettingsTree(
   config: PlotConfig,
   t: TFunction<"plot">,
+  tAnnotatedPlot: TFunction<"cosAnnotatedPlot">,
   selectRecordsOptions: { label: string; value: string }[],
 ): SettingsTreeNodes {
   const maxYError =
@@ -238,6 +239,10 @@ function buildSettingsTree(
       label: t("yAxis"),
       defaultExpansionState: "collapsed",
       fields: {
+        yAxisName: {
+          label: tAnnotatedPlot("name"),
+          input: "string",
+        },
         showYAxisLabels: {
           label: t("showLabels"),
           input: "boolean",
@@ -262,6 +267,11 @@ function buildSettingsTree(
       label: t("xAxis"),
       defaultExpansionState: "collapsed",
       fields: {
+        xAxisName: {
+          label: tAnnotatedPlot("name"),
+          input: "string",
+          value: config.xAxisName ?? "",
+        },
         xAxisVal: {
           label: t("value"),
           input: "select",
@@ -333,6 +343,7 @@ export function usePlotPanelSettings(
 ): void {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const { t } = useTranslation("plot");
+  const { t: tAnnotatedPlot } = useTranslation("cosAnnotatedPlot");
   const { topics } = PanelAPI.useDataSourceInfo();
 
   const bagFiles = usePlaylist(selectBagFiles);
@@ -463,7 +474,7 @@ export function usePlotPanelSettings(
     updatePanelSettingsTree({
       actionHandler,
       focusedPath,
-      nodes: buildSettingsTree(config, t, records ?? []),
+      nodes: buildSettingsTree(config, t, tAnnotatedPlot, records ?? []),
     });
-  }, [actionHandler, config, focusedPath, updatePanelSettingsTree, t, records]);
+  }, [actionHandler, config, focusedPath, updatePanelSettingsTree, t, tAnnotatedPlot, records]);
 }

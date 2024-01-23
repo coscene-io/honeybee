@@ -129,6 +129,7 @@ function Plot(props: Props) {
     showMoments,
     momentsFilter,
     selectRecords,
+    xAxisName,
   } = config;
 
   const yAxisPaths = useMemo(() => {
@@ -412,6 +413,7 @@ function Plot(props: Props) {
             onClick={onClick}
             paths={yAxisPaths}
             showXAxisLabels={showXAxisLabels}
+            xAxisName={xAxisName}
             showYAxisLabels={showYAxisLabels}
             xAxisVal={xAxisVal}
           />
