@@ -390,11 +390,15 @@ function ChooserComponent({
   }, [consoleApi, listType, project, recordsFilter, recordsPage, recordsPageSize]);
 
   const [filesList, syncFilesList] = useAsyncFn(async () => {
+    const filter = CosQuery.Companion.empty();
+
+    filter.setField(QueryFields.FILENAME, [BinaryOperator.HAS], [filesFilter]);
+
     if (record && listType === "files") {
       return await consoleApi.listFiles({
         revisionName: record.head?.name ?? "",
         pageSize: filesPageSize,
-        filter: filesFilter,
+        filter: filter.toQueryString(new SerializeOption(false)),
         currentPage: filesPage,
       });
     }
