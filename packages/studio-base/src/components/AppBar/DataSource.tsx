@@ -5,6 +5,7 @@
 import { ErrorCircle16Filled } from "@fluentui/react-icons";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { CircularProgress, IconButton, Link, Breadcrumbs, Typography } from "@mui/material";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -14,6 +15,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoSceneProjectStore,
@@ -94,6 +96,7 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 // CoScene
 const selectProject = (store: CoSceneProjectStore) => store.project;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
 export function DataSource(): JSX.Element {
   const { t } = useTranslation("appBar");
@@ -109,6 +112,9 @@ export function DataSource(): JSX.Element {
     coSceneContext: { currentOrganizationSlug },
   } = useConsoleApi();
   const urlState = useMessagePipeline(selectUrlState);
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const { sidebarActions } = useWorkspaceActions();
 
@@ -134,13 +140,13 @@ export function DataSource(): JSX.Element {
   // CoScene
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://home.coscene.dev/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`
-      : `/${currentOrganizationSlug}/${urlState?.parameters?.projectSlug}`;
+      ? `https://home.coscene.dev/${currentOrganizationSlug}/${baseInfo.projectSlug}`
+      : `/${currentOrganizationSlug}/${baseInfo.projectSlug}`;
 
-  const recordHref = `${projectHref}/records/${urlState?.parameters?.recordId}`;
-  const jobHref = `${projectHref}/matrix/workflow-runs/${urlState?.parameters?.workflowRunsId}/job-runs/${urlState?.parameters?.jobRunsId}`;
+  const recordHref = `${projectHref}/records/${baseInfo.recordId}`;
+  const jobHref = `${projectHref}/matrix/workflow-runs/${baseInfo.workflowRunsId}/job-runs/${baseInfo.jobRunsId}`;
 
-  const secondaryHref = urlState?.parameters?.jobRunsDisplayName ? jobHref : recordHref;
+  const secondaryHref = baseInfo.jobRunsDisplayName ? jobHref : recordHref;
 
   const breadcrumbs = [
     <Link
@@ -161,7 +167,7 @@ export function DataSource(): JSX.Element {
       color="inherit"
       className={classes.breadcrumbs}
     >
-      {urlState?.parameters?.jobRunsDisplayName ?? urlState?.parameters?.recordDisplayName}
+      {baseInfo.jobRunsDisplayName ?? baseInfo.recordDisplayName}
     </Link>,
   ];
 
@@ -171,7 +177,7 @@ export function DataSource(): JSX.Element {
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
           <div className={classes.textTruncate}>
-            {urlState?.parameters?.projectSlug && urlState.parameters.warehouseSlug ? (
+            {baseInfo.projectSlug && baseInfo.warehouseSlug ? (
               <Breadcrumbs
                 separator={<NavigateNextIcon fontSize="small" />}
                 aria-label="breadcrumb"

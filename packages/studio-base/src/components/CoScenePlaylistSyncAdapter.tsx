@@ -13,6 +13,7 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoScenePlaylistStore,
@@ -25,7 +26,6 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { timestampToTime } from "@foxglove/studio-base/util/time";
 
 const HOVER_TOLERANCE = 0.01;
 
@@ -96,7 +96,7 @@ const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activ
 const selectSetBagsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setBagsAtHoverValue;
 const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
-const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
 export function PlaylistSyncAdapter(): ReactNull {
   const setBagFiles = usePlaylist(selectSetBagFiles);
@@ -105,6 +105,7 @@ export function PlaylistSyncAdapter(): ReactNull {
   const hoveredBag = useTimelineInteractionState(selectHoverBag);
 
   const urlState = useMessagePipeline(selectUrlState);
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const consoleApi = useConsoleApi();
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
@@ -112,7 +113,8 @@ export function PlaylistSyncAdapter(): ReactNull {
   const [hoverComponentId] = useState<string>(() => uuidv4());
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
-  const seek = useMessagePipeline(selectSeek);
+
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const timeMode = useMemo(() => {
     return localStorage.getItem("CoScene_timeMode") === "relativeTime"
@@ -128,57 +130,33 @@ export function PlaylistSyncAdapter(): ReactNull {
     return toSec(subtract(endTime, startTime));
   }, [endTime, startTime]);
 
+  const baseInfoKey = urlState?.parameters?.key;
+
   const [playlist, syncPlaylist] = useAsyncFn(async () => {
     try {
-      if ((urlState?.parameters?.files, startTime && endTime)) {
-        const files: ParamsFile[] = JSON.parse(urlState?.parameters?.files ?? "{}");
-        const jobRuns: string[] = [];
-        const fileNames: string[] = [];
-
-        files.forEach((file) => {
-          if ("filename" in file) {
-            fileNames.push(file.filename);
-          }
-
-          if ("jobRunsName" in file) {
-            jobRuns.push(file.jobRunsName);
-          }
-        });
-
-        return await consoleApi.getPlaylist({
-          jobRuns,
-          files: fileNames,
-        });
+      if (baseInfoKey && startTime && endTime) {
+        return await consoleApi.getPlaylist(baseInfoKey);
       }
     } catch (error) {
       setBagFiles({ loading: false, error });
     }
     return false;
-  }, [consoleApi, urlState?.parameters?.files, setBagFiles, startTime, endTime]);
+  }, [baseInfoKey, startTime, endTime, consoleApi, setBagFiles]);
 
   const [_records, syncRecords] = useAsyncFn(async () => {
     if (
-      urlState?.parameters?.warehouseId &&
-      urlState.parameters.projectId &&
+      urlState?.parameters?.key &&
       playlist.value != undefined &&
       playlist.value !== false &&
       startTime != undefined &&
       endTime != undefined
     ) {
       try {
-        const filename = urlState.parameters.filename;
-        const urlFilesInfo: ParamsFile[] = JSON.parse(urlState.parameters.files ?? "{}");
+        const urlFilesInfo: readonly ParamsFile[] = baseInfo.files ?? [];
 
         const recordBagFiles: BagFileInfo[] = [];
 
-        // 当url中携带filename时，以对应bag的startTime开始播放
-        let bagStartTime = undefined;
-
         const playListFiles = playlist.value.fileList;
-
-        if (playListFiles.length > 0) {
-          bagStartTime = playListFiles.find((bag) => bag.displayName === filename);
-        }
 
         playListFiles.forEach((ele) => {
           recordBagFiles.push(
@@ -232,34 +210,18 @@ export function PlaylistSyncAdapter(): ReactNull {
           a.startTime && b.startTime ? compare(a.startTime, b.startTime) : a.startTime ? -1 : 1,
         );
 
-        if (bagStartTime != undefined && seek) {
-          seek(timestampToTime(bagStartTime.startTime));
-
-          // Remove the filename parameter from the url
-          // to prevent sharing an url that doesn't jump based
-          // on the timestamp but on the filename.
-          const newURL = new URL(window.location.href);
-
-          newURL.searchParams.delete("ds.filename");
-
-          window.history.replaceState(undefined, "", newURL.href);
-        }
-
         setBagFiles({ loading: false, value: recordBagFiles });
       } catch (error) {
         setBagFiles({ loading: false, error });
       }
     }
   }, [
-    urlState?.parameters?.warehouseId,
-    urlState?.parameters?.projectId,
-    urlState?.parameters?.filename,
-    urlState?.parameters?.files,
+    urlState?.parameters?.key,
     playlist.value,
-    seek,
-    setBagFiles,
     startTime,
     endTime,
+    baseInfo.files,
+    setBagFiles,
     timeMode,
   ]);
 

@@ -10,6 +10,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
 import { extname } from "path";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -47,6 +48,7 @@ import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
@@ -117,6 +119,8 @@ const selectWorkspaceRightSidebarItem = (store: WorkspaceContextStore) => store.
 const selectWorkspaceRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.right.open;
 const selectWorkspaceRightSidebarSize = (store: WorkspaceContextStore) => store.sidebars.right.size;
 
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+
 function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
   const { classes } = useStyles();
@@ -134,6 +138,10 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
+
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   // coScene set demo layout in demo mode
   const { setSelectedLayoutId } = useCurrentLayoutActions();
@@ -404,7 +412,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const selectEvent = useEvents(selectSelectEvent);
   // Load data source from URL.
   useEffect(() => {
-    if (!unappliedSourceArgs) {
+    if (!unappliedSourceArgs || _.isEmpty(baseInfo)) {
       return;
     }
 
@@ -413,12 +421,24 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       log.debug("Initialising source from url", unappliedSourceArgs);
       selectSource(unappliedSourceArgs.ds, {
         type: "connection",
-        params: { ...unappliedSourceArgs.dsParams, userId: currentUser?.userId },
+        params: {
+          ...unappliedSourceArgs.dsParams,
+          ...baseInfo,
+          files: JSON.stringify(baseInfo.files),
+          userId: currentUser?.userId,
+        },
       });
       selectEvent(unappliedSourceArgs.dsParams?.eventId);
       setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
     }
-  }, [currentUser, selectEvent, selectSource, unappliedSourceArgs, setUnappliedSourceArgs]);
+  }, [
+    currentUser,
+    selectEvent,
+    selectSource,
+    unappliedSourceArgs,
+    setUnappliedSourceArgs,
+    baseInfo,
+  ]);
 
   const [unappliedTime, setUnappliedTime] = useState(
     targetUrlState ? { time: targetUrlState.time } : undefined,
@@ -467,7 +487,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   return (
     <PanelStateContextProvider>
-      {dataSourceDialog.open && <DataSourceDialog />}
+      {dataSourceDialog.open && !asyncBaseInfo.loading && <DataSourceDialog />}
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
       <KeyListener global keyDownHandlers={keyDownHandlers} />

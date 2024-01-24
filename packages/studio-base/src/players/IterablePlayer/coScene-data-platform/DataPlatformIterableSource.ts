@@ -45,8 +45,7 @@ export type DataPlatformInterableSourceConsoleApi = Pick<
 
 type DataPlatformSourceParameters = {
   projectName?: string;
-  files?: string[];
-  jobRuns?: string[];
+  key: string;
   singleRequestTime: number;
 };
 
@@ -78,13 +77,8 @@ export class DataPlatformIterableSource implements IIterableSource {
   }
 
   public async initialize(): Promise<Initalization> {
-    const apiParams = {
-      files: this.#params.files ?? [],
-      jobRuns: this.#params.jobRuns ?? [],
-    };
-
     // get topics
-    const originalTopics = await this.#consoleApi.topics({ ...apiParams });
+    const originalTopics = await this.#consoleApi.topics(this.#params.key);
 
     const rawTopics = originalTopics.metaData;
 
@@ -231,8 +225,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         start: streamStart,
         end: streamEnd,
         authHeader: this.#consoleApi.getAuthHeader(),
-        files: this.#params.files,
-        jobRuns: this.#params.jobRuns,
+        id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
@@ -265,8 +258,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         start: localStart,
         end: localEnd,
         authHeader: this.#consoleApi.getAuthHeader(),
-        files: this.#params.files,
-        jobRuns: this.#params.jobRuns,
+        id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
@@ -340,8 +332,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       start: time,
       end: time,
       authHeader: this.#consoleApi.getAuthHeader(),
-      files: this.#params.files,
-      jobRuns: this.#params.jobRuns,
+      id: this.#params.key,
       projectName: this.#params.projectName,
       playbackQualityLevel,
       topics: Array.from(topics.keys()),
@@ -373,11 +364,12 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("api is required for data platform");
   }
 
-  const projectId = params.projectId ?? "";
-  const projectSlug = params.projectSlug ?? "";
-  const warehouseId = params.warehouseId ?? "";
-  const warehouseSlug = params.warehouseSlug ?? "";
-  const userId = params.userId ?? "";
+  const projectId = params.projectId;
+  const projectSlug = params.projectSlug;
+  const warehouseId = params.warehouseId;
+  const warehouseSlug = params.warehouseSlug;
+  const userId = params.userId;
+  const key = params.key;
 
   if (!projectId) {
     throw new Error("projectId is required for data platform source");
@@ -399,6 +391,10 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("user id is undefined");
   }
 
+  if (!key) {
+    throw new Error("key is undefined");
+  }
+
   const files: ParamsFile[] = JSON.parse(params.files ?? "[]");
   const jobRuns: string[] = [];
   const fileNames: string[] = [];
@@ -414,8 +410,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   });
 
   const dpSourceParams: DataPlatformSourceParameters = {
-    files: fileNames,
-    jobRuns,
+    key,
     projectName: `warehouses/${warehouseId}/projects/${projectId}`,
     singleRequestTime: singleRequestTime ?? 5,
   };

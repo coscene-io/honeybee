@@ -4,6 +4,7 @@
 
 import { useMemo } from "react";
 
+import { CoSceneBaseSyncAdapter } from "@foxglove/studio-base/components/CoSceneBaseSyncAdapter";
 import { CurrentLayoutSyncAdapter } from "@foxglove/studio-base/components/CoSceneCurrentLayoutSyncAdapter";
 import { CoSceneEventsSyncAdapter } from "@foxglove/studio-base/components/CoSceneEventsSyncAdapter";
 import { PlaylistSyncAdapter } from "@foxglove/studio-base/components/CoScenePlaylistSyncAdapter";
@@ -23,6 +24,7 @@ export function SyncAdapters(): JSX.Element {
 
     return (
       <>
+        <CoSceneBaseSyncAdapter />
         <CoSceneEventsSyncAdapter />
         <PlaylistSyncAdapter />
         <ProjectsSyncAdapter />
