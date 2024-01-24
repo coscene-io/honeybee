@@ -22,4 +22,5 @@ export const cosError: Partial<TypeOptions["resources"]["cosError"]> = {
   generateMediaFailed: "生成媒体失败",
   useForAlwaysFail: "用于测试的接口，总是失败",
   unknownError: "未知错误",
+  currentUrlNotSupported: "当前URL不支持",
 };

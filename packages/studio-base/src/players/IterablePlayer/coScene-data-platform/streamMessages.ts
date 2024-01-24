@@ -31,8 +31,7 @@ export type ParsedChannelAndEncodings = {
 export type StreamParams = {
   start: Time;
   end: Time;
-  files?: string[];
-  jobRuns?: string[];
+  id: string;
   projectName?: string;
   authHeader?: string;
   replayPolicy?: "lastPerChannel" | "";
@@ -214,12 +213,7 @@ export async function* streamMessages({
         start: toMillis(params.start),
         end: toMillis(params.end),
         topics: params.topics,
-        files: params.files?.map((path) => ({
-          path,
-        })),
-        jobRuns: params.jobRuns?.map((path) => ({
-          path,
-        })),
+        id: params.id,
       }),
     });
     if (response.status === 401) {

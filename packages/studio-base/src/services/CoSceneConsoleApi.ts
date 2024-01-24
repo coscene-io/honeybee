@@ -66,6 +66,7 @@ import toast from "react-hot-toast";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
+import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
@@ -217,11 +218,6 @@ export type ConsoleApiLayout = {
   savedAt?: ISO8601Timestamp;
   permission: Permission;
   data?: Record<string, unknown>;
-};
-
-export type DataPlatformRequestArgs = {
-  files: string[];
-  jobRuns: string[];
 };
 
 export enum MetricType {
@@ -559,16 +555,11 @@ class CoSceneConsoleApi {
   }
 
   // coScene-----------------------------------------------------------
-  public async topics(params: DataPlatformRequestArgs): Promise<customTopicResponse> {
+  public async topics(key: string): Promise<customTopicResponse> {
     const topics = await this.#post<topicInterfaceReturns>(
       "/v1/data/getMetadata",
       {
-        files: params.files.map((path) => ({
-          path,
-        })),
-        jobRuns: params.jobRuns.map((path) => ({
-          path,
-        })),
+        id: key,
       },
       undefined,
     );
@@ -594,22 +585,11 @@ class CoSceneConsoleApi {
     return `${this.#baseUrl}/v1/data/getStreams`;
   }
 
-  public async getPlaylist({
-    jobRuns,
-    files,
-  }: {
-    jobRuns: string[];
-    files: string[];
-  }): Promise<getPlaylistResponse> {
+  public async getPlaylist(key: string): Promise<getPlaylistResponse> {
     return await this.#post<getPlaylistResponse>(
       "/v1/data/getPlaylist",
       {
-        jobRuns: jobRuns.map((path) => ({
-          path,
-        })),
-        files: files.map((path) => ({
-          path,
-        })),
+        id: key,
       },
       undefined,
     );
@@ -921,6 +901,22 @@ class CoSceneConsoleApi {
     });
 
     return await jobRunClient.getJobRun(req);
+  }
+
+  public async getBaseInfo(key: string): Promise<BaseInfo> {
+    const baseInfoString: BaseInfo = await this.#get<BaseInfo>(`/bff/shortenUrl/${key}`);
+
+    return baseInfoString;
+  }
+
+  public async setBaseInfo(baseInfo: BaseInfo): Promise<string> {
+    const baseInfoString: string = JSON.stringify(baseInfo) ?? "";
+
+    const key = await this.#post<{ id: string }>("/bff/shortenUrl", {
+      url: baseInfoString,
+    });
+
+    return key.id;
   }
 }
 

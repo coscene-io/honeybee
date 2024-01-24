@@ -20,10 +20,7 @@ export const CoSceneProjectContext = createContext<undefined | StoreApi<CoSceneP
   undefined,
 );
 
-export function useProject<T>(
-  selector: (store: CoSceneProjectStore) => T,
-  equalityFn?: (a: T, b: T) => boolean,
-): T {
+export function useProject<T>(selector: (store: CoSceneProjectStore) => T): T {
   const context = useGuaranteedContext(CoSceneProjectContext);
-  return useStore(context, selector, equalityFn);
+  return useStore(context, selector);
 }

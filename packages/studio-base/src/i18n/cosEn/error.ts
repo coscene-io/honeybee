@@ -20,4 +20,5 @@ export const cosError = {
   generateMediaFailed: "Failed to generate media",
   useForAlwaysFail: "Test interface for always failing",
   unknownError: "Unknown error",
+  currentUrlNotSupported: "Current URL is not supported",
 };
