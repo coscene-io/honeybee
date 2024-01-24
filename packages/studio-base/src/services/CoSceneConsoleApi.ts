@@ -220,11 +220,6 @@ export type ConsoleApiLayout = {
   data?: Record<string, unknown>;
 };
 
-export type DataPlatformRequestArgs = {
-  files: string[];
-  jobRuns: string[];
-};
-
 export enum MetricType {
   RecordPlaysTotal = "honeybee_record_plays_total",
   RecordPlaysEveryFiveSecondsTotal = "honeybee_record_plays_every_five_seconds_total",
@@ -560,16 +555,11 @@ class CoSceneConsoleApi {
   }
 
   // coScene-----------------------------------------------------------
-  public async topics(params: DataPlatformRequestArgs): Promise<customTopicResponse> {
+  public async topics(key: string): Promise<customTopicResponse> {
     const topics = await this.#post<topicInterfaceReturns>(
       "/v1/data/getMetadata",
       {
-        files: params.files.map((path) => ({
-          path,
-        })),
-        jobRuns: params.jobRuns.map((path) => ({
-          path,
-        })),
+        id: key,
       },
       undefined,
     );
@@ -595,22 +585,11 @@ class CoSceneConsoleApi {
     return `${this.#baseUrl}/v1/data/getStreams`;
   }
 
-  public async getPlaylist({
-    jobRuns,
-    files,
-  }: {
-    jobRuns: string[];
-    files: string[];
-  }): Promise<getPlaylistResponse> {
+  public async getPlaylist(key: string): Promise<getPlaylistResponse> {
     return await this.#post<getPlaylistResponse>(
       "/v1/data/getPlaylist",
       {
-        jobRuns: jobRuns.map((path) => ({
-          path,
-        })),
-        files: files.map((path) => ({
-          path,
-        })),
+        id: key,
       },
       undefined,
     );
@@ -925,12 +904,19 @@ class CoSceneConsoleApi {
   }
 
   public async getBaseInfo(key: string): Promise<BaseInfo> {
-    let baseInfoString: string = await this.#get<string>(`/bff/shortenUrl/${key}`);
+    const baseInfoString: BaseInfo = await this.#get<BaseInfo>(`/bff/shortenUrl/${key}`);
 
-    baseInfoString =
-      '{"files":"[{\\"filename\\":\\"warehouses/7d58a141-3cdd-457e-bef2-cac3556b70fd/projects/edc909d8-f8ba-4ecb-b8f6-36295217db1f/records/c8130830-914a-4114-9d31-ee02d9f2a848/revisions/b92a421fd81c7b2b83c73bcd7cf8c2ae2571b4d15df84e56c168886adfd8240f/files/aligned_20.bag\\"}]","projectId":"edc909d8-f8ba-4ecb-b8f6-36295217db1f","projectSlug":"woodiitest","recordDisplayName":"最常用的bag","recordId":"c8130830-914a-4114-9d31-ee02d9f2a848","revisionId":"b92a421fd81c7b2b83c73bcd7cf8c2ae2571b4d15df84e56c168886adfd8240f","warehouseId":"7d58a141-3cdd-457e-bef2-cac3556b70fd","warehouseSlug":"default"}';
+    return baseInfoString;
+  }
 
-    return JSON.parse(baseInfoString);
+  public async setBaseInfo(baseInfo: BaseInfo): Promise<string> {
+    const baseInfoString: string = JSON.stringify(baseInfo) ?? "";
+
+    const key = await this.#post<{ id: string }>("/bff/shortenUrl", {
+      url: baseInfoString,
+    });
+
+    return key.id;
   }
 }
 

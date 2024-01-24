@@ -2,13 +2,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 
 import Logger from "@foxglove/log";
 import { ConsoleApi, CoSceneContext } from "@foxglove/studio-base";
+import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutStorageContext from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
-import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import CoSceneBaseProvider from "@foxglove/studio-base/providers/CoSceneBaseProvider";
 import CoSceneConsoleApiRemoteLayoutStorageProvider from "@foxglove/studio-base/providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
 import CoSceneCurrentLayoutProvider from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider";
 import CoSceneLayoutManagerProvider from "@foxglove/studio-base/providers/CoSceneLayoutManagerProvider";
@@ -66,92 +67,132 @@ export function CoSceneProviders(): JSX.Element[] {
 
   const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
 
-  const url = new URL(window.location.href);
+  useEffect(() => {
+    const url = new URL(window.location.href);
 
-  const filesParams = url.searchParams.get("ds.files");
+    const baseInfoKey = url.searchParams.get("ds.key");
 
-  const files: ParamsFile[] = JSON.parse(filesParams ?? "[]");
+    if (baseInfoKey == undefined || baseInfoKey === "") {
+      // 老版本url 需要转换
+      const warehouseId = url.searchParams.get("ds.warehouseId");
 
-  if (files.length === 0) {
-    // 老版本url 需要转换
-    const warehouseId = url.searchParams.get("ds.warehouseId");
+      const projectId = url.searchParams.get("ds.projectId");
 
-    const projectId = url.searchParams.get("ds.projectId");
+      const recordId = url.searchParams.get("ds.recordId");
 
-    const recordId = url.searchParams.get("ds.recordId");
+      const revisionId = url.searchParams.get("ds.revisionId");
 
-    const revisionId = url.searchParams.get("ds.revisionId");
+      const jobRunsId = url.searchParams.get("ds.jobRunsId");
 
-    const jobRunsId = url.searchParams.get("ds.jobRunsId");
+      const workflowRunsId = url.searchParams.get("ds.workflowRunsId");
 
-    const workflowRunsId = url.searchParams.get("ds.workflowRunsId");
+      const projectSlug = url.searchParams.get("ds.projectSlug");
 
-    const fileNames: ParamsFile[] = [];
+      const warehouseSlug = url.searchParams.get("ds.warehouseSlug");
 
-    if (jobRunsId) {
-      const jobRunsName = `warehouses/${warehouseId}/projects/${projectId}/workflowRuns/${workflowRunsId}/jobRuns/${jobRunsId}`;
-      consoleApi
-        .getJobRun(jobRunsName)
-        .then((jobRun) => {
-          const jobRunDisplayName = jobRun.spec?.spec?.name ?? "";
-          const params = new URLSearchParams(url.search);
-          params.set("ds.jobRunsDisplayName", jobRunDisplayName);
-          params.set(
-            "ds.files",
-            JSON.stringify([
+      const baseInfo: BaseInfo = {
+        warehouseId: warehouseId ?? undefined,
+        projectId: projectId ?? undefined,
+        recordId: recordId ?? undefined,
+        revisionId: revisionId ?? undefined,
+        jobRunsId: jobRunsId ?? undefined,
+        workflowRunsId: workflowRunsId ?? undefined,
+        projectSlug: projectSlug ?? undefined,
+        warehouseSlug: warehouseSlug ?? undefined,
+      };
+
+      if (jobRunsId) {
+        const jobRunsName = `warehouses/${warehouseId}/projects/${projectId}/workflowRuns/${workflowRunsId}/jobRuns/${jobRunsId}`;
+        consoleApi
+          .getJobRun(jobRunsName)
+          .then((jobRun) => {
+            const jobRunDisplayName = jobRun.spec?.spec?.name ?? "";
+            baseInfo["jobRunsDisplayName"] = jobRunDisplayName;
+            baseInfo["files"] = [
               {
                 jobRunsName: `warehouses/${warehouseId}/projects/${projectId}/workflowRuns/${workflowRunsId}/jobRuns/${jobRunsId}`,
               },
-            ]) ?? "[]",
-          );
+            ];
 
-          url.search = params.toString();
-          window.location.href = url.href;
-        })
-        .catch((err) => {
-          log.error(err);
-        });
-    } else {
-      const recordName = `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
-      const revisionName = `${recordName}/revisions/${revisionId}`;
+            consoleApi
+              .setBaseInfo(baseInfo)
+              .then((res) => {
+                const searchParams: { [key: string]: string } = {
+                  ds: "coscene-data-platform",
+                  "ds.key": res,
+                };
 
-      consoleApi
-        .getRecord({ recordName })
-        .then((record) => {
-          const params = new URLSearchParams(url.search);
-          params.set("ds.recordDisplayName", record.getTitle() || "unknow");
+                const updatedUrl = new URL(window.location.href);
+                updatedUrl.search = new URLSearchParams(searchParams).toString();
 
-          consoleApi
-            .listFiles({
-              revisionName,
-              pageSize: 100,
-              filter: "",
-              currentPage: 0,
-            })
-            .then((res) => {
-              log.info(res.toJsonString());
-              res.files.forEach((file) => {
-                if (checkBagFileSupported(file)) {
-                  fileNames.push({ filename: file.name });
-                }
+                window.location.href = updatedUrl.href;
+              })
+              .catch((err) => {
+                log.error(err);
               });
+          })
+          .catch((err) => {
+            log.error(err);
+          });
+      } else {
+        const recordName = `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
+        const revisionName = `${recordName}/revisions/${revisionId}`;
 
-              params.set("ds.files", JSON.stringify(fileNames) ?? "[]");
-              url.search = params.toString();
-              window.location.href = url.href;
-            })
-            .catch((err) => {
-              log.error(err);
-            });
-        })
-        .catch((err) => {
-          log.error(err);
-        });
+        consoleApi
+          .getRecord({ recordName })
+          .then((record) => {
+            const fileNames: { filename: string }[] = [];
+            baseInfo["recordDisplayName"] = record.getTitle() || "unknow";
+
+            consoleApi
+              .listFiles({
+                revisionName,
+                pageSize: 100,
+                filter: "",
+                currentPage: 0,
+              })
+              .then((res) => {
+                res.files.forEach((file) => {
+                  if (checkBagFileSupported(file)) {
+                    fileNames.push({ filename: file.name });
+                  }
+                });
+
+                baseInfo["files"] = fileNames;
+
+                consoleApi
+                  .setBaseInfo(baseInfo)
+                  // eslint-disable-next-line @typescript-eslint/no-shadow
+                  .then((res) => {
+                    const searchParams: { [key: string]: string } = {
+                      ds: "coscene-data-platform",
+                      "ds.key": res,
+                    };
+
+                    const updatedUrl = new URL(window.location.href);
+                    updatedUrl.search = new URLSearchParams(searchParams).toString();
+
+                    window.location.href = updatedUrl.href;
+                  })
+                  .catch((err) => {
+                    log.error(err);
+                  });
+              })
+              .catch((err) => {
+                log.error(err);
+              });
+          })
+          .catch((err) => {
+            log.error(err);
+          });
+      }
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const providers = useMemo(
     () => [
+      <CoSceneBaseProvider key="CoSceneBaseProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
       <CoSceneUserProvider key="CoSceneUserProvider" />,
       <CoSceneConsoleApiContext.Provider value={consoleApi} key="CoSceneConsoleApiContext" />,

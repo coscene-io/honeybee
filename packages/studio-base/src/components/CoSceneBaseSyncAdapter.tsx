@@ -5,35 +5,33 @@ import { useEffect } from "react";
 import { useAsyncFn } from "react-use";
 
 import Logger from "@foxglove/log";
-import {
-  MessagePipelineContext,
-  useMessagePipeline,
-} from "@foxglove/studio-base/components/MessagePipeline";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 
 const log = Logger.getLogger(__filename);
 
 const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
-const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 export function CoSceneBaseSyncAdapter(): ReactNull {
   const setBaseInfo = useBaseInfo(selectSetBaseInfo);
-  const urlState = useMessagePipeline(selectUrlState);
   const consoleApi = useConsoleApi();
 
   const [_baseInfo, syncBaseInfo] = useAsyncFn(async () => {
-    if (urlState?.parameters?.key) {
+    const url = new URL(window.location.href);
+
+    const baseInfoKey = decodeURI(url.searchParams.get("ds.key") ?? "");
+
+    if (baseInfoKey) {
       try {
         setBaseInfo({ loading: true, value: {} });
-        const baseInfo = await consoleApi.getBaseInfo(urlState.parameters.key);
+        const baseInfo = await consoleApi.getBaseInfo(baseInfoKey);
 
         setBaseInfo({ loading: false, value: baseInfo });
       } catch (error) {
         setBaseInfo({ loading: false, error });
       }
     }
-  }, [consoleApi, setBaseInfo, urlState?.parameters?.key]);
+  }, [consoleApi, setBaseInfo]);
 
   useEffect(() => {
     syncBaseInfo().catch((error) => {
