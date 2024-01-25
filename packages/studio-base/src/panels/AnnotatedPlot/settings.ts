@@ -28,6 +28,7 @@ import { plotableRosTypes, PlotConfig, plotPathDisplayName } from "./types";
 export const DEFAULT_PATH: SettingsPlotPath = Object.freeze({
   value: "",
   label: "",
+  yAxisID: "yAxis",
   lines: [],
 });
 
@@ -121,6 +122,41 @@ const makeSeriesNode = memoizeWeak(
           label: t("label"),
           value: path.label,
         },
+        yAxis: {
+          label: t("yAxis"),
+          input: "select",
+          value: path.yAxisID,
+          options: [
+            {
+              value: "yAxis",
+              label: t("yAxis"),
+            },
+            {
+              value: "y1Axis",
+              label: t("y1Axis", {
+                ns: "cosAnnotatedPlot",
+              }),
+            },
+            {
+              value: "y2Axis",
+              label: t("y2Axis", {
+                ns: "cosAnnotatedPlot",
+              }),
+            },
+            {
+              value: "y3Axis",
+              label: t("y3Axis", {
+                ns: "cosAnnotatedPlot",
+              }),
+            },
+            {
+              value: "y4Axis",
+              label: t("y4Axis", {
+                ns: "cosAnnotatedPlot",
+              }),
+            },
+          ],
+        },
       },
       children,
     };
@@ -158,7 +194,6 @@ const makeRootSeriesNode = memoizeWeak(
 function buildSettingsTree(
   config: PlotConfig,
   t: TFunction<"plot">,
-  tAnnotatedPlot: TFunction<"cosAnnotatedPlot">,
   selectRecordsOptions: { label: string; value: string }[],
 ): SettingsTreeNodes {
   const maxYError =
@@ -240,8 +275,14 @@ function buildSettingsTree(
       defaultExpansionState: "collapsed",
       fields: {
         yAxisName: {
-          label: tAnnotatedPlot("name"),
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
           input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.yAxisName,
         },
         showYAxisLabels: {
           label: t("showLabels"),
@@ -263,13 +304,190 @@ function buildSettingsTree(
         },
       },
     },
+    y1Axis: {
+      label: t("y1Axis", {
+        ns: "cosAnnotatedPlot",
+      }),
+      defaultExpansionState: "collapsed",
+      fields: {
+        y1AxisName: {
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.y1AxisName,
+        },
+        showY1Axis: {
+          label: t("display", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "boolean",
+          value: config.showY1Axis,
+        },
+        showY1AxisLabels: {
+          label: t("showLabels"),
+          input: "boolean",
+          value: config.showY1AxisLabels,
+        },
+        minY1Value: {
+          label: t("min"),
+          input: "number",
+          value: config.minY1Value != undefined ? Number(config.minY1Value) : undefined,
+          placeholder: "auto",
+        },
+        maxY1Value: {
+          label: t("max"),
+          input: "number",
+          error: maxYError,
+          value: config.maxY1Value != undefined ? Number(config.maxY1Value) : undefined,
+          placeholder: "auto",
+        },
+      },
+    },
+    y2Axis: {
+      label: t("y2Axis", {
+        ns: "cosAnnotatedPlot",
+      }),
+      defaultExpansionState: "collapsed",
+      fields: {
+        y2AxisName: {
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.y2AxisName,
+        },
+        showY2Axis: {
+          label: t("display", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "boolean",
+          value: config.showY2Axis,
+        },
+        showY2AxisLabels: {
+          label: t("showLabels"),
+          input: "boolean",
+          value: config.showY2AxisLabels,
+        },
+        minY2Value: {
+          label: t("min"),
+          input: "number",
+          value: config.minY2Value != undefined ? Number(config.minY2Value) : undefined,
+          placeholder: "auto",
+        },
+        maxY3Value: {
+          label: t("max"),
+          input: "number",
+          error: maxYError,
+          value: config.maxY3Value != undefined ? Number(config.maxY3Value) : undefined,
+          placeholder: "auto",
+        },
+      },
+    },
+    y3Axis: {
+      label: t("y3Axis", {
+        ns: "cosAnnotatedPlot",
+      }),
+      defaultExpansionState: "collapsed",
+      fields: {
+        y3AxisName: {
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.y3AxisName,
+        },
+        showY3Axis: {
+          label: t("display", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "boolean",
+          value: config.showY3Axis,
+        },
+        showY3AxisLabels: {
+          label: t("showLabels"),
+          input: "boolean",
+          value: config.showY3AxisLabels,
+        },
+        minY3Value: {
+          label: t("min"),
+          input: "number",
+          value: config.minY3Value != undefined ? Number(config.minY3Value) : undefined,
+          placeholder: "auto",
+        },
+        maxY3Value: {
+          label: t("max"),
+          input: "number",
+          error: maxYError,
+          value: config.maxY3Value != undefined ? Number(config.maxY3Value) : undefined,
+          placeholder: "auto",
+        },
+      },
+    },
+    y4Axis: {
+      label: t("y4Axis", {
+        ns: "cosAnnotatedPlot",
+      }),
+      defaultExpansionState: "collapsed",
+      fields: {
+        y4AxisName: {
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.y4AxisName,
+        },
+        showY4Axis: {
+          label: t("display", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "boolean",
+          value: config.showY4Axis,
+        },
+        showY4AxisLabels: {
+          label: t("showLabels"),
+          input: "boolean",
+          value: config.showY4AxisLabels,
+        },
+        minY4Value: {
+          label: t("min"),
+          input: "number",
+          value: config.minY4Value != undefined ? Number(config.minY4Value) : undefined,
+          placeholder: "auto",
+        },
+        maxY4Value: {
+          label: t("max"),
+          input: "number",
+          error: maxYError,
+          value: config.maxY4Value != undefined ? Number(config.maxY4Value) : undefined,
+          placeholder: "auto",
+        },
+      },
+    },
     xAxis: {
       label: t("xAxis"),
       defaultExpansionState: "collapsed",
       fields: {
         xAxisName: {
-          label: tAnnotatedPlot("name"),
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
           input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
           value: config.xAxisName ?? "",
         },
         xAxisVal: {
@@ -343,7 +561,6 @@ export function usePlotPanelSettings(
 ): void {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const { t } = useTranslation("plot");
-  const { t: tAnnotatedPlot } = useTranslation("cosAnnotatedPlot");
   const { topics } = PanelAPI.useDataSourceInfo();
 
   const bagFiles = usePlaylist(selectBagFiles);
@@ -474,7 +691,7 @@ export function usePlotPanelSettings(
     updatePanelSettingsTree({
       actionHandler,
       focusedPath,
-      nodes: buildSettingsTree(config, t, tAnnotatedPlot, records ?? []),
+      nodes: buildSettingsTree(config, t, records ?? []),
     });
-  }, [actionHandler, config, focusedPath, updatePanelSettingsTree, t, tAnnotatedPlot, records]);
+  }, [actionHandler, config, focusedPath, updatePanelSettingsTree, t, records]);
 }

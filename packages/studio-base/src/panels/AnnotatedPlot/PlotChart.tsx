@@ -24,7 +24,7 @@ import TimeBasedChart, {
 } from "@foxglove/studio-base/components/CoSceneDeduplicatedTimeBasedChart";
 import { getLineColor } from "@foxglove/studio-base/util/plotColors";
 
-import { PlotPath, PlotXAxisVal, isReferenceLinePlotPathType } from "./internalTypes";
+import { PlotPath, PlotXAxisVal, isReferenceLinePlotPathType, YAxesInfo } from "./internalTypes";
 import { PlotData } from "./plotData";
 
 // A "reference line" plot path is a numeric value. It creates a horizontal line on the plot at the specified value.
@@ -57,10 +57,7 @@ function getAnnotations(paths: PlotPath[]) {
 type PlotChartProps = {
   isSynced: boolean;
   paths: PlotPath[];
-  minYValue: number;
-  maxYValue: number;
   showXAxisLabels: boolean;
-  showYAxisLabels: boolean;
   provider: TimeBasedChartProps["typedProvider"];
   datasetBounds: PlotData["bounds"];
   xAxisVal: PlotXAxisVal;
@@ -68,6 +65,7 @@ type PlotChartProps = {
   currentTime?: number;
   eventsTimes?: { time: number; color: string; isHovered: boolean }[];
   defaultView?: ChartDefaultView;
+  yAxesInfo: YAxesInfo;
   onClick?: TimeBasedChartProps["onClick"];
 };
 export default function PlotChart(props: PlotChartProps): JSX.Element {
@@ -79,19 +77,23 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
     provider,
     defaultView,
     isSynced,
-    maxYValue,
-    minYValue,
     onClick,
     paths,
     showXAxisLabels,
-    showYAxisLabels,
     xAxisVal,
     xAxisName,
+    yAxesInfo,
   } = props;
 
   const annotations = useMemo(() => getAnnotations(paths), [paths]);
 
   const yAxes = useMemo((): ScaleOptions<"linear"> => {
+    const maxYValue = parseFloat((yAxesInfo.yAxis.maxYValue ?? "").toString());
+    const minYValue = parseFloat((yAxesInfo.yAxis.minYValue ?? "").toString());
+    const showYAxisLabels = yAxesInfo.yAxis.showYAxisLabels;
+    const nameText = yAxesInfo.yAxis.yAxisName;
+    const nameDisplay = nameText != undefined && nameText.length > 0;
+
     const min = isNaN(minYValue) ? undefined : minYValue;
     const max = isNaN(maxYValue) ? undefined : maxYValue;
     return {
@@ -101,11 +103,65 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
         display: showYAxisLabels,
         precision: 3,
       },
+      title: {
+        display: nameDisplay,
+        text: nameText,
+      },
       grid: {
         color: theme.palette.divider,
       },
     };
-  }, [maxYValue, minYValue, showYAxisLabels, theme]);
+  }, [
+    theme.palette.divider,
+    yAxesInfo.yAxis.maxYValue,
+    yAxesInfo.yAxis.minYValue,
+    yAxesInfo.yAxis.showYAxisLabels,
+    yAxesInfo.yAxis.yAxisName,
+  ]);
+
+  const secondYAxesArray = useMemo((): ScaleOptions<"linear">[] => {
+    const yAxesArray: ScaleOptions<"linear">[] = [];
+
+    Object.keys(yAxesInfo).forEach((key) => {
+      // Skip the main yAxis
+      if (key === "yAxis") {
+        return;
+      }
+      const yAxesKey = key as keyof typeof yAxesInfo;
+
+      const maxYValue = parseFloat((yAxesInfo[yAxesKey].maxYValue ?? "").toString());
+      const minYValue = parseFloat((yAxesInfo[yAxesKey].minYValue ?? "").toString());
+      const showYAxisLabels = yAxesInfo[yAxesKey].showYAxisLabels;
+      const display = yAxesInfo[yAxesKey].showYAxis;
+      const nameText = yAxesInfo[yAxesKey].yAxisName;
+      const nameDisplay = nameText != undefined && nameText.length > 0;
+
+      const min = isNaN(minYValue) ? undefined : minYValue;
+      const max = isNaN(maxYValue) ? undefined : maxYValue;
+      yAxesArray.push({
+        display,
+        min,
+        max,
+        ticks: {
+          display: showYAxisLabels,
+          precision: 3,
+        },
+        title: {
+          display: nameDisplay,
+          text: nameText,
+        },
+        position: "right",
+        grid: {
+          color: theme.palette.divider,
+          drawOnChartArea: false,
+        },
+      });
+    });
+
+    return yAxesArray;
+  }, [theme.palette.divider, yAxesInfo]);
+
+  const yAxesArray = [yAxes, ...secondYAxesArray];
 
   // Use a debounce and 0 refresh rate to avoid triggering a resize observation while handling
   // an existing resize observation.
@@ -131,7 +187,7 @@ export default function PlotChart(props: PlotChartProps): JSX.Element {
         dataBounds={datasetBounds}
         annotations={annotations}
         type="scatter"
-        yAxes={yAxes}
+        yAxesArray={yAxesArray}
         xAxisIsPlaybackTime={xAxisVal === "timestamp"}
         showXAxisLabels={showXAxisLabels}
         xAxisName={xAxisName}

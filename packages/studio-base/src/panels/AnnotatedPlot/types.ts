@@ -32,13 +32,10 @@ export type PlotConfig = DeprecatedPlotConfig & {
   paths: SettingsPlotPath[];
   minXValue?: number;
   maxXValue?: number;
-  minYValue?: string | number;
-  maxYValue?: string | number;
   showLegend: boolean;
   legendDisplay: "floating" | "top" | "left" | "none";
   showPlotValuesInLegend: boolean;
   showXAxisLabels: boolean;
-  showYAxisLabels: boolean;
   isSynced: boolean;
   xAxisVal: PlotXAxisVal;
   xAxisPath?: BasePlotPath;
@@ -49,6 +46,35 @@ export type PlotConfig = DeprecatedPlotConfig & {
   showMoments: boolean;
   momentsFilter?: string;
   selectRecords: string[];
+  // y axis
+  minYValue?: string | number;
+  maxYValue?: string | number;
+  showYAxisLabels: boolean;
+  yAxisName?: string;
+  // y1 axis
+  minY1Value?: string | number;
+  maxY1Value?: string | number;
+  showY1AxisLabels: boolean;
+  y1AxisName?: string;
+  showY1Axis: boolean;
+  // y2 axis
+  minY2Value?: string | number;
+  maxY2Value?: string | number;
+  showY2AxisLabels: boolean;
+  y2AxisName?: string;
+  showY2Axis: boolean;
+  // y3 axis
+  minY3Value?: string | number;
+  maxY3Value?: string | number;
+  showY3AxisLabels: boolean;
+  y3AxisName?: string;
+  showY3Axis: boolean;
+  // y4 axis
+  minY4Value?: string | number;
+  maxY4Value?: string | number;
+  showY4AxisLabels: boolean;
+  y4AxisName?: string;
+  showY4Axis: boolean;
 };
 
 export const plotableRosTypes = [

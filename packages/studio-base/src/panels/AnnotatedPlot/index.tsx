@@ -54,7 +54,7 @@ import MomentsList from "./MomentsList";
 import PlotChart from "./PlotChart";
 import { PlotLegend } from "./PlotLegend";
 import { downloadCSV } from "./csv";
-import { PlotPath, TypedDataSet } from "./internalTypes";
+import { PlotPath, TypedDataSet, YAxesInfo } from "./internalTypes";
 import { EmptyPlotData, EmptyData } from "./plotData";
 import { usePlotPanelSettings } from "./settings";
 import { PlotConfig } from "./types";
@@ -75,7 +75,7 @@ export function openSiblingPlotPanel(openSiblingPanel: OpenSiblingPanel, topicNa
       ...config,
       paths: _.uniq(
         (config as PlotConfig).paths
-          .concat([{ value: topicName, lines: [] }])
+          .concat([{ value: topicName, yAxisID: "yAxis", lines: [] }])
           .filter(({ value }) => value),
       ),
     }),
@@ -114,10 +114,7 @@ function Plot(props: Props) {
     paths: originalPaths,
     minXValue,
     maxXValue,
-    minYValue,
-    maxYValue,
     showXAxisLabels,
-    showYAxisLabels,
     showLegend,
     legendDisplay = config.showSidebar === true ? "left" : "floating",
     showPlotValuesInLegend,
@@ -131,6 +128,43 @@ function Plot(props: Props) {
     selectRecords,
     xAxisName,
   } = config;
+
+  const yAxesInfo: YAxesInfo = {
+    yAxis: {
+      minYValue: config.minYValue,
+      maxYValue: config.maxYValue,
+      showYAxisLabels: config.showYAxisLabels,
+      yAxisName: config.yAxisName,
+    },
+    y1Axis: {
+      minYValue: config.minY1Value,
+      maxYValue: config.maxY1Value,
+      showYAxisLabels: config.showY1AxisLabels,
+      yAxisName: config.y1AxisName,
+      showYAxis: config.showY1Axis,
+    },
+    y2Axis: {
+      minYValue: config.minY2Value,
+      maxYValue: config.maxY2Value,
+      showYAxisLabels: config.showY2AxisLabels,
+      yAxisName: config.y2AxisName,
+      showYAxis: config.showY2Axis,
+    },
+    y3Axis: {
+      minYValue: config.minY3Value,
+      maxYValue: config.maxY3Value,
+      showYAxisLabels: config.showY3AxisLabels,
+      yAxisName: config.y3AxisName,
+      showYAxis: config.showY3Axis,
+    },
+    y4Axis: {
+      minYValue: config.minY4Value,
+      maxYValue: config.maxY4Value,
+      showYAxisLabels: config.showY4AxisLabels,
+      yAxisName: config.y4AxisName,
+      showYAxis: config.showY4Axis,
+    },
+  };
 
   const yAxisPaths = useMemo(() => {
     const linePaths: PlotPath[] = [];
@@ -278,8 +312,7 @@ function Plot(props: Props) {
     xAxisVal,
     minXValue,
     maxXValue,
-    minYValue,
-    maxYValue,
+    yAxesInfo,
     followingViewWidth,
   });
 
@@ -408,13 +441,11 @@ function Plot(props: Props) {
             provider={provider}
             defaultView={defaultView}
             isSynced={xAxisVal === "timestamp" && isSynced}
-            maxYValue={parseFloat((maxYValue ?? "").toString())}
-            minYValue={parseFloat((minYValue ?? "").toString())}
             onClick={onClick}
             paths={yAxisPaths}
             showXAxisLabels={showXAxisLabels}
             xAxisName={xAxisName}
-            showYAxisLabels={showYAxisLabels}
+            yAxesInfo={yAxesInfo}
             xAxisVal={xAxisVal}
           />
           <PanelContextMenu getItems={getPanelContextMenuItems} />
@@ -430,7 +461,6 @@ const defaultConfig: PlotConfig = {
   minYValue: undefined,
   maxYValue: undefined,
   showXAxisLabels: true,
-  showYAxisLabels: true,
   showLegend: true,
   legendDisplay: "floating",
   showPlotValuesInLegend: false,
@@ -439,6 +469,15 @@ const defaultConfig: PlotConfig = {
   sidebarDimension: defaultSidebarDimension,
   showMoments: true,
   selectRecords: [],
+  showYAxisLabels: true,
+  showY1Axis: false,
+  showY1AxisLabels: true,
+  showY2Axis: false,
+  showY2AxisLabels: true,
+  showY3Axis: false,
+  showY3AxisLabels: true,
+  showY4Axis: false,
+  showY4AxisLabels: true,
 };
 
 export default Panel(

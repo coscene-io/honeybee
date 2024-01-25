@@ -44,6 +44,7 @@ export type SettingsPlotPath = {
   value: string;
   label?: string;
   lines: PlotLine[];
+  yAxisID: string;
 };
 
 export type PlotPath = BasePlotPath & {
@@ -52,6 +53,7 @@ export type PlotPath = BasePlotPath & {
   timestampMethod: TimestampMethod;
   showLine?: boolean;
   lineSize?: number;
+  yAxisID?: string;
 };
 export type PlotDataByPath = Map<PlotPath, PlotDataItem[]>;
 
@@ -102,6 +104,22 @@ export type MetadataEnums = Metadata & {
   structures: Record<string, MessagePathStructureItemMessage>;
 };
 
+export type YAxisInfo = {
+  minYValue: string | number | undefined;
+  maxYValue: string | number | undefined;
+  showYAxisLabels: boolean;
+  yAxisName: string | undefined;
+  showYAxis?: boolean;
+};
+
+export type YAxesInfo = {
+  yAxis: YAxisInfo;
+  y1Axis: YAxisInfo;
+  y2Axis: YAxisInfo;
+  y3Axis: YAxisInfo;
+  y4Axis: YAxisInfo;
+};
+
 export type PlotParams = {
   startTime: Time;
   paths: readonly PlotPath[];
@@ -111,6 +129,5 @@ export type PlotParams = {
   followingViewWidth: number | undefined;
   minXValue: number | undefined;
   maxXValue: number | undefined;
-  minYValue: string | number | undefined;
-  maxYValue: string | number | undefined;
+  yAxesInfo: YAxesInfo;
 };

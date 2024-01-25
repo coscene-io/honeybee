@@ -124,7 +124,7 @@ export type Props = {
   dataBounds?: Bounds;
   tooltips?: Map<string, TimeBasedChartTooltipData>;
   xAxes?: ScaleOptions<"linear">;
-  yAxes: ScaleOptions<"linear">;
+  yAxesArray: ScaleOptions<"linear">[];
   annotations?: AnnotationOptions[];
   resetButtonPaddingBottom?: number;
   isSynced?: boolean;
@@ -169,7 +169,7 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
     width,
     xAxes,
     xAxisIsPlaybackTime,
-    yAxes,
+    yAxesArray,
   } = props;
 
   const [datasetBounds, setDatasetBounds] = useState<Bounds>({
@@ -559,7 +559,7 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
     return scale;
   }, [theme.palette, showXAxisLabels, props.xAxisName, xAxes, minX, maxX]);
 
-  const yScale = useMemo<ScaleOptions>(() => {
+  const yScale = useMemo<{ [key: string]: ScaleOptions }>(() => {
     const defaultYTicksSettings: ScaleOptions["ticks"] = {
       font: {
         family: fontMonospace,
@@ -569,28 +569,34 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
       padding: 0,
     };
 
-    let { min: minY, max: maxY } = yAxes;
+    const yScales: { [key: string]: ScaleOptions } = {};
 
-    // chartjs doesn't like it when only one of min/max are specified for scales
-    // so if either is specified then we specify both
-    if (maxY == undefined && minY != undefined) {
-      maxY = bounds.y.max;
-    }
-    if (minY == undefined && maxY != undefined) {
-      minY = bounds.y.min;
-    }
+    yAxesArray.forEach((yAxes, index) => {
+      let { min: minY, max: maxY } = yAxes;
 
-    return {
-      type: "linear",
-      ...yAxes,
-      min: minY,
-      max: maxY,
-      ticks: {
-        ...defaultYTicksSettings,
-        ...yAxes.ticks,
-      },
-    } as ScaleOptions;
-  }, [bounds.y, yAxes, theme.palette]);
+      // chartjs doesn't like it when only one of min/max are specified for scales
+      // so if either is specified then we specify both
+      if (maxY == undefined && minY != undefined) {
+        maxY = bounds.y.max;
+      }
+      if (minY == undefined && maxY != undefined) {
+        minY = bounds.y.min;
+      }
+
+      yScales[index > 0 ? `y${index}` : "y"] = {
+        type: "linear",
+        ...yAxes,
+        min: minY,
+        max: maxY,
+        ticks: {
+          ...defaultYTicksSettings,
+          ...yAxes.ticks,
+        },
+      } as ScaleOptions;
+    });
+
+    return yScales;
+  }, [theme.palette.text.secondary, yAxesArray, bounds.y.max, bounds.y.min]);
 
   const options = useMemo<ChartOptions>(() => {
     return {
@@ -604,7 +610,7 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
       },
       scales: {
         x: xScale,
-        y: yScale,
+        ...yScale,
       },
       plugins,
     };
