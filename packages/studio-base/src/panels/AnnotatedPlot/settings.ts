@@ -28,7 +28,7 @@ import { plotableRosTypes, PlotConfig, plotPathDisplayName } from "./types";
 export const DEFAULT_PATH: SettingsPlotPath = Object.freeze({
   value: "",
   label: "",
-  yAxisID: "yAxis",
+  yAxisID: "y",
   lines: [],
 });
 
@@ -122,35 +122,35 @@ const makeSeriesNode = memoizeWeak(
           label: t("label"),
           value: path.label,
         },
-        yAxis: {
+        yAxisID: {
           label: t("yAxis"),
           input: "select",
           value: path.yAxisID,
           options: [
             {
-              value: "yAxis",
+              value: "y",
               label: t("yAxis"),
             },
             {
-              value: "y1Axis",
+              value: "y1",
               label: t("y1Axis", {
                 ns: "cosAnnotatedPlot",
               }),
             },
             {
-              value: "y2Axis",
+              value: "y2",
               label: t("y2Axis", {
                 ns: "cosAnnotatedPlot",
               }),
             },
             {
-              value: "y3Axis",
+              value: "y3",
               label: t("y3Axis", {
                 ns: "cosAnnotatedPlot",
               }),
             },
             {
-              value: "y4Axis",
+              value: "y4",
               label: t("y4Axis", {
                 ns: "cosAnnotatedPlot",
               }),

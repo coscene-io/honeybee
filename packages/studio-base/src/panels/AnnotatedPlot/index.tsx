@@ -178,6 +178,7 @@ function Plot(props: Props) {
           timestampMethod: line.timestampMethod,
           showLine: line.showLine,
           lineSize: line.lineSize,
+          yAxisID: path.yAxisID,
         });
       });
     });
@@ -309,7 +310,7 @@ function Plot(props: Props) {
     delete yAxesParams[yAxesInfoKey].showYAxis;
   });
 
-  // 利用 worker 计算数据
+  // 与页面展示无关，利用 worker 计算图表中的数据
   const {
     data: plotData,
     provider,
