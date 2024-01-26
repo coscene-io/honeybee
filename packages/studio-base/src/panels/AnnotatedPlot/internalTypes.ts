@@ -108,7 +108,7 @@ export type YAxisInfo = {
   minYValue: string | number | undefined;
   maxYValue: string | number | undefined;
   showYAxisLabels: boolean;
-  yAxisName: string | undefined;
+  yAxisName?: string | undefined;
   showYAxis?: boolean;
 };
 

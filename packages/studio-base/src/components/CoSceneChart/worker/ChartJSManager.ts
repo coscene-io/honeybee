@@ -289,13 +289,7 @@ export default class ChartJSManager {
         (isBoundsReset || (scales.x?.min != undefined && scales.x.max != undefined)) &&
         instance.options.scales
       ) {
-        instance.options.scales.x = scales.x;
-      }
-      if (
-        (isBoundsReset || (scales.y?.min != undefined && scales.y.max != undefined)) &&
-        instance.options.scales
-      ) {
-        instance.options.scales.y = scales.y;
+        instance.options.scales = scales;
       }
     }
 

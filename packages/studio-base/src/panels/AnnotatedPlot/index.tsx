@@ -300,6 +300,16 @@ function Plot(props: Props) {
 
   const theme = useTheme();
 
+  const yAxesParams = _.cloneDeep(yAxesInfo);
+
+  Object.keys(yAxesParams).forEach((key) => {
+    const yAxesInfoKey = key as keyof YAxesInfo;
+    // Delete the yAxisName property from each sub-object
+    delete yAxesParams[yAxesInfoKey].yAxisName;
+    delete yAxesParams[yAxesInfoKey].showYAxis;
+  });
+
+  // 利用 worker 计算数据
   const {
     data: plotData,
     provider,
@@ -312,7 +322,7 @@ function Plot(props: Props) {
     xAxisVal,
     minXValue,
     maxXValue,
-    yAxesInfo,
+    yAxesInfo: yAxesParams,
     followingViewWidth,
   });
 
