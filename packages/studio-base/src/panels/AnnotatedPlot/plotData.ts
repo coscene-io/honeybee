@@ -332,8 +332,8 @@ export const sortPlotDataByHeaderStamp = createPlotMapping((dataset: TypedDataSe
 export function getProvidedData(data: PlotData): ProviderState<TypedData[]> {
   const { bounds } = data;
   const datasets = [];
-  for (const dataset of data.datasets.values()) {
-    datasets.push(dataset);
+  for (const [k, v] of data.datasets) {
+    datasets.push({ ...v, yAxisID: k.yAxisID ?? "y" });
   }
 
   return {
