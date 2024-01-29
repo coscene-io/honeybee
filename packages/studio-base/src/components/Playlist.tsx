@@ -7,6 +7,7 @@ import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 import { AppBar, Button, IconButton, TextField, Typography, CircularProgress } from "@mui/material";
 import { useState, useCallback, useMemo } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -16,6 +17,8 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoScenePlaylistStore,
   usePlaylist,
@@ -38,6 +41,7 @@ const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBa
 const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHoveredBag;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
 const useStyles = makeStyles()((theme) => ({
   appBar: {
@@ -75,13 +79,16 @@ export function Playlist(): JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("cosPlaylist");
   const [confirm, confirmModal] = useConfirm();
+  const consoleApi = useConsoleApi();
 
   const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);
   const hoveredBag = useTimelineInteractionState(selectHoverBag);
   const setHoveredBag = useTimelineInteractionState(selectSetHoverBag);
   const urlState = useMessagePipeline(selectUrlState);
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
 
   const bags = useMemo(() => bagFiles.value ?? [], [bagFiles]);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const clearFilter = useCallback(() => {
     setFilterText("");
@@ -108,21 +115,18 @@ export function Playlist(): JSX.Element {
   );
 
   const handleAddFiles = (fileNames: string[]) => {
-    const files: ParamsFile[] = JSON.parse(urlState?.parameters?.files ?? "{}");
+    const files: readonly ParamsFile[] = baseInfo.files ?? [];
     const fileNamesSet = new Set(fileNames);
-
     files.forEach((bag) => {
       if ("filename" in bag) {
         fileNamesSet.add(bag.filename);
       }
     });
-
     const newFiles: ParamsFile[] = Array.from(fileNamesSet).map((fileName) => {
       return {
         filename: fileName,
       };
     });
-
     files.forEach((bag) => {
       if ("jobRunsName" in bag) {
         newFiles.push({
@@ -131,16 +135,27 @@ export function Playlist(): JSX.Element {
       }
     });
 
-    if (urlState != undefined) {
-      updateUrl({
-        dsParams: {
-          ...urlState.parameters,
-          files: JSON.stringify(newFiles) ?? "",
-        },
+    consoleApi
+      .setBaseInfo({
+        ...baseInfo,
+        files: newFiles,
+      })
+      .then((key) => {
+        if (urlState != undefined) {
+          updateUrl({
+            dsParams: {
+              key,
+            },
+          });
+          location.reload();
+        } else {
+          toast.error(t("addFilesFailed"));
+        }
+      })
+      .catch((error) => {
+        toast.error(t("addFilesFailed"));
+        console.error("Failed to set base info", error);
       });
-    }
-
-    location.reload();
   };
 
   return (

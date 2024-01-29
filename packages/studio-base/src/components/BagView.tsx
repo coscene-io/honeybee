@@ -7,8 +7,8 @@ import Clear from "@mui/icons-material/Clear";
 import { alpha } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
-import * as _ from "lodash-es";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -18,6 +18,8 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { ParamsFile, BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
@@ -140,6 +142,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
 }));
 
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
 const checkIsLogFile = (bag: BagFileInfo) => bag.displayName.endsWith(".log");
 
@@ -170,6 +173,9 @@ function BagViewComponent(params: {
   const { t } = useTranslation("cosPlaylist");
   const [boxIsHovered, setBoxIsHovered] = useState<boolean>(false);
   const urlState = useMessagePipeline(selectUrlState);
+  const consoleApi = useConsoleApi();
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const isLogFile = checkIsLogFile(bag);
 
@@ -188,19 +194,25 @@ function BagViewComponent(params: {
     });
 
     if (urlState != undefined) {
-      updateUrl({
-        dsParams: _.pickBy(
-          {
-            ...urlState.parameters,
-            files: JSON.stringify(newFiles),
-          },
-          _.isString,
-        ),
-      });
+      consoleApi
+        .setBaseInfo({
+          ...baseInfo,
+          files: newFiles,
+        })
+        .then((key) => {
+          updateUrl({
+            dsParams: {
+              key,
+            },
+          });
+          location.reload();
+        })
+        .catch((error) => {
+          toast.error(t("addFilesFailed"));
+          console.error("Failed to set base info", error);
+        });
     }
-
-    location.reload();
-  }, [bag.name, files, updateUrl, urlState]);
+  }, [bag.name, baseInfo, consoleApi, files, t, updateUrl, urlState]);
 
   const onDeleteBag = useCallback(async () => {
     const response = await confirm({
