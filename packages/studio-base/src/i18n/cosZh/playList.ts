@@ -17,4 +17,5 @@ export const cosPlaylist: Partial<TypeOptions["resources"]["cosPlaylist"]> = {
   duplicateFile: "该文件与文件{{filename}}是同一文件",
   deleteConfirmTitle: "删除文件",
   deleteConfirmPrompt: "确定要删除文件{{filename}}吗？",
+  addFilesFailed: "添加文件失败",
 };

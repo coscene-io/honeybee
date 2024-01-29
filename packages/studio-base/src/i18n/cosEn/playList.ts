@@ -17,4 +17,5 @@ export const cosPlaylist = {
   duplicateFile: "This file is the same file as file {{filename}}",
   deleteConfirmTitle: "Delete file",
   deleteConfirmPrompt: "Are you sure you want to delete file {{filename}}?",
+  addFilesFailed: "Failed to add file",
 };
