@@ -28,6 +28,7 @@ import { plotableRosTypes, PlotConfig, plotPathDisplayName } from "./types";
 export const DEFAULT_PATH: SettingsPlotPath = Object.freeze({
   value: "",
   label: "",
+  yAxisID: "y",
   lines: [],
 });
 
@@ -120,6 +121,41 @@ const makeSeriesNode = memoizeWeak(
           input: "string",
           label: t("label"),
           value: path.label,
+        },
+        yAxisID: {
+          label: t("yAxis"),
+          input: "select",
+          value: path.yAxisID,
+          options: [
+            {
+              value: "y",
+              label: t("yAxis"),
+            },
+            {
+              value: "y1",
+              label: t("y1Axis", {
+                ns: "cosAnnotatedPlot",
+              }),
+            },
+            {
+              value: "y2",
+              label: t("y2Axis", {
+                ns: "cosAnnotatedPlot",
+              }),
+            },
+            {
+              value: "y3",
+              label: t("y3Axis", {
+                ns: "cosAnnotatedPlot",
+              }),
+            },
+            {
+              value: "y4",
+              label: t("y4Axis", {
+                ns: "cosAnnotatedPlot",
+              }),
+            },
+          ],
         },
       },
       children,
@@ -238,6 +274,16 @@ function buildSettingsTree(
       label: t("yAxis"),
       defaultExpansionState: "collapsed",
       fields: {
+        yAxisName: {
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.yAxisName,
+        },
         showYAxisLabels: {
           label: t("showLabels"),
           input: "boolean",
@@ -258,10 +304,192 @@ function buildSettingsTree(
         },
       },
     },
+    y1Axis: {
+      label: t("y1Axis", {
+        ns: "cosAnnotatedPlot",
+      }),
+      defaultExpansionState: "collapsed",
+      fields: {
+        y1AxisName: {
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.y1AxisName,
+        },
+        showY1Axis: {
+          label: t("display", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "boolean",
+          value: config.showY1Axis,
+        },
+        showY1AxisLabels: {
+          label: t("showLabels"),
+          input: "boolean",
+          value: config.showY1AxisLabels,
+        },
+        minY1Value: {
+          label: t("min"),
+          input: "number",
+          value: config.minY1Value != undefined ? Number(config.minY1Value) : undefined,
+          placeholder: "auto",
+        },
+        maxY1Value: {
+          label: t("max"),
+          input: "number",
+          error: maxYError,
+          value: config.maxY1Value != undefined ? Number(config.maxY1Value) : undefined,
+          placeholder: "auto",
+        },
+      },
+    },
+    y2Axis: {
+      label: t("y2Axis", {
+        ns: "cosAnnotatedPlot",
+      }),
+      defaultExpansionState: "collapsed",
+      fields: {
+        y2AxisName: {
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.y2AxisName,
+        },
+        showY2Axis: {
+          label: t("display", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "boolean",
+          value: config.showY2Axis,
+        },
+        showY2AxisLabels: {
+          label: t("showLabels"),
+          input: "boolean",
+          value: config.showY2AxisLabels,
+        },
+        minY2Value: {
+          label: t("min"),
+          input: "number",
+          value: config.minY2Value != undefined ? Number(config.minY2Value) : undefined,
+          placeholder: "auto",
+        },
+        maxY3Value: {
+          label: t("max"),
+          input: "number",
+          error: maxYError,
+          value: config.maxY3Value != undefined ? Number(config.maxY3Value) : undefined,
+          placeholder: "auto",
+        },
+      },
+    },
+    y3Axis: {
+      label: t("y3Axis", {
+        ns: "cosAnnotatedPlot",
+      }),
+      defaultExpansionState: "collapsed",
+      fields: {
+        y3AxisName: {
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.y3AxisName,
+        },
+        showY3Axis: {
+          label: t("display", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "boolean",
+          value: config.showY3Axis,
+        },
+        showY3AxisLabels: {
+          label: t("showLabels"),
+          input: "boolean",
+          value: config.showY3AxisLabels,
+        },
+        minY3Value: {
+          label: t("min"),
+          input: "number",
+          value: config.minY3Value != undefined ? Number(config.minY3Value) : undefined,
+          placeholder: "auto",
+        },
+        maxY3Value: {
+          label: t("max"),
+          input: "number",
+          error: maxYError,
+          value: config.maxY3Value != undefined ? Number(config.maxY3Value) : undefined,
+          placeholder: "auto",
+        },
+      },
+    },
+    y4Axis: {
+      label: t("y4Axis", {
+        ns: "cosAnnotatedPlot",
+      }),
+      defaultExpansionState: "collapsed",
+      fields: {
+        y4AxisName: {
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.y4AxisName,
+        },
+        showY4Axis: {
+          label: t("display", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "boolean",
+          value: config.showY4Axis,
+        },
+        showY4AxisLabels: {
+          label: t("showLabels"),
+          input: "boolean",
+          value: config.showY4AxisLabels,
+        },
+        minY4Value: {
+          label: t("min"),
+          input: "number",
+          value: config.minY4Value != undefined ? Number(config.minY4Value) : undefined,
+          placeholder: "auto",
+        },
+        maxY4Value: {
+          label: t("max"),
+          input: "number",
+          error: maxYError,
+          value: config.maxY4Value != undefined ? Number(config.maxY4Value) : undefined,
+          placeholder: "auto",
+        },
+      },
+    },
     xAxis: {
       label: t("xAxis"),
       defaultExpansionState: "collapsed",
       fields: {
+        xAxisName: {
+          label: t("name", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "string",
+          placeholder: t("plaseEnterName", {
+            ns: "cosAnnotatedPlot",
+          }),
+          value: config.xAxisName ?? "",
+        },
         xAxisVal: {
           label: t("value"),
           input: "select",

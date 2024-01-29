@@ -32,8 +32,8 @@ import { v4 as uuidv4 } from "uuid";
 import type { ZoomOptions } from "@foxglove/chartjs-plugin-zoom/types/options";
 import { filterMap } from "@foxglove/den/collection";
 import Logger from "@foxglove/log";
-import ChartComponent from "@foxglove/studio-base/components/Chart/index";
 import { RpcElement, RpcScales } from "@foxglove/studio-base/components/Chart/types";
+import ChartComponent from "@foxglove/studio-base/components/CoSceneChart/index";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -124,7 +124,7 @@ export type Props = {
   dataBounds?: Bounds;
   tooltips?: Map<string, TimeBasedChartTooltipData>;
   xAxes?: ScaleOptions<"linear">;
-  yAxes: ScaleOptions<"linear">;
+  yAxesArray: ScaleOptions<"linear">[];
   annotations?: AnnotationOptions[];
   resetButtonPaddingBottom?: number;
   isSynced?: boolean;
@@ -138,6 +138,7 @@ export type Props = {
   // Note, this setting should not be used for other time values.
   xAxisIsPlaybackTime: boolean;
   showXAxisLabels: boolean;
+  xAxisName?: string;
   plugins?: ChartOptions["plugins"];
   currentTime?: number;
   eventsTimes?: { time: number; color: string; isHovered: boolean }[];
@@ -168,7 +169,7 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
     width,
     xAxes,
     xAxisIsPlaybackTime,
-    yAxes,
+    yAxesArray,
   } = props;
 
   const [datasetBounds, setDatasetBounds] = useState<Bounds>({
@@ -549,12 +550,16 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
         ...defaultXTicksSettings,
         ...xAxes?.ticks,
       },
+      title: {
+        display: props.xAxisName != undefined && props.xAxisName.length > 0,
+        text: props.xAxisName,
+      },
     };
 
     return scale;
-  }, [theme.palette, showXAxisLabels, xAxes, minX, maxX]);
+  }, [theme.palette, showXAxisLabels, props.xAxisName, xAxes, minX, maxX]);
 
-  const yScale = useMemo<ScaleOptions>(() => {
+  const yScale = useMemo<{ [key: string]: ScaleOptions }>(() => {
     const defaultYTicksSettings: ScaleOptions["ticks"] = {
       font: {
         family: fontMonospace,
@@ -564,28 +569,34 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
       padding: 0,
     };
 
-    let { min: minY, max: maxY } = yAxes;
+    const yScales: { [key: string]: ScaleOptions } = {};
 
-    // chartjs doesn't like it when only one of min/max are specified for scales
-    // so if either is specified then we specify both
-    if (maxY == undefined && minY != undefined) {
-      maxY = bounds.y.max;
-    }
-    if (minY == undefined && maxY != undefined) {
-      minY = bounds.y.min;
-    }
+    yAxesArray.forEach((yAxes, index) => {
+      let { min: minY, max: maxY } = yAxes;
 
-    return {
-      type: "linear",
-      ...yAxes,
-      min: minY,
-      max: maxY,
-      ticks: {
-        ...defaultYTicksSettings,
-        ...yAxes.ticks,
-      },
-    } as ScaleOptions;
-  }, [bounds.y, yAxes, theme.palette]);
+      // chartjs doesn't like it when only one of min/max are specified for scales
+      // so if either is specified then we specify both
+      if (maxY == undefined && minY != undefined) {
+        maxY = bounds.y.max;
+      }
+      if (minY == undefined && maxY != undefined) {
+        minY = bounds.y.min;
+      }
+
+      yScales[index > 0 ? `y${index}` : "y"] = {
+        type: "linear",
+        ...yAxes,
+        min: minY,
+        max: maxY,
+        ticks: {
+          ...defaultYTicksSettings,
+          ...yAxes.ticks,
+        },
+      } as ScaleOptions;
+    });
+
+    return yScales;
+  }, [theme.palette.text.secondary, yAxesArray, bounds.y.max, bounds.y.min]);
 
   const options = useMemo<ChartOptions>(() => {
     return {
@@ -599,7 +610,7 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
       },
       scales: {
         x: xScale,
-        y: yScale,
+        ...yScale,
       },
       plugins,
     };
