@@ -122,6 +122,11 @@ const useStyles = makeStyles<void, "grid" | "toggleButton" | "toggleButtonFloati
       overflow: "auto",
       justifyItems: "flex-start",
     },
+    topGrid: {
+      alignItems: "center",
+      width: "100%",
+      overflow: "auto",
+    },
     dragHandle: {
       userSelect: "none",
       border: `0px solid ${palette.action.hover}`,
@@ -266,7 +271,7 @@ function PlotLegendComponent(props: Props): JSX.Element {
       </IconButton>
       {showLegend && (
         <div
-          className={classes.grid}
+          className={legendDisplay === "top" ? classes.topGrid : classes.grid}
           style={{
             height: legendDisplay === "top" ? Math.round(sidebarDimension) : undefined,
             width: legendDisplay === "left" ? Math.round(sidebarDimension) : undefined,
@@ -286,6 +291,7 @@ function PlotLegendComponent(props: Props): JSX.Element {
               paths={paths}
               enablePath={enablePath}
               showPlotValuesInLegend={showPlotValuesInLegend}
+              legendDisplay={legendDisplay}
             />
           ))}
         </div>

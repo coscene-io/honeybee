@@ -35,11 +35,33 @@ type PlotLegendRowProps = Immutable<{
   paths: PlotPath[];
   enablePath: (value: string) => void;
   showPlotValuesInLegend: boolean;
+  legendDisplay: "floating" | "top" | "left";
 }>;
 
 export const ROW_HEIGHT = 30;
 
 const useStyles = makeStyles<void, "plotName" | "actionButton">()((theme, _params, classes) => ({
+  topRoot: {
+    display: "inline-flex",
+    cursor: "pointer",
+    width: "fit-content",
+
+    "&:hover": {
+      "& > *": {
+        backgroundColor: theme.palette.background.paper,
+        backgroundImage: `linear-gradient(${[
+          "0deg",
+          theme.palette.action.hover,
+          theme.palette.action.hover,
+        ].join(" ,")})`,
+      },
+    },
+    ":not(:hover)": {
+      [`& .${classes.actionButton}`]: {
+        opacity: 0,
+      },
+    },
+  },
   root: {
     display: "contents",
     cursor: "pointer",
@@ -139,6 +161,7 @@ export function PlotLegendRow({
   paths,
   enablePath,
   showPlotValuesInLegend,
+  legendDisplay,
 }: PlotLegendRowProps): JSX.Element {
   const { openPanelSettings } = useWorkspaceActions();
   const { id: panelId } = usePanelContext();
@@ -181,7 +204,7 @@ export function PlotLegendRow({
 
   return (
     <div
-      className={cx(classes.root, {
+      className={cx(legendDisplay === "top" ? classes.topRoot : classes.root, {
         [classes.showPlotValue]: showPlotValuesInLegend,
       })}
       onClick={() => {
