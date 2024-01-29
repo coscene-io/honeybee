@@ -246,11 +246,11 @@ export function AppSettingsDialog(
           {extensionSettings && (
             <Tab className={classes.tab} label={t("extensions")} value="extensions" />
           )}
-          <Tab
+          {/* <Tab
             className={classes.tab}
             label={t("experimentalFeatures")}
             value="experimental-features"
-          />
+          /> */}
           {/* CoScene */}
           {/* <Tab className={classes.tab} label={t("about")} value="about" /> */}
         </Tabs>

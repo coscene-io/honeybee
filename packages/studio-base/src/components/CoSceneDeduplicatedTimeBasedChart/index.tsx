@@ -25,6 +25,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
@@ -150,6 +151,7 @@ export type Props = {
 // component. Uses chart.js internally, with a zoom/pan plugin, and with our
 // standard tooltips.
 export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Element {
+  const { t } = useTranslation("cosAnnotatedPlot");
   const requestID = useRef<number>(0);
   const {
     currentTime,
@@ -860,7 +862,7 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Ele
                   title="(shortcut: double-click)"
                   onClick={onResetZoom}
                 >
-                  Reset view
+                  {t("resetView")}
                 </Button>
               </div>
             )}

@@ -13,4 +13,5 @@ export const cosAnnotatedPlot = {
   y4Axis: "Fifth Y Axis",
   display: "Display",
   plaseEnterName: "Please enter a name",
+  resetView: "Reset view",
 };

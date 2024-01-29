@@ -15,8 +15,7 @@ import { useTranslation } from "react-i18next";
 import { withStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
-import { Language } from "@foxglove/studio-base/i18n";
-import { createMuiTheme } from "@foxglove/studio-base/theme";
+import { createMuiTheme } from "@foxglove/theme";
 
 const MINIMUM_CHROME_VERSION = 104;
 
@@ -66,10 +65,7 @@ const VersionBanner = function ({
 }): ReactElement | ReactNull {
   const [showBanner, setShowBanner] = useState(true);
   const { i18n, t } = useTranslation("cosVersionBanner");
-  const muiTheme = useMemo(
-    () => createMuiTheme("dark", i18n.language as Language),
-    [i18n.language],
-  );
+  const muiTheme = useMemo(() => createMuiTheme("dark", i18n.language), [i18n.language]);
   if (!showBanner || currentVersion >= MINIMUM_CHROME_VERSION) {
     return ReactNull;
   }
