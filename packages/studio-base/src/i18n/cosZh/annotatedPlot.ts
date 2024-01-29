@@ -13,4 +13,5 @@ export const cosAnnotatedPlot: Partial<TypeOptions["resources"]["cosAnnotatedPlo
   y4Axis: "第五Y轴",
   display: "显示",
   plaseEnterName: "请输入名称",
+  resetView: "重置视图",
 };

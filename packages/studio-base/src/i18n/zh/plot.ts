@@ -36,4 +36,8 @@ export const plot: Partial<TypeOptions["resources"]["plot"]> = {
   value: "值",
   xAxis: "X 轴",
   yAxis: "Y 轴",
+
+  // coScene
+  lineSize: "线宽",
+  showLine: "显示曲线",
 };
