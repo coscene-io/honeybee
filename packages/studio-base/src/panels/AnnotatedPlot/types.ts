@@ -2,6 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { TFunction } from "i18next";
+
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
 
 import type { BasePlotPath, SettingsPlotPath, PlotXAxisVal } from "./internalTypes";
@@ -17,8 +19,12 @@ function presence<T>(value: undefined | T): undefined | T {
   return value ?? undefined;
 }
 
-export function plotPathDisplayName(path: Readonly<SettingsPlotPath>, index: number): string {
-  return presence(path.label) ?? presence(path.value) ?? `Series ${index + 1}`;
+export function plotPathDisplayName(
+  path: Readonly<SettingsPlotPath>,
+  index: number,
+  t: TFunction<"plot">,
+): string {
+  return presence(path.label) ?? presence(path.value) ?? `${t("series")} ${index + 1}`;
 }
 
 type DeprecatedPlotConfig = {
