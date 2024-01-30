@@ -46,4 +46,9 @@ export const cosLayout = {
   deleteLayoutsTitle: "Delete “{{layoutName}}“?",
   personal: "Personal",
   organization: "Organization",
+  layoutHasUnsavedChange: "“{{layoutName}}” has unsaved changes",
+  updateSharedLayout: "Update shared layout “{{layoutName}}“",
+  unavailableWhileOffline: "(unavailable while offline)",
+  saveAPersonalCopy: "Save a personal copy",
+  discardTip: "Your changes will be permantly deleted. This cannot be undone.",
 };

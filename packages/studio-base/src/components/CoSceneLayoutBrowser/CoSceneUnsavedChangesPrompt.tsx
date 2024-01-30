@@ -15,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import { ChangeEvent, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLatest, useUnmount } from "react-use";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -40,6 +41,7 @@ export function UnsavedChangesPrompt({
   defaultSelectedKey?: Exclude<UnsavedChangesResolution["type"], "cancel">;
   defaultPersonalCopyName?: string;
 }): JSX.Element {
+  const { t } = useTranslation("cosLayout");
   const [selectedKey, setSelectedKey] = useState<string>(defaultSelectedKey);
 
   const handleChoiceGroupChange = React.useCallback(
@@ -88,16 +90,28 @@ export function UnsavedChangesPrompt({
   return (
     <Dialog open onClose={handleCancel} maxWidth="xs" fullWidth>
       <form onSubmit={handleSubmit}>
-        <DialogTitle>{`“${layout.name}” has unsaved changes`}</DialogTitle>
+        <DialogTitle>
+          {t("layoutHasUnsavedChange", {
+            layoutName: layout.name,
+          })}
+        </DialogTitle>
         <DialogContent>
           <Stack gap={2} style={{ minHeight: 180 }}>
             <RadioGroup defaultValue="discard" onChange={handleChoiceGroupChange}>
-              <FormControlLabel value="discard" label="Discard changes" control={<Radio />} />
+              <FormControlLabel
+                value="discard"
+                label={t("revertLayoutsConfim", {
+                  layoutName: layout.name,
+                })}
+                control={<Radio />}
+              />
               <FormControlLabel
                 value="overwrite"
                 label={[
-                  `Update shared layout “${layout.name}”`,
-                  !isOnline && "(unavailable while offline)",
+                  t("updateSharedLayout", {
+                    layoutName: layout.name,
+                  }),
+                  !isOnline && t("unavailableWhileOffline"),
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -106,13 +120,13 @@ export function UnsavedChangesPrompt({
               />
               <FormControlLabel
                 value="makePersonal"
-                label="Save a personal copy"
+                label={t("saveAPersonalCopy")}
                 control={<Radio />}
               />
             </RadioGroup>
             {selectedKey === "discard" && (
               <Typography variant="body2" color="error.main">
-                Your changes will be permantly deleted. This cannot be undone.
+                {t("discardTip")}
               </Typography>
             )}
             {selectedKey === "makePersonal" && (
@@ -133,7 +147,7 @@ export function UnsavedChangesPrompt({
         </DialogContent>
         <DialogActions>
           <Button variant="outlined" size="large" color="inherit" onClick={handleCancel}>
-            Cancel
+            {t("cancel", { ns: "cosGeneral" })}
           </Button>
           <Button
             type="submit"
@@ -142,7 +156,7 @@ export function UnsavedChangesPrompt({
             color={selectedKey === "discard" ? "error" : "primary"}
             disabled={selectedKey === "makePersonal" && nameError != undefined}
           >
-            {selectedKey === "discard" ? "Discard changes" : "Save"}
+            {selectedKey === "discard" ? t("revertLayoutsConfim") : t("save", { ns: "cosGeneral" })}
           </Button>
         </DialogActions>
       </form>

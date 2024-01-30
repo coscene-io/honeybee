@@ -46,4 +46,9 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   deleteLayoutsTitle: "删除 “{{layoutName}}“?",
   personal: "个人",
   organization: "组织",
+  layoutHasUnsavedChange: "“{{layoutName}}” 有未保存的更改",
+  updateSharedLayout: "更新共享布局 “{{layoutName}}“",
+  unavailableWhileOffline: "(离线时不可用)",
+  saveAPersonalCopy: "保存个人副本",
+  discardTip: "您的更改将被永久删除。且无法撤消。",
 };
