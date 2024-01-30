@@ -88,9 +88,6 @@ type SelectedFile = {
 };
 
 const useStyles = makeStyles()((theme) => ({
-  paper: {
-    maxWidth: `calc(min(${theme.breakpoints.values.md}px, 100% - ${theme.spacing(4)}))`,
-  },
   closeButton: {
     position: "absolute",
     right: 0,
@@ -104,7 +101,7 @@ const useStyles = makeStyles()((theme) => ({
     border: `1px solid ${theme.palette.divider}`,
     borderRadius: theme.shape.borderRadius,
     marginTop: theme.spacing(2),
-    height: theme.spacing(73),
+    height: theme.spacing(65),
   },
   chooserContainer: {
     borderRight: `1px solid ${theme.palette.divider}`,
@@ -647,7 +644,6 @@ function CoSceneChooser(props: ChooserDialogProps): JSX.Element {
       PaperProps={{
         square: false,
         elevation: 4,
-        className: classes.paper,
       }}
     >
       <IconButton className={classes.closeButton} onClick={onModalClose} edge="end">
