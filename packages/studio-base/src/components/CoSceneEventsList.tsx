@@ -200,10 +200,10 @@ export function EventsList(): JSX.Element {
         </Stack>
       )}
       <div>
-        {Array.from(timestampedEvents.keys()).map((recordTitle) => {
+        {Array.from(timestampedEvents.keys()).map((recordTitle, index) => {
           return (
             <div key={recordTitle}>
-              <Accordion>
+              <Accordion defaultExpanded={index === 0}>
                 <AccordionSummary
                   expandIcon={<ExpandMoreIcon />}
                   aria-controls="panel1-content"
