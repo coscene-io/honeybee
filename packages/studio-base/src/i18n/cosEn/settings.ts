@@ -11,4 +11,7 @@ export const cosSettings = {
   willTakeEffectOnTheNextStartup: "Will take effect on the next startup",
   relativeTime: "Relative Time",
   absoluteTime: "Absolute Time",
+  off: "Off",
+  on: "On",
+  auto: "Auto",
 };
