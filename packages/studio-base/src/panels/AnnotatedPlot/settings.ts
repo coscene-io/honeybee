@@ -110,7 +110,7 @@ const makeSeriesNode = memoizeWeak(
             },
           ]
         : [],
-      label: plotPathDisplayName(path, index),
+      label: plotPathDisplayName(path, index, t),
       fields: {
         value: {
           label: t("messagePath"),
