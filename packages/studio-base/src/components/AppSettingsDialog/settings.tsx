@@ -41,7 +41,6 @@ import { UserPersonalInfo } from "@foxglove/studio-base/services/CoSceneConsoleA
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-// import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
