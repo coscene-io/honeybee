@@ -48,6 +48,7 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { OnClickArg as OnChartClickArgs } from "@foxglove/studio-base/src/components/Chart";
 import { OpenSiblingPanel, PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
 
 import MomentsList from "./MomentsList";
@@ -193,7 +194,10 @@ function Plot(props: Props) {
   const { setMessagePathDropConfig } = usePanelContext();
 
   useEffect(() => {
-    const addPrefix = localStorage.getItem("CoScene_addTopicPrefix") ?? "false";
+    const addPrefix =
+      localStorage.getItem("CoScene_addTopicPrefix") ??
+      APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
+      "false";
 
     if (addPrefix !== "true") {
       toast.error(t("prefixTip"));

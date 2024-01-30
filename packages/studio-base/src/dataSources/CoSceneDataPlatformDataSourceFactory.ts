@@ -50,7 +50,10 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
         api: {
           baseUrl: APP_CONFIG.CS_HONEYBEE_BASE_URL,
           bffUrl: APP_CONFIG.VITE_APP_BFF_URL,
-          addTopicPrefix: localStorage.getItem("CoScene_addTopicPrefix") ?? "false",
+          addTopicPrefix:
+            localStorage.getItem("CoScene_addTopicPrefix") ??
+            APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
+            "false",
           timeMode:
             localStorage.getItem("CoScene_timeMode") === "relativeTime"
               ? "relativeTime"
