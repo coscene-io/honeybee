@@ -22,8 +22,6 @@ import {
   ToggleButtonGroup,
   ToggleButtonGroupProps,
 } from "@mui/material";
-// import { captureException } from "@sentry/core";
-// import dayjs from "dayjs";
 import moment from "moment-timezone";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -42,6 +40,7 @@ import { reportError } from "@foxglove/studio-base/reportError";
 import { UserPersonalInfo } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 // import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
@@ -424,7 +423,8 @@ export function LanguageSettings(): React.ReactElement {
 }
 
 export function AddTopicPrefix(): React.ReactElement {
-  const addPrefix = localStorage.getItem("CoScene_addTopicPrefix") ?? "false";
+  const addPrefix =
+    localStorage.getItem("CoScene_addTopicPrefix") ?? APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN;
 
   function setAddPrefix(value: string) {
     localStorage.setItem("CoScene_addTopicPrefix", value);

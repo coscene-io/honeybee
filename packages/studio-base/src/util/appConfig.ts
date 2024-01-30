@@ -22,6 +22,7 @@ declare global {
       VITE_APP_PROJECT_ENV?: string;
       VITE_APP_BFF_URL?: string;
       LOGO_CONFIG?: { [domain: string]: LogoType };
+      DEFAULT_TOPIC_PREFIX_OPEN?: string;
     };
   }
 }
@@ -56,6 +57,7 @@ export const APP_CONFIG = {
   SENTRY_HONEYBEE_DSN: cosConfig.SENTRY_HONEYBEE_DSN ?? "",
   SENTRY_ENABLED: cosConfig.SENTRY_ENABLED ?? false,
   LOGO_CONFIG: cosConfig.LOGO_CONFIG ?? {},
+  DEFAULT_TOPIC_PREFIX_OPEN: cosConfig.DEFAULT_TOPIC_PREFIX_OPEN ?? "false",
 };
 
 window.cosConfig = APP_CONFIG;
