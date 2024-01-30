@@ -12,4 +12,7 @@ export const cosSettings: Partial<TypeOptions["resources"]["cosSettings"]> = {
   willTakeEffectOnTheNextStartup: "将在下次启动时生效",
   relativeTime: "相对时间",
   absoluteTime: "绝对时间",
+  off: "关",
+  on: "开",
+  auto: "自动",
 };
