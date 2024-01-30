@@ -423,7 +423,8 @@ export function LanguageSettings(): React.ReactElement {
 
 export function AddTopicPrefix(): React.ReactElement {
   const addPrefix =
-    localStorage.getItem("CoScene_addTopicPrefix") ?? APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN;
+    localStorage.getItem("CoScene_addTopicPrefix") ??
+    APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname];
 
   function setAddPrefix(value: string) {
     localStorage.setItem("CoScene_addTopicPrefix", value);

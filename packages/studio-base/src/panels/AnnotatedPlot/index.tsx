@@ -195,7 +195,8 @@ function Plot(props: Props) {
 
   useEffect(() => {
     const addPrefix =
-      localStorage.getItem("CoScene_addTopicPrefix") ?? APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN;
+      localStorage.getItem("CoScene_addTopicPrefix") ??
+      APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname];
 
     if (addPrefix !== "true") {
       toast.error(t("prefixTip"));
