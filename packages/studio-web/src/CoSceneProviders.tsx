@@ -52,7 +52,8 @@ export function CoSceneProviders(): JSX.Element[] {
         APP_CONFIG.CS_HONEYBEE_BASE_URL,
         APP_CONFIG.VITE_APP_BFF_URL,
         localStorage.getItem("CoScene_addTopicPrefix") ??
-          APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname],
+          APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
+          "false",
         localStorage.getItem("CoScene_timeMode") === "relativeTime"
           ? "relativeTime"
           : "absoluteTime",
