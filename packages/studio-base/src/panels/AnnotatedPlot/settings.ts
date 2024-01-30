@@ -59,7 +59,9 @@ const makeSeriesLineNode = memoizeWeak(
           value: line.lineSize,
           step: 0.2,
           min: 0,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
         showLine: {
           label: t("showLine"),
@@ -293,14 +295,18 @@ function buildSettingsTree(
           label: t("min"),
           input: "number",
           value: config.minYValue != undefined ? Number(config.minYValue) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
         maxYValue: {
           label: t("max"),
           input: "number",
           error: maxYError,
           value: config.maxYValue != undefined ? Number(config.maxYValue) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
       },
     },
@@ -336,14 +342,18 @@ function buildSettingsTree(
           label: t("min"),
           input: "number",
           value: config.minY1Value != undefined ? Number(config.minY1Value) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
         maxY1Value: {
           label: t("max"),
           input: "number",
           error: maxYError,
           value: config.maxY1Value != undefined ? Number(config.maxY1Value) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
       },
     },
@@ -379,14 +389,18 @@ function buildSettingsTree(
           label: t("min"),
           input: "number",
           value: config.minY2Value != undefined ? Number(config.minY2Value) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
         maxY3Value: {
           label: t("max"),
           input: "number",
           error: maxYError,
           value: config.maxY3Value != undefined ? Number(config.maxY3Value) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
       },
     },
@@ -422,14 +436,18 @@ function buildSettingsTree(
           label: t("min"),
           input: "number",
           value: config.minY3Value != undefined ? Number(config.minY3Value) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
         maxY3Value: {
           label: t("max"),
           input: "number",
           error: maxYError,
           value: config.maxY3Value != undefined ? Number(config.maxY3Value) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
       },
     },
@@ -465,14 +483,18 @@ function buildSettingsTree(
           label: t("min"),
           input: "number",
           value: config.minY4Value != undefined ? Number(config.minY4Value) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
         maxY4Value: {
           label: t("max"),
           input: "number",
           error: maxYError,
           value: config.maxY4Value != undefined ? Number(config.maxY4Value) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
       },
     },
@@ -519,19 +541,25 @@ function buildSettingsTree(
           label: t("min"),
           input: "number",
           value: config.minXValue != undefined ? Number(config.minXValue) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
         maxXValue: {
           label: t("max"),
           input: "number",
           error: maxXError,
           value: config.maxXValue != undefined ? Number(config.maxXValue) : undefined,
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
         },
         followingViewWidth: {
           label: t("secondsRange"),
           input: "number",
-          placeholder: "auto",
+          placeholder: t("auto", {
+            ns: "cosSettings",
+          }),
           value: config.followingViewWidth,
         },
       },
