@@ -14,4 +14,5 @@ export const cosAnnotatedPlot = {
   display: "Display",
   plaseEnterName: "Please enter a name",
   resetView: "Reset view",
+  messageLabel: "Message Label",
 };
