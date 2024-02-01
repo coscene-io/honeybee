@@ -463,6 +463,9 @@ class CoSceneConsoleApi {
     // eslint-disable-next-line @foxglove/no-boolean-parameters
     customHost?: boolean,
   ): Promise<ApiResponse<T>> {
+    if (url.length === 0 || url === "/") {
+      throw new Error("Invalid URL");
+    }
     const fullUrl =
       customHost != undefined && customHost
         ? url
