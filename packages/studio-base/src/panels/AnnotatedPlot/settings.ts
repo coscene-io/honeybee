@@ -46,7 +46,7 @@ const makeSeriesLineNode = memoizeWeak(
         label: {
           input: "string",
           label: t("label"),
-          value: line.label && line.label.length > 0 ? line.label : line.value,
+          value: line.label ?? line.value,
         },
         color: {
           input: "rgb",
