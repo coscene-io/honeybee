@@ -74,8 +74,8 @@ export function BagsOverlay(): JSX.Element {
     <div className={classes.root}>
       {(bags.value ?? [])
         .filter((ele) => ele.startTime)
-        .map((bag) => (
-          <MemoBagTick key={bag.name} bag={bag} />
+        .map((bag, index) => (
+          <MemoBagTick key={`${bag.name}${index}`} bag={bag} />
         ))}
     </div>
   );
