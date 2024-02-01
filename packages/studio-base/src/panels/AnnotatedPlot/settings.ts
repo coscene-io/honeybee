@@ -622,8 +622,7 @@ export function usePlotPanelSettings(
             draft.paths[index].lines = matchingTopicNames.map((topicName, topicIndex: number) => {
               // line.value like "\"/woodiiTest/new data/Data111111111111111111111111111111.mcap@温度01\".value"
               // value like "温度01".value
-              const label =
-                path.lines[topicIndex]?.label ?? `"${topicName}".${value.split(".")[1]}`;
+              const label = path.lines[topicIndex]?.label ?? "";
 
               return {
                 ...DEFAULT_PLOT_LINE,
