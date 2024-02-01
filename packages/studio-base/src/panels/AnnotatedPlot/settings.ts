@@ -619,16 +619,16 @@ export function usePlotPanelSettings(
           config.paths.forEach((path, index) => {
             const value = path.value;
             const matchingTopicNames = matchingFields(value, topicNames);
-            draft.paths[index].lines = matchingTopicNames.map((topicName) => {
+            draft.paths[index].lines = matchingTopicNames.map((topicName, topicIndex: number) => {
               // line.value like "\"/woodiiTest/new data/Data111111111111111111111111111111.mcap@温度01\".value"
               // value like "温度01".value
-              const label = path.lines.find(
-                (line) => line.value === `"${topicName}".${value.split(".")[1]}`,
-              )?.label;
+              const label =
+                path.lines[topicIndex]?.label ?? `"${topicName}".${value.split(".")[1]}`;
+
               return {
                 ...DEFAULT_PLOT_LINE,
                 value: `"${topicName}".${value.split(".")[1]}`,
-                label: label ?? `"${topicName}".${value.split(".")[1]}`,
+                label,
               };
             });
           });
