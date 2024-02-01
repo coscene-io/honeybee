@@ -208,10 +208,10 @@ export function Playlist(): JSX.Element {
         </Stack>
       )}
       <div>
-        {bags.map((bag) => {
+        {bags.map((bag, index) => {
           return (
             <BagView
-              key={bag.name}
+              key={`${bag.name}${index}`}
               bag={bag}
               filter={filterText}
               isHovered={
