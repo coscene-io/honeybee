@@ -40,13 +40,13 @@ const DEFAULT_PLOT_LINE: PlotLine = {
 const makeSeriesLineNode = memoizeWeak(
   (line: PlotLine, t: TFunction<"plot">, index: number): SettingsTreeNode => {
     return {
-      label: line.label,
+      label: line.label && line.label.length > 0 ? line.label : line.value,
       visible: line.enabled,
       fields: {
         label: {
           input: "string",
           label: t("label"),
-          value: line.label,
+          value: line.label && line.label.length > 0 ? line.label : line.value,
         },
         color: {
           input: "rgb",
@@ -622,7 +622,7 @@ export function usePlotPanelSettings(
             draft.paths[index].lines = matchingTopicNames.map((topicName, topicIndex: number) => {
               // line.value like "\"/woodiiTest/new data/Data111111111111111111111111111111.mcap@温度01\".value"
               // value like "温度01".value
-              const label = path.lines[topicIndex]?.label ?? "";
+              const label = path.lines[topicIndex]?.label ?? undefined;
 
               return {
                 ...DEFAULT_PLOT_LINE,
