@@ -227,14 +227,6 @@ export function CoSceneLayoutButton(): JSX.Element {
     });
   }, [dispatch, enqueueSnackbar, layoutManager, state.multiAction]);
 
-  useEffect(() => {
-    const listener = () => void reloadLayouts();
-    layoutManager.on("change", listener);
-    return () => {
-      layoutManager.off("change", listener);
-    };
-  }, [layoutManager, reloadLayouts]);
-
   /**
    * Don't allow the user to switch away from a personal layout if they have unsaved changes. This
    * currently has a race condition because of the throttled save in CurrentLayoutProvider -- it's
