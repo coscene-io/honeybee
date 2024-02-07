@@ -129,6 +129,7 @@ export function PlaylistSyncAdapter(): ReactNull {
   const [playlist, syncPlaylist] = useAsyncFn(async () => {
     try {
       if (baseInfoKey && startTime && endTime) {
+        setBagFiles({ loading: true });
         return await consoleApi.getPlaylist(baseInfoKey);
       }
     } catch (error) {
@@ -175,7 +176,6 @@ export function PlaylistSyncAdapter(): ReactNull {
   }, [urlState?.parameters?.key, playlist.value, startTime, endTime, setBagFiles, timeMode]);
 
   useEffect(() => {
-    setBagFiles({ loading: true });
     syncPlaylist().catch((error) => {
       log.error(error);
       setBagFiles({ loading: false, error });
