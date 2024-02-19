@@ -218,6 +218,7 @@ export type ConsoleApiLayout = {
   savedAt?: ISO8601Timestamp;
   permission: Permission;
   data?: Record<string, unknown>;
+  isRecommended?: boolean;
 };
 
 export enum MetricType {
@@ -280,6 +281,7 @@ class CoSceneConsoleApi {
   #addTopicPrefix: string;
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
+  #projectIds: string[] = [];
 
   public coSceneContext: CoSceneContext;
 
@@ -295,6 +297,10 @@ class CoSceneConsoleApi {
     this.coSceneContext = coSceneContext ?? {};
     this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
     this.#timeMode = timeMode;
+  }
+
+  public setProjectIds(projectIds: string[]): void {
+    this.#projectIds = projectIds.map((id) => id.split("/").pop() ?? "");
   }
 
   public getProblemManager(): PlayerProblemManager {
@@ -405,8 +411,9 @@ class CoSceneConsoleApi {
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
-    return await this.#get<ConsoleApiLayout[]>("/bff/honeybee/layout/v1/layouts", {
+    return await this.#get<ConsoleApiLayout[]>("/bff/honeybee/layout/v2/layouts", {
       includeData: options.includeData ? "true" : "false",
+      projectIds: JSON.stringify(this.#projectIds),
     });
   }
 
@@ -414,8 +421,9 @@ class CoSceneConsoleApi {
     id: LayoutID,
     options: { includeData: boolean },
   ): Promise<ConsoleApiLayout | undefined> {
-    return await this.#get<ConsoleApiLayout>(`/bff/honeybee/layout/v1/layouts/${id}`, {
+    return await this.#get<ConsoleApiLayout>(`/bff/honeybee/layout/v2/layouts/${id}`, {
       includeData: options.includeData ? "true" : "false",
+      getLayouts: JSON.stringify(this.#projectIds),
     });
   }
 
@@ -426,7 +434,7 @@ class CoSceneConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<ConsoleApiLayout> {
-    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v1/layouts", layout);
+    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v2/layouts", layout);
   }
 
   public async updateLayout(layout: {
@@ -437,7 +445,7 @@ class CoSceneConsoleApi {
     data: Record<string, unknown> | undefined;
   }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
     const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
-      `/bff/honeybee/layout/v1/layouts/${layout.id}`,
+      `/bff/honeybee/layout/v2/layouts/${layout.id}`,
       layout,
     );
     if (status === 200) {
@@ -448,7 +456,7 @@ class CoSceneConsoleApi {
   }
 
   public async deleteLayout(id: LayoutID): Promise<boolean> {
-    return (await this.#delete(`/bff/honeybee/layout/v1/layouts/${id}`)).status === 200;
+    return (await this.#delete(`/bff/honeybee/layout/v2/layouts/${id}`)).status === 200;
   }
 
   async #request<T>(

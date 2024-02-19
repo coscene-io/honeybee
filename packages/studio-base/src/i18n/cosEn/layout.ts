@@ -51,4 +51,5 @@ export const cosLayout = {
   unavailableWhileOffline: "(unavailable while offline)",
   saveAPersonalCopy: "Save a personal copy",
   discardTip: "Your changes will be permantly deleted. This cannot be undone.",
+  recommandedLayout: "Recommended layout",
 };

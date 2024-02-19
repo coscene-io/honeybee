@@ -17,6 +17,8 @@ import {
   TextField,
   // eslint-disable-next-line
   styled as muiStyled,
+  Chip,
+  Stack,
 } from "@mui/material";
 import {
   useCallback,
@@ -468,7 +470,12 @@ export default React.memo(function LayoutRow({
             noWrap
             style={{ display: editingName ? "none" : "block" }}
           >
-            <HighlightedText text={layout.name} highlight={searchQuery} />
+            <Stack direction="row" spacing={2} alignItems="center">
+              <HighlightedText text={layout.name} highlight={searchQuery} />
+              {layout.isRecommended === true && (
+                <Chip label={t("recommandedLayout")} color="success" size="small" />
+              )}
+            </Stack>
           </Typography>
         </ListItemText>
       </ListItemButton>

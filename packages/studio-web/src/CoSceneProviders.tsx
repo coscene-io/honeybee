@@ -188,6 +188,18 @@ export function CoSceneProviders(): JSX.Element[] {
             log.error(err);
           });
       }
+
+      const projectIds = baseInfo.files?.map((file) => {
+        if ("jobRunsName" in file) {
+          return file.jobRunsName.split("/workflowRuns/")[0] ?? "";
+        }
+        if ("filename" in file) {
+          return file.filename.split("/records/")[0] ?? "";
+        }
+        return "";
+      });
+
+      consoleApi.setProjectIds(projectIds ?? []);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
