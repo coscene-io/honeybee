@@ -218,7 +218,7 @@ export type ConsoleApiLayout = {
   savedAt?: ISO8601Timestamp;
   permission: Permission;
   data?: Record<string, unknown>;
-  isRecommended?: boolean;
+  isRecommended: boolean;
 };
 
 export enum MetricType {
@@ -434,7 +434,10 @@ class CoSceneConsoleApi {
     permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
     data: Record<string, unknown> | undefined;
   }): Promise<ConsoleApiLayout> {
-    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v2/layouts", layout);
+    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v2/layouts", {
+      ...layout,
+      projectIds: this.#projectIds,
+    });
   }
 
   public async updateLayout(layout: {
@@ -446,7 +449,7 @@ class CoSceneConsoleApi {
   }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
     const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
       `/bff/honeybee/layout/v2/layouts/${layout.id}`,
-      layout,
+      { ...layout, projectIds: this.#projectIds },
     );
     if (status === 200) {
       return { status: "success", newLayout };

@@ -15,11 +15,18 @@ import {
 
 const log = Logger.getLogger(__filename);
 
-function convertLayout({ id, name, permission, data, savedAt }: ConsoleApiLayout): RemoteLayout {
+function convertLayout({
+  id,
+  name,
+  permission,
+  data,
+  savedAt,
+  isRecommended,
+}: ConsoleApiLayout): RemoteLayout {
   if (data == undefined) {
     throw new Error(`Missing data for server layout ${name} (${id})`);
   }
-  return { id, name, permission, data: data as LayoutData, savedAt };
+  return { id, name, permission, data: data as LayoutData, savedAt, isRecommended };
 }
 
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {

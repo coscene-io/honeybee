@@ -18,6 +18,7 @@ export type RemoteLayout = {
   permission: LayoutPermission;
   data: LayoutData;
   savedAt: ISO8601Timestamp | undefined;
+  isRecommended: boolean;
 };
 
 export interface IRemoteLayoutStorage {
