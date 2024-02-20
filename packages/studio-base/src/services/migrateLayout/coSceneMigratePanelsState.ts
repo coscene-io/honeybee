@@ -63,6 +63,6 @@ export function migrateLayout(value: unknown): Layout {
       : undefined,
     baseline: { ...baseline, data: migratePanelsState(baseline.data) },
     syncInfo: layout.syncInfo,
-    isRecommended: false,
+    isRecommended: layout.isRecommended ?? false,
   };
 }

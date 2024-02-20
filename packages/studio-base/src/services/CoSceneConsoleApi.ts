@@ -303,6 +303,10 @@ class CoSceneConsoleApi {
     this.#projectIds = projectIds.map((id) => id.split("/").pop() ?? "");
   }
 
+  public getProjectIds(): string[] {
+    return this.#projectIds;
+  }
+
   public getProblemManager(): PlayerProblemManager {
     return this.#problemManager;
   }

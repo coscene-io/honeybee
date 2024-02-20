@@ -472,7 +472,7 @@ export default React.memo(function LayoutRow({
           >
             <Stack direction="row" spacing={2} alignItems="center">
               <HighlightedText text={layout.name} highlight={searchQuery} />
-              {layout.isRecommended === true && (
+              {layout.isRecommended && (
                 <Chip label={t("recommandedLayout")} color="success" size="small" />
               )}
             </Stack>
