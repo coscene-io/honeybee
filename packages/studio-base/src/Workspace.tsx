@@ -412,7 +412,10 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const selectEvent = useEvents(selectSelectEvent);
   // Load data source from URL.
   useEffect(() => {
-    if (!unappliedSourceArgs || _.isEmpty(baseInfo)) {
+    if (
+      !unappliedSourceArgs ||
+      (unappliedSourceArgs.ds !== "coscene-websocket" && _.isEmpty(baseInfo))
+    ) {
       return;
     }
 
