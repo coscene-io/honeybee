@@ -668,7 +668,6 @@ export function usePlotPanelSettings(
                         return {
                           ...DEFAULT_PLOT_LINE,
                           value: `"${topicName}".${value.split(".")[1]}`,
-                          label: `"${topicName}".${value.split(".")[1]}`,
                         };
                       });
                     }
