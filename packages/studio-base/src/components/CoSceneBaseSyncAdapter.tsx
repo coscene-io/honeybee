@@ -26,6 +26,17 @@ export function CoSceneBaseSyncAdapter(): ReactNull {
         setBaseInfo({ loading: true, value: {} });
         const baseInfo = await consoleApi.getBaseInfo(baseInfoKey);
 
+        const projectIds = baseInfo.files?.map((file) => {
+          if ("jobRunsName" in file) {
+            return file.jobRunsName.split("/workflowRuns/")[0] ?? "";
+          }
+          if ("filename" in file) {
+            return file.filename.split("/records/")[0] ?? "";
+          }
+          return "";
+        });
+        consoleApi.setProjectIds(projectIds ?? []);
+
         setBaseInfo({ loading: false, value: baseInfo });
       } catch (error) {
         setBaseInfo({ loading: false, error });

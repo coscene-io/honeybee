@@ -634,7 +634,8 @@ export function CoSceneLayoutButton(): JSX.Element {
             <LayoutSection
               title={t("organization")}
               emptyText={t("noOrgnizationLayouts")}
-              items={layouts.value?.shared}
+              // Layout of top recommendations
+              items={layouts.value?.shared.sort((a) => (a.isRecommended ? -1 : 1))}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}
               selectedId={currentLayoutId}
