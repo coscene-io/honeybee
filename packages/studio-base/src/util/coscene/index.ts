@@ -18,12 +18,7 @@ import {
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
 
-import {
-  ConsoleApiLayout,
-  LayoutID,
-  ISO8601Timestamp,
-  Permission,
-} from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
 export * from "./cosel";
 
@@ -144,18 +139,6 @@ function replaceUndefinedWithNull(obj: Record<string, unknown>) {
   });
   return obj;
 }
-
-export const coSceneLayoutToConsoleApiLayout = (layout: Layout): ConsoleApiLayout => {
-  return {
-    id: layout.name.split("layouts/").pop() as LayoutID,
-    name: layout.value?.name ?? "",
-    createdAt: layout.value?.createTime?.toDate().toISOString() as ISO8601Timestamp,
-    updatedAt: layout.value?.updateTime?.toDate().toISOString() as ISO8601Timestamp,
-    savedAt: layout.value?.saveTime?.toDate().toISOString() as ISO8601Timestamp,
-    permission: layout.value?.permission as Permission,
-    data: layout.value?.data?.toJson() as Record<string, unknown>,
-  };
-};
 
 export const getCoSceneLayout = (layout: {
   id: LayoutID | undefined;

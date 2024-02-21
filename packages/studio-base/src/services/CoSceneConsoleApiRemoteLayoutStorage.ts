@@ -15,11 +15,18 @@ import {
 
 const log = Logger.getLogger(__filename);
 
-function convertLayout({ id, name, permission, data, savedAt }: ConsoleApiLayout): RemoteLayout {
+function convertLayout({
+  id,
+  name,
+  permission,
+  data,
+  savedAt,
+  isRecommended,
+}: ConsoleApiLayout): RemoteLayout {
   if (data == undefined) {
     throw new Error(`Missing data for server layout ${name} (${id})`);
   }
-  return { id, name, permission, data: data as LayoutData, savedAt };
+  return { id, name, permission, data: data as LayoutData, savedAt, isRecommended };
 }
 
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {
@@ -28,8 +35,20 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     private api: ConsoleApi,
   ) {}
 
+  public async getLayoutsWhenProjectInfoReady(): Promise<readonly ConsoleApiLayout[]> {
+    return await new Promise((resolve) => {
+      if (this.api.getProjectIds().length > 0) {
+        resolve(this.api.getLayouts({ includeData: true }));
+      } else {
+        setTimeout(() => {
+          resolve(this.getLayoutsWhenProjectInfoReady());
+        }, 500);
+      }
+    });
+  }
+
   public async getLayouts(): Promise<readonly RemoteLayout[]> {
-    return filterMap(await this.api.getLayouts({ includeData: true }), (layout) => {
+    return filterMap(await this.getLayoutsWhenProjectInfoReady(), (layout) => {
       try {
         return convertLayout(layout);
       } catch (err) {
@@ -38,6 +57,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       }
     });
   }
+
   public async getLayout(id: LayoutID): Promise<RemoteLayout | undefined> {
     const layout = await this.api.getLayout(id, { includeData: true });
     return layout ? convertLayout(layout) : undefined;
