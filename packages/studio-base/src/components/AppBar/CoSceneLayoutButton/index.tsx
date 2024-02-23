@@ -42,7 +42,6 @@ import {
   useCurrentLayoutActions,
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
-// import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
