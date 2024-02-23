@@ -52,4 +52,6 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   saveAPersonalCopy: "保存个人副本",
   discardTip: "您的更改将被永久删除。且无法撤消。",
   recommandedLayout: "推荐布局",
+  removeRecommendedLayout: "移除推荐布局",
+  markAsRecommended: "设置为推荐布局",
 };

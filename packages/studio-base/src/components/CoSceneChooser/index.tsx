@@ -41,7 +41,7 @@ import { makeStyles } from "tss-react/mui";
 import Snow from "@foxglove/studio-base/components/DataSourceDialog/Snow";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { SerializeOption, BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene";
 
 const SupportedFileTypes = [
@@ -243,6 +243,8 @@ const CustomBreadcrumbs = ({
   );
 };
 
+const selectUser = (store: UserStore) => store.user;
+
 function ChooserComponent({
   setTargetRecordName,
   type,
@@ -259,7 +261,7 @@ function ChooserComponent({
   const { classes } = useStyles();
   const { t } = useTranslation("cosGeneral");
 
-  const userInfo = useCurrentUser();
+  const userInfo = useCurrentUser(selectUser);
   const consoleApi = useConsoleApi();
 
   const [project, setProject] = useState<Project | undefined>(undefined);

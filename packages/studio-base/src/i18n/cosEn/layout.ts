@@ -52,4 +52,6 @@ export const cosLayout = {
   saveAPersonalCopy: "Save a personal copy",
   discardTip: "Your changes will be permantly deleted. This cannot be undone.",
   recommandedLayout: "Recommended layout",
+  removeRecommendedLayout: "Remove recommended layout",
+  markAsRecommended: "Mark as recommended layout",
 };

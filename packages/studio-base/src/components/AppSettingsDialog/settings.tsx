@@ -32,7 +32,7 @@ import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Language } from "@foxglove/studio-base/i18n";
@@ -79,6 +79,8 @@ const useStyles = makeStyles()((theme) => ({
   //   marginBottom: theme.spacing(1),
   // },
 }));
+
+const selectUser = (store: UserStore) => store.user;
 
 function formatTimezone(name: string) {
   const tz = moment.tz(name);
@@ -363,7 +365,7 @@ export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
   const consoleApi = useConsoleApi();
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(i18n.language as Language);
-  const userInfo = useCurrentUser();
+  const userInfo = useCurrentUser(selectUser);
 
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {

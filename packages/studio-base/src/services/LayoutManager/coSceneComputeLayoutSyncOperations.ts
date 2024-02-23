@@ -55,7 +55,10 @@ export default function coSceneComputeLayoutSyncOperations(
             break;
           }
 
-          if (localLayout.syncInfo.lastRemoteSavedAt !== remoteLayout.savedAt) {
+          if (
+            localLayout.syncInfo.lastRemoteSavedAt !== remoteLayout.savedAt ||
+            localLayout.isRecommended !== remoteLayout.isRecommended
+          ) {
             ops.push({
               local: true,
               type: "update-baseline",

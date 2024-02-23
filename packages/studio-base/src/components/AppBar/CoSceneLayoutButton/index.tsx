@@ -33,6 +33,8 @@ import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoScen
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
@@ -40,6 +42,7 @@ import {
   useCurrentLayoutActions,
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+// import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
@@ -55,6 +58,7 @@ import SelectLayoutTemplateModal from "./SelectLayoutTemplateModal";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
 const useStyles = makeStyles()((theme) => {
   const { spacing, palette } = theme;
@@ -105,6 +109,11 @@ export function CoSceneLayoutButton(): JSX.Element {
   const [selectLayoutTemplateModalOpen, setSelectLayoutTemplateModalOpen] = useState(false);
 
   const layoutManager = useLayoutManager();
+
+  const consoleApi = useConsoleApi();
+
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const [layouts, reloadLayouts] = useAsyncFn(
     async () => {
@@ -487,6 +496,27 @@ export function CoSceneLayoutButton(): JSX.Element {
     void analytics.logEvent(AppEvent.LAYOUT_CREATE);
   }, [promptForUnsavedChanges, layoutManager, onSelectLayout, analytics]);
 
+  const onRecommendedLayout = useCallbackWithToast(
+    async (item: Layout) => {
+      const currentProjectId = baseInfo.projectId;
+      const currentRecommendedLayouts = layouts.value?.shared
+        .filter((layout) => layout.isRecommended)
+        .map((layout) => layout.id);
+      if (currentRecommendedLayouts != undefined && currentProjectId != undefined) {
+        if (item.isRecommended) {
+          const nextRecommendedLayouts = currentRecommendedLayouts.filter((id) => id !== item.id);
+          await consoleApi.setRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
+        } else {
+          const nextRecommendedLayouts = [...currentRecommendedLayouts, item.id];
+          await consoleApi.setRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
+        }
+
+        await layoutManager.updateLayout({ id: item.id });
+      }
+    },
+    [baseInfo.projectId, consoleApi, layoutManager, layouts.value?.shared],
+  );
+
   const appBarMenuItems = [
     {
       type: "item",
@@ -649,6 +679,7 @@ export function CoSceneLayoutButton(): JSX.Element {
               onRevert={onRevertLayout}
               onMakePersonalCopy={onMakePersonalCopy}
               searchQuery={searchQuery}
+              onRecommendedLayout={onRecommendedLayout}
             />
           )}
           <Stack flexGrow={1} />
