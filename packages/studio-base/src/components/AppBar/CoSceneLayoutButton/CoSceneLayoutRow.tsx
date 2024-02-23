@@ -34,6 +34,7 @@ import { useMountedState } from "react-use";
 
 // import { withStyles } from "tss-react/mui";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
+import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
@@ -121,6 +122,8 @@ export type LayoutActionMenuItem =
       debug?: boolean;
     };
 
+const selectUserRole = (store: UserStore) => store.role;
+
 export default React.memo(function LayoutRow({
   layout,
   anySelectedModifiedLayouts,
@@ -136,6 +139,7 @@ export default React.memo(function LayoutRow({
   onOverwrite,
   onRevert,
   onMakePersonalCopy,
+  onRecommendedLayout,
 }: {
   layout: Layout;
   anySelectedModifiedLayouts: boolean;
@@ -151,11 +155,13 @@ export default React.memo(function LayoutRow({
   onOverwrite: (item: Layout) => void;
   onRevert: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
+  onRecommendedLayout?: (item: Layout) => void;
 }): JSX.Element {
   const isMounted = useMountedState();
   const [confirm, confirmModal] = useConfirm();
   const layoutManager = useLayoutManager();
   const { t } = useTranslation("cosLayout");
+  const currentUserRole = useCurrentUser(selectUserRole);
 
   const [editingName, setEditingName] = useState(false);
   const [nameFieldValue, setNameFieldValue] = useState("");
@@ -223,12 +229,20 @@ export default React.memo(function LayoutRow({
   const duplicateAction = useCallback(() => {
     onDuplicate(layout);
   }, [layout, onDuplicate]);
+
   const shareAction = useCallback(() => {
     onShare(layout);
   }, [layout, onShare]);
+
   const exportAction = useCallback(() => {
     onExport(layout);
   }, [layout, onExport]);
+
+  const recommendedAction = useCallback(() => {
+    if (onRecommendedLayout) {
+      onRecommendedLayout(layout);
+    }
+  }, [layout, onRecommendedLayout]);
 
   const onSubmit = useCallback(
     (event: React.FormEvent) => {
@@ -324,6 +338,16 @@ export default React.memo(function LayoutRow({
       onClick: duplicateAction,
       "data-testid": "duplicate-layout",
     },
+    layoutIsShared(layout) &&
+      onRecommendedLayout != undefined &&
+      (currentUserRole.organizationRole === "ORGANIZATION_ADMIN" ||
+        currentUserRole.projectRole === "PROJECT_ADMIN") && {
+        type: "item",
+        key: "recommendedLayout",
+        text: layout.isRecommended ? t("removeRecommendedLayout") : t("markAsRecommended"),
+        onClick: recommendedAction,
+        "data-testid": "recommended-layout",
+      },
     layoutManager.supportsSharing &&
       !layoutIsShared(layout) && {
         type: "item",

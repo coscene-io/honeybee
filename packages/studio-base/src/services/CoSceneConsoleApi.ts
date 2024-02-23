@@ -34,6 +34,13 @@ import {
   ListUserProjectsRequest,
   ListUserProjectsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
+import { RoleService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_connect";
+import {
+  ListRolesRequest,
+  ListRolesResponse,
+  BatchGetUserRolesRequest,
+  BatchGetUserRolesResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
 import { Event as Event_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
@@ -935,6 +942,43 @@ class CoSceneConsoleApi {
     });
 
     return key.id;
+  }
+
+  public async setRecommendedLayouts(
+    layoutIds: LayoutID[],
+    currentProjectId: string,
+  ): Promise<{ status: "success" } | { status: "conflict" }> {
+    const { status } = await this.#patch(`/bff/honeybee/layout/v2/recommend/${currentProjectId}`, {
+      layoutIds,
+    });
+
+    if (status === 200) {
+      return { status: "success" };
+    }
+
+    return { status: "conflict" };
+  }
+
+  public async getRoleLists(): Promise<ListRolesResponse> {
+    const req = new ListRolesRequest({ pageSize: 999 });
+
+    const roleClient = getPromiseClient(RoleService);
+
+    return await roleClient.listRoles(req);
+  }
+
+  public async batchGetProjectUserRoles(
+    projectName: string,
+    userIds: string[],
+  ): Promise<BatchGetUserRolesResponse> {
+    const req = new BatchGetUserRolesRequest({
+      parent: projectName,
+      names: userIds,
+    });
+
+    const roleClient = getPromiseClient(RoleService);
+
+    return await roleClient.batchGetUserRoles(req);
   }
 }
 

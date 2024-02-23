@@ -50,7 +50,7 @@ import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
@@ -120,6 +120,8 @@ const selectWorkspaceRightSidebarOpen = (store: WorkspaceContextStore) => store.
 const selectWorkspaceRightSidebarSize = (store: WorkspaceContextStore) => store.sidebars.right.size;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+
+const selectUser = (store: UserStore) => store.user;
 
 function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
@@ -191,7 +193,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   // see comment below above the RemountOnValueChange component
   const playerId = useMessagePipeline(selectPlayerId);
 
-  const currentUser = useCurrentUser();
+  const currentUser = useCurrentUser(selectUser);
 
   useDefaultWebLaunchPreference();
 

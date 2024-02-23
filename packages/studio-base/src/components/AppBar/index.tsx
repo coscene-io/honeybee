@@ -23,7 +23,10 @@ import {
   LayoutState,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { useCurrentUser as useCoSceneCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
+  useCurrentUser as useCoSceneCurrentUser,
+  UserStore,
+} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   WorkspaceContextStore,
@@ -155,6 +158,8 @@ const selectHasCurrentLayout = (state: LayoutState) => state.selectedLayout != u
 const selectLeftSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.left.open;
 const selectRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.right.open;
 
+const selectUser = (store: UserStore) => store.user;
+
 export function AppBar(props: AppBarProps): JSX.Element {
   const {
     debugDragRegion,
@@ -187,7 +192,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
   const appMenuOpen = Boolean(appMenuEl);
   const userMenuOpen = Boolean(userAnchorEl);
   const panelMenuOpen = Boolean(panelAnchorEl);
-  const userInfo = useCoSceneCurrentUser();
+  const userInfo = useCoSceneCurrentUser(selectUser);
 
   return (
     <>

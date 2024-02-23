@@ -5,15 +5,17 @@
 import { useMemo } from "react";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import RemoteLayoutStorageContext from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
 import ConsoleApiRemoteLayoutStorage from "@foxglove/studio-base/services/CoSceneConsoleApiRemoteLayoutStorage";
+
+const selectUser = (store: UserStore) => store.user;
 
 export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
   children,
 }: React.PropsWithChildren): JSX.Element {
   const api = useConsoleApi();
-  const currentUser = useCurrentUser();
+  const currentUser = useCurrentUser(selectUser);
   const apiStorage = useMemo(
     () =>
       currentUser?.userId ? new ConsoleApiRemoteLayoutStorage(currentUser.userId, api) : undefined,
