@@ -62,6 +62,7 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
+import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useCoSceneInitialDeepLinkState";
 import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDefaultWebLaunchPreference";
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
@@ -96,6 +97,8 @@ type WorkspaceProps = CustomWindowControlsProps & {
   disablePersistenceForStorybook?: boolean;
   AppBarComponent?: (props: AppBarProps) => JSX.Element;
 };
+
+const DEFAULT_DEEPLINKS = Object.freeze([]);
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
 const selectPlayerIsPresent = ({ playerState }: MessagePipelineContext) =>
@@ -541,6 +544,8 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   const [showOpenDialogOnStartup = true] = useAppConfigurationValue<boolean>(
     AppSetting.SHOW_OPEN_DIALOG_ON_STARTUP,
   );
+
+  useInitialDeepLinkState(props.deepLinks ?? DEFAULT_DEEPLINKS);
 
   const { workspaceStoreCreator } = useAppContext();
 

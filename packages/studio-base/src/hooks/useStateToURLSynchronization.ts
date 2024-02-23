@@ -12,12 +12,17 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 // import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import {
+  LayoutState,
+  useCurrentLayoutSelector,
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { PlayerCapabilities } from "@foxglove/studio-base/players/types";
 import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectCanSeek = (ctx: MessagePipelineContext) =>
   ctx.playerState.capabilities.includes(PlayerCapabilities.playbackControl);
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectLayoutId = (layoutState: LayoutState) => layoutState.selectedLayout?.id;
 // const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 // const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 
@@ -36,7 +41,17 @@ export function useStateToURLSynchronization(): void {
   const canSeek = useMessagePipeline(selectCanSeek);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const [debouncedCurrentTime] = useDebounce(currentTime, 500, { maxWait: 500 });
+  const layoutId = useCurrentLayoutSelector(selectLayoutId);
   // const selectedEventId = useEvents(selectSelectedEventId);
+
+  // Sync layoutId with the url.
+  useEffect(() => {
+    if (layoutId == undefined) {
+      return;
+    }
+
+    updateUrl({ layoutId });
+  }, [layoutId]);
 
   // Sync current time with the url.
   useEffect(() => {

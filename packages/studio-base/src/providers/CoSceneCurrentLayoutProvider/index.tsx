@@ -46,6 +46,7 @@ import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneI
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { PanelConfig, PlaybackConfig, UserScripts } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
 import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert";
@@ -261,6 +262,11 @@ export default function CoSceneCurrentLayoutProvider({
 
   // Load initial state by re-selecting the last selected layout from the UserProfile.
   useAsync(async () => {
+    // Don't restore the layout if there's one specified in the app state url.
+    if (windowAppURLState()?.layoutId != undefined) {
+      return;
+    }
+
     // Retreive the selected layout id from the user's profile. If there's no layout specified
     // or we can't load it then save and select a default layout.
     const { currentLayoutId } = await getUserProfile();
