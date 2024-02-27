@@ -19,7 +19,8 @@ export type RemoteLayout = {
   permission: LayoutPermission;
   data: LayoutData;
   savedAt: ISO8601Timestamp | undefined;
-  isRecommended: boolean;
+  isProjectRecommended: boolean;
+  isRecordRecommended: boolean;
 };
 
 export interface IRemoteLayoutStorage {
@@ -36,6 +37,14 @@ export interface IRemoteLayoutStorage {
   getLayout: (id: LayoutID) => Promise<RemoteLayout | undefined>;
 
   saveNewLayout: (params: {
+    id: LayoutID | undefined;
+    name: string;
+    data: LayoutData;
+    permission: LayoutPermission;
+    savedAt: ISO8601Timestamp;
+  }) => Promise<RemoteLayout>;
+
+  saveAsRecordDefaultLayout: (params: {
     id: LayoutID | undefined;
     name: string;
     data: LayoutData;

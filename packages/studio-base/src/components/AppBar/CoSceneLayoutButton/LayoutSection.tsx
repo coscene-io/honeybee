@@ -27,7 +27,8 @@ export default function LayoutSection({
   onRevert,
   onMakePersonalCopy,
   searchQuery,
-  onRecommendedLayout,
+  onRecommendedToProjectLayout,
+  onCopyToRecordDefaultLayout,
 }: {
   title: string | undefined;
   emptyText: string | undefined;
@@ -44,7 +45,8 @@ export default function LayoutSection({
   onOverwrite: (item: Layout) => void;
   onRevert: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
-  onRecommendedLayout?: (item: Layout) => void;
+  onRecommendedToProjectLayout?: (item: Layout) => void;
+  onCopyToRecordDefaultLayout?: (item: Layout) => void;
   searchQuery: string;
 }): JSX.Element {
   return (
@@ -88,7 +90,8 @@ export default function LayoutSection({
               onOverwrite={onOverwrite}
               onRevert={onRevert}
               onMakePersonalCopy={onMakePersonalCopy}
-              onRecommendedLayout={onRecommendedLayout}
+              onRecommendedToProjectLayout={onRecommendedToProjectLayout}
+              onCopyToRecordDefaultLayout={onCopyToRecordDefaultLayout}
             />
           ))}
       </List>

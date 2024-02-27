@@ -21,12 +21,21 @@ function convertLayout({
   permission,
   data,
   savedAt,
-  isRecommended,
+  isProjectRecommended,
+  isRecordRecommended,
 }: ConsoleApiLayout): RemoteLayout {
   if (data == undefined) {
     throw new Error(`Missing data for server layout ${name} (${id})`);
   }
-  return { id, name, permission, data: data as LayoutData, savedAt, isRecommended };
+  return {
+    id,
+    name,
+    permission,
+    data: data as LayoutData,
+    savedAt,
+    isProjectRecommended,
+    isRecordRecommended,
+  };
 }
 
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {
@@ -37,7 +46,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
   public async getLayoutsWhenProjectInfoReady(): Promise<readonly ConsoleApiLayout[]> {
     return await new Promise((resolve) => {
-      if (this.api.getProjectIds().length > 0) {
+      if (this.api.getProjectId().length > 0) {
         resolve(this.api.getLayouts({ includeData: true }));
       } else {
         setTimeout(() => {
@@ -77,6 +86,23 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     savedAt: ISO8601Timestamp;
   }): Promise<RemoteLayout> {
     const result = await this.api.createLayout({ id, name, data, permission, savedAt });
+    return convertLayout(result);
+  }
+
+  public async saveAsRecordDefaultLayout({
+    id,
+    name,
+    data,
+    permission,
+    savedAt,
+  }: {
+    id: LayoutID | undefined;
+    name: string;
+    data: LayoutData;
+    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+    savedAt: ISO8601Timestamp;
+  }): Promise<RemoteLayout> {
+    const result = await this.api.createRecordLayout({ id, name, data, permission, savedAt });
     return convertLayout(result);
   }
 
