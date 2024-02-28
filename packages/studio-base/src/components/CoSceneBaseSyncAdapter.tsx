@@ -26,16 +26,12 @@ export function CoSceneBaseSyncAdapter(): ReactNull {
         setBaseInfo({ loading: true, value: {} });
         const baseInfo = await consoleApi.getBaseInfo(baseInfoKey);
 
-        const projectIds = baseInfo.files?.map((file) => {
-          if ("jobRunsName" in file) {
-            return file.jobRunsName.split("/workflowRuns/")[0] ?? "";
-          }
-          if ("filename" in file) {
-            return file.filename.split("/records/")[0] ?? "";
-          }
-          return "";
-        });
-        consoleApi.setProjectIds(projectIds ?? []);
+        if (!baseInfo.projectId || !baseInfo.recordId) {
+          throw new Error("Base info is missing project or record id");
+        }
+
+        consoleApi.setProjectId(baseInfo.projectId);
+        consoleApi.setRecordId(baseInfo.recordId);
 
         setBaseInfo({ loading: false, value: baseInfo });
       } catch (error) {

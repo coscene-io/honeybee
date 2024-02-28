@@ -213,7 +213,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
         working: undefined,
         syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
-        isRecommended: remoteLayout.isRecommended,
+        isProjectRecommended: remoteLayout.isProjectRecommended,
+        isRecordRecommended: remoteLayout.isRecordRecommended,
       });
     });
   }
@@ -223,10 +224,12 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     name,
     data: unmigratedData,
     permission,
+    isRecordDefaultLayout = false,
   }: {
     name: string;
     data: LayoutData;
     permission: LayoutPermission;
+    isRecordDefaultLayout?: boolean;
   }): Promise<Layout> {
     const data = migratePanelsState(unmigratedData);
     if (layoutPermissionIsShared(permission)) {
@@ -236,13 +239,25 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       if (!this.isOnline) {
         throw new Error("Cannot share a layout while offline");
       }
-      const newLayout = await this.#remote.saveNewLayout({
-        id: uuidv4() as LayoutID,
-        name,
-        data,
-        permission,
-        savedAt: new Date().toISOString() as ISO8601Timestamp,
-      });
+      let newLayout: RemoteLayout;
+
+      if (isRecordDefaultLayout) {
+        newLayout = await this.#remote.saveAsRecordDefaultLayout({
+          id: uuidv4() as LayoutID,
+          name,
+          data,
+          permission,
+          savedAt: new Date().toISOString() as ISO8601Timestamp,
+        });
+      } else {
+        newLayout = await this.#remote.saveNewLayout({
+          id: uuidv4() as LayoutID,
+          name,
+          data,
+          permission,
+          savedAt: new Date().toISOString() as ISO8601Timestamp,
+        });
+      }
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
@@ -252,7 +267,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             baseline: { data: newLayout.data, savedAt: newLayout.savedAt },
             working: undefined,
             syncInfo: { status: "tracked", lastRemoteSavedAt: newLayout.savedAt },
-            isRecommended: newLayout.isRecommended,
+            isProjectRecommended: newLayout.isProjectRecommended,
+            isRecordRecommended: newLayout.isRecordRecommended,
           }),
       );
       this.#notifyChangeListeners({ type: "change", updatedLayout: undefined });
@@ -268,7 +284,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           baseline: { data, savedAt: new Date().toISOString() as ISO8601Timestamp },
           working: undefined,
           syncInfo: this.#remote ? { status: "new", lastRemoteSavedAt: undefined } : undefined,
-          isRecommended: false,
+          isProjectRecommended: false,
+          isRecordRecommended: false,
         }),
     );
     this.#notifyChangeListeners({ type: "change", updatedLayout: newLayout });
@@ -317,7 +334,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             baseline: { data: updatedBaseline.data, savedAt: updatedBaseline.savedAt },
             working: newWorking,
             syncInfo: { status: "tracked", lastRemoteSavedAt: updatedBaseline.savedAt },
-            isRecommended: updatedBaseline.isRecommended,
+            isProjectRecommended: updatedBaseline.isProjectRecommended,
+            isRecordRecommended: updatedBaseline.isRecordRecommended,
           }),
       );
       // 当 busyCount > 1 时，代表着有多个更新 layout 的任务在排队，这时不应该触发 change 事件，否则会导致 layout 跳回上一个版本
@@ -470,7 +488,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         baseline: { data: layout.working?.data ?? layout.baseline.data, savedAt: now },
         working: undefined,
         syncInfo: { status: "new", lastRemoteSavedAt: now },
-        isRecommended: false,
+        isProjectRecommended: false,
+        isRecordRecommended: false,
       });
       await local.put({ ...layout, working: undefined });
       return newLayout;
@@ -574,7 +593,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
               working: undefined,
               syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
-              isRecommended: remoteLayout.isRecommended,
+              isProjectRecommended: remoteLayout.isProjectRecommended,
+              isRecordRecommended: remoteLayout.isRecordRecommended,
             });
             break;
           }
@@ -592,7 +612,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 status: localLayout.syncInfo.status,
                 lastRemoteSavedAt: remoteLayout.savedAt,
               },
-              isRecommended: remoteLayout.isRecommended,
+              isProjectRecommended: remoteLayout.isProjectRecommended,
+              isRecordRecommended: remoteLayout.isRecordRecommended,
             });
             break;
           }

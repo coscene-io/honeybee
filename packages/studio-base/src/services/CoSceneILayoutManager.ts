@@ -74,6 +74,7 @@ export interface ILayoutManager {
     name: string;
     data: LayoutData;
     permission: LayoutPermission;
+    isRecordDefaultLayout?: boolean;
   }): Promise<Layout>;
 
   /**

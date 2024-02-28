@@ -139,7 +139,8 @@ export default React.memo(function LayoutRow({
   onOverwrite,
   onRevert,
   onMakePersonalCopy,
-  onRecommendedLayout,
+  onRecommendedToProjectLayout,
+  onCopyToRecordDefaultLayout,
 }: {
   layout: Layout;
   anySelectedModifiedLayouts: boolean;
@@ -155,7 +156,8 @@ export default React.memo(function LayoutRow({
   onOverwrite: (item: Layout) => void;
   onRevert: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
-  onRecommendedLayout?: (item: Layout) => void;
+  onRecommendedToProjectLayout?: (item: Layout) => void;
+  onCopyToRecordDefaultLayout?: (item: Layout) => void;
 }): JSX.Element {
   const isMounted = useMountedState();
   const [confirm, confirmModal] = useConfirm();
@@ -238,11 +240,17 @@ export default React.memo(function LayoutRow({
     onExport(layout);
   }, [layout, onExport]);
 
-  const recommendedAction = useCallback(() => {
-    if (onRecommendedLayout) {
-      onRecommendedLayout(layout);
+  const recommendedToProjectAction = useCallback(() => {
+    if (onRecommendedToProjectLayout) {
+      onRecommendedToProjectLayout(layout);
     }
-  }, [layout, onRecommendedLayout]);
+  }, [layout, onRecommendedToProjectLayout]);
+
+  const copyToRecordDefaultAction = useCallback(() => {
+    if (onCopyToRecordDefaultLayout) {
+      onCopyToRecordDefaultLayout(layout);
+    }
+  }, [layout, onCopyToRecordDefaultLayout]);
 
   const onSubmit = useCallback(
     (event: React.FormEvent) => {
@@ -339,14 +347,26 @@ export default React.memo(function LayoutRow({
       "data-testid": "duplicate-layout",
     },
     layoutIsShared(layout) &&
-      onRecommendedLayout != undefined &&
+      onRecommendedToProjectLayout != undefined &&
       (currentUserRole.organizationRole === "ORGANIZATION_ADMIN" ||
         currentUserRole.projectRole === "PROJECT_ADMIN") && {
         type: "item",
-        key: "recommendedLayout",
-        text: layout.isRecommended ? t("removeRecommendedLayout") : t("markAsRecommended"),
-        onClick: recommendedAction,
-        "data-testid": "recommended-layout",
+        key: "recommendedToProjectLayout",
+        text: layout.isProjectRecommended
+          ? t("removeProjectRecommendedLayout")
+          : t("markAsProjectRecommendedLayout"),
+        onClick: recommendedToProjectAction,
+        "data-testid": "recommended-project-layout",
+      },
+    onCopyToRecordDefaultLayout != undefined &&
+      !layout.isRecordRecommended &&
+      (currentUserRole.organizationRole !== "ORGANIZATION_READER" ||
+        currentUserRole.projectRole !== "PROJECT_READER") && {
+        type: "item",
+        key: "copyToRecordDefaultLayout",
+        text: t("copyToRecordDefaultLayoutTitle"),
+        onClick: copyToRecordDefaultAction,
+        "data-testid": "copy-to-record-default-layout",
       },
     layoutManager.supportsSharing &&
       !layoutIsShared(layout) && {
@@ -496,8 +516,11 @@ export default React.memo(function LayoutRow({
           >
             <Stack direction="row" spacing={2} alignItems="center">
               <HighlightedText text={layout.name} highlight={searchQuery} />
-              {layout.isRecommended && (
-                <Chip label={t("recommandedLayout")} color="success" size="small" />
+              {layout.isProjectRecommended && (
+                <Chip label={t("projectRecommandedLayout")} color="success" size="small" />
+              )}
+              {layout.isRecordRecommended && (
+                <Chip label={t("recordDefaultLayout")} color="success" size="small" />
               )}
             </Stack>
           </Typography>

@@ -495,25 +495,47 @@ export function CoSceneLayoutButton(): JSX.Element {
     void analytics.logEvent(AppEvent.LAYOUT_CREATE);
   }, [promptForUnsavedChanges, layoutManager, onSelectLayout, analytics]);
 
-  const onRecommendedLayout = useCallbackWithToast(
+  const onRecommendedToProjectLayout = useCallbackWithToast(
     async (item: Layout) => {
       const currentProjectId = baseInfo.projectId;
       const currentRecommendedLayouts = layouts.value?.shared
-        .filter((layout) => layout.isRecommended)
+        .filter((layout) => layout.isProjectRecommended)
         .map((layout) => layout.id);
       if (currentRecommendedLayouts != undefined && currentProjectId != undefined) {
-        if (item.isRecommended) {
+        if (item.isProjectRecommended) {
           const nextRecommendedLayouts = currentRecommendedLayouts.filter((id) => id !== item.id);
-          await consoleApi.setRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
+          await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
         } else {
           const nextRecommendedLayouts = [...currentRecommendedLayouts, item.id];
-          await consoleApi.setRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
+          await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
         }
 
         await layoutManager.updateLayout({ id: item.id });
       }
     },
     [baseInfo.projectId, consoleApi, layoutManager, layouts.value?.shared],
+  );
+
+  const onCopyToRecordDefaultLayout = useCallbackWithToast(
+    async (item: Layout) => {
+      const name = await prompt({
+        title: t("copyToRecordDefaultLayoutTitle"),
+        subText: t("copyToRecordDefaultLayoutDesc"),
+        initialValue: item.name,
+        label: t("layoutName"),
+      });
+      if (name != undefined) {
+        const newLayout = await layoutManager.saveNewLayout({
+          name,
+          data: item.working?.data ?? item.baseline.data,
+          permission: "ORG_WRITE",
+          isRecordDefaultLayout: true,
+        });
+        void analytics.logEvent(AppEvent.LAYOUT_SHARE, { permission: item.permission });
+        await onSelectLayout(newLayout);
+      }
+    },
+    [analytics, t, layoutManager, onSelectLayout, prompt],
   );
 
   const appBarMenuItems = [
@@ -658,13 +680,16 @@ export function CoSceneLayoutButton(): JSX.Element {
             onRevert={onRevertLayout}
             onMakePersonalCopy={onMakePersonalCopy}
             searchQuery={searchQuery}
+            onCopyToRecordDefaultLayout={onCopyToRecordDefaultLayout}
           />
           {layoutManager.supportsSharing && (
             <LayoutSection
               title={t("organization")}
               emptyText={t("noOrgnizationLayouts")}
               // Layout of top recommendations
-              items={layouts.value?.shared.sort((a) => (a.isRecommended ? -1 : 1))}
+              items={layouts.value?.shared.sort((a) =>
+                a.isRecordRecommended ? -2 : a.isProjectRecommended ? -1 : 1,
+              )}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}
               selectedId={currentLayoutId}
@@ -678,7 +703,8 @@ export function CoSceneLayoutButton(): JSX.Element {
               onRevert={onRevertLayout}
               onMakePersonalCopy={onMakePersonalCopy}
               searchQuery={searchQuery}
-              onRecommendedLayout={onRecommendedLayout}
+              onRecommendedToProjectLayout={onRecommendedToProjectLayout}
+              onCopyToRecordDefaultLayout={onCopyToRecordDefaultLayout}
             />
           )}
           <Stack flexGrow={1} />

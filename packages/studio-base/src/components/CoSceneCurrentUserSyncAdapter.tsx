@@ -31,13 +31,13 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
-  const [_userRole, syncUserRole] = useAsyncFn(async () => {
+  const [_userRole, syncUserRole] = useAsyncFn(async (warehouseId, projectId) => {
     if (currentUser != undefined) {
       const res = await consoleApi.getRoleLists();
       const roles = res.roles;
 
       const projectRoles = await consoleApi.batchGetProjectUserRoles(
-        `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`,
+        `warehouses/${warehouseId}/projects/${projectId}`,
         [`users/${currentUser.userId}`],
       );
 
@@ -62,7 +62,7 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
 
   useEffect(() => {
     if (baseInfo.projectId != undefined && baseInfo.warehouseId != undefined) {
-      syncUserRole().catch((err) => {
+      syncUserRole(baseInfo.warehouseId, baseInfo.projectId).catch((err) => {
         log.error("syncUserRole", err);
       });
     }

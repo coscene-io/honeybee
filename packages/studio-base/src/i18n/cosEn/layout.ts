@@ -51,7 +51,13 @@ export const cosLayout = {
   unavailableWhileOffline: "(unavailable while offline)",
   saveAPersonalCopy: "Save a personal copy",
   discardTip: "Your changes will be permantly deleted. This cannot be undone.",
-  recommandedLayout: "Recommended layout",
-  removeRecommendedLayout: "Remove recommended layout",
-  markAsRecommended: "Mark as recommended layout",
+  projectRecommandedLayout: "Project recommended layout",
+  recordDefaultLayout: "Record default layout",
+  removeProjectRecommendedLayout: "Remove project recommended layout",
+  removeRecordRecommendedLayout: "Remove record recommended layout",
+  markAsProjectRecommendedLayout: "Mark as project recommended layout",
+  markAsRecordRecommendedLayout: "Mark as record recommended layout",
+  copyToRecordDefaultLayoutTitle: "Copy as Record Default Layout",
+  copyToRecordDefaultLayoutDesc:
+    "Copies the current layout as the default layout for the record, which is automatically loaded when the visualisation is subsequently accessed from the current record.",
 };

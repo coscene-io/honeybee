@@ -51,7 +51,13 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   unavailableWhileOffline: "(离线时不可用)",
   saveAPersonalCopy: "保存个人副本",
   discardTip: "您的更改将被永久删除。且无法撤消。",
-  recommandedLayout: "推荐布局",
-  removeRecommendedLayout: "移除推荐布局",
-  markAsRecommended: "设置为推荐布局",
+  projectRecommandedLayout: "项目推荐布局",
+  recordDefaultLayout: "记录推荐布局",
+  removeProjectRecommendedLayout: "移除项目推荐布局",
+  removeRecordRecommendedLayout: "移除记录推荐布局",
+  markAsProjectRecommendedLayout: "标记为项目推荐布局",
+  markAsRecordRecommendedLayout: "标记为记录推荐布局",
+  copyToRecordDefaultLayoutTitle: "复制为记录默认布局",
+  copyToRecordDefaultLayoutDesc:
+    "将当前布局复制为记录默认布局, 后续从当前记录进入可视化时会自动加载此布局",
 };
