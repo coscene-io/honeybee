@@ -636,7 +636,7 @@ export function CreateEventDialog(props: {
                   <div className={classes.row} key={index}>
                     <TextField
                       value={key}
-                      placeholder={`${t("key")} (${t("string")})`}
+                      placeholder={t("propertyName")}
                       error={hasDuplicate}
                       onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
                         if (keyboardEvent.key === "Enter") {
@@ -649,7 +649,7 @@ export function CreateEventDialog(props: {
                     />
                     <TextField
                       value={value}
-                      placeholder={`${t("value")} (${t("string")})`}
+                      placeholder={t("propertyValue")}
                       error={hasDuplicate}
                       onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
                         if (

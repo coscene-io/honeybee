@@ -13,7 +13,7 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   duration: "持续时间",
   sec: "秒",
   description: "描述",
-  metadata: "属性值",
+  metadata: "属性",
   key: "键",
   string: "字符串",
   value: "值",
@@ -58,4 +58,6 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   editMomentSuccess: "编辑事件成功",
   editMomentFailed: "编辑事件失败",
   edit: "编辑",
+  propertyName: "属性名称",
+  propertyValue: "属性值",
 };

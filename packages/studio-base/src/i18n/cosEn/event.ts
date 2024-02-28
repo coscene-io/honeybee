@@ -57,4 +57,6 @@ export const cosEvent = {
   editMomentSuccess: "Edit Moment Success",
   editMomentFailed: "Edit Moment Failed",
   edit: "Edit",
+  propertyName: "Property Name",
+  propertyValue: "Property Value",
 };
