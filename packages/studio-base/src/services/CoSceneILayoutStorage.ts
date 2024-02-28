@@ -21,7 +21,8 @@ export type Layout = {
   id: LayoutID;
   name: string;
   permission: LayoutPermission;
-  isRecommended: boolean;
+  isProjectRecommended: boolean;
+  isRecordRecommended: boolean;
 
   /** @deprecated old field name, migrated to working/baseline */
   data?: LayoutData;

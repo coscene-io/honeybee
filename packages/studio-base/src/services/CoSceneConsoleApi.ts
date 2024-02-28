@@ -225,7 +225,8 @@ export type ConsoleApiLayout = {
   savedAt?: ISO8601Timestamp;
   permission: Permission;
   data?: Record<string, unknown>;
-  isRecommended: boolean;
+  isProjectRecommended: boolean;
+  isRecordRecommended: boolean;
 };
 
 export enum MetricType {
@@ -288,7 +289,8 @@ class CoSceneConsoleApi {
   #addTopicPrefix: string;
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
-  #projectIds: string[] = [];
+  #currentProjectId: string = "";
+  #currentRecordId: string = "";
 
   public coSceneContext: CoSceneContext;
 
@@ -306,12 +308,20 @@ class CoSceneConsoleApi {
     this.#timeMode = timeMode;
   }
 
-  public setProjectIds(projectIds: string[]): void {
-    this.#projectIds = projectIds.map((id) => id.split("/").pop() ?? "");
+  public setProjectId(projectId: string): void {
+    this.#currentProjectId = projectId;
   }
 
-  public getProjectIds(): string[] {
-    return this.#projectIds;
+  public getProjectId(): string {
+    return this.#currentProjectId;
+  }
+
+  public setRecordId(recordId: string): void {
+    this.#currentRecordId = recordId;
+  }
+
+  public getRecordId(): string {
+    return this.#currentRecordId;
   }
 
   public getProblemManager(): PlayerProblemManager {
@@ -424,7 +434,8 @@ class CoSceneConsoleApi {
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
     return await this.#get<ConsoleApiLayout[]>("/bff/honeybee/layout/v2/layouts", {
       includeData: options.includeData ? "true" : "false",
-      projectIds: JSON.stringify(this.#projectIds),
+      projectId: this.#currentProjectId,
+      recordId: this.#currentRecordId,
     });
   }
 
@@ -434,7 +445,7 @@ class CoSceneConsoleApi {
   ): Promise<ConsoleApiLayout | undefined> {
     return await this.#get<ConsoleApiLayout>(`/bff/honeybee/layout/v2/layouts/${id}`, {
       includeData: options.includeData ? "true" : "false",
-      getLayouts: JSON.stringify(this.#projectIds),
+      projectId: this.#currentProjectId,
     });
   }
 
@@ -447,7 +458,19 @@ class CoSceneConsoleApi {
   }): Promise<ConsoleApiLayout> {
     return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v2/layouts", {
       ...layout,
-      projectIds: this.#projectIds,
+    });
+  }
+
+  public async createRecordLayout(layout: {
+    id: LayoutID | undefined;
+    savedAt: ISO8601Timestamp | undefined;
+    name: string | undefined;
+    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
+    data: Record<string, unknown> | undefined;
+  }): Promise<ConsoleApiLayout> {
+    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v2/recordLayout", {
+      ...layout,
+      recordId: this.#currentRecordId,
     });
   }
 
@@ -460,7 +483,7 @@ class CoSceneConsoleApi {
   }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
     const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
       `/bff/honeybee/layout/v2/layouts/${layout.id}`,
-      { ...layout, projectIds: this.#projectIds },
+      { ...layout, projectId: this.#currentProjectId },
     );
     if (status === 200) {
       return { status: "success", newLayout };
@@ -944,13 +967,16 @@ class CoSceneConsoleApi {
     return key.id;
   }
 
-  public async setRecommendedLayouts(
+  public async setProjectRecommendedLayouts(
     layoutIds: LayoutID[],
     currentProjectId: string,
   ): Promise<{ status: "success" } | { status: "conflict" }> {
-    const { status } = await this.#patch(`/bff/honeybee/layout/v2/recommend/${currentProjectId}`, {
-      layoutIds,
-    });
+    const { status } = await this.#patch(
+      `/bff/honeybee/layout/v2/recommend/project/${currentProjectId}`,
+      {
+        layoutIds,
+      },
+    );
 
     if (status === 200) {
       return { status: "success" };

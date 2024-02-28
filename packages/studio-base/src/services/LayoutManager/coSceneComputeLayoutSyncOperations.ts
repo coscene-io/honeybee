@@ -57,7 +57,8 @@ export default function coSceneComputeLayoutSyncOperations(
 
           if (
             localLayout.syncInfo.lastRemoteSavedAt !== remoteLayout.savedAt ||
-            localLayout.isRecommended !== remoteLayout.isRecommended
+            localLayout.isProjectRecommended !== remoteLayout.isProjectRecommended ||
+            localLayout.isRecordRecommended !== remoteLayout.isRecordRecommended
           ) {
             ops.push({
               local: true,
