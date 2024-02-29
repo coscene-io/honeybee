@@ -657,7 +657,7 @@ export function CreateEventDialog(props: {
                       if (metadataEntry) {
                         metadataEntry.value = evt.target.value;
                       } else {
-                        metadataEntries.push({ key: PIVOT_METRIC, value: evt.target.value });
+                        metadataEntries.unshift({ key: PIVOT_METRIC, value: evt.target.value });
                       }
                     });
                   }}
