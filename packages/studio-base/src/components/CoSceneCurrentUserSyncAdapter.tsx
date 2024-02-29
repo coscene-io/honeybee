@@ -41,13 +41,20 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         [`users/${currentUser.userId}`],
       );
 
+      const orgRoles = await consoleApi.batchGetOrgUserRoles([`users/${currentUser.userId}`]);
+
       let projectRoleCode = "";
 
       if (projectRoles.userRoles.length > 0) {
         projectRoleCode = projectRoles.userRoles[0]?.role ?? "";
       }
 
-      const organizationRole = roles.find((role) => role.name === currentUser.role);
+      let orgRolesCode = "";
+      if (orgRoles.userRoles.length > 0) {
+        orgRolesCode = orgRoles.userRoles[0]?.role ?? "";
+      }
+
+      const organizationRole = roles.find((role) => role.name === orgRolesCode);
 
       const projectRole = roles.find((role) => role.name === projectRoleCode);
 
