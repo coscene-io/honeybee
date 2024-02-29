@@ -636,7 +636,6 @@ export function CreateEventDialog(props: {
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("metadata")}</FormLabel>
-            <div>{event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value}</div>
             <div className={classes.grid}>
               <div className={classes.row}>
                 <div>
