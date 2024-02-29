@@ -74,11 +74,13 @@ export function CoSceneProviders(): JSX.Element[] {
 
     const baseInfoKey = url.searchParams.get("ds.key");
 
-    if (baseInfoKey == undefined || baseInfoKey === "") {
-      // 老版本url 需要转换
-      const warehouseId = url.searchParams.get("ds.warehouseId");
+    const warehouseId = url.searchParams.get("ds.warehouseId");
 
-      const projectId = url.searchParams.get("ds.projectId");
+    const projectId = url.searchParams.get("ds.projectId");
+
+    // if no baseInfoKey and warehouseId, projectId, this url just for perview layout info
+    if ((baseInfoKey == undefined || baseInfoKey === "") && warehouseId && projectId) {
+      // 老版本url 需要转换
 
       const recordId = url.searchParams.get("ds.recordId");
 
@@ -93,8 +95,8 @@ export function CoSceneProviders(): JSX.Element[] {
       const warehouseSlug = url.searchParams.get("ds.warehouseSlug");
 
       const baseInfo: BaseInfo = {
-        warehouseId: warehouseId ?? undefined,
-        projectId: projectId ?? undefined,
+        warehouseId,
+        projectId,
         recordId: recordId ?? undefined,
         revisionId: revisionId ?? undefined,
         jobRunsId: jobRunsId ?? undefined,
@@ -189,8 +191,8 @@ export function CoSceneProviders(): JSX.Element[] {
           });
       }
 
-      if (projectId == undefined || recordId == undefined) {
-        throw new Error("projectId or recordId is empty");
+      if (recordId == undefined) {
+        throw new Error("recordId is empty");
       }
 
       consoleApi.setProjectId(projectId);
