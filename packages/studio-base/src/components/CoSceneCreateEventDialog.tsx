@@ -644,7 +644,7 @@ export function CreateEventDialog(props: {
                 <div className={classes.row}>
                   <div>
                     {PIVOT_METRIC}{" "}
-                    <Tooltip placement="top-start" title="填写属性值，用于在曲线对比算法中匹配曲线">
+                    <Tooltip placement="top-start" title={t("pivotMetricTooltip")}>
                       <IconButton>
                         <HelpIcon />
                       </IconButton>

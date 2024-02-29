@@ -60,4 +60,5 @@ export const cosEvent = {
   time: "Time",
   triggerTime: "Trigger Time",
   value: "Value",
+  pivotMetricTooltip: "Fill in attribute values for matching curves in curve comparison algorithms",
 };

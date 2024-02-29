@@ -61,4 +61,5 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   time: "时间",
   triggerTime: "触发时间",
   value: "值",
+  pivotMetricTooltip: "填写属性值，用于在曲线对比算法中匹配曲线",
 };
