@@ -7,8 +7,8 @@ import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/r
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import HelpIcon from "@mui/icons-material/Help";
 import RemoveIcon from "@mui/icons-material/Remove";
-import HelpIcon from "@mui/icons-material/help";
 import {
   Alert,
   Button,
