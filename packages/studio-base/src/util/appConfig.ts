@@ -41,7 +41,7 @@ export const APP_CONFIG = {
   CS_HONEYBEE_BASE_URL:
     cosConfig.CS_HONEYBEE_BASE_URL ?? process.env.CS_HONEYBEE_BASE_URL ?? "http://localhost:8080",
   VITE_APP_BFF_URL:
-    cosConfig.VITE_APP_BFF_URL ?? process.env.VITE_APP_BFF_URL ?? "http://localhost:4000",
+    cosConfig.VITE_APP_BFF_URL ?? process.env.VITE_APP_BFF_URL ?? "https://bff.coscene.dev",
   IMAGE_TAG: process.env.IMAGE_TAG,
   GITHUB_SHA: process.env.GITHUB_SHA,
   RELEASE_TAG:
