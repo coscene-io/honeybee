@@ -13,7 +13,7 @@
 
 import { TextFieldProps } from "@mui/material";
 import * as _ from "lodash-es";
-import { CSSProperties, useCallback, useMemo } from "react";
+import { CSSProperties, useCallback, useEffect, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
 import { MessageDefinitionField } from "@foxglove/message-definition";
@@ -489,6 +489,21 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   const hasError =
     usesUnsupportedMathModifier ||
     (autocompleteType != undefined && !disableAutocomplete && path.length > 0);
+
+  // WARNING: @Woodii1998 This is a hack to work around the fact that the current implementation of subor project
+  // when autocompleteType is "messagePath" and autocompleteItems only has one item, auto select it
+  // If the field depth is greater than 2 there may be a problem here
+  useEffect(() => {
+    if (
+      path !== "" &&
+      autocompleteType === "messagePath" &&
+      autocompleteItems.length === 1 &&
+      autocompleteItems[0] != undefined
+    ) {
+      onChangeProp(path.slice(0, -1) + autocompleteItems[0], props.index);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autocompleteType, autocompleteItems, path]);
 
   return (
     <Autocomplete
