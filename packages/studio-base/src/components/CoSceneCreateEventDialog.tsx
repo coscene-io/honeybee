@@ -691,65 +691,65 @@ export function CreateEventDialog(props: {
                     )}
                   </div>
                 </div>
-              ) : undefined}
-
-              {event.metadataEntries.map(({ key, value }, index) => {
-                const hasDuplicate = +((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
-                return (
-                  <div className={classes.row} key={index}>
-                    <TextField
-                      value={key}
-                      placeholder={t("propertyName")}
-                      error={hasDuplicate}
-                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                        if (keyboardEvent.key === "Enter") {
-                          invokeTabKey();
-                        }
-                      }}
-                      onChange={(evt) => {
-                        updateMetadata(index, "key", evt.currentTarget.value);
-                      }}
-                    />
-                    <TextField
-                      value={value}
-                      placeholder={t("propertyValue")}
-                      error={hasDuplicate}
-                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                        if (
-                          (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
-                          keyboardEvent.key === "Enter"
-                        ) {
-                          onMetaDataKeyDown(keyboardEvent);
-                        }
-                      }}
-                      onChange={(evt) => {
-                        updateMetadata(index, "value", evt.currentTarget.value);
-                      }}
-                    />
-                    <ButtonGroup>
-                      <IconButton
-                        tabIndex={-1}
-                        onClick={() => {
-                          addRow(index);
+              ) : (
+                event.metadataEntries.map(({ key, value }, index) => {
+                  const hasDuplicate = +((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
+                  return (
+                    <div className={classes.row} key={index}>
+                      <TextField
+                        value={key}
+                        placeholder={t("propertyName")}
+                        error={hasDuplicate}
+                        onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                          if (keyboardEvent.key === "Enter") {
+                            invokeTabKey();
+                          }
                         }}
-                      >
-                        <AddIcon />
-                      </IconButton>
-                      <IconButton
-                        tabIndex={-1}
-                        onClick={() => {
-                          removeRow(index);
+                        onChange={(evt) => {
+                          updateMetadata(index, "key", evt.currentTarget.value);
                         }}
-                        style={{
-                          visibility: event.metadataEntries.length > 1 ? "visible" : "hidden",
+                      />
+                      <TextField
+                        value={value}
+                        placeholder={t("propertyValue")}
+                        error={hasDuplicate}
+                        onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                          if (
+                            (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
+                            keyboardEvent.key === "Enter"
+                          ) {
+                            onMetaDataKeyDown(keyboardEvent);
+                          }
                         }}
-                      >
-                        <RemoveIcon />
-                      </IconButton>
-                    </ButtonGroup>
-                  </div>
-                );
-              })}
+                        onChange={(evt) => {
+                          updateMetadata(index, "value", evt.currentTarget.value);
+                        }}
+                      />
+                      <ButtonGroup>
+                        <IconButton
+                          tabIndex={-1}
+                          onClick={() => {
+                            addRow(index);
+                          }}
+                        >
+                          <AddIcon />
+                        </IconButton>
+                        <IconButton
+                          tabIndex={-1}
+                          onClick={() => {
+                            removeRow(index);
+                          }}
+                          style={{
+                            visibility: event.metadataEntries.length > 1 ? "visible" : "hidden",
+                          }}
+                        >
+                          <RemoveIcon />
+                        </IconButton>
+                      </ButtonGroup>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </Stack>
           {!isEditing && (
