@@ -192,7 +192,7 @@ export function CoSceneProviders(): JSX.Element[] {
       }
 
       if (recordId == undefined) {
-        throw new Error("projectId or recordId is empty");
+        throw new Error("recordId is empty");
       }
 
       consoleApi.setProjectId(projectId);
