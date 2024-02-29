@@ -510,7 +510,6 @@ export function CreateEventDialog(props: {
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(true);
 
   const isSupor = APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor";
-
   return (
     <>
       {createEventDialogOpen && (
@@ -651,7 +650,9 @@ export function CreateEventDialog(props: {
                     </Tooltip>
                   </div>
                   <Select
-                    value={event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value}
+                    value={
+                      event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value ?? ""
+                    }
                     onChange={(evt) => {
                       setEvent((old) => {
                         const metadataEntries = old.metadataEntries;
@@ -680,7 +681,7 @@ export function CreateEventDialog(props: {
                             return {
                               ...old,
                               metadataEntries: old.metadataEntries.filter(
-                                (entry) => entry.key !== "pivotMetric",
+                                (entry) => entry.key !== PIVOT_METRIC,
                               ),
                             };
                           });
