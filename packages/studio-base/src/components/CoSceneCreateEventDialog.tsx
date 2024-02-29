@@ -7,6 +7,7 @@ import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/r
 import AddIcon from "@mui/icons-material/Add";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import RemoveIcon from "@mui/icons-material/Remove";
+import HelpIcon from "@mui/icons-material/help";
 import {
   Alert,
   Button,
@@ -24,6 +25,7 @@ import {
   ButtonGroup,
   Select,
   MenuItem,
+  Tooltip,
 } from "@mui/material";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
@@ -108,6 +110,8 @@ type KeyValue = { key: string; value: string };
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
+
+const pivotMetricValues = ["General", "功率", "压力", "转速", "风速", "温度01", "温度02"];
 
 export function CreateEventDialog(props: {
   onClose: () => void;
@@ -630,6 +634,40 @@ export function CreateEventDialog(props: {
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("metadata")}</FormLabel>
             <div className={classes.grid}>
+              <div className={classes.row}>
+                <div>
+                  pivotMetric{" "}
+                  <Tooltip placement="top-start" title="填写属性值，用于在曲线对比算法中匹配曲线">
+                    <IconButton>
+                      <HelpIcon />
+                    </IconButton>
+                  </Tooltip>
+                </div>
+                <Select
+                  onChange={(event) => {
+                    setEvent((old) => {
+                      const metadataEntries = old.metadataEntries;
+                      const metadataEntry = metadataEntries.find(
+                        (entry) => entry.key === "pivotMetric",
+                      );
+                      // if (metadataEntries.find(entry => entry.key === 'pivotMetric'))
+                      if (metadataEntry) {
+                        metadataEntry.value = "";
+                        // metadataEntries[index]?.value =
+                      }
+                      return { ...old };
+                    });
+                    // updateMetadata(index, "value", evt.currentTarget.value);
+                  }}
+                >
+                  {pivotMetricValues.map((item) => (
+                    <MenuItem key={item} value={item}>
+                      {item}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <div />
+              </div>
               {event.metadataEntries.map(({ key, value }, index) => {
                 const hasDuplicate = +((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
                 return (
