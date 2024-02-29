@@ -5,6 +5,7 @@
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import AddIcon from "@mui/icons-material/Add";
+import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import RemoveIcon from "@mui/icons-material/Remove";
 import HelpIcon from "@mui/icons-material/help";
@@ -111,7 +112,9 @@ const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 
-const pivotMetricValues = ["General", "功率", "压力", "转速", "风速", "温度01", "温度02"];
+const PIVOT_METRIC = "pivotMetric";
+const temperature = [...new Array(9).keys()].map((i) => `温度0${i + 1}`);
+const pivotMetricValues = ["General", "功率", "压力", "转速", "风速", ...temperature, "温度10"];
 
 export function CreateEventDialog(props: {
   onClose: () => void;
@@ -633,10 +636,11 @@ export function CreateEventDialog(props: {
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("metadata")}</FormLabel>
+            <div>{event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value}</div>
             <div className={classes.grid}>
               <div className={classes.row}>
                 <div>
-                  pivotMetric{" "}
+                  {PIVOT_METRIC}{" "}
                   <Tooltip placement="top-start" title="填写属性值，用于在曲线对比算法中匹配曲线">
                     <IconButton>
                       <HelpIcon />
@@ -644,20 +648,19 @@ export function CreateEventDialog(props: {
                   </Tooltip>
                 </div>
                 <Select
-                  onChange={(event) => {
+                  value={event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value}
+                  onChange={(evt) => {
                     setEvent((old) => {
                       const metadataEntries = old.metadataEntries;
                       const metadataEntry = metadataEntries.find(
-                        (entry) => entry.key === "pivotMetric",
+                        (entry) => entry.key === PIVOT_METRIC,
                       );
-                      // if (metadataEntries.find(entry => entry.key === 'pivotMetric'))
                       if (metadataEntry) {
-                        metadataEntry.value = "";
-                        // metadataEntries[index]?.value =
+                        metadataEntry.value = evt.target.value;
+                      } else {
+                        metadataEntries.push({ key: PIVOT_METRIC, value: evt.target.value });
                       }
-                      return { ...old };
                     });
-                    // updateMetadata(index, "value", evt.currentTarget.value);
                   }}
                 >
                   {pivotMetricValues.map((item) => (
@@ -666,7 +669,24 @@ export function CreateEventDialog(props: {
                     </MenuItem>
                   ))}
                 </Select>
-                <div />
+                <div>
+                  {event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value && (
+                    <IconButton
+                      onClick={() => {
+                        setEvent((old) => {
+                          return {
+                            ...old,
+                            metadataEntries: old.metadataEntries.filter(
+                              (entry) => entry.key !== "pivotMetric",
+                            ),
+                          };
+                        });
+                      }}
+                    >
+                      <ClearIcon />
+                    </IconButton>
+                  )}
+                </div>
               </div>
               {event.metadataEntries.map(({ key, value }, index) => {
                 const hasDuplicate = +((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
