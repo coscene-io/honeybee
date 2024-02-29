@@ -5,8 +5,10 @@
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import AddIcon from "@mui/icons-material/Add";
+import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import RemoveIcon from "@mui/icons-material/Remove";
+import HelpIcon from "@mui/icons-material/help";
 import {
   Alert,
   Button,
@@ -24,6 +26,7 @@ import {
   ButtonGroup,
   Select,
   MenuItem,
+  Tooltip,
 } from "@mui/material";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
@@ -52,6 +55,7 @@ import {
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 export type ToModifyEvent = {
   name: string;
@@ -108,6 +112,10 @@ type KeyValue = { key: string; value: string };
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
+
+const PIVOT_METRIC = "pivotMetric";
+const temperature = [...new Array(9).keys()].map((i) => `温度0${i + 1}`);
+const pivotMetricValues = ["General", "功率", "压力", "转速", "风速", ...temperature, "温度10"];
 
 export function CreateEventDialog(props: {
   onClose: () => void;
@@ -501,6 +509,8 @@ export function CreateEventDialog(props: {
 
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(true);
 
+  const isSupor = APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor";
+
   return (
     <>
       {createEventDialogOpen && (
@@ -630,63 +640,116 @@ export function CreateEventDialog(props: {
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("metadata")}</FormLabel>
             <div className={classes.grid}>
-              {event.metadataEntries.map(({ key, value }, index) => {
-                const hasDuplicate = +((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
-                return (
-                  <div className={classes.row} key={index}>
-                    <TextField
-                      value={key}
-                      placeholder={`${t("key")} (${t("string")})`}
-                      error={hasDuplicate}
-                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                        if (keyboardEvent.key === "Enter") {
-                          invokeTabKey();
-                        }
-                      }}
-                      onChange={(evt) => {
-                        updateMetadata(index, "key", evt.currentTarget.value);
-                      }}
-                    />
-                    <TextField
-                      value={value}
-                      placeholder={`${t("value")} (${t("string")})`}
-                      error={hasDuplicate}
-                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                        if (
-                          (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
-                          keyboardEvent.key === "Enter"
-                        ) {
-                          onMetaDataKeyDown(keyboardEvent);
-                        }
-                      }}
-                      onChange={(evt) => {
-                        updateMetadata(index, "value", evt.currentTarget.value);
-                      }}
-                    />
-                    <ButtonGroup>
-                      <IconButton
-                        tabIndex={-1}
-                        onClick={() => {
-                          addRow(index);
-                        }}
-                      >
-                        <AddIcon />
+              {isSupor ? (
+                <div className={classes.row}>
+                  <div>
+                    {PIVOT_METRIC}{" "}
+                    <Tooltip placement="top-start" title={t("pivotMetricTooltip")}>
+                      <IconButton>
+                        <HelpIcon />
                       </IconButton>
-                      <IconButton
-                        tabIndex={-1}
-                        onClick={() => {
-                          removeRow(index);
-                        }}
-                        style={{
-                          visibility: event.metadataEntries.length > 1 ? "visible" : "hidden",
-                        }}
-                      >
-                        <RemoveIcon />
-                      </IconButton>
-                    </ButtonGroup>
+                    </Tooltip>
                   </div>
-                );
-              })}
+                  <Select
+                    value={event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value}
+                    onChange={(evt) => {
+                      setEvent((old) => {
+                        const metadataEntries = old.metadataEntries;
+                        const metadataEntry = metadataEntries.find(
+                          (entry) => entry.key === PIVOT_METRIC,
+                        );
+                        if (metadataEntry) {
+                          metadataEntry.value = evt.target.value;
+                        } else {
+                          metadataEntries.unshift({ key: PIVOT_METRIC, value: evt.target.value });
+                        }
+                      });
+                    }}
+                  >
+                    {pivotMetricValues.map((item) => (
+                      <MenuItem key={item} value={item}>
+                        {item}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <div>
+                    {event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value && (
+                      <IconButton
+                        onClick={() => {
+                          setEvent((old) => {
+                            return {
+                              ...old,
+                              metadataEntries: old.metadataEntries.filter(
+                                (entry) => entry.key !== "pivotMetric",
+                              ),
+                            };
+                          });
+                        }}
+                      >
+                        <ClearIcon />
+                      </IconButton>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                event.metadataEntries.map(({ key, value }, index) => {
+                  const hasDuplicate = +((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
+                  return (
+                    <div className={classes.row} key={index}>
+                      <TextField
+                        value={key}
+                        placeholder={t("propertyName")}
+                        error={hasDuplicate}
+                        onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                          if (keyboardEvent.key === "Enter") {
+                            invokeTabKey();
+                          }
+                        }}
+                        onChange={(evt) => {
+                          updateMetadata(index, "key", evt.currentTarget.value);
+                        }}
+                      />
+                      <TextField
+                        value={value}
+                        placeholder={t("propertyValue")}
+                        error={hasDuplicate}
+                        onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                          if (
+                            (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
+                            keyboardEvent.key === "Enter"
+                          ) {
+                            onMetaDataKeyDown(keyboardEvent);
+                          }
+                        }}
+                        onChange={(evt) => {
+                          updateMetadata(index, "value", evt.currentTarget.value);
+                        }}
+                      />
+                      <ButtonGroup>
+                        <IconButton
+                          tabIndex={-1}
+                          onClick={() => {
+                            addRow(index);
+                          }}
+                        >
+                          <AddIcon />
+                        </IconButton>
+                        <IconButton
+                          tabIndex={-1}
+                          onClick={() => {
+                            removeRow(index);
+                          }}
+                          style={{
+                            visibility: event.metadataEntries.length > 1 ? "visible" : "hidden",
+                          }}
+                        >
+                          <RemoveIcon />
+                        </IconButton>
+                      </ButtonGroup>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </Stack>
           {!isEditing && (
@@ -766,7 +829,11 @@ export function CreateEventDialog(props: {
               {isEditing ? t("edit") : t("createMoment")}
             </Button>
           </DialogActions>
-          {duplicateKey && <Alert severity="error">Duplicate key {duplicateKey[0]}</Alert>}
+          {duplicateKey && (
+            <Alert severity="error">
+              {t("duplicateKey")} {duplicateKey[0]}
+            </Alert>
+          )}
           {createdEvent.error?.message && (
             <Alert severity="error">{createdEvent.error.message}</Alert>
           )}
