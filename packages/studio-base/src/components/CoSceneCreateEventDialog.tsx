@@ -55,6 +55,7 @@ import {
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 export type ToModifyEvent = {
   name: string;
@@ -508,6 +509,8 @@ export function CreateEventDialog(props: {
 
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(true);
 
+  const isSupor = APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor";
+
   return (
     <>
       {createEventDialogOpen && (
@@ -637,56 +640,59 @@ export function CreateEventDialog(props: {
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("metadata")}</FormLabel>
             <div className={classes.grid}>
-              <div className={classes.row}>
-                <div>
-                  {PIVOT_METRIC}{" "}
-                  <Tooltip placement="top-start" title="填写属性值，用于在曲线对比算法中匹配曲线">
-                    <IconButton>
-                      <HelpIcon />
-                    </IconButton>
-                  </Tooltip>
+              {isSupor ? (
+                <div className={classes.row}>
+                  <div>
+                    {PIVOT_METRIC}{" "}
+                    <Tooltip placement="top-start" title="填写属性值，用于在曲线对比算法中匹配曲线">
+                      <IconButton>
+                        <HelpIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </div>
+                  <Select
+                    value={event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value}
+                    onChange={(evt) => {
+                      setEvent((old) => {
+                        const metadataEntries = old.metadataEntries;
+                        const metadataEntry = metadataEntries.find(
+                          (entry) => entry.key === PIVOT_METRIC,
+                        );
+                        if (metadataEntry) {
+                          metadataEntry.value = evt.target.value;
+                        } else {
+                          metadataEntries.unshift({ key: PIVOT_METRIC, value: evt.target.value });
+                        }
+                      });
+                    }}
+                  >
+                    {pivotMetricValues.map((item) => (
+                      <MenuItem key={item} value={item}>
+                        {item}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <div>
+                    {event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value && (
+                      <IconButton
+                        onClick={() => {
+                          setEvent((old) => {
+                            return {
+                              ...old,
+                              metadataEntries: old.metadataEntries.filter(
+                                (entry) => entry.key !== "pivotMetric",
+                              ),
+                            };
+                          });
+                        }}
+                      >
+                        <ClearIcon />
+                      </IconButton>
+                    )}
+                  </div>
                 </div>
-                <Select
-                  value={event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value}
-                  onChange={(evt) => {
-                    setEvent((old) => {
-                      const metadataEntries = old.metadataEntries;
-                      const metadataEntry = metadataEntries.find(
-                        (entry) => entry.key === PIVOT_METRIC,
-                      );
-                      if (metadataEntry) {
-                        metadataEntry.value = evt.target.value;
-                      } else {
-                        metadataEntries.unshift({ key: PIVOT_METRIC, value: evt.target.value });
-                      }
-                    });
-                  }}
-                >
-                  {pivotMetricValues.map((item) => (
-                    <MenuItem key={item} value={item}>
-                      {item}
-                    </MenuItem>
-                  ))}
-                </Select>
-                <div>
-                  {event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value && (
-                    <IconButton
-                      onClick={() => {
-                        setEvent((old) => {
-                          return {
-                            ...old,
-                            metadataEntries: old.metadataEntries.filter(
-                              (entry) => entry.key !== "pivotMetric",
-                            ),
-                          };
-                        });
-                      }}
-                    >
-                      <ClearIcon />
-                    </IconButton>
-                  )}
-                </div>
-              </div>
+              ) : undefined}
+
               {event.metadataEntries.map(({ key, value }, index) => {
                 const hasDuplicate = +((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
                 return (
