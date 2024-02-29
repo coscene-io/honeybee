@@ -60,4 +60,7 @@ export const cosLayout = {
   copyToRecordDefaultLayoutTitle: "Copy as Record Default Layout",
   copyToRecordDefaultLayoutDesc:
     "Copies the current layout as the default layout for the record, which is automatically loaded when the visualisation is subsequently accessed from the current record.",
+  update: "Update",
+  updateRemoteLayoutConfirm:
+    "Your changes will overwrite this layout for all organization members. This cannot be undone.",
 };

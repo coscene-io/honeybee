@@ -60,4 +60,6 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   copyToRecordDefaultLayoutTitle: "复制为记录默认布局",
   copyToRecordDefaultLayoutDesc:
     "将当前布局复制为记录默认布局, 后续从当前记录进入可视化时会自动加载此布局",
+  update: "更新",
+  updateRemoteLayoutConfirm: "此操作将会覆盖远程布局，是否继续？",
 };

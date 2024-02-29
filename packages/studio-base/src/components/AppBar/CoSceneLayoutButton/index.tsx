@@ -431,10 +431,14 @@ export function CoSceneLayoutButton(): JSX.Element {
 
       if (layoutIsShared(item)) {
         const response = await confirm({
-          title: `Update “${item.name}”?`,
-          prompt:
-            "Your changes will overwrite this layout for all organization members. This cannot be undone.",
-          ok: "Save",
+          title: `${t("update")} “${item.name}”?`,
+          prompt: t("updateRemoteLayoutConfirm"),
+          ok: t("save", {
+            ns: "cosGeneral",
+          }),
+          cancel: t("cancel", {
+            ns: "cosGeneral",
+          }),
         });
         if (response !== "ok") {
           return;
@@ -443,7 +447,7 @@ export function CoSceneLayoutButton(): JSX.Element {
       await layoutManager.overwriteLayout({ id: item.id });
       void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, { permission: item.permission });
     },
-    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length],
+    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length, t],
   );
 
   const onRevertLayout = useCallbackWithToast(
