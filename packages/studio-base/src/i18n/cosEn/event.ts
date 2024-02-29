@@ -59,4 +59,5 @@ export const cosEvent = {
   edit: "Edit",
   propertyName: "Property Name",
   propertyValue: "Property Value",
+  duplicateKey: "Duplicate key",
 };

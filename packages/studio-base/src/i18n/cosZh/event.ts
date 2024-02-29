@@ -60,4 +60,5 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   edit: "编辑",
   propertyName: "属性名称",
   propertyValue: "属性值",
+  duplicateKey: "重复的属性名",
 };

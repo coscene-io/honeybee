@@ -824,7 +824,11 @@ export function CreateEventDialog(props: {
               {isEditing ? t("edit") : t("createMoment")}
             </Button>
           </DialogActions>
-          {duplicateKey && <Alert severity="error">Duplicate key {duplicateKey[0]}</Alert>}
+          {duplicateKey && (
+            <Alert severity="error">
+              {t("duplicateKey")} {duplicateKey[0]}
+            </Alert>
+          )}
           {createdEvent.error?.message && (
             <Alert severity="error">{createdEvent.error.message}</Alert>
           )}
