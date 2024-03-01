@@ -1006,6 +1006,16 @@ class CoSceneConsoleApi {
 
     return await roleClient.batchGetUserRoles(req);
   }
+
+  public async batchGetOrgUserRoles(userIds: string[]): Promise<BatchGetUserRolesResponse> {
+    const req = new BatchGetUserRolesRequest({
+      names: userIds,
+    });
+
+    const roleClient = getPromiseClient(RoleService);
+
+    return await roleClient.batchGetUserRoles(req);
+  }
 }
 
 export type { Org, DeviceCodeResponse, Session, CoverageResponse };

@@ -348,6 +348,7 @@ export default React.memo(function LayoutRow({
     },
     layoutIsShared(layout) &&
       onRecommendedToProjectLayout != undefined &&
+      !layout.isRecordRecommended &&
       (currentUserRole.organizationRole === "ORGANIZATION_ADMIN" ||
         currentUserRole.projectRole === "PROJECT_ADMIN") && {
         type: "item",
