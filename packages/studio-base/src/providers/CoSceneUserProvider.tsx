@@ -25,7 +25,12 @@ function createCurrentUserStore() {
       set({ user });
     },
     setRole: (organizationRole, projectRole) => {
-      set({ role: { organizationRole, projectRole } });
+      set({
+        role: {
+          organizationRole: organizationRole ?? "ORGANIZATION_WRITER",
+          projectRole: projectRole ?? "PROJECT_WRITER",
+        },
+      });
     },
   }));
 }
