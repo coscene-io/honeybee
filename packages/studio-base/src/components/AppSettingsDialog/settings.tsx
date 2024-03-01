@@ -370,11 +370,7 @@ export function LanguageSettings(): React.ReactElement {
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {
       const lang = event.target.value as Language;
-      setSelectedLanguage(lang);
-      i18n.changeLanguage(lang).catch((error) => {
-        console.error("Failed to switch languages", error);
-        reportError(error as Error);
-      });
+
       const userConfigMap = await consoleApi.getUserConfigMap({
         userId: userInfo?.userId ?? "",
         configId: "personalInfo",
@@ -382,7 +378,7 @@ export function LanguageSettings(): React.ReactElement {
 
       const userConfig = userConfigMap?.value?.toJson() as UserPersonalInfo | undefined;
       if ((lang === "zh" || lang === "en") && userConfig != undefined) {
-        void consoleApi.upsertUserConfig({
+        await consoleApi.upsertUserConfig({
           userId: userInfo?.userId ?? "",
           configId: "personalInfo",
           obj: {
@@ -391,10 +387,17 @@ export function LanguageSettings(): React.ReactElement {
           },
         });
       }
+
+      setSelectedLanguage(lang);
+      await i18n.changeLanguage(lang).catch((error) => {
+        console.error("Failed to switch languages", error);
+        reportError(error as Error);
+      });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [i18n, setSelectedLanguage],
   );
+
   const options: { key: string; text: string; data: string }[] = useMemo(
     () =>
       LANGUAGE_OPTIONS.map((language) => ({
