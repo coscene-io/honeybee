@@ -12,8 +12,8 @@ import {
   LayoutID,
   LayoutState,
   useCurrentLayoutSelector,
+  useCurrentLayoutActions,
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
