@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 import { useAsync, useMountedState } from "react-use";
 import { useDebounce } from "use-debounce";
@@ -14,6 +13,7 @@ import {
   LayoutState,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
@@ -32,6 +32,7 @@ const selectCurrentLayout = (state: LayoutState) => state.selectedLayout;
  */
 export function CurrentLayoutSyncAdapter(): ReactNull {
   const selectedLayout = useCurrentLayoutSelector(selectCurrentLayout);
+  const { setSelectedLayoutId } = useCurrentLayoutActions();
 
   const layoutManager = useLayoutManager();
 
@@ -74,17 +75,17 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
         await layoutManager.updateLayout(params);
       } catch (error) {
         log.error(error);
+
         if (isMounted()) {
-          enqueueSnackbar(`Your changes could not be saved. ${error.toString()}`, {
-            variant: "error",
-            key: "CurrentLayoutProvider.throttledSave",
-          });
+          const layouts = await layoutManager.getLayouts();
+          const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
+          setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
         }
       }
     }
 
     void analytics.logEvent(AppEvent.LAYOUT_UPDATE);
-  }, [analytics, debouncedUnsavedLayouts, isMounted, layoutManager]);
+  }, [analytics, debouncedUnsavedLayouts, isMounted, layoutManager, setSelectedLayoutId]);
 
   return ReactNull;
 }
