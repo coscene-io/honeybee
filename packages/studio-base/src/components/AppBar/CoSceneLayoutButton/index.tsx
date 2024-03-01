@@ -514,7 +514,7 @@ export function CoSceneLayoutButton(): JSX.Element {
           await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
         }
 
-        await layoutManager.updateLayout({ id: item.id });
+        await layoutManager.updateLayout({ id: item.id, name: item.name });
       }
     },
     [baseInfo.projectId, consoleApi, layoutManager, layouts.value?.shared],
