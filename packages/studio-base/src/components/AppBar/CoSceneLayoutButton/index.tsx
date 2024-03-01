@@ -431,10 +431,14 @@ export function CoSceneLayoutButton(): JSX.Element {
 
       if (layoutIsShared(item)) {
         const response = await confirm({
-          title: `Update “${item.name}”?`,
-          prompt:
-            "Your changes will overwrite this layout for all organization members. This cannot be undone.",
-          ok: "Save",
+          title: `${t("update")} “${item.name}”?`,
+          prompt: t("updateRemoteLayoutConfirm"),
+          ok: t("save", {
+            ns: "cosGeneral",
+          }),
+          cancel: t("cancel", {
+            ns: "cosGeneral",
+          }),
         });
         if (response !== "ok") {
           return;
@@ -443,7 +447,7 @@ export function CoSceneLayoutButton(): JSX.Element {
       await layoutManager.overwriteLayout({ id: item.id });
       void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, { permission: item.permission });
     },
-    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length],
+    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length, t],
   );
 
   const onRevertLayout = useCallbackWithToast(
@@ -584,6 +588,22 @@ export function CoSceneLayoutButton(): JSX.Element {
     void analytics.logEvent(AppEvent.LAYOUT_CREATE);
   };
 
+  const sortedRemoteLayouts = useMemo(() => {
+    return layouts.value?.shared.sort((a, b) => {
+      if (a.isRecordRecommended && !b.isRecordRecommended) {
+        return -1;
+      } else if (!a.isRecordRecommended && b.isRecordRecommended) {
+        return 1;
+      } else if (a.isProjectRecommended && !b.isProjectRecommended) {
+        return -1;
+      } else if (!a.isProjectRecommended && b.isProjectRecommended) {
+        return 1;
+      } else {
+        return 0;
+      }
+    });
+  }, [layouts.value?.shared]);
+
   return (
     <>
       <AppBarDropdownButton
@@ -687,9 +707,7 @@ export function CoSceneLayoutButton(): JSX.Element {
               title={t("organization")}
               emptyText={t("noOrgnizationLayouts")}
               // Layout of top recommendations
-              items={layouts.value?.shared.sort((a) =>
-                a.isRecordRecommended ? -2 : a.isProjectRecommended ? -1 : 1,
-              )}
+              items={sortedRemoteLayouts}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}
               selectedId={currentLayoutId}

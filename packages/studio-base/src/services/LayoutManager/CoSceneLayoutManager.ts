@@ -567,11 +567,15 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         switch (operation.type) {
           case "mark-deleted": {
             const { localLayout } = operation;
-            log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
-            await local.put({
-              ...localLayout,
-              syncInfo: { status: "remotely-deleted", lastRemoteSavedAt: undefined },
-            });
+            if (localLayout.isRecordRecommended) {
+              await local.delete(localLayout.id);
+            } else {
+              log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
+              await local.put({
+                ...localLayout,
+                syncInfo: { status: "remotely-deleted", lastRemoteSavedAt: undefined },
+              });
+            }
             break;
           }
 
