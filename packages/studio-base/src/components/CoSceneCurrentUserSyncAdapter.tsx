@@ -58,12 +58,10 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
 
       const projectRole = roles.find((role) => role.name === projectRoleCode);
 
-      if (organizationRole != undefined && projectRole != undefined) {
-        setUserRole(
-          organizationRole.code as OrganizationRoleCode,
-          projectRole.code as ProjectRoleCode,
-        );
-      }
+      setUserRole(
+        organizationRole?.code ? (organizationRole.code as OrganizationRoleCode) : undefined,
+        projectRole?.code ? (projectRole.code as ProjectRoleCode) : undefined,
+      );
     }
   });
 
