@@ -34,7 +34,7 @@ export type UserStore = {
 
   setUser: (user: User | undefined) => void;
 
-  setRole: (organizationRole: OrganizationRoleCode, projectRole: ProjectRoleCode) => void;
+  setRole: (organizationRole?: OrganizationRoleCode, projectRole?: ProjectRoleCode) => void;
 };
 export const CoSceneCurrentUserContext = createContext<StoreApi<UserStore> | undefined>(undefined);
 
