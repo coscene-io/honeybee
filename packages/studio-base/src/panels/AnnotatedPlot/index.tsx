@@ -394,7 +394,7 @@ function Plot(props: Props) {
     const items: PanelContextMenuItem[] = [
       {
         type: "item",
-        label: "Download plot data as CSV",
+        label: t("downloadPlotDataAsCSV"),
         onclick: async () => {
           // Because the full dataset is never in the rendering thread, we have to request it from the worker.
           const data = await getFullData();
@@ -410,7 +410,7 @@ function Plot(props: Props) {
       },
     ];
     return items;
-  }, [getFullData, xAxisVal]);
+  }, [getFullData, xAxisVal, t]);
 
   const onClickPath = useCallback((index: number) => {
     setFocusedPath(["paths", String(index)]);
