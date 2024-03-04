@@ -19,7 +19,7 @@ import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 const panels =
-  APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo !== "supor" ? suporPanels : generalPanels;
+  APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor" ? suporPanels : generalPanels;
 
 type PanelProps = {
   config: unknown;
