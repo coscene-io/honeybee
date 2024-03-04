@@ -14,7 +14,6 @@
 import { TextFieldProps } from "@mui/material";
 import * as _ from "lodash-es";
 import { CSSProperties, useCallback, useEffect, useMemo } from "react";
-import { useDeepCompareEffect } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import { MessageDefinitionField } from "@foxglove/message-definition";
