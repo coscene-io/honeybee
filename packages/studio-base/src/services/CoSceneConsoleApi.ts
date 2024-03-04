@@ -55,6 +55,8 @@ import {
   ListFilesResponse,
   GenerateFileDownloadUrlRequest,
   GenerateFileDownloadUrlResponse,
+  GenerateUploadUrlsRequest,
+  GenerateUploadUrlsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
@@ -939,6 +941,16 @@ class CoSceneConsoleApi {
     });
 
     return await fileClient.generateFileDownloadUrl(req);
+  }
+
+  public async generateUploadUrls(files: File[]): Promise<GenerateUploadUrlsResponse> {
+    const fileClient = getPromiseClient(FileService);
+
+    const req = new GenerateUploadUrlsRequest({
+      files,
+    });
+
+    return await fileClient.generateUploadUrls(req);
   }
 
   public async getJobRun(jobRunName: string): Promise<JobRun> {
