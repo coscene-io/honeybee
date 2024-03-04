@@ -1774,14 +1774,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis-es@npm:0.0.141":
-  version: 0.0.141
-  resolution: "@coscene-io/cosceneapis-es@npm:0.0.141::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es%2F0.0.141%2F54bd365b84f9fdedfde5cd860943ba96d3931fea"
+"@coscene-io/cosceneapis-es@npm:0.0.152":
+  version: 0.0.152
+  resolution: "@coscene-io/cosceneapis-es@npm:0.0.152::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es%2F0.0.152%2F1059b71bcaf266170a4f999c3f84b63a56366018"
   dependencies:
     "@buf/coscene-io_argo-workflows-apis.bufbuild_es": 1.2.0-20230525123417-60301f3766e7.1
     "@buf/coscene-io_kubernetes-apis.bufbuild_es": 1.2.0-20230525122111-b678ebd95a88.1
     "@buf/googleapis_googleapis.bufbuild_es": 1.2.0-20230502210827-cc916c318597.1
-  checksum: fd755fd7508dc206abcbf785e216f0999fb5df72544b88a131d4e110af6c753ba670a7606d56281916f81548338ea524ad0740b40a63593d296944f0e26ea96c
+  checksum: cef40990133e316e8bb894a449e0aa8b3faf6de9a457af07134a3dc59c5af28d256e5254543a00a8d0f31d73d02389ad632f6bd1e10a0bee8af28aa339a53c26
   languageName: node
   linkType: hard
 
@@ -2697,7 +2697,7 @@ __metadata:
     "@bufbuild/connect-web": 0.13.0
     "@bufbuild/protobuf": 1.3.0
     "@coscene-io/coscene": 0.3.122
-    "@coscene-io/cosceneapis-es": 0.0.141
+    "@coscene-io/cosceneapis-es": 0.0.152
     "@coscene-io/cosel": 23.49.2
     "@emotion/cache": 11.11.0
     "@emotion/react": 11.11.1
