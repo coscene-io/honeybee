@@ -14,6 +14,7 @@
 import { TextFieldProps } from "@mui/material";
 import * as _ from "lodash-es";
 import { CSSProperties, useCallback, useEffect, useMemo } from "react";
+import { useDeepCompareEffect } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import { MessageDefinitionField } from "@foxglove/message-definition";
@@ -495,15 +496,15 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   // If the field depth is greater than 2 there may be a problem here
   useEffect(() => {
     if (
-      path !== "" &&
-      autocompleteType === "messagePath" &&
-      autocompleteItems.length === 1 &&
-      autocompleteItems[0] != undefined
+      orderedAutocompleteItems.length === 1 &&
+      orderedAutocompleteItems[0] != undefined &&
+      !path.endsWith(orderedAutocompleteItems[0]) &&
+      !path.slice(0, -1).endsWith(orderedAutocompleteItems[0])
     ) {
       onChangeProp(path.slice(0, -1) + autocompleteItems[0], props.index);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autocompleteType, autocompleteItems, path]);
+  }, [JSON.stringify(orderedAutocompleteItems)]);
 
   return (
     <Autocomplete
