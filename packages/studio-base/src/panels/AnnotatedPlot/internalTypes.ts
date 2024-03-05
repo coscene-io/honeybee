@@ -130,4 +130,5 @@ export type PlotParams = {
   minXValue: number | undefined;
   maxXValue: number | undefined;
   yAxesInfo: YAxesInfo;
+  valueMultiple: number;
 };

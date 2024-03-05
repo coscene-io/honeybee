@@ -16,4 +16,5 @@ export const cosAnnotatedPlot: Partial<TypeOptions["resources"]["cosAnnotatedPlo
   y2Axis: "第三Y轴",
   y3Axis: "第四Y轴",
   y4Axis: "第五Y轴",
+  multipleOfValue: "数值倍数",
 };

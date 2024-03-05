@@ -243,11 +243,14 @@ export function getDatasetsFromMessagePlotPath({
   };
 }
 
-export function resolveTypedIndices(data: TypedData[], indices: number[]): TypedData[] | undefined {
+export function resolveTypedIndices(
+  data: TypedData[],
+  indices: number[],
+  valueMultiple: number = 1,
+): TypedData[] | undefined {
   if (data.length === 0 || indices.length === 0) {
     return undefined;
   }
-
   const receiveTime: Time[] = [];
   const headerStamp: Time[] = [];
   const constantName: string[] = [];
@@ -290,9 +293,9 @@ export function resolveTypedIndices(data: TypedData[], indices: number[]): Typed
       receiveTime,
       ...(constantName.length > 0 ? { constantName } : {}),
       ...(headerStamp.length > 0 ? { headerStamp } : {}),
-      value,
+      value: value.map((val) => (typeof val === "number" ? val * valueMultiple : val)),
       x,
-      y,
+      y: y.map((val) => val * valueMultiple),
     },
   ];
 }
