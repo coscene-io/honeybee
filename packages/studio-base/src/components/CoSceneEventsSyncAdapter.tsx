@@ -29,7 +29,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import CoSceneConsoleApi, {
+import {
   SingleFileGetEventsRequest,
   EventList,
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
@@ -41,7 +41,6 @@ const log = Logger.getLogger(__filename);
 
 async function positionEvents(
   events: EventList,
-  consoleApi: CoSceneConsoleApi,
   bagFiles: readonly BagFileInfo[],
   timeMode: "relativeTime" | "absoluteTime",
   startTime: Time,
@@ -201,14 +200,7 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
           const eventList = await consoleApi.getEvents({ fileList: getEventsRequest });
           setEvents({
             loading: false,
-            value: await positionEvents(
-              eventList,
-              consoleApi,
-              bagFiles.value,
-              timeMode,
-              startTime,
-              endTime,
-            ),
+            value: await positionEvents(eventList, bagFiles.value, timeMode, startTime, endTime),
           });
         } catch (error) {
           log.error(error);
