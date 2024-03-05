@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import { useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
@@ -78,19 +77,6 @@ async function positionEvents(
         eventEndTime = subtract(eventEndTime, bagFile.startTime);
       }
 
-      const imgFileName = event.files[0];
-      let url = "";
-
-      if (imgFileName != undefined) {
-        const imgFile = new File({
-          name: imgFileName,
-        });
-
-        const resp = await consoleApi.generateFileDownloadUrl(imgFile);
-
-        url = resp.preSignedUrl;
-      }
-
       const startTimeInSeconds = toSec(eventStartTime);
       const endTimeInSeconds = toSec(eventEndTime);
 
@@ -106,7 +92,7 @@ async function positionEvents(
         time: startTimeInSeconds,
         secondsSinceStart: startTimeInSeconds - startSecs,
         color: stringToColor(event.record),
-        imgUrl: url,
+        imgUrl: event.files[0],
         recordDisplayName: eventInfo.recordDisplayName,
         projectDisplayName: eventInfo.projectDisplayName,
       };

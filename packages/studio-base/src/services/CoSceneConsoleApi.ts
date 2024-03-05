@@ -43,18 +43,20 @@ import {
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
 import { Event as Event_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
 import {
   UpsertConfigMapRequest,
   GetConfigMapRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
+import { EventService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_connect";
+import {
+  GenerateEventPictureUploadUrlRequest,
+  GenerateEventPictureUploadUrlResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_pb";
 import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_connect";
 import {
   ListFilesRequest,
   ListFilesResponse,
-  GenerateFileDownloadUrlRequest,
-  GenerateFileDownloadUrlResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
@@ -931,14 +933,27 @@ class CoSceneConsoleApi {
     return await fileClient.listFiles(req);
   }
 
-  public async generateFileDownloadUrl(file: File): Promise<GenerateFileDownloadUrlResponse> {
-    const fileClient = getPromiseClient(FileService);
+  public async generateEventPictureUploadUrl({
+    event,
+  }: {
+    event: string;
+  }): Promise<GenerateEventPictureUploadUrlResponse> {
+    const eventClient = getPromiseClient(EventService);
 
-    const req = new GenerateFileDownloadUrlRequest({
-      file,
+    const req = new GenerateEventPictureUploadUrlRequest({
+      event,
     });
 
-    return await fileClient.generateFileDownloadUrl(req);
+    return await eventClient.generateEventPictureUploadUrl(req);
+  }
+
+  public async uploadEventPicture({ event, file }: { event: string; file: File }): Promise<void> {
+    const result = await this.generateEventPictureUploadUrl({ event });
+    const url = result.preSignedUri;
+    await fetch(url, {
+      method: "PUT",
+      body: file,
+    });
   }
 
   public async getJobRun(jobRunName: string): Promise<JobRun> {

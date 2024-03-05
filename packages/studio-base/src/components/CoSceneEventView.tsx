@@ -258,7 +258,8 @@ function EventViewComponent(params: {
         };
       }),
       enabledCreateNewTask: false,
-      fileName: event.event.files[0] ?? "",
+      fileName: "",
+      imageUrl: event.event.files[0],
     });
   };
 
