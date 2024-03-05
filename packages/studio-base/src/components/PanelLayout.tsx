@@ -263,7 +263,7 @@ export default function PanelLayout(): JSX.Element {
         {t("notLayoutDesc")}
       </Typography>
       <Link onClick={createNewLayout} underline="hover" color="primary" variant="body1">
-        {t('createNewLayout')}
+        {t("createNewLayout")}
       </Link>
     </EmptyState>
   );
