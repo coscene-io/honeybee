@@ -49,14 +49,17 @@ import {
   UpsertConfigMapRequest,
   GetConfigMapRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
+import { EventService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_connect";
+import {
+  GenerateEventPictureUploadUrlRequest,
+  GenerateEventPictureUploadUrlResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_pb";
 import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_connect";
 import {
   ListFilesRequest,
   ListFilesResponse,
   GenerateFileDownloadUrlRequest,
   GenerateFileDownloadUrlResponse,
-  GenerateUploadUrlsRequest,
-  GenerateUploadUrlsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
@@ -943,14 +946,18 @@ class CoSceneConsoleApi {
     return await fileClient.generateFileDownloadUrl(req);
   }
 
-  public async generateUploadUrls(files: File[]): Promise<GenerateUploadUrlsResponse> {
-    const fileClient = getPromiseClient(FileService);
+  public async generateEventPictureUploadUrl({
+    event,
+  }: {
+    event: string;
+  }): Promise<GenerateEventPictureUploadUrlResponse> {
+    const eventClient = getPromiseClient(EventService);
 
-    const req = new GenerateUploadUrlsRequest({
-      files,
+    const req = new GenerateEventPictureUploadUrlRequest({
+      event,
     });
 
-    return await fileClient.generateUploadUrls(req);
+    return await eventClient.generateEventPictureUploadUrl(req);
   }
 
   public async getJobRun(jobRunName: string): Promise<JobRun> {

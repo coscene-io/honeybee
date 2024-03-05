@@ -634,7 +634,6 @@ export function CreateEventDialog(props: {
                 {t("addPhoto")}
               </Button>
             )}
-
             <input
               type="file"
               accept="image/*"
@@ -646,16 +645,14 @@ export function CreateEventDialog(props: {
                 }
 
                 consoleApi
-                  .generateUploadUrls([])
+                  .generateEventPictureUploadUrl({ event: "" })
                   .then((resp) => {
-                    const urls = resp.preSignedUrls;
-                    console.log(urls);
-                    // setImageUrl(url);
+                    const uri = resp.preSignedUri;
+                    console.log(uri);
                   })
-                  .catch((e) => {
-                    console.error(e);
+                  .catch((generateUrlEvent) => {
+                    console.error(generateUrlEvent);
                   });
-                // console.log(file);
               }}
             />
           </Stack>
