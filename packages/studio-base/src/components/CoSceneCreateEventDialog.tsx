@@ -348,7 +348,7 @@ export function CreateEventDialog(props: {
     }
   }, [consoleApi, event, onClose, refreshEvents, setTask, enqueueSnackbar, t]);
 
-  const [_editedEvent, editEvent] = useAsyncFn(async () => {
+  const [editedEvent, editEvent] = useAsyncFn(async () => {
     if (event.startTime == undefined || event.duration == undefined) {
       return;
     }
@@ -831,10 +831,14 @@ export function CreateEventDialog(props: {
                   }, 100);
                 }
               }}
-              disabled={isDemoSite ? false : !canSubmit || createdEvent.loading || !event.eventName}
+              disabled={
+                isDemoSite
+                  ? false
+                  : !canSubmit || createdEvent.loading || editedEvent.loading || !event.eventName
+              }
               ref={createMomentBtnRef}
             >
-              {createdEvent.loading && (
+              {(createdEvent.loading || editedEvent.loading) && (
                 <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
               )}
               {isEditing ? t("edit") : t("createMoment")}
