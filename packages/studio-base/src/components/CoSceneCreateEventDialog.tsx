@@ -492,6 +492,8 @@ export function CreateEventDialog(props: {
 
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(true);
 
+  const inputRef = useRef<HTMLInputElement>(ReactNull);
+
   const isSupor = APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor";
   return (
     <>
@@ -585,6 +587,7 @@ export function CreateEventDialog(props: {
             {event.imageFile ? (
               <Stack>
                 <img
+                  onClick={() => inputRef.current?.click()}
                   src={URL.createObjectURL(event.imageFile)}
                   style={{
                     maxHeight: "200px",
@@ -596,6 +599,7 @@ export function CreateEventDialog(props: {
               event.imageUrl && (
                 <Stack>
                   <img
+                    onClick={() => inputRef.current?.click()}
                     src={event.imageUrl}
                     style={{
                       maxHeight: "200px",
@@ -619,12 +623,13 @@ export function CreateEventDialog(props: {
                 })}
               </Button>
             ) : (
-              <Button className={classes.addFileButton}>
+              <Button className={classes.addFileButton} onClick={() => inputRef.current?.click()}>
                 <AddIcon />
                 {t("addPhoto")}
               </Button>
             )}
             <input
+              ref={inputRef}
               type="file"
               accept="image/*"
               value=""
