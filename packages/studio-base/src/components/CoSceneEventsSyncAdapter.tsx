@@ -78,19 +78,6 @@ async function positionEvents(
         eventEndTime = subtract(eventEndTime, bagFile.startTime);
       }
 
-      const imgFileName = event.files[0];
-      let url = "";
-
-      if (imgFileName != undefined) {
-        const imgFile = new File({
-          name: imgFileName,
-        });
-
-        const resp = await consoleApi.generateFileDownloadUrl(imgFile);
-
-        url = resp.preSignedUrl;
-      }
-
       const startTimeInSeconds = toSec(eventStartTime);
       const endTimeInSeconds = toSec(eventEndTime);
 
@@ -106,7 +93,7 @@ async function positionEvents(
         time: startTimeInSeconds,
         secondsSinceStart: startTimeInSeconds - startSecs,
         color: stringToColor(event.record),
-        imgUrl: url,
+        imgUrl: event.files[0],
         recordDisplayName: eventInfo.recordDisplayName,
         projectDisplayName: eventInfo.projectDisplayName,
       };

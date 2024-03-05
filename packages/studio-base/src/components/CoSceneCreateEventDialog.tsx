@@ -327,10 +327,6 @@ export function CreateEventDialog(props: {
       newEvent.setRevision(revisionId);
     }
 
-    // if (event.imageFile) {
-    //   newEvent.setFilesList([event.imageFile.name]);
-    // }
-
     Object.keys(keyedMetadata).forEach((key) => {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
@@ -347,11 +343,11 @@ export function CreateEventDialog(props: {
         recordName,
       });
 
+      const eventName = result.getName();
       if (event.imageFile) {
-        await consoleApi.uploadEventPicture({ event: result.getName(), file: event.imageFile });
+        await consoleApi.uploadEventPicture({ event: eventName, file: event.imageFile });
       }
 
-      const eventName = result.getName();
       setTargetEvent(result);
       if (event.enabledCreateNewTask) {
         setTask({
@@ -640,12 +636,7 @@ export function CreateEventDialog(props: {
                 })}
               </Button>
             ) : (
-              <Button
-                className={classes.addFileButton}
-                // onClick={() => {
-                //   // setAddPhotoDialogOpen(true);
-                // }}
-              >
+              <Button className={classes.addFileButton}>
                 <AddIcon />
                 {t("addPhoto")}
               </Button>
