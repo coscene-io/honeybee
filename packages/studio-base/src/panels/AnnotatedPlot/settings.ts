@@ -219,6 +219,13 @@ function buildSettingsTree(
       label: t("general"),
       fields: {
         isSynced: { label: t("syncWithOtherPlots"), input: "boolean", value: config.isSynced },
+        valueMultiple: {
+          label: t("multipleOfValue", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "number",
+          value: config.valueMultiple,
+        },
       },
     },
     moments: {
