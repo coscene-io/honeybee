@@ -235,7 +235,7 @@ export function CreateEventDialog(props: {
 
   useEffect(() => {
     if (passingFile == undefined || passingFile.length === 0) {
-      onClose();
+      // onClose();
       toast.error(t("creationUnavailableInCurrentPeriod"));
     }
   }, [passingFile, onClose, t]);
@@ -610,31 +610,54 @@ export function CreateEventDialog(props: {
                 />
               </Stack>
             )}
-            <Button
-              className={classes.addFileButton}
-              onClick={() => {
-                if (imageUrl) {
+            {imageUrl ? (
+              <Button
+                className={classes.addFileButton}
+                onClick={() => {
                   setImageUrl("");
                   setEvent((old) => ({ ...old, imageFile: undefined }));
-                } else {
-                  setAddPhotoDialogOpen(true);
+                }}
+              >
+                <DeleteForeverIcon />
+                {t("delete", {
+                  ns: "cosGeneral",
+                })}
+              </Button>
+            ) : (
+              <Button
+                className={classes.addFileButton}
+                // onClick={() => {
+                //   // setAddPhotoDialogOpen(true);
+                // }}
+              >
+                <AddIcon />
+                {t("addPhoto")}
+              </Button>
+            )}
+
+            <input
+              type="file"
+              accept="image/*"
+              value=""
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) {
+                  return;
                 }
+
+                consoleApi
+                  .generateUploadUrls([])
+                  .then((resp) => {
+                    const urls = resp.preSignedUrls;
+                    console.log(urls);
+                    // setImageUrl(url);
+                  })
+                  .catch((e) => {
+                    console.error(e);
+                  });
+                // console.log(file);
               }}
-            >
-              {imageUrl ? (
-                <>
-                  <DeleteForeverIcon />
-                  {t("delete", {
-                    ns: "cosGeneral",
-                  })}
-                </>
-              ) : (
-                <>
-                  <AddIcon />
-                  {t("addPhoto")}
-                </>
-              )}
-            </Button>
+            />
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("metadata")}</FormLabel>
