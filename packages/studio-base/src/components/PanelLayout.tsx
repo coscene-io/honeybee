@@ -14,6 +14,7 @@
 import { CircularProgress, Link, Typography } from "@mui/material";
 import React, { PropsWithChildren, Suspense, useCallback, useMemo } from "react";
 import { useDrop } from "react-dnd";
+import { useTranslation } from "react-i18next";
 import {
   MosaicDragType,
   MosaicNode,
@@ -217,6 +218,7 @@ export default function PanelLayout(): JSX.Element {
   const layoutExists = useCurrentLayoutSelector(selectedLayoutExistsSelector);
   const mosaicLayout = useCurrentLayoutSelector(selectedLayoutMosaicSelector);
   const registeredExtensions = useExtensionCatalog((state) => state.installedExtensions);
+  const { t } = useTranslation("cosLayout");
 
   const createNewLayout = async () => {
     const layoutData: Omit<LayoutData, "name" | "id"> = {
@@ -258,10 +260,10 @@ export default function PanelLayout(): JSX.Element {
   return (
     <EmptyState>
       <Typography display="block" variant="body1" color="text.primary">
-        You don&apos;t currently have a layout selected.
+        {t("notLayoutDesc")}
       </Typography>
       <Link onClick={createNewLayout} underline="hover" color="primary" variant="body1">
-        Create a new layout
+        {t("createNewLayout")}
       </Link>
     </EmptyState>
   );
