@@ -66,6 +66,7 @@ export type ToModifyEvent = {
   enabledCreateNewTask: boolean;
   fileName: string;
   imageFile?: File;
+  imageUrl?: string;
 };
 
 const fadeInAnimation = keyframes`
@@ -129,7 +130,6 @@ export function CreateEventDialog(props: {
 
   const refreshEvents = useEvents(selectRefreshEvents);
   const currentTime = useMessagePipeline(selectCurrentTime);
-  const [imageUrl, setImageUrl] = useState<string>("");
 
   const { t } = useTranslation("cosEvent");
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
@@ -169,6 +169,7 @@ export function CreateEventDialog(props: {
     enabledCreateNewTask: boolean;
     fileName: string;
     imageFile?: File;
+    imageUrl?: string;
   }>({
     eventName: "",
     startTime: currentTime ? toDate(currentTime) : undefined,
@@ -195,6 +196,7 @@ export function CreateEventDialog(props: {
             : [{ key: "", value: "" }],
         enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
         fileName: toModifyEvent.fileName,
+        imageUrl: toModifyEvent.imageUrl,
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -591,10 +593,10 @@ export function CreateEventDialog(props: {
                 />
               </Stack>
             ) : (
-              imageUrl && (
+              event.imageUrl && (
                 <Stack>
                   <img
-                    src={imageUrl}
+                    src={event.imageUrl}
                     style={{
                       maxHeight: "200px",
                       objectFit: "contain",
@@ -604,12 +606,11 @@ export function CreateEventDialog(props: {
               )
             )}
 
-            {imageUrl ? (
+            {event.imageUrl ? (
               <Button
                 className={classes.addFileButton}
                 onClick={() => {
-                  setImageUrl("");
-                  setEvent((old) => ({ ...old, imageFile: undefined }));
+                  setEvent((old) => ({ ...old, imageUrl: undefined, imageFile: undefined }));
                 }}
               >
                 <DeleteForeverIcon />
@@ -632,16 +633,7 @@ export function CreateEventDialog(props: {
                 if (!file) {
                   return;
                 }
-                setEvent((val) => ({ ...val, imageFile: file }));
-                // consoleApi
-                //   .generateEventPictureUploadUrl({ event: "" })
-                //   .then((resp) => {
-                //     const uri = resp.preSignedUri;
-                //     console.log(uri);
-                //   })
-                //   .catch((generateUrlEvent) => {
-                //     console.error(generateUrlEvent);
-                //   });
+                setEvent((val) => ({ ...val, imageUrl: undefined, imageFile: file }));
               }}
             />
           </Stack>
