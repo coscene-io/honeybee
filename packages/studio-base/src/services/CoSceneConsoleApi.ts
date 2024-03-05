@@ -43,7 +43,6 @@ import {
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
 import { Event as Event_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
-import { File as esFile } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
 import {
   UpsertConfigMapRequest,
@@ -58,8 +57,6 @@ import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1a
 import {
   ListFilesRequest,
   ListFilesResponse,
-  GenerateFileDownloadUrlRequest,
-  GenerateFileDownloadUrlResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
@@ -934,16 +931,6 @@ class CoSceneConsoleApi {
     const fileClient = getPromiseClient(FileService);
 
     return await fileClient.listFiles(req);
-  }
-
-  public async generateFileDownloadUrl(file: esFile): Promise<GenerateFileDownloadUrlResponse> {
-    const fileClient = getPromiseClient(FileService);
-
-    const req = new GenerateFileDownloadUrlRequest({
-      file,
-    });
-
-    return await fileClient.generateFileDownloadUrl(req);
   }
 
   public async generateEventPictureUploadUrl({
