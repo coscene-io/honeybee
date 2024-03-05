@@ -35,7 +35,6 @@ import {
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useUserProfileStorage } from "@foxglove/studio-base/context/CoSceneUserProfileStorageContext";
-import { sampleLayout } from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/defaultLayoutCoScene";
 import {
   gs75Layout,
   gs50Layout,
@@ -274,15 +273,7 @@ export default function CoSceneCurrentLayoutProvider({
     if (layout) {
       await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
     } else {
-      if (APP_CONFIG.VITE_APP_PROJECT_ENV === "saas") {
-        const newSampleLayout = await layoutManager.saveNewLayout({
-          name: `Demo layout`,
-          data: sampleLayout,
-          permission: "CREATOR_WRITE",
-        });
-
-        await setSelectedLayoutId(newSampleLayout.id);
-      } else if (APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon") {
+      if (APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon") {
         const defaultLayout = await layoutManager.saveNewLayout({
           name: "default",
           data: keenonDefaultLayout,
@@ -305,28 +296,6 @@ export default function CoSceneCurrentLayoutProvider({
 
         await setSelectedLayoutId(newGs50Layout.id);
         await setSelectedLayoutId(newGs75Layout.id);
-      } else {
-        const newLayout = await layoutManager.saveNewLayout({
-          name: `KN layout`,
-          data: keenonDefaultLayout,
-          permission: "CREATOR_WRITE",
-        });
-
-        const newGs50Layout = await layoutManager.saveNewLayout({
-          name: `GS layout`,
-          data: gs50Layout,
-          permission: "CREATOR_WRITE",
-        });
-
-        const newSampleLayout = await layoutManager.saveNewLayout({
-          name: `Demo layout`,
-          data: sampleLayout,
-          permission: "CREATOR_WRITE",
-        });
-
-        await setSelectedLayoutId(newSampleLayout.id);
-        await setSelectedLayoutId(newLayout.id);
-        await setSelectedLayoutId(newGs50Layout.id);
       }
     }
   }, [getUserProfile, layoutManager, setSelectedLayoutId]);
