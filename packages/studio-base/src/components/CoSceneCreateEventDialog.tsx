@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
+import { File as esFile } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
@@ -200,7 +200,7 @@ export function CreateEventDialog(props: {
         fileName: toModifyEvent.fileName,
       }));
       if (toModifyEvent.fileName) {
-        const imgFile = new File({
+        const imgFile = new esFile({
           name: toModifyEvent.fileName,
         });
         consoleApi
@@ -327,9 +327,9 @@ export function CreateEventDialog(props: {
       newEvent.setRevision(revisionId);
     }
 
-    if (event.imageFile) {
-      newEvent.setFilesList([event.imageFile.name]);
-    }
+    // if (event.imageFile) {
+    //   newEvent.setFilesList([event.imageFile.name]);
+    // }
 
     Object.keys(keyedMetadata).forEach((key) => {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
@@ -346,6 +346,10 @@ export function CreateEventDialog(props: {
         parent: projectName,
         recordName,
       });
+
+      if (event.imageFile) {
+        await consoleApi.uploadEventPicture({ event: result.getName(), file: event.imageFile });
+      }
 
       const eventName = result.getName();
       setTargetEvent(result);
@@ -402,11 +406,6 @@ export function CreateEventDialog(props: {
 
     const maskArray = ["displayName", "description", "duration", "customizedFields"];
 
-    if (event.imageFile) {
-      newEvent.setFilesList([event.imageFile.name]);
-      maskArray.push("files");
-    }
-
     Object.keys(keyedMetadata).forEach((key) => {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
@@ -419,6 +418,10 @@ export function CreateEventDialog(props: {
         event: newEvent,
         updateMask: fieldMask,
       });
+
+      if (event.imageFile) {
+        await consoleApi.uploadEventPicture({ event: newEvent.getName(), file: event.imageFile });
+      }
 
       onClose();
 
@@ -599,17 +602,30 @@ export function CreateEventDialog(props: {
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("photo")}</FormLabel>
-            {imageUrl && (
+            {event.imageFile ? (
               <Stack>
                 <img
-                  src={imageUrl}
+                  src={URL.createObjectURL(event.imageFile)}
                   style={{
                     maxHeight: "200px",
                     objectFit: "contain",
                   }}
                 />
               </Stack>
+            ) : (
+              imageUrl && (
+                <Stack>
+                  <img
+                    src={imageUrl}
+                    style={{
+                      maxHeight: "200px",
+                      objectFit: "contain",
+                    }}
+                  />
+                </Stack>
+              )
             )}
+
             {imageUrl ? (
               <Button
                 className={classes.addFileButton}
@@ -643,16 +659,16 @@ export function CreateEventDialog(props: {
                 if (!file) {
                   return;
                 }
-
-                consoleApi
-                  .generateEventPictureUploadUrl({ event: "" })
-                  .then((resp) => {
-                    const uri = resp.preSignedUri;
-                    console.log(uri);
-                  })
-                  .catch((generateUrlEvent) => {
-                    console.error(generateUrlEvent);
-                  });
+                setEvent((val) => ({ ...val, imageFile: file }));
+                // consoleApi
+                //   .generateEventPictureUploadUrl({ event: "" })
+                //   .then((resp) => {
+                //     const uri = resp.preSignedUri;
+                //     console.log(uri);
+                //   })
+                //   .catch((generateUrlEvent) => {
+                //     console.error(generateUrlEvent);
+                //   });
               }}
             />
           </Stack>
