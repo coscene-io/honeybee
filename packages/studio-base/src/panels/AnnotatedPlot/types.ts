@@ -43,6 +43,7 @@ export type PlotConfig = DeprecatedPlotConfig & {
   showPlotValuesInLegend: boolean;
   showXAxisLabels: boolean;
   isSynced: boolean;
+  valueMultiple: number;
   xAxisVal: PlotXAxisVal;
   xAxisPath?: BasePlotPath;
   xAxisName?: string;

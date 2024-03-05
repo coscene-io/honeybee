@@ -276,6 +276,7 @@ export function updateSource(
   path: PlotPath,
   params: SourceParams,
   state: SourceState,
+  valueMultiple: number,
 ): SourceState {
   const { raw, view, maxPoints } = params;
   const { cursor: oldCursor, downsampleState, dataset: previous } = state;
@@ -289,7 +290,7 @@ export function updateSource(
   }
   // the input data regressed for some reason, handle this gracefully
   if (newCursor < oldCursor) {
-    return updateSource(path, params, initSource());
+    return updateSource(path, params, initSource(), valueMultiple);
   }
   if (newCursor === oldCursor) {
     return state;
@@ -326,7 +327,7 @@ export function updateSource(
   // The downsampling algorithm only works for series plots, not scatter plots.
   if (path.showLine === false || raw.showLine === false) {
     const indices = downsampleScatter(iterateTyped(raw.data), view);
-    const resolved = resolveTypedIndices(raw.data, indices);
+    const resolved = resolveTypedIndices(raw.data, indices, valueMultiple);
     if (resolved == undefined) {
       return {
         ...initSource(),
@@ -348,7 +349,7 @@ export function updateSource(
     iterateTyped(newData),
     downsampleState ?? initTimeseries(view, maxPoints),
   );
-  const resolved = resolveTypedIndices(raw.data, indices);
+  const resolved = resolveTypedIndices(raw.data, indices, valueMultiple);
   if (resolved == undefined) {
     return state;
   }
@@ -459,7 +460,12 @@ function updatePartialView(path: PlotPath, params: PathParameters, state: PathSt
  * data have changed and downsampling the new data as necessary. Both data
  * sources (block and current) are updated independently with updateSource.
  */
-export function updatePath(path: PlotPath, params: PathParameters, state: PathState): PathState {
+export function updatePath(
+  path: PlotPath,
+  params: PathParameters,
+  state: PathState,
+  valueMultiple: number,
+): PathState {
   const { blockData, currentData, view, viewBounds, maxPoints } = params;
   const { blocks, current, isPartial } = state;
   const combinedBounds = getVisibleBounds(blockData, currentData);
@@ -482,11 +488,16 @@ export function updatePath(path: PlotPath, params: PathParameters, state: PathSt
 
     // If we're not partial anymore, we need to start over
     if (isPartial) {
-      return updatePath(path, params, initPath());
+      return updatePath(path, params, initPath(), valueMultiple);
     }
   }
 
-  const newBlocks = updateSource(path, { raw: blockData, view, viewBounds, maxPoints }, blocks);
+  const newBlocks = updateSource(
+    path,
+    { raw: blockData, view, viewBounds, maxPoints },
+    blocks,
+    valueMultiple,
+  );
 
   // Skip computing current entirely if block data is bigger than it
   if (blockData != undefined && currentData != undefined) {
@@ -506,7 +517,12 @@ export function updatePath(path: PlotPath, params: PathParameters, state: PathSt
     }
   }
 
-  const newCurrent = updateSource(path, { raw: currentData, view, viewBounds, maxPoints }, current);
+  const newCurrent = updateSource(
+    path,
+    { raw: currentData, view, viewBounds, maxPoints },
+    current,
+    valueMultiple,
+  );
   const newState: PathState = {
     ...state,
     blocks: newBlocks,
@@ -614,6 +630,7 @@ export function updateDownsample(
   blocks: PlotData,
   current: PlotData,
   downsampled: Downsampled,
+  valueMultiple: number,
 ): Downsampled {
   const blockPaths = [...blocks.datasets.keys()];
   const currentPaths = [...current.datasets.keys()];
@@ -634,7 +651,7 @@ export function updateDownsample(
     return [state];
   }, paths);
   if (shouldResetViewport(pathStates, downsampledView, view, previousBounds)) {
-    return updateDownsample(view, blocks, current, initDownsampled());
+    return updateDownsample(view, blocks, current, initDownsampled(), valueMultiple);
   }
 
   const numDatasets = Math.max(blocks.datasets.size, current.datasets.size);
@@ -666,6 +683,7 @@ export function updateDownsample(
         maxPoints: pointsPerDataset,
       },
       oldState,
+      valueMultiple,
     );
     newPaths.set(path, newState);
 

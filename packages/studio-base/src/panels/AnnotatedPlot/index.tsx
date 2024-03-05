@@ -128,6 +128,7 @@ function Plot(props: Props) {
     momentsFilter,
     selectRecords,
     xAxisName,
+    valueMultiple,
   } = config;
 
   const yAxesInfo: YAxesInfo = {
@@ -329,6 +330,7 @@ function Plot(props: Props) {
     maxXValue,
     yAxesInfo: yAxesParams,
     followingViewWidth,
+    valueMultiple,
   });
 
   const {
@@ -480,6 +482,7 @@ const defaultConfig: PlotConfig = {
   legendDisplay: "floating",
   showPlotValuesInLegend: false,
   isSynced: true,
+  valueMultiple: 1,
   xAxisVal: "timestamp",
   sidebarDimension: defaultSidebarDimension,
   showMoments: true,
