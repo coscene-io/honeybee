@@ -41,7 +41,6 @@ import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
 import { toDate, isLessThan, subtract, isGreaterThan, add } from "@foxglove/rostime";
-import CoSceneChooser from "@foxglove/studio-base/components/CoSceneChooser";
 import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
 import {
   MessagePipelineContext,
@@ -141,7 +140,6 @@ export function CreateEventDialog(props: {
       ? "relativeTime"
       : "absoluteTime";
   }, []);
-  const [addPhotoDialogOpen, setAddPhotoDialogOpen] = useState<boolean>(false);
 
   const passingFile = bagFiles.value?.filter((bag) => {
     if (bag.startTime == undefined || bag.endTime == undefined) {
@@ -882,32 +880,6 @@ export function CreateEventDialog(props: {
           fileName={event.fileName}
         />
       )}
-      <CoSceneChooser
-        open={addPhotoDialogOpen}
-        closeDialog={() => {
-          setAddPhotoDialogOpen(false);
-        }}
-        onConfirm={async (files) => {
-          const file = files[0];
-          if (file == undefined) {
-            return;
-          }
-          const resp = await consoleApi.generateFileDownloadUrl(file.file);
-
-          const url = `${
-            resp.preSignedUrl
-          }&response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(
-            file.file.filename,
-          )}`;
-          setImageUrl(url);
-          setEvent((old) => ({ ...old, imageFile: file.file }));
-        }}
-        type="files"
-        checkFileSupportedFunc={(file) => {
-          return file.mediaType.startsWith("image");
-        }}
-        maxFilesNumber={1}
-      />
     </>
   );
 }
