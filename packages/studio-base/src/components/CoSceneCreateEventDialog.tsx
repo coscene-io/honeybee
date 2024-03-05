@@ -281,11 +281,8 @@ export function CreateEventDialog(props: {
     );
 
     const fileName = event.fileName;
-
     const projectName = fileName.split("/records/")[0];
-
     const recordName = fileName.split("/revisions/")[0];
-
     const revisionId = fileName.split("/files/")[0];
 
     const newEvent = new Event();
@@ -386,6 +383,11 @@ export function CreateEventDialog(props: {
 
     const maskArray = ["displayName", "description", "duration", "customizedFields"];
 
+    if (!event.imageUrl && !event.imageFile) {
+      newEvent.setFilesList([]);
+      maskArray.push("files");
+    }
+
     Object.keys(keyedMetadata).forEach((key) => {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
@@ -418,6 +420,7 @@ export function CreateEventDialog(props: {
     event.durationUnit,
     event.eventName,
     event.imageFile,
+    event.imageUrl,
     event.metadataEntries,
     event.startTime,
     onClose,
@@ -629,6 +632,7 @@ export function CreateEventDialog(props: {
               </Button>
             )}
             <input
+              hidden
               ref={inputRef}
               type="file"
               accept="image/*"
