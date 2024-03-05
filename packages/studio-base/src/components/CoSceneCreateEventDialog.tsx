@@ -151,8 +151,8 @@ export function CreateEventDialog(props: {
     return (
       bag.fileType !== "GHOST_RESULT_FILE" &&
       currentTime &&
-      isLessThan(bagStartTime, currentTime) &&
-      isGreaterThan(bagEndTime, currentTime)
+      !isGreaterThan(bagStartTime, currentTime) &&
+      !isLessThan(bagEndTime, currentTime)
     );
   });
 
