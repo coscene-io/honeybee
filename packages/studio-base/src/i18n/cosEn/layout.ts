@@ -63,4 +63,6 @@ export const cosLayout = {
   update: "Update",
   updateRemoteLayoutConfirm:
     "Your changes will overwrite this layout for all organization members. This cannot be undone.",
+  notLayoutDesc: "You don't currently have a layout selected.",
+  createNewLayout: "Create a new layout",
 };
