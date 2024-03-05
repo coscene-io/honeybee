@@ -97,6 +97,21 @@ const fixedNumberFormat = new Intl.NumberFormat(undefined, {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
+function formatSeconds(seconds: number) {
+  let secondsNumber: number | string = seconds;
+  let hours: number | string = Math.floor(secondsNumber / 3600);
+  secondsNumber %= 3600;
+  let minutes: number | string = Math.floor(secondsNumber / 60);
+  secondsNumber %= 60;
+
+  hours = hours.toString().padStart(2, "0");
+  minutes = minutes.toString().padStart(2, "0");
+  secondsNumber = Math.floor(secondsNumber).toString().padStart(2, "0");
+
+  return `${hours}:${minutes}:${secondsNumber}`;
+}
+
 /**
  * Adjust the `ticks` of the chart options to ensure the first/last x labels remain a constant
  * width. See https://github.com/foxglove/studio/issues/2926
@@ -110,11 +125,14 @@ function fixTicks(args: RpcUpdateEvent): RpcUpdateEvent {
   if (xScale?.ticks) {
     xScale.ticks.callback = function (value, index, ticks) {
       // use a fixed formatter for the first/last ticks
-      if (index === 0 || index === ticks.length - 1) {
+      if ((index === 0 || index === ticks.length - 1) && Number.isNaN(+value)) {
         return fixedNumberFormat.format(value as number);
       }
+
       // otherwise use chart.js's default formatter
-      return Ticks.formatters.numeric.apply(this, [value as number, index, ticks]);
+      return Number.isNaN(+value)
+        ? Ticks.formatters.numeric.apply(this, [value as number, index, ticks])
+        : formatSeconds(+value);
     };
   }
   return args;
