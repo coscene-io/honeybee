@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Event } from "@coscene-io/coscene/proto/v1alpha2";
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
@@ -41,7 +40,6 @@ import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
 import { toDate, isLessThan, subtract, isGreaterThan, add } from "@foxglove/rostime";
-import CoSceneChooser from "@foxglove/studio-base/components/CoSceneChooser";
 import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
 import {
   MessagePipelineContext,
@@ -68,6 +66,7 @@ export type ToModifyEvent = {
   enabledCreateNewTask: boolean;
   fileName: string;
   imageFile?: File;
+  imageUrl?: string;
 };
 
 const fadeInAnimation = keyframes`
@@ -131,7 +130,6 @@ export function CreateEventDialog(props: {
 
   const refreshEvents = useEvents(selectRefreshEvents);
   const currentTime = useMessagePipeline(selectCurrentTime);
-  const [imageUrl, setImageUrl] = useState<string>("");
 
   const { t } = useTranslation("cosEvent");
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
@@ -141,7 +139,6 @@ export function CreateEventDialog(props: {
       ? "relativeTime"
       : "absoluteTime";
   }, []);
-  const [addPhotoDialogOpen, setAddPhotoDialogOpen] = useState<boolean>(false);
 
   const passingFile = bagFiles.value?.filter((bag) => {
     if (bag.startTime == undefined || bag.endTime == undefined) {
@@ -172,6 +169,7 @@ export function CreateEventDialog(props: {
     enabledCreateNewTask: boolean;
     fileName: string;
     imageFile?: File;
+    imageUrl?: string;
   }>({
     eventName: "",
     startTime: currentTime ? toDate(currentTime) : undefined,
@@ -198,22 +196,8 @@ export function CreateEventDialog(props: {
             : [{ key: "", value: "" }],
         enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
         fileName: toModifyEvent.fileName,
+        imageUrl: toModifyEvent.imageUrl,
       }));
-      if (toModifyEvent.fileName) {
-        const imgFile = new File({
-          name: toModifyEvent.fileName,
-        });
-        consoleApi
-          .generateFileDownloadUrl(imgFile)
-          .then((resp) => {
-            const url = resp.preSignedUrl;
-
-            setImageUrl(url);
-          })
-          .catch((e) => {
-            console.error(e);
-          });
-      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -297,11 +281,8 @@ export function CreateEventDialog(props: {
     );
 
     const fileName = event.fileName;
-
     const projectName = fileName.split("/records/")[0];
-
     const recordName = fileName.split("/revisions/")[0];
-
     const revisionId = fileName.split("/files/")[0];
 
     const newEvent = new Event();
@@ -327,10 +308,6 @@ export function CreateEventDialog(props: {
       newEvent.setRevision(revisionId);
     }
 
-    if (event.imageFile) {
-      newEvent.setFilesList([event.imageFile.name]);
-    }
-
     Object.keys(keyedMetadata).forEach((key) => {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
@@ -348,6 +325,10 @@ export function CreateEventDialog(props: {
       });
 
       const eventName = result.getName();
+      if (event.imageFile) {
+        await consoleApi.uploadEventPicture({ event: eventName, file: event.imageFile });
+      }
+
       setTargetEvent(result);
       if (event.enabledCreateNewTask) {
         setTask({
@@ -367,7 +348,7 @@ export function CreateEventDialog(props: {
     }
   }, [consoleApi, event, onClose, refreshEvents, setTask, enqueueSnackbar, t]);
 
-  const [_editedEvent, editEvent] = useAsyncFn(async () => {
+  const [editedEvent, editEvent] = useAsyncFn(async () => {
     if (event.startTime == undefined || event.duration == undefined) {
       return;
     }
@@ -402,8 +383,8 @@ export function CreateEventDialog(props: {
 
     const maskArray = ["displayName", "description", "duration", "customizedFields"];
 
-    if (event.imageFile) {
-      newEvent.setFilesList([event.imageFile.name]);
+    if (!event.imageUrl && !event.imageFile) {
+      newEvent.setFilesList([]);
       maskArray.push("files");
     }
 
@@ -420,6 +401,10 @@ export function CreateEventDialog(props: {
         updateMask: fieldMask,
       });
 
+      if (event.imageFile) {
+        await consoleApi.uploadEventPicture({ event: newEvent.getName(), file: event.imageFile });
+      }
+
       onClose();
 
       refreshEvents();
@@ -435,6 +420,7 @@ export function CreateEventDialog(props: {
     event.durationUnit,
     event.eventName,
     event.imageFile,
+    event.imageUrl,
     event.metadataEntries,
     event.startTime,
     onClose,
@@ -508,6 +494,8 @@ export function CreateEventDialog(props: {
   }
 
   const [createEventDialogOpen, setCreateEventDialogOpen] = useState(true);
+
+  const inputRef = useRef<HTMLInputElement>(ReactNull);
 
   const isSupor = APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor";
   return (
@@ -599,42 +587,64 @@ export function CreateEventDialog(props: {
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("photo")}</FormLabel>
-            {imageUrl && (
+            {event.imageFile ? (
               <Stack>
                 <img
-                  src={imageUrl}
+                  onClick={() => inputRef.current?.click()}
+                  src={URL.createObjectURL(event.imageFile)}
                   style={{
                     maxHeight: "200px",
                     objectFit: "contain",
                   }}
                 />
               </Stack>
+            ) : (
+              event.imageUrl && (
+                <Stack>
+                  <img
+                    onClick={() => inputRef.current?.click()}
+                    src={event.imageUrl}
+                    style={{
+                      maxHeight: "200px",
+                      objectFit: "contain",
+                    }}
+                  />
+                </Stack>
+              )
             )}
-            <Button
-              className={classes.addFileButton}
-              onClick={() => {
-                if (imageUrl) {
-                  setImageUrl("");
-                  setEvent((old) => ({ ...old, imageFile: undefined }));
-                } else {
-                  setAddPhotoDialogOpen(true);
+
+            {event.imageUrl ? (
+              <Button
+                className={classes.addFileButton}
+                onClick={() => {
+                  setEvent((old) => ({ ...old, imageUrl: undefined, imageFile: undefined }));
+                }}
+              >
+                <DeleteForeverIcon />
+                {t("delete", {
+                  ns: "cosGeneral",
+                })}
+              </Button>
+            ) : (
+              <Button className={classes.addFileButton} onClick={() => inputRef.current?.click()}>
+                <AddIcon />
+                {t("addPhoto")}
+              </Button>
+            )}
+            <input
+              hidden
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              value=""
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) {
+                  return;
                 }
+                setEvent((val) => ({ ...val, imageUrl: undefined, imageFile: file }));
               }}
-            >
-              {imageUrl ? (
-                <>
-                  <DeleteForeverIcon />
-                  {t("delete", {
-                    ns: "cosGeneral",
-                  })}
-                </>
-              ) : (
-                <>
-                  <AddIcon />
-                  {t("addPhoto")}
-                </>
-              )}
-            </Button>
+            />
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("metadata")}</FormLabel>
@@ -821,10 +831,14 @@ export function CreateEventDialog(props: {
                   }, 100);
                 }
               }}
-              disabled={isDemoSite ? false : !canSubmit || createdEvent.loading || !event.eventName}
+              disabled={
+                isDemoSite
+                  ? false
+                  : !canSubmit || createdEvent.loading || editedEvent.loading || !event.eventName
+              }
               ref={createMomentBtnRef}
             >
-              {createdEvent.loading && (
+              {(createdEvent.loading || editedEvent.loading) && (
                 <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
               )}
               {isEditing ? t("edit") : t("createMoment")}
@@ -855,32 +869,6 @@ export function CreateEventDialog(props: {
           fileName={event.fileName}
         />
       )}
-      <CoSceneChooser
-        open={addPhotoDialogOpen}
-        closeDialog={() => {
-          setAddPhotoDialogOpen(false);
-        }}
-        onConfirm={async (files) => {
-          const file = files[0];
-          if (file == undefined) {
-            return;
-          }
-          const resp = await consoleApi.generateFileDownloadUrl(file.file);
-
-          const url = `${
-            resp.preSignedUrl
-          }&response-content-disposition=attachment%3B%20filename%3D${encodeURIComponent(
-            file.file.filename,
-          )}`;
-          setImageUrl(url);
-          setEvent((old) => ({ ...old, imageFile: file.file }));
-        }}
-        type="files"
-        checkFileSupportedFunc={(file) => {
-          return file.mediaType.startsWith("image");
-        }}
-        maxFilesNumber={1}
-      />
     </>
   );
 }
