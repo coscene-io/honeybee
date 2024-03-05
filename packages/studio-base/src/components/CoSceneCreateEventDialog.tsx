@@ -235,7 +235,7 @@ export function CreateEventDialog(props: {
 
   useEffect(() => {
     if (passingFile == undefined || passingFile.length === 0) {
-      // onClose();
+      onClose();
       toast.error(t("creationUnavailableInCurrentPeriod"));
     }
   }, [passingFile, onClose, t]);
