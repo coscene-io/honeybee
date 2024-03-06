@@ -26,12 +26,12 @@ export function CoSceneBaseSyncAdapter(): ReactNull {
         setBaseInfo({ loading: true, value: {} });
         const baseInfo = await consoleApi.getBaseInfo(baseInfoKey);
 
-        if (!baseInfo.projectId || !baseInfo.recordId) {
-          throw new Error("Base info is missing project or record id");
+        if (baseInfo.projectId) {
+          consoleApi.setProjectId(baseInfo.projectId);
         }
-
-        consoleApi.setProjectId(baseInfo.projectId);
-        consoleApi.setRecordId(baseInfo.recordId);
+        if (baseInfo.recordId) {
+          consoleApi.setRecordId(baseInfo.recordId);
+        }
 
         setBaseInfo({ loading: false, value: baseInfo });
       } catch (error) {

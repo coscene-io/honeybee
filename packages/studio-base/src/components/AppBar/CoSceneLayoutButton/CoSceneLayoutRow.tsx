@@ -34,6 +34,7 @@ import { useMountedState } from "react-use";
 
 // import { withStyles } from "tss-react/mui";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
@@ -123,6 +124,7 @@ export type LayoutActionMenuItem =
     };
 
 const selectUserRole = (store: UserStore) => store.role;
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
 export default React.memo(function LayoutRow({
   layout,
@@ -177,6 +179,9 @@ export default React.memo(function LayoutRow({
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined;
   const multiSelection = multiSelectedIds.length > 1;
+
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   useLayoutEffect(() => {
     const onlineListener = () => {
@@ -362,7 +367,8 @@ export default React.memo(function LayoutRow({
     onCopyToRecordDefaultLayout != undefined &&
       !layout.isRecordRecommended &&
       (currentUserRole.organizationRole !== "ORGANIZATION_READER" ||
-        currentUserRole.projectRole !== "PROJECT_READER") && {
+        currentUserRole.projectRole !== "PROJECT_READER") &&
+      baseInfo.recordId != undefined && {
         type: "item",
         key: "copyToRecordDefaultLayout",
         text: t("copyToRecordDefaultLayoutTitle"),
