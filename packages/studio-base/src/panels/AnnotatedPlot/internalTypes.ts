@@ -116,8 +116,6 @@ export type YAxesInfo = {
   yAxis: YAxisInfo;
   y1Axis: YAxisInfo;
   y2Axis: YAxisInfo;
-  y3Axis: YAxisInfo;
-  y4Axis: YAxisInfo;
 };
 
 export type PlotParams = {

@@ -152,20 +152,6 @@ function Plot(props: Props) {
       yAxisName: config.y2AxisName,
       showYAxis: config.showY2Axis,
     },
-    y3Axis: {
-      minYValue: config.minY3Value,
-      maxYValue: config.maxY3Value,
-      showYAxisLabels: config.showY3AxisLabels,
-      yAxisName: config.y3AxisName,
-      showYAxis: config.showY3Axis,
-    },
-    y4Axis: {
-      minYValue: config.minY4Value,
-      maxYValue: config.maxY4Value,
-      showYAxisLabels: config.showY4AxisLabels,
-      yAxisName: config.y4AxisName,
-      showYAxis: config.showY4Axis,
-    },
   };
 
   const yAxisPaths = useMemo(() => {
@@ -492,10 +478,6 @@ const defaultConfig: PlotConfig = {
   showY1AxisLabels: true,
   showY2Axis: false,
   showY2AxisLabels: true,
-  showY3Axis: false,
-  showY3AxisLabels: true,
-  showY4Axis: false,
-  showY4AxisLabels: true,
 };
 
 export default Panel(

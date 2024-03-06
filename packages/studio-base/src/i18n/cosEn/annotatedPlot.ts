@@ -14,7 +14,5 @@ export const cosAnnotatedPlot = {
   resetView: "Reset view",
   y1Axis: "Second Y Axis",
   y2Axis: "Third Y Axis",
-  y3Axis: "Fourth Y Axis",
-  y4Axis: "Fifth Y Axis",
   multipleOfValue: "Value multiple",
 };

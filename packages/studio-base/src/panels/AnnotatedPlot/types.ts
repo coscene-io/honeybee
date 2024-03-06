@@ -70,18 +70,6 @@ export type PlotConfig = DeprecatedPlotConfig & {
   showY2AxisLabels: boolean;
   y2AxisName?: string;
   showY2Axis: boolean;
-  // y3 axis
-  minY3Value?: string | number;
-  maxY3Value?: string | number;
-  showY3AxisLabels: boolean;
-  y3AxisName?: string;
-  showY3Axis: boolean;
-  // y4 axis
-  minY4Value?: string | number;
-  maxY4Value?: string | number;
-  showY4AxisLabels: boolean;
-  y4AxisName?: string;
-  showY4Axis: boolean;
 };
 
 export const plotableRosTypes = [
