@@ -14,7 +14,5 @@ export const cosAnnotatedPlot: Partial<TypeOptions["resources"]["cosAnnotatedPlo
   resetView: "重置视图",
   y1Axis: "第二Y轴",
   y2Axis: "第三Y轴",
-  y3Axis: "第四Y轴",
-  y4Axis: "第五Y轴",
   multipleOfValue: "数值倍数",
 };
