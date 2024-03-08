@@ -43,7 +43,6 @@ export type PlotConfig = DeprecatedPlotConfig & {
   showPlotValuesInLegend: boolean;
   showXAxisLabels: boolean;
   isSynced: boolean;
-  valueMultiple: number;
   xAxisVal: PlotXAxisVal;
   xAxisPath?: BasePlotPath;
   xAxisName?: string;
@@ -58,18 +57,21 @@ export type PlotConfig = DeprecatedPlotConfig & {
   maxYValue?: string | number;
   showYAxisLabels: boolean;
   yAxisName?: string;
+  yMultiplicationFactor: number;
   // y1 axis
   minY1Value?: string | number;
   maxY1Value?: string | number;
   showY1AxisLabels: boolean;
   y1AxisName?: string;
   showY1Axis: boolean;
+  y1MultiplicationFactor: number;
   // y2 axis
   minY2Value?: string | number;
   maxY2Value?: string | number;
   showY2AxisLabels: boolean;
   y2AxisName?: string;
   showY2Axis: boolean;
+  y2MultiplicationFactor: number;
 };
 
 export const plotableRosTypes = [

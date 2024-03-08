@@ -76,7 +76,7 @@ export function openSiblingPlotPanel(openSiblingPanel: OpenSiblingPanel, topicNa
       ...config,
       paths: _.uniq(
         (config as PlotConfig).paths
-          .concat([{ value: topicName, yAxisID: "yAxis", lines: [] }])
+          .concat([{ value: topicName, yAxisID: "yAxis", lines: [], multiplicationFactor: 1 }])
           .filter(({ value }) => value),
       ),
     }),
@@ -128,7 +128,9 @@ function Plot(props: Props) {
     momentsFilter,
     selectRecords,
     xAxisName,
-    valueMultiple,
+    yMultiplicationFactor,
+    y1MultiplicationFactor,
+    y2MultiplicationFactor,
   } = config;
 
   const yAxesInfo: YAxesInfo = {
@@ -154,6 +156,15 @@ function Plot(props: Props) {
     },
   };
 
+  const multiplicationFactorMap: Record<string, number> = useMemo(
+    () => ({
+      y: yMultiplicationFactor,
+      y1: y1MultiplicationFactor,
+      y2: y2MultiplicationFactor,
+    }),
+    [y1MultiplicationFactor, y2MultiplicationFactor, yMultiplicationFactor],
+  );
+
   const yAxisPaths = useMemo(() => {
     const linePaths: PlotPath[] = [];
     originalPaths.forEach((path) => {
@@ -167,12 +178,13 @@ function Plot(props: Props) {
           showLine: line.showLine,
           lineSize: line.lineSize,
           yAxisID: path.yAxisID,
+          multiplicationFactor: multiplicationFactorMap[path.yAxisID] ?? 1,
         });
       });
     });
 
     return linePaths;
-  }, [originalPaths]);
+  }, [multiplicationFactorMap, originalPaths]);
 
   const events = useEvents(selectEvents);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
@@ -316,7 +328,6 @@ function Plot(props: Props) {
     maxXValue,
     yAxesInfo: yAxesParams,
     followingViewWidth,
-    valueMultiple,
   });
 
   const {
@@ -468,7 +479,6 @@ const defaultConfig: PlotConfig = {
   legendDisplay: "floating",
   showPlotValuesInLegend: false,
   isSynced: true,
-  valueMultiple: 1,
   xAxisVal: "timestamp",
   sidebarDimension: defaultSidebarDimension,
   showMoments: true,
@@ -478,6 +488,9 @@ const defaultConfig: PlotConfig = {
   showY1AxisLabels: true,
   showY2Axis: false,
   showY2AxisLabels: true,
+  yMultiplicationFactor: 1,
+  y1MultiplicationFactor: 1,
+  y2MultiplicationFactor: 1,
 };
 
 export default Panel(

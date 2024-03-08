@@ -110,13 +110,7 @@ function rebuild(id: string) {
     return;
   }
 
-  const newDownsampled = updateDownsample(
-    view,
-    blocks.data,
-    current.data,
-    downsampled,
-    params.valueMultiple,
-  );
+  const newDownsampled = updateDownsample(view, blocks.data, current.data, downsampled);
 
   state = mutateClient(state, id, {
     ...client,
