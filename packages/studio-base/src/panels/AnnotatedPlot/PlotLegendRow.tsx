@@ -245,7 +245,11 @@ export function PlotLegendRow({
           variant="body2"
           className={cx({ [classes.disabledPathLabel]: !path.enabled })}
         >
-          {isAddSeriesRow ? t("clickToAddASeries") : plotPathDisplayName(path, index)}
+          {isAddSeriesRow
+            ? t("clickToAddASeries", {
+                ns: "cosAnnotatedPlot",
+              })
+            : plotPathDisplayName(path, index)}
         </Typography>
         {hasMismatchedDataLength && (
           <Tooltip
