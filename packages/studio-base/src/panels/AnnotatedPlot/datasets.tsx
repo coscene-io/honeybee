@@ -246,7 +246,7 @@ export function getDatasetsFromMessagePlotPath({
 export function resolveTypedIndices(
   data: TypedData[],
   indices: number[],
-  valueMultiple: number = 1,
+  valueMultiple: number,
 ): TypedData[] | undefined {
   if (data.length === 0 || indices.length === 0) {
     return undefined;

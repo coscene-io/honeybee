@@ -29,6 +29,7 @@ export const DEFAULT_PATH: SettingsPlotPath = Object.freeze({
   value: "",
   label: "",
   yAxisID: "y",
+  multiplicationFactor: 1,
   lines: [],
 });
 
@@ -207,13 +208,6 @@ function buildSettingsTree(
       label: t("general"),
       fields: {
         isSynced: { label: t("syncWithOtherPlots"), input: "boolean", value: config.isSynced },
-        valueMultiple: {
-          label: t("multipleOfValue", {
-            ns: "cosAnnotatedPlot",
-          }),
-          input: "number",
-          value: config.valueMultiple,
-        },
       },
     },
     moments: {
@@ -305,6 +299,13 @@ function buildSettingsTree(
             ns: "cosSettings",
           }),
         },
+        yMultiplicationFactor: {
+          label: t("multipleOfValue", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "number",
+          value: config.yMultiplicationFactor,
+        },
       },
     },
     y1Axis: {
@@ -352,6 +353,13 @@ function buildSettingsTree(
             ns: "cosSettings",
           }),
         },
+        y1MultiplicationFactor: {
+          label: t("multipleOfValue", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "number",
+          value: config.y1MultiplicationFactor,
+        },
       },
     },
     y2Axis: {
@@ -389,6 +397,13 @@ function buildSettingsTree(
           placeholder: t("auto", {
             ns: "cosSettings",
           }),
+        },
+        y2MultiplicationFactor: {
+          label: t("multipleOfValue", {
+            ns: "cosAnnotatedPlot",
+          }),
+          input: "number",
+          value: config.y2MultiplicationFactor,
         },
       },
     },

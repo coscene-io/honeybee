@@ -79,10 +79,11 @@ function findXRanges(data: Im<PlotData>): {
       end: Number.MIN_SAFE_INTEGER,
     });
     const { data: subData } = dataset;
-    const resolved = resolveTypedIndices(subData as TypedData[], [
-      0,
-      getTypedLength(subData as TypedData[]) - 1,
-    ])?.[0];
+    const resolved = resolveTypedIndices(
+      subData as TypedData[],
+      [0, getTypedLength(subData as TypedData[]) - 1],
+      path.multiplicationFactor,
+    )?.[0];
 
     thisPath.start = Math.min(thisPath.start, resolved?.x[0] ?? Number.MAX_SAFE_INTEGER);
     thisPath.end = Math.max(
@@ -288,7 +289,7 @@ export const applyDerivativeToPlotData = createPlotMapping((dataset, path) => {
   };
 });
 
-export const sortDataByHeaderStamp = (data: TypedData[]): TypedData[] => {
+export const sortDataByHeaderStamp = (data: TypedData[], valueMultiple: number): TypedData[] => {
   const indices: [index: number, timestamp: number][] = [];
   for (const datum of iterateTyped(data)) {
     indices.push([datum.index, datum.x]);
@@ -299,6 +300,7 @@ export const sortDataByHeaderStamp = (data: TypedData[]): TypedData[] => {
   const resolved = resolveTypedIndices(
     data,
     indices.map(([index]) => index),
+    valueMultiple,
   );
   if (resolved == undefined) {
     return data;
@@ -325,7 +327,7 @@ export const sortPlotDataByHeaderStamp = createPlotMapping((dataset: TypedDataSe
   }
   return {
     ...dataset,
-    data: sortDataByHeaderStamp(dataset.data),
+    data: sortDataByHeaderStamp(dataset.data, path.multiplicationFactor),
   };
 });
 
