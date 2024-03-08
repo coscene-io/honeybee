@@ -15,4 +15,5 @@ export const cosAnnotatedPlot = {
   y1Axis: "Second Y Axis",
   y2Axis: "Third Y Axis",
   multipleOfValue: "Value multiple",
+  clickToAddASeries: "Click to add a series",
 };
