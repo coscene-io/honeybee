@@ -293,7 +293,7 @@ export function resolveTypedIndices(
       receiveTime,
       ...(constantName.length > 0 ? { constantName } : {}),
       ...(headerStamp.length > 0 ? { headerStamp } : {}),
-      value: value.map((val) => (typeof val === "number" ? (val * valueMultiple).toFixed(2) : val)),
+      value: value.map((val) => (typeof val === "number" ? (val * valueMultiple).toFixed(3) : val)),
       x,
       y: y.map((val) => val * valueMultiple),
     },
