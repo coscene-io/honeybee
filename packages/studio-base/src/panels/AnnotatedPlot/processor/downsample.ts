@@ -98,6 +98,7 @@ const downsampleDataset = (
   data: TypedData[],
   view: PlotViewport,
   maxPoints: number,
+  valueMultiple: number,
 ): TypedDataSet | undefined => {
   const numPoints = getTypedLength(data);
   if (numPoints <= maxPoints) {
@@ -107,7 +108,7 @@ const downsampleDataset = (
   }
 
   const indices = downsampleTimeseries(iterateTyped(data), view, maxPoints);
-  const resolved = resolveTypedIndices(data, indices);
+  const resolved = resolveTypedIndices(data, indices, valueMultiple);
   if (resolved == undefined) {
     return undefined;
   }
@@ -259,7 +260,7 @@ const applyTransforms = (data: TypedData[], path: PlotPath): TypedData[] =>
   R.pipe(
     isHeaderStamp(path) ? sortDataByHeaderStamp : noop,
     isDerivative(path) ? derivative : noop,
-  )(data);
+  )(data, path.multiplicationFactor);
 
 type SourceParams = {
   raw: TypedDataSet | undefined;
@@ -276,7 +277,6 @@ export function updateSource(
   path: PlotPath,
   params: SourceParams,
   state: SourceState,
-  valueMultiple: number,
 ): SourceState {
   const { raw, view, maxPoints } = params;
   const { cursor: oldCursor, downsampleState, dataset: previous } = state;
@@ -290,7 +290,7 @@ export function updateSource(
   }
   // the input data regressed for some reason, handle this gracefully
   if (newCursor < oldCursor) {
-    return updateSource(path, params, initSource(), valueMultiple);
+    return updateSource(path, params, initSource());
   }
   if (newCursor === oldCursor) {
     return state;
@@ -311,7 +311,12 @@ export function updateSource(
   // Both present serious drawbacks for memory, since we would have to store an
   // additional copy of the entire dataset with these transformations applied.
   if (isDerivative(path) || isHeaderStamp(path)) {
-    const downsampled = downsampleDataset(applyTransforms(raw.data, path), view, maxPoints);
+    const downsampled = downsampleDataset(
+      applyTransforms(raw.data, path),
+      view,
+      maxPoints,
+      path.multiplicationFactor,
+    );
     if (downsampled == undefined) {
       return state;
     }
@@ -327,7 +332,7 @@ export function updateSource(
   // The downsampling algorithm only works for series plots, not scatter plots.
   if (path.showLine === false || raw.showLine === false) {
     const indices = downsampleScatter(iterateTyped(raw.data), view);
-    const resolved = resolveTypedIndices(raw.data, indices, valueMultiple);
+    const resolved = resolveTypedIndices(raw.data, indices, path.multiplicationFactor);
     if (resolved == undefined) {
       return {
         ...initSource(),
@@ -349,7 +354,7 @@ export function updateSource(
     iterateTyped(newData),
     downsampleState ?? initTimeseries(view, maxPoints),
   );
-  const resolved = resolveTypedIndices(raw.data, indices, valueMultiple);
+  const resolved = resolveTypedIndices(raw.data, indices, path.multiplicationFactor);
   if (resolved == undefined) {
     return state;
   }
@@ -425,7 +430,7 @@ function updatePartialView(path: PlotPath, params: PathParameters, state: PathSt
   // Scatter plots use a different downsampling algorithm
   if (blockData?.showLine === false || currentData?.showLine === false) {
     const indices = downsampleScatter(iterateTyped(data), view);
-    const resolved = resolveTypedIndices(data, indices);
+    const resolved = resolveTypedIndices(data, indices, path.multiplicationFactor);
     if (resolved == undefined) {
       return state;
     }
@@ -440,7 +445,7 @@ function updatePartialView(path: PlotPath, params: PathParameters, state: PathSt
     };
   }
 
-  const downsampled = downsampleDataset(data, view, maxPoints);
+  const downsampled = downsampleDataset(data, view, maxPoints, path.multiplicationFactor);
   if (downsampled == undefined) {
     return state;
   }
@@ -460,12 +465,7 @@ function updatePartialView(path: PlotPath, params: PathParameters, state: PathSt
  * data have changed and downsampling the new data as necessary. Both data
  * sources (block and current) are updated independently with updateSource.
  */
-export function updatePath(
-  path: PlotPath,
-  params: PathParameters,
-  state: PathState,
-  valueMultiple: number,
-): PathState {
+export function updatePath(path: PlotPath, params: PathParameters, state: PathState): PathState {
   const { blockData, currentData, view, viewBounds, maxPoints } = params;
   const { blocks, current, isPartial } = state;
   const combinedBounds = getVisibleBounds(blockData, currentData);
@@ -488,16 +488,11 @@ export function updatePath(
 
     // If we're not partial anymore, we need to start over
     if (isPartial) {
-      return updatePath(path, params, initPath(), valueMultiple);
+      return updatePath(path, params, initPath());
     }
   }
 
-  const newBlocks = updateSource(
-    path,
-    { raw: blockData, view, viewBounds, maxPoints },
-    blocks,
-    valueMultiple,
-  );
+  const newBlocks = updateSource(path, { raw: blockData, view, viewBounds, maxPoints }, blocks);
 
   // Skip computing current entirely if block data is bigger than it
   if (blockData != undefined && currentData != undefined) {
@@ -517,12 +512,7 @@ export function updatePath(
     }
   }
 
-  const newCurrent = updateSource(
-    path,
-    { raw: currentData, view, viewBounds, maxPoints },
-    current,
-    valueMultiple,
-  );
+  const newCurrent = updateSource(path, { raw: currentData, view, viewBounds, maxPoints }, current);
   const newState: PathState = {
     ...state,
     blocks: newBlocks,
@@ -630,7 +620,6 @@ export function updateDownsample(
   blocks: PlotData,
   current: PlotData,
   downsampled: Downsampled,
-  valueMultiple: number,
 ): Downsampled {
   const blockPaths = [...blocks.datasets.keys()];
   const currentPaths = [...current.datasets.keys()];
@@ -651,7 +640,7 @@ export function updateDownsample(
     return [state];
   }, paths);
   if (shouldResetViewport(pathStates, downsampledView, view, previousBounds)) {
-    return updateDownsample(view, blocks, current, initDownsampled(), valueMultiple);
+    return updateDownsample(view, blocks, current, initDownsampled());
   }
 
   const numDatasets = Math.max(blocks.datasets.size, current.datasets.size);
@@ -683,7 +672,6 @@ export function updateDownsample(
         maxPoints: pointsPerDataset,
       },
       oldState,
-      valueMultiple,
     );
     newPaths.set(path, newState);
 

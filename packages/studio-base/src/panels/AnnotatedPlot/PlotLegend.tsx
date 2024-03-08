@@ -174,6 +174,7 @@ function PlotLegendComponent(props: Props): JSX.Element {
     value: "",
     enabled: true,
     timestampMethod: "receiveTime",
+    multiplicationFactor: 1,
   };
 
   const dragStart = useRef({ x: 0, y: 0, sidebarDimension: 0 });

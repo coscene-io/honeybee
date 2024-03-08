@@ -45,6 +45,7 @@ export type SettingsPlotPath = {
   label?: string;
   lines: PlotLine[];
   yAxisID: string;
+  multiplicationFactor: number;
 };
 
 export type PlotPath = BasePlotPath & {
@@ -54,6 +55,7 @@ export type PlotPath = BasePlotPath & {
   showLine?: boolean;
   lineSize?: number;
   yAxisID?: string;
+  multiplicationFactor: number;
 };
 export type PlotDataByPath = Map<PlotPath, PlotDataItem[]>;
 
@@ -128,5 +130,4 @@ export type PlotParams = {
   minXValue: number | undefined;
   maxXValue: number | undefined;
   yAxesInfo: YAxesInfo;
-  valueMultiple: number;
 };
