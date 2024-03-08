@@ -179,14 +179,16 @@ export function Playlist(): JSX.Element {
             ),
           }}
         />
-        <Button
-          className={classes.addFileButton}
-          onClick={() => {
-            setAddFileDialogOpen(true);
-          }}
-        >
-          <Add /> {t("addFiles")}
-        </Button>
+        {urlState != undefined && (
+          <Button
+            className={classes.addFileButton}
+            onClick={() => {
+              setAddFileDialogOpen(true);
+            }}
+          >
+            <Add /> {t("addFiles")}
+          </Button>
+        )}
       </AppBar>
       {bagFiles.loading && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">

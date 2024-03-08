@@ -63,7 +63,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     margin: "auto",
   },
   textTruncate: {
-    maxWidth: "30vw",
+    maxWidth: "60vw",
     overflow: "hidden",
   },
   iconButton: {
@@ -80,7 +80,6 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
   },
   breadcrumbs: {
-    maxWidth: "150px",
     display: "flex",
     overflow: "hidden",
     textOverflow: "ellipsis",
