@@ -23,7 +23,7 @@ import { useDebounce } from "use-debounce";
 
 import { filterMap } from "@foxglove/den/collection";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
-// import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
+import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import { quoteTopicNameIfNeeded } from "@foxglove/studio-base/components/MessagePathSyntax/parseRosPath";
 import {
@@ -41,6 +41,7 @@ import { useMultiSelection } from "./useMultiSelection";
 import { TopicListItem, useTopicListSearch } from "./useTopicListSearch";
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -92,8 +93,11 @@ export function TopicList(): JSX.Element {
   const [undebouncedFilterText, setFilterText] = useState<string>("");
   const [debouncedFilterText] = useDebounce(undebouncedFilterText, 50);
 
+  const urlState = useMessagePipeline(selectUrlState);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const { topics, datatypes } = useDataSourceInfo();
+
+  const sourceId = urlState?.sourceId;
 
   const listRef = useRef<VariableSizeList>(ReactNull);
 
@@ -291,8 +295,8 @@ export function TopicList(): JSX.Element {
             {playerPresence === PlayerPresence.RECONNECTING && t("waitingForConnection")}
           </EmptyState>
         )}
-        {/* coScene 防止频率数值覆盖 */}
-        {/* <DirectTopicStatsUpdater interval={6} /> */}
+        {/* coScene 仅在实时可视化时启用，防止频率数值覆盖 */}
+        {sourceId === "coscene-websocket" && <DirectTopicStatsUpdater interval={6} />}
       </div>
       {contextMenuState && (
         <ContextMenu
