@@ -13,7 +13,6 @@ export type BaseInfo = {
   projectSlug?: string;
   recordDisplayName?: string;
   recordId?: string;
-  revisionId?: string;
   warehouseId?: string;
   warehouseSlug?: string;
   jobRunsDisplayName?: string;

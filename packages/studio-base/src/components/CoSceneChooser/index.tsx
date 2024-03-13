@@ -4,10 +4,10 @@
 import { QueryFields } from "@coscene-io/coscene/queries";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { ListUserProjectsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { ListFilesResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
 import { ListRecordsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
+import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { ListFilesResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
 import ClearIcon from "@mui/icons-material/Clear";
 import CloseIcon from "@mui/icons-material/Close";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
@@ -43,21 +43,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { SerializeOption, BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene";
-
-const SupportedFileTypes = [
-  "text/plain",
-  "image/png",
-  "image/x-portable-bitmap",
-  "image/x-portable-graymap",
-  "image/x-portable-pixmap",
-  "application/vnd.ros1.bag",
-  "application/vnd.cyber.rt",
-  "application/vnd.mcap",
-];
-
-const checkBagFileSupported = (file: File) => {
-  return !!(file.mediaStorageUri && SupportedFileTypes.includes(file.mediaType));
-};
+import { checkBagFileSupported } from "@foxglove/studio-base/util/coscene";
 
 type ChooserDialogProps =
   | {
@@ -395,7 +381,7 @@ function ChooserComponent({
 
     if (record && listType === "files") {
       return await consoleApi.listFiles({
-        revisionName: record.head?.name ?? "",
+        revcordName: record.name,
         pageSize: filesPageSize,
         filter: filter.toQueryString(new SerializeOption(false)),
         currentPage: filesPage,
