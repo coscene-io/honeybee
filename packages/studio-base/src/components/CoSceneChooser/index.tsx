@@ -42,8 +42,12 @@ import Snow from "@foxglove/studio-base/components/DataSourceDialog/Snow";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { SerializeOption, BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene";
-import { checkBagFileSupported } from "@foxglove/studio-base/util/coscene";
+import {
+  SerializeOption,
+  BinaryOperator,
+  CosQuery,
+  checkBagFileSupported,
+} from "@foxglove/studio-base/util/coscene";
 
 type ChooserDialogProps =
   | {
