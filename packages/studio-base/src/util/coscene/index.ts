@@ -15,6 +15,7 @@ import {
   Layout,
   LayoutDetail,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
 
@@ -183,3 +184,25 @@ export function stringToColor(str: string): string {
   }
   return color;
 }
+
+const SupportedFileExtension = [
+  "bag",
+  "active",
+  "txt",
+  "log",
+  "png",
+  "pgm",
+  "ppm",
+  "pbm",
+  "record",
+  "mcap",
+];
+
+export const checkBagFileSupported = (file: File): boolean => {
+  // if file.filename.split(".").pop() === file.filename
+  // this file does not have an extension, so it is treated as a text file.
+  return (
+    file.filename.split(".").pop() === file.filename ||
+    SupportedFileExtension.includes(file.filename.split(".").pop() ?? "")
+  );
+};
