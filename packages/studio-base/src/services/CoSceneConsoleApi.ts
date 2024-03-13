@@ -27,8 +27,6 @@ import {
 } from "@coscene-io/coscene/proto/v1alpha2";
 import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
-import { Revision } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/revision_pb";
-import { GetRevisionRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/revision_pb";
 import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
 import {
   ListUserProjectsRequest,
@@ -53,16 +51,16 @@ import {
   GenerateEventPictureUploadUrlRequest,
   GenerateEventPictureUploadUrlResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_pb";
-import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_connect";
-import {
-  ListFilesRequest,
-  ListFilesResponse,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/file_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
   ListRecordsRequest,
   ListRecordsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
+import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_connect";
+import {
+  ListFilesRequest,
+  ListFilesResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
 import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resources/job_run_pb";
 import { JobRunService } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_connect";
 import { GetJobRunRequest } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_pb";
@@ -805,13 +803,6 @@ class CoSceneConsoleApi {
     return await CsWebClient.getRecordClient().getRecord(req);
   }
 
-  public async getRevision({ revisionName }: { revisionName: string }): Promise<Revision> {
-    const req = new GetRevisionRequest();
-    req.setName(revisionName);
-
-    return await CsWebClient.getRevisionClient().getRevision(req);
-  }
-
   public async upsertUserConfig({
     userId,
     configId,
@@ -911,18 +902,18 @@ class CoSceneConsoleApi {
   }
 
   public async listFiles({
-    revisionName,
+    revcordName,
     pageSize,
     filter,
     currentPage,
   }: {
-    revisionName: string;
+    revcordName: string;
     pageSize: number;
     filter: string;
     currentPage: number;
   }): Promise<ListFilesResponse> {
     const req = new ListFilesRequest({
-      parent: revisionName,
+      parent: revcordName,
       filter,
       pageSize,
       skip: pageSize * currentPage,

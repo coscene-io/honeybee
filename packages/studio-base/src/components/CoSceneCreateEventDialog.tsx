@@ -282,8 +282,7 @@ export function CreateEventDialog(props: {
 
     const fileName = event.fileName;
     const projectName = fileName.split("/records/")[0];
-    const recordName = fileName.split("/revisions/")[0];
-    const revisionId = fileName.split("/files/")[0];
+    const recordName = fileName.split("/files/")[0];
 
     const newEvent = new Event();
 
@@ -302,10 +301,6 @@ export function CreateEventDialog(props: {
 
     if (event.description) {
       newEvent.setDescription(event.description);
-    }
-
-    if (revisionId) {
-      newEvent.setRevision(revisionId);
     }
 
     Object.keys(keyedMetadata).forEach((key) => {

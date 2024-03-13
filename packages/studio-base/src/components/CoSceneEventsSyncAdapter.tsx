@@ -67,7 +67,7 @@ async function positionEvents(
       });
 
       let eventStartTime = fromNanoSec(
-        event.triggerTime.seconds * BigInt(1e9) + event.triggerTime.seconds,
+        event.triggerTime.seconds * BigInt(1e9) + BigInt(event.triggerTime.nanos),
       );
       let eventEndTime = add(eventStartTime, fromNanoSec(BigInt(event.duration * 1e9)));
 

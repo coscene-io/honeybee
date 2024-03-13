@@ -1,7 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/file_pb";
 import { useMemo, useEffect } from "react";
 
 import Logger from "@foxglove/log";
@@ -18,25 +17,11 @@ import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProje
 import CoSceneUserProfileLocalStorageProvider from "@foxglove/studio-base/providers/CoSceneUserProfileLocalStorageProvider";
 import CoSceneUserProvider from "@foxglove/studio-base/providers/CoSceneUserProvider";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { checkBagFileSupported } from "@foxglove/studio-base/util/coscene";
 
 import { IdbLayoutStorage } from "./services/CoSceneIdbLayoutStorage";
 
 const log = Logger.getLogger(__filename);
-
-const SupportedFileTypes = [
-  "text/plain",
-  "image/png",
-  "image/x-portable-bitmap",
-  "image/x-portable-graymap",
-  "image/x-portable-pixmap",
-  "application/vnd.ros1.bag",
-  "application/vnd.cyber.rt",
-  "application/vnd.mcap",
-];
-
-const checkBagFileSupported = (file: File) => {
-  return !!(file.mediaStorageUri && SupportedFileTypes.includes(file.mediaType));
-};
 
 export function CoSceneProviders(): JSX.Element[] {
   const currentUser = localStorage.getItem("current_user") ?? "{}";
@@ -84,8 +69,6 @@ export function CoSceneProviders(): JSX.Element[] {
 
       const recordId = url.searchParams.get("ds.recordId");
 
-      const revisionId = url.searchParams.get("ds.revisionId");
-
       const jobRunsId = url.searchParams.get("ds.jobRunsId");
 
       const workflowRunsId = url.searchParams.get("ds.workflowRunsId");
@@ -98,7 +81,6 @@ export function CoSceneProviders(): JSX.Element[] {
         warehouseId,
         projectId,
         recordId: recordId ?? undefined,
-        revisionId: revisionId ?? undefined,
         jobRunsId: jobRunsId ?? undefined,
         workflowRunsId: workflowRunsId ?? undefined,
         projectSlug: projectSlug ?? undefined,
@@ -140,7 +122,6 @@ export function CoSceneProviders(): JSX.Element[] {
           });
       } else {
         const recordName = `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
-        const revisionName = `${recordName}/revisions/${revisionId}`;
 
         consoleApi
           .getRecord({ recordName })
@@ -150,7 +131,7 @@ export function CoSceneProviders(): JSX.Element[] {
 
             consoleApi
               .listFiles({
-                revisionName,
+                revcordName: recordName,
                 pageSize: 100,
                 filter: "",
                 currentPage: 0,
