@@ -3,7 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as base64 from "@protobufjs/base64";
+import { t } from "i18next";
 import * as _ from "lodash-es";
+import { Trans } from "react-i18next";
 import { v4 as uuidv4 } from "uuid";
 
 import { debouncePromise } from "@foxglove/den/async";
@@ -276,10 +278,28 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
       this.#problems.addProblem("ws:connection-failed", {
         severity: "error",
-        message: "Connection failed",
-        tip: `Check that the WebSocket server at ${
-          this.#url
-        } is reachable and supports protocol version ${FoxgloveClient.SUPPORTED_SUBPROTOCOL}.`,
+        message: t("cosError:connectionFailed"),
+        tip: (
+          <span>
+            {`${t("cosError:insecureWebSocketConnectionMessage", {
+              url: this.#url,
+              version: FoxgloveClient.SUPPORTED_SUBPROTOCOL,
+            })}`}
+            <br />
+            1. {t("cosError:checkNetworkConnection")}
+            <br />
+            2.{" "}
+            <Trans
+              t={t}
+              i18nKey="cosError:checkFoxgloveBridge"
+              components={{
+                docLink: <a style={{ color: "#2563eb" }} target="_blank" rel="noopener" />,
+              }}
+            />
+            <br />
+            3. {t("cosError:contactUs")}
+          </span>
+        ),
       });
 
       this.#emitState();
