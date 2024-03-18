@@ -28,7 +28,7 @@ export function CoSceneProviders(): JSX.Element[] {
   const currentUserId = JSON.parse(currentUser).userId ?? "";
 
   if (currentUserId == undefined || currentUserId === "") {
-    throw new Error("currentUserId is empty");
+    window.location.href = "/login";
   }
 
   const consoleApi = useMemo(
