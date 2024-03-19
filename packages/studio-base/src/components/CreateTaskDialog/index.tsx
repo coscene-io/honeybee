@@ -35,6 +35,7 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 const useStyles = makeStyles()(() => ({
   avatar: {
     width: 18,
+    height: 18,
     borderRadius: "50%",
     marginRight: 5,
   },
