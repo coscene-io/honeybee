@@ -293,7 +293,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
               t={t}
               i18nKey="cosError:checkFoxgloveBridge"
               components={{
-                docLink: <a style={{ color: "#2563eb" }} target="_blank" rel="noopener" />,
+                docLink: (
+                  <a
+                    style={{ color: "#2563eb" }}
+                    target="_blank"
+                    href="https://docs.coscene.cn/docs/recipes/device/device-remote-control"
+                    rel="noopener"
+                  />
+                ),
               }}
             />
             <br />
