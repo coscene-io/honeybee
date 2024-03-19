@@ -381,7 +381,7 @@ function ChooserComponent({
   const [filesList, syncFilesList] = useAsyncFn(async () => {
     const filter = CosQuery.Companion.empty();
 
-    filter.setField(QueryFields.FILENAME, [BinaryOperator.HAS], [filesFilter]);
+    filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesFilter]);
 
     if (record && listType === "files") {
       return await consoleApi.listFiles({
