@@ -191,6 +191,7 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
           }
 
           defaultFilter.setField(QueryFields.RECORD_DOT_ID, [BinaryOperator.EQ], [recordId]);
+          defaultFilter.setField(QueryFields.RECORD_JOB_RUN, [BinaryOperator.EQ], ["null"]);
           getEventsRequest.push({
             projectName,
             filter: defaultFilter.toQueryString(new SerializeOption(false)),
