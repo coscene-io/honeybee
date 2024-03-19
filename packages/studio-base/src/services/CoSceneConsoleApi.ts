@@ -535,7 +535,7 @@ class CoSceneConsoleApi {
     this.#responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
-        throw new Error("Not logged in. Please log in again.");
+        window.location.href = "/login";
       } else if (res.status === 403) {
         throw new Error(
           "Unauthorized. Please check if you are logged in and have permission to access.",
