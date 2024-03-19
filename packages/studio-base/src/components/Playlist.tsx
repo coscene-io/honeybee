@@ -114,19 +114,25 @@ export function Playlist(): JSX.Element {
     [setHoveredBag],
   );
 
-  const handleAddFiles = (fileNames: string[]) => {
+  const handleAddFiles = (selectedFiles: { filename: string; sha256: string }[]) => {
     const files: readonly ParamsFile[] = baseInfo.files ?? [];
-    const fileNamesSet = new Set(fileNames);
+    const fileNamesSet = new Set<{ filename: string; sha256: string }>();
+
+    selectedFiles.forEach((file) => {
+      fileNamesSet.add({
+        filename: file.filename,
+        sha256: file.sha256,
+      });
+    });
+
     files.forEach((bag) => {
       if ("filename" in bag) {
-        fileNamesSet.add(bag.filename);
+        fileNamesSet.add({ filename: bag.filename, sha256: bag.sha256 });
       }
     });
-    const newFiles: ParamsFile[] = Array.from(fileNamesSet).map((fileName) => {
-      return {
-        filename: fileName,
-      };
-    });
+
+    const newFiles: ParamsFile[] = Array.from(fileNamesSet);
+
     files.forEach((bag) => {
       if ("jobRunsName" in bag) {
         newFiles.push({
@@ -238,7 +244,11 @@ export function Playlist(): JSX.Element {
           setAddFileDialogOpen(false);
         }}
         onConfirm={(files) => {
-          const fileNames = files.map((file) => file.file.name);
+          const fileNames = files.map((file) => ({
+            filename: file.file.name,
+            sha256: file.file.sha256,
+          }));
+
           handleAddFiles(fileNames);
         }}
         type="files"
