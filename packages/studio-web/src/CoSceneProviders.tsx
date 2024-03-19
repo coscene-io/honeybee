@@ -126,7 +126,7 @@ export function CoSceneProviders(): JSX.Element[] {
         consoleApi
           .getRecord({ recordName })
           .then((record) => {
-            const fileNames: { filename: string }[] = [];
+            const fileNames: { filename: string; sha256: string }[] = [];
             baseInfo["recordDisplayName"] = record.getTitle() || "unknow";
 
             consoleApi
@@ -139,7 +139,7 @@ export function CoSceneProviders(): JSX.Element[] {
               .then((res) => {
                 res.files.forEach((file) => {
                   if (checkBagFileSupported(file)) {
-                    fileNames.push({ filename: file.name });
+                    fileNames.push({ filename: file.name, sha256: file.sha256 });
                   }
                 });
 
