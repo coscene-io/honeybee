@@ -18,7 +18,7 @@ export type BaseInfo = {
   jobRunsDisplayName?: string;
   jobRunsId?: string;
   workflowRunsId?: string;
-  files?: Array<{ jobRunsName: string } | { filename: string }>;
+  files?: Array<{ jobRunsName: string } | { filename: string; sha256: string }>;
 };
 
 export type CoSceneBaseStore = DeepReadonly<{
