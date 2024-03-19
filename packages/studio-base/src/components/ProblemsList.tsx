@@ -113,7 +113,7 @@ function ProblemIcon({ severity }: { severity: NotificationSeverity }): JSX.Elem
   }
 }
 
-function ProblemDetails(props: { details: DetailsType; tip?: string }): JSX.Element {
+function ProblemDetails(props: { details: DetailsType; tip?: React.ReactNode }): JSX.Element {
   const { t } = useTranslation("problemsList");
   const { details, tip } = props;
   const { classes } = useStyles();
@@ -136,7 +136,7 @@ function ProblemDetails(props: { details: DetailsType; tip?: string }): JSX.Elem
 
   return (
     <AccordionDetails className={classes.accordionDetails}>
-      {tip && <div>{tip}</div>}
+      {tip != undefined && <div>{tip}</div>}
       {content}
     </AccordionDetails>
   );

@@ -21,4 +21,12 @@ export const cosError = {
   useForAlwaysFail: "Test interface for always failing",
   unknownError: "Unknown error",
   currentUrlNotSupported: "Current URL is not supported",
+  insecureWebSocketConnection: "Insecure WebSocket connection",
+  insecureWebSocketConnectionMessage:
+    "Check that the WebSocket server at {{url}} is reachable and supports protocol version {{version}}.",
+  checkNetworkConnection: "Please check the network status of the device or robot you are using.",
+  checkFoxgloveBridge:
+    "Please check if your robot has installed <docLink>foxglove_bridge</docLink>",
+  contactUs: "If none of the above methods can solve the issue, please contact us.",
+  connectionFailed: "Connection failed",
 };

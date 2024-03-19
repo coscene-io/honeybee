@@ -86,7 +86,7 @@ export type PlayerProblem = {
   severity: NotificationSeverity;
   message: string;
   error?: Error;
-  tip?: string;
+  tip?: React.ReactNode;
 };
 
 export type PlayerURLState = Immutable<{
