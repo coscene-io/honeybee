@@ -2,6 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { BinaryOperator, CosQuery, SerializeOption } from "@coscene-io/coscene/cosel";
+import { QueryFields } from "@coscene-io/coscene/queries";
 import { useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
@@ -177,16 +179,22 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
           });
         } else {
           const projectName = fileSource.split("/records/")[0];
-          const revisionSha256 = fileSource.split("/revisions/")[1]?.split("/files/")[0];
-          const filter = `revision.sha256="${revisionSha256}"`;
+          const recordId = fileSource.split("/files/")[0]?.split("/").pop();
+          const defaultFilter = CosQuery.Companion.empty();
 
           if (projectName == undefined) {
             throw new Error("wrong source name");
           }
 
+          if (recordId == undefined) {
+            throw new Error("wrong recordId");
+          }
+
+          defaultFilter.setField(QueryFields.RECORD_DOT_ID, [BinaryOperator.EQ], [recordId]);
+          defaultFilter.setField(QueryFields.RECORD_JOB_RUN, [BinaryOperator.EQ], ["null"]);
           getEventsRequest.push({
             projectName,
-            filter,
+            filter: defaultFilter.toQueryString(new SerializeOption(false)),
             startTime: currentBagStartTime,
             endTime: currentBagEndTime,
             projectDisplayName: bagFile.projectDisplayName ?? "",

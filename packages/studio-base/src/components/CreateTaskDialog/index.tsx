@@ -68,7 +68,7 @@ export function CreateTaskDialog({
 
   const projectName = fileName.split("/records/")[0];
 
-  const recordName = fileName.split("/revisions/")[0];
+  const recordName = fileName.split("/files/")[0];
 
   const [task, setTask] = useImmer<{
     title: string;

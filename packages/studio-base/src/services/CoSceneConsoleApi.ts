@@ -262,7 +262,7 @@ export type SingleFileGetEventsRequest = {
   projectName: string;
   projectDisplayName: string;
   recordDisplayName: string;
-  filter: string;
+  filter?: string;
   startTime: number;
   endTime: number;
 };
