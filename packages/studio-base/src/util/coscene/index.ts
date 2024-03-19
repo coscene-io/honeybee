@@ -196,6 +196,8 @@ const SupportedFileExtension = [
   "pbm",
   "record",
   "mcap",
+  "yaml",
+  "yml",
 ];
 
 export const checkBagFileSupported = (file: File): boolean => {
