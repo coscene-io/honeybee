@@ -34,7 +34,7 @@ function positionBag({
   displayName,
   startTime,
   endTime,
-  fileType,
+  ghostModeFileType,
   projectName,
   recordName,
   currentFileStartTime,
@@ -49,7 +49,7 @@ function positionBag({
   currentFileEndTime: number;
   projectName: string;
   recordName: string;
-  fileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
+  ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
   timeMode: "relativeTime" | "absoluteTime";
 }): BagFileInfo {
   const startSecs = toSec(startTime);
@@ -74,7 +74,7 @@ function positionBag({
     startTime: bagFileStartTime,
     endTime: bagFileEndTime,
     secondsSinceStart: startTimeInSeconds - startSecs,
-    fileType,
+    fileType: ghostModeFileType,
     startPosition,
     endPosition,
     projectDisplayName: projectName,
