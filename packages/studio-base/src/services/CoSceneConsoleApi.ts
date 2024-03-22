@@ -198,7 +198,7 @@ export type getPlaylistResponse = {
     endTime: number;
     projectName: string;
     recordName: string;
-    fileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
+    ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
   }[];
 };
 
@@ -262,7 +262,7 @@ export type SingleFileGetEventsRequest = {
   projectName: string;
   projectDisplayName: string;
   recordDisplayName: string;
-  filter: string;
+  filter?: string;
   startTime: number;
   endTime: number;
 };

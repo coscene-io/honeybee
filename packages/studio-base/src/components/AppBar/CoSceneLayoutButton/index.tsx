@@ -618,6 +618,7 @@ export function CoSceneLayoutButton(): JSX.Element {
       {promptModal}
       {confirmModal}
       {unsavedChangesPrompt}
+      {layoutActions.unsavedChangesPrompt}
       <Menu
         id="add-panel-menu"
         anchorEl={anchorEl.current}

@@ -510,12 +510,12 @@ export function usePlotPanelSettings(
         return (
           (file.fileType === "GHOST_SOURCE_FILE" || file.fileType === "NORMAL_FILE") &&
           file.recordDisplayName != undefined &&
-          file.name.split("/revisions/")[0] != undefined
+          file.name.split("/files/")[0] != undefined
         );
       })
       .map((file) => ({
         label: file.recordDisplayName ?? "",
-        value: file.name.split("/revisions/")[0] ?? "",
+        value: file.name.split("/files/")[0] ?? "",
       }));
   }, [bagFiles.value]);
 

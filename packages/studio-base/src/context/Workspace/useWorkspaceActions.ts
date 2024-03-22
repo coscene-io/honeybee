@@ -91,6 +91,7 @@ export type WorkspaceActions = {
     // Export the current layout to a file
     // This will perform a browser download of the current layout to a file
     exportToFile: (layout: Layout) => void;
+    unsavedChangesPrompt: JSX.Element | undefined;
   };
 };
 
@@ -110,7 +111,7 @@ const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.i
 export function useWorkspaceActions(): WorkspaceActions {
   const { setState } = useGuaranteedContext(WorkspaceContext);
   const layoutManager = useLayoutManager();
-  const { openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
+  const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const { enqueueSnackbar } = useSnackbar();
   const { setSelectedLayoutId } = useCurrentLayoutActions();
@@ -464,7 +465,8 @@ export function useWorkspaceActions(): WorkspaceActions {
       layoutActions: {
         importFromFile: importLayout,
         exportToFile: onExportLayout,
+        unsavedChangesPrompt,
       },
     };
-  }, [onExportLayout, importLayout, openFile, set]);
+  }, [onExportLayout, importLayout, openFile, set, unsavedChangesPrompt]);
 }

@@ -48,6 +48,7 @@ export type CoScenePlaylistStore = DeepReadonly<{
 export type ParamsFile =
   | {
       filename: string;
+      sha256: string;
     }
   | {
       jobRunsName: string;
