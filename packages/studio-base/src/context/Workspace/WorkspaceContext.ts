@@ -11,7 +11,7 @@ import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourc
 import { IDataSourceFactory } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 
-export const LeftSidebarItemKeys = ["panel-settings", "topics", "problems"] as const;
+export const LeftSidebarItemKeys = ["panel-settings", "topics", "problems", "playlist"] as const;
 export type LeftSidebarItemKey = (typeof LeftSidebarItemKeys)[number];
 
 export const RightSidebarItemKeys = [

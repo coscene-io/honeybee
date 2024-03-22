@@ -3,6 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Ruler20Filled, Ruler20Regular } from "@fluentui/react-icons";
+import AddIcon from "@mui/icons-material/Add";
+import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
+import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Button,
   IconButton,
@@ -36,9 +39,12 @@ import type { PickedRenderable } from "./Picker";
 import { Renderable } from "./Renderable";
 import { useRenderer, useRendererEvent } from "./RendererContext";
 import { Stats } from "./Stats";
-import { MouseEventObject } from "./camera";
+import { DEFAULT_CAMERA_STATE, MouseEventObject } from "./camera";
 import { PublishClickType } from "./renderables/PublishClickTool";
 import { InterfaceMode } from "./types";
+
+const ZOOM_IN_LIMITATION = 1;
+const ZOOM_OUT_LIMITATION = 40;
 
 const PublishClickIcons: Record<PublishClickType, React.ReactNode> = {
   pose: <PublishGoalIcon fontSize="small" />,
@@ -82,6 +88,13 @@ const useStyles = makeStyles()((theme) => ({
     marginBottom: theme.spacing(1),
     marginRight: theme.spacing(1),
   },
+  scaleDisplay: {
+    pointerEvents: "auto",
+    padding: theme.spacing(1, 0),
+    width: theme.spacing(4),
+    fontSize: "0.5rem",
+    textAlign: "center",
+  },
   kbd: {
     fontFamily: theme.typography.fontMonospace,
     background: tc(theme.palette.common.white).darken(45).toString(),
@@ -108,6 +121,9 @@ type Props = {
   publishActive: boolean;
   publishClickType: PublishClickType;
   timezone: string | undefined;
+  onResetCamera: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
 };
 
 /**
@@ -116,6 +132,7 @@ type Props = {
 export function RendererOverlay(props: Props): JSX.Element {
   const { t } = useTranslation("threeDee");
   const { classes } = useStyles();
+  const { onResetCamera, onZoomIn, onZoomOut } = props;
   const [clickedPosition, setClickedPosition] = useState<{ clientX: number; clientY: number }>({
     clientX: 0,
     clientY: 0,
@@ -220,6 +237,21 @@ export function RendererOverlay(props: Props): JSX.Element {
   const longPressPublishEvent = useLongPress(onLongPressPublish);
 
   const theme = useTheme();
+
+  const scaleDisplay = () => {
+    const currentZoomValue = renderer?.getCameraState()?.distance ?? 20;
+
+    if (currentZoomValue === ZOOM_IN_LIMITATION) {
+      return "200%";
+    } else if (currentZoomValue >= ZOOM_OUT_LIMITATION) {
+      return "0  %";
+    } else {
+      return `${(
+        (1 - (currentZoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
+        100
+      ).toFixed(0)}%`;
+    }
+  };
 
   // Publish control is only available if the canPublish prop is true and we have a fixed frame in the renderer
   const showPublishControl =
@@ -373,6 +405,54 @@ export function RendererOverlay(props: Props): JSX.Element {
             </Tooltip>
 
             {publishControls}
+          </Paper>
+        )}
+
+        {props.interfaceMode === "3d" && (
+          <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
+            <IconButton
+              color="inherit"
+              title={t("reCenter", { ns: "cosThreeDee" })}
+              onClick={onResetCamera}
+              style={{ pointerEvents: "auto" }}
+            >
+              <FilterCenterFocusIcon
+                style={{
+                  fontSize: 16,
+                }}
+              />
+            </IconButton>
+          </Paper>
+        )}
+
+        {props.interfaceMode === "3d" && (
+          <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
+            <IconButton
+              color="inherit"
+              title={t("zoomIn", { ns: "cosThreeDee" })}
+              onClick={onZoomIn}
+              style={{ pointerEvents: "auto" }}
+            >
+              <AddIcon
+                style={{
+                  fontSize: 16,
+                }}
+              />
+            </IconButton>
+            <div className={classes.scaleDisplay}>{scaleDisplay()}</div>
+
+            <IconButton
+              color="inherit"
+              title={t("zoomOut", { ns: "cosThreeDee" })}
+              onClick={onZoomOut}
+              style={{ pointerEvents: "auto" }}
+            >
+              <RemoveIcon
+                style={{
+                  fontSize: 16,
+                }}
+              />
+            </IconButton>
           </Paper>
         )}
       </div>
