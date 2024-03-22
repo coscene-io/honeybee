@@ -3,17 +3,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import CloseIcon from "@mui/icons-material/Close";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import {
   Alert,
   Button,
-  Checkbox,
   Dialog,
   DialogActions,
   DialogProps,
   DialogTitle,
-  FormControlLabel,
   IconButton,
   Link,
   Tab,
@@ -25,7 +22,6 @@ import { MouseEvent, SyntheticEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { AppSetting } from "@foxglove/studio-base";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import { CoSceneTextLogo } from "@foxglove/studio-base/components/CoSceneLogo";
 import CopyButton from "@foxglove/studio-base/components/CopyButton";
@@ -36,7 +32,6 @@ import {
   useWorkspaceStore,
   WorkspaceContextStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import {
@@ -69,22 +64,12 @@ const useStyles = makeStyles()((theme) => ({
   tabPanelActive: {
     display: "block",
   },
-  checkbox: {
-    "&.MuiCheckbox-root": {
-      paddingTop: 0,
-    },
-  },
   dialogActions: {
     position: "sticky",
     backgroundColor: theme.palette.background.paper,
     borderTop: `${theme.palette.divider} 1px solid`,
     padding: theme.spacing(1),
     bottom: 0,
-  },
-  formControlLabel: {
-    "&.MuiFormControlLabel-root": {
-      alignItems: "start",
-    },
   },
   tab: {
     svg: {
@@ -194,12 +179,7 @@ export function AppSettingsDialog(
   const [activeTab, setActiveTab] = useState<AppSettingsTab>(
     _activeTab ?? initialActiveTab ?? "general",
   );
-  const [crashReportingEnabled, setCrashReportingEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.CRASH_REPORTING_ENABLED,
-  );
-  const [telemetryEnabled, setTelemetryEnabled] = useAppConfigurationValue<boolean>(
-    AppSetting.TELEMETRY_ENABLED,
-  );
+
   // const [debugModeEnabled = false, setDebugModeEnabled] = useAppConfigurationValue<boolean>(
   //   AppSetting.SHOW_DEBUG_PANELS,
   // );
@@ -287,42 +267,6 @@ export function AppSettingsDialog(
                   label={t("debugModeDescription")}
                 />
               </Stack> */}
-            </Stack>
-          </section>
-
-          <section
-            className={cx(classes.tabPanel, {
-              [classes.tabPanelActive]: activeTab === "privacy",
-            })}
-          >
-            <Stack gap={2}>
-              <Alert color="info" icon={<InfoOutlinedIcon />}>
-                {t("privacyDescription")}
-              </Alert>
-              <Stack gap={0.5} paddingLeft={2}>
-                <FormControlLabel
-                  className={classes.formControlLabel}
-                  control={
-                    <Checkbox
-                      className={classes.checkbox}
-                      checked={telemetryEnabled ?? true}
-                      onChange={(_event, checked) => void setTelemetryEnabled(checked)}
-                    />
-                  }
-                  label={t("sendAnonymizedUsageData")}
-                />
-                <FormControlLabel
-                  className={classes.formControlLabel}
-                  control={
-                    <Checkbox
-                      className={classes.checkbox}
-                      checked={crashReportingEnabled ?? true}
-                      onChange={(_event, checked) => void setCrashReportingEnabled(checked)}
-                    />
-                  }
-                  label={t("sendAnonymizedCrashReports")}
-                />
-              </Stack>
             </Stack>
           </section>
 

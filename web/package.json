@@ -5,13 +5,13 @@
     "@foxglove/log": "workspace:*",
     "@foxglove/studio-web": "workspace:*",
     "@foxglove/tsconfig": "2.0.0",
-    "@sentry/browser": "7.44.2",
-    "@sentry/tracing": "7.44.2",
-    "@sentry/webpack-plugin": "1.20.0",
     "@types/serve-handler": "^6",
+    "@sentry/browser": "7.44.2",
+    "@sentry/webpack-plugin": "1.20.0",
+    "@sentry/tracing": "7.44.2",
     "playwright": "1.37.1",
     "serve-handler": "6.1.5",
-    "webpack": "5.88.2",
+    "webpack": "5.90.1",
     "webpack-dev-server": "4.15.1"
   }
 }

@@ -158,7 +158,6 @@ function SourceInfo(): JSX.Element {
   );
 }
 
-SourceInfo.panelType = "SourceInfo";
 SourceInfo.defaultConfig = {};
 
 export default Panel(SourceInfo);

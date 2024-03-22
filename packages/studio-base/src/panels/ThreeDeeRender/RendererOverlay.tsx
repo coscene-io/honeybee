@@ -3,9 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Ruler20Filled, Ruler20Regular } from "@fluentui/react-icons";
-import AddIcon from "@mui/icons-material/Add";
-import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
-import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Button,
   IconButton,
@@ -14,11 +11,13 @@ import {
   Menu,
   MenuItem,
   Paper,
+  Tooltip,
   useTheme,
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLongPress } from "react-use";
+import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
 import { LayoutActions } from "@foxglove/studio";
@@ -37,12 +36,9 @@ import type { PickedRenderable } from "./Picker";
 import { Renderable } from "./Renderable";
 import { useRenderer, useRendererEvent } from "./RendererContext";
 import { Stats } from "./Stats";
-import { DEFAULT_CAMERA_STATE, MouseEventObject } from "./camera";
+import { MouseEventObject } from "./camera";
 import { PublishClickType } from "./renderables/PublishClickTool";
 import { InterfaceMode } from "./types";
-
-const ZOOM_IN_LIMITATION = 1;
-const ZOOM_OUT_LIMITATION = 40;
 
 const PublishClickIcons: Record<PublishClickType, React.ReactNode> = {
   pose: <PublishGoalIcon fontSize="small" />,
@@ -86,12 +82,13 @@ const useStyles = makeStyles()((theme) => ({
     marginBottom: theme.spacing(1),
     marginRight: theme.spacing(1),
   },
-  scaleDisplay: {
-    pointerEvents: "auto",
-    padding: theme.spacing(1, 0),
-    width: theme.spacing(4),
-    fontSize: "0.5rem",
-    textAlign: "center",
+  kbd: {
+    fontFamily: theme.typography.fontMonospace,
+    background: tc(theme.palette.common.white).darken(45).toString(),
+    padding: theme.spacing(0, 0.5),
+    aspectRatio: 1,
+    borderRadius: theme.shape.borderRadius,
+    marginLeft: theme.spacing(1),
   },
 }));
 
@@ -111,9 +108,6 @@ type Props = {
   publishActive: boolean;
   publishClickType: PublishClickType;
   timezone: string | undefined;
-  onResetCamera: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
 };
 
 /**
@@ -122,7 +116,6 @@ type Props = {
 export function RendererOverlay(props: Props): JSX.Element {
   const { t } = useTranslation("threeDee");
   const { classes } = useStyles();
-  const { onResetCamera, onZoomIn, onZoomOut } = props;
   const [clickedPosition, setClickedPosition] = useState<{ clientX: number; clientY: number }>({
     clientX: 0,
     clientY: 0,
@@ -228,50 +221,39 @@ export function RendererOverlay(props: Props): JSX.Element {
 
   const theme = useTheme();
 
-  const scaleDisplay = () => {
-    const currentZoomValue = renderer?.getCameraState()?.distance ?? 20;
-
-    if (currentZoomValue === ZOOM_IN_LIMITATION) {
-      return "200%";
-    } else if (currentZoomValue >= ZOOM_OUT_LIMITATION) {
-      return "0  %";
-    } else {
-      return `${(
-        (1 - (currentZoomValue - DEFAULT_CAMERA_STATE.distance) / DEFAULT_CAMERA_STATE.distance) *
-        100
-      ).toFixed(0)}%`;
-    }
-  };
-
   // Publish control is only available if the canPublish prop is true and we have a fixed frame in the renderer
   const showPublishControl =
     props.interfaceMode === "3d" && props.canPublish && renderer?.fixedFrameId != undefined;
   const publishControls = showPublishControl && (
     <>
-      <IconButton
-        {...longPressPublishEvent}
-        className={classes.iconButton}
-        size="small"
-        color={props.publishActive ? "info" : "inherit"}
+      <Tooltip
+        placement="left"
         title={props.publishActive ? "Click to cancel" : "Click to publish"}
-        ref={publickClickButtonRef}
-        onClick={props.onClickPublish}
-        data-testid="publish-button"
       >
-        {selectedPublishClickIcon}
-        <div
-          style={{
-            borderBottom: "6px solid currentColor",
-            borderRight: "6px solid transparent",
-            bottom: 0,
-            left: 0,
-            height: 0,
-            width: 0,
-            margin: theme.spacing(0.25),
-            position: "absolute",
-          }}
-        />
-      </IconButton>
+        <IconButton
+          {...longPressPublishEvent}
+          className={classes.iconButton}
+          size="small"
+          color={props.publishActive ? "info" : "inherit"}
+          ref={publickClickButtonRef}
+          onClick={props.onClickPublish}
+          data-testid="publish-button"
+        >
+          {selectedPublishClickIcon}
+          <div
+            style={{
+              borderBottom: "6px solid currentColor",
+              borderRight: "6px solid transparent",
+              bottom: 0,
+              left: 0,
+              height: 0,
+              width: 0,
+              margin: theme.spacing(0.25),
+              position: "absolute",
+            }}
+          />
+        </IconButton>
+      </Tooltip>
       <Menu
         id="publish-menu"
         anchorEl={publickClickButtonRef.current}
@@ -355,77 +337,42 @@ export function RendererOverlay(props: Props): JSX.Element {
         }
         {props.interfaceMode === "3d" && (
           <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
-            <IconButton
-              className={classes.iconButton}
-              size="small"
-              color={props.perspective ? "info" : "inherit"}
-              title={props.perspective ? "Switch to 2D camera" : "Switch to 3D camera"}
-              onClick={props.onTogglePerspective}
+            <Tooltip
+              placement="left"
+              title={
+                <>
+                  {`Switch to ${props.perspective ? "2" : "3"}D camera `}
+                  <kbd className={classes.kbd}>3</kbd>
+                </>
+              }
             >
-              <span className={classes.threeDeeButton}>3D</span>
-            </IconButton>
-            <IconButton
-              data-testid="measure-button"
-              className={classes.iconButton}
-              size="small"
-              color={props.measureActive ? "info" : "inherit"}
+              <IconButton
+                className={classes.iconButton}
+                size="small"
+                color={props.perspective ? "info" : "inherit"}
+                onClick={props.onTogglePerspective}
+              >
+                <span className={classes.threeDeeButton}>3D</span>
+              </IconButton>
+            </Tooltip>
+            <Tooltip
+              placement="left"
               title={props.measureActive ? "Cancel measuring" : "Measure distance"}
-              onClick={props.onClickMeasure}
             >
-              <div className={classes.rulerIcon}>
-                {props.measureActive ? <Ruler20Filled /> : <Ruler20Regular />}
-              </div>
-            </IconButton>
+              <IconButton
+                data-testid="measure-button"
+                className={classes.iconButton}
+                size="small"
+                color={props.measureActive ? "info" : "inherit"}
+                onClick={props.onClickMeasure}
+              >
+                <div className={classes.rulerIcon}>
+                  {props.measureActive ? <Ruler20Filled /> : <Ruler20Regular />}
+                </div>
+              </IconButton>
+            </Tooltip>
 
             {publishControls}
-          </Paper>
-        )}
-
-        {props.interfaceMode === "3d" && (
-          <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
-            <IconButton
-              color="inherit"
-              title={t("reCenter", { ns: "cosThreeDee" })}
-              onClick={onResetCamera}
-              style={{ pointerEvents: "auto" }}
-            >
-              <FilterCenterFocusIcon
-                style={{
-                  fontSize: 16,
-                }}
-              />
-            </IconButton>
-          </Paper>
-        )}
-
-        {props.interfaceMode === "3d" && (
-          <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
-            <IconButton
-              color="inherit"
-              title={t("zoomIn", { ns: "cosThreeDee" })}
-              onClick={onZoomIn}
-              style={{ pointerEvents: "auto" }}
-            >
-              <AddIcon
-                style={{
-                  fontSize: 16,
-                }}
-              />
-            </IconButton>
-            <div className={classes.scaleDisplay}>{scaleDisplay()}</div>
-
-            <IconButton
-              color="inherit"
-              title={t("zoomOut", { ns: "cosThreeDee" })}
-              onClick={onZoomOut}
-              style={{ pointerEvents: "auto" }}
-            >
-              <RemoveIcon
-                style={{
-                  fontSize: 16,
-                }}
-              />
-            </IconButton>
           </Paper>
         )}
       </div>

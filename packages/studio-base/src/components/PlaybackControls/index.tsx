@@ -55,7 +55,6 @@ import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 import { getOS } from "@foxglove/studio-base/util/coscene";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
-import { RepeatAdapter } from "./RepeatAdapter";
 import Scrubber from "./Scrubber";
 import { DIRECTION, jumpSeek } from "./sharedHelpers";
 
@@ -68,13 +67,7 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.background.paper,
     borderTop: `1px solid ${theme.palette.divider}`,
     zIndex: 100000,
-  },
-  createMoment: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: theme.spacing(0, 0, 0, 0.5),
-    fontSize: "0.75rem",
+    overflowX: "auto",
   },
   disabled: {
     opacity: theme.palette.action.disabledOpacity,
@@ -87,6 +80,13 @@ const useStyles = makeStyles()((theme) => ({
   dataSourceInfoButton: {
     cursor: "default",
   },
+  createMoment: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: theme.spacing(0, 0, 0, 0.5),
+    fontSize: "0.75rem",
+  },
 }));
 
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
@@ -97,15 +97,26 @@ export default function PlaybackControls(props: {
   play: NonNullable<Player["startPlayback"]>;
   pause: NonNullable<Player["pausePlayback"]>;
   seek: NonNullable<Player["seekPlayback"]>;
+  enableRepeatPlayback: NonNullable<Player["enableRepeatPlayback"]>;
   playUntil?: Player["playUntil"];
   isPlaying: boolean;
+  repeatEnabled: boolean;
   getTimeInfo: () => { startTime?: Time; endTime?: Time; currentTime?: Time };
 }): JSX.Element {
   const isDemoSite =
     localStorage.getItem("demoSite") === "true" &&
     localStorage.getItem("honeybeeDemoStatus") === "start";
 
-  const { play, pause, seek, isPlaying, getTimeInfo, playUntil } = props;
+  const {
+    play,
+    pause,
+    seek,
+    isPlaying,
+    getTimeInfo,
+    playUntil,
+    repeatEnabled,
+    enableRepeatPlayback,
+  } = props;
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
   const { t } = useTranslation("cosEvent");
@@ -123,8 +134,17 @@ export default function PlaybackControls(props: {
   } = useWorkspaceActions();
 
   const toggleRepeat = useCallback(() => {
+    // toggle repeat on the workspace
     setRepeat((old) => !old);
   }, [setRepeat]);
+
+  useEffect(() => {
+    // if workspace has a preference stored that is not reflected in the iterable player...
+    if (repeat !== repeatEnabled) {
+      // sync the workspace preference with the iterable player
+      enableRepeatPlayback(repeat);
+    }
+  }, [repeat, repeatEnabled, enableRepeatPlayback]);
 
   const togglePlayPause = useCallback(() => {
     if (isDemoSite) {
@@ -213,7 +233,6 @@ export default function PlaybackControls(props: {
 
   return (
     <>
-      <RepeatAdapter play={play} seek={seek} repeatEnabled={repeat} />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.root}>
         <Scrubber onSeek={seek} />
@@ -299,7 +318,8 @@ export default function PlaybackControls(props: {
             <HoverableIconButton
               size="small"
               title="Loop playback"
-              color={repeat ? "primary" : "inherit"}
+              disabled={disableControls}
+              color={repeatEnabled ? "primary" : "inherit"}
               onClick={toggleRepeat}
               icon={repeat ? <ArrowRepeatAll20Regular /> : <ArrowRepeatAllOff20Regular />}
             />
