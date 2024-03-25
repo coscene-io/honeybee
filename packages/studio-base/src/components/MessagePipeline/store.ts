@@ -21,7 +21,6 @@ import {
   PlayerState,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
-import { assertNever } from "@foxglove/studio-base/util/assertNever";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { FramePromise } from "./pauseFrameForPromise";
