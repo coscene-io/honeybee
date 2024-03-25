@@ -55,8 +55,6 @@ function isPrimitiveType(type: string): type is PrimitiveType {
     case "string":
       return true;
   }
-
-  return false;
 }
 
 function structureItemIsIntegerPrimitive(item: MessagePathStructureItem) {
@@ -280,6 +278,7 @@ export const traverseStructure = (
         return { valid: false, msgPathPart, structureItem };
       }
       structureItem = structureItem.next;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if (msgPathPart.type === "filter") {
       if (
         structureItem.structureType !== "message" ||
@@ -299,7 +298,10 @@ export const traverseStructure = (
         }
       }
     } else {
-      assertNever(msgPathPart, `Invalid msgPathPart.type: ${msgPathPart.type}`);
+      assertNever(
+        msgPathPart,
+        `Invalid msgPathPart.type: ${(msgPathPart as MessagePathPart).type}`,
+      );
     }
   }
   return { valid: true, msgPathPart: undefined, structureItem };

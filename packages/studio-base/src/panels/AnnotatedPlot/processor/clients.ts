@@ -4,7 +4,7 @@
 
 import * as R from "ramda";
 
-import parseRosPath from "@foxglove/studio-base/components/MessagePathSyntax/parseRosPath";
+import parseRosPath from "@foxglove/studio-base/components/CoSceneDeduplicatedMessagePath/parseRosPath";
 import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import { PlotViewport } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";

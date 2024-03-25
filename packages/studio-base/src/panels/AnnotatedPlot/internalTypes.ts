@@ -13,10 +13,10 @@
 
 import { ChartDataset } from "chart.js";
 
+import { MessagePathStructureItemMessage } from "@foxglove/message-path";
 import { Time } from "@foxglove/rostime";
 import { Immutable } from "@foxglove/studio";
 import type { TypedData as OriginalTypedData } from "@foxglove/studio-base/components/Chart/types";
-import { MessagePathStructureItemMessage } from "@foxglove/studio-base/components/MessagePathSyntax/constants";
 import { MessagePathDataItem } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import type { ChartDatum } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { Topic, MessageEvent } from "@foxglove/studio-base/players/types";

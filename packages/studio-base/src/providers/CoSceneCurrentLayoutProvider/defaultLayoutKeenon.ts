@@ -753,9 +753,6 @@ export const keenonDefaultLayout: LayoutData = {
   },
   globalVariables: {},
   userNodes: {},
-  playbackConfig: {
-    speed: 1,
-  },
   layout: {
     first: "3D!3me9aqv",
     second: {

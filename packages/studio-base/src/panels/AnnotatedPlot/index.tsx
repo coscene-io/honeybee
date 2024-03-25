@@ -25,6 +25,7 @@ import {
   subtract as subtractTimes,
   toSec,
 } from "@foxglove/rostime";
+import { ChartDefaultView } from "@foxglove/studio-base/components/CoSceneDeduplicatedTimeBasedChart";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -40,7 +41,6 @@ import PanelToolbar, {
   PANEL_TOOLBAR_MIN_HEIGHT,
 } from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { ChartDefaultView } from "@foxglove/studio-base/components/TimeBasedChart";
 import { useEvents, EventsStore } from "@foxglove/studio-base/context/EventsContext";
 import {
   TimelineInteractionStateStore,

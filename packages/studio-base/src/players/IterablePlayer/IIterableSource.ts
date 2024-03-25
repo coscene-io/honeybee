@@ -141,7 +141,7 @@ export interface IMessageCursor<MessageType = unknown> {
    * more messages and return. This duration tracks the receive time from the first message in the
    * batch.
    */
-  nextBatch(durationMs: number): Promise<IteratorResult[] | undefined>;
+  nextBatch(durationMs: number): Promise<IteratorResult<MessageType>[] | undefined>;
 
   /**
    * Read a batch of messages through end time (inclusive) or end of cursor

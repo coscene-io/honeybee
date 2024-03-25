@@ -10,7 +10,7 @@ import FoxgloveWebSocketPlayer from "@foxglove/studio-base/players/FoxgloveWebSo
 import { Player } from "@foxglove/studio-base/players/types";
 
 export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFactory {
-  public id = "coscene-websocket";
+  public id = "foxglove-websocket";
   public type: IDataSourceFactory["type"] = "connection";
   public displayName = "Foxglove WebSocket";
   public iconName: IDataSourceFactory["iconName"] = "Flow";
@@ -54,7 +54,6 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const url = args.params?.url;
-    const hostName = args.params?.hostName ?? "";
     if (!url) {
       return;
     }
@@ -63,7 +62,6 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       url,
       metricsCollector: args.metricsCollector,
       sourceId: this.id,
-      hostName,
     });
   }
 }

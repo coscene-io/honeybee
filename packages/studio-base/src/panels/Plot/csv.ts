@@ -32,7 +32,7 @@ function generateCSV(datasets: Immutable<CsvDataset[]>, xAxisVal: PlotXAxisVal):
   const headLine = [getCSVColName(xAxisVal), "receive time", "header.stamp", "topic", "value"];
   const combinedLines: unknown[][] = [headLine];
   for (const dataset of datasets) {
-    for (const datum of iterateTyped(dataset.data)) {
+    for (const datum of dataset.data) {
       combinedLines.push(getCSVRow(dataset.label, datum));
     }
   }
