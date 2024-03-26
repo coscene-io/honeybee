@@ -12,7 +12,15 @@
 //   You may not use this file except in compliance with the License.
 
 import { useSnackbar } from "notistack";
-import { PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useContext,
+} from "react";
 import { useMountedState } from "react-use";
 
 import { useWarnImmediateReRender } from "@foxglove/hooks";
@@ -21,30 +29,52 @@ import { Immutable } from "@foxglove/studio";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import ConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import {
+  LayoutState,
+  useCurrentLayoutSelector,
+} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import PlayerSelectionContext, {
   DataSourceArgs,
   IDataSourceFactory,
   PlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { ExtensionCatalogContext } from "@foxglove/studio-base/context/ExtensionCatalogContext";
+import { usePerformance } from "@foxglove/studio-base/context/PerformanceContext";
+import {
+  UserScriptStore,
+  useUserScriptState,
+} from "@foxglove/studio-base/context/UserScriptStateContext";
+import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 import CoSceneAnalyticsMetricsCollector from "@foxglove/studio-base/players/CoSceneAnalyticsMetricsCollector";
 import {
   TopicAliasFunctions,
   TopicAliasingPlayer,
 } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
+import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { UserScripts } from "@foxglove/studio-base/types/panels";
 
 const log = Logger.getLogger(__filename);
+
+const EMPTY_USER_NODES: UserScripts = Object.freeze({});
 
 type PlayerManagerProps = {
   playerSources: readonly IDataSourceFactory[];
 };
 
+const userScriptsSelector = (state: LayoutState) =>
+  state.selectedLayout?.data?.userNodes ?? EMPTY_USER_NODES;
+
+const selectUserScriptActions = (store: UserScriptStore) => store.actions;
+
 export default function PlayerManager(props: PropsWithChildren<PlayerManagerProps>): JSX.Element {
   const { children, playerSources } = props;
+  const perfRegistry = usePerformance();
 
   useWarnImmediateReRender();
+
+  const userScriptActions = useUserScriptState(selectUserScriptActions);
 
   const { wrapPlayer } = useAppContext();
 
@@ -60,6 +90,10 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
   const [playerInstances, setPlayerInstances] = useState<
     { topicAliasPlayer: TopicAliasingPlayer; player: Player } | undefined
   >();
+
+  const { globalVariables } = useGlobalVariables();
+
+  const userScripts = useCurrentLayoutSelector(userScriptsSelector);
 
   const { recents, addRecent } = useIndexedDbRecents();
 
@@ -99,6 +133,22 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
       }
     });
   }, [extensionCatalogContext, playerInstances?.topicAliasPlayer]);
+
+  const player = useMemo(() => {
+    if (!playerInstances?.topicAliasPlayer) {
+      return undefined;
+    }
+
+    const userScriptPlayer = new UserScriptPlayer(
+      playerInstances.topicAliasPlayer,
+      userScriptActions,
+      perfRegistry,
+    );
+    userScriptPlayer.setGlobalVariables(globalVariables);
+    return userScriptPlayer;
+  }, [playerInstances?.topicAliasPlayer, userScriptActions, perfRegistry, globalVariables]);
+
+  useLayoutEffect(() => void player?.setUserScripts(userScripts), [player, userScripts]);
 
   const { enqueueSnackbar } = useSnackbar();
 
