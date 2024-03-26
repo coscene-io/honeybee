@@ -549,9 +549,6 @@ export const sampleLayout: LayoutData = {
   },
   globalVariables: {},
   userNodes: {},
-  playbackConfig: {
-    speed: 1,
-  },
   layout: {
     first: "Tab!439zop1",
     second: "RosOut!aumo9o",

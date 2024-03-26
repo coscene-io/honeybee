@@ -47,6 +47,7 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
     },
     playbackControls: {
       repeat: false,
+      speed: 1,
     },
   };
 }
@@ -75,11 +76,16 @@ function createWorkspaceContextStore(
         // include and restore when persisting to and from localStorage.
         return _.pick(state, ["featureTours", "playbackControls", "sidebars"]);
       },
+      merge(persistedState, currentState) {
+        // Use a deep merge to ensure that defaults are filled in for nested values if the values
+        // were not present in localStorage.
+        return _.merge(currentState, persistedState);
+      },
     }),
   );
 }
 
-export default function WorkspaceContextProvider(props: {
+export type WorkspaceContextProviderProps = {
   children?: ReactNode;
   disablePersistenceForStorybook?: boolean;
   initialState?: Partial<WorkspaceContextStore>;
@@ -87,7 +93,11 @@ export default function WorkspaceContextProvider(props: {
     initialState?: Partial<WorkspaceContextStore>,
     options?: { disablePersistenceForStorybook?: boolean },
   ) => StoreApi<WorkspaceContextStore>;
-}): JSX.Element {
+};
+
+export default function WorkspaceContextProvider(
+  props: WorkspaceContextProviderProps,
+): JSX.Element {
   const { children, initialState, workspaceStoreCreator, disablePersistenceForStorybook } = props;
 
   const [store] = useState(() =>

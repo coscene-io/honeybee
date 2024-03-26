@@ -6,10 +6,13 @@ import { Link } from "@mui/material";
 import path from "path";
 
 import {
-  IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
+  IDataSourceFactory,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
+import {
+  IterablePlayer,
+  WorkerSerializedIterableSource,
+} from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 
 const initWorkers: Record<string, () => Worker> = {
@@ -93,8 +96,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
       throw new Error(`Unsupported extension: ${extension}`);
     }
 
-    const source = new WorkerIterableSource({ initWorker, initArgs: { url } });
-
+    const source = new WorkerSerializedIterableSource({ initWorker, initArgs: { url } });
     return new IterablePlayer({
       source,
       name: url,
@@ -102,6 +104,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
       // Use blank url params so the data source is set in the url
       urlParams: { url },
       sourceId: this.id,
+      readAheadDuration: { sec: 10, nsec: 0 },
     });
   }
 

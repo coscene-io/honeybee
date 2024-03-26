@@ -208,18 +208,6 @@ export class RenderableModels extends RenderablePrimitive {
           // Render a new frame now that the model is loaded
           this.renderer.queueAnimationFrame();
         }
-
-        if (originalUpdateCount !== this.#updateCount) {
-          // another update has come in, bail before doing any mutations
-          return;
-        }
-        if (renderable) {
-          newRenderables.push(renderable);
-          this.add(renderable.model);
-
-          // Render a new frame now that the model is loaded
-          this.renderer.queueAnimationFrame();
-        }
       }),
     )
       .then(() => {

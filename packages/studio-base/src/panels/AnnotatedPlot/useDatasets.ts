@@ -14,8 +14,8 @@ import { useBlocksSubscriptions as useBlocks } from "@foxglove/studio-base/Panel
 import {
   RosPath,
   MessagePathPart,
-} from "@foxglove/studio-base/components/MessagePathSyntax/constants";
-import parseRosPath from "@foxglove/studio-base/components/MessagePathSyntax/parseRosPath";
+} from "@foxglove/studio-base/components/CoSceneDeduplicatedMessagePath/constants";
+import parseRosPath from "@foxglove/studio-base/components/CoSceneDeduplicatedMessagePath/parseRosPath";
 import {
   useMessagePipeline,
   MessagePipelineContext,

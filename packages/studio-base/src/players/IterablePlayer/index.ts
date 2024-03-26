@@ -5,3 +5,4 @@
 export * from "./IterablePlayer";
 export * from "./WorkerIterableSource";
 export * from "./CoSceneIterablePlayer";
+export * from "./WorkerSerializedIterableSource";

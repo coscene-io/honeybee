@@ -43,7 +43,7 @@ import {
   SaveFullConfigPayload,
 } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { TabPanelConfig } from "@foxglove/studio-base/types/layouts";
-import { PlaybackConfig, MosaicDropTargetPosition } from "@foxglove/studio-base/types/panels";
+import { MosaicDropTargetPosition } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 import {
   updateTabPanelLayout,
@@ -65,10 +65,6 @@ import {
 } from "@foxglove/studio-base/util/layout";
 
 import { isTabPanelConfig } from "../../util/layout";
-
-export const defaultPlaybackConfig: PlaybackConfig = {
-  speed: 1.0,
-};
 
 function changePanelLayout(
   state: LayoutData,
@@ -172,15 +168,16 @@ const closePanel = (
 
 const splitPanel = (
   panelsState: LayoutData,
-  { id, tabId, direction, config, root, path }: SplitPanelPayload,
+  { id, tabId, direction, root, path }: SplitPanelPayload,
 ): LayoutData => {
   const type = getPanelTypeFromId(id);
   const newId = getPanelIdForType(type);
   let newPanelsState = { ...panelsState };
-  const { configById: savedProps } = newPanelsState;
+  const { configById } = newPanelsState;
+  const config = configById[id] ?? {};
   // If splitting inside a Tab, update that Tab's layout instead of the root layout
   if (tabId != undefined) {
-    const prevConfig = savedProps[tabId] as TabPanelConfig;
+    const prevConfig = configById[tabId] as TabPanelConfig;
     const activeTabLayout = prevConfig.tabs[prevConfig.activeTabIdx]?.layout;
     if (activeTabLayout != undefined) {
       const newTabLayout = updateTree(activeTabLayout, [
@@ -207,7 +204,7 @@ const splitPanel = (
   // Save the new panel's config and clone any panels in tabs if necessary
   newPanelsState = savePanelConfigs(
     newPanelsState,
-    getSaveConfigsPayloadForAddedPanel({ id: newId, config, savedProps }),
+    getSaveConfigsPayloadForAddedPanel({ id: newId, config, savedProps: configById }),
   );
   return newPanelsState;
 };
@@ -806,14 +803,6 @@ export default function (panelsState: Readonly<LayoutData>, action: PanelsAction
       };
     }
 
-    case "SET_PLAYBACK_CONFIG":
-      return {
-        ...panelsState,
-        playbackConfig: {
-          ...panelsState.playbackConfig,
-          ...action.payload,
-        },
-      };
     case "CLOSE_PANEL":
       return closePanel(panelsState, action.payload);
 

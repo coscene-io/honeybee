@@ -16,10 +16,13 @@ import * as _ from "lodash-es";
 import { CSSProperties, useCallback, useEffect, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
+import { filterMap } from "@foxglove/den/collection";
 import { MessageDefinitionField } from "@foxglove/message-definition";
 import { Immutable } from "@foxglove/studio";
 import * as PanelAPI from "@foxglove/studio-base/PanelAPI";
-import Autocomplete, { IAutocomplete } from "@foxglove/studio-base/components/Autocomplete";
+import Autocomplete, {
+  IAutocomplete,
+} from "@foxglove/studio-base/components/Autocomplete/AnnotationDeduplicatedAutocomplete";
 import useGlobalVariables, {
   GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
@@ -409,13 +412,13 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
           autocompleteItems:
             structure == undefined
               ? []
-              : messagePathsForStructure(structure, {
-                  validTypes,
-                  noMultiSlices,
-                  messagePath: rosPath.messagePath,
-                }).filter(
-                  // .header.seq is pretty useless but shows up everryyywhere.
-                  (msgPath) => msgPath !== "" && !msgPath.endsWith(".header.seq"),
+              : filterMap(
+                  messagePathsForStructure(structure, {
+                    validTypes,
+                    noMultiSlices,
+                    messagePath: rosPath.messagePath,
+                  }),
+                  (item) => item.path,
                 ),
 
           autocompleteRange: {

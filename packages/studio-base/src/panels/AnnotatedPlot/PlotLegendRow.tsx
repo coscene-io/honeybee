@@ -20,7 +20,7 @@ import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useHoverValue } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import { plotPathDisplayName } from "@foxglove/studio-base/panels/Plot/types";
+import { plotPathDisplayName } from "@foxglove/studio-base/panels/AnnotatedPlot/missingInfo";
 import { getLineColor } from "@foxglove/studio-base/util/plotColors";
 
 import { PlotPath, TypedDataSet, TypedData } from "./internalTypes";
@@ -249,7 +249,7 @@ export function PlotLegendRow({
             ? t("clickToAddASeries", {
                 ns: "cosAnnotatedPlot",
               })
-            : plotPathDisplayName(path, index)}
+            : plotPathDisplayName(path, index, t)}
         </Typography>
         {hasMismatchedDataLength && (
           <Tooltip
