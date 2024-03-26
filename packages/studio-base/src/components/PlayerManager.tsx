@@ -111,6 +111,10 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
       const foundSource = playerSources.find(
         (source) => source.id === sourceId || source.legacyIds?.includes(sourceId),
       );
+
+      console.log("ddd:foundSource", playerSources);
+      console.log("ddd:sourceId", sourceId);
+
       if (!foundSource) {
         enqueueSnackbar(`Unknown data source: ${sourceId}`, { variant: "warning" });
         return;

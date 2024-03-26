@@ -10,7 +10,7 @@ import FoxgloveWebSocketPlayer from "@foxglove/studio-base/players/FoxgloveWebSo
 import { Player } from "@foxglove/studio-base/players/types";
 
 export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFactory {
-  public id = "foxglove-websocket";
+  public id = "coscene-websocket";
   public type: IDataSourceFactory["type"] = "connection";
   public displayName = "Foxglove WebSocket";
   public iconName: IDataSourceFactory["iconName"] = "Flow";
