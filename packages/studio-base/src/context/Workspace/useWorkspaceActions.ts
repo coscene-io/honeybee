@@ -28,6 +28,7 @@ import {
   usePlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
+import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
@@ -67,6 +68,7 @@ export type WorkspaceActions = {
 
   playbackControlActions: {
     setRepeat: Dispatch<SetStateAction<boolean>>;
+    setSpeed: Dispatch<SetStateAction<PlaybackSpeed>>;
   };
 
   sidebarActions: {
@@ -125,7 +127,6 @@ export function useWorkspaceActions(): WorkspaceActions {
   const analytics = useAnalytics();
 
   const isMounted = useMountedState();
-  // const { getCurrentLayoutState, setCurrentLayout } = useCurrentLayoutActions();
 
   const openFile = useOpenFile(availableSources);
 
@@ -390,6 +391,12 @@ export function useWorkspaceActions(): WorkspaceActions {
           set((draft) => {
             const repeat = setterValue(setter, draft.playbackControls.repeat);
             draft.playbackControls.repeat = repeat;
+          });
+        },
+        setSpeed: (setter: SetStateAction<PlaybackSpeed>) => {
+          set((draft) => {
+            const speed = setterValue(setter, draft.playbackControls.speed);
+            draft.playbackControls.speed = speed;
           });
         },
       },

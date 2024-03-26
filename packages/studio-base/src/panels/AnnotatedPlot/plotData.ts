@@ -7,8 +7,9 @@ import * as R from "ramda";
 
 import { Time } from "@foxglove/rostime";
 import { Immutable as Im } from "@foxglove/studio";
-import { iterateTyped, getTypedLength } from "@foxglove/studio-base/components/Chart/datasets";
-import { RosPath } from "@foxglove/studio-base/components/MessagePathSyntax/constants";
+import { iterateTyped } from "@foxglove/studio-base/components/Chart/datasets";
+import { getTypedLength } from "@foxglove/studio-base/components/CoSceneChart/datasets";
+import { RosPath } from "@foxglove/studio-base/components/CoSceneDeduplicatedMessagePath/constants";
 import { getMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import { ProviderState } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { getTypedBounds } from "@foxglove/studio-base/components/TimeBasedChart/useProvider";
@@ -16,9 +17,13 @@ import {
   getDatasetsFromMessagePlotPath,
   concatTyped,
   mergeTyped,
-} from "@foxglove/studio-base/panels/Plot/datasets";
+} from "@foxglove/studio-base/panels/AnnotatedPlot/datasets";
+import {
+  makeInvertedBounds,
+  unionBounds,
+} from "@foxglove/studio-base/panels/AnnotatedPlot/missingInfo";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
-import { Bounds, makeInvertedBounds, unionBounds } from "@foxglove/studio-base/types/Bounds";
+import { Bounds } from "@foxglove/studio-base/types/Bounds";
 import { Range } from "@foxglove/studio-base/util/ranges";
 import { getTimestampForMessage } from "@foxglove/studio-base/util/time";
 

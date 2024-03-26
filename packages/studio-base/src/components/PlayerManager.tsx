@@ -12,7 +12,7 @@
 //   You may not use this file except in compliance with the License.
 
 import { useSnackbar } from "notistack";
-import { PropsWithChildren, useCallback, useEffect, useMemo, useState, useContext } from "react";
+import { PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useMountedState } from "react-use";
 
 import { useWarnImmediateReRender } from "@foxglove/hooks";
@@ -50,7 +50,6 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
 
   const isMounted = useMountedState();
 
-  // When we implement per-data-connector UI settings we will move this into the foxglove data platform source.
   const consoleApi = useContext(ConsoleApiContext);
 
   const metricsCollector = useMemo(
@@ -58,17 +57,28 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
     [consoleApi],
   );
 
-  const [basePlayer, setBasePlayer] = useState<Player | undefined>();
+  const [playerInstances, setPlayerInstances] = useState<
+    { topicAliasPlayer: TopicAliasingPlayer; player: Player } | undefined
+  >();
 
   const { recents, addRecent } = useIndexedDbRecents();
 
-  const topicAliasPlayer = useMemo(() => {
-    if (!basePlayer) {
-      return undefined;
-    }
+  const constructPlayers = useCallback(
+    (newPlayer: Player | undefined) => {
+      if (!newPlayer) {
+        setPlayerInstances(undefined);
+        return undefined;
+      }
 
-    return new TopicAliasingPlayer(basePlayer);
-  }, [basePlayer]);
+      const topicAliasingPlayer = new TopicAliasingPlayer(newPlayer);
+      const finalPlayer = wrapPlayer(topicAliasingPlayer);
+      setPlayerInstances({
+        topicAliasPlayer: topicAliasingPlayer,
+        player: finalPlayer,
+      });
+    },
+    [wrapPlayer],
+  );
 
   // Update the alias functions when they change. We do not need to re-render the player manager
   // since nothing in the local state has changed.
@@ -80,23 +90,15 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
     // We only want to set alias functions on the player when the functions have changed
     let topicAliasFunctions =
       extensionCatalogContext.getState().installedTopicAliasFunctions ?? emptyAliasFunctions;
-    topicAliasPlayer?.setAliasFunctions(topicAliasFunctions);
+    playerInstances?.topicAliasPlayer.setAliasFunctions(topicAliasFunctions);
 
     return extensionCatalogContext.subscribe((state) => {
       if (topicAliasFunctions !== state.installedTopicAliasFunctions) {
         topicAliasFunctions = state.installedTopicAliasFunctions ?? emptyAliasFunctions;
-        topicAliasPlayer?.setAliasFunctions(topicAliasFunctions);
+        playerInstances?.topicAliasPlayer.setAliasFunctions(topicAliasFunctions);
       }
     });
-  }, [extensionCatalogContext, topicAliasPlayer]);
-
-  const player = useMemo(() => {
-    if (!topicAliasPlayer) {
-      return undefined;
-    }
-
-    return wrapPlayer(topicAliasPlayer);
-  }, [topicAliasPlayer, wrapPlayer]);
+  }, [extensionCatalogContext, playerInstances?.topicAliasPlayer]);
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -109,6 +111,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
       const foundSource = playerSources.find(
         (source) => source.id === sourceId || source.legacyIds?.includes(sourceId),
       );
+
       if (!foundSource) {
         enqueueSnackbar(`Unknown data source: ${sourceId}`, { variant: "warning" });
         return;
@@ -122,13 +125,15 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
 
       setSelectedSource(foundSource);
 
+      setSelectedSource(foundSource);
+
       // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {
         const newPlayer = foundSource.initialize({
           metricsCollector,
         });
 
-        setBasePlayer(newPlayer);
+        constructPlayers(newPlayer);
         return;
       }
 
@@ -146,8 +151,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
               params: args.params,
               consoleApi,
             });
-            console.debug("newPlayer", newPlayer);
-            setBasePlayer(newPlayer);
+            constructPlayers(newPlayer);
 
             if (args.params?.url) {
               addRecent({
@@ -184,7 +188,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
                 metricsCollector,
               });
 
-              setBasePlayer(newPlayer);
+              constructPlayers(newPlayer);
               return;
             } else if (handle) {
               const permission = await handle.queryPermission({ mode: "read" });
@@ -209,7 +213,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
                 metricsCollector,
               });
 
-              setBasePlayer(newPlayer);
+              constructPlayers(newPlayer);
               addRecent({
                 type: "file",
                 title: handle.name,
@@ -227,7 +231,15 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
         enqueueSnackbar((error as Error).message, { variant: "error" });
       }
     },
-    [playerSources, enqueueSnackbar, metricsCollector, consoleApi, addRecent, isMounted],
+    [
+      playerSources,
+      enqueueSnackbar,
+      metricsCollector,
+      constructPlayers,
+      consoleApi,
+      addRecent,
+      isMounted,
+    ],
   );
 
   // Select a recent entry by id
@@ -256,7 +268,9 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
   return (
     <>
       <PlayerSelectionContext.Provider value={value}>
-        <MessagePipelineProvider player={player}>{children}</MessagePipelineProvider>
+        <MessagePipelineProvider player={playerInstances?.player}>
+          {children}
+        </MessagePipelineProvider>
       </PlayerSelectionContext.Provider>
     </>
   );

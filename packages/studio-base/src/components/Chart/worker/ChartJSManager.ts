@@ -158,6 +158,16 @@ export default class ChartJSManager {
       }
     }
 
+    // the types are wrong on `init`, but we will fix this soon
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (data != undefined) {
+      for (const ds of data.datasets) {
+        ds.segment = {
+          borderColor: lineSegmentLabelColor,
+        };
+      }
+    }
+
     const fakeNode = {
       addEventListener: addEventListener(this.#fakeNodeEvents),
       removeEventListener: removeEventListener(this.#fakeNodeEvents),
@@ -330,10 +340,6 @@ export default class ChartJSManager {
     if (data != undefined) {
       instance.data = data;
     } else if (typedData != undefined) {
-      instance.data = proxyTyped(typedData);
-    }
-
-    if (typedData != undefined) {
       instance.data = proxyTyped(typedData);
     }
 

@@ -11,7 +11,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { CircularProgress, Link, Typography } from "@mui/material";
+import { Typography, Link, CircularProgress } from "@mui/material";
 import React, { PropsWithChildren, Suspense, useCallback, useMemo } from "react";
 import { useDrop } from "react-dnd";
 import { useTranslation } from "react-i18next";
@@ -38,7 +38,6 @@ import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutCo
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
-import { defaultPlaybackConfig } from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/reducers";
 import { MosaicDropResult, PanelConfig } from "@foxglove/studio-base/types/panels";
 import { getPanelIdForType, getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
@@ -225,7 +224,6 @@ export default function PanelLayout(): JSX.Element {
       configById: {},
       globalVariables: {},
       userNodes: {},
-      playbackConfig: defaultPlaybackConfig,
     };
 
     const layout = await layoutManager.saveNewLayout({

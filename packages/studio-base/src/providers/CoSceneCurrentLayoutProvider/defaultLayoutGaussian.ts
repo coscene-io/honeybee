@@ -1039,9 +1039,6 @@ export const gs50Layout: LayoutData = {
   },
   globalVariables: {},
   userNodes: {},
-  playbackConfig: {
-    speed: 1,
-  },
   layout: {
     direction: "row",
     first: "3D!3me9aqv",
@@ -2104,9 +2101,6 @@ export const gs75Layout: LayoutData = {
   },
   globalVariables: {},
   userNodes: {},
-  playbackConfig: {
-    speed: 1,
-  },
   layout: {
     direction: "row",
     first: "3D!3me9aqv",

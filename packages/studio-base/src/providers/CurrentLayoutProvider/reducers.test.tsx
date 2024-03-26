@@ -22,13 +22,12 @@ import { MosaicDropTargetPosition } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
-import panelsReducer, { defaultPlaybackConfig } from "./reducers";
+import panelsReducer from "./reducers";
 
 const emptyLayout: LayoutData = {
   configById: {},
   globalVariables: {},
   userNodes: {},
-  playbackConfig: defaultPlaybackConfig,
 };
 
 describe("layout reducers", () => {
@@ -506,7 +505,6 @@ describe("layout reducers", () => {
         type: "SPLIT_PANEL",
         payload: {
           id: "Audio!a",
-          config: audioConfig,
           direction: "row",
           path: [],
           root: "Audio!a",
@@ -533,7 +531,6 @@ describe("layout reducers", () => {
         type: "SPLIT_PANEL",
         payload: {
           id: "Tab!a",
-          config: tabConfig,
           direction: "row",
           path: [],
           root: "Tab!a",
@@ -578,7 +575,6 @@ describe("layout reducers", () => {
         payload: {
           id: "Audio!a",
           tabId: "Tab!a",
-          config: audioConfig,
           direction: "row",
           path: [],
           root: "Audio!a",
@@ -626,7 +622,6 @@ describe("layout reducers", () => {
         payload: {
           id: "Tab!a",
           tabId: undefined,
-          config: tabConfig1,
           direction: "row",
           path: [],
           root: "Tab!a",
@@ -684,7 +679,6 @@ describe("layout reducers", () => {
         payload: {
           id: "Tab!b",
           tabId: "Tab!a",
-          config: tabConfig2,
           direction: "row",
           path: [],
           root: "Tab!b",

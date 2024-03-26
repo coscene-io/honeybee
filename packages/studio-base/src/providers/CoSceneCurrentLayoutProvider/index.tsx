@@ -43,7 +43,7 @@ import { keenonDefaultLayout } from "@foxglove/studio-base/providers/CoSceneCurr
 import panelsReducer from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/reducers";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { PanelConfig, PlaybackConfig, UserScripts } from "@foxglove/studio-base/types/panels";
+import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
@@ -332,9 +332,6 @@ export default function CoSceneCurrentLayoutProvider({
       },
       setUserScripts: (payload: Partial<UserScripts>) => {
         performAction({ type: "SET_USER_NODES", payload });
-      },
-      setPlaybackConfig: (payload: Partial<PlaybackConfig>) => {
-        performAction({ type: "SET_PLAYBACK_CONFIG", payload });
       },
       closePanel: (payload: ClosePanelPayload) => {
         performAction({ type: "CLOSE_PANEL", payload });

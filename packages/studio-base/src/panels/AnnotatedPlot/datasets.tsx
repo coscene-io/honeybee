@@ -6,11 +6,8 @@ import * as R from "ramda";
 
 import { isTime, subtract, Time, toSec } from "@foxglove/rostime";
 import { Immutable } from "@foxglove/studio";
-import {
-  iterateTyped,
-  findIndices,
-  getTypedLength,
-} from "@foxglove/studio-base/components/Chart/datasets";
+import { iterateTyped, findIndices } from "@foxglove/studio-base/components/Chart/datasets";
+import { getTypedLength } from "@foxglove/studio-base/components/CoSceneChart/datasets";
 import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { format } from "@foxglove/studio-base/util/formatTime";
 import { darkColor, getLineColor, lightColor } from "@foxglove/studio-base/util/plotColors";

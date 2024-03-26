@@ -19,11 +19,13 @@ import {
   toString,
   toRFC3339String,
 } from "@foxglove/rostime";
-import { MessageEvent, ParameterValue } from "@foxglove/studio";
+import { Immutable, MessageEvent, ParameterValue } from "@foxglove/studio";
 import NoopMetricsCollector from "@foxglove/studio-base/players/CoSceneNoopMetricsCollector";
+import { DeserializedSourceWrapper } from "@foxglove/studio-base/players/IterablePlayer/DeserializedSourceWrapper";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import {
   AdvertiseOptions,
+  PlaybackSpeed,
   Player,
   // PlayerMetricsCollectorInterface,
   CoScenePlayerMetricsCollectorInterface,
@@ -44,7 +46,12 @@ import delay from "@foxglove/studio-base/util/delay";
 
 import { BlockLoader } from "./BlockLoader";
 import { BufferedIterableSource } from "./BufferedIterableSource";
-import { IIterableSource, IteratorResult } from "./IIterableSource";
+import { DeserializingIterableSource } from "./DeserializingIterableSource";
+import {
+  IDeserializedIterableSource,
+  ISerializedIterableSource,
+  IteratorResult,
+} from "./IIterableSource";
 
 const log = Log.getLogger(__filename);
 
@@ -70,13 +77,14 @@ const MAX_BLOCKS = 400;
 // is to provide some initial data to subscribers.
 const SEEK_ON_START_NS = BigInt(99 * 1e6);
 
+const MEMORY_INFO_BUFFERED_MSGS = "Buffered messages";
+
+const EMPTY_ARRAY = Object.freeze([]);
+
 type IterablePlayerOptions = {
   metricsCollector?: CoScenePlayerMetricsCollectorInterface;
 
-  source: IIterableSource;
-
-  // How far ahead to buffer
-  readAheadDuration?: Time;
+  source: IDeserializedIterableSource | ISerializedIterableSource;
 
   // Optional player name
   name?: string;
@@ -91,6 +99,9 @@ type IterablePlayerOptions = {
 
   // Set to #false# to disable preloading. (default: true)
   enablePreload?: boolean;
+
+  // Max. time that messages will be buffered ahead for smoother playback. (default: 10sec)
+  readAheadDuration?: Time;
 };
 
 type IterablePlayerState =
@@ -117,11 +128,12 @@ export class CoSceneIterablePlayer implements Player {
   #state: IterablePlayerState = "preinit";
   #runningState: boolean = false;
 
+  #repeatEnabled: boolean = false;
   #isPlaying: boolean = false;
   #listener?: (playerState: PlayerState) => Promise<void>;
-  #speed: number = 1.0;
-  #start: Time = { sec: 0, nsec: 0 };
-  #end: Time = { sec: 0, nsec: 0 };
+  #speed: PlaybackSpeed = 1.0;
+  #start?: Time;
+  #end?: Time;
   #enablePreload = true;
 
   // next read start time indicates where to start reading for the next tick
@@ -143,7 +155,7 @@ export class CoSceneIterablePlayer implements Player {
 
   #progress: Progress = {};
   #id: string = uuidv4();
-  #messages: MessageEvent[] = [];
+  #messages: Immutable<MessageEvent[]> = [];
   #receivedBytes: number = 0;
   #hasError = false;
   #lastRangeMillis?: number;
@@ -159,8 +171,14 @@ export class CoSceneIterablePlayer implements Player {
 
   #problemManager = new PlayerProblemManager();
 
-  #iterableSource: IIterableSource;
-  #bufferedSource: BufferedIterableSource;
+  // Unbuffered source, used as input source for buffered source and block loader.
+  #iterableSource: IDeserializedIterableSource | ISerializedIterableSource;
+
+  // Buffered source used for playback.
+  #bufferedSource: IDeserializedIterableSource;
+
+  // Buffering source implementation. We store a reference to it here so we can access buffer information such as loaded ranges & memory size.
+  #bufferImpl: BufferedIterableSource;
 
   // Some states register an abort controller to signal they should abort
   #abort?: AbortController;
@@ -189,13 +207,23 @@ export class CoSceneIterablePlayer implements Player {
       name,
       enablePreload,
       sourceId,
-      readAheadDuration,
+      readAheadDuration = { sec: 10, nsec: 0 },
     } = options;
 
     this.#iterableSource = source;
-    this.#bufferedSource = new BufferedIterableSource(source, {
-      readAheadDuration,
-    });
+    if (source.sourceType === "deserialized") {
+      this.#bufferImpl = new BufferedIterableSource(source);
+      this.#bufferedSource = new DeserializedSourceWrapper(this.#bufferImpl);
+    } else {
+      const MEGABYTE_IN_BYTES = 1024 * 1024;
+      const bufferInterface = new BufferedIterableSource(source, {
+        readAheadDuration,
+        maxCacheSizeBytes: 600 * MEGABYTE_IN_BYTES,
+      });
+      this.#bufferImpl = bufferInterface;
+      this.#bufferedSource = new DeserializingIterableSource(bufferInterface);
+    }
+
     this.#name = name;
     this.#urlParams = urlParams;
     this.#metricsCollector = metricsCollector ?? new NoopMetricsCollector();
@@ -229,7 +257,7 @@ export class CoSceneIterablePlayer implements Player {
   }
 
   #startPlayImpl(opt?: { untilTime: Time }): void {
-    if (this.#isPlaying || this.#untilTime != undefined) {
+    if (this.#isPlaying || this.#untilTime != undefined || !this.#start || !this.#end) {
       return;
     }
 
@@ -268,11 +296,18 @@ export class CoSceneIterablePlayer implements Player {
     }
   }
 
-  public setPlaybackSpeed(speed: number): void {
+  public setPlaybackSpeed(speed: PlaybackSpeed): void {
     this.#lastRangeMillis = undefined;
     this.#speed = speed;
 
     // Queue event state update to update speed in player state to UI
+    this.#queueEmitState();
+  }
+
+  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  public enableRepeatPlayback(enable: boolean): void {
+    this.#repeatEnabled = enable;
+
     this.#queueEmitState();
   }
 
@@ -282,6 +317,10 @@ export class CoSceneIterablePlayer implements Player {
       log.debug(`Ignoring seek, state=${this.#state}`);
       this.#seekTarget = time;
       return;
+    }
+
+    if (!this.#start || !this.#end) {
+      throw new Error("invariant: initialized but no start/end set");
     }
 
     // Limit seek to within the valid range
@@ -330,9 +369,14 @@ export class CoSceneIterablePlayer implements Player {
     this.#blockLoader?.setTopics(this.#preloadTopics);
 
     // If the player is playing, the playing state will detect any subscription changes and adjust
-    // iterators accordignly. However if we are idle or already seeking then we need to manually
+    // iterators accordingly. However if we are idle or already seeking then we need to manually
     // trigger the backfill.
-    if (this.#state === "idle" || this.#state === "seek-backfill" || this.#state === "play") {
+    if (
+      this.#state === "idle" ||
+      this.#state === "seek-backfill" ||
+      this.#state === "play" ||
+      this.#state === "start-play"
+    ) {
       if (!this.#isPlaying && this.#currentTime) {
         this.#seekTarget ??= this.#currentTime;
         this.#untilTime = undefined;
@@ -462,6 +506,7 @@ export class CoSceneIterablePlayer implements Player {
     this.#queueEmitState();
 
     try {
+      const initResult = await this.#bufferedSource.initialize();
       const {
         start,
         end,
@@ -472,7 +517,7 @@ export class CoSceneIterablePlayer implements Player {
         publishersByTopic,
         datatypes,
         name,
-      } = await this.#bufferedSource.initialize();
+      } = initResult;
 
       // Prior to initialization, the seekTarget may have been set to an out-of-bounds value
       // This brings the value in bounds
@@ -517,9 +562,18 @@ export class CoSceneIterablePlayer implements Player {
       if (this.#enablePreload) {
         // --- setup block loader which loads messages for #full# subscriptions in the "background"
         try {
+          let blockLoaderSource;
+          if (this.#iterableSource.sourceType === "deserialized") {
+            blockLoaderSource = this.#iterableSource;
+          } else {
+            blockLoaderSource = new DeserializingIterableSource(this.#iterableSource);
+            // We must not call initialize() here, as the #iterableSource was already initialized above.
+            blockLoaderSource.initializeDeserializers(initResult);
+          }
+
           this.#blockLoader = new BlockLoader({
             cacheSizeBytes: DEFAULT_CACHE_SIZE_BYTES,
-            source: this.#iterableSource,
+            source: blockLoaderSource,
             start: this.#start,
             end: this.#end,
             maxBlocks: MAX_BLOCKS,
@@ -547,7 +601,7 @@ export class CoSceneIterablePlayer implements Player {
     }
     this.#queueEmitState();
 
-    if (!this.#hasError) {
+    if (!this.#hasError && this.#start) {
       // Wait a bit until panels have had the chance to subscribe to topics before we start
       // playback.
       await delay(START_DELAY_MS);
@@ -568,13 +622,22 @@ export class CoSceneIterablePlayer implements Player {
       throw new Error("Invariant: Tried to reset playback iterator with no current time.");
     }
 
-    const next = add(this.#currentTime, { sec: 0, nsec: 1 });
+    if (!this.#start) {
+      throw new Error("Invariant: Tried to reset playback iterator with no start time.");
+    }
+
+    // When resetting the iterator to the start of the source, we must not add 1 ns otherwise we
+    // might skip messages whose timestamp is equal to the source start time.
+    const next =
+      compare(this.#currentTime, this.#start) === 0
+        ? this.#start
+        : add(this.#currentTime, { sec: 0, nsec: 1 });
 
     log.debug("Ending previous iterator");
     await this.#playbackIterator?.return?.();
 
     // set the playIterator to the seek time
-    await this.#bufferedSource.stopProducer();
+    await this.#bufferImpl.stopProducer();
 
     const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
       getPlaybackQualityLevelByLocalStorage();
@@ -601,6 +664,10 @@ export class CoSceneIterablePlayer implements Player {
   // Without an initial read, the user would be looking at a blank layout since no messages have yet
   // been delivered.
   async #stateStartPlay() {
+    if (!this.#start || !this.#end) {
+      throw new Error("Invariant: start and end must be set");
+    }
+
     // If we have a target seek time, the seekPlayback function will take care of backfilling messages.
     if (this.#seekTarget) {
       this.#setState("seek-backfill");
@@ -689,6 +756,10 @@ export class CoSceneIterablePlayer implements Player {
   // Process a seek request. The seek is performed by requesting a getBackfillMessages from the source.
   // This provides the last message on all subscribed topics.
   async #stateSeekBackfill() {
+    if (!this.#start || !this.#end) {
+      throw new Error("invariant: stateSeekBackfill prior to initialization");
+    }
+
     if (!this.#seekTarget) {
       return;
     }
@@ -707,7 +778,6 @@ export class CoSceneIterablePlayer implements Player {
       this.#presence = PlayerPresence.BUFFERING;
       this.#messages = [];
       this.#currentTime = targetTime;
-      this.#lastSeekEmitTime = Date.now();
       this.#queueEmitState();
     }, 100);
 
@@ -777,10 +847,13 @@ export class CoSceneIterablePlayer implements Player {
     }
 
     const messages = this.#messages;
-    this.#messages = [];
+
+    // After we emit the messages we clear the outgoing message array so we do not emit the messages again
+    // Use a stable EMPTY_ARRAY so we don't keep emitting a new messages reference as if messages have changed
+    this.#messages = EMPTY_ARRAY;
 
     let activeData: PlayerStateActiveData | undefined;
-    if (this.#currentTime) {
+    if (this.#start && this.#end && this.#currentTime) {
       activeData = {
         messages,
         totalBytesReceived: this.#receivedBytes,
@@ -788,6 +861,7 @@ export class CoSceneIterablePlayer implements Player {
         startTime: this.#start,
         endTime: this.#end,
         isPlaying: this.#isPlaying,
+        repeatEnabled: this.#repeatEnabled,
         speed: this.#speed,
         lastSeekTime: this.#lastSeekEmitTime,
         topics: this.#providerTopics,
@@ -821,6 +895,9 @@ export class CoSceneIterablePlayer implements Player {
   async #tick(): Promise<void> {
     if (!this.#isPlaying) {
       return;
+    }
+    if (!this.#start || !this.#end) {
+      throw new Error("Invariant: start & end should be set before tick()");
     }
 
     // compute how long of a time range we want to read by taking into account
@@ -974,7 +1051,8 @@ export class CoSceneIterablePlayer implements Player {
 
     // set the latest value of the loaded ranges for the next emit state
     this.#progress = {
-      fullyLoadedFractionRanges: this.#bufferedSource.loadedRanges(),
+      ...this.#progress,
+      fullyLoadedFractionRanges: this.#bufferImpl.loadedRanges(),
       messageCache: this.#progress.messageCache,
     };
 
@@ -985,19 +1063,33 @@ export class CoSceneIterablePlayer implements Player {
 
     const rangeChangeHandler = () => {
       this.#progress = {
-        fullyLoadedFractionRanges: this.#bufferedSource.loadedRanges(),
+        fullyLoadedFractionRanges: this.#bufferImpl.loadedRanges(),
         messageCache: this.#progress.messageCache,
+        memoryInfo: {
+          ...this.#progress.memoryInfo,
+          [MEMORY_INFO_BUFFERED_MSGS]: this.#bufferImpl.getCacheSize(),
+        },
       };
       this.#queueEmitState();
     };
 
     // While idle, the buffered source might still be loading and we still want to update downstream
     // with the new ranges we've buffered. This event will update progress and queue state emits
-    this.#bufferedSource.on("loadedRangesChange", rangeChangeHandler);
+    this.#bufferImpl.on("loadedRangesChange", rangeChangeHandler);
 
     this.#queueEmitState();
     await aborted;
-    this.#bufferedSource.off("loadedRangesChange", rangeChangeHandler);
+    this.#bufferImpl.off("loadedRangesChange", rangeChangeHandler);
+  }
+
+  // Repeating is a continuation of the playing state/we should already be playing
+  #repeatPlayback(): void {
+    if (!this.#isPlaying) {
+      return;
+    }
+    if (this.#start) {
+      this.seekPlayback(this.#start);
+    }
   }
 
   async #statePlay() {
@@ -1006,6 +1098,9 @@ export class CoSceneIterablePlayer implements Player {
     if (!this.#currentTime) {
       throw new Error("Invariant: currentTime not set before statePlay");
     }
+    if (!this.#start || !this.#end) {
+      throw new Error("Invariant: start & end should be set before statePlay");
+    }
 
     // Track the identity of allTopics, if this changes we need to reset our iterator to
     // get new messages for new topics
@@ -1013,7 +1108,12 @@ export class CoSceneIterablePlayer implements Player {
 
     try {
       while (this.#isPlaying && !this.#hasError && !this.#nextState) {
-        if (compare(this.#currentTime, this.#end) >= 0) {
+        const timeToEnd = compare(this.#currentTime, this.#end);
+        if (this.#repeatEnabled && timeToEnd === 0) {
+          // Playback has ended and we should repeat
+          this.#repeatPlayback();
+          return;
+        } else if (timeToEnd >= 0) {
           // Playback has ended. Reset internal trackers for maintaining the playback speed.
           this.#lastTickMillis = undefined;
           this.#lastRangeMillis = undefined;
@@ -1033,8 +1133,12 @@ export class CoSceneIterablePlayer implements Player {
         // Update with the latest loaded ranges from the buffered source
         // The messageCache is updated separately by block loader events
         this.#progress = {
-          fullyLoadedFractionRanges: this.#bufferedSource.loadedRanges(),
+          fullyLoadedFractionRanges: this.#bufferImpl.loadedRanges(),
           messageCache: this.#progress.messageCache,
+          memoryInfo: {
+            ...this.#progress.memoryInfo,
+            [MEMORY_INFO_BUFFERED_MSGS]: this.#bufferImpl.getCacheSize(),
+          },
         };
 
         // If subscriptions changed, update to the new subscriptions
@@ -1065,8 +1169,8 @@ export class CoSceneIterablePlayer implements Player {
     this.#isPlaying = false;
     await this.#blockLoader?.stopLoading();
     await this.#blockLoadingProcess;
-    await this.#bufferedSource.stopProducer();
-    await this.#bufferedSource.terminate();
+    await this.#bufferImpl.terminate();
+    await this.#bufferedSource.terminate?.();
     await this.#playbackIterator?.return?.();
     this.#playbackIterator = undefined;
     await this.#iterableSource.terminate?.();
@@ -1079,8 +1183,11 @@ export class CoSceneIterablePlayer implements Player {
         this.#progress = {
           fullyLoadedFractionRanges: this.#progress.fullyLoadedFractionRanges,
           messageCache: progress.messageCache,
+          memoryInfo: {
+            ...this.#progress.memoryInfo,
+            ...progress.memoryInfo,
+          },
         };
-
         // If we are in playback, we will let playback queue state updates
         if (this.#state === "play") {
           return;

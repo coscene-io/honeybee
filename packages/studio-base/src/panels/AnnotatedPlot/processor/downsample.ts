@@ -4,11 +4,11 @@
 
 import * as R from "ramda";
 
+import { iterateTyped } from "@foxglove/studio-base/components/Chart/datasets";
 import {
-  iterateTyped,
-  fastFindIndices,
   getTypedLength,
-} from "@foxglove/studio-base/components/Chart/datasets";
+  fastFindIndices,
+} from "@foxglove/studio-base/components/CoSceneChart/datasets";
 import {
   downsampleScatter,
   downsampleTimeseries,
