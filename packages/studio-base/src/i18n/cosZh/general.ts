@@ -15,4 +15,5 @@ export const cosGeneral: Partial<TypeOptions["resources"]["cosGeneral"]> = {
   search: "搜索",
   project: "项目",
   save: "保存",
+  userGuide: "用户指引",
 };
