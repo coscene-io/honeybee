@@ -21,7 +21,7 @@
     "@coscene-io/cosceneapis-es": "0.0.154",
     "@coscene-io/cosel": "23.49.2",
     "@emotion/cache": "11.11.0",
-    "@emotion/react": "11.11.3",
+    "@emotion/react": "11.11.4",
     "@emotion/styled": "11.11.0",
     "@fluentui/react-icons": "2.0.227",
     "@foxglove/avl": "1.0.0",
