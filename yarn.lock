@@ -4022,7 +4022,7 @@ __metadata:
     "@tanstack/react-table": 8.11.7
     "@testing-library/react": 14.2.1
     "@types/base16": ^1.0.5
-    "@types/cytoscape": ^3.19.16
+    "@types/cytoscape": ^3.21.0
     "@types/foxglove__roslibjs": "workspace:*"
     "@types/geojson": 7946.0.14
     "@types/gl-matrix": 3.2.0
@@ -7599,10 +7599,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@types/cytoscape@npm:^3.19.16":
-  version: 3.19.16
-  resolution: "@types/cytoscape@npm:3.19.16"
-  checksum: 065c4b39f05888e65324bc517b6ac85adbfc4eb186ec9c9d5ff959a4a9628c0f9a99b60349c03600fcd6d0569e5a54980a8f18aa2b9ce6d85156da96c3095328
+"@types/cytoscape@npm:^3.21.0":
+  version: 3.21.0
+  resolution: "@types/cytoscape@npm:3.21.0"
+  checksum: df21055ed8560f911c92865db5123f8f377a6119e0050fa22e2472147add7dec18e57274b7f18c57dab2733c8c9b3ef2b0c69230786adc7ae24a442a08da3abf
   languageName: node
   linkType: hard
 

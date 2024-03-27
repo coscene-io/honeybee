@@ -68,7 +68,7 @@
     "@tanstack/react-table": "8.11.7",
     "@testing-library/react": "14.2.1",
     "@types/base16": "^1.0.5",
-    "@types/cytoscape": "^3.19.16",
+    "@types/cytoscape": "^3.21.0",
     "@types/foxglove__roslibjs": "workspace:*",
     "@types/geojson": "7946.0.14",
     "@types/gl-matrix": "3.2.0",
