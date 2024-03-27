@@ -13,4 +13,5 @@ export const cosGeneral = {
   search: "Search",
   project: "Project",
   save: "Save",
+  userGuide: "User Guide",
 };
