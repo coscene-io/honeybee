@@ -9,7 +9,7 @@ import tinycolor from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
-import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { DEFAULT_PATH } from "@foxglove/studio-base/panels/Plot/settings";
 import { stateTransitionPathDisplayName } from "@foxglove/studio-base/panels/StateTransitions/shared";
