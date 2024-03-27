@@ -91,9 +91,9 @@ export const EmptyPanelLayout = ({ tabId }: Props): JSX.Element => {
             <Link
               color="primary"
               target="_blank"
-              href="https://docs.foxglove.dev/docs/visualization/layouts"
+              href="https://docs.coscene.cn/docs/recipes/viz/set-layout/"
             >
-              {t("learnMore", { ns: "general" })}
+              {t("userGuide", { ns: "cosGeneral" })}
             </Link>
           </Typography>
           <PanelCatalog mode="grid" onPanelSelect={onPanelSelect} />
