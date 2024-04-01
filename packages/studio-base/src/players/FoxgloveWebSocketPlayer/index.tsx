@@ -94,6 +94,7 @@ type MessageDefinitionMap = Map<string, MessageDefinition>;
  */
 const CURRENT_FRAME_MAXIMUM_SIZE_BYTES = 400 * 1024 * 1024;
 
+const INACTIVIRY_TIMEOUT = 1000 * 60 * 15; // 15 minutes
 export default class FoxgloveWebSocketPlayer implements Player {
   readonly #sourceId: string;
 
@@ -207,6 +208,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
       if (this.#connectionAttemptTimeout != undefined) {
         clearTimeout(this.#connectionAttemptTimeout);
+        this.#disconnectAfterInactivity();
       }
       this.#presence = PlayerPresence.PRESENT;
       this.#resetSessionState();
@@ -877,6 +879,39 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#emitState();
   }
 
+  // if there is no active from user for 15 min, the connection will be closed
+  #disconnectAfterInactivity = (): void => {
+    if (this.#closed) {
+      return;
+    }
+
+    let timeoutId: NodeJS.Timeout | undefined = undefined;
+
+    const resetTimer = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        this.#problems.addProblem("inactive", {
+          severity: "error",
+          message: t("cosError:inactivePage"),
+          tip: t("cosError:inactivePageDescription"),
+        });
+        setTimeout(() => {
+          this.close();
+        }, 1000);
+      }, INACTIVIRY_TIMEOUT);
+    };
+
+    // 监听页面上的各种事件
+    window.addEventListener("mousemove", resetTimer);
+    window.addEventListener("mousedown", resetTimer);
+    window.addEventListener("keypress", resetTimer);
+    window.addEventListener("touchmove", resetTimer);
+
+    resetTimer();
+  };
+
   // Potentially performance-sensitive; await can be expensive
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   #emitState = debouncePromise(() => {
@@ -1348,7 +1383,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
     const maybeRos = ["ros1", "ros2"].includes(this.#profile ?? "");
     for (const [name, types] of datatypes) {
       const knownTypes = this.#datatypes.get(name);
-      if (knownTypes && !isMsgDefEqual(types, knownTypes)) {
+      if (
+        knownTypes &&
+        !isMsgDefEqual(types, knownTypes) &&
+        // foxglove 暂不支持 fox 格式 前端暂时放过当前的问题
+        name !== "rcl_interfaces/ParameterDescriptor"
+      ) {
         this.#problems.addProblem(`schema-changed-${name}`, {
           message: `Definition of schema '${name}' has changed during the server's runtime`,
           severity: "error",

@@ -29,4 +29,7 @@ export const cosError = {
     "Please check if your robot has installed <docLink>foxglove_bridge</docLink>",
   contactUs: "If none of the above methods can solve the issue, please contact us.",
   connectionFailed: "Connection failed",
+  inactivePage: "The page is inactive",
+  inactivePageDescription:
+    "The page has been inactive for a long time and the connection has been disconnected. Please refresh the page and try again",
 };
