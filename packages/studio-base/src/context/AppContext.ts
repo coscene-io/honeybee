@@ -8,7 +8,7 @@ import { StoreApi } from "zustand";
 
 import { Immutable, SettingsTreeField, SettingsTreeNode } from "@foxglove/studio";
 import { AppBarMenuItem } from "@foxglove/studio-base/components/AppBar/types";
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import { PanelInfo } from "@foxglove/studio-base/context/PanelCatalogContext";
 import { WorkspaceContextStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import type { SceneExtensionConfig } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";

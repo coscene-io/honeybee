@@ -5,7 +5,7 @@
 import { filterMap } from "@foxglove/den/collection";
 import Logger from "@foxglove/log";
 import { LayoutID } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import ConsoleApi, { ConsoleApiLayout } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import {
