@@ -13,7 +13,7 @@ import {
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { defaultLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayout";
 import { migratePanelsState } from "@foxglove/studio-base/services/migrateLayout";
