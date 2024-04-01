@@ -56,6 +56,7 @@ import {
 import { JsonMessageWriter } from "./JsonMessageWriter";
 import { MessageWriter } from "./MessageWriter";
 import WorkerSocketAdapter from "./WorkerSocketAdapter";
+import { CloseEventMessage } from "./worker";
 
 const log = Log.getLogger(__dirname);
 const textEncoder = new TextEncoder();
@@ -258,7 +259,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
     // this during a disconnect event. Any necessary state clearing is handled once a new connection
     // is established
     this.#client.on("close", (event) => {
-      log.info("Connection closed:", event);
+      // Foxglove type description is incorrect, we need to cast to the correct type
+      const realCloseEventMessage: { type: "close"; data: CloseEventMessage } =
+        event as unknown as {
+          type: "close";
+          data: CloseEventMessage;
+        };
+      log.info("Connection closed:", realCloseEventMessage);
       this.#presence = PlayerPresence.RECONNECTING;
 
       if (this.#getParameterInterval != undefined) {
@@ -272,38 +279,47 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#client?.close();
       this.#client = undefined;
 
-      this.#problems.addProblem("ws:connection-failed", {
-        severity: "error",
-        message: t("cosError:connectionFailed"),
-        tip: (
-          <span>
-            {`${t("cosError:insecureWebSocketConnectionMessage", {
-              url: this.#url,
-              version: FoxgloveClient.SUPPORTED_SUBPROTOCOL,
-            })}`}
-            <br />
-            1. {t("cosError:checkNetworkConnection")}
-            <br />
-            2.{" "}
-            <Trans
-              t={t}
-              i18nKey="cosError:checkFoxgloveBridge"
-              components={{
-                docLink: (
-                  <a
-                    style={{ color: "#2563eb" }}
-                    target="_blank"
-                    href="https://docs.coscene.cn/docs/recipes/device/device-remote-control/#%E5%AE%9E%E6%97%B6%E5%8F%AF%E8%A7%86%E5%8C%96"
-                    rel="noopener"
-                  />
-                ),
-              }}
-            />
-            <br />
-            3. {t("cosError:contactUs")}
-          </span>
-        ),
-      });
+      if (realCloseEventMessage.data.code === 1000) {
+        // repeated connection, someone is connecting this device
+        this.#problems.addProblem("repeated-connection,", {
+          severity: "error",
+          message: t("cosError:repetitiveConnection"),
+          tip: t("cosError:repeatedConnectionDesc"),
+        });
+      } else {
+        this.#problems.addProblem("ws:connection-failed", {
+          severity: "error",
+          message: t("cosError:connectionFailed"),
+          tip: (
+            <span>
+              {`${t("cosError:insecureWebSocketConnectionMessage", {
+                url: this.#url,
+                version: FoxgloveClient.SUPPORTED_SUBPROTOCOL,
+              })}`}
+              <br />
+              1. {t("cosError:checkNetworkConnection")}
+              <br />
+              2.{" "}
+              <Trans
+                t={t}
+                i18nKey="cosError:checkFoxgloveBridge"
+                components={{
+                  docLink: (
+                    <a
+                      style={{ color: "#2563eb" }}
+                      target="_blank"
+                      href="https://docs.coscene.cn/docs/recipes/device/device-remote-control/#%E5%AE%9E%E6%97%B6%E5%8F%AF%E8%A7%86%E5%8C%96"
+                      rel="noopener"
+                    />
+                  ),
+                }}
+              />
+              <br />
+              3. {t("cosError:contactUs")}
+            </span>
+          ),
+        });
+      }
 
       this.#emitState();
       this.#openTimeout = setTimeout(this.#open, 3000);
