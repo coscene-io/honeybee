@@ -2,6 +2,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+export type CloseEventMessage = {
+  code: number;
+  reason: string;
+  isTrusted: boolean;
+  wasClean: boolean;
+};
+
 export type ToWorkerMessage =
   | { type: "open"; data: { wsUrl: string; protocols?: string[] | string } }
   | { type: "close"; data: undefined }
@@ -9,7 +16,7 @@ export type ToWorkerMessage =
 
 export type FromWorkerMessage =
   | { type: "open"; protocol: string }
-  | { type: "close"; data: unknown }
+  | { type: "close"; data: CloseEventMessage }
   | { type: "error"; error: unknown }
   | { type: "message"; data: unknown };
 
@@ -18,6 +25,15 @@ let ws: WebSocket | undefined = undefined;
 const send: (message: FromWorkerMessage) => void = self.postMessage;
 const sendWithTransfer: (message: FromWorkerMessage, transfer: Transferable[]) => void =
   self.postMessage;
+
+const cloneCloseEvent = (event: CloseEvent): CloseEventMessage => {
+  return {
+    code: event.code,
+    reason: event.reason,
+    wasClean: event.wasClean,
+    isTrusted: event.isTrusted,
+  };
+};
 
 self.onmessage = (event: MessageEvent<ToWorkerMessage>) => {
   const { type, data } = event.data;
@@ -39,7 +55,7 @@ self.onmessage = (event: MessageEvent<ToWorkerMessage>) => {
           });
         };
         ws.onclose = (wsEvent) => {
-          send({ type: "close", data: JSON.parse(JSON.stringify(wsEvent) ?? "{}") });
+          send({ type: "close", data: cloneCloseEvent(wsEvent) });
         };
         ws.onmessage = (wsEvent: MessageEvent) => {
           if (wsEvent.data instanceof ArrayBuffer) {
