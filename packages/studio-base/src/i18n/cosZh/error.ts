@@ -30,4 +30,6 @@ export const cosError: Partial<TypeOptions["resources"]["cosError"]> = {
   checkFoxgloveBridge: "请检查您的机器人是否已安装了 <docLink>foxglove_bridge</docLink>",
   contactUs: "如果以上方法都无法解决问题，请联系我们。",
   connectionFailed: "连接失败",
+  inactivePage: "页面不活跃",
+  inactivePageDescription: "页面已经不活跃很长时间，连接已断开。请刷新页面并重试",
 };
