@@ -32,8 +32,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import CoSceneConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
-import {
+import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
