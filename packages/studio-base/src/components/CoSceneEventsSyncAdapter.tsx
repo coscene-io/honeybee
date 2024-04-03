@@ -4,6 +4,7 @@
 
 import { BinaryOperator, CosQuery, SerializeOption } from "@coscene-io/coscene/cosel";
 import { QueryFields } from "@coscene-io/coscene/queries";
+import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
@@ -31,7 +32,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import {
+import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
@@ -47,6 +48,7 @@ async function positionEvents(
   timeMode: "relativeTime" | "absoluteTime",
   startTime: Time,
   endTime: Time,
+  api: CoSceneConsoleApi,
 ): Promise<TimelinePositionedEvent[]> {
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
@@ -84,6 +86,19 @@ async function positionEvents(
       const startPosition = scale(startTimeInSeconds, startSecs, endSecs, 0, 1);
       const endPosition = scale(endTimeInSeconds, startSecs, endSecs, 0, 1);
 
+      let imgUrl;
+      const imgFileName = event.files[0];
+
+      if (imgFileName != undefined) {
+        const imgFile = new File({
+          name: imgFileName,
+        });
+
+        const res = await api.generateFileDownloadUrl({ file: imgFile });
+
+        imgUrl = res.preSignedUrl;
+      }
+
       return {
         event,
         startTime: eventStartTime,
@@ -93,7 +108,7 @@ async function positionEvents(
         time: startTimeInSeconds,
         secondsSinceStart: startTimeInSeconds - startSecs,
         color: stringToColor(event.record),
-        imgUrl: event.files[0],
+        imgUrl,
         recordDisplayName: eventInfo.recordDisplayName,
         projectDisplayName: eventInfo.projectDisplayName,
       };
@@ -208,7 +223,14 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
           const eventList = await consoleApi.getEvents({ fileList: getEventsRequest });
           setEvents({
             loading: false,
-            value: await positionEvents(eventList, bagFiles.value, timeMode, startTime, endTime),
+            value: await positionEvents(
+              eventList,
+              bagFiles.value,
+              timeMode,
+              startTime,
+              endTime,
+              consoleApi,
+            ),
           });
         } catch (error) {
           log.error(error);
