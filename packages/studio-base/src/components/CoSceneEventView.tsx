@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import ShareIcon from "@mui/icons-material/Share";
@@ -161,6 +162,7 @@ function EventViewComponent(params: {
   };
 
   const [deletedEvent, deleteEvent] = useAsyncFn(async () => {
+    await consoleApi.deleteFile(new File({ name: event.event.files[0] }));
     await consoleApi.deleteEvent({ eventName: event.event.name });
     setOpen(true);
     setToastInfo({
