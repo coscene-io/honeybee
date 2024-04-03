@@ -57,12 +57,9 @@ import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1a
 import {
   ListFilesRequest,
   ListFilesResponse,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
-import {
+  DeleteFileRequest,
   GenerateFileDownloadUrlRequest,
   GenerateFileDownloadUrlResponse,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
-import {
   GenerateFileUploadUrlsRequest,
   GenerateFileUploadUrlsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
@@ -1067,6 +1064,15 @@ class CoSceneConsoleApi {
     const roleClient = getPromiseClient(RoleService);
 
     return await roleClient.batchGetUserRoles(req);
+  }
+
+  public async deleteFile(payload: PartialMessage<DeleteFileRequest>): Promise<void> {
+    const req = new DeleteFileRequest(payload);
+    await getPromiseClient(FileService)
+      .deleteFile(req)
+      .catch((err) => {
+        throw err;
+      });
   }
 }
 
