@@ -328,7 +328,7 @@ export function CreateEventDialog(props: {
           filename: imgFileDisplayName,
         });
 
-        newEvent.setFilesList([`${recordName}/files/${imgFileDisplayName}`]);
+        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
       }
 
       const result = await consoleApi.createEvent({
@@ -422,7 +422,7 @@ export function CreateEventDialog(props: {
           filename: imgFileDisplayName,
         });
 
-        newEvent.setFilesList([`${recordName}/files/${imgFileDisplayName}`]);
+        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
       }
 
       await consoleApi.updateEvent({

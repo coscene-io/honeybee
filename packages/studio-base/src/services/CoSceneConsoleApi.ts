@@ -952,7 +952,7 @@ class CoSceneConsoleApi {
     const name = generateFileName({
       filename,
       recordName,
-      targetDir: ".cos",
+      targetDir: ".cos/moments",
     });
 
     const Es_file = new File_es({
