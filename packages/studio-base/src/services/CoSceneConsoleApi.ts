@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Value } from "@bufbuild/protobuf";
+import { PartialMessage } from "@bufbuild/protobuf";
 import {
   GetProjectRequest,
   GetUserRequest,
@@ -46,20 +47,24 @@ import {
   UpsertConfigMapRequest,
   GetConfigMapRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
-import { EventService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_connect";
-import {
-  GenerateEventPictureUploadUrlRequest,
-  GenerateEventPictureUploadUrlResponse,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
   ListRecordsRequest,
   ListRecordsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
+import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_connect";
 import {
   ListFilesRequest,
   ListFilesResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
+import {
+  GenerateFileDownloadUrlRequest,
+  GenerateFileDownloadUrlResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
+import {
+  GenerateFileUploadUrlsRequest,
+  GenerateFileUploadUrlsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
 import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resources/job_run_pb";
 import { JobRunService } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_connect";
@@ -77,6 +82,7 @@ import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
+import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 
 export type User = {
@@ -924,27 +930,67 @@ class CoSceneConsoleApi {
     return await fileClient.listFiles(req);
   }
 
-  public async generateEventPictureUploadUrl({
-    event,
-  }: {
-    event: string;
-  }): Promise<GenerateEventPictureUploadUrlResponse> {
-    const eventClient = getPromiseClient(EventService);
-
-    const req = new GenerateEventPictureUploadUrlRequest({
-      event,
-    });
-
-    return await eventClient.generateEventPictureUploadUrl(req);
+  public async generateFileUploadUrls(
+    payload: PartialMessage<GenerateFileUploadUrlsRequest>,
+  ): Promise<GenerateFileUploadUrlsResponse> {
+    const req = new GenerateFileUploadUrlsRequest(payload);
+    return await getPromiseClient(FileService)
+      .generateFileUploadUrls(req)
+      .catch((err) => {
+        console.error("error code", err.code);
+        console.error("error message", err.message);
+        throw err;
+      });
   }
 
-  public async uploadEventPicture({ event, file }: { event: string; file: File }): Promise<void> {
-    const result = await this.generateEventPictureUploadUrl({ event });
-    const url = result.preSignedUri;
-    await fetch(url, {
+  public async uploadEventPicture({
+    recordName,
+    file,
+    filename,
+  }: {
+    recordName: string;
+    file: File;
+    filename: string;
+  }): Promise<void> {
+    const name = generateFileName({
+      filename,
+      recordName,
+      targetDir: ".cos",
+    });
+
+    const Es_file = new File_es({
+      filename,
+      name,
+      size: BigInt(file.size),
+    });
+
+    const uploadUrlsResult = await this.generateFileUploadUrls({
+      files: [Es_file],
+      parent: recordName,
+    });
+
+    const url = uploadUrlsResult.preSignedUrls[name] ?? "";
+
+    const res = await fetch(url, {
       method: "PUT",
       body: file,
     });
+
+    if (res.status !== 200) {
+      throw new Error("Failed to upload file");
+    }
+  }
+
+  public async generateFileDownloadUrl(
+    payload: PartialMessage<GenerateFileDownloadUrlRequest>,
+  ): Promise<GenerateFileDownloadUrlResponse> {
+    const req = new GenerateFileDownloadUrlRequest(payload);
+    return await getPromiseClient(FileService)
+      .generateFileDownloadUrl(req)
+      .catch((err) => {
+        console.error("error", err);
+        throw err;
+      });
   }
 
   public async getJobRun(jobRunName: string): Promise<JobRun> {
