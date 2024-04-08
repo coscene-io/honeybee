@@ -38,6 +38,7 @@ import { useAsyncFn } from "react-use";
 import { keyframes } from "tss-react";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
+import { v4 as uuidv4 } from "uuid";
 
 import { toDate, isLessThan, subtract, isGreaterThan, add } from "@foxglove/rostime";
 import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
@@ -313,6 +314,23 @@ export function CreateEventDialog(props: {
     }
 
     try {
+      if (event.imageFile) {
+        const imgId = uuidv4();
+
+        const imgFileDisplayName = `${imgId}.${
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
+          ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
+        }`;
+
+        await consoleApi.uploadEventPicture({
+          recordName,
+          file: event.imageFile,
+          filename: imgFileDisplayName,
+        });
+
+        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
+      }
+
       const result = await consoleApi.createEvent({
         event: newEvent,
         parent: projectName,
@@ -320,9 +338,6 @@ export function CreateEventDialog(props: {
       });
 
       const eventName = result.getName();
-      if (event.imageFile) {
-        await consoleApi.uploadEventPicture({ event: eventName, file: event.imageFile });
-      }
 
       setTargetEvent(result);
       if (event.enabledCreateNewTask) {
@@ -391,15 +406,29 @@ export function CreateEventDialog(props: {
     fieldMask.setPathsList(maskArray);
 
     try {
+      const imgId = uuidv4();
+      const fileName = event.fileName;
+      const recordName = fileName.split("/files/")[0];
+
+      if (event.imageFile && recordName) {
+        const imgFileDisplayName = `${imgId}.${
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
+          ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
+        }`;
+
+        await consoleApi.uploadEventPicture({
+          recordName,
+          file: event.imageFile,
+          filename: imgFileDisplayName,
+        });
+
+        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
+      }
+
       await consoleApi.updateEvent({
         event: newEvent,
         updateMask: fieldMask,
       });
-
-      if (event.imageFile) {
-        await consoleApi.uploadEventPicture({ event: newEvent.getName(), file: event.imageFile });
-      }
-
       onClose();
 
       refreshEvents();
@@ -414,6 +443,7 @@ export function CreateEventDialog(props: {
     event.duration,
     event.durationUnit,
     event.eventName,
+    event.fileName,
     event.imageFile,
     event.imageUrl,
     event.metadataEntries,
