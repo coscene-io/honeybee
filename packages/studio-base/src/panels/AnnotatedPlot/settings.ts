@@ -38,6 +38,7 @@ const DEFAULT_PLOT_LINE: PlotLine = {
   enabled: true,
   timestampMethod: "receiveTime",
 };
+
 const makeSeriesLineNode = memoizeWeak(
   (line: PlotLine, t: TFunction<"plot">, index: number): SettingsTreeNode => {
     return {
@@ -535,6 +536,7 @@ export function usePlotPanelSettings(
                 ...DEFAULT_PLOT_LINE,
                 value: `"${topicName}".${value.split(".")[1]}`,
                 label,
+                color: path.lines[topicIndex]?.color ?? lineColors[topicIndex],
               };
             });
           });
