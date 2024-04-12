@@ -536,7 +536,7 @@ export function usePlotPanelSettings(
                 ...DEFAULT_PLOT_LINE,
                 value: `"${topicName}".${value.split(".")[1]}`,
                 label,
-                color: path.lines[topicIndex]?.color ?? lineColors[topicIndex],
+                color: path.lines[topicIndex]?.color ?? undefined,
               };
             });
           });
