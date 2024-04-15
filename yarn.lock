@@ -4028,7 +4028,7 @@ __metadata:
     "@types/gl-matrix": 3.2.0
     "@types/google-protobuf": 3.15.6
     "@types/hammerjs": 2.0.45
-    "@types/leaflet": 1.9.7
+    "@types/leaflet": 1.9.11
     "@types/memoize-weak": "workspace:*"
     "@types/moment-duration-format": 2.2.6
     "@types/nearley": 2.11.5
@@ -7917,12 +7917,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/leaflet@npm:1.9.7":
-  version: 1.9.7
-  resolution: "@types/leaflet@npm:1.9.7"
+"@types/leaflet@npm:1.9.11":
+  version: 1.9.11
+  resolution: "@types/leaflet@npm:1.9.11"
   dependencies:
     "@types/geojson": "*"
-  checksum: 8adbd48219bf210cd66d21cb787576eb158bd674d0625042cac27baf2f60e335c922349058c2323d7bf178163c46ceaf23ab1b94c0f7a6ae51d35d085d8b2095
+  checksum: 09969f4907bcead85a4239910ad3355586c734832b44708ce3ef19132416e0f47bcec47421af8b60bee331542a75664fbee333183cabb3f9365fb2a1af0d1160
   languageName: node
   linkType: hard
 
