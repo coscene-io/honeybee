@@ -12,6 +12,10 @@
 //   You may not use this file except in compliance with the License.
 
 // No time functions that require `moment` should live in this file.
+import { Duration as Duration_es } from "@bufbuild/protobuf";
+import { Duration } from "google-protobuf/google/protobuf/duration_pb";
+import { Immutable } from "immer";
+
 import log from "@foxglove/log";
 import { Time } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
@@ -79,4 +83,32 @@ export const formateTimeToReadableFormat = (time: Time): string => {
   return `${h < 10 ? 0 : ""}${h}:${m < 10 ? 0 : ""}${m}:${s < 10 ? 0 : ""}${s}.${
     Math.floor(time.nsec / 1e7) < 10 ? 0 : ""
   }${Math.floor(time.nsec / 1e7)}`;
+};
+
+export const durationToSeconds = (duration?: Duration_es): number => {
+  if (!duration) {
+    return 0;
+  }
+
+  return Number(duration.seconds) + duration.nanos / 1e9;
+};
+
+export const ducationToNanoSeconds = (duration?: Immutable<Duration_es>): bigint => {
+  if (!duration) {
+    return BigInt(0);
+  }
+
+  return BigInt(duration.seconds) * BigInt(1e9) + BigInt(duration.nanos);
+};
+
+export const secondsToDuration = (seconds: number): Duration => {
+  const sec = Math.floor(seconds);
+  const nsec = Math.round((seconds - sec) * 1e9);
+
+  const duration = new Duration();
+
+  duration.setSeconds(sec);
+  duration.setNanos(nsec);
+
+  return duration;
 };

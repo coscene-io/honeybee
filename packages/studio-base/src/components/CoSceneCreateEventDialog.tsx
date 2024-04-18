@@ -55,6 +55,7 @@ import {
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
 export type ToModifyEvent = {
   name: string;
@@ -295,9 +296,9 @@ export function CreateEventDialog(props: {
     newEvent.setTriggerTime(timestamp);
 
     if (event.durationUnit === "sec") {
-      newEvent.setDuration(event.duration);
+      newEvent.setDuration(secondsToDuration(event.duration));
     } else {
-      newEvent.setDuration(event.duration / 1e9);
+      newEvent.setDuration(secondsToDuration(event.duration / 1e9));
     }
 
     if (event.description) {
@@ -382,9 +383,9 @@ export function CreateEventDialog(props: {
     newEvent.setTriggerTime(timestamp);
 
     if (event.durationUnit === "sec") {
-      newEvent.setDuration(event.duration);
+      newEvent.setDuration(secondsToDuration(event.duration));
     } else {
-      newEvent.setDuration(event.duration / 1e9);
+      newEvent.setDuration(secondsToDuration(event.duration / 1e9));
     }
 
     if (event.description) {

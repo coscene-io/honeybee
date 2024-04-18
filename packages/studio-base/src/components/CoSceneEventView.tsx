@@ -24,6 +24,7 @@ import {
 } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
+import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
 const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
   (theme, _params, classes) => ({
@@ -189,7 +190,7 @@ function EventViewComponent(params: {
 
   const displayName = event.event.displayName;
   const triggerTime = formatTime(fromDate(event.event.triggerTime?.toDate() ?? new Date()));
-  const duration = `${event.event.duration.toString()} s`;
+  const duration = `${durationToSeconds(event.event.duration)} s`;
   const description = event.event.description;
   const metadataMap = Object.entries(event.event.customizedFields);
   const imgUrl = event.imgUrl;
@@ -250,7 +251,7 @@ function EventViewComponent(params: {
       name: event.event.name,
       eventName: event.event.displayName,
       startTime: event.event.triggerTime?.toDate() ?? new Date(),
-      duration: event.event.duration,
+      duration: durationToSeconds(event.event.duration),
       durationUnit: "sec",
       description: event.event.description,
       metadataEntries: metadataMap.map(([key, value]: string[]) => {
