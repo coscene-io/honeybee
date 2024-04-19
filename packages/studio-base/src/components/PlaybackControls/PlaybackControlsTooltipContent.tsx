@@ -19,7 +19,10 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-import { formateTimeToReadableFormat } from "@foxglove/studio-base/util/time";
+import {
+  ducationToNanoSeconds,
+  formateTimeToReadableFormat,
+} from "@foxglove/studio-base/util/time";
 
 type PlaybackControlsTooltipItem =
   | { type: "divider" }
@@ -77,7 +80,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
       const eventStartTime = fromNanoSec(
         event.triggerTime!.seconds * BigInt(1e9) + BigInt(event.triggerTime!.nanos),
       );
-      const eventEndTime = add(startTime, fromNanoSec(BigInt(event.duration * 1e9)));
+      const eventEndTime = add(startTime, fromNanoSec(ducationToNanoSeconds(event.duration)));
 
       tooltipItems.push({
         type: "item",
