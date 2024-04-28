@@ -220,9 +220,7 @@ function BagViewComponent(params: {
       prompt: t("deleteConfirmPrompt", {
         filename: bag.displayName,
       }),
-      ok: t("delete", {
-        ns: "cosGeneral",
-      }),
+      ok: t("remove"),
       cancel: t("cancel", {
         ns: "cosGeneral",
       }),

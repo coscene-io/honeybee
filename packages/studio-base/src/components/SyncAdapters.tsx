@@ -10,7 +10,6 @@ import { CoSceneCurrentUserSyncAdapter } from "@foxglove/studio-base/components/
 import { CoSceneEventsSyncAdapter } from "@foxglove/studio-base/components/CoSceneEventsSyncAdapter";
 import { PlaylistSyncAdapter } from "@foxglove/studio-base/components/CoScenePlaylistSyncAdapter";
 import { ProjectsSyncAdapter } from "@foxglove/studio-base/components/CoSceneProjectSyncAdapter";
-// import { CurrentLayoutLocalStorageSyncAdapter } from "@foxglove/studio-base/components/CurrentLayoutLocalStorageSyncAdapter";
 import { URLStateSyncAdapter } from "@foxglove/studio-base/components/URLStateSyncAdapter";
 import { UpdateChecker } from "@foxglove/studio-base/components/UpdateChecker";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";

@@ -15,7 +15,9 @@ export const cosPlaylist = {
   selectedFilesCount: "Selected: {{count}} files",
   selecteFilesFromRecord: "Select files from record",
   duplicateFile: "This file is the same file as file {{filename}}",
-  deleteConfirmTitle: "Delete file",
-  deleteConfirmPrompt: "Are you sure you want to delete file {{filename}}?",
+  deleteConfirmTitle: "Removing files from a playlist",
+  deleteConfirmPrompt:
+    "After removing the file {{filename}}, it will be unplayable in the current window and can be added to the playlist again.",
   addFilesFailed: "Failed to add file",
+  remove: "Remove",
 };
