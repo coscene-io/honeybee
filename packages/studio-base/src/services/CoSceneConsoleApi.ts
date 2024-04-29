@@ -1100,10 +1100,7 @@ class CoSceneConsoleApi {
   }
 
   public async getFilesStatus(key: string): Promise<Response> {
-    const { fullConfig, fullUrl } = this.getRequectConfig(
-      `/v1/data/getFilesStatus/${key}`,
-      undefined,
-    );
+    const { fullConfig, fullUrl } = this.getRequectConfig(`/v1/data/getFilesStatus/${key}`);
     return await fetch(fullUrl, fullConfig);
   }
 }
