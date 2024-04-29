@@ -207,7 +207,7 @@ export function PlaylistSyncAdapter(): ReactNull {
               // Define a function to read each chunk
               const readChunk = () => {
                 // Read a chunk from the reader
-                if (!reader) {
+                if (reader == undefined) {
                   return;
                 }
 
