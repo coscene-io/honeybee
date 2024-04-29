@@ -38,6 +38,8 @@ function mediaStatusMapping(status: MediaStatus): PlaylistMediaStatues {
       return "OK";
     case "GENERATING":
       return "PROCESSING";
+    case "GENERATED_SUCCESS":
+      return "GENERATED_SUCCESS";
     default:
       return "ERROR";
   }
