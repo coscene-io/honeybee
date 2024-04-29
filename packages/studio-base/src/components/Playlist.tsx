@@ -4,8 +4,21 @@
 
 import Add from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import InfoIcon from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
-import { AppBar, Button, IconButton, TextField, Typography, CircularProgress } from "@mui/material";
+import {
+  AppBar,
+  Button,
+  IconButton,
+  TextField,
+  Typography,
+  CircularProgress,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Tooltip,
+} from "@mui/material";
 import { useState, useCallback, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -52,7 +65,6 @@ const useStyles = makeStyles()((theme) => ({
     padding: theme.spacing(1),
     gap: theme.spacing(1),
     alignItems: "center",
-    borderBottom: `1px solid ${theme.palette.divider}`,
   },
   root: {
     backgroundColor: theme.palette.background.paper,
@@ -62,6 +74,42 @@ const useStyles = makeStyles()((theme) => ({
     display: "flex",
     gap: theme.spacing(0.5),
     whiteSpace: "nowrap",
+  },
+  accordionTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+  },
+  accordion: {
+    padding: 0,
+
+    "&:before": {
+      position: "absolute",
+      left: "20px",
+      top: "50px",
+      display: "block",
+      content: "''",
+      width: "1px",
+      height: "15px",
+      backgroundColor: theme.palette.divider,
+    },
+  },
+  colorBlock: {
+    width: "8px",
+    height: "8px",
+    borderRadius: "2px",
+  },
+  accordionSummary: {
+    height: 60,
+    minHeight: "auto",
+    padding: "16px 16px 0 16px",
+    fontSize: "14px",
+    fontWeight: 500,
+    lineheight: "20px",
+  },
+  infoIcon: {
+    width: "16px",
+    height: "16px",
   },
 }));
 
@@ -87,7 +135,34 @@ export function Playlist(): JSX.Element {
   const urlState = useMessagePipeline(selectUrlState);
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
 
-  const bags = useMemo(() => bagFiles.value ?? [], [bagFiles]);
+  const bags = useMemo(() => {
+    const serialisationBags: Record<
+      string,
+      { projectDisplayName?: string; color?: string; subBags: BagFileInfo[] }
+    > = {};
+
+    bagFiles.value?.forEach((bag) => {
+      if (bag.recordDisplayName) {
+        if (serialisationBags[bag.recordDisplayName] == undefined) {
+          serialisationBags[bag.recordDisplayName] = {
+            projectDisplayName: bag.projectDisplayName,
+            color: bag.recordColor,
+            subBags: [bag],
+          };
+        } else {
+          if (serialisationBags[bag.recordDisplayName]?.subBags != undefined) {
+            serialisationBags[bag.recordDisplayName]!.subBags.push(bag);
+          }
+          if (serialisationBags[bag.recordDisplayName]?.color != undefined) {
+            serialisationBags[bag.recordDisplayName]!.color = bag.recordColor;
+          }
+        }
+      }
+    });
+
+    return serialisationBags;
+  }, [bagFiles]);
+
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const clearFilter = useCallback(() => {
@@ -137,6 +212,11 @@ export function Playlist(): JSX.Element {
       if ("jobRunsName" in bag) {
         newFiles.push({
           jobRunsName: bag.jobRunsName,
+        });
+      }
+      if ("recordName" in bag) {
+        newFiles.push({
+          recordName: bag.recordName,
         });
       }
     });
@@ -216,25 +296,60 @@ export function Playlist(): JSX.Element {
         </Stack>
       )}
       <div>
-        {bags.map((bag, index) => {
+        {Object.keys(bags).map((recordDisplayName, index) => {
           return (
-            <BagView
-              key={`${bag.name}${index}`}
-              bag={bag}
-              filter={filterText}
-              isHovered={
-                (hoveredBag && hoveredBag.name === bag.name) ??
-                bagsAtHoverValue[bag.name] != undefined
-              }
-              isCurrent={
-                currentBagFiles?.find((currentBag) => currentBag.name === bag.name) != undefined
-              }
-              updateUrl={updateUrl}
-              onClick={onClick}
-              onHoverStart={onHoverStart}
-              onHoverEnd={onHoverEnd}
-              confirm={confirm}
-            />
+            <div key="recordDisplayName">
+              <Accordion defaultExpanded={index === 0}>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="panel1-content"
+                  id="panel1-header"
+                  className={classes.accordionSummary}
+                >
+                  <div className={classes.accordionTitle}>
+                    <span
+                      className={classes.colorBlock}
+                      style={{
+                        backgroundColor: bags[recordDisplayName]?.color,
+                      }}
+                    />
+                    {recordDisplayName}
+                    <Tooltip
+                      title={t("projectFrom", {
+                        projectName: bags[recordDisplayName]?.projectDisplayName,
+                      })}
+                    >
+                      <InfoIcon className={classes.infoIcon} />
+                    </Tooltip>
+                  </div>
+                </AccordionSummary>
+
+                <AccordionDetails className={classes.accordion}>
+                  {(bags[recordDisplayName]?.subBags ?? []).map((bag) => {
+                    return (
+                      <BagView
+                        key={bag.name}
+                        bag={bag}
+                        filter={filterText}
+                        isHovered={
+                          (hoveredBag && hoveredBag.name === bag.name) ??
+                          bagsAtHoverValue[bag.name] != undefined
+                        }
+                        isCurrent={
+                          currentBagFiles?.find((currentBag) => currentBag.name === bag.name) !=
+                          undefined
+                        }
+                        updateUrl={updateUrl}
+                        onClick={onClick}
+                        onHoverStart={onHoverStart}
+                        onHoverEnd={onHoverEnd}
+                        confirm={confirm}
+                      />
+                    );
+                  })}
+                </AccordionDetails>
+              </Accordion>
+            </div>
           );
         })}
       </div>

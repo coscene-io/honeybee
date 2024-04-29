@@ -9,7 +9,9 @@ import {
   PanelRight24Regular,
   SlideAdd24Regular,
 } from "@fluentui/react-icons";
-import { Avatar, IconButton, Tooltip } from "@mui/material";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import InfoIcon from "@mui/icons-material/Info";
+import { Avatar, Button, IconButton, Tooltip } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import tc from "tinycolor2";
@@ -27,6 +29,11 @@ import {
   useCurrentUser as useCoSceneCurrentUser,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
+  CoScenePlaylistStore,
+  usePlaylist,
+  BagFileInfo,
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   WorkspaceContextStore,
@@ -145,6 +152,17 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
         },
       },
     },
+    mediaGenerationStatusBar: {
+      backgroundColor: theme.palette.warning.main,
+      color: theme.palette.warning.contrastText,
+    },
+    mediaGeneratSuccessStatusBar: {
+      backgroundColor: theme.palette.success.main,
+      color: theme.palette.success.contrastText,
+    },
+    successIcon: {
+      color: theme.palette.success.main,
+    },
   };
 });
 
@@ -159,6 +177,8 @@ const selectLeftSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.l
 const selectRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.right.open;
 
 const selectUser = (store: UserStore) => store.user;
+
+const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 
 export function AppBar(props: AppBarProps): JSX.Element {
   const {
@@ -193,6 +213,16 @@ export function AppBar(props: AppBarProps): JSX.Element {
   const userMenuOpen = Boolean(userAnchorEl);
   const panelMenuOpen = Boolean(panelAnchorEl);
   const userInfo = useCoSceneCurrentUser(selectUser);
+
+  const bagFiles = usePlaylist(selectBagFiles);
+
+  const allGenerationgMediaCount = bagFiles.value?.filter((bagFile: BagFileInfo) => {
+    return bagFile.mediaStatues === "PROCESSING" || bagFile.mediaStatues === "GENERATED_SUCCESS";
+  });
+
+  const generatedMediaCount = bagFiles.value?.filter((bagFile: BagFileInfo) => {
+    return bagFile.mediaStatues === "GENERATED_SUCCESS";
+  });
 
   return (
     <>
@@ -321,6 +351,56 @@ export function AppBar(props: AppBarProps): JSX.Element {
           </div>
         </div>
       </AppBarContainer>
+      {allGenerationgMediaCount &&
+        generatedMediaCount &&
+        allGenerationgMediaCount.length > 0 &&
+        allGenerationgMediaCount.length > generatedMediaCount.length && (
+          <Stack
+            direction="row"
+            paddingX={3}
+            paddingY={1}
+            gap={1}
+            alignItems="center"
+            className={classes.mediaGenerationStatusBar}
+          >
+            <InfoIcon />
+            {t("mediaGeneratingTips", {
+              successfulCount: generatedMediaCount.length,
+              totalCount: allGenerationgMediaCount.length,
+            })}
+          </Stack>
+        )}
+
+      {allGenerationgMediaCount &&
+        generatedMediaCount &&
+        allGenerationgMediaCount.length > 0 &&
+        allGenerationgMediaCount.length === generatedMediaCount.length && (
+          <Stack
+            direction="row"
+            paddingX={3}
+            alignItems="center"
+            justifyContent="space-between"
+            className={classes.mediaGeneratSuccessStatusBar}
+          >
+            <Stack direction="row" gap={1} alignItems="center">
+              <CheckCircleOutlineIcon className={classes.successIcon} />
+              {t("mediaSuccessfulGeneration", {
+                count: allGenerationgMediaCount.length,
+              })}
+            </Stack>
+
+            <Button
+              variant="text"
+              onClick={() => {
+                window.location.reload();
+              }}
+            >
+              {t("refresh", {
+                ns: "cosGeneral",
+              })}
+            </Button>
+          </Stack>
+        )}
       <AddPanelMenu
         anchorEl={panelAnchorEl}
         open={panelMenuOpen}

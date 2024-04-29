@@ -34,4 +34,8 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   viewData: "查看数据",
   viewOurDocs: "查看我们的文档",
   profile: "个人资料",
+  mediaGeneratingTips:
+    "media 文件生成中，生成完成后刷新页面即可播放（{{successfulCount}}/{{totalCount}}）",
+  mediaSuccessfulGeneration:
+    "已将所有 media 文件生成，刷新页面即可播放全部文件 ({{count}}/{{count}})",
 };
