@@ -192,6 +192,15 @@ type customTopicResponse = {
   metaData: TopicResponse[];
 };
 
+export type MediaStatus =
+  | "NORMAL"
+  | "MEDIA_LOST"
+  | "GENERATING"
+  | "GENERATE_INCAPABLE"
+  | "MEDIA_ILLEGAL"
+  | "PERMISSION"
+  | "GENERATED_SUCCESS";
+
 export type getPlaylistResponse = {
   fileList: {
     source: string;
@@ -201,6 +210,7 @@ export type getPlaylistResponse = {
     projectName: string;
     recordName: string;
     ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
+    mediaStatus: MediaStatus;
   }[];
 };
 
@@ -282,6 +292,8 @@ export type GetEventsResponse = {
     recordDisplayName: string;
   }[];
 };
+
+export type GetFileStatusResponse = { filename: string; status: MediaStatus }[];
 
 class CoSceneConsoleApi {
   #baseUrl: string;
@@ -498,21 +510,12 @@ class CoSceneConsoleApi {
     return (await this.#delete(`/bff/honeybee/layout/v2/layouts/${id}`)).status === 200;
   }
 
-  async #request<T>(
+  public getRequectConfig(
     url: string,
     config?: RequestInit,
-    {
-      allowedStatuses = [],
-    }: {
-      /** By default, status codes other than 200 will throw an error. */
-      allowedStatuses?: number[];
-    } = {},
     // eslint-disable-next-line @foxglove/no-boolean-parameters
     customHost?: boolean,
-  ): Promise<ApiResponse<T>> {
-    if (url.length === 0 || url === "/") {
-      throw new Error("Invalid URL");
-    }
+  ): { fullUrl: string; fullConfig: RequestInit } {
     const fullUrl =
       customHost != undefined && customHost
         ? url
@@ -532,6 +535,27 @@ class CoSceneConsoleApi {
         "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
       },
     };
+
+    return { fullUrl, fullConfig };
+  }
+
+  async #request<T>(
+    url: string,
+    config?: RequestInit,
+    {
+      allowedStatuses = [],
+    }: {
+      /** By default, status codes other than 200 will throw an error. */
+      allowedStatuses?: number[];
+    } = {},
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    customHost?: boolean,
+  ): Promise<ApiResponse<T>> {
+    if (url.length === 0 || url === "/") {
+      throw new Error("Invalid URL");
+    }
+
+    const { fullUrl, fullConfig } = this.getRequectConfig(url, config, customHost);
 
     const res = await fetch(fullUrl, fullConfig);
     this.#responseObserver?.(res);
@@ -605,6 +629,7 @@ class CoSceneConsoleApi {
   }
 
   // coScene-----------------------------------------------------------
+
   public async topics(key: string): Promise<customTopicResponse> {
     const topics = await this.#post<topicInterfaceReturns>(
       "/v1/data/getMetadata",
@@ -1072,6 +1097,11 @@ class CoSceneConsoleApi {
       .catch((err) => {
         throw err;
       });
+  }
+
+  public async getFilesStatus(key: string): Promise<Response> {
+    const { fullConfig, fullUrl } = this.getRequectConfig(`/v1/data/getFilesStatus/${key}`);
+    return await fetch(fullUrl, fullConfig);
   }
 }
 

@@ -7,6 +7,7 @@ import { DeepReadonly } from "ts-essentials";
 import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
+import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 
 export type BaseInfo = {
   projectId?: string;
@@ -18,7 +19,7 @@ export type BaseInfo = {
   jobRunsDisplayName?: string;
   jobRunsId?: string;
   workflowRunsId?: string;
-  files?: Array<{ jobRunsName: string } | { filename: string; sha256: string }>;
+  files?: Array<ParamsFile>;
 };
 
 export type CoSceneBaseStore = DeepReadonly<{

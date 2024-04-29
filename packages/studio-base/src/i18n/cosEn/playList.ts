@@ -20,4 +20,8 @@ export const cosPlaylist = {
     "After removing the file {{filename}}, it will be unplayable in the current window and can be added to the playlist again.",
   addFilesFailed: "Failed to add file",
   remove: "Remove",
+  generateMediaSuccess: "Media generation completed, refresh the page to play",
+  generateMediaFailed: "Media generation failed, please check the file",
+  generateMediaProcessing: "Media generation in progress, you can play it later",
+  projectFrom: "From {{projectName}}",
 };
