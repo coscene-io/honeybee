@@ -153,12 +153,12 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
       },
     },
     mediaGenerationStatusBar: {
-      backgroundColor: theme.palette.warning.secondary,
-      color: theme.palette.warning.main,
+      backgroundColor: theme.palette.warning.main,
+      color: theme.palette.warning.contrastText,
     },
     mediaGeneratSuccessStatusBar: {
-      backgroundColor: theme.palette.success.secondary,
-      color: theme.palette.success.main,
+      backgroundColor: theme.palette.success.main,
+      color: theme.palette.success.contrastText,
     },
     successIcon: {
       color: theme.palette.success.main,

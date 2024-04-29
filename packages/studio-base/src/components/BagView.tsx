@@ -136,37 +136,37 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     color: theme.palette.text.primary,
   },
   generateSuccess: {
-    backgroundColor: theme.palette.success.secondary,
-    color: theme.palette.success.main,
+    backgroundColor: theme.palette.success.main,
+    color: theme.palette.success.contrastText,
   },
   successPoint: {
     borderRadius: "50%",
     width: "8px",
     height: "8px",
     border: `2px solid white`,
-    backgroundColor: theme.palette.success.main,
+    backgroundColor: theme.palette.success.contrastText,
   },
   generateError: {
-    backgroundColor: theme.palette.error.secondary,
-    color: theme.palette.error.main,
+    backgroundColor: theme.palette.error.main,
+    color: theme.palette.error.contrastText,
   },
   errorPoint: {
     borderRadius: "50%",
     width: "8px",
     height: "8px",
     border: `2px solid white`,
-    backgroundColor: theme.palette.error.main,
+    backgroundColor: theme.palette.error.contrastText,
   },
   generateProcessing: {
-    backgroundColor: theme.palette.warning.secondary,
-    color: theme.palette.warning.main,
+    backgroundColor: theme.palette.warning.main,
+    color: theme.palette.warning.contrastText,
   },
   processingPoint: {
     borderRadius: "50%",
     width: "8px",
     height: "8px",
     border: `2px solid white`,
-    backgroundColor: theme.palette.warning.main,
+    backgroundColor: theme.palette.warning.contrastText,
   },
 }));
 
