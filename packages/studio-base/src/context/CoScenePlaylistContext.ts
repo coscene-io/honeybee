@@ -10,6 +10,8 @@ import { StoreApi, useStore } from "zustand";
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Time } from "@foxglove/rostime";
 
+export type PlaylistMediaStatues = "PROCESSING" | "OK" | "ERROR" | "GENERATED_SUCCESS";
+
 export type BagFileInfo = {
   name: string;
 
@@ -24,6 +26,10 @@ export type BagFileInfo = {
   projectDisplayName?: string;
 
   recordDisplayName?: string;
+
+  recordColor?: string;
+
+  mediaStatues: PlaylistMediaStatues;
 
   /** The end position of the bag, as a value 0-1 relative to the timeline. */
   endPosition?: number;
@@ -52,6 +58,9 @@ export type ParamsFile =
     }
   | {
       jobRunsName: string;
+    }
+  | {
+      recordName: string;
     };
 
 export const CoScenePlaylistContext = createContext<undefined | StoreApi<CoScenePlaylistStore>>(

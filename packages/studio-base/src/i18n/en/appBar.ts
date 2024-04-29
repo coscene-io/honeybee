@@ -34,4 +34,8 @@ export const appBar = {
   viewData: "View data",
   viewOurDocs: "View our docs",
   profile: "Profile",
+  mediaGeneratingTips:
+    "media File generation in progress, refresh page to play when finished ({{successfulCount}}/{{totalCount}})",
+  mediaSuccessfulGeneration:
+    "All media files have been generated, refresh page to play all files ({{count}}/{{count}})",
 };

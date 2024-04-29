@@ -18,16 +18,30 @@ import {
   CoScenePlaylistStore,
   usePlaylist,
   BagFileInfo,
+  PlaylistMediaStatues,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   TimelineInteractionStateStore,
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { MediaStatus } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
 const HOVER_TOLERANCE = 0.01;
 
 const log = Logger.getLogger(__filename);
+
+function mediaStatusMapping(status: MediaStatus): PlaylistMediaStatues {
+  switch (status) {
+    case "NORMAL":
+      return "OK";
+    case "GENERATING":
+      return "PROCESSING";
+    default:
+      return "ERROR";
+  }
+}
 
 function positionBag({
   source,
@@ -40,6 +54,7 @@ function positionBag({
   currentFileStartTime,
   currentFileEndTime,
   timeMode,
+  mediaStatus,
 }: {
   source: string;
   displayName: string;
@@ -51,6 +66,7 @@ function positionBag({
   recordName: string;
   ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
   timeMode: "relativeTime" | "absoluteTime";
+  mediaStatus: MediaStatus;
 }): BagFileInfo {
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
@@ -70,6 +86,12 @@ function positionBag({
       ? scale(endTimeInSeconds, startSecs, endSecs, 0, 1)
       : scale(endTimeInSeconds - startTimeInSeconds, startSecs, endSecs, 0, 1);
 
+  let colorCertificate: string | undefined = undefined;
+
+  if (ghostModeFileType === "NORMAL_FILE" || ghostModeFileType === "GHOST_SOURCE_FILE") {
+    colorCertificate = source.split("/files/")[0];
+  }
+
   return {
     startTime: bagFileStartTime,
     endTime: bagFileEndTime,
@@ -79,8 +101,10 @@ function positionBag({
     endPosition,
     projectDisplayName: projectName,
     recordDisplayName: recordName,
+    recordColor: colorCertificate != undefined ? stringToColor(colorCertificate) : undefined,
     name: source,
     displayName,
+    mediaStatues: mediaStatusMapping(mediaStatus),
   };
 }
 
@@ -151,6 +175,8 @@ export function PlaylistSyncAdapter(): ReactNull {
 
         const playListFiles = playlist.value.fileList;
 
+        const hasNoMediaFile = playListFiles.find((ele) => ele.mediaStatus === "GENERATING");
+
         playListFiles.forEach((ele) => {
           recordBagFiles.push(
             positionBag({
@@ -169,11 +195,130 @@ export function PlaylistSyncAdapter(): ReactNull {
         );
 
         setBagFiles({ loading: false, value: recordBagFiles });
+
+        if (hasNoMediaFile && baseInfoKey) {
+          consoleApi
+            .getFilesStatus(baseInfoKey)
+            .then((response) => {
+              // Get the readable stream from the response body
+              // const stream = response.getReader();
+              // Get the reader from the stream
+              const reader = response.body?.getReader();
+              // Define a function to read each chunk
+              const readChunk = () => {
+                // Read a chunk from the reader
+                if (!reader) {
+                  return;
+                }
+
+                reader
+                  .read()
+                  .then(({ value, done }) => {
+                    // Check if the stream is done
+                    if (done) {
+                      const newStateRecordBagFiles: BagFileInfo[] = [];
+                      playListFiles.forEach((ele) => {
+                        newStateRecordBagFiles.push(
+                          positionBag({
+                            ...ele,
+                            startTime,
+                            endTime,
+                            currentFileStartTime: ele.startTime,
+                            currentFileEndTime: ele.endTime,
+                            timeMode,
+                            mediaStatus:
+                              ele.mediaStatus === "GENERATING"
+                                ? "GENERATED_SUCCESS"
+                                : ele.mediaStatus,
+                          }),
+                        );
+                      });
+
+                      newStateRecordBagFiles.sort((a, b) =>
+                        a.startTime && b.startTime
+                          ? compare(a.startTime, b.startTime)
+                          : a.startTime
+                          ? -1
+                          : 1,
+                      );
+
+                      setBagFiles({ loading: false, value: newStateRecordBagFiles });
+
+                      return;
+                    }
+
+                    // Convert the chunk value to a string
+                    const chunkString = new TextDecoder().decode(value);
+
+                    const playlistString = chunkString.split("data:").pop();
+
+                    const mediaStatusList: { filename: string; status: MediaStatus }[] = JSON.parse(
+                      playlistString ?? "",
+                    );
+
+                    const newStateRecordBagFiles: BagFileInfo[] = [];
+                    playListFiles.forEach((ele) => {
+                      const currentStatus = mediaStatusList.find(
+                        (media) => media.filename === ele.source,
+                      )?.status;
+
+                      newStateRecordBagFiles.push(
+                        positionBag({
+                          ...ele,
+                          startTime,
+                          endTime,
+                          currentFileStartTime: ele.startTime,
+                          currentFileEndTime: ele.endTime,
+                          timeMode,
+                          mediaStatus:
+                            ele.mediaStatus === "GENERATING" &&
+                            currentStatus != undefined &&
+                            currentStatus === "NORMAL"
+                              ? "GENERATED_SUCCESS"
+                              : ele.mediaStatus,
+                        }),
+                      );
+                    });
+
+                    newStateRecordBagFiles.sort((a, b) =>
+                      a.startTime && b.startTime
+                        ? compare(a.startTime, b.startTime)
+                        : a.startTime
+                        ? -1
+                        : 1,
+                    );
+
+                    setBagFiles({ loading: false, value: newStateRecordBagFiles });
+
+                    // Read the next chunk
+                    readChunk();
+                  })
+                  .catch((error) => {
+                    // Log the error
+                    console.error(error);
+                  });
+              };
+              // Start reading the first chunk
+              readChunk();
+            })
+            .catch((error) => {
+              console.error(error);
+            });
+        }
       } catch (error) {
         setBagFiles({ loading: false, error });
       }
     }
-  }, [urlState?.parameters?.key, playlist.value, startTime, endTime, setBagFiles, timeMode]);
+  }, [
+    urlState?.parameters?.key,
+    playlist.value,
+    startTime,
+    endTime,
+    setBagFiles,
+    baseInfoKey,
+    timeMode,
+    consoleApi,
+  ]);
 
   useEffect(() => {
     syncPlaylist().catch((error) => {

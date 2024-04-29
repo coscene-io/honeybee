@@ -4,7 +4,7 @@
 import { ImageShadow20Filled } from "@fluentui/react-icons";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import Clear from "@mui/icons-material/Clear";
-import { alpha } from "@mui/material";
+import { Stack, alpha } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
 import { useCallback, useState, useMemo } from "react";
@@ -26,9 +26,15 @@ import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) => ({
+  lineBox: {
+    borderLeft: `1px solid ${theme.palette.divider}`,
+    marginLeft: theme.spacing(2.5),
+    paddingBottom: "12px",
+  },
   bagBox: {
     display: "flex",
-    justifyContent: "space-between",
+    // justifyContent: "space-between",
+    flexDirection: "column",
     cursor: "pointer",
     "&:hover": {
       [`.${classes.bagMetadata}`]: {
@@ -36,9 +42,10 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
         borderColor: theme.palette.info.main,
       },
     },
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    padding: "10px 13px",
+    padding: "12px",
+    margin: "0px 15px 0px 12px",
     position: "relative",
+    backgroundColor: theme.palette.background.default,
   },
   triangle: {
     width: 0,
@@ -67,12 +74,6 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
   isCurrentBag: {
     color: `${theme.palette.primary.main} !important`,
   },
-  bagInfo: {
-    display: "flex",
-    width: "100%",
-    flexDirection: "column",
-    gap: "4px",
-  },
   bagName: {
     fontFamily: "Inter",
     fontStyle: "normal",
@@ -81,7 +82,6 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     lineHeight: "20px",
     color: "#374151",
     display: "block",
-    maxWidth: "calc(100% - 100px)", // 16px is the width of the bar chart icon
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
@@ -101,10 +101,6 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     padding: theme.spacing(1),
   },
   bagLength: {
-    position: "absolute",
-    float: "right",
-    right: theme.spacing(2),
-    width: "70px",
     fontFamily: "Inter",
     fontStyle: "normal",
     fontWeight: "400",
@@ -138,6 +134,39 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
   },
   bagFileName: {
     color: theme.palette.text.primary,
+  },
+  generateSuccess: {
+    backgroundColor: theme.palette.success.secondary,
+    color: theme.palette.success.main,
+  },
+  successPoint: {
+    borderRadius: "50%",
+    width: "8px",
+    height: "8px",
+    border: `2px solid white`,
+    backgroundColor: theme.palette.success.main,
+  },
+  generateError: {
+    backgroundColor: theme.palette.error.secondary,
+    color: theme.palette.error.main,
+  },
+  errorPoint: {
+    borderRadius: "50%",
+    width: "8px",
+    height: "8px",
+    border: `2px solid white`,
+    backgroundColor: theme.palette.error.main,
+  },
+  generateProcessing: {
+    backgroundColor: theme.palette.warning.secondary,
+    color: theme.palette.warning.main,
+  },
+  processingPoint: {
+    borderRadius: "50%",
+    width: "8px",
+    height: "8px",
+    border: `2px solid white`,
+    backgroundColor: theme.palette.warning.main,
   },
 }));
 
@@ -234,24 +263,27 @@ function BagViewComponent(params: {
   }, [confirm, bag, deleteBag, t]);
 
   return (
-    <div
-      className={cx(classes.bagBox, {
-        [classes.unableToPlay]: !bag.startTime && !isLogFile,
-      })}
-      onClick={() => {
-        onClick(bag);
-      }}
-      onMouseEnter={() => {
-        onHoverStart(bag);
-        setBoxIsHovered(true);
-      }}
-      onMouseLeave={() => {
-        onHoverEnd(bag);
-        setBoxIsHovered(false);
-      }}
-    >
-      <div className={classes.bagInfo}>
-        <span
+    <div className={classes.lineBox}>
+      <Stack
+        className={cx(classes.bagBox, {
+          [classes.unableToPlay]: !bag.startTime && !isLogFile,
+          [classes.isCurrentBag]: isCurrent || isHovered,
+        })}
+        onClick={() => {
+          onClick(bag);
+        }}
+        onMouseEnter={() => {
+          onHoverStart(bag);
+          setBoxIsHovered(true);
+        }}
+        onMouseLeave={() => {
+          onHoverEnd(bag);
+          setBoxIsHovered(false);
+        }}
+        borderRadius={bag.mediaStatues === "OK" ? "4px" : "4px 4px 0 0"}
+        gap="4px"
+      >
+        <Stack
           className={cx(classes.bagName, {
             [classes.isCurrentBag]: isCurrent || isHovered,
           })}
@@ -266,56 +298,108 @@ function BagViewComponent(params: {
           ) : (
             <HighlightedText text={bag.displayName} highlight={filter} />
           )}
-        </span>
-        <span
-          className={cx(classes.bagStartTime, {
-            [classes.isCurrentBag]: isCurrent || isHovered,
-          })}
-        >
-          <HighlightedText
-            text={`${bag.projectDisplayName}/${bag.recordDisplayName}`}
-            highlight={filter}
-          />
-          {!isLogFile && (
+        </Stack>
+        {bag.startTime && bag.endTime && (
+          <Stack
+            className={cx(classes.bagLength, {
+              [classes.isCurrentBag]: isCurrent || isHovered,
+            })}
+          >
             <HighlightedText
-              text={
-                bag.startTime
-                  ? `${dayjs(toDate(bag.startTime)).format("YYYY-MM-DD")} ${formatTime(
-                      bag.startTime,
-                    )}`
-                  : "-"
-              }
+              text={dayjs(toDate(subtract(bag.endTime, bag.startTime))).format("mm[min]ss[s]")}
               highlight={filter}
             />
-          )}
-        </span>
-      </div>
-      {bag.startTime && bag.endTime && (
-        <div
-          className={cx(classes.bagLength, {
-            [classes.isCurrentBag]: isCurrent || isHovered,
+          </Stack>
+        )}
+
+        <Stack>
+          <span
+            className={cx(classes.bagStartTime, {
+              [classes.isCurrentBag]: isCurrent || isHovered,
+            })}
+          >
+            {!isLogFile && (
+              <HighlightedText
+                text={
+                  bag.startTime
+                    ? `${dayjs(toDate(bag.startTime)).format("YYYY-MM-DD")} ${formatTime(
+                        bag.startTime,
+                      )}`
+                    : "-"
+                }
+                highlight={filter}
+              />
+            )}
+          </span>
+        </Stack>
+
+        {bag.fileType === "GHOST_RESULT_FILE" && (
+          <Tooltip title={t("shadowMode")} placement="top" className={classes.tooltip}>
+            <div>
+              <div className={classes.triangle} />
+              <ImageShadow20Filled className={classes.shadowIcon} />
+            </div>
+          </Tooltip>
+        )}
+        <Clear
+          className={cx(classes.deleteButton, {
+            [classes.hideDeleteButton]: !boxIsHovered,
           })}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteBag().catch((err) => {
+              console.error(err);
+            });
+          }}
+        />
+      </Stack>
+      {bag.mediaStatues === "GENERATED_SUCCESS" && (
+        <Stack
+          marginLeft="12px"
+          marginRight="15px"
+          paddingX="12px"
+          paddingY="4px"
+          className={classes.generateSuccess}
+          borderRadius="0 0 4px 4px"
+          direction="row"
+          gap="4px"
         >
-          <HighlightedText
-            text={dayjs(toDate(subtract(bag.endTime, bag.startTime))).format("mm[min]ss[s]")}
-            highlight={filter}
-          />
-        </div>
+          <div className={classes.successPoint} />
+          {t("generateMediaSuccess")}
+        </Stack>
       )}
-      {bag.fileType === "GHOST_RESULT_FILE" && (
-        <Tooltip title={t("shadowMode")} placement="top" className={classes.tooltip}>
-          <div>
-            <div className={classes.triangle} />
-            <ImageShadow20Filled className={classes.shadowIcon} />
-          </div>
-        </Tooltip>
+
+      {bag.mediaStatues === "ERROR" && (
+        <Stack
+          marginLeft="12px"
+          marginRight="15px"
+          paddingX="12px"
+          paddingY="4px"
+          className={classes.generateError}
+          borderRadius="0 0 4px 4px"
+          direction="row"
+          gap="4px"
+        >
+          <div className={classes.errorPoint} />
+          {t("generateMediaFailed")}
+        </Stack>
       )}
-      <Clear
-        className={cx(classes.deleteButton, {
-          [classes.hideDeleteButton]: !boxIsHovered,
-        })}
-        onClick={onDeleteBag}
-      />
+
+      {bag.mediaStatues === "PROCESSING" && (
+        <Stack
+          marginLeft="12px"
+          marginRight="15px"
+          paddingX="12px"
+          paddingY="4px"
+          className={classes.generateProcessing}
+          borderRadius="0 0 4px 4px"
+          direction="row"
+          gap="4px"
+        >
+          <div className={classes.processingPoint} />
+          {t("generateMediaProcessing")}
+        </Stack>
+      )}
     </div>
   );
 }
