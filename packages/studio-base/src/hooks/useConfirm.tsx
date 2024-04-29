@@ -94,7 +94,7 @@ function ConfirmModal(props: ConfirmModalProps) {
       onClose={() => {
         onComplete("cancel");
       }}
-      maxWidth="xs"
+      maxWidth="sm"
       fullWidth
     >
       <form
