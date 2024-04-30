@@ -392,7 +392,13 @@ export function CreateEventDialog(props: {
       newEvent.setDescription(event.description);
     }
 
-    const maskArray = ["displayName", "description", "duration", "customizedFields"];
+    const maskArray = [
+      "displayName",
+      "duration_nanos",
+      "description",
+      "duration",
+      "customizedFields",
+    ];
 
     if (!event.imageUrl && !event.imageFile) {
       newEvent.setFilesList([]);
