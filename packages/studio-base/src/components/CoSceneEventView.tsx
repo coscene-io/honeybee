@@ -163,7 +163,9 @@ function EventViewComponent(params: {
   };
 
   const [deletedEvent, deleteEvent] = useAsyncFn(async () => {
-    await consoleApi.deleteFile(new File({ name: event.event.files[0] }));
+    if (event.event.files[0]) {
+      await consoleApi.deleteFile(new File({ name: event.event.files[0] }));
+    }
     await consoleApi.deleteEvent({ eventName: event.event.name });
     setOpen(true);
     setToastInfo({
