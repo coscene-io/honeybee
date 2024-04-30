@@ -68,7 +68,8 @@ export type ToModifyEvent = {
   enabledCreateNewTask: boolean;
   fileName: string;
   imageFile?: File;
-  imageUrl?: string;
+  imgUrl?: string;
+  record: string;
 };
 
 const fadeInAnimation = keyframes`
@@ -171,7 +172,8 @@ export function CreateEventDialog(props: {
     enabledCreateNewTask: boolean;
     fileName: string;
     imageFile?: File;
-    imageUrl?: string;
+    imgUrl?: string;
+    record: string;
   }>({
     eventName: "",
     startTime: currentTime ? toDate(currentTime) : undefined,
@@ -181,6 +183,7 @@ export function CreateEventDialog(props: {
     metadataEntries: [{ key: "", value: "" }],
     enabledCreateNewTask: false,
     fileName: passingFile?.[0]?.name ?? "",
+    record: "",
   });
 
   useEffect(() => {
@@ -198,7 +201,8 @@ export function CreateEventDialog(props: {
             : [{ key: "", value: "" }],
         enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
         fileName: toModifyEvent.fileName,
-        imageUrl: toModifyEvent.imageUrl,
+        imgUrl: toModifyEvent.imgUrl,
+        record: toModifyEvent.record,
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -400,7 +404,7 @@ export function CreateEventDialog(props: {
       "customizedFields",
     ];
 
-    if (!event.imageUrl && !event.imageFile) {
+    if (!event.imgUrl && !event.imageFile) {
       newEvent.setFilesList([]);
       maskArray.push("files");
     }
@@ -409,13 +413,9 @@ export function CreateEventDialog(props: {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
 
-    const fieldMask = new FieldMask();
-    fieldMask.setPathsList(maskArray);
-
     try {
       const imgId = uuidv4();
-      const fileName = event.fileName;
-      const recordName = fileName.split("/files/")[0];
+      const recordName = event.record;
 
       if (event.imageFile && recordName) {
         const imgFileDisplayName = `${imgId}.${
@@ -430,7 +430,11 @@ export function CreateEventDialog(props: {
         });
 
         newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
+        maskArray.push("files");
       }
+
+      const fieldMask = new FieldMask();
+      fieldMask.setPathsList(maskArray);
 
       await consoleApi.updateEvent({
         event: newEvent,
@@ -450,10 +454,10 @@ export function CreateEventDialog(props: {
     event.duration,
     event.durationUnit,
     event.eventName,
-    event.fileName,
     event.imageFile,
-    event.imageUrl,
+    event.imgUrl,
     event.metadataEntries,
+    event.record,
     event.startTime,
     onClose,
     refreshEvents,
@@ -631,11 +635,11 @@ export function CreateEventDialog(props: {
                 />
               </Stack>
             ) : (
-              event.imageUrl && (
+              event.imgUrl && (
                 <Stack>
                   <img
                     onClick={() => inputRef.current?.click()}
-                    src={event.imageUrl}
+                    src={event.imgUrl}
                     style={{
                       maxHeight: "200px",
                       objectFit: "contain",
@@ -645,11 +649,11 @@ export function CreateEventDialog(props: {
               )
             )}
 
-            {event.imageUrl ? (
+            {event.imgUrl ? (
               <Button
                 className={classes.addFileButton}
                 onClick={() => {
-                  setEvent((old) => ({ ...old, imageUrl: undefined, imageFile: undefined }));
+                  setEvent((old) => ({ ...old, imgUrl: undefined, imageFile: undefined }));
                 }}
               >
                 <DeleteForeverIcon />
@@ -674,7 +678,7 @@ export function CreateEventDialog(props: {
                 if (!file) {
                   return;
                 }
-                setEvent((val) => ({ ...val, imageUrl: undefined, imageFile: file }));
+                setEvent((val) => ({ ...val, imgUrl: undefined, imageFile: file }));
               }}
             />
           </Stack>
