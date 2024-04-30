@@ -265,6 +265,7 @@ function EventViewComponent(params: {
       enabledCreateNewTask: false,
       fileName: "",
       imageUrl: event.event.files[0],
+      record: event.event.record,
     });
   };
 

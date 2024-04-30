@@ -69,6 +69,7 @@ export type ToModifyEvent = {
   fileName: string;
   imageFile?: File;
   imageUrl?: string;
+  record: string;
 };
 
 const fadeInAnimation = keyframes`
@@ -172,6 +173,7 @@ export function CreateEventDialog(props: {
     fileName: string;
     imageFile?: File;
     imageUrl?: string;
+    record: string;
   }>({
     eventName: "",
     startTime: currentTime ? toDate(currentTime) : undefined,
@@ -181,6 +183,7 @@ export function CreateEventDialog(props: {
     metadataEntries: [{ key: "", value: "" }],
     enabledCreateNewTask: false,
     fileName: passingFile?.[0]?.name ?? "",
+    record: "",
   });
 
   useEffect(() => {
@@ -199,6 +202,7 @@ export function CreateEventDialog(props: {
         enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
         fileName: toModifyEvent.fileName,
         imageUrl: toModifyEvent.imageUrl,
+        record: toModifyEvent.record,
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -409,13 +413,9 @@ export function CreateEventDialog(props: {
       newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
     });
 
-    const fieldMask = new FieldMask();
-    fieldMask.setPathsList(maskArray);
-
     try {
       const imgId = uuidv4();
-      const fileName = event.fileName;
-      const recordName = fileName.split("/files/")[0];
+      const recordName = event.record;
 
       if (event.imageFile && recordName) {
         const imgFileDisplayName = `${imgId}.${
@@ -430,7 +430,11 @@ export function CreateEventDialog(props: {
         });
 
         newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
+        maskArray.push("files");
       }
+
+      const fieldMask = new FieldMask();
+      fieldMask.setPathsList(maskArray);
 
       await consoleApi.updateEvent({
         event: newEvent,
@@ -450,10 +454,10 @@ export function CreateEventDialog(props: {
     event.duration,
     event.durationUnit,
     event.eventName,
-    event.fileName,
     event.imageFile,
     event.imageUrl,
     event.metadataEntries,
+    event.record,
     event.startTime,
     onClose,
     refreshEvents,
