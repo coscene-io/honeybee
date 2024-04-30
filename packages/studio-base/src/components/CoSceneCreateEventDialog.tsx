@@ -68,7 +68,7 @@ export type ToModifyEvent = {
   enabledCreateNewTask: boolean;
   fileName: string;
   imageFile?: File;
-  imageUrl?: string;
+  imgUrl?: string;
   record: string;
 };
 
@@ -172,7 +172,7 @@ export function CreateEventDialog(props: {
     enabledCreateNewTask: boolean;
     fileName: string;
     imageFile?: File;
-    imageUrl?: string;
+    imgUrl?: string;
     record: string;
   }>({
     eventName: "",
@@ -201,7 +201,7 @@ export function CreateEventDialog(props: {
             : [{ key: "", value: "" }],
         enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
         fileName: toModifyEvent.fileName,
-        imageUrl: toModifyEvent.imageUrl,
+        imgUrl: toModifyEvent.imgUrl,
         record: toModifyEvent.record,
       }));
     }
@@ -404,7 +404,7 @@ export function CreateEventDialog(props: {
       "customizedFields",
     ];
 
-    if (!event.imageUrl && !event.imageFile) {
+    if (!event.imgUrl && !event.imageFile) {
       newEvent.setFilesList([]);
       maskArray.push("files");
     }
@@ -455,7 +455,7 @@ export function CreateEventDialog(props: {
     event.durationUnit,
     event.eventName,
     event.imageFile,
-    event.imageUrl,
+    event.imgUrl,
     event.metadataEntries,
     event.record,
     event.startTime,
@@ -635,11 +635,11 @@ export function CreateEventDialog(props: {
                 />
               </Stack>
             ) : (
-              event.imageUrl && (
+              event.imgUrl && (
                 <Stack>
                   <img
                     onClick={() => inputRef.current?.click()}
-                    src={event.imageUrl}
+                    src={event.imgUrl}
                     style={{
                       maxHeight: "200px",
                       objectFit: "contain",
@@ -649,11 +649,11 @@ export function CreateEventDialog(props: {
               )
             )}
 
-            {event.imageUrl ? (
+            {event.imgUrl ? (
               <Button
                 className={classes.addFileButton}
                 onClick={() => {
-                  setEvent((old) => ({ ...old, imageUrl: undefined, imageFile: undefined }));
+                  setEvent((old) => ({ ...old, imgUrl: undefined, imageFile: undefined }));
                 }}
               >
                 <DeleteForeverIcon />
@@ -678,7 +678,7 @@ export function CreateEventDialog(props: {
                 if (!file) {
                   return;
                 }
-                setEvent((val) => ({ ...val, imageUrl: undefined, imageFile: file }));
+                setEvent((val) => ({ ...val, imgUrl: undefined, imageFile: file }));
               }}
             />
           </Stack>

@@ -264,7 +264,7 @@ function EventViewComponent(params: {
       }),
       enabledCreateNewTask: false,
       fileName: "",
-      imageUrl: event.event.files[0],
+      imgUrl: event.imgUrl,
       record: event.event.record,
     });
   };
