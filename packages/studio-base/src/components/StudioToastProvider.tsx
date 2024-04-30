@@ -106,13 +106,6 @@ export default function StudioToastProvider({ children }: PropsWithChildren): JS
   const { classes } = useStyles();
   return (
     <SnackbarProvider
-      Components={{
-        default: Snackbar,
-        error: Snackbar,
-        success: Snackbar,
-        warning: Snackbar,
-        info: Snackbar,
-      }}
       action={(id) => <CloseSnackbarAction id={id} />}
       iconVariant={{
         default: <Info20Regular className={classes.icon} />,
