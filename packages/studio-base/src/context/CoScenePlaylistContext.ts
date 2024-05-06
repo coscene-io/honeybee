@@ -39,6 +39,8 @@ export type BagFileInfo = {
 
   /** The time, in seconds, relative to the start of the timeline. */
   secondsSinceStart?: number;
+
+  sha256: string;
 };
 
 export type CoScenePlaylistStore = DeepReadonly<{

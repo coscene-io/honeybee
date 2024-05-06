@@ -20,7 +20,12 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { ParamsFile, BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import {
+  usePlaylist,
+  CoScenePlaylistStore,
+  ParamsFile,
+  BagFileInfo,
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppURLState } from "@foxglove/studio-base/util/appURLState";
@@ -175,6 +180,8 @@ const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
 const checkIsLogFile = (bag: BagFileInfo) => bag.displayName.endsWith(".log");
 
+const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
+
 function BagViewComponent(params: {
   bag: BagFileInfo;
   filter: string;
@@ -206,20 +213,41 @@ function BagViewComponent(params: {
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
+  const bagFiles = usePlaylist(selectBagFiles);
+
   const isLogFile = checkIsLogFile(bag);
 
   const files: ParamsFile[] = JSON.parse(urlState?.parameters?.files ?? "{}");
 
+  /**
+   *  - cannot delete shadow mode files
+   *
+   *  - In order to support record level files, if any file is deleted,
+   *  the deleted file is removed from the list of files returned
+   *  in the playlist and the remaining files are added back to the file list.
+   */
   const deleteBag = useCallback(() => {
     const newFiles = files.filter((file) => {
-      if ("filename" in file) {
-        return file.filename !== bag.name;
-      }
       if ("jobRunsName" in file) {
-        return file.jobRunsName !== bag.name;
+        return true;
       }
 
       return false;
+    });
+
+    bagFiles.value?.forEach((file) => {
+      if (
+        file.fileType === "GHOST_RESULT_FILE" ||
+        file.fileType === "GHOST_SOURCE_FILE" ||
+        file.name === bag.name
+      ) {
+        return;
+      }
+
+      newFiles.push({
+        filename: file.name,
+        sha256: file.sha256,
+      });
     });
 
     if (urlState != undefined) {
@@ -241,7 +269,7 @@ function BagViewComponent(params: {
           console.error("Failed to set base info", error);
         });
     }
-  }, [bag.name, baseInfo, consoleApi, files, t, updateUrl, urlState]);
+  }, [bag.name, bagFiles.value, baseInfo, consoleApi, files, t, updateUrl, urlState]);
 
   const onDeleteBag = useCallback(async () => {
     const response = await confirm({
@@ -341,17 +369,19 @@ function BagViewComponent(params: {
             </div>
           </Tooltip>
         )}
-        <Clear
-          className={cx(classes.deleteButton, {
-            [classes.hideDeleteButton]: !boxIsHovered,
-          })}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteBag().catch((err) => {
-              console.error(err);
-            });
-          }}
-        />
+        {bag.fileType !== "GHOST_RESULT_FILE" && bag.fileType !== "GHOST_SOURCE_FILE" && (
+          <Clear
+            className={cx(classes.deleteButton, {
+              [classes.hideDeleteButton]: !boxIsHovered,
+            })}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteBag().catch((err) => {
+                console.error(err);
+              });
+            }}
+          />
+        )}
       </Stack>
       {bag.mediaStatues === "GENERATED_SUCCESS" && (
         <Stack
