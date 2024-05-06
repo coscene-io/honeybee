@@ -57,6 +57,7 @@ function positionBag({
   currentFileEndTime,
   timeMode,
   mediaStatus,
+  sha256,
 }: {
   source: string;
   displayName: string;
@@ -69,6 +70,7 @@ function positionBag({
   ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
   timeMode: "relativeTime" | "absoluteTime";
   mediaStatus: MediaStatus;
+  sha256: string;
 }): BagFileInfo {
   const startSecs = toSec(startTime);
   const endSecs = toSec(endTime);
@@ -107,6 +109,7 @@ function positionBag({
     name: source,
     displayName,
     mediaStatues: mediaStatusMapping(mediaStatus),
+    sha256,
   };
 }
 
