@@ -9,4 +9,5 @@ export const cosAppBar = {
   signOutConfirmTitle: "Are you sure you want to sign out?",
   signOutConfirmOk: "Sign out",
   signOutConfirmCancel: "No",
+  menu: "Menu",
 };

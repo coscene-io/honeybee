@@ -236,7 +236,9 @@ export function AppBar(props: AppBarProps): JSX.Element {
                 className={cx(classes.logo, { "Mui-selected": appMenuOpen })}
                 color="inherit"
                 id="app-menu-button"
-                title="Menu"
+                title={t("menu", {
+                  ns: "cosAppBar",
+                })}
                 aria-controls={appMenuOpen ? "app-menu" : undefined}
                 aria-haspopup="true"
                 aria-expanded={appMenuOpen ? "true" : undefined}

@@ -11,4 +11,5 @@ export const cosAppBar: Partial<TypeOptions["resources"]["cosAppBar"]> = {
   signOutConfirmTitle: "确定要登出吗",
   signOutConfirmOk: "登出",
   signOutConfirmCancel: "取消",
+  menu: "菜单",
 };
