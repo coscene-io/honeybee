@@ -70,6 +70,19 @@ const useStyles = makeStyles()((theme) => ({
     height: "8px",
     borderRadius: "2px",
   },
+  accordionRoot: {
+    "&.MuiAccordion-root": {
+      boxShadow: "none !important",
+    },
+  },
+  accordionSummary: {
+    height: 44,
+    minHeight: "44px !important",
+    padding: "0 16px 0 16px",
+    fontSize: "14px",
+    fontWeight: 500,
+    lineheight: "20px",
+  },
 }));
 
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
@@ -203,11 +216,12 @@ export function EventsList(): JSX.Element {
         {Array.from(timestampedEvents.keys()).map((recordTitle, index) => {
           return (
             <div key={recordTitle}>
-              <Accordion defaultExpanded={index === 0}>
+              <Accordion defaultExpanded={index === 0} className={classes.accordionRoot}>
                 <AccordionSummary
                   expandIcon={<ExpandMoreIcon />}
                   aria-controls="panel1-content"
                   id="panel1-header"
+                  className={classes.accordionSummary}
                 >
                   <div className={classes.accordionTitle}>
                     <span

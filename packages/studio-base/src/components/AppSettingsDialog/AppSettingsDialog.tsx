@@ -340,7 +340,11 @@ export function AppSettingsDialog(
         </Stack>
       </div>
       <DialogActions className={classes.dialogActions}>
-        <Button onClick={handleClose}>Done</Button>
+        <Button onClick={handleClose}>
+          {t("done", {
+            ns: "cosGeneral",
+          })}
+        </Button>
       </DialogActions>
     </Dialog>
   );
