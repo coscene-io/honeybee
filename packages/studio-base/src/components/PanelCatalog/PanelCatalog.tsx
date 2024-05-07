@@ -33,6 +33,7 @@ const useStyles = makeStyles()((theme) => {
       backgroundImage: `linear-gradient(to top, transparent, ${palette.background.paper} ${spacing(
         1.5,
       )}) !important`,
+      marginLeft: "1px",
     },
     toolbarMenu: {
       backgroundImage: `linear-gradient(to top, transparent, ${palette.background.menu} ${spacing(
