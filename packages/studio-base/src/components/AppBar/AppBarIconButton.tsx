@@ -4,7 +4,6 @@
 
 import { IconButton, IconButtonProps, Tooltip } from "@mui/material";
 import { forwardRef } from "react";
-import tinycolor from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
 const useStyles = makeStyles()((theme) => ({
@@ -14,13 +13,13 @@ const useStyles = makeStyles()((theme) => ({
   iconButton: {
     borderRadius: 0,
     fontSize: 24,
-    padding: theme.spacing(1.25),
+    padding: theme.spacing(1.15),
 
     "svg:not(.MuiSvgIcon-root)": {
       fontSize: "1em",
     },
     "&:hover": {
-      backgroundColor: tinycolor(theme.palette.common.white).setAlpha(0.08).toRgbString(),
+      backgroundColor: theme.palette.background.hover,
     },
     "&.Mui-selected": {
       backgroundColor: theme.palette.appBar.primary,

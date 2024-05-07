@@ -5,7 +5,6 @@
 import { ChevronDown12Filled } from "@fluentui/react-icons";
 import { ButtonBase, ButtonBaseProps, Typography } from "@mui/material";
 import { forwardRef } from "react";
-import tinycolor2 from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -17,14 +16,16 @@ const useStyles = makeStyles()((theme) => ({
   textTruncate: {
     maxWidth: "18vw",
     overflow: "hidden",
+    color: theme.palette.text.primary,
   },
   subheader: {
     fontSize: 8,
     opacity: 0.6,
+    color: theme.palette.text.secondary,
   },
   layoutButton: {
     font: "inherit",
-    height: APP_BAR_HEIGHT,
+    height: APP_BAR_HEIGHT - 2,
     fontSize: theme.typography.body2.fontSize,
     justifyContent: "space-between",
     minWidth: 120,
@@ -33,10 +34,10 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: 0,
 
     ":hover": {
-      backgroundColor: tinycolor2(theme.palette.common.white).setAlpha(0.08).toString(),
+      backgroundColor: theme.palette.background.hover,
     },
     "&.Mui-selected": {
-      backgroundColor: theme.palette.appBar.primary,
+      backgroundColor: theme.palette.background.hover,
     },
   },
 }));
@@ -53,7 +54,7 @@ type Props = {
  */
 const AppBarDropdownButton = forwardRef<HTMLButtonElement, Props>((props, ref) => {
   const { title, subheader, onClick, selected, ...rest } = props;
-  const { classes, cx } = useStyles();
+  const { classes, cx, theme } = useStyles();
 
   return (
     <ButtonBase
@@ -73,7 +74,7 @@ const AppBarDropdownButton = forwardRef<HTMLButtonElement, Props>((props, ref) =
           <TextMiddleTruncate text={title} />
         </div>
       </Stack>
-      <ChevronDown12Filled />
+      <ChevronDown12Filled color={theme.palette.text.secondary} />
     </ButtonBase>
   );
 });

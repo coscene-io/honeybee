@@ -19,12 +19,13 @@ const useStyles = makeStyles()((theme) => {
       gridArea: "appbar",
       boxShadow: "none",
       backgroundColor: theme.palette.appBar.main,
-      borderBottom: "none",
       color: theme.palette.common.white,
       height: APP_BAR_HEIGHT,
 
       paddingRight: "calc(100% - env(titlebar-area-x) - env(titlebar-area-width))",
       WebkitAppRegion: "drag", // make custom window title bar draggable for desktop app
+
+      borderBottom: `1px solid ${theme.palette.divider}`,
     },
   };
 });

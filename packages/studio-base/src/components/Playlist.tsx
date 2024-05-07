@@ -94,15 +94,20 @@ const useStyles = makeStyles()((theme) => ({
       backgroundColor: theme.palette.divider,
     },
   },
+  accordionRoot: {
+    "&.MuiAccordion-root": {
+      boxShadow: "none !important",
+    },
+  },
   colorBlock: {
     width: "8px",
     height: "8px",
     borderRadius: "2px",
   },
   accordionSummary: {
-    height: 60,
-    minHeight: "auto",
-    padding: "16px 16px 0 16px",
+    height: 44,
+    minHeight: "44px !important",
+    padding: "0 16px 0 16px",
     fontSize: "14px",
     fontWeight: 500,
     lineheight: "20px",
@@ -298,8 +303,8 @@ export function Playlist(): JSX.Element {
       <div>
         {Object.keys(bags).map((recordDisplayName, index) => {
           return (
-            <div key="recordDisplayName">
-              <Accordion defaultExpanded={index === 0}>
+            <div key={recordDisplayName}>
+              <Accordion defaultExpanded={index === 0} className={classes.accordionRoot}>
                 <AccordionSummary
                   expandIcon={<ExpandMoreIcon />}
                   aria-controls="panel1-content"

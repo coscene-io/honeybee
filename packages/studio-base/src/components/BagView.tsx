@@ -85,7 +85,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     fontWeight: "400",
     fontSize: "14px",
     lineHeight: "20px",
-    color: "#374151",
+    color: theme.palette.text.primary,
     display: "block",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -100,7 +100,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     fontWeight: "400",
     fontSize: "12px",
     lineHeight: "16px",
-    color: "#9CA3AF",
+    color: theme.palette.text.secondary,
   },
   bagMetadata: {
     padding: theme.spacing(1),
@@ -111,7 +111,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     fontWeight: "400",
     fontSize: "12px",
     lineHeight: "16px",
-    color: "#9CA3AF",
+    color: theme.palette.text.secondary,
   },
   unableToPlay: {
     opacity: 0.5,
