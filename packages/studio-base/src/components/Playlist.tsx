@@ -65,6 +65,7 @@ const useStyles = makeStyles()((theme) => ({
     padding: theme.spacing(1),
     gap: theme.spacing(1),
     alignItems: "center",
+    marginLeft: "-1px",
   },
   root: {
     backgroundColor: theme.palette.background.paper,
