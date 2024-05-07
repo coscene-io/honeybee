@@ -12,6 +12,7 @@ declare module "@mui/material/styles" {
       main: CSSProperties["color"];
       primary: CSSProperties["color"];
       text: CSSProperties["color"];
+      icon: CSSProperties["color"];
     };
   }
   interface PaletteOptions {
@@ -20,10 +21,12 @@ declare module "@mui/material/styles" {
       main: CSSProperties["color"];
       primary: CSSProperties["color"];
       text: CSSProperties["color"];
+      icon: CSSProperties["color"];
     };
   }
   interface TypeBackground {
     menu: CSSProperties["color"];
+    hover: CSSProperties["color"];
   }
 }
 
@@ -33,9 +36,9 @@ export const dark: PaletteOptions = {
   tonalOffset: 0.15,
   appBar: {
     main: "#35363A",
-    // CoScene
     primary: "#2563eb",
     text: "#ffffff",
+    icon: "#ffffff",
   },
   primary: { main: "#2563eb" },
   secondary: { main: "#b1b1b1" },
@@ -52,6 +55,7 @@ export const dark: PaletteOptions = {
     default: "#15151a",
     paper: "#27272b",
     menu: "#35363A",
+    hover: "#454649",
   },
   grey: {
     50: "#121217",
@@ -76,21 +80,26 @@ export const light: PaletteOptions = {
   mode: "light",
   tonalOffset: 0.22,
   appBar: {
-    main: "#27272b",
+    main: "#fff",
     // CoScene
     primary: "#2563eb",
-    text: "#ffffff",
+    text: "#111827",
+    icon: "#6f6d79",
   },
   primary: { main: "#2563eb" },
   secondary: { main: "#808080" },
-  error: { contrastText: "#dc2626", main: "#fee2e2" },
-  warning: { contrastText: "#ea580c", main: "#ffedd5" },
-  success: { contrastText: "#16a34a", main: "#dcfce7" },
+  error: { main: "#d32f2f", contrastText: "#fff" },
+  warning: { main: "#ed6c02", contrastText: "#fff" },
+  success: {
+    main: "#2e7d32",
+    contrastText: "#fff",
+  },
   info: { main: "#1EA7FD" },
   background: {
     default: "#f4f4f5",
     paper: "#ffffff",
     menu: "#ffffff",
+    hover: "#f5f5f5",
   },
   text: {
     primary: "#393939",

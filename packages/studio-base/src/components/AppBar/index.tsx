@@ -76,7 +76,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
         fontSize: "1em",
       },
       "&:hover": {
-        backgroundColor: tc(theme.palette.common.white).setAlpha(0.08).toRgbString(),
+        backgroundColor: theme.palette.background.hover,
       },
       "&.Mui-selected": {
         backgroundColor: theme.palette.appBar.primary,
@@ -134,18 +134,20 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
       width: theme.spacing(3.5),
     },
     iconButton: {
-      padding: theme.spacing(1),
+      padding: theme.spacing(0.75),
+      margin: theme.spacing(0, 0.5),
+
       borderRadius: 0,
 
       "&:hover": {
-        backgroundColor: tc(theme.palette.common.white).setAlpha(0.08).toString(),
+        backgroundColor: theme.palette.background.hover,
 
         [`.${classes.avatar}`]: {
           backgroundColor: tc(theme.palette.appBar.main).lighten(20).toString(),
         },
       },
       "&.Mui-selected": {
-        backgroundColor: theme.palette.appBar.primary,
+        backgroundColor: theme.palette.background.hover,
 
         [`.${classes.avatar}`]: {
           backgroundColor: tc(theme.palette.appBar.main).setAlpha(0.3).toString(),
@@ -192,7 +194,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
     onUnmaximizeWindow,
     showCustomWindowControls = false,
   } = props;
-  const { classes, cx } = useStyles({ debugDragRegion });
+  const { classes, cx, theme } = useStyles({ debugDragRegion });
   const { currentUser } = useCurrentUser();
   const { t } = useTranslation("appBar");
 
@@ -267,7 +269,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   setPanelAnchorEl(event.currentTarget);
                 }}
               >
-                <SlideAdd24Regular />
+                <SlideAdd24Regular color={theme.palette.appBar.icon} />
               </AppBarIconButton>
             </div>
           </div>
@@ -294,7 +296,11 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   }}
                   data-tourid="left-sidebar-button"
                 >
-                  {leftSidebarOpen ? <PanelLeft24Filled /> : <PanelLeft24Regular />}
+                  {leftSidebarOpen ? (
+                    <PanelLeft24Filled color={theme.palette.appBar.icon} />
+                  ) : (
+                    <PanelLeft24Regular color={theme.palette.appBar.icon} />
+                  )}
                 </AppBarIconButton>
                 <AppBarIconButton
                   title={
@@ -309,7 +315,11 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   }}
                   data-tourid="right-sidebar-button"
                 >
-                  {rightSidebarOpen ? <PanelRight24Filled /> : <PanelRight24Regular />}
+                  {rightSidebarOpen ? (
+                    <PanelRight24Filled color={theme.palette.appBar.icon} />
+                  ) : (
+                    <PanelRight24Regular color={theme.palette.appBar.icon} />
+                  )}
                 </AppBarIconButton>
               </Stack>
               <Tooltip
