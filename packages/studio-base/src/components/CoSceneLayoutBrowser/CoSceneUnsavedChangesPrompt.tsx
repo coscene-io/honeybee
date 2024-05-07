@@ -133,7 +133,7 @@ export function UnsavedChangesPrompt({
               <TextField
                 autoFocus
                 variant="outlined"
-                label="Layout name"
+                label={t("layoutName")}
                 value={personalCopyName}
                 onChange={handleNameChange}
                 error={nameError != undefined}
