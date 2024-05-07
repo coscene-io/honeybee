@@ -42,9 +42,9 @@ export const dark: PaletteOptions = {
   },
   primary: { main: "#2563eb" },
   secondary: { main: "#b1b1b1" },
-  error: { contrastText: "#E34E49", main: "#4D000A" },
-  warning: { contrastText: "#EE7930", main: "#4D1100" },
-  success: { contrastText: "#28AB7D", main: "#004D3E" },
+  error: { contrastText: "#fff", main: "#ef4444" },
+  warning: { contrastText: "#EE7930", main: "#f97316" },
+  success: { contrastText: "#28AB7D", main: "#10b981" },
   info: { main: "#29bee7" },
   text: {
     primary: "#e1e1e4",

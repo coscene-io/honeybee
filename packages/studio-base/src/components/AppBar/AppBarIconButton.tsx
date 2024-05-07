@@ -22,7 +22,7 @@ const useStyles = makeStyles()((theme) => ({
       backgroundColor: theme.palette.background.hover,
     },
     "&.Mui-selected": {
-      backgroundColor: theme.palette.appBar.primary,
+      backgroundColor: theme.palette.background.hover,
     },
     "&.Mui-disabled": {
       color: "currentColor",
