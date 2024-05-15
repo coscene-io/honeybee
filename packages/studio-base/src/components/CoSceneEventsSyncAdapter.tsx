@@ -179,7 +179,8 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
 
         if (bagFile.fileType === "GHOST_RESULT_FILE") {
           const projectName = fileSource.split("/workflowRuns/")[0];
-          const filter = `record.job_run="${fileSource}"`;
+          const jubRunName = fileSource.split("/outputs/")[0];
+          const filter = `record.job_run="${jubRunName}"`;
 
           if (projectName == undefined) {
             throw new Error("wrong source name");
