@@ -61,13 +61,18 @@ const useStyles = makeStyles()((theme) => ({
     display: "flex",
     alignItems: "center",
     gap: theme.spacing(1),
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   accordion: {
     padding: 0,
   },
   colorBlock: {
     width: "8px",
+    minWidth: "8px",
     height: "8px",
+    minHeight: "8px",
     borderRadius: "2px",
   },
   accordionRoot: {
@@ -76,6 +81,10 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
   accordionSummary: {
+    ".MuiAccordionSummary-contentGutters": {
+      width: "100%",
+    },
+
     height: 44,
     minHeight: "44px !important",
     padding: "0 16px 0 16px",
