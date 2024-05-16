@@ -74,18 +74,18 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
       try {
         await layoutManager.updateLayout(params);
       } catch (error) {
-        log.error(error);
+        log.error("changes could not be saved", error);
 
-        if (isMounted()) {
-          const layouts = await layoutManager.getLayouts();
-          const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
-          setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
-        }
+        // if (isMounted()) {
+        //   const layouts = await layoutManager.getLayouts();
+        //   const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
+        //   setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
+        // }
       }
     }
 
     void analytics.logEvent(AppEvent.LAYOUT_UPDATE);
-  }, [analytics, debouncedUnsavedLayouts, isMounted, layoutManager, setSelectedLayoutId]);
+  }, [analytics, debouncedUnsavedLayouts, layoutManager]);
 
   return ReactNull;
 }

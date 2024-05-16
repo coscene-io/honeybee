@@ -248,8 +248,10 @@ export default function CoSceneCurrentLayoutProvider({
       }
 
       if (event.layoutId === layoutStateRef.current.selectedLayout.id) {
+        // 删除后选择拥有的第一个layout
         const layouts = await layoutManager.getLayouts();
-        await setSelectedLayoutId(layouts[0]?.id);
+        const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
+        await setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
       }
     };
 
