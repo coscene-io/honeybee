@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useEffect, useState } from "react";
-import { useAsync, useMountedState } from "react-use";
+import { useAsync } from "react-use";
 import { useDebounce } from "use-debounce";
 
 import Logger from "@foxglove/log";
@@ -12,7 +12,6 @@ import {
   LayoutID,
   LayoutState,
   useCurrentLayoutSelector,
-  useCurrentLayoutActions,
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
@@ -32,13 +31,10 @@ const selectCurrentLayout = (state: LayoutState) => state.selectedLayout;
  */
 export function CurrentLayoutSyncAdapter(): ReactNull {
   const selectedLayout = useCurrentLayoutSelector(selectCurrentLayout);
-  const { setSelectedLayoutId } = useCurrentLayoutActions();
 
   const layoutManager = useLayoutManager();
 
   const [unsavedLayouts, setUnsavedLayouts] = useState(EMPTY_UNSAVED_LAYOUTS);
-
-  const isMounted = useMountedState();
 
   const analytics = useAnalytics();
 
