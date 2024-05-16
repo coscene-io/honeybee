@@ -2,8 +2,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
-import { useAsync } from "react-use";
+import { useAsync, useMountedState } from "react-use";
 import { useDebounce } from "use-debounce";
 
 import Logger from "@foxglove/log";
@@ -37,6 +38,8 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
   const [unsavedLayouts, setUnsavedLayouts] = useState(EMPTY_UNSAVED_LAYOUTS);
 
   const analytics = useAnalytics();
+
+  const isMounted = useMountedState();
 
   useEffect(() => {
     if (selectedLayout?.edited === true) {
@@ -72,16 +75,17 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
       } catch (error) {
         log.error("changes could not be saved", error);
 
-        // if (isMounted()) {
-        //   const layouts = await layoutManager.getLayouts();
-        //   const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
-        //   setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
-        // }
+        if (isMounted()) {
+          enqueueSnackbar(`Your changes could not be saved. ${error.toString()}`, {
+            variant: "error",
+            key: "CurrentLayoutProvider.throttledSave",
+          });
+        }
       }
     }
 
     void analytics.logEvent(AppEvent.LAYOUT_UPDATE);
-  }, [analytics, debouncedUnsavedLayouts, layoutManager]);
+  }, [analytics, debouncedUnsavedLayouts, isMounted, layoutManager]);
 
   return ReactNull;
 }
