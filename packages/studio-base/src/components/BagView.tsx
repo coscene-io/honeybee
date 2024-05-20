@@ -144,34 +144,15 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     backgroundColor: theme.palette.success.main,
     color: theme.palette.success.contrastText,
   },
-  successPoint: {
-    borderRadius: "50%",
-    width: "8px",
-    height: "8px",
-    border: `2px solid white`,
-    backgroundColor: theme.palette.success.contrastText,
-  },
+
   generateError: {
     backgroundColor: theme.palette.error.main,
     color: theme.palette.error.contrastText,
   },
-  errorPoint: {
-    borderRadius: "50%",
-    width: "8px",
-    height: "8px",
-    border: `2px solid white`,
-    backgroundColor: theme.palette.error.contrastText,
-  },
+
   generateProcessing: {
     backgroundColor: theme.palette.warning.main,
     color: theme.palette.warning.contrastText,
-  },
-  processingPoint: {
-    borderRadius: "50%",
-    width: "8px",
-    height: "8px",
-    border: `2px solid white`,
-    backgroundColor: theme.palette.warning.contrastText,
   },
 }));
 
@@ -394,7 +375,6 @@ function BagViewComponent(params: {
           direction="row"
           gap="4px"
         >
-          <div className={classes.successPoint} />
           {t("generateMediaSuccess")}
         </Stack>
       )}
@@ -410,7 +390,6 @@ function BagViewComponent(params: {
           direction="row"
           gap="4px"
         >
-          <div className={classes.errorPoint} />
           {t("generateMediaFailed")}
         </Stack>
       )}
@@ -426,7 +405,6 @@ function BagViewComponent(params: {
           direction="row"
           gap="4px"
         >
-          <div className={classes.processingPoint} />
           {t("generateMediaProcessing")}
         </Stack>
       )}
