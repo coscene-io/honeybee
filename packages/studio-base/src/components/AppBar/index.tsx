@@ -162,9 +162,6 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
       backgroundColor: theme.palette.success.main,
       color: theme.palette.success.contrastText,
     },
-    successIcon: {
-      color: theme.palette.success.main,
-    },
   };
 });
 
@@ -395,7 +392,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
             className={classes.mediaGeneratSuccessStatusBar}
           >
             <Stack direction="row" gap={1} alignItems="center">
-              <CheckCircleOutlineIcon className={classes.successIcon} />
+              <CheckCircleOutlineIcon />
               {t("mediaSuccessfulGeneration", {
                 count: allGenerationgMediaCount.length,
               })}
@@ -405,6 +402,9 @@ export function AppBar(props: AppBarProps): JSX.Element {
               variant="text"
               onClick={() => {
                 window.location.reload();
+              }}
+              style={{
+                color: theme.palette.success.contrastText,
               }}
             >
               {t("refresh", {
