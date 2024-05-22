@@ -4022,7 +4022,7 @@ __metadata:
     "@tanstack/react-table": 8.11.7
     "@testing-library/react": 14.2.1
     "@types/base16": ^1.0.5
-    "@types/cytoscape": ^3.19.16
+    "@types/cytoscape": ^3.21.1
     "@types/foxglove__roslibjs": "workspace:*"
     "@types/geojson": 7946.0.14
     "@types/gl-matrix": 3.2.0
@@ -4060,7 +4060,7 @@ __metadata:
     comlink: "github:foxglove/comlink#9181fa505671b35b1e66e0a8361a6fc1bdd03307"
     crypto-browserify: 3.12.0
     css-loader: 6.10.0
-    cytoscape: 3.28.1
+    cytoscape: 3.29.2
     cytoscape-dagre: 2.5.0
     dayjs: 1.11.7
     esbuild-loader: 2.21.0
@@ -7599,10 +7599,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@types/cytoscape@npm:^3.19.16":
-  version: 3.19.16
-  resolution: "@types/cytoscape@npm:3.19.16"
-  checksum: 065c4b39f05888e65324bc517b6ac85adbfc4eb186ec9c9d5ff959a4a9628c0f9a99b60349c03600fcd6d0569e5a54980a8f18aa2b9ce6d85156da96c3095328
+"@types/cytoscape@npm:^3.21.1":
+  version: 3.21.1
+  resolution: "@types/cytoscape@npm:3.21.1"
+  checksum: 40db2c540e014453e8ad0595d9d375b5940f600614d5976068a71f9c1945c29e903fc6fa031d86367f19353ea038a7eb17aaaeada5acac0e69d8456d20a35272
   languageName: node
   linkType: hard
 
@@ -11385,13 +11385,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cytoscape@npm:3.28.1":
-  version: 3.28.1
-  resolution: "cytoscape@npm:3.28.1"
-  dependencies:
-    heap: ^0.2.6
-    lodash: ^4.17.21
-  checksum: d9fcb14e909931ebead0fffaf230be7302156166372b7f0d446fea96bc5dfed2c36024842a8d80cd8817d6120125422beaee4a1e9ece4ba53a9addc880116afd
+"cytoscape@npm:3.29.2":
+  version: 3.29.2
+  resolution: "cytoscape@npm:3.29.2"
+  checksum: f42d9dc4e0791b1909d617c0f62fc9a982967362af8d585d4a42b9933887bea697be73d5d94d7bbaae5edccad2ac665dc46a2489271408d64b4fb2dc4ece3c15
   languageName: node
   linkType: hard
 
@@ -14666,7 +14663,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"heap@npm:^0.2.6, heap@npm:^0.2.7":
+"heap@npm:^0.2.7":
   version: 0.2.7
   resolution: "heap@npm:0.2.7"
   checksum: b0f3963a799e02173f994c452921a777f2b895b710119df999736bfed7477235c2860c423d9aea18a9f3b3d065cb1114d605c208cfcb8d0ac550f97ec5d28cb0
