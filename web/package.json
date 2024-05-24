@@ -7,7 +7,7 @@
     "@foxglove/tsconfig": "2.0.0",
     "@sentry/browser": "7.44.2",
     "@sentry/tracing": "7.44.2",
-    "@sentry/webpack-plugin": "1.20.0",
+    "@sentry/webpack-plugin": "2.17.0",
     "@types/serve-handler": "^6",
     "playwright": "1.37.1",
     "serve-handler": "6.1.5",
