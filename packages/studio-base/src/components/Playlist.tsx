@@ -328,8 +328,7 @@ export function Playlist(): JSX.Element {
                         backgroundColor: bags[recordDisplayName]?.color,
                       }}
                     />
-                    {/* {recordDisplayName} */}
-                    kkkkbackgroundColorkkkkbackgroundColorkkkkbackgroundColorkkkkbackgroundColorkkkkbackgroundColorkkkkbackgroundColorkkkkbackgroundColor
+                    {recordDisplayName}
                     <Tooltip
                       title={t("projectFrom", {
                         projectName: bags[recordDisplayName]?.projectDisplayName,
