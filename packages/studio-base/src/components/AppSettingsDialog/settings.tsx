@@ -23,7 +23,7 @@ import {
   ToggleButtonGroupProps,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { Dispatch, MouseEvent, SetStateAction, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -39,7 +39,7 @@ import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
 import { UserPersonalInfo } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
-import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
+import { PrefixDisplayMedia, TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
@@ -426,15 +426,16 @@ export function LanguageSettings(): React.ReactElement {
   );
 }
 
-export function AddTopicPrefix(): React.ReactElement {
+export function AddTopicPrefix({
+  setConfirmFunctions,
+}: {
+  setConfirmFunctions: Dispatch<SetStateAction<Record<string, () => void>>>;
+}): React.ReactElement {
   const addPrefix =
     localStorage.getItem("CoScene_addTopicPrefix") ??
     APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
     "false";
-
-  function setAddPrefix(value: string) {
-    localStorage.setItem("CoScene_addTopicPrefix", value);
-  }
+  const [tempVal, setTempVal] = useState<PrefixDisplayMedia>(addPrefix as PrefixDisplayMedia);
 
   const { t } = useTranslation("appSettings");
 
@@ -446,11 +447,28 @@ export function AddTopicPrefix(): React.ReactElement {
         size="small"
         fullWidth
         exclusive
-        value={addPrefix === "true" ? "true" : "false"}
-        onChange={(_, value?: TimeDisplayMethod) => {
+        value={tempVal}
+        onChange={(_, value?: PrefixDisplayMedia) => {
           if (value != undefined) {
-            setAddPrefix(value);
-            location.reload();
+            setTempVal(value);
+            if (addPrefix !== value) {
+              setConfirmFunctions((prev) => {
+                return {
+                  ...prev,
+                  addPrefix: () => {
+                    localStorage.setItem("CoScene_addTopicPrefix", value);
+                    window.location.reload();
+                  },
+                };
+              });
+            } else {
+              setConfirmFunctions((prev) => {
+                return {
+                  ...prev,
+                  addPrefix: () => {},
+                };
+              });
+            }
           }
         }}
       >

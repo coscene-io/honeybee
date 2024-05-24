@@ -179,6 +179,7 @@ export function AppSettingsDialog(
   const [activeTab, setActiveTab] = useState<AppSettingsTab>(
     _activeTab ?? initialActiveTab ?? "general",
   );
+  const [confirmFunctions, setConfirmFunctions] = useState<Record<string, () => void>>({});
 
   // const [debugModeEnabled = false, setDebugModeEnabled] = useAppConfigurationValue<boolean>(
   //   AppSetting.SHOW_DEBUG_PANELS,
@@ -244,7 +245,7 @@ export function AppSettingsDialog(
               <ColorSchemeSettings />
               <TimezoneSettings />
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
-              <AddTopicPrefix />
+              <AddTopicPrefix setConfirmFunctions={setConfirmFunctions} />
               <MessageFramerate />
               <LanguageSettings />
               {supportsAppUpdates && <AutoUpdate />}
@@ -340,7 +341,14 @@ export function AppSettingsDialog(
         </Stack>
       </div>
       <DialogActions className={classes.dialogActions}>
-        <Button onClick={handleClose}>
+        <Button
+          onClick={(e) => {
+            Object.values(confirmFunctions).forEach((fn) => {
+              fn();
+            });
+            handleClose(e);
+          }}
+        >
           {t("done", {
             ns: "cosGeneral",
           })}

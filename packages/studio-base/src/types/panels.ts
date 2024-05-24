@@ -27,6 +27,8 @@ export type PanelConfig = {
 
 export type TimeDisplayMethod = "SEC" | "TOD";
 
+export type PrefixDisplayMedia = "true" | "false";
+
 export type UserScript = { name: string; sourceCode: string };
 export type UserScripts = {
   [scriptId: string]: UserScript;
