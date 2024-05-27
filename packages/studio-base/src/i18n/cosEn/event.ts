@@ -61,4 +61,7 @@ export const cosEvent = {
   triggerTime: "Trigger Time",
   value: "Value",
   pivotMetricTooltip: "Fill in attribute values for matching curves in curve comparison algorithms",
+  startAndEndTime: "Start and End Time",
+  startAndEndTimeDesc: "{{startTime}} to {{endTime}} for",
+  seconds: "seconds",
 };

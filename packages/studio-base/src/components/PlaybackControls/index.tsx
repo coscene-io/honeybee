@@ -25,17 +25,15 @@ import {
   Previous20Regular,
   ImageShadow20Filled,
 } from "@fluentui/react-icons";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import ShieldTwoToneIcon from "@mui/icons-material/ShieldTwoTone";
 import { Tooltip } from "@mui/material";
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import useKeyboardJs from "react-use/lib/useKeyboardJs";
 import { makeStyles } from "tss-react/mui";
 
 import { Time, compare } from "@foxglove/rostime";
-import { CreateEventDialog } from "@foxglove/studio-base/components/CoSceneCreateEventDialog";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
-import EventIcon from "@foxglove/studio-base/components/EventIcon";
-import EventOutlinedIcon from "@foxglove/studio-base/components/EventOutlinedIcon";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
@@ -52,7 +50,6 @@ import {
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
-import { getOS } from "@foxglove/studio-base/util/coscene";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import Scrubber from "./Scrubber";
@@ -79,13 +76,6 @@ const useStyles = makeStyles()((theme) => ({
   },
   dataSourceInfoButton: {
     cursor: "default",
-  },
-  createMoment: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: theme.spacing(0, 0, 0, 0.5),
-    fontSize: "0.75rem",
   },
 }));
 
@@ -123,12 +113,6 @@ export default function PlaybackControls(props: {
 
   const { classes, cx } = useStyles();
   const repeat = useWorkspaceStore(selectPlaybackRepeat);
-  const [createEventDialogOpen, setCreateEventDialogOpen] = useState(false);
-
-  const [createEventShortcutKeys] = useKeyboardJs("alt > m");
-
-  const currenOSIsMac = useMemo(() => getOS() === "macos", []);
-
   const {
     playbackControlActions: { setRepeat },
   } = useWorkspaceActions();
@@ -213,22 +197,6 @@ export default function PlaybackControls(props: {
     [seekBackwardAction, seekForwardAction, togglePlayPause],
   );
 
-  const toggleCreateEventDialog = useCallback(() => {
-    pause();
-    setCreateEventDialogOpen((open) => !open);
-    if (isDemoSite) {
-      setTimeout(() => {
-        window.nextStep();
-      }, 100);
-    }
-  }, [pause, isDemoSite]);
-
-  useEffect(() => {
-    if (createEventShortcutKeys) {
-      toggleCreateEventDialog();
-    }
-  }, [toggleCreateEventDialog, createEventShortcutKeys, pause]);
-
   const disableControls = presence === PlayerPresence.ERROR;
 
   return (
@@ -238,18 +206,6 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            <HoverableIconButton
-              size="small"
-              title={t("createMoment")}
-              id="create-moment-dialog-button"
-              icon={<EventOutlinedIcon />}
-              activeIcon={<EventIcon />}
-              onClick={toggleCreateEventDialog}
-            >
-              <p className={classes.createMoment}>{`${t("createMoment")} (${
-                currenOSIsMac ? "⌥ + M" : "alt + M"
-              })`}</p>
-            </HoverableIconButton>
             <Tooltip
               // A desired workflow is the ability to copy data source info text (start, end, duration)
               // from the tooltip. However, there's a UX quirk where the tooltip will close if the user
@@ -276,6 +232,26 @@ export default function PlaybackControls(props: {
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
+            <HoverableIconButton
+              disabled={disableControls}
+              size="small"
+              title={t("createMoment")}
+              icon={<ShieldOutlinedIcon />}
+              activeIcon={<ShieldTwoToneIcon />}
+              onClick={() => {
+                const event = new KeyboardEvent("keydown", {
+                  key: "1",
+                  code: "Digit1",
+                  keyCode: 49, // '1'  keyCode
+                  which: 49,
+                  altKey: true, // mock Option (Alt)
+                  bubbles: true,
+                  cancelable: true,
+                });
+
+                document.dispatchEvent(event);
+              }}
+            />
             <HoverableIconButton
               disabled={disableControls}
               size="small"
@@ -328,7 +304,6 @@ export default function PlaybackControls(props: {
             <CoScenePlabackTimeMode />
           </Stack>
         </Stack>
-        {createEventDialogOpen && <CreateEventDialog onClose={toggleCreateEventDialog} />}
       </div>
     </>
   );
