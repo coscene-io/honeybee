@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, Time, toSec, fromNanoSec, add } from "@foxglove/rostime";
+import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -25,6 +26,7 @@ import {
 import {
   EventsStore,
   TimelinePositionedEvent,
+  TimelinePositionedEventMark,
   useEvents,
 } from "@foxglove/studio-base/context/EventsContext";
 import {
@@ -119,6 +121,31 @@ async function positionEvents(
   return fullEvents.sort((a, b) => a.startPosition - b.startPosition);
 }
 
+function positionEventMarks({
+  currentTime,
+  startTime,
+  endTime,
+}: {
+  currentTime: Time;
+  startTime: Time;
+  endTime: Time;
+}): TimelinePositionedEventMark {
+  const uuid = uuidv4();
+
+  const startSecs = toSec(startTime);
+  const endSecs = toSec(endTime);
+
+  const currentTimeInSeconds = toSec(currentTime);
+
+  const currentTimePosition = scale(currentTimeInSeconds, startSecs, endSecs, 0, 1);
+
+  return {
+    time: currentTime,
+    position: currentTimePosition,
+    key: uuid,
+  };
+}
+
 const selectEventFetchCount = (store: EventsStore) => store.eventFetchCount;
 const selectEvents = (store: EventsStore) => store.events;
 const selectSetEvents = (store: EventsStore) => store.setEvents;
@@ -127,14 +154,19 @@ const selectSetEventsAtHoverValue = (store: TimelineInteractionStateStore) =>
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
+const selectEventMarks = (store: EventsStore) => store.eventMarks;
+const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
+const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 
 /**
  * Syncs events from server and syncs hovered event with hovered time.
  */
-export function CoSceneEventsSyncAdapter(): ReactNull {
+export function CoSceneEventsSyncAdapter(): JSX.Element {
   const consoleApi = useConsoleApi();
   const setEvents = useEvents(selectSetEvents);
   const setEventsAtHoverValue = useTimelineInteractionState(selectSetEventsAtHoverValue);
+  const eventMarks = useEvents(selectEventMarks);
+  const setEventMarks = useEvents(selectSetEventMarks);
   const [hoverComponentId] = useState<string>(() => uuidv4());
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const startTime = useMessagePipeline(selectStartTime);
@@ -142,6 +174,7 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
   const events = useEvents(selectEvents);
   const eventFetchCount = useEvents(selectEventFetchCount);
   const bagFiles = usePlaylist(selectBagFiles);
+  const currentTime = useMessagePipeline(selectCurrentTime);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -156,8 +189,6 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
       ? "relativeTime"
       : "absoluteTime";
   }, []);
-
-  // const currentUserPresent = currentUser != undefined;
 
   // Sync events with console API.
   const [_events, syncEvents] = useAsyncFn(async () => {
@@ -264,5 +295,22 @@ export function CoSceneEventsSyncAdapter(): ReactNull {
     }
   }, [hoverValue, setEventsAtHoverValue, timeRange, events]);
 
-  return ReactNull;
+  const { keyDownHandlers } = useMemo(
+    () => ({
+      keyDownHandlers: {
+        Digit1: (e: KeyboardEvent) => {
+          if (e.altKey && currentTime && startTime && endTime && eventMarks.length < 2) {
+            setEventMarks(
+              [...eventMarks, positionEventMarks({ currentTime, startTime, endTime })].sort(
+                (a, b) => a.position - b.position,
+              ),
+            );
+          }
+        },
+      },
+    }),
+    [currentTime, endTime, eventMarks, setEventMarks, startTime],
+  );
+
+  return <KeyListener global keyDownHandlers={keyDownHandlers} />;
 }

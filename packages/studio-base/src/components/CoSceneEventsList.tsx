@@ -20,7 +20,7 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import {
-  CreateEventDialog as EditEventDialog,
+  CoSceneCreateEventDialog as EditEventDialog,
   ToModifyEvent,
 } from "@foxglove/studio-base/components/CoSceneCreateEventDialog";
 import {
