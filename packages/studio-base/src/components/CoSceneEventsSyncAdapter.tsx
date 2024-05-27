@@ -157,6 +157,7 @@ const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectEventMarks = (store: EventsStore) => store.eventMarks;
 const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectPause = (ctx: MessagePipelineContext) => ctx.pausePlayback;
 
 /**
  * Syncs events from server and syncs hovered event with hovered time.
@@ -175,6 +176,7 @@ export function CoSceneEventsSyncAdapter(): JSX.Element {
   const eventFetchCount = useEvents(selectEventFetchCount);
   const bagFiles = usePlaylist(selectBagFiles);
   const currentTime = useMessagePipeline(selectCurrentTime);
+  const pause = useMessagePipeline(selectPause);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -300,6 +302,11 @@ export function CoSceneEventsSyncAdapter(): JSX.Element {
       keyDownHandlers: {
         Digit1: (e: KeyboardEvent) => {
           if (e.altKey && currentTime && startTime && endTime && eventMarks.length < 2) {
+            // Pause playback when the second marker is added
+            if (eventMarks.length === 1 && pause) {
+              pause();
+            }
+
             setEventMarks(
               [...eventMarks, positionEventMarks({ currentTime, startTime, endTime })].sort(
                 (a, b) => a.position - b.position,
@@ -309,7 +316,7 @@ export function CoSceneEventsSyncAdapter(): JSX.Element {
         },
       },
     }),
-    [currentTime, endTime, eventMarks, setEventMarks, startTime],
+    [currentTime, endTime, eventMarks, pause, setEventMarks, startTime],
   );
 
   return <KeyListener global keyDownHandlers={keyDownHandlers} />;
