@@ -570,11 +570,30 @@ export function CoSceneCreateEventContainer(props: {
             <FormControl>
               <FormLabel>{t("startAndEndTime")}</FormLabel>
               <Typography paddingY={1}>
-                {t("startAndEndTimeDesc", {
-                  startTime: formattedEventStartTime,
-                  endTime: formattedEventEndTime,
-                  duration: event.duration != undefined ? event.duration.toFixed(3) : 0,
-                })}
+                <Stack alignItems="center" direction="row" gap={1}>
+                  {t("startAndEndTimeDesc", {
+                    startTime: formattedEventStartTime,
+                    endTime: formattedEventEndTime,
+                  })}
+                  {isEditing ? (
+                    <Stack style={{ width: "100px" }}>
+                      <TextField
+                        value={event.duration ?? ""}
+                        onChange={(ev) => {
+                          const duration = Number(ev.currentTarget.value);
+                          setEvent((oldEvent) => ({
+                            ...oldEvent,
+                            duration: duration > 0 ? duration : undefined,
+                          }));
+                        }}
+                        type="number"
+                      />
+                    </Stack>
+                  ) : (
+                    event.duration?.toFixed(3) ?? ""
+                  )}
+                  {t("seconds")}
+                </Stack>
               </Typography>
             </FormControl>
           </Stack>
