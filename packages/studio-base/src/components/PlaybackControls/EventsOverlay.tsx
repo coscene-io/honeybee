@@ -14,8 +14,8 @@ import {
   EventsStore,
   TimelinePositionedEvent,
   useEvents,
+  TimelinePositionedEventMark,
 } from "@foxglove/studio-base/context/EventsContext";
-import { TimelinePositionedEventMark } from "@foxglove/studio-base/context/EventsContext";
 import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
