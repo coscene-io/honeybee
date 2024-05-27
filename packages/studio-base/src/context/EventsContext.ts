@@ -57,6 +57,12 @@ export type TimelinePositionedEvent = {
   secondsSinceStart: number;
 };
 
+export type TimelinePositionedEventMark = {
+  time: Time;
+  position: number;
+  key: string;
+};
+
 export type EventsStore = {
   /** Used to signal event refreshes. */
   eventFetchCount: number;
@@ -66,6 +72,9 @@ export type EventsStore = {
 
   /** Fetched events for this session. */
   events: AsyncState<TimelinePositionedEvent[]>;
+
+  /** The marks on the timeline representing events. */
+  eventMarks: TimelinePositionedEventMark[];
 
   /** The current event filter expression. */
   filter: string;
@@ -94,6 +103,9 @@ export type EventsStore = {
 
   /** Set the active device. */
   setDeviceId: (deviceId: string | undefined) => void;
+
+  /** Set the marks on the timeline representing events. */
+  setEventMarks: (marks: TimelinePositionedEventMark[]) => void;
 };
 
 export const EventsContext = createContext<undefined | StoreApi<EventsStore>>(undefined);
