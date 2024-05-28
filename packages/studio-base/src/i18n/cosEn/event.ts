@@ -64,4 +64,6 @@ export const cosEvent = {
   startAndEndTime: "Start and End Time",
   startAndEndTimeDesc: "{{startTime}} to {{endTime}} for",
   seconds: "seconds",
+  createMomentTips: "Select start and end points on the timeline to create a moment",
+  createMomentButtonText: "Create moment（{{option}} + 1）",
 };

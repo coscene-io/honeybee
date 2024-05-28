@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { IconButton, IconButtonProps } from "@mui/material";
+import { IconButton, Tooltip, IconButtonProps } from "@mui/material";
 import { forwardRef, useCallback, useEffect, useState } from "react";
 
 type Props = {
@@ -14,8 +14,17 @@ type Props = {
 } & Omit<IconButtonProps, "children" | "color">;
 
 const HoverableIconButton = forwardRef<HTMLButtonElement, Props>((props, ref) => {
-  const { icon, activeIcon, color, activeColor, onMouseLeave, onMouseEnter, children, ...rest } =
-    props;
+  const {
+    icon,
+    activeIcon,
+    title,
+    color,
+    activeColor,
+    onMouseLeave,
+    onMouseEnter,
+    children,
+    ...rest
+  } = props;
 
   const [hovered, setHovered] = useState(false);
 
@@ -49,17 +58,19 @@ const HoverableIconButton = forwardRef<HTMLButtonElement, Props>((props, ref) =>
   }, [props.disabled]);
 
   return (
-    <IconButton
-      ref={ref}
-      {...rest}
-      component="button"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      color={activeColor != undefined ? (hovered ? activeColor : color) : color}
-    >
-      {activeIcon != undefined ? (hovered ? activeIcon : icon) : icon}
-      {children}
-    </IconButton>
+    <Tooltip title={title}>
+      <IconButton
+        ref={ref}
+        {...rest}
+        component="button"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        color={activeColor != undefined ? (hovered ? activeColor : color) : color}
+      >
+        {activeIcon != undefined ? (hovered ? activeIcon : icon) : icon}
+        {children}
+      </IconButton>
+    </Tooltip>
   );
 });
 
