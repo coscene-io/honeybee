@@ -27,7 +27,7 @@ import {
 } from "@fluentui/react-icons";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import ShieldTwoToneIcon from "@mui/icons-material/ShieldTwoTone";
-import { Tooltip } from "@mui/material";
+import { Tooltip, Typography } from "@mui/material";
 import { useCallback, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -206,6 +206,31 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
+            <HoverableIconButton
+              disabled={disableControls}
+              size="small"
+              title={t("createMomentTips")}
+              icon={<ShieldOutlinedIcon />}
+              activeIcon={<ShieldTwoToneIcon />}
+              onClick={() => {
+                const event = new KeyboardEvent("keydown", {
+                  key: "1",
+                  code: "Digit1",
+                  keyCode: 49, // '1'  keyCode
+                  which: 49,
+                  altKey: true, // mock Option (Alt)
+                  bubbles: true,
+                  cancelable: true,
+                });
+                document.dispatchEvent(event);
+              }}
+            >
+              <Typography variant="body2" marginLeft="4px">
+                {t("createMomentButtonText", {
+                  option: navigator.platform.toUpperCase().includes("MAC") ? "⌥" : "Alt",
+                })}
+              </Typography>
+            </HoverableIconButton>
             <Tooltip
               // A desired workflow is the ability to copy data source info text (start, end, duration)
               // from the tooltip. However, there's a UX quirk where the tooltip will close if the user
@@ -232,26 +257,6 @@ export default function PlaybackControls(props: {
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
-            <HoverableIconButton
-              disabled={disableControls}
-              size="small"
-              title={t("createMomentTips")}
-              icon={<ShieldOutlinedIcon />}
-              activeIcon={<ShieldTwoToneIcon />}
-              onClick={() => {
-                const event = new KeyboardEvent("keydown", {
-                  key: "1",
-                  code: "Digit1",
-                  keyCode: 49, // '1'  keyCode
-                  which: 49,
-                  altKey: true, // mock Option (Alt)
-                  bubbles: true,
-                  cancelable: true,
-                });
-
-                document.dispatchEvent(event);
-              }}
-            />
             <HoverableIconButton
               disabled={disableControls}
               size="small"
