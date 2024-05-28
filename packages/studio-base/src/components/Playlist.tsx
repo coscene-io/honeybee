@@ -78,10 +78,10 @@ const useStyles = makeStyles()((theme) => ({
   },
   accordionTitle: {
     display: "flex",
-    width: "100%",
     overflow: "hidden",
     alignItems: "center",
     gap: theme.spacing(1),
+    textWrap: "nowrap",
   },
   accordion: {
     padding: 0,

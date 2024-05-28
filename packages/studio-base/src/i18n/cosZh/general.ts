@@ -17,4 +17,9 @@ export const cosGeneral: Partial<TypeOptions["resources"]["cosGeneral"]> = {
   save: "保存",
   userGuide: "用户指引",
   done: "完成",
+  seekBackward: "后退",
+  pause: "暂停",
+  play: "播放",
+  seekForward: "前进",
+  loopPlayback: "循环播放",
 };

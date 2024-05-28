@@ -65,4 +65,5 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   startAndEndTime: "起止时间",
   startAndEndTimeDesc: "{{startTime}} 至 {{endTime}} 持续",
   seconds: "秒",
+  createMomentTips: "创建一刻起止点（option + 1）",
 };

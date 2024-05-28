@@ -15,4 +15,9 @@ export const cosGeneral = {
   save: "Save",
   userGuide: "User Guide",
   done: "Done",
+  seekBackward: "Seek backward",
+  pause: "Pause",
+  play: "Play",
+  seekForward: "Seek forward",
+  loopPlayback: "Loop playback",
 };

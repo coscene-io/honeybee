@@ -68,7 +68,9 @@ const useStyles = makeStyles()(({ transitions, palette }) => ({
   creatEventContainer: {
     backgroundColor: palette.background.paper,
     marginBottom: "35px",
-    boxShadow: `0 1px 3px 0 ${palette.grey[100]}, 0 1px 2px -1px ${palette.grey[100]}`,
+    boxShadow: `0px 8px 20px 0px rgba(0, 0, 0, 0.25);`,
+    maxHeight: "calc(100vh - 100px)",
+    overflowY: "auto",
   },
 }));
 

@@ -235,7 +235,7 @@ export default function PlaybackControls(props: {
             <HoverableIconButton
               disabled={disableControls}
               size="small"
-              title={t("createMoment")}
+              title={t("createMomentTips")}
               icon={<ShieldOutlinedIcon />}
               activeIcon={<ShieldTwoToneIcon />}
               onClick={() => {
@@ -255,7 +255,9 @@ export default function PlaybackControls(props: {
             <HoverableIconButton
               disabled={disableControls}
               size="small"
-              title="Seek backward"
+              title={t("seekBackward", {
+                ns: "cosGeneral",
+              })}
               icon={<Previous20Regular />}
               activeIcon={<Previous20Filled />}
               onClick={() => {
@@ -266,7 +268,15 @@ export default function PlaybackControls(props: {
               disabled={disableControls}
               size="small"
               id="play-pause-button"
-              title={isPlaying ? "Pause" : "Play"}
+              title={
+                isPlaying
+                  ? t("pause", {
+                      ns: "cosGeneral",
+                    })
+                  : t("play", {
+                      ns: "cosGeneral",
+                    })
+              }
               onClick={togglePlayPause}
               icon={isPlaying ? <Pause20Regular /> : <Play20Regular />}
               activeIcon={isPlaying ? <Pause20Filled /> : <Play20Filled />}
@@ -274,7 +284,9 @@ export default function PlaybackControls(props: {
             <HoverableIconButton
               disabled={disableControls}
               size="small"
-              title="Seek forward"
+              title={t("seekForward", {
+                ns: "cosGeneral",
+              })}
               icon={<Next20Regular />}
               activeIcon={<Next20Filled />}
               onClick={() => {
