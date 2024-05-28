@@ -542,7 +542,7 @@ export function CoSceneCreateEventContainer(props: {
       {createEventDialogOpen && (
         <Stack>
           <Stack paddingX={3} paddingTop={2}>
-            <Typography variant="h2">{isEditing ? t("editMoment") : t("createMoment")}</Typography>
+            <Typography variant="h4">{isEditing ? t("editMoment") : t("createMoment")}</Typography>
           </Stack>
           <Stack paddingX={3} paddingTop={2}>
             <TextField
