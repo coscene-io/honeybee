@@ -18,6 +18,7 @@ import {
   AccordionSummary,
   AccordionDetails,
   Tooltip,
+  Stack as MuiStack,
 } from "@mui/material";
 import { useState, useCallback, useMemo } from "react";
 import toast from "react-hot-toast";
@@ -328,7 +329,14 @@ export function Playlist(): JSX.Element {
                         backgroundColor: bags[recordDisplayName]?.color,
                       }}
                     />
-                    {recordDisplayName}
+                    <MuiStack
+                      maxWidth="calc(100% - 50px)"
+                      overflow="hidden"
+                      textOverflow="ellipsis"
+                      display="block"
+                    >
+                      {recordDisplayName}
+                    </MuiStack>
                     <Tooltip
                       title={t("projectFrom", {
                         projectName: bags[recordDisplayName]?.projectDisplayName,
