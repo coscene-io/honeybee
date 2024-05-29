@@ -138,7 +138,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
   switch (timeFormat) {
     case "TOD":
       tooltipItems.push({ type: "item", title: t("time"), value: formatTime(stamp) });
-      tooltipItems.push({ type: "item", title: "Date", value: formatDate(stamp) });
+      tooltipItems.push({ type: "item", title: t("date"), value: formatDate(stamp) });
       break;
     case "SEC":
       tooltipItems.push({ type: "item", title: "SEC", value: formatTime(stamp) });
@@ -163,7 +163,14 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
               {item.title}
             </Typography>
             {/* CoScene Line feeds are possible */}
-            <Typography variant="subtitle2">{item.value}</Typography>
+            <Typography
+              variant="subtitle2"
+              maxWidth="230px"
+              overflow="hidden"
+              textOverflow="ellipsis"
+            >
+              {item.value}
+            </Typography>
           </Fragment>
         );
       })}
