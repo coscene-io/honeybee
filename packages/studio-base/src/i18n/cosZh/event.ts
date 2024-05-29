@@ -67,4 +67,5 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   seconds: "秒",
   createMomentTips: "在时间轴上选择起止点创建一刻",
   createMomentButtonText: "创建一刻（{{option}} + 1）",
+  date: "日期",
 };
