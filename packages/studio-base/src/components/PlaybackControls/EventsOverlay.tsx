@@ -90,6 +90,7 @@ const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
 const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hoveredEvent;
 const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
+const selectSetToModifyEvent = (store: EventsStore) => store.setToModifyEvent;
 
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
@@ -125,6 +126,7 @@ function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Ele
   const [anchorEl, setAnchorEl] = useState<ReactNull | HTMLElement>(ReactNull);
   const [open, setOpen] = useState(false);
   const setEventMarks = useEvents(selectSetEventMarks);
+  const setToModifyEvent = useEvents(selectSetToModifyEvent);
 
   const leftMark =
     leftMarkPosition != undefined ? `${_.clamp(leftMarkPosition, 0, 1) * 100}%` : undefined;
@@ -199,6 +201,7 @@ function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Ele
                   setOpen(false);
                   setTimeout(() => {
                     setEventMarks([]);
+                    setToModifyEvent(undefined);
                   }, 400);
                 }}
               />
