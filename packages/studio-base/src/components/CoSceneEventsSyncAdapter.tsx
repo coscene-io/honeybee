@@ -121,7 +121,7 @@ async function positionEvents(
   return fullEvents.sort((a, b) => a.startPosition - b.startPosition);
 }
 
-function positionEventMarks({
+export function positionEventMark({
   currentTime,
   startTime,
   endTime,
@@ -308,7 +308,7 @@ export function CoSceneEventsSyncAdapter(): JSX.Element {
             }
 
             setEventMarks(
-              [...eventMarks, positionEventMarks({ currentTime, startTime, endTime })].sort(
+              [...eventMarks, positionEventMark({ currentTime, startTime, endTime })].sort(
                 (a, b) => a.position - b.position,
               ),
             );

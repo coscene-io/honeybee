@@ -9,7 +9,13 @@ import * as _ from "lodash-es";
 import { useEffect, useRef, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 
+import { scaleValue as scale } from "@foxglove/den/math";
+import { toSec, add, fromSec } from "@foxglove/rostime";
 import { CoSceneCreateEventContainer } from "@foxglove/studio-base/components/CoSceneCreateEventContainer";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
 import {
   EventsStore,
   TimelinePositionedEvent,
@@ -18,10 +24,14 @@ import {
 } from "@foxglove/studio-base/context/EventsContext";
 import {
   TimelineInteractionStateStore,
+  useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 
 import EventMarkIcon from "../../assets/event-mark.svg";
+
+// Hotspot as a percentage of the progress bar
+const HOTSPOT_WIDTH_PER_CENT = 0.005;
 
 const useStyles = makeStyles()(({ transitions, palette }) => ({
   root: {
@@ -80,6 +90,9 @@ const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
 const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hoveredEvent;
 const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
+
+const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
+const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 
 function EventTick({ event }: { event: TimelinePositionedEvent }): JSX.Element {
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
@@ -199,10 +212,80 @@ function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Ele
 
 const MemoEventMark = React.memo(EventMark);
 
-export function EventsOverlay(): JSX.Element {
+type Props = {
+  componentId: string;
+  isDragging: boolean;
+};
+
+export function EventsOverlay(props: Props): JSX.Element | ReactNull {
+  const { componentId, isDragging } = props;
+
   const events = useEvents(selectEvents);
   const { classes } = useStyles();
   const eventMarks = useEvents(selectEventMarks);
+  const startTime = useMessagePipeline(selectStartTime);
+  const endTime = useMessagePipeline(selectEndTime);
+
+  const setEventMarks = useEvents(selectSetEventMarks);
+
+  const hoverValue = useHoverValue({ componentId, isPlaybackSeconds: true });
+
+  // 拖拽的起始点，用来判断是否选中某个 mark 以及是否开始拖拽
+  const [dragPointKey, setDragPointKey] = useState<string | undefined>(undefined);
+
+  const startSecs = startTime && toSec(startTime);
+  const endSecs = endTime && toSec(endTime);
+
+  const hoverTimePosition =
+    hoverValue && endSecs != undefined && startSecs != undefined
+      ? scale(hoverValue.value, 0, endSecs - startSecs, 0, 1)
+      : undefined;
+
+  const [leftMark, rightMark] = eventMarks;
+
+  useEffect(() => {
+    if (isDragging) {
+      if (
+        hoverTimePosition != undefined &&
+        leftMark != undefined &&
+        hoverTimePosition > leftMark.position - HOTSPOT_WIDTH_PER_CENT &&
+        hoverTimePosition < leftMark.position
+      ) {
+        setDragPointKey(leftMark.key);
+      } else if (
+        hoverTimePosition != undefined &&
+        rightMark != undefined &&
+        hoverTimePosition > rightMark.position &&
+        hoverTimePosition < rightMark.position + HOTSPOT_WIDTH_PER_CENT
+      ) {
+        setDragPointKey(rightMark.key);
+      } else {
+        setDragPointKey(undefined);
+      }
+    } else {
+      setDragPointKey(undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDragging]);
+
+  useEffect(() => {
+    if (dragPointKey != undefined) {
+      const targetMark = eventMarks.find((mark) => mark.key === dragPointKey);
+      if (targetMark && hoverValue && startTime && hoverTimePosition != undefined) {
+        setEventMarks(
+          [
+            ...eventMarks.filter((mark) => mark.key !== dragPointKey),
+            {
+              ...targetMark,
+              time: add(startTime, fromSec(hoverValue.value)),
+              position: hoverTimePosition,
+            },
+          ].sort((a, b) => a.position - b.position),
+        );
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragPointKey, hoverTimePosition, hoverValue, setEventMarks, startTime]);
 
   return (
     <div className={classes.root}>

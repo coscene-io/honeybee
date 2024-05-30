@@ -11,6 +11,7 @@ import {
   EventsStore,
   TimelinePositionedEvent,
   TimelinePositionedEventMark,
+  ToModifyEvent,
 } from "@foxglove/studio-base/context/EventsContext";
 
 const NO_EVENTS: TimelinePositionedEvent[] = [];
@@ -24,6 +25,7 @@ function createEventsStore() {
     eventsSupported: false,
     deviceId: undefined,
     eventMarks: [],
+    toModifyEvent: undefined,
 
     refreshEvents: () => {
       set((old) => ({ eventFetchCount: old.eventFetchCount + 1 }));
@@ -46,6 +48,9 @@ function createEventsStore() {
     },
     setEventMarks: (mark: TimelinePositionedEventMark[]) => {
       set({ eventMarks: mark });
+    },
+    setToModifyEvent: (toModifyEvent: undefined | ToModifyEvent) => {
+      set({ toModifyEvent });
     },
   }));
 }
