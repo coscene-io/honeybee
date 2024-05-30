@@ -194,6 +194,8 @@ export default function Scrubber(props: Props): JSX.Element {
     }
   }, [hoverInfo]);
 
+  const [isDragging, setIsDragging] = useState(false);
+
   return (
     <Tooltip
       title={
@@ -211,6 +213,15 @@ export default function Scrubber(props: Props): JSX.Element {
         alignItems="center"
         position="relative"
         style={{ height: 32 }}
+        onPointerDown={() => {
+          setIsDragging(true);
+        }}
+        onPointerUp={() => {
+          setIsDragging(false);
+        }}
+        onPointerLeave={() => {
+          setIsDragging(false);
+        }}
       >
         <div className={cx(classes.track, { [classes.trackDisabled]: !startTime })} />
         <Stack position="absolute" flex="auto" fullWidth style={{ height: 6 }}>
@@ -227,7 +238,7 @@ export default function Scrubber(props: Props): JSX.Element {
           />
         </Stack>
         <BagsOverlay />
-        <EventsOverlay />
+        <EventsOverlay componentId={hoverComponentId} isDragging={isDragging} />
         <PlaybackBarHoverTicks componentId={hoverComponentId} />
       </Stack>
     </Tooltip>
