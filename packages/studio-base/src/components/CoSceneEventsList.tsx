@@ -15,14 +15,12 @@ import {
   AccordionSummary,
   AccordionDetails,
 } from "@mui/material";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import {
-  CoSceneCreateEventDialog as EditEventDialog,
-  ToModifyEvent,
-} from "@foxglove/studio-base/components/CoSceneCreateEventDialog";
+import { fromDate, add, fromSec } from "@foxglove/rostime";
+import { positionEventMark } from "@foxglove/studio-base/components/CoSceneEventsSyncAdapter";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -32,6 +30,7 @@ import {
   EventsStore,
   TimelinePositionedEvent,
   useEvents,
+  ToModifyEvent,
 } from "@foxglove/studio-base/context/EventsContext";
 import {
   TimelineInteractionStateStore,
@@ -103,13 +102,21 @@ const selectSetHoveredEvent = (store: TimelineInteractionStateStore) => store.se
 const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
+const selectSetToModifyEvent = (store: EventsStore) => store.setToModifyEvent;
+const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
+const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
+const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 
 export function EventsList(): JSX.Element {
   const events = useEvents(selectEvents);
   const selectedEventId = useEvents(selectSelectedEventId);
   const selectEvent = useEvents(selectSelectEvent);
   const { formatTime } = useAppTimeFormat();
+
   const seek = useMessagePipeline(selectSeek);
+  const startTime = useMessagePipeline(selectStartTime);
+  const endTime = useMessagePipeline(selectEndTime);
+
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
   const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
@@ -117,8 +124,9 @@ export function EventsList(): JSX.Element {
   const setFilter = useEvents(selectSetEventFilter);
   const { t } = useTranslation("cosEvent");
   const [confirm, confirmModal] = useConfirm();
-  const [editEventDialogOpen, setEditEventDialogOpen] = useState(false);
-  const [toModifyEvent, setToModifyEvent] = useState<ToModifyEvent | undefined>(undefined);
+
+  const setToModifyEvent = useEvents(selectSetToModifyEvent);
+  const setEventMarks = useEvents(selectSetEventMarks);
 
   const timestampedEvents = useMemo(() => {
     const classifiedEvents = new Map<
@@ -261,8 +269,29 @@ export function EventsList(): JSX.Element {
                         onHoverStart={onHoverStart}
                         onHoverEnd={onHoverEnd}
                         onEdit={(currentEvent: ToModifyEvent) => {
-                          setEditEventDialogOpen(true);
-                          setToModifyEvent(currentEvent);
+                          if (
+                            currentEvent.startTime &&
+                            currentEvent.duration != undefined &&
+                            startTime &&
+                            endTime
+                          ) {
+                            setEventMarks([
+                              positionEventMark({
+                                currentTime: fromDate(currentEvent.startTime),
+                                startTime,
+                                endTime,
+                              }),
+                              positionEventMark({
+                                currentTime: add(
+                                  fromDate(currentEvent.startTime),
+                                  fromSec(currentEvent.duration),
+                                ),
+                                startTime,
+                                endTime,
+                              }),
+                            ]);
+                            setToModifyEvent(currentEvent);
+                          }
                         }}
                         confirm={confirm}
                       />
@@ -275,14 +304,6 @@ export function EventsList(): JSX.Element {
         })}
       </div>
       {confirmModal}
-      {editEventDialogOpen && (
-        <EditEventDialog
-          onClose={() => {
-            setEditEventDialogOpen(false);
-          }}
-          toModifyEvent={toModifyEvent}
-        />
-      )}
     </Stack>
   );
 }

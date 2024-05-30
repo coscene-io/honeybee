@@ -10,6 +10,23 @@ import { StoreApi, useStore } from "zustand";
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Time } from "@foxglove/rostime";
 
+export type KeyValue = { key: string; value: string };
+
+export type ToModifyEvent = {
+  name: string;
+  eventName: string;
+  startTime: undefined | Date;
+  duration: undefined | number;
+  durationUnit: "sec" | "nsec";
+  description: undefined | string;
+  metadataEntries: KeyValue[];
+  enabledCreateNewTask: boolean;
+  fileName: string;
+  imageFile?: File;
+  imgUrl?: string;
+  record: string;
+};
+
 /**
  * DataSourceEvent representings a single event within a data source.
  */
@@ -85,6 +102,8 @@ export type EventsStore = {
   /** The active device under which new events should be created. */
   deviceId: string | undefined;
 
+  toModifyEvent: ToModifyEvent | undefined;
+
   /** Refreshes events from api. */
   refreshEvents: () => void;
 
@@ -106,6 +125,8 @@ export type EventsStore = {
 
   /** Set the marks on the timeline representing events. */
   setEventMarks: (marks: TimelinePositionedEventMark[]) => void;
+
+  setToModifyEvent: (toModifyEvent: ToModifyEvent | undefined) => void;
 };
 
 export const EventsContext = createContext<undefined | StoreApi<EventsStore>>(undefined);

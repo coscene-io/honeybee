@@ -54,25 +54,10 @@ import {
   CoScenePlaylistStore,
   usePlaylist,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
-import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import { EventsStore, useEvents, KeyValue } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
-
-export type ToModifyEvent = {
-  name: string;
-  eventName: string;
-  startTime: undefined | Date;
-  duration: undefined | number;
-  durationUnit: "sec" | "nsec";
-  description: undefined | string;
-  metadataEntries: KeyValue[];
-  enabledCreateNewTask: boolean;
-  fileName: string;
-  imageFile?: File;
-  imgUrl?: string;
-  record: string;
-};
 
 const fadeInAnimation = keyframes`
   from {
@@ -113,29 +98,26 @@ const useStyles = makeStyles()((theme, _params) => ({
   },
 }));
 
-type KeyValue = { key: string; value: string };
-
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectEventMarks = (store: EventsStore) => store.eventMarks;
+const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 
 const PIVOT_METRIC = "pivotMetric";
 const temperature = [...new Array(9).keys()].map((i) => `温度0${i + 1}`);
 const pivotMetricValues = ["General", "功率", "压力", "转速", "风速", ...temperature, "温度10"];
 
-export function CoSceneCreateEventContainer(props: {
-  onClose: () => void;
-  toModifyEvent?: ToModifyEvent;
-}): JSX.Element {
+export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX.Element {
   const isDemoSite =
     localStorage.getItem("demoSite") === "true" &&
     localStorage.getItem("honeybeeDemoStatus") === "start";
 
-  const { onClose, toModifyEvent } = props;
-
-  const isEditing = toModifyEvent != undefined;
+  const { onClose } = props;
 
   const refreshEvents = useEvents(selectRefreshEvents);
+  const toModifyEvent = useEvents(selectToModifyEvent);
+
+  const isEditing = toModifyEvent != undefined;
 
   const eventMarks = useEvents(selectEventMarks);
 
@@ -221,17 +203,15 @@ export function CoSceneCreateEventContainer(props: {
   }, [passingFile, event.fileName]);
 
   useEffect(() => {
-    if (!isEditing) {
-      setEvent((old) => ({
-        ...old,
-        startTime: markStartTime
-          ? timeMode === "relativeTime"
-            ? toDate(add(markStartTime, currentFile?.startTime ?? { sec: 0, nsec: 0 }))
-            : toDate(markStartTime)
-          : undefined,
-        duration: markEndTime && markStartTime ? toSec(subtract(markEndTime, markStartTime)) : 0,
-      }));
-    }
+    setEvent((old) => ({
+      ...old,
+      startTime: markStartTime
+        ? timeMode === "relativeTime"
+          ? toDate(add(markStartTime, currentFile?.startTime ?? { sec: 0, nsec: 0 }))
+          : toDate(markStartTime)
+        : undefined,
+      duration: markEndTime && markStartTime ? toSec(subtract(markEndTime, markStartTime)) : 0,
+    }));
   }, [currentFile?.startTime, markEndTime, setEvent, timeMode, markStartTime, isEditing]);
 
   useEffect(() => {
@@ -575,23 +555,7 @@ export function CoSceneCreateEventContainer(props: {
                     startTime: formattedEventStartTime,
                     endTime: formattedEventEndTime,
                   })}
-                  {isEditing ? (
-                    <Stack style={{ width: "100px" }}>
-                      <TextField
-                        value={event.duration ?? ""}
-                        onChange={(ev) => {
-                          const duration = Number(ev.currentTarget.value);
-                          setEvent((oldEvent) => ({
-                            ...oldEvent,
-                            duration: duration > 0 ? duration : undefined,
-                          }));
-                        }}
-                        type="number"
-                      />
-                    </Stack>
-                  ) : (
-                    event.duration?.toFixed(3) ?? ""
-                  )}
+                  {event.duration?.toFixed(3) ?? ""}
                   {t("seconds")}
                 </Stack>
               </Typography>
