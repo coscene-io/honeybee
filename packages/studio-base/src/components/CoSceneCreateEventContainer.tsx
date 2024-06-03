@@ -108,10 +108,6 @@ const temperature = [...new Array(9).keys()].map((i) => `温度0${i + 1}`);
 const pivotMetricValues = ["General", "功率", "压力", "转速", "风速", ...temperature, "温度10"];
 
 export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX.Element {
-  const isDemoSite =
-    localStorage.getItem("demoSite") === "true" &&
-    localStorage.getItem("honeybeeDemoStatus") === "start";
-
   const { onClose } = props;
 
   const refreshEvents = useEvents(selectRefreshEvents);
@@ -512,337 +508,316 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     ? formatTime(add(fromDate(event.startTime), fromSec(event.duration ?? 0)))
     : "-";
 
-  const [createEventDialogOpen, setCreateEventDialogOpen] = useState(true);
-
   const inputRef = useRef<HTMLInputElement>(ReactNull);
 
   const isSupor = APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor";
+
   return (
     <>
-      {createEventDialogOpen && (
-        <Stack>
-          <Stack paddingX={3} paddingTop={2}>
-            <Typography variant="h4">{isEditing ? t("editMoment") : t("createMoment")}</Typography>
-          </Stack>
-          <Stack paddingX={3} paddingTop={2}>
-            <TextField
-              id="event-name"
-              label={
-                <>
-                  <span className={classes.requiredFlags}>*</span>
-                  {t("name")}
-                </>
+      <Stack>
+        <Stack paddingX={3} paddingTop={2}>
+          <Typography variant="h4">{isEditing ? t("editMoment") : t("createMoment")}</Typography>
+        </Stack>
+        <Stack paddingX={3} paddingTop={2}>
+          <TextField
+            id="event-name"
+            label={
+              <>
+                <span className={classes.requiredFlags}>*</span>
+                {t("name")}
+              </>
+            }
+            maxRows={1}
+            value={event.eventName}
+            onChange={(val) => {
+              // µ = option + M 是 mac 打开弹窗的快捷键
+              if (val.target.value !== "µ") {
+                setEvent((old) => ({ ...old, eventName: val.target.value }));
               }
-              maxRows={1}
-              value={isDemoSite ? "机器人不动" : event.eventName}
-              onChange={(val) => {
-                // µ = option + M 是 mac 打开弹窗的快捷键
-                if (val.target.value !== "µ") {
-                  setEvent((old) => ({ ...old, eventName: val.target.value }));
-                }
-              }}
-              variant="outlined"
-              autoFocus
-              onKeyDown={onMetaDataKeyDown}
-            />
-          </Stack>
-          <Stack paddingX={3} paddingTop={2}>
-            <FormControl>
-              <FormLabel>{t("startAndEndTime")}</FormLabel>
-              <Typography paddingY={1}>
-                <Stack alignItems="center" direction="row" gap={1}>
-                  {t("startAndEndTimeDesc", {
-                    startTime: formattedEventStartTime,
-                    endTime: formattedEventEndTime,
-                  })}
-                  {event.duration?.toFixed(3) ?? ""}
-                  {t("seconds")}
-                </Stack>
-              </Typography>
-            </FormControl>
-          </Stack>
-          <Stack paddingX={3} paddingTop={2}>
-            <TextField
-              id="description"
-              label={t("description")}
-              rows={2}
-              value={isDemoSite ? "机器人在原地无法移动" : event.description}
-              onChange={(val) => {
-                setEvent((old) => ({ ...old, description: val.target.value }));
-              }}
-              onKeyDown={onMetaDataKeyDown}
-              variant="outlined"
-            />
-          </Stack>
-          <Stack paddingX={3} paddingTop={2}>
-            <FormLabel>{t("photo")}</FormLabel>
-            {event.imageFile ? (
+            }}
+            variant="outlined"
+            autoFocus
+            onKeyDown={onMetaDataKeyDown}
+          />
+        </Stack>
+        <Stack paddingX={3} paddingTop={2}>
+          <FormControl>
+            <FormLabel>{t("startAndEndTime")}</FormLabel>
+            <Typography paddingY={1}>
+              <Stack alignItems="center" direction="row" gap={1}>
+                {t("startAndEndTimeDesc", {
+                  startTime: formattedEventStartTime,
+                  endTime: formattedEventEndTime,
+                })}
+                {event.duration?.toFixed(3) ?? ""}
+                {t("seconds")}
+              </Stack>
+            </Typography>
+          </FormControl>
+        </Stack>
+        <Stack paddingX={3} paddingTop={2}>
+          <TextField
+            id="description"
+            label={t("description")}
+            rows={2}
+            value={event.description}
+            onChange={(val) => {
+              setEvent((old) => ({ ...old, description: val.target.value }));
+            }}
+            onKeyDown={onMetaDataKeyDown}
+            variant="outlined"
+          />
+        </Stack>
+        <Stack paddingX={3} paddingTop={2}>
+          <FormLabel>{t("photo")}</FormLabel>
+          {event.imageFile ? (
+            <Stack>
+              <img
+                onClick={() => inputRef.current?.click()}
+                src={URL.createObjectURL(event.imageFile)}
+                style={{
+                  maxHeight: "200px",
+                  objectFit: "contain",
+                }}
+              />
+            </Stack>
+          ) : (
+            event.imgUrl && (
               <Stack>
                 <img
                   onClick={() => inputRef.current?.click()}
-                  src={URL.createObjectURL(event.imageFile)}
+                  src={event.imgUrl}
                   style={{
                     maxHeight: "200px",
                     objectFit: "contain",
                   }}
                 />
               </Stack>
-            ) : (
-              event.imgUrl && (
-                <Stack>
-                  <img
-                    onClick={() => inputRef.current?.click()}
-                    src={event.imgUrl}
-                    style={{
-                      maxHeight: "200px",
-                      objectFit: "contain",
-                    }}
-                  />
-                </Stack>
-              )
-            )}
+            )
+          )}
 
-            {event.imgUrl ? (
-              <Button
-                className={classes.addFileButton}
-                onClick={() => {
-                  setEvent((old) => ({ ...old, imgUrl: undefined, imageFile: undefined }));
-                }}
-              >
-                <DeleteForeverIcon />
-                {t("delete", {
-                  ns: "cosGeneral",
-                })}
-              </Button>
-            ) : (
-              <Button className={classes.addFileButton} onClick={() => inputRef.current?.click()}>
-                <AddIcon />
-                {t("addPhoto")}
-              </Button>
-            )}
-            <input
-              hidden
-              ref={inputRef}
-              type="file"
-              accept="image/*"
-              value=""
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) {
-                  return;
-                }
-                setEvent((val) => ({ ...val, imgUrl: undefined, imageFile: file }));
+          {event.imgUrl ? (
+            <Button
+              className={classes.addFileButton}
+              onClick={() => {
+                setEvent((old) => ({ ...old, imgUrl: undefined, imageFile: undefined }));
               }}
-            />
-          </Stack>
-          <Stack paddingX={3} paddingTop={2}>
-            <FormLabel>{t("metadata")}</FormLabel>
-            <div className={classes.grid}>
-              {isSupor ? (
-                <div className={classes.row}>
-                  <div>
-                    {PIVOT_METRIC}{" "}
-                    <Tooltip placement="top-start" title={t("pivotMetricTooltip")}>
-                      <IconButton>
-                        <HelpIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </div>
-                  <Select
-                    value={
-                      event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value ?? ""
-                    }
-                    onChange={(evt) => {
-                      setEvent((old) => {
-                        const metadataEntries = old.metadataEntries;
-                        const metadataEntry = metadataEntries.find(
-                          (entry) => entry.key === PIVOT_METRIC,
-                        );
-                        if (metadataEntry) {
-                          metadataEntry.value = evt.target.value;
-                        } else {
-                          metadataEntries.unshift({ key: PIVOT_METRIC, value: evt.target.value });
+            >
+              <DeleteForeverIcon />
+              {t("delete", {
+                ns: "cosGeneral",
+              })}
+            </Button>
+          ) : (
+            <Button className={classes.addFileButton} onClick={() => inputRef.current?.click()}>
+              <AddIcon />
+              {t("addPhoto")}
+            </Button>
+          )}
+          <input
+            hidden
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            value=""
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) {
+                return;
+              }
+              setEvent((val) => ({ ...val, imgUrl: undefined, imageFile: file }));
+            }}
+          />
+        </Stack>
+        <Stack paddingX={3} paddingTop={2}>
+          <FormLabel>{t("metadata")}</FormLabel>
+          <div className={classes.grid}>
+            {isSupor ? (
+              <div className={classes.row}>
+                <div>
+                  {PIVOT_METRIC}{" "}
+                  <Tooltip placement="top-start" title={t("pivotMetricTooltip")}>
+                    <IconButton>
+                      <HelpIcon />
+                    </IconButton>
+                  </Tooltip>
+                </div>
+                <Select
+                  value={
+                    event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value ?? ""
+                  }
+                  onChange={(evt) => {
+                    setEvent((old) => {
+                      const metadataEntries = old.metadataEntries;
+                      const metadataEntry = metadataEntries.find(
+                        (entry) => entry.key === PIVOT_METRIC,
+                      );
+                      if (metadataEntry) {
+                        metadataEntry.value = evt.target.value;
+                      } else {
+                        metadataEntries.unshift({ key: PIVOT_METRIC, value: evt.target.value });
+                      }
+                    });
+                  }}
+                >
+                  {pivotMetricValues.map((item) => (
+                    <MenuItem key={item} value={item}>
+                      {item}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <div>
+                  {event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value && (
+                    <IconButton
+                      onClick={() => {
+                        setEvent((old) => {
+                          return {
+                            ...old,
+                            metadataEntries: old.metadataEntries.filter(
+                              (entry) => entry.key !== PIVOT_METRIC,
+                            ),
+                          };
+                        });
+                      }}
+                    >
+                      <ClearIcon />
+                    </IconButton>
+                  )}
+                </div>
+              </div>
+            ) : (
+              event.metadataEntries.map(({ key, value }, index) => {
+                const hasDuplicate = +((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
+                return (
+                  <div className={classes.row} key={index}>
+                    <TextField
+                      value={key}
+                      placeholder={t("propertyName")}
+                      error={hasDuplicate}
+                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                        if (keyboardEvent.key === "Enter") {
+                          invokeTabKey();
                         }
-                      });
-                    }}
-                  >
-                    {pivotMetricValues.map((item) => (
-                      <MenuItem key={item} value={item}>
-                        {item}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  <div>
-                    {event.metadataEntries.find((entry) => entry.key === PIVOT_METRIC)?.value && (
+                      }}
+                      onChange={(evt) => {
+                        updateMetadata(index, "key", evt.currentTarget.value);
+                      }}
+                    />
+                    <TextField
+                      value={value}
+                      placeholder={t("propertyValue")}
+                      error={hasDuplicate}
+                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                        if (
+                          (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
+                          keyboardEvent.key === "Enter"
+                        ) {
+                          onMetaDataKeyDown(keyboardEvent);
+                        }
+                      }}
+                      onChange={(evt) => {
+                        updateMetadata(index, "value", evt.currentTarget.value);
+                      }}
+                    />
+                    <ButtonGroup>
                       <IconButton
+                        tabIndex={-1}
                         onClick={() => {
-                          setEvent((old) => {
-                            return {
-                              ...old,
-                              metadataEntries: old.metadataEntries.filter(
-                                (entry) => entry.key !== PIVOT_METRIC,
-                              ),
-                            };
-                          });
+                          addRow(index);
                         }}
                       >
-                        <ClearIcon />
+                        <AddIcon />
                       </IconButton>
-                    )}
+                      <IconButton
+                        tabIndex={-1}
+                        onClick={() => {
+                          removeRow(index);
+                        }}
+                        style={{
+                          visibility: event.metadataEntries.length > 1 ? "visible" : "hidden",
+                        }}
+                      >
+                        <RemoveIcon />
+                      </IconButton>
+                    </ButtonGroup>
                   </div>
-                </div>
-              ) : (
-                event.metadataEntries.map(({ key, value }, index) => {
-                  const hasDuplicate = +((key.length > 0 && countedMetadata[key]) ?? 0) > 1;
-                  return (
-                    <div className={classes.row} key={index}>
-                      <TextField
-                        value={key}
-                        placeholder={t("propertyName")}
-                        error={hasDuplicate}
-                        onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                          if (keyboardEvent.key === "Enter") {
-                            invokeTabKey();
-                          }
-                        }}
-                        onChange={(evt) => {
-                          updateMetadata(index, "key", evt.currentTarget.value);
-                        }}
-                      />
-                      <TextField
-                        value={value}
-                        placeholder={t("propertyValue")}
-                        error={hasDuplicate}
-                        onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                          if (
-                            (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
-                            keyboardEvent.key === "Enter"
-                          ) {
-                            onMetaDataKeyDown(keyboardEvent);
-                          }
-                        }}
-                        onChange={(evt) => {
-                          updateMetadata(index, "value", evt.currentTarget.value);
-                        }}
-                      />
-                      <ButtonGroup>
-                        <IconButton
-                          tabIndex={-1}
-                          onClick={() => {
-                            addRow(index);
-                          }}
-                        >
-                          <AddIcon />
-                        </IconButton>
-                        <IconButton
-                          tabIndex={-1}
-                          onClick={() => {
-                            removeRow(index);
-                          }}
-                          style={{
-                            visibility: event.metadataEntries.length > 1 ? "visible" : "hidden",
-                          }}
-                        >
-                          <RemoveIcon />
-                        </IconButton>
-                      </ButtonGroup>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </Stack>
-          {!isEditing && (
-            <Stack paddingX={3} paddingTop={2}>
-              <FormControlLabel
-                disableTypography
-                checked={event.enabledCreateNewTask}
-                control={
-                  <Checkbox
-                    size="medium"
-                    checked={isDemoSite ? true : event.enabledCreateNewTask}
-                    onChange={() => {
-                      setEvent((old) => ({
-                        ...old,
-                        enabledCreateNewTask: !old.enabledCreateNewTask,
-                      }));
-                    }}
-                  />
-                }
-                label={t("createNewTask")}
-              />
-            </Stack>
-          )}
-          {!isEditing && (
-            <Stack paddingX={3} paddingTop={2}>
-              <FormLabel>{t("record")}</FormLabel>
-              <Select
-                value={event.fileName}
-                disabled={passingFile == undefined || passingFile.length <= 1}
-                onChange={(e) => {
-                  setEvent((old) => ({ ...old, fileName: e.target.value }));
-                }}
-              >
-                {(passingFile ?? []).map((bag) => (
-                  <MenuItem key={bag.name} value={bag.name}>
-                    {bag.recordDisplayName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </Stack>
-          )}
-          <div className={classes.containerFooter}>
-            <Button variant="outlined" size="large" onClick={onClose}>
-              {t("cancel")}
-            </Button>
-            <Button
-              variant="contained"
-              size="large"
-              id="create-moment"
-              onClick={async () => {
-                if (!isDemoSite) {
-                  if (isEditing) {
-                    await editEvent();
-                  } else {
-                    await createEvent();
-                  }
-                  setCreateEventDialogOpen(false);
-                } else {
-                  setTask({
-                    enabled: true,
-                    eventName: "demo",
-                    title: "机器人不动",
-                    description: "麻烦看一下这个问题，并给出解决方案",
-                  });
-                  setTimeout(() => {
-                    window.nextStep();
-                    setCreateEventDialogOpen(false);
-                  }, 100);
-                }
-              }}
-              disabled={
-                isDemoSite
-                  ? false
-                  : !canSubmit || createdEvent.loading || editedEvent.loading || !event.eventName
-              }
-              ref={createMomentBtnRef}
-            >
-              {(createdEvent.loading || editedEvent.loading) && (
-                <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
-              )}
-              {isEditing ? t("edit") : t("createMoment")}
-            </Button>
+                );
+              })
+            )}
           </div>
-          {duplicateKey && (
-            <Alert severity="error">
-              {t("duplicateKey")} {duplicateKey[0]}
-            </Alert>
-          )}
-          {createdEvent.error?.message && (
-            <Alert severity="error">{createdEvent.error.message}</Alert>
-          )}
         </Stack>
-      )}
+        {!isEditing && (
+          <Stack paddingX={3} paddingTop={2}>
+            <FormControlLabel
+              disableTypography
+              checked={event.enabledCreateNewTask}
+              control={
+                <Checkbox
+                  size="medium"
+                  checked={event.enabledCreateNewTask}
+                  onChange={() => {
+                    setEvent((old) => ({
+                      ...old,
+                      enabledCreateNewTask: !old.enabledCreateNewTask,
+                    }));
+                  }}
+                />
+              }
+              label={t("createNewTask")}
+            />
+          </Stack>
+        )}
+        {!isEditing && (
+          <Stack paddingX={3} paddingTop={2}>
+            <FormLabel>{t("record")}</FormLabel>
+            <Select
+              value={event.fileName}
+              disabled={passingFile == undefined || passingFile.length <= 1}
+              onChange={(e) => {
+                setEvent((old) => ({ ...old, fileName: e.target.value }));
+              }}
+            >
+              {(passingFile ?? []).map((bag) => (
+                <MenuItem key={bag.name} value={bag.name}>
+                  {bag.recordDisplayName}
+                </MenuItem>
+              ))}
+            </Select>
+          </Stack>
+        )}
+        <div className={classes.containerFooter}>
+          <Button variant="outlined" size="large" onClick={onClose}>
+            {t("cancel")}
+          </Button>
+          <Button
+            variant="contained"
+            size="large"
+            id="create-moment"
+            onClick={async () => {
+              if (isEditing) {
+                await editEvent();
+              } else {
+                await createEvent();
+              }
+            }}
+            disabled={!canSubmit || createdEvent.loading || editedEvent.loading || !event.eventName}
+            ref={createMomentBtnRef}
+          >
+            {(createdEvent.loading || editedEvent.loading) && (
+              <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
+            )}
+            {isEditing ? t("edit") : t("createMoment")}
+          </Button>
+        </div>
+        {duplicateKey && (
+          <Alert severity="error">
+            {t("duplicateKey")} {duplicateKey[0]}
+          </Alert>
+        )}
+        {createdEvent.error?.message && (
+          <Alert severity="error">{createdEvent.error.message}</Alert>
+        )}
+      </Stack>
       {task.enabled && targetEvent && (
         <CreateTaskDialog
           initialTask={{
