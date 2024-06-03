@@ -2,11 +2,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { alpha } from "@mui/material";
+import { alpha, Tooltip } from "@mui/material";
 import Fade from "@mui/material/Fade";
 import Popper from "@mui/material/Popper";
 import * as _ from "lodash-es";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { scaleValue as scale } from "@foxglove/den/math";
@@ -31,7 +32,7 @@ import {
 import EventMarkIcon from "../../assets/event-mark.svg";
 
 // Hotspot as a percentage of the progress bar
-const HOTSPOT_WIDTH_PER_CENT = 0.005;
+const HOTSPOT_WIDTH_PER_CENT = 0.01;
 
 const useStyles = makeStyles()(({ transitions, palette }) => ({
   root: {
@@ -119,7 +120,13 @@ function EventTick({ event }: { event: TimelinePositionedEvent }): JSX.Element {
 
 const MemoEventTick = React.memo(EventTick);
 
-function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Element {
+function EventMark({
+  marks,
+  isHiddenCreateMomentPopper,
+}: {
+  marks: TimelinePositionedEventMark[];
+  isHiddenCreateMomentPopper: boolean;
+}): JSX.Element {
   const leftMarkRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
   const { position: leftMarkPosition } = marks[0] ?? {};
   const { position: rightMarkPosition } = marks[1] ?? {};
@@ -127,6 +134,7 @@ function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Ele
   const [open, setOpen] = useState(false);
   const setEventMarks = useEvents(selectSetEventMarks);
   const setToModifyEvent = useEvents(selectSetToModifyEvent);
+  const { t } = useTranslation("cosEvent");
 
   const leftMark =
     leftMarkPosition != undefined ? `${_.clamp(leftMarkPosition, 0, 1) * 100}%` : undefined;
@@ -151,14 +159,31 @@ function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Ele
 
   return (
     <div>
-      <div
-        ref={leftMarkRef}
-        aria-describedby={id}
-        style={{
-          position: "absolute",
-          left: leftMark ?? 0,
+      <Tooltip
+        title={t("startPoint")}
+        PopperProps={{
+          modifiers: [
+            {
+              name: "offset",
+              options: {
+                // Offset popper to hug the track better.
+                offset: [0, 4],
+              },
+            },
+          ],
         }}
-      />
+        placement="top"
+        open={marks.length === 1}
+      >
+        <div
+          ref={leftMarkRef}
+          aria-describedby={id}
+          style={{
+            position: "absolute",
+            left: leftMark ?? 0,
+          }}
+        />
+      </Tooltip>
       {leftMark && (
         <>
           <EventMarkIcon
@@ -188,7 +213,7 @@ function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Ele
       )}
       <Popper
         placement="top-start"
-        open={open}
+        open={open && !isHiddenCreateMomentPopper}
         anchorEl={anchorEl}
         transition
         id="event-mark-popper"
@@ -218,10 +243,11 @@ const MemoEventMark = React.memo(EventMark);
 type Props = {
   componentId: string;
   isDragging: boolean;
+  setCursor: (cursor: string) => void;
 };
 
 export function EventsOverlay(props: Props): JSX.Element | ReactNull {
-  const { componentId, isDragging } = props;
+  const { componentId, isDragging, setCursor } = props;
 
   const events = useEvents(selectEvents);
   const { classes } = useStyles();
@@ -246,6 +272,27 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
 
   const [leftMark, rightMark] = eventMarks;
 
+  const [isHiddenCreateMomentPopper, setIsHiddenCreateMomentPopper] = useState(false);
+
+  // set cursor style
+  useEffect(() => {
+    if (
+      (hoverTimePosition != undefined &&
+        ((leftMark != undefined &&
+          hoverTimePosition > leftMark.position - HOTSPOT_WIDTH_PER_CENT &&
+          hoverTimePosition < leftMark.position) ||
+          (rightMark != undefined &&
+            hoverTimePosition > rightMark.position &&
+            hoverTimePosition < rightMark.position + HOTSPOT_WIDTH_PER_CENT))) ||
+      isDragging
+    ) {
+      setCursor("ew-resize");
+    } else {
+      setCursor("pointer");
+    }
+  }, [hoverTimePosition, isDragging, leftMark, rightMark, setCursor]);
+
+  // Determine the mark of a drag and drop
   useEffect(() => {
     if (isDragging) {
       if (
@@ -255,6 +302,7 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
         hoverTimePosition < leftMark.position
       ) {
         setDragPointKey(leftMark.key);
+        setIsHiddenCreateMomentPopper(true);
       } else if (
         hoverTimePosition != undefined &&
         rightMark != undefined &&
@@ -262,11 +310,14 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
         hoverTimePosition < rightMark.position + HOTSPOT_WIDTH_PER_CENT
       ) {
         setDragPointKey(rightMark.key);
+        setIsHiddenCreateMomentPopper(true);
       } else {
         setDragPointKey(undefined);
+        setIsHiddenCreateMomentPopper(false);
       }
     } else {
       setDragPointKey(undefined);
+      setIsHiddenCreateMomentPopper(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDragging]);
@@ -295,7 +346,7 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
       {(events.value ?? []).map((event) => (
         <MemoEventTick key={event.event.name} event={event} />
       ))}
-      <MemoEventMark marks={eventMarks} />
+      <MemoEventMark marks={eventMarks} isHiddenCreateMomentPopper={isHiddenCreateMomentPopper} />
     </div>
   );
 }

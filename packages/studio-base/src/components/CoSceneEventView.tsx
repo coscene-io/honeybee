@@ -6,9 +6,9 @@ import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/r
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import ShareIcon from "@mui/icons-material/Share";
-import { alpha, Alert } from "@mui/material";
-import Snackbar from "@mui/material/Snackbar";
+import { alpha } from "@mui/material";
 import { Fragment, useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -103,9 +103,6 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventSelected">()(
       overflowY: "auto",
       wordBreak: "break-all",
     },
-    toast: {
-      bottom: "85px !important",
-    },
     eventImg: {
       maxWidth: "100%",
     },
@@ -139,39 +136,23 @@ function EventViewComponent(params: {
   const { classes, cx } = useStyles();
   const consoleApi = useConsoleApi();
   const refreshEvents = useEvents(selectRefreshEvents);
-  const [open, setOpen] = useState(false);
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
-  const [toastInfo, setToastInfo] = useState<{
-    message: string;
-    type: "success" | "error";
-  }>({
-    message: "",
-    type: "success",
-  });
+
   const [show, setShow] = useState(true);
-
-  const handleClose = (
-    _event: globalThis.Event | React.SyntheticEvent<unknown>,
-    reason?: string,
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-
-    setOpen(false);
-  };
 
   const [deletedEvent, deleteEvent] = useAsyncFn(async () => {
     if (event.event.files[0]) {
-      await consoleApi.deleteFile(new File({ name: event.event.files[0] }));
+      try {
+        await consoleApi.deleteFile(new File({ name: event.event.files[0] }));
+      } catch (error) {
+        console.error("Error deleting file", error);
+      }
     }
+
     await consoleApi.deleteEvent({ eventName: event.event.name });
-    setOpen(true);
-    setToastInfo({
-      message: t("momentDeleted"),
-      type: "success",
-    });
+
+    toast.success(t("momentDeleted"));
     refreshEvents();
   }, [consoleApi, event, refreshEvents, t]);
 
@@ -199,11 +180,7 @@ function EventViewComponent(params: {
 
   useEffect(() => {
     if (deletedEvent.error) {
-      setToastInfo({
-        message: t("errorDeletingEvent"),
-        type: "error",
-      });
-      setOpen(true);
+      toast.error(t("errorDeletingEvent"));
     }
   }, [deletedEvent, t]);
 
@@ -241,11 +218,7 @@ function EventViewComponent(params: {
 
     await navigator.clipboard.writeText(copyLink);
 
-    setOpen(true);
-    setToastInfo({
-      message: t("copiedMomentToClipboard"),
-      type: "success",
-    });
+    toast.success(t("copiedMomentToClipboard"));
   };
 
   const handleEditEvent = () => {
@@ -360,11 +333,6 @@ function EventViewComponent(params: {
           <div className={classes.spacer} />
         </div>
       </div>
-      <Snackbar open={open} autoHideDuration={6000} onClose={handleClose} className={classes.toast}>
-        <Alert onClose={handleClose} severity={toastInfo.type} style={{ width: "100%" }}>
-          {toastInfo.message}
-        </Alert>
-      </Snackbar>
     </div>
   ) : (
     <></>
