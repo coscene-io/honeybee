@@ -120,7 +120,13 @@ function EventTick({ event }: { event: TimelinePositionedEvent }): JSX.Element {
 
 const MemoEventTick = React.memo(EventTick);
 
-function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Element {
+function EventMark({
+  marks,
+  isHiddenCreateMomentPopper,
+}: {
+  marks: TimelinePositionedEventMark[];
+  isHiddenCreateMomentPopper: boolean;
+}): JSX.Element {
   const leftMarkRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
   const { position: leftMarkPosition } = marks[0] ?? {};
   const { position: rightMarkPosition } = marks[1] ?? {};
@@ -207,7 +213,7 @@ function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Ele
       )}
       <Popper
         placement="top-start"
-        open={open}
+        open={open && !isHiddenCreateMomentPopper}
         anchorEl={anchorEl}
         transition
         id="event-mark-popper"
@@ -266,6 +272,8 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
 
   const [leftMark, rightMark] = eventMarks;
 
+  const [isHiddenCreateMomentPopper, setIsHiddenCreateMomentPopper] = useState(false);
+
   // set cursor style
   useEffect(() => {
     if (
@@ -294,6 +302,7 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
         hoverTimePosition < leftMark.position
       ) {
         setDragPointKey(leftMark.key);
+        setIsHiddenCreateMomentPopper(true);
       } else if (
         hoverTimePosition != undefined &&
         rightMark != undefined &&
@@ -301,11 +310,14 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
         hoverTimePosition < rightMark.position + HOTSPOT_WIDTH_PER_CENT
       ) {
         setDragPointKey(rightMark.key);
+        setIsHiddenCreateMomentPopper(true);
       } else {
         setDragPointKey(undefined);
+        setIsHiddenCreateMomentPopper(false);
       }
     } else {
       setDragPointKey(undefined);
+      setIsHiddenCreateMomentPopper(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDragging]);
@@ -334,7 +346,7 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
       {(events.value ?? []).map((event) => (
         <MemoEventTick key={event.event.name} event={event} />
       ))}
-      <MemoEventMark marks={eventMarks} />
+      <MemoEventMark marks={eventMarks} isHiddenCreateMomentPopper={isHiddenCreateMomentPopper} />
     </div>
   );
 }
