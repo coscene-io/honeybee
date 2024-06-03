@@ -32,7 +32,7 @@ import {
 import EventMarkIcon from "../../assets/event-mark.svg";
 
 // Hotspot as a percentage of the progress bar
-const HOTSPOT_WIDTH_PER_CENT = 0.005;
+const HOTSPOT_WIDTH_PER_CENT = 0.01;
 
 const useStyles = makeStyles()(({ transitions, palette }) => ({
   root: {
