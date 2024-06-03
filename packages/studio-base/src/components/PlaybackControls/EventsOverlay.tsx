@@ -2,11 +2,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { alpha } from "@mui/material";
+import { alpha, Tooltip } from "@mui/material";
 import Fade from "@mui/material/Fade";
 import Popper from "@mui/material/Popper";
 import * as _ from "lodash-es";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { scaleValue as scale } from "@foxglove/den/math";
@@ -127,6 +128,7 @@ function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Ele
   const [open, setOpen] = useState(false);
   const setEventMarks = useEvents(selectSetEventMarks);
   const setToModifyEvent = useEvents(selectSetToModifyEvent);
+  const { t } = useTranslation("cosEvent");
 
   const leftMark =
     leftMarkPosition != undefined ? `${_.clamp(leftMarkPosition, 0, 1) * 100}%` : undefined;
@@ -151,14 +153,31 @@ function EventMark({ marks }: { marks: TimelinePositionedEventMark[] }): JSX.Ele
 
   return (
     <div>
-      <div
-        ref={leftMarkRef}
-        aria-describedby={id}
-        style={{
-          position: "absolute",
-          left: leftMark ?? 0,
+      <Tooltip
+        title={t("startPoint")}
+        PopperProps={{
+          modifiers: [
+            {
+              name: "offset",
+              options: {
+                // Offset popper to hug the track better.
+                offset: [0, 4],
+              },
+            },
+          ],
         }}
-      />
+        placement="top"
+        open={marks.length === 1}
+      >
+        <div
+          ref={leftMarkRef}
+          aria-describedby={id}
+          style={{
+            position: "absolute",
+            left: leftMark ?? 0,
+          }}
+        />
+      </Tooltip>
       {leftMark && (
         <>
           <EventMarkIcon
@@ -218,10 +237,11 @@ const MemoEventMark = React.memo(EventMark);
 type Props = {
   componentId: string;
   isDragging: boolean;
+  setCursor: (cursor: string) => void;
 };
 
 export function EventsOverlay(props: Props): JSX.Element | ReactNull {
-  const { componentId, isDragging } = props;
+  const { componentId, isDragging, setCursor } = props;
 
   const events = useEvents(selectEvents);
   const { classes } = useStyles();
@@ -246,6 +266,25 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
 
   const [leftMark, rightMark] = eventMarks;
 
+  // set cursor style
+  useEffect(() => {
+    if (
+      (hoverTimePosition != undefined &&
+        ((leftMark != undefined &&
+          hoverTimePosition > leftMark.position - HOTSPOT_WIDTH_PER_CENT &&
+          hoverTimePosition < leftMark.position) ||
+          (rightMark != undefined &&
+            hoverTimePosition > rightMark.position &&
+            hoverTimePosition < rightMark.position + HOTSPOT_WIDTH_PER_CENT))) ||
+      isDragging
+    ) {
+      setCursor("ew-resize");
+    } else {
+      setCursor("pointer");
+    }
+  }, [hoverTimePosition, isDragging, leftMark, rightMark, setCursor]);
+
+  // Determine the mark of a drag and drop
   useEffect(() => {
     if (isDragging) {
       if (

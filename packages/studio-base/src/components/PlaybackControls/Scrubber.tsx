@@ -72,6 +72,8 @@ export default function Scrubber(props: Props): JSX.Element {
 
   const [hoverComponentId] = useState<string>(() => uuidv4());
 
+  const [cursor, setCursor] = useState("pointer");
+
   const startTime = useMessagePipeline(selectStartTime);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const endTime = useMessagePipeline(selectEndTime);
@@ -235,10 +237,15 @@ export default function Scrubber(props: Props): JSX.Element {
             onHoverOut={onHoverOut}
             onChange={onChange}
             renderSlider={renderSlider}
+            cursor={cursor}
           />
         </Stack>
         <BagsOverlay />
-        <EventsOverlay componentId={hoverComponentId} isDragging={isDragging} />
+        <EventsOverlay
+          componentId={hoverComponentId}
+          isDragging={isDragging}
+          setCursor={setCursor}
+        />
         <PlaybackBarHoverTicks componentId={hoverComponentId} />
       </Stack>
     </Tooltip>

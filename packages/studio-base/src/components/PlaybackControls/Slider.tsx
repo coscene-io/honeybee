@@ -24,9 +24,10 @@ type Props = {
   onHoverOver?: (event: HoverOverEvent) => void;
   onHoverOut?: () => void;
   renderSlider?: (value?: number) => ReactNode;
+  cursor: string;
 };
 
-const useStyles = makeStyles()((theme) => ({
+const useStyles = makeStyles<{ cursor: string }>()((theme, props) => ({
   root: {
     label: "Slider-root",
     display: "flex",
@@ -34,7 +35,7 @@ const useStyles = makeStyles()((theme) => ({
     height: "100%",
     position: "relative",
     alignItems: "center",
-    cursor: "pointer",
+    cursor: props.cursor,
   },
   rootDisabled: {
     label: "Slider-rootDisabled",
@@ -64,8 +65,9 @@ export default function Slider(props: Props): JSX.Element {
     onHoverOver,
     onHoverOut,
     onChange,
+    cursor,
   } = props;
-  const { classes, cx } = useStyles();
+  const { classes, cx } = useStyles({ cursor });
 
   const elRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
 
