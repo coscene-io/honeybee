@@ -279,11 +279,9 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
     if (
       (hoverTimePosition != undefined &&
         ((leftMark != undefined &&
-          hoverTimePosition > leftMark.position - HOTSPOT_WIDTH_PER_CENT &&
-          hoverTimePosition < leftMark.position) ||
+          Math.abs(hoverTimePosition - leftMark.position) < HOTSPOT_WIDTH_PER_CENT) ||
           (rightMark != undefined &&
-            hoverTimePosition > rightMark.position &&
-            hoverTimePosition < rightMark.position + HOTSPOT_WIDTH_PER_CENT))) ||
+            Math.abs(hoverTimePosition - rightMark.position) < HOTSPOT_WIDTH_PER_CENT))) ||
       isDragging
     ) {
       setCursor("ew-resize");
@@ -295,19 +293,29 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
   // Determine the mark of a drag and drop
   useEffect(() => {
     if (isDragging) {
+      const leftPointGap =
+        hoverTimePosition != undefined && leftMark != undefined
+          ? Math.abs(hoverTimePosition - leftMark.position)
+          : undefined;
+
+      const rightPointGap =
+        hoverTimePosition != undefined && rightMark != undefined
+          ? Math.abs(hoverTimePosition - rightMark.position)
+          : undefined;
+
       if (
-        hoverTimePosition != undefined &&
-        leftMark != undefined &&
-        hoverTimePosition > leftMark.position - HOTSPOT_WIDTH_PER_CENT &&
-        hoverTimePosition < leftMark.position
+        leftMark &&
+        leftPointGap != undefined &&
+        leftPointGap < HOTSPOT_WIDTH_PER_CENT &&
+        (rightPointGap == undefined || leftPointGap < rightPointGap)
       ) {
         setDragPointKey(leftMark.key);
         setIsHiddenCreateMomentPopper(true);
       } else if (
-        hoverTimePosition != undefined &&
-        rightMark != undefined &&
-        hoverTimePosition > rightMark.position &&
-        hoverTimePosition < rightMark.position + HOTSPOT_WIDTH_PER_CENT
+        rightMark &&
+        rightPointGap != undefined &&
+        rightPointGap < HOTSPOT_WIDTH_PER_CENT &&
+        (leftPointGap == undefined || rightPointGap < leftPointGap)
       ) {
         setDragPointKey(rightMark.key);
         setIsHiddenCreateMomentPopper(true);
