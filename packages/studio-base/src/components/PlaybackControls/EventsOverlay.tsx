@@ -307,7 +307,7 @@ export function EventsOverlay(props: Props): JSX.Element | ReactNull {
         leftMark &&
         leftPointGap != undefined &&
         leftPointGap < HOTSPOT_WIDTH_PER_CENT &&
-        (rightPointGap == undefined || leftPointGap < rightPointGap)
+        (rightPointGap == undefined || leftPointGap <= rightPointGap)
       ) {
         setDragPointKey(leftMark.key);
         setIsHiddenCreateMomentPopper(true);
