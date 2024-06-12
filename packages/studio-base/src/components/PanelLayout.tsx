@@ -260,18 +260,20 @@ export default function PanelLayout(): JSX.Element {
       <Typography display="block" variant="body1" color="text.primary">
         {t("notLayoutDesc")}
       </Typography>
-      <Link onClick={createNewLayout} underline="hover" color="primary" variant="body1">
-        {t("createNewLayout")}
-      </Link>
-      <Link
-        color="primary"
-        target="_blank"
-        underline="hover"
-        variant="body1"
-        href="https://docs.coscene.cn/docs/recipes/viz/set-layout/"
-      >
-        {t("userGuide", { ns: "cosGeneral" })}
-      </Link>
+      <Stack gap={1} direction="row">
+        <Link onClick={createNewLayout} underline="hover" color="primary" variant="body1">
+          {t("createNewLayout")}
+        </Link>
+        <Link
+          color="primary"
+          target="_blank"
+          underline="hover"
+          variant="body1"
+          href="https://docs.coscene.cn/docs/recipes/viz/set-layout/"
+        >
+          {t("userGuide", { ns: "cosGeneral" })}
+        </Link>
+      </Stack>
     </EmptyState>
   );
 }
