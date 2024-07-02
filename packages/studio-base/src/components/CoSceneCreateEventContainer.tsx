@@ -630,7 +630,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
           />
         </Stack>
         <Stack paddingX={3} paddingTop={2}>
-          <FormLabel>{t("metadata")}</FormLabel>
+          <FormLabel>{t("attribute")}</FormLabel>
           <div className={classes.grid}>
             {isSupor ? (
               <div className={classes.row}>
@@ -692,7 +692,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
                   <div className={classes.row} key={index}>
                     <TextField
                       value={key}
-                      placeholder={t("propertyName")}
+                      placeholder={t("attributeKey")}
                       error={hasDuplicate}
                       onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
                         if (keyboardEvent.key === "Enter") {
@@ -705,7 +705,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
                     />
                     <TextField
                       value={value}
-                      placeholder={t("propertyValue")}
+                      placeholder={t("attributeValue")}
                       error={hasDuplicate}
                       onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
                         if (
