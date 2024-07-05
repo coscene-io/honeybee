@@ -8,6 +8,7 @@ import {
   PanelRight24Filled,
   PanelRight24Regular,
   SlideAdd24Regular,
+  QuestionCircle24Regular,
 } from "@fluentui/react-icons";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import InfoIcon from "@mui/icons-material/Info";
@@ -319,6 +320,16 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   ) : (
                     <PanelRight24Regular color={theme.palette.appBar.icon} />
                   )}
+                </AppBarIconButton>
+                <AppBarIconButton
+                  title={t("help")}
+                  aria-label={t("help")}
+                  onClick={() => {
+                    window.open("https://docs.coscene.cn", "_blank");
+                  }}
+                  data-tourid="help-button"
+                >
+                  <QuestionCircle24Regular color={theme.palette.appBar.icon} />
                 </AppBarIconButton>
               </Stack>
               <Tooltip
