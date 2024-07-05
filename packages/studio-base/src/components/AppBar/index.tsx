@@ -325,7 +325,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
                   title={t("help")}
                   aria-label={t("help")}
                   onClick={() => {
-                    window.open("https://docs.coscene.cn/", "_blank");
+                    window.open("https://docs.coscene.cn", "_blank");
                   }}
                   data-tourid="help-button"
                 >
