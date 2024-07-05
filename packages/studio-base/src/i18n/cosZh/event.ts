@@ -40,6 +40,7 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   momentDeleted: "一刻已删除",
   momentName: "一刻名称",
   moments: "一刻",
+  momentTips: "一刻是可视化记录中的关键帧",
   momentUpdated: "一刻已更新",
   name: "名称",
   noMoment: "无一刻",
