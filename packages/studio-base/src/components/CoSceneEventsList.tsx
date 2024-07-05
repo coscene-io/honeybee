@@ -4,6 +4,7 @@
 
 import ClearIcon from "@mui/icons-material/Clear";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   AppBar,
@@ -15,6 +16,7 @@ import {
   AccordionSummary,
   AccordionDetails,
 } from "@mui/material";
+import Tooltip from "@mui/material/Tooltip";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -209,6 +211,11 @@ export function EventsList(): JSX.Element {
             ),
           }}
         />
+        <Tooltip placement="top" title={t("momentTips")}>
+          <IconButton>
+            <HelpOutlineIcon />
+          </IconButton>
+        </Tooltip>
       </AppBar>
       {events.loading && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">

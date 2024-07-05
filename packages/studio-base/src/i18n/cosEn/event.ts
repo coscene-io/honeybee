@@ -38,6 +38,7 @@ export const cosEvent = {
   momentDeleted: "Moment deleted",
   momentName: "Moment Name",
   moments: "Moments",
+  momentTips: "A moment is a keyframe in visual records",
   momentUpdated: "Moment have been updated",
   name: "Name",
   noMoment: "No Moments",
