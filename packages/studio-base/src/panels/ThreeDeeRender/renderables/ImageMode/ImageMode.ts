@@ -65,6 +65,7 @@ import {
   CAMERA_CALIBRATION_DATATYPES,
   COMPRESSED_IMAGE_DATATYPES,
   RAW_IMAGE_DATATYPES,
+  COMPRESSED_VIDEO_DATATYPES,
 } from "../../foxglove";
 import {
   IMAGE_DATATYPES as ROS_IMAGE_DATATYPES,
@@ -108,6 +109,7 @@ export const ALL_SUPPORTED_IMAGE_SCHEMAS = new Set([
   ...ROS_COMPRESSED_IMAGE_DATATYPES,
   ...RAW_IMAGE_DATATYPES,
   ...COMPRESSED_IMAGE_DATATYPES,
+  ...COMPRESSED_VIDEO_DATATYPES,
 ]);
 
 const SUPPORTED_RAW_IMAGE_SCHEMAS = new Set([...RAW_IMAGE_DATATYPES, ...ROS_IMAGE_DATATYPES]);
@@ -959,6 +961,10 @@ export class ImageMode
         return;
       }
 
+      if (!(currentImage instanceof ImageData) && !(currentImage instanceof ImageBitmap)) {
+        return;
+      }
+
       const { topic, image: imageMessage } = this.imageRenderable.userData;
       if (!imageMessage) {
         return;
@@ -1022,14 +1028,21 @@ export class ImageMode
   };
 
   public override getContextMenuItems(): PanelContextMenuItem[] {
-    return [
-      {
-        type: "item",
-        label: "Download image",
-        onclick: this.#getDownloadImageCallback(),
-        disabled: this.imageRenderable?.getDecodedImage() == undefined,
-      },
-    ];
+    if (!this.imageRenderable) {
+      return [];
+    }
+
+    const currentImage = this.imageRenderable.getDecodedImage();
+    return currentImage instanceof ImageData || currentImage instanceof ImageBitmap
+      ? [
+          {
+            type: "item",
+            label: "Download image",
+            onclick: this.#getDownloadImageCallback(),
+            disabled: this.imageRenderable.getDecodedImage() == undefined,
+          },
+        ]
+      : [];
   }
 }
 
