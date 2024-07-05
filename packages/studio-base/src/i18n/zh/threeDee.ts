@@ -148,4 +148,5 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   xDeviationHelp: "与姿势估计值一起公布的 X 标准偏差",
   yDeviation: "Y 偏差",
   yDeviationHelp: "与姿势估计值一起发布的 Y 标准偏差",
+  waitingForImages: "等待图片信息中...",
 };

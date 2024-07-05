@@ -11,7 +11,7 @@ import { CoSceneEventsSyncAdapter } from "@foxglove/studio-base/components/CoSce
 import { PlaylistSyncAdapter } from "@foxglove/studio-base/components/CoScenePlaylistSyncAdapter";
 import { ProjectsSyncAdapter } from "@foxglove/studio-base/components/CoSceneProjectSyncAdapter";
 import { URLStateSyncAdapter } from "@foxglove/studio-base/components/URLStateSyncAdapter";
-import { UpdateChecker } from "@foxglove/studio-base/components/UpdateChecker";
+// import { UpdateChecker } from "@foxglove/studio-base/components/UpdateChecker";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 
 export function SyncAdapters(): JSX.Element {
@@ -32,7 +32,7 @@ export function SyncAdapters(): JSX.Element {
         <ProjectsSyncAdapter />
         <URLStateSyncAdapter />
         <CurrentLayoutSyncAdapter />
-        <UpdateChecker />
+        {/* <UpdateChecker /> */}
       </>
     );
   }, [syncAdapters]);

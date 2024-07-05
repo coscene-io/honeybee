@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import JMuxer from "jmuxer";
 import * as _ from "lodash-es";
 import * as THREE from "three";
 import { assert } from "ts-essentials";
@@ -54,6 +55,8 @@ export type ImageUserData = BaseUserData & {
   mesh: THREE.Mesh | undefined;
 };
 
+export type VideoInfo = { width: number; height: number };
+
 export class ImageRenderable extends Renderable<ImageUserData> {
   // Make sure that everything is build the first time we render
   // set when camera info or image changes
@@ -69,7 +72,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   #isUpdating = false;
 
-  #decodedImage?: ImageBitmap | ImageData;
+  #decodedImage?: ImageBitmap | ImageData | VideoInfo;
+
+  #video?: HTMLVideoElement;
+  #jmuxer?: JMuxer;
+
   protected decoder?: WorkerImageDecoder;
   #receivedImageSequenceNumber = 0;
   #displayedImageSequenceNumber = 0;
@@ -85,7 +92,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     return this.#disposed;
   }
 
-  public getDecodedImage(): ImageBitmap | ImageData | undefined {
+  public getDecodedImage(): ImageBitmap | ImageData | VideoInfo | undefined {
     return this.#decodedImage;
   }
 
@@ -174,6 +181,20 @@ export class ImageRenderable extends Renderable<ImageUserData> {
   public setImage(image: AnyImage, resizeWidth?: number, onDecoded?: () => void): void {
     this.userData.image = image;
 
+    if ("format" in image && image.format === "h264") {
+      this.decodeH264Video(image, onDecoded);
+      return;
+    }
+
+    if (this.#video) {
+      this.#video = undefined;
+    }
+
+    if (this.#jmuxer) {
+      this.#jmuxer.destroy();
+      this.#jmuxer = undefined;
+    }
+
     const seq = ++this.#receivedImageSequenceNumber;
     const decodePromise = this.decodeImage(image, resizeWidth);
 
@@ -234,6 +255,52 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       return await decodeCompressedImageToBitmap(image, resizeWidth);
     }
     return await (this.decoder ??= new WorkerImageDecoder()).decode(image, this.userData.settings);
+  }
+
+  protected decodeH264Video(image: AnyImage, onDecoded?: () => void): void {
+    if (this.isDisposed()) {
+      return;
+    }
+
+    if (!this.#video) {
+      const video = document.createElement("video");
+      video.autoplay = true;
+
+      this.#video = video;
+
+      const jmuxer = new JMuxer({
+        node: this.#video,
+        mode: "video",
+        flushingTime: 1000,
+        fps: 16,
+        debug: false,
+        onError(data) {
+          console.error("JMuxer error:", data);
+          if (
+            navigator.userAgent.includes("Safari") &&
+            navigator.vendor.includes("Apple Computer")
+          ) {
+            jmuxer.reset();
+          }
+        },
+      });
+
+      this.#jmuxer = jmuxer;
+
+      this.#textureNeedsUpdate = true;
+      this.#showingErrorImage = false;
+
+      this.removeError(DECODE_IMAGE_ERR_KEY);
+      this.renderer.queueAnimationFrame();
+    } else {
+      this.#jmuxer?.feed({
+        video: image.data as Uint8Array,
+      });
+
+      this.#decodedImage = { width: this.#video.videoWidth, height: this.#video.videoHeight };
+      this.update();
+      onDecoded?.();
+    }
   }
 
   public update(): void {
@@ -308,7 +375,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         canvasTexture.image = decodedImage;
         canvasTexture.needsUpdate = true;
       }
-    } else {
+    } else if (decodedImage instanceof ImageData) {
       let dataTexture = this.userData.texture;
       if (
         dataTexture == undefined ||
@@ -323,6 +390,20 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       } else {
         dataTexture.image = decodedImage;
         dataTexture.needsUpdate = true;
+      }
+    } else {
+      assert(this.#video, "Video element must be set before texture can be updated or created");
+      let dataTexture = this.userData.texture;
+      if (
+        dataTexture == undefined ||
+        // instanceof check allows us to switch from a compressed image (CanvasTexture) to a raw image (DataTexture)
+        !(dataTexture instanceof THREE.VideoTexture) ||
+        dataTexture.image.width !== decodedImage.width ||
+        dataTexture.image.height !== decodedImage.height
+      ) {
+        dataTexture?.dispose();
+        dataTexture = createVideoTexture(this.#video);
+        this.userData.texture = dataTexture;
       }
     }
     this.#materialNeedsUpdate = true;
@@ -441,6 +522,21 @@ function createDataTexture(imageData: ImageData): THREE.DataTexture {
   );
   dataTexture.needsUpdate = true; // ensure initial image data is displayed
   return dataTexture;
+}
+
+function createVideoTexture(video: HTMLVideoElement): THREE.VideoTexture {
+  const videoTexture = new THREE.VideoTexture(
+    video,
+    THREE.UVMapping,
+    THREE.ClampToEdgeWrapping,
+    THREE.ClampToEdgeWrapping,
+    THREE.NearestFilter,
+    THREE.LinearFilter,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
+
+  return videoTexture;
 }
 
 function createGeometry(
