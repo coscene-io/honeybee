@@ -48,4 +48,5 @@ export const panels = {
   variableSlider: "Variable Slider",
   variableSliderDescription: "Update numerical variable values for a layout.",
   settings: "Settings",
+  momentsBarDesc: "Displaying momentary information in card form",
 };
