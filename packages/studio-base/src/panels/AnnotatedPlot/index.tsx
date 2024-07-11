@@ -463,7 +463,11 @@ function Plot(props: Props) {
             xAxisVal={xAxisVal}
           />
           <PanelContextMenu getItems={getPanelContextMenuItems} />
-          {showMoments && <MomentsList events={filteredEvents} />}
+          {showMoments && (
+            <Stack paddingTop={1}>
+              <MomentsList events={filteredEvents} />
+            </Stack>
+          )}
         </Stack>
       </Stack>
     </Stack>

@@ -188,7 +188,7 @@ export default function MomentsList({
       display="flex"
       flexDirection="row"
       gap="8px"
-      paddingTop="20px"
+      paddingBottom="4px"
       overflow="auto"
       className={classes.container}
     >

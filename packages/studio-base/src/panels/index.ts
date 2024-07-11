@@ -12,6 +12,7 @@ import imageThumbnail from "./Image/thumbnail.png";
 import indicatorThumbnail from "./Indicator/thumbnail.png";
 import logThumbnail from "./Log/thumbnail.png";
 import mapThumbnail from "./Map/thumbnail.png";
+import momentsBarThumbnail from "./MomentsBar/thumbnail.png";
 import parametersThumbnail from "./Parameters/thumbnail.png";
 import plotThumbnail from "./Plot/thumbnail.png";
 import publishThumbnail from "./Publish/thumbnail.png";
@@ -189,5 +190,14 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     thumbnail: tabThumbnail,
     module: async () => await import("./Tab"),
     hasCustomToolbar: true,
+  },
+  {
+    title: t("moments", {
+      ns: "cosEvent",
+    }),
+    type: "MomentPenel",
+    description: t("momentsBarDesc"),
+    thumbnail: momentsBarThumbnail,
+    module: async () => await import("./MomentsBar"),
   },
 ];
