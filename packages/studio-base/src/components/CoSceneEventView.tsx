@@ -7,7 +7,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import ShareIcon from "@mui/icons-material/Share";
 import { alpha } from "@mui/material";
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
@@ -139,6 +139,16 @@ function EventViewComponent(params: {
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
 
+  const scrollRef = useRef<HTMLDivElement>(ReactNull);
+
+  useEffect(() => {
+    if (isSelected || isHovered) {
+      if (scrollRef.current) {
+        scrollRef.current.scrollIntoView({ block: "center" });
+      }
+    }
+  }, [isSelected, isHovered]);
+
   const [show, setShow] = useState(true);
 
   const [deletedEvent, deleteEvent] = useAsyncFn(async () => {
@@ -254,6 +264,7 @@ function EventViewComponent(params: {
       onMouseLeave={() => {
         onHoverEnd(event);
       }}
+      ref={scrollRef}
     >
       <div className={classes.eventTitle}>
         <div>
