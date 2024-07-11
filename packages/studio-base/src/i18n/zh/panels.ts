@@ -48,4 +48,5 @@ export const panels: Partial<TypeOptions["resources"]["panels"]> = {
   variableSlider: "变量滑块",
   variableSliderDescription: "更新布局的数字变量值。",
   settings: "设置",
+  momentsBarDesc: "以卡片形式显示一刻信息",
 };
