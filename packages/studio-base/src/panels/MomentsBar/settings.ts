@@ -53,8 +53,14 @@ export function useMomentsBarSettings(
   const { t } = useTranslation("cosEvent");
   const bagFiles = usePlaylist(selectBagFiles);
 
-  const records = useMemo(() => {
-    return bagFiles.value
+  const records = useMemo<
+    {
+      label: string;
+      value: string;
+    }[]
+  >(() => {
+    const recordsMap = new Map();
+    bagFiles.value
       ?.filter((file) => {
         return (
           (file.fileType === "GHOST_SOURCE_FILE" || file.fileType === "NORMAL_FILE") &&
@@ -62,10 +68,14 @@ export function useMomentsBarSettings(
           file.name.split("/files/")[0] != undefined
         );
       })
-      .map((file) => ({
-        label: file.recordDisplayName ?? "",
-        value: file.name.split("/files/")[0] ?? "",
-      }));
+      .forEach((file) => {
+        recordsMap.set(file.name.split("/files/")[0], {
+          label: file.recordDisplayName ?? "",
+          value: file.name.split("/files/")[0] ?? "",
+        });
+      });
+
+    return Array.from(recordsMap.values());
   }, [bagFiles.value]);
 
   const actionHandler = useCallback(
@@ -85,7 +95,7 @@ export function useMomentsBarSettings(
   useEffect(() => {
     updatePanelSettingsTree({
       actionHandler,
-      nodes: buildSettingsTree(config, t, records ?? []),
+      nodes: buildSettingsTree(config, t, records),
     });
   }, [actionHandler, config, updatePanelSettingsTree, t, records]);
 }
