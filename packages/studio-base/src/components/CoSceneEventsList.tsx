@@ -17,7 +17,7 @@ import {
   AccordionDetails,
 } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -130,6 +130,8 @@ export function EventsList(): JSX.Element {
   const setToModifyEvent = useEvents(selectSetToModifyEvent);
   const setEventMarks = useEvents(selectSetEventMarks);
 
+  const [disabledScroll, setDisabledScroll] = useState(false);
+
   const timestampedEvents = useMemo(() => {
     const classifiedEvents = new Map<
       string,
@@ -236,7 +238,14 @@ export function EventsList(): JSX.Element {
           </Typography>
         </Stack>
       )}
-      <div>
+      <div
+        onMouseEnter={() => {
+          setDisabledScroll(true);
+        }}
+        onMouseLeave={() => {
+          setDisabledScroll(false);
+        }}
+      >
         {Array.from(timestampedEvents.keys()).map((recordTitle, index) => {
           return (
             <div key={recordTitle}>
@@ -271,6 +280,7 @@ export function EventsList(): JSX.Element {
                             ? event.event.name === hoveredEvent.event.name
                             : eventsAtHoverValue[event.event.name] != undefined
                         }
+                        disabledScroll={disabledScroll}
                         isSelected={event.event.name === selectedEventId}
                         onClick={onClick}
                         onHoverStart={onHoverStart}
