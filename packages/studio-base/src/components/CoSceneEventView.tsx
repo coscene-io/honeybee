@@ -116,6 +116,7 @@ function EventViewComponent(params: {
   filter: string;
   isHovered: boolean;
   isSelected: boolean;
+  disabledScroll?: boolean;
   onClick: (event: TimelinePositionedEvent) => void;
   onHoverStart: (event: TimelinePositionedEvent) => void;
   onHoverEnd: (event: TimelinePositionedEvent) => void;
@@ -132,23 +133,23 @@ function EventViewComponent(params: {
     onHoverEnd,
     confirm,
     onEdit,
+    disabledScroll = false,
   } = params;
   const { classes, cx } = useStyles();
   const consoleApi = useConsoleApi();
   const refreshEvents = useEvents(selectRefreshEvents);
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
-  const [currentMomentHovered, setCurrentMomentHovered] = useState<boolean>(false);
 
   const scrollRef = useRef<HTMLDivElement>(ReactNull);
 
   useEffect(() => {
-    if ((isSelected || isHovered) && !currentMomentHovered) {
+    if ((isSelected || isHovered) && !disabledScroll) {
       if (scrollRef.current) {
         scrollRef.current.scrollIntoView({ block: "center" });
       }
     }
-  }, [isSelected, isHovered, currentMomentHovered]);
+  }, [isSelected, isHovered, disabledScroll]);
 
   const [show, setShow] = useState(true);
 
@@ -261,11 +262,9 @@ function EventViewComponent(params: {
       }}
       onMouseEnter={() => {
         onHoverStart(event);
-        setCurrentMomentHovered(true);
       }}
       onMouseLeave={() => {
         onHoverEnd(event);
-        setCurrentMomentHovered(false);
       }}
       ref={scrollRef}
     >
