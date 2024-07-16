@@ -138,16 +138,17 @@ function EventViewComponent(params: {
   const refreshEvents = useEvents(selectRefreshEvents);
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
+  const [currentMomentHovered, setCurrentMomentHovered] = useState<boolean>(false);
 
   const scrollRef = useRef<HTMLDivElement>(ReactNull);
 
   useEffect(() => {
-    if (isSelected || isHovered) {
+    if ((isSelected || isHovered) && !currentMomentHovered) {
       if (scrollRef.current) {
         scrollRef.current.scrollIntoView({ block: "center" });
       }
     }
-  }, [isSelected, isHovered]);
+  }, [isSelected, isHovered, currentMomentHovered]);
 
   const [show, setShow] = useState(true);
 
@@ -260,9 +261,11 @@ function EventViewComponent(params: {
       }}
       onMouseEnter={() => {
         onHoverStart(event);
+        setCurrentMomentHovered(true);
       }}
       onMouseLeave={() => {
         onHoverEnd(event);
+        setCurrentMomentHovered(false);
       }}
       ref={scrollRef}
     >
