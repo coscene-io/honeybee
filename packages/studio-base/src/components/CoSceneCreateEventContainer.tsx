@@ -113,6 +113,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
   const refreshEvents = useEvents(selectRefreshEvents);
   const toModifyEvent = useEvents(selectToModifyEvent);
 
+  const [isComposition, setIsComposition] = useState(false);
+
   const isEditing = toModifyEvent != undefined;
 
   const eventMarks = useEvents(selectEventMarks);
@@ -216,6 +218,24 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
       toast.error(t("creationUnavailableInCurrentPeriod"));
     }
   }, [passingFile, isEditing, onClose, t]);
+
+  useEffect(() => {
+    document.addEventListener("compositionstart", () => {
+      setIsComposition(true);
+    });
+    document.addEventListener("compositionend", () => {
+      setIsComposition(false);
+    });
+
+    return () => {
+      document.removeEventListener("compositionstart", () => {
+        setIsComposition(true);
+      });
+      document.removeEventListener("compositionend", () => {
+        setIsComposition(false);
+      });
+    };
+  }, []);
 
   const [task, setTask] = useImmer<{
     enabled: boolean;
@@ -454,11 +474,11 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
 
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: React.KeyboardEvent) => {
-      if (keyboardEvent.key === "Enter") {
+      if (keyboardEvent.key === "Enter" && !isComposition) {
         createMomentBtnRef.current?.click();
       }
     },
-    [createMomentBtnRef],
+    [createMomentBtnRef, isComposition],
   );
 
   const invokeTabKey = () => {
@@ -695,7 +715,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
                       placeholder={t("attributeKey")}
                       error={hasDuplicate}
                       onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                        if (keyboardEvent.key === "Enter") {
+                        if (keyboardEvent.key === "Enter" && !isComposition) {
                           invokeTabKey();
                         }
                       }}
@@ -710,7 +730,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
                       onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
                         if (
                           (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
-                          keyboardEvent.key === "Enter"
+                          keyboardEvent.key === "Enter" &&
+                          !isComposition
                         ) {
                           onMetaDataKeyDown(keyboardEvent);
                         }
