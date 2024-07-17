@@ -23,10 +23,10 @@ import {
   GetTicketSystemMetadataRequest,
   SyncTaskRequest,
   TicketSystemMetadata,
-  Event,
 } from "@coscene-io/coscene/proto/v1alpha2";
 import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
+import { Event } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
 import {
   ListUserProjectsRequest,
