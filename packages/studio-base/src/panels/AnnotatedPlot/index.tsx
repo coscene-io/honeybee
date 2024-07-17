@@ -464,7 +464,13 @@ function Plot(props: Props) {
           />
           <PanelContextMenu getItems={getPanelContextMenuItems} />
           {showMoments && (
-            <Stack paddingTop={1}>
+            <Stack
+              paddingTop={1}
+              fullWidth
+              justifyContent="center"
+              alignItems="start"
+              style={{ backgroundColor: theme.palette.background.paper }}
+            >
               <MomentsList events={filteredEvents} />
             </Stack>
           )}
