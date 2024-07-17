@@ -116,6 +116,7 @@ function EventViewComponent(params: {
   filter: string;
   isHovered: boolean;
   isSelected: boolean;
+  disabledScroll?: boolean;
   onClick: (event: TimelinePositionedEvent) => void;
   onHoverStart: (event: TimelinePositionedEvent) => void;
   onHoverEnd: (event: TimelinePositionedEvent) => void;
@@ -132,6 +133,7 @@ function EventViewComponent(params: {
     onHoverEnd,
     confirm,
     onEdit,
+    disabledScroll = false,
   } = params;
   const { classes, cx } = useStyles();
   const consoleApi = useConsoleApi();
@@ -142,12 +144,12 @@ function EventViewComponent(params: {
   const scrollRef = useRef<HTMLDivElement>(ReactNull);
 
   useEffect(() => {
-    if (isSelected || isHovered) {
+    if ((isSelected || isHovered) && !disabledScroll) {
       if (scrollRef.current) {
         scrollRef.current.scrollIntoView({ block: "center" });
       }
     }
-  }, [isSelected, isHovered]);
+  }, [isSelected, isHovered, disabledScroll]);
 
   const [show, setShow] = useState(true);
 

@@ -195,7 +195,7 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     title: t("moments", {
       ns: "cosEvent",
     }),
-    type: "MomentPenel",
+    type: "MomentsBar",
     description: t("momentsBarDesc"),
     thumbnail: momentsBarThumbnail,
     module: async () => await import("./MomentsBar"),
