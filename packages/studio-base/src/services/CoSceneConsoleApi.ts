@@ -2,31 +2,35 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Value, PartialMessage } from "@bufbuild/protobuf";
+import { CsWebClient } from "@coscene-io/coscene/queries";
+import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
+import { TaskCategoryEnum } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/enums/task_category_pb";
+import { TaskStateEnum } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/enums/task_state_pb";
+import { Project } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { User as CoUser } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/resources/user_pb";
+import { IncCounterRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/services/metric_pb";
+import { GetProjectRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/services/project_pb";
 import {
-  GetProjectRequest,
   GetUserRequest,
-  IncCounterRequest,
   ListOrganizationUsersRequest,
-  Project,
-  TaskCategoryEnum,
-  TaskStateEnum,
-  User as CoUser,
-} from "@coscene-io/coscene/proto/v1alpha1";
+} from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/services/user_pb";
+import { Event } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { Record as CoSceneRecord } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { Task } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/task_pb";
 import {
   CreateEventRequest,
   DeleteEventRequest,
   UpdateEventRequest,
-  GetRecordRequest,
-  Record as CoSceneRecord,
-  Task,
+} from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/event_pb";
+import { GetRecordRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/record_pb";
+import {
   UpsertTaskRequest,
-  GetTicketSystemMetadataRequest,
   SyncTaskRequest,
+} from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/task_pb";
+import {
+  GetTicketSystemMetadataRequest,
   TicketSystemMetadata,
-} from "@coscene-io/coscene/proto/v1alpha2";
-import { CsWebClient } from "@coscene-io/coscene/queries";
-import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
-import { Event } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/event_pb";
+} from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
 import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
 import {
   ListUserProjectsRequest,
