@@ -268,11 +268,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
       this.#video = video;
 
+      const fps = this.renderer.topics?.find((ele) => ele.name === this.userData.topic)
+        ?.messageFrequency;
+
       const jmuxer = new JMuxer({
         node: this.#video,
         mode: "video",
         flushingTime: 1000,
-        fps: 16,
+        fps: fps != undefined ? Math.ceil(fps) : 16,
         debug: false,
         onError(data) {
           console.error("JMuxer error:", data);
@@ -535,6 +538,8 @@ function createVideoTexture(video: HTMLVideoElement): THREE.VideoTexture {
     THREE.RGBAFormat,
     THREE.UnsignedByteType,
   );
+
+  videoTexture.flipY = false; // 调整Y轴上的翻转
 
   return videoTexture;
 }

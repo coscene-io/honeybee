@@ -161,7 +161,12 @@ function MapPanel(props: MapPanelProps): JSX.Element {
       if (topic.convertibleTo) {
         for (const schemaName of topic.convertibleTo) {
           if (isSupportedSchema(schemaName)) {
-            return { name: topic.name, schemaName };
+            return {
+              name: topic.name,
+              schemaName,
+              messageCount: topic.messageCount,
+              messageFrequency: topic.messageFrequency,
+            };
           }
         }
       }
