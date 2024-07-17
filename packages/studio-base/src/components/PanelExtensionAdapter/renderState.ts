@@ -164,6 +164,8 @@ function initRenderStateBuilder(): BuildRenderStateFn {
             name: topic.name,
             datatype: topic.schemaName ?? "",
             schemaName: topic.schemaName ?? "",
+            messageCount: topic.messageCount ?? 0,
+            messageFrequency: topic.messageFrequency ?? 0,
           };
 
           if (messageConverters) {

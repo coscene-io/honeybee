@@ -63,6 +63,10 @@ export type Topic = {
    * of the convertibleTo schemas using the convertTo option.
    */
   convertibleTo?: readonly string[];
+
+  messageCount: number;
+
+  messageFrequency: number;
 };
 
 export type Subscription = {
