@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Event } from "@coscene-io/coscene/proto/v1alpha2";
+import { Event } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/event_pb";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";

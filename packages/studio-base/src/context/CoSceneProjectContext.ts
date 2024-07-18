@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Project } from "@coscene-io/coscene/proto/v1alpha1";
+import { Project } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { createContext } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { DeepReadonly } from "ts-essentials";
