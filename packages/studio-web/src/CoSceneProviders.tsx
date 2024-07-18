@@ -4,7 +4,7 @@
 import { useMemo, useEffect } from "react";
 
 import Logger from "@foxglove/log";
-import { ConsoleApi, CoSceneContext } from "@foxglove/studio-base";
+import { ConsoleApi } from "@foxglove/studio-base";
 import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutStorageContext from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
@@ -42,12 +42,8 @@ export function CoSceneProviders(): JSX.Element[] {
         localStorage.getItem("CoScene_timeMode") === "relativeTime"
           ? "relativeTime"
           : "absoluteTime",
-        {
-          ...JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
-          currentUserId,
-        } as CoSceneContext,
       ),
-    [currentUserId],
+    [],
   );
 
   consoleApi.setAuthHeader(localStorage.getItem("coScene_org_jwt") ?? "");
@@ -175,19 +171,16 @@ export function CoSceneProviders(): JSX.Element[] {
       if (recordId == undefined) {
         throw new Error("recordId is empty");
       }
-
-      consoleApi.setProjectId(projectId);
-      consoleApi.setRecordId(recordId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const providers = useMemo(
     () => [
+      <CoSceneConsoleApiContext.Provider value={consoleApi} key="CoSceneConsoleApiContext" />,
       <CoSceneBaseProvider key="CoSceneBaseProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
       <CoSceneUserProvider key="CoSceneUserProvider" />,
-      <CoSceneConsoleApiContext.Provider value={consoleApi} key="CoSceneConsoleApiContext" />,
       <CoSceneConsoleApiRemoteLayoutStorageProvider key="CoSceneConsoleApiRemoteLayoutStorageProvider" />,
       <CoSceneLayoutStorageContext.Provider
         value={layoutStorage}

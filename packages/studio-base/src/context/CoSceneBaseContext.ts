@@ -20,6 +20,8 @@ export type BaseInfo = {
   jobRunsId?: string;
   workflowRunsId?: string;
   files?: Array<ParamsFile>;
+  organizationId?: string;
+  organizationSlug?: string;
 };
 
 export type CoSceneBaseStore = DeepReadonly<{

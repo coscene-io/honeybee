@@ -28,7 +28,7 @@ import Logger from "@foxglove/log";
 import { Immutable } from "@foxglove/studio";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
-import ConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 // import {
 //   LayoutState,
 //   useCurrentLayoutSelector,
@@ -80,7 +80,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
 
   const isMounted = useMountedState();
 
-  const consoleApi = useContext(ConsoleApiContext);
+  const consoleApi = useConsoleApi();
 
   const metricsCollector = useMemo(
     () => new CoSceneAnalyticsMetricsCollector(consoleApi),

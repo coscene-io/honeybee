@@ -251,21 +251,6 @@ export enum MetricType {
   RecordPlaysEveryFiveSecondsTotal = "honeybee_record_plays_every_five_seconds_total",
 }
 
-export type CoSceneContext = {
-  currentWarehouseId?: string;
-  currentWarehouseDisplayName?: string;
-  currentWarehouseSlug?: string;
-  currentProjectId?: string;
-  currentProjectSlug?: string;
-  currentProjectDisplayName?: string;
-  currentOrganizationId?: string;
-  currentOrganizationSlug?: string;
-  currentOrganizationDisplayName?: string;
-  currentRecordId?: string;
-  isCurrentProjectArchived?: boolean;
-  currentUserId?: string;
-};
-
 type ApiResponse<T> = { status: number; json: T };
 
 type LayoutTemplatesIndex = {
@@ -308,39 +293,26 @@ class CoSceneConsoleApi {
   #addTopicPrefix: string;
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
-  #currentProjectId: string = "";
-  #currentRecordId: string = "";
-
-  public coSceneContext: CoSceneContext;
+  #baseInfo: BaseInfo = {};
 
   public constructor(
     baseUrl: string,
     bffUrl: string,
     addTopicPrefix: string,
     timeMode: "absoluteTime" | "relativeTime",
-    coSceneContext?: CoSceneContext,
   ) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
-    this.coSceneContext = coSceneContext ?? {};
     this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
     this.#timeMode = timeMode;
   }
 
-  public setProjectId(projectId: string): void {
-    this.#currentProjectId = projectId;
+  public setApiBaseInfo(baseInfo: BaseInfo): void {
+    this.#baseInfo = baseInfo;
   }
 
-  public getProjectId(): string {
-    return this.#currentProjectId;
-  }
-
-  public setRecordId(recordId: string): void {
-    this.#currentRecordId = recordId;
-  }
-
-  public getRecordId(): string {
-    return this.#currentRecordId;
+  public getApiBaseInfo(): BaseInfo {
+    return this.#baseInfo;
   }
 
   public getProblemManager(): PlayerProblemManager {
@@ -453,8 +425,8 @@ class CoSceneConsoleApi {
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
     return await this.#get<ConsoleApiLayout[]>("/bff/honeybee/layout/v2/layouts", {
       includeData: options.includeData ? "true" : "false",
-      projectId: this.#currentProjectId,
-      recordId: this.#currentRecordId,
+      projectId: this.#baseInfo.projectId,
+      recordId: this.#baseInfo.recordId,
     });
   }
 
@@ -464,7 +436,7 @@ class CoSceneConsoleApi {
   ): Promise<ConsoleApiLayout | undefined> {
     return await this.#get<ConsoleApiLayout>(`/bff/honeybee/layout/v2/layouts/${id}`, {
       includeData: options.includeData ? "true" : "false",
-      projectId: this.#currentProjectId,
+      projectId: this.#baseInfo.projectId,
     });
   }
 
@@ -489,7 +461,7 @@ class CoSceneConsoleApi {
   }): Promise<ConsoleApiLayout> {
     return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v2/recordLayout", {
       ...layout,
-      recordId: this.#currentRecordId,
+      recordId: this.#baseInfo.recordId,
     });
   }
 
@@ -502,7 +474,7 @@ class CoSceneConsoleApi {
   }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
     const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
       `/bff/honeybee/layout/v2/layouts/${layout.id}`,
-      { ...layout, projectId: this.#currentProjectId },
+      { ...layout, projectId: this.#baseInfo.projectId },
     );
     if (status === 200) {
       return { status: "success", newLayout };
@@ -819,8 +791,8 @@ class CoSceneConsoleApi {
       metric.getLabelsMap().set(key, value);
     }
 
-    if (this.coSceneContext.currentOrganizationId) {
-      const orgId = this.coSceneContext.currentOrganizationId.split("/").pop();
+    if (this.#baseInfo.organizationId) {
+      const orgId = this.#baseInfo.organizationId.split("/").pop();
       metric.getLabelsMap().set("org_id", orgId ? orgId : "");
     }
 
