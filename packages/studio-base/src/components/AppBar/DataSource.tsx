@@ -16,7 +16,6 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoSceneProjectStore,
   useProject,
@@ -107,9 +106,6 @@ export function DataSource(): JSX.Element {
   const seek = useMessagePipeline(selectSeek);
   // CoScene
   const project = useProject(selectProject);
-  const {
-    coSceneContext: { currentOrganizationSlug },
-  } = useConsoleApi();
   const urlState = useMessagePipeline(selectUrlState);
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
 
@@ -139,8 +135,8 @@ export function DataSource(): JSX.Element {
   // CoScene
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://home.coscene.dev/${currentOrganizationSlug}/${baseInfo.projectSlug}`
-      : `/${currentOrganizationSlug}/${baseInfo.projectSlug}`;
+      ? `https://home.coscene.dev/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
+      : `/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
 
   const recordHref = `${projectHref}/records/${baseInfo.recordId}`;
   const jobHref = `${projectHref}/matrix/workflow-runs/${baseInfo.workflowRunsId}/job-runs/${baseInfo.jobRunsId}`;

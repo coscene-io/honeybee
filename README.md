@@ -67,7 +67,7 @@ After opening it on the local browser, we need to set tokens to obtain access au
 1. Go to [CoScene Development Page](https://home.coscene.dev/) and Sign In.
 2. Open "Chrome Inspector", go to "Application" tab, search for "Local Storage", and copy the following two keys to the local development environment.
    - coScene_org_jwt
-   - CoSceneContext
+   - CoSceneContext (optional)
 
   <img src="./resources/readme/bearer-token.png" width="fit-content"/>
 

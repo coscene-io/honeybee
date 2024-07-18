@@ -61,7 +61,6 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
           auth: `${localStorage.getItem("coScene_org_jwt")}`,
         },
         params: args.params,
-        coSceneContext: JSON.parse(localStorage.getItem("CoSceneContext") ?? "{}"),
         singleRequestTime: singleRequestTime && !isNaN(+singleRequestTime) ? +singleRequestTime : 5,
       },
     });
