@@ -355,7 +355,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 }
 
 export function initialize(args: IterableSourceInitializeArgs): DataPlatformIterableSource {
-  const { api, params, coSceneContext, singleRequestTime } = args;
+  const { api, params, singleRequestTime } = args;
   if (!params) {
     throw new Error("params is required for data platform source");
   }
@@ -420,10 +420,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     api.bffUrl,
     api.addTopicPrefix,
     api.timeMode,
-    {
-      ...coSceneContext,
-      currentUserId: userId,
-    },
   );
 
   if (api.auth) {

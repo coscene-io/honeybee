@@ -46,7 +46,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
   public async getLayoutsWhenProjectInfoReady(): Promise<readonly ConsoleApiLayout[]> {
     return await new Promise((resolve) => {
-      if (this.api.getProjectId().length > 0) {
+      if (this.api.getApiBaseInfo().projectId) {
         resolve(this.api.getLayouts({ includeData: true }));
       } else {
         setTimeout(() => {

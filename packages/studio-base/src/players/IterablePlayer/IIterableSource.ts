@@ -10,8 +10,6 @@ import {
   TopicSelection,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
-// CoScene
-import { CoSceneContext } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 export type TopicWithDecodingInfo = Topic & {
@@ -229,7 +227,6 @@ export type IterableSourceInitializeArgs = {
     timeMode: "relativeTime" | "absoluteTime";
     auth?: string;
   };
-  coSceneContext?: CoSceneContext;
   singleRequestTime?: number;
 };
 
