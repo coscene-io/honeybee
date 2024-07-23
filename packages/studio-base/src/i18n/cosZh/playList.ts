@@ -20,7 +20,7 @@ export const cosPlaylist: Partial<TypeOptions["resources"]["cosPlaylist"]> = {
   addFilesFailed: "添加文件失败",
   remove: "移除",
   generateMediaSuccess: "media 生成完成，刷新页面即可播放",
-  generateMediaFailed: "meida 生成失败，请检查文件",
-  generateMediaProcessing: "meida 生成中，稍后即可播放",
+  generateMediaFailed: "media 生成失败，请检查文件",
+  generateMediaProcessing: "media 生成中，稍后即可播放",
   projectFrom: "来自{{projectName}}",
 };

@@ -121,6 +121,14 @@ type IterablePlayerState =
  * machine. Each state runs until it finishes. A request to change state is handled by each state
  * detecting that there is another state waiting and cooperatively ending itself.
  */
+
+/**
+ * IterablePlayer 实现了 IIterableSource 实例的 Player 接口。
+ *
+ * 可迭代播放器从 IIterableSource 读取消息。该播放器被实现为一个状态机。每个状态运行直到它结束。
+ * 更改状态的请求由每个状态处理，它们会检测是否有另一个状态在等待，并协作地结束自身。
+ */
+
 export class CoSceneIterablePlayer implements Player {
   #urlParams?: Record<string, string>;
   #name?: string;
@@ -207,12 +215,14 @@ export class CoSceneIterablePlayer implements Player {
       name,
       enablePreload,
       sourceId,
-      readAheadDuration = { sec: 10, nsec: 0 },
+      readAheadDuration,
     } = options;
+
+    log.debug("debug", options);
 
     this.#iterableSource = source;
     if (source.sourceType === "deserialized") {
-      this.#bufferImpl = new BufferedIterableSource(source);
+      this.#bufferImpl = new BufferedIterableSource(source, { readAheadDuration });
       this.#bufferedSource = new DeserializedSourceWrapper(this.#bufferImpl);
     } else {
       const MEGABYTE_IN_BYTES = 1024 * 1024;

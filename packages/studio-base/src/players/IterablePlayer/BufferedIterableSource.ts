@@ -128,6 +128,7 @@ class BufferedIterableSource<MessageType = unknown>
 
       // Messages are read from the source until reaching the readUntil time. Then we wait for the read head
       // to move forward and adjust readUntil
+      // 信息会被读取直到达到readUntil时间。然后我们等待读取指针往前移动并调整readUntil。
       let readUntil = clampTime(
         addTime(this.#readHead, this.#readAheadDuration),
         this.#initResult.start,
@@ -146,9 +147,12 @@ class BufferedIterableSource<MessageType = unknown>
         readUntil = addTime(this.#readHead, this.#readAheadDuration);
 
         // When receiving a stamp result we enqueue the result into the cache and notify a reader.
+        // 在收到stamp结果时，我们将结果排入缓存并通知消费者。
+        // stamp 代表单次请求的数据已经完全读完了 准备发起下一次请求
         if (result.type === "stamp" && compare(result.stamp, readUntil) >= 0) {
           // Continue to wait until our stamp time surpasses the readUntil and we know that
           // we should read more data.
+          // 请求回来的数据大于我们的预请求量，等待读取指针继续读取之后再将数据放入缓存
           while (compare(result.stamp, readUntil) >= 0) {
             // The producer may have aborted while we are waiting for the read head to progress
             // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -172,7 +176,11 @@ class BufferedIterableSource<MessageType = unknown>
         // We tend to expect message revents (not problems) so optimistically grab the receive time
         // and minReadAheadUntil
         const receiveTime =
-          result.type === "message-event" ? result.msgEvent.receiveTime : undefined;
+          result.type === "message-event"
+            ? result.msgEvent.receiveTime
+            : result.type === "stamp"
+            ? result.stamp
+            : undefined;
 
         // Make sure that we have buffered enough ahead before telling the consumer to try reading again.
         const minReadAheadUntil = addTime(this.#readHead, this.#minReadAheadDuration);
@@ -187,7 +195,10 @@ class BufferedIterableSource<MessageType = unknown>
 
         // Keep reading while the messages we receive are <= the readUntil time and while
         // there is still space for reading new messages into the cache
-        if (receiveTime && compare(receiveTime, readUntil) <= 0 && this.#source.canReadMore()) {
+        if (
+          receiveTime == undefined ||
+          (compare(receiveTime, readUntil) <= 0 && this.#source.canReadMore())
+        ) {
           continue;
         }
 
@@ -217,7 +228,6 @@ class BufferedIterableSource<MessageType = unknown>
   }
 
   public async stopProducer(): Promise<void> {
-    log.debug("Stopping producer");
     this.#aborted = true;
     this.#writeSignal.notifyAll();
     await this.#producer;

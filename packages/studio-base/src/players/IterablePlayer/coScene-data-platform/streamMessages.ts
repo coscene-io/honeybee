@@ -193,8 +193,13 @@ export async function* streamMessages({
     }
   }
 
+  let fetchStartTime = 0;
+  let fetchEndTime = 0;
+  let decodeEndTime = 0;
+
   try {
     // Since every request is signed with a new token, there's no benefit to caching.
+    fetchStartTime = performance.now();
     const response = await fetch(api.getStreamUrl(), {
       method: "POST",
       signal: controller.signal,
@@ -216,6 +221,8 @@ export async function* streamMessages({
         id: params.id,
       }),
     });
+    fetchEndTime = performance.now();
+
     if (response.status === 401) {
       throw new Error("Login expired, please login again");
     }
@@ -271,12 +278,18 @@ export async function* streamMessages({
     throw err;
   }
 
+  decodeEndTime = performance.now();
+
   log.debug(
-    "Streamed",
-    totalMessages,
-    "messages",
+    "message",
     messages,
-    "in",
-    `${performance.now() - startTimer}ms`,
+    "total message",
+    totalMessages,
+    "fetch time",
+    `${(fetchEndTime - fetchStartTime) / 1000}s`,
+    "decode time",
+    `${(decodeEndTime - fetchEndTime) / 1000}s`,
+    "total time",
+    `${(decodeEndTime - startTimer) / 1000}s`,
   );
 }
