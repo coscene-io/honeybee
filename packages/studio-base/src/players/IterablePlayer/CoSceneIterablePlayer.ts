@@ -218,6 +218,8 @@ export class CoSceneIterablePlayer implements Player {
       readAheadDuration,
     } = options;
 
+    log.debug("debug", options);
+
     this.#iterableSource = source;
     if (source.sourceType === "deserialized") {
       this.#bufferImpl = new BufferedIterableSource(source, { readAheadDuration });
