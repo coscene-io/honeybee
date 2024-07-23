@@ -228,6 +228,7 @@ class BufferedIterableSource<MessageType = unknown>
   }
 
   public async stopProducer(): Promise<void> {
+    log.debug("Stopping producer");
     this.#aborted = true;
     this.#writeSignal.notifyAll();
     await this.#producer;
