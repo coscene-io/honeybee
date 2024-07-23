@@ -3691,7 +3691,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@foxglove/crc@npm:0.0.3, @foxglove/crc@npm:^0.0.3":
+"@foxglove/crc@npm:1.0.1":
+  version: 1.0.1
+  resolution: "@foxglove/crc@npm:1.0.1"
+  checksum: dc64833c026a61ebe65496ff625c0cd6f93032e5cc3b58847cb8154950e56ca57cd83536eff287cbff71c5c0b9f819d5ab650cd89fd769c73bd85f0ae6aef5a4
+  languageName: node
+  linkType: hard
+
+"@foxglove/crc@npm:^0.0.3":
   version: 0.0.3
   resolution: "@foxglove/crc@npm:0.0.3"
   checksum: 2eee0e45780e3289c4a190fa909e5977643667e19a21b945a109977b89427b877d8e12ebf91821653d69bdb0390e58540e1c9bb906aefcc7dd818c64f131f071
@@ -3994,7 +4001,7 @@ __metadata:
     "@foxglove/avl": 1.0.0
     "@foxglove/chartjs-plugin-zoom": 2.0.4
     "@foxglove/comlink-transfer-handlers": "workspace:*"
-    "@foxglove/crc": 0.0.3
+    "@foxglove/crc": 1.0.1
     "@foxglove/den": "workspace:*"
     "@foxglove/hooks": "workspace:*"
     "@foxglove/log": "workspace:*"
@@ -4012,7 +4019,7 @@ __metadata:
     "@foxglove/schemas": 1.6.2
     "@foxglove/studio": "workspace:*"
     "@foxglove/theme": "workspace:*"
-    "@foxglove/three-text": 0.2.2
+    "@foxglove/three-text": 0.3.1
     "@foxglove/tsconfig": 2.0.0
     "@foxglove/typescript-transformers": "workspace:*"
     "@foxglove/ulog": 2.1.2
@@ -4020,7 +4027,7 @@ __metadata:
     "@foxglove/wasm-bz2": 0.1.1
     "@foxglove/wasm-lz4": 1.0.2
     "@foxglove/ws-protocol": 0.7.2
-    "@mcap/core": 2.0.2
+    "@mcap/core": 2.1.2
     "@mui/icons-material": 5.15.5
     "@mui/material": 5.15.6
     "@popperjs/core": ^2.11.8
@@ -4216,14 +4223,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@foxglove/three-text@npm:0.2.2":
-  version: 0.2.2
-  resolution: "@foxglove/three-text@npm:0.2.2"
+"@foxglove/three-text@npm:0.3.1":
+  version: 0.3.1
+  resolution: "@foxglove/three-text@npm:0.3.1"
   dependencies:
     "@mapbox/tiny-sdf": 2.0.6
   peerDependencies:
     three: ">=0.140.2"
-  checksum: 9dc10c9adaa8c1ca1731bc133d4ab8f07345a4aa51197efc6c2bb899cbefa5ee8ccf69d16a93d2569429c2a53a921fe5d62281228a6ed6ebadd7b6fb117a0ce1
+  checksum: ed4dd030cee59f078e3ffe9767fd0926fd49ca64fb86fd9d1bfad8c5bc5b5f5a5e48b26faf4b835a07d04bd28537098ee4f65a7a8cde74c4693350b0fbdf2db6
   languageName: node
   linkType: hard
 
@@ -4801,6 +4808,17 @@ __metadata:
     heap-js: ^2.2.0
     tslib: ^2.5.0
   checksum: 8c1f44edbcc9abf98eca6ca630c1012dac395892c8d368843045f7bcd3660cd2f9456211a13891437ef7055fa71b77863ca277a05b06f4b20f9c92eead89adbd
+  languageName: node
+  linkType: hard
+
+"@mcap/core@npm:2.1.2":
+  version: 2.1.2
+  resolution: "@mcap/core@npm:2.1.2"
+  dependencies:
+    "@foxglove/crc": ^0.0.3
+    heap-js: ^2.2.0
+    tslib: ^2.5.0
+  checksum: 70d6d1ed2ed4a9c1ccaa6c5c445f3cd329cd06f2b91dfad9c552b30cf7b94ec9f51570aab7e95913f7139cd06241b489ed276541eee8ccddf97271fb63c8defc
   languageName: node
   linkType: hard
 
