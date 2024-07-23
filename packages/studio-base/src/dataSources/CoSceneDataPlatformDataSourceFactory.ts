@@ -19,7 +19,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public displayName = "Coscene Data Platform";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
-  #readAheadDuration = { sec: 30, nsec: 0 };
+  #readAheadDuration = { sec: 20, nsec: 0 };
 
   public constructor() {
     const readAheadDuration = localStorage.getItem("readAheadDuration");
