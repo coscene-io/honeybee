@@ -9,7 +9,7 @@ export const cosPlaylist = {
   viewRecordDetails: "View record details",
   searchByNameTime: "Search by name or time",
   noLoadingBag: "Error loading bag files.",
-  noBag: "No bag files.",
+  noBag: "No playable files",
   shadowMode: "Shadow mode",
   addFiles: "Add files",
   selectedFilesCount: "Selected: {{count}} files",

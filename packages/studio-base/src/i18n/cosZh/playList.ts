@@ -9,7 +9,7 @@ export const cosPlaylist: Partial<TypeOptions["resources"]["cosPlaylist"]> = {
   viewRecordDetails: "查看记录详情",
   searchByNameTime: "按照名字或者时间搜索",
   noLoadingBag: "加载bag文件错误",
-  noBag: "没有bag文件",
+  noBag: "没有可播放文件",
   shadowMode: "影子模式",
   addFiles: "添加文件",
   selectedFilesCount: "已选择：{{count}}个文件",
