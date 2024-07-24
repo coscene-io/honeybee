@@ -138,8 +138,8 @@ export class ImageMode extends SceneExtension {
               label: "🚧 Transform markers",
               value: transformMarkers,
               help: (transformMarkers as boolean)
-                ? "Markers are being transformed by Foxglove Studio based on the camera model. Click to turn it off."
-                : `Markers can be transformed by Foxglove Studio based on the camera model. Click to turn it on.`,
+                ? "Markers are being transformed by coScene Studio based on the camera model. Click to turn it off."
+                : `Markers can be transformed by coScene Studio based on the camera model. Click to turn it on.`,
             },
             TODO_synchronize: {
               readonly: true, // not yet implemented
