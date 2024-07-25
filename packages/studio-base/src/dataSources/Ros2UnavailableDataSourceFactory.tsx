@@ -20,7 +20,7 @@ export default class Ros2UnavailableDataSourceFactory implements IDataSourceFact
         target="_blank"
         rel="noreferrer"
       >
-        Foxglove WebSocket
+        coScene WebSocket
       </Link>{" "}
       connection to connect to your ROS 2 system.
     </>

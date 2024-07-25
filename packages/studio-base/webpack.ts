@@ -205,27 +205,27 @@ export function makeConfig(
               },
               {
                 search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[Foxglove] This module is not supported in the browser.');`,
+                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
               },
               {
                 search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[Foxglove] This module is not supported in the browser.');`,
+                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
               },
               {
                 search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[Foxglove] This module is not supported in the browser.');`,
+                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
               },
               {
                 search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[Foxglove] This module is not supported in the browser.');`,
+                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
               },
               {
                 search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[Foxglove] This module is not supported in the browser.');`,
+                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
               },
               {
                 search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[Foxglove] This module is not supported in the browser.');`,
+                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
               },
               {
                 search: `getModuleResolver=function(e){let t;try{t=require(e)}`,
