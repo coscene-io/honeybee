@@ -1169,7 +1169,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
   public setParameter(key: string, value: ParameterValue): void {
     if (!this.#client) {
-      throw new Error(`Attempted to set parameters without a valid Foxglove WebSocket connection`);
+      throw new Error(`Attempted to set parameters without a valid coScene WebSocket connection`);
     }
 
     log.debug(`FoxgloveWebSocketPlayer.setParameter(key=${key}, value=${value})`);
@@ -1193,7 +1193,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
   public publish({ topic, msg }: PublishPayload): void {
     if (!this.#client) {
-      throw new Error(`Attempted to publish without a valid Foxglove WebSocket connection`);
+      throw new Error(`Attempted to publish without a valid coScene WebSocket connection`);
     }
 
     const clientChannel = this.#publicationsByTopic.get(topic);
@@ -1222,12 +1222,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
   public async callService(serviceName: string, request: unknown): Promise<unknown> {
     if (!this.#client) {
       throw new Error(
-        `Attempted to call service ${serviceName} without a valid Foxglove WebSocket connection.`,
+        `Attempted to call service ${serviceName} without a valid coScene WebSocket connection.`,
       );
     }
 
     if (request == undefined || typeof request !== "object") {
-      throw new Error("FoxgloveWebSocketPlayer#callService request must be an object.");
+      throw new Error("coSceneWebSocketPlayer#callService request must be an object.");
     }
 
     const resolvedService = this.#servicesByName.get(serviceName);
@@ -1266,10 +1266,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
   public async fetchAsset(uri: string): Promise<Asset> {
     if (!this.#client) {
       throw new Error(
-        `Attempted to fetch assset ${uri} without a valid Foxglove WebSocket connection.`,
+        `Attempted to fetch assset ${uri} without a valid coScene WebSocket connection.`,
       );
     } else if (!this.#serverCapabilities.includes(ServerCapability.assets)) {
-      throw new Error(`Fetching assets (${uri}) is not supported for FoxgloveWebSocketPlayer`);
+      throw new Error(`Fetching assets (${uri}) is not supported for coSceneWebSocketPlayer`);
     }
 
     let promise = this.#fetchedAssets.get(uri);

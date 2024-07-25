@@ -68,7 +68,7 @@ export function LaunchingInDesktopScreen(): ReactElement {
         style={{ maxWidth: 480 }}
       >
         <Typography align="center" variant="h2" fontWeight={600}>
-          Launching Foxglove Studio…
+          Launching coScene Studio…
         </Typography>
         <Typography align="center" fontWeight={600}>
           We’ve directed you to the desktop app.
@@ -89,7 +89,7 @@ export function LaunchingInDesktopScreen(): ReactElement {
               href="https://foxglove.dev/download"
               target="_blank"
             >
-              Download Foxglove Studio
+              Download coScene Studio
             </Link>
           </Typography>
         </Stack>

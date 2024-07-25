@@ -78,7 +78,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
     <>
       Loading large files over HTTP can be slow. For better performance, we recommend{" "}
       <Link href="https://foxglove.dev/data-platform" target="_blank">
-        Foxglove Data Platform
+        coScene Data Platform
       </Link>
       .
     </>
