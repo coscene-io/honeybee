@@ -275,7 +275,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         node: this.#video,
         mode: "video",
         flushingTime: 1000,
-        fps: fps != undefined ? Math.ceil(fps) : 16,
+        fps: fps != undefined && fps > 0 ? Math.ceil(fps) : 15,
         debug: false,
         onError(data) {
           console.error("JMuxer error:", data);
