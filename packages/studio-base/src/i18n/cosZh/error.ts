@@ -31,7 +31,7 @@ export const cosError: Partial<TypeOptions["resources"]["cosError"]> = {
   contactUs: "如果以上方法都无法解决问题，请联系我们。",
   connectionFailed: "连接失败",
   inactivePage: "页面不活跃",
-  inactivePageDescription: "页面已经不活跃很长时间，连接已断开。请刷新页面并重试",
+  inactivePageDescription: "页面已经不活跃很长时间，连接已断开。<btn>重新连接</btn>",
   repetitiveConnection: "重复的连接",
   repeatedConnectionDesc:
     "同一时间只能有一个人连接到同一个机器人。当前有用户正在连接，请稍后刷新并重试。",
