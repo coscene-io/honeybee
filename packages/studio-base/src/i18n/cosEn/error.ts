@@ -31,7 +31,7 @@ export const cosError = {
   connectionFailed: "Connection failed",
   inactivePage: "The page is inactive",
   inactivePageDescription:
-    "The page has been inactive for a long time and the connection has been disconnected. Please refresh the page and try again",
+    "The page has been inactive for a long time and the connection has been disconnected. <btn>Reconnect</btn>",
   repetitiveConnection: "Repetitive connections",
   repeatedConnectionDesc:
     "Only one person can connect to the same robot at a time. There is currently a user connected, please refresh and try again later.",

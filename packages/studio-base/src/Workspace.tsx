@@ -352,6 +352,13 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     return items;
   }, [playerProblems, t]);
 
+  useEffect(() => {
+    if (playerProblems && playerProblems.length > 0) {
+      sidebarActions.left.setOpen(true);
+      sidebarActions.left.selectItem("problems");
+    }
+  }, [playerProblems, sidebarActions.left]);
+
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
       ["variables", { title: t("variables"), component: VariablesList }],
