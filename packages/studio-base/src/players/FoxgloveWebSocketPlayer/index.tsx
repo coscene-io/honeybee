@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Button } from "@mui/material";
 import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import * as _ from "lodash-es";
@@ -95,7 +96,12 @@ type MessageDefinitionMap = Map<string, MessageDefinition>;
  */
 const CURRENT_FRAME_MAXIMUM_SIZE_BYTES = 400 * 1024 * 1024;
 
-const INACTIVIRY_TIMEOUT = 1000 * 60 * 15; // 15 minutes
+// 页面在活跃状态下，连续 10 分钟没有任何操作，则自动断开
+const INATIVE_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+
+// 页面在后台情况下，连续 1 分钟没有任何操作，则自动断开
+const BACKEND_INATIVE_TIMEOUT = 1000 * 60 * 1; // 1 minutes
+
 export default class FoxgloveWebSocketPlayer implements Player {
   readonly #sourceId: string;
 
@@ -158,6 +164,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #fetchedAssets = new Map<string, Promise<Asset>>();
   #parameterTypeByName = new Map<string, Parameter["type"]>();
   #messageSizeEstimateByTopic: Record<string, number> = {};
+  // #INATIVE_TIMEOUT
+  #inactiveTimeout = INATIVE_TIMEOUT;
 
   public constructor({
     url,
@@ -259,6 +267,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
     // this during a disconnect event. Any necessary state clearing is handled once a new connection
     // is established
     this.#client.on("close", (event) => {
+      // to remove event listener
+      this.#disconnectAfterInactivity();
       // Foxglove type description is incorrect, we need to cast to the correct type
       const realCloseEventMessage: { type: "close"; data: CloseEventMessage } =
         event as unknown as {
@@ -895,36 +905,78 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#emitState();
   }
 
-  // if there is no active from user for 15 min, the connection will be closed
+  // if there is no active from user for 10 min, the connection will be closed
   #disconnectAfterInactivity = (): void => {
-    if (this.#closed) {
-      return;
-    }
-
     let timeoutId: NodeJS.Timeout | undefined = undefined;
 
     const resetTimer = () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
+
       timeoutId = setTimeout(() => {
         this.#problems.addProblem("inactive", {
           severity: "error",
           message: t("cosError:inactivePage"),
-          tip: t("cosError:inactivePageDescription"),
+          tip: (
+            <Trans
+              t={t}
+              i18nKey="cosError:inactivePageDescription"
+              components={{
+                btn: (
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      this.#closed = false;
+                      this.#open();
+                    }}
+                  />
+                ),
+              }}
+            />
+          ),
         });
         setTimeout(() => {
           this.close();
         }, 1000);
-      }, INACTIVIRY_TIMEOUT);
+      }, this.#inactiveTimeout);
     };
 
-    // 监听页面上的各种事件
-    window.addEventListener("mousemove", resetTimer);
-    window.addEventListener("mousedown", resetTimer);
-    window.addEventListener("keypress", resetTimer);
-    window.addEventListener("touchmove", resetTimer);
+    const resetInactiveTimeout = () => {
+      if (document.visibilityState === "visible") {
+        this.#inactiveTimeout = INATIVE_TIMEOUT;
+      } else {
+        this.#inactiveTimeout = BACKEND_INATIVE_TIMEOUT;
+      }
+      resetTimer();
+    };
 
+    const addEventListener = () => {
+      // 监听页面上的各种事件，以判断当前用户是否活跃
+      window.addEventListener("mousemove", resetTimer);
+      window.addEventListener("mousedown", resetTimer);
+      window.addEventListener("keypress", resetTimer);
+      window.addEventListener("touchmove", resetTimer);
+
+      // 监听当前 tab 是否在前台，如果不在前台，超时时间变短
+      window.addEventListener("visibilitychange", resetInactiveTimeout);
+    };
+
+    const removeEventListener = () => {
+      window.removeEventListener("mousemove", resetTimer);
+      window.removeEventListener("mousedown", resetTimer);
+      window.removeEventListener("keypress", resetTimer);
+      window.removeEventListener("touchmove", resetTimer);
+
+      window.addEventListener("visibilitychange", resetInactiveTimeout);
+    };
+
+    if (this.#closed) {
+      removeEventListener();
+      return;
+    }
+
+    addEventListener();
     resetTimer();
   };
 
