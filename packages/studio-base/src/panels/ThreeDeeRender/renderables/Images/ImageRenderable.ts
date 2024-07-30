@@ -71,9 +71,6 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   #decodedImage?: ImageBitmap | ImageData;
 
-  #H264Decoder?: VideoDecoder;
-  #H264Frames: VideoFrame[] = [];
-
   protected decoder?: WorkerImageDecoder;
   #receivedImageSequenceNumber = 0;
   #displayedImageSequenceNumber = 0;
