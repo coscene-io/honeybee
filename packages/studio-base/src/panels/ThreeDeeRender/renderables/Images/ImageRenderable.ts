@@ -298,8 +298,6 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         const decoder = new VideoDecoder({
           output: (frame) => {
             this.#H264Frames.push(frame);
-            // onDecoded?.();
-            // frame.close();
           },
           error: (e) => {
             log.error(e.message);
