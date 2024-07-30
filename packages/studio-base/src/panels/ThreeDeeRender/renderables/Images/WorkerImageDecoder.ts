@@ -5,8 +5,10 @@
 import * as Comlink from "comlink";
 
 import { ComlinkWrap } from "@foxglove/den/worker";
+import Logger from "@foxglove/log";
 import { RawImage } from "@foxglove/schemas";
 
+import { AnyImage } from "./ImageTypes";
 import type { RawImageOptions } from "./decodeImage";
 import { Image as RosImage } from "../../ros";
 
@@ -20,6 +22,8 @@ import { Image as RosImage } from "../../ros";
  */
 
 type WorkerService = (typeof import("./WorkerImageDecoder.worker"))["service"];
+const log = Logger.getLogger(__filename);
+
 export class WorkerImageDecoder {
   #remote: Comlink.Remote<WorkerService>;
   #dispose: () => void;
@@ -43,6 +47,20 @@ export class WorkerImageDecoder {
     options: Partial<RawImageOptions>,
   ): Promise<ImageData> {
     return await this.#remote.decode(image, options);
+  }
+
+  public decodeH264Frame(image: AnyImage, sequenceNumber: number): void {
+    const data = image.data;
+
+    try {
+      void this.#remote.decodeH264Frame(data, sequenceNumber);
+    } catch (error) {
+      log.error(error);
+    }
+  }
+
+  public async getH264Frames(): Promise<ImageBitmap | undefined> {
+    return await this.#remote.getH264Frames();
   }
 
   public terminate(): void {
