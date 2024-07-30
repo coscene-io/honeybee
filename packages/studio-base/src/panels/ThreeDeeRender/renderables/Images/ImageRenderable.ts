@@ -325,9 +325,8 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         }
       }
 
-      const seq = ++this.#receivedImageSequenceNumber;
       const chunk = new EncodedVideoChunk({
-        timestamp: seq,
+        timestamp: this.#receivedImageSequenceNumber,
         type,
         data,
       });
