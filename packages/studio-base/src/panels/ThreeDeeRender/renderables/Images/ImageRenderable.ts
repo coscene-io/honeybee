@@ -180,32 +180,21 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     const seq = ++this.#receivedImageSequenceNumber;
 
-    let decodePromise: Promise<ImageBitmap | ImageData> | undefined = undefined;
+    let decodePromise: Promise<ImageBitmap | ImageData | undefined> | undefined = undefined;
     if ("format" in image && image.format === "h264") {
-      void this.#decodeH264Video(image);
+      (this.decoder ??= new WorkerImageDecoder()).decodeH264Frame(
+        image,
+        this.#receivedImageSequenceNumber,
+      );
 
-      if (this.#H264Frames.length > 0) {
-        const frame = this.#H264Frames.pop();
-        if (frame) {
-          decodePromise = createImageBitmap(frame, { resizeWidth });
-          frame.close();
-        }
-        this.#H264Frames.forEach((uselessFrame) => {
-          uselessFrame.close();
-        });
-        this.#H264Frames = [];
-      }
+      decodePromise = this.decoder.getH264Frames();
     } else {
       decodePromise = this.#decodeImage(image, resizeWidth);
     }
 
-    if (decodePromise == undefined) {
-      return;
-    }
-
     decodePromise
       .then((result) => {
-        if (this.isDisposed()) {
+        if (this.isDisposed() || result == undefined) {
           return;
         }
         // prevent displaying an image older than the one currently displayed
@@ -257,84 +246,6 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       return await decodeCompressedImageToBitmap(image, resizeWidth);
     }
     return await (this.decoder ??= new WorkerImageDecoder()).decode(image, this.userData.settings);
-  }
-
-  #isKeyFrame(uint8Array: Uint8Array): boolean {
-    let naltype: string = "invalid frame";
-    // 查找 NAL 单元起始码
-    if (uint8Array.length > 4) {
-      if (uint8Array[4] === 0x65) {
-        naltype = "I frame";
-      } else if (uint8Array[4] === 0x41) {
-        naltype = "P frame";
-      } else if (uint8Array[4] === 0x67) {
-        naltype = "SPS";
-      } else if (uint8Array[4] === 0x68) {
-        naltype = "PPS";
-      }
-    }
-
-    // 如果没有找到有效的 NAL 单元，返回 false
-    if (naltype === "I frame" || naltype === "SPS" || naltype === "PPS") {
-      return true;
-    }
-    return false;
-  }
-
-  async #decodeH264Video(image: AnyImage): Promise<void> {
-    if (this.isDisposed()) {
-      return;
-    }
-
-    if (!this.#H264Decoder) {
-      const config = {
-        codec: "avc1.42001E",
-      };
-
-      const { supported } = await VideoDecoder.isConfigSupported(config);
-      if (supported === true) {
-        const decoder = new VideoDecoder({
-          output: (frame) => {
-            this.#H264Frames.push(frame);
-          },
-          error: (e) => {
-            log.error(e.message);
-          },
-        });
-        decoder.configure(config);
-
-        this.#H264Decoder = decoder;
-
-        const canvas = document.createElement("canvas");
-        document.body.appendChild(canvas);
-      } else {
-        throw new Error(
-          "The browser version is too low and doesn't support H264 video decoding. Please use Chrome version 96 or higher.",
-        );
-      }
-    } else {
-      let type: "delta" | "key" = "delta";
-      const data = image.data;
-      if (data.length > 4) {
-        if (this.#isKeyFrame(data as Uint8Array)) {
-          type = "key";
-        } else {
-          type = "delta";
-        }
-      }
-
-      const chunk = new EncodedVideoChunk({
-        timestamp: this.#receivedImageSequenceNumber,
-        type,
-        data,
-      });
-
-      try {
-        this.#H264Decoder.decode(chunk);
-      } catch (error) {
-        log.error(error);
-      }
-    }
   }
 
   public update(): void {
