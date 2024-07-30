@@ -4048,7 +4048,6 @@ __metadata:
     "@types/gl-matrix": 3.2.0
     "@types/google-protobuf": 3.15.6
     "@types/hammerjs": 2.0.45
-    "@types/jmuxer": ^2
     "@types/leaflet": 1.9.12
     "@types/memoize-weak": "workspace:*"
     "@types/moment-duration-format": 2.2.6
@@ -4102,7 +4101,6 @@ __metadata:
     immer: 10.0.3
     intervals-fn: 3.0.3
     jest-canvas-mock: 2.5.2
-    jmuxer: 2.0.5
     jszip: 3.10.1
     just-diff: 6.0.2
     keyboardjs: 2.7.0
@@ -7915,15 +7913,6 @@ __metadata:
     expect: ^29.0.0
     pretty-format: ^29.0.0
   checksum: 38ed5942f44336452efd0f071eab60aaa57cd8d46530348d0a3aa5a691dcbf1366c4ca8f6ee8364efb45b4413bfefae443e5d4f469246a472a03b21ac11cd4ed
-  languageName: node
-  linkType: hard
-
-"@types/jmuxer@npm:^2":
-  version: 2.0.6
-  resolution: "@types/jmuxer@npm:2.0.6"
-  dependencies:
-    "@types/node": "*"
-  checksum: 1a388c00ad40ec6ff998dc580ff8d69c7826fa4a42343e87028824fba2f87e6e242c22114d8a61437d23c9d44e2742d6b6cd58c68dd00b09f51a9ae92a023361
   languageName: node
   linkType: hard
 
@@ -16473,13 +16462,6 @@ __metadata:
   bin:
     jest: bin/jest.js
   checksum: 17ca8d67504a7dbb1998cf3c3077ec9031ba3eb512da8d71cb91bcabb2b8995c4e4b292b740cb9bf1cbff5ce3e110b3f7c777b0cefb6f41ab05445f248d0ee0b
-  languageName: node
-  linkType: hard
-
-"jmuxer@npm:2.0.5":
-  version: 2.0.5
-  resolution: "jmuxer@npm:2.0.5"
-  checksum: 4eae0ef5810de77cd3fee893229a829d567e10a422b8d442e45e5af5277fc57df136798a462008fa88df3c3198a2d009f19d815074d0f23682f866fc52cda1cd
   languageName: node
   linkType: hard
 
