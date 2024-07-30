@@ -289,8 +289,6 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     if (!this.#H264Decoder) {
       const config = {
         codec: "avc1.42001E",
-        codedWidth: 640,
-        codedHeight: 480,
       };
 
       const { supported } = await VideoDecoder.isConfigSupported(config);
