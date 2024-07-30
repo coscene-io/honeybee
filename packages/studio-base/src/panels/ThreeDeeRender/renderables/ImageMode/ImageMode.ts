@@ -961,10 +961,6 @@ export class ImageMode
         return;
       }
 
-      if (!(currentImage instanceof ImageData) && !(currentImage instanceof ImageBitmap)) {
-        return;
-      }
-
       const { topic, image: imageMessage } = this.imageRenderable.userData;
       if (!imageMessage) {
         return;
@@ -1028,21 +1024,14 @@ export class ImageMode
   };
 
   public override getContextMenuItems(): PanelContextMenuItem[] {
-    if (!this.imageRenderable) {
-      return [];
-    }
-
-    const currentImage = this.imageRenderable.getDecodedImage();
-    return currentImage instanceof ImageData || currentImage instanceof ImageBitmap
-      ? [
-          {
-            type: "item",
-            label: "Download image",
-            onclick: this.#getDownloadImageCallback(),
-            disabled: this.imageRenderable.getDecodedImage() == undefined,
-          },
-        ]
-      : [];
+    return [
+      {
+        type: "item",
+        label: "Download image",
+        onclick: this.#getDownloadImageCallback(),
+        disabled: this.imageRenderable?.getDecodedImage() == undefined,
+      },
+    ];
   }
 }
 
