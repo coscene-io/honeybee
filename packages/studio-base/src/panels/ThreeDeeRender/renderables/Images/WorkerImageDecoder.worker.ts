@@ -22,26 +22,29 @@ function decode(image: RosImage | RawImage, options: Partial<RawImageOptions>): 
   return Comlink.transfer(result, [result.data.buffer]);
 }
 
-function isKeyFrame(uint8Array: Uint8Array): boolean {
-  let naltype: string = "invalid frame";
-  // 查找 NAL 单元起始码
-  if (uint8Array.length > 4) {
-    if (uint8Array[4] === 0x65) {
-      naltype = "I frame";
-    } else if (uint8Array[4] === 0x41) {
-      naltype = "P frame";
-    } else if (uint8Array[4] === 0x67) {
-      naltype = "SPS";
-    } else if (uint8Array[4] === 0x68) {
-      naltype = "PPS";
-    }
+function isKeyFrame(frame: Uint8Array): boolean {
+  if (frame.length < 5) {
+    return false; // 帧太短，无法判断
   }
 
-  // 如果没有找到有效的 NAL 单元，返回 false
-  if (naltype === "I frame" || naltype === "SPS" || naltype === "PPS") {
-    return true;
+  // 查找 NAL 单元的起始位置
+  let nalStart: number = 0;
+  if (frame[0] === 0 && frame[1] === 0 && frame[2] === 0 && frame[3] === 1) {
+    nalStart = 4; // 4 字节起始码
+  } else if (frame[0] === 0 && frame[1] === 0 && frame[2] === 1) {
+    nalStart = 3; // 3 字节起始码
   }
-  return false;
+
+  if (nalStart >= frame.length) {
+    return false; // NAL 单元起始位置无效
+  }
+
+  // 获取 NAL 单元类型
+  const nalType = frame[nalStart]! & 0x1f;
+
+  // IDR 帧 (type 5) 始终是关键帧
+  // SPS (type 7) 和 PPS (type 8) 也被视为关键帧，因为它们对解码至关重要
+  return nalType === 5 || nalType === 7 || nalType === 8;
 }
 
 function getH264Decoder(): VideoDecoder {
@@ -58,6 +61,7 @@ function getH264Decoder(): VideoDecoder {
     h264Decoder.configure({
       codec: "avc1.42001E",
       hardwareAcceleration: "prefer-hardware",
+      optimizeForLatency: true,
     });
   }
   return h264Decoder;
@@ -88,16 +92,20 @@ function decodeH264Frame(data: Uint8Array | Int8Array, sequenceNumber: number): 
   }
 }
 
-async function getH264Frames(): Promise<ImageBitmap | undefined> {
+function getH264Frames(): VideoFrame | undefined {
   const frame = H264Frames.pop();
   if (frame) {
-    const imageBitmap = await createImageBitmap(frame);
-    return imageBitmap;
+    return Comlink.transfer(frame, [frame]);
   }
-  H264Frames.forEach((uselessFrame) => {
-    uselessFrame.close();
-  });
-  H264Frames = [];
+
+  // we need latest frames only, drop frames if too many
+  if (H264Frames.length >= 5) {
+    H264Frames.forEach((uselessFrame) => {
+      uselessFrame.close();
+    });
+    H264Frames = [];
+  }
+
   return undefined;
 }
 

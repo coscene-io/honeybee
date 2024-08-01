@@ -59,7 +59,7 @@ export class WorkerImageDecoder {
     }
   }
 
-  public async getH264Frames(): Promise<ImageBitmap | undefined> {
+  public async getH264Frames(): Promise<VideoFrame | undefined> {
     return await this.#remote.getH264Frames();
   }
 
