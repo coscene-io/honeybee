@@ -184,7 +184,23 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         this.#receivedImageSequenceNumber,
       );
 
-      decodePromise = this.decoder.getH264Frames();
+      const videoframe = new Promise<undefined | ImageBitmap>((resolve, reject) => {
+        (this.decoder ??= new WorkerImageDecoder())
+          .getH264Frames()
+          .then((result) => {
+            if (result == undefined) {
+              resolve(undefined);
+            } else {
+              resolve(createImageBitmap(result));
+              result.close();
+            }
+          })
+          .catch((err) => {
+            reject(err);
+          });
+      });
+
+      decodePromise = videoframe;
     } else {
       decodePromise = this.#decodeImage(image, resizeWidth);
     }
