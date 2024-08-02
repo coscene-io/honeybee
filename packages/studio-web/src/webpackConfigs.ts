@@ -192,7 +192,7 @@ export const mainConfig =
               <meta charset="utf-8">
               <meta name="apple-mobile-web-app-capable" content="yes">
               <meta property="og:title" content="coScene"/>
-              <meta property="og:description" content="Open source visualization and debugging tool for robotics"/>
+              <meta property="og:description" content="visualization and debugging tool for robotics"/>
               <meta property="og:type" content="website"/>
               <script src="/viz/cos-config.js?t=${
                 process.env.LAST_BUILD_TIME ?? "local"
