@@ -60,7 +60,7 @@ function getH264Decoder(): VideoDecoder {
 
     h264Decoder.configure({
       codec: "avc1.42001E",
-      hardwareAcceleration: "prefer-software",
+      optimizeForLatency: true,
     });
   }
   return h264Decoder;
