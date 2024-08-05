@@ -4,22 +4,7 @@
 
 export const cosError = {
   loginExpired: "Login expired, please login again",
-  getFilesFromLocalCacheError: "Failed to retrieve files from local cache",
-  revisionIsNull: "Revision is null",
-  getFilesFromDpsError: "Failed to retrieve files from DPS (Data Processing System)",
-  noFileToRead: "No file to read",
-  illegalRequestTimestamp: "Illegal request timestamp",
-  illegalArgument: "Illegal argument",
-  semanticLibError: "SemanticLib threw an exception",
-  parseMediaFileFailed: "Failed to parse media file",
-  parseDataInterpretationFailed: "Failed to parse data interpretation",
   blankAuthToken: "Blank auth token in the request",
-  invalidToken: "Invalid token",
-  permissionDenied: "Permission denied to perform the requested action",
-  unknownAuthError: "Unknown authentication error",
-  generateMediaFailed: "Failed to generate media",
-  useForAlwaysFail: "Test interface for always failing",
-  unknownError: "Unknown error",
   currentUrlNotSupported: "Current URL is not supported",
   insecureWebSocketConnection: "Insecure WebSocket connection",
   insecureWebSocketConnectionMessage:
@@ -35,4 +20,25 @@ export const cosError = {
   repetitiveConnection: "Repetitive connections",
   repeatedConnectionDesc:
     "Only one person can connect to the same robot at a time. There is currently a user connected, please refresh and try again later.",
+
+  // error code message
+  SEMANTIC_LIB_ERROR: "Internal semantic-lib error",
+  GET_JOBRUN_FROM_DPS: "Failed to get jobrun from data platform",
+  GET_PROJECT_FROM_DPS: "Failed to get project information from data platform",
+  GET_FILES_FROM_DPS: "Failed to get Files from data platform",
+  GET_RECORD_FROM_DPS: "Failed to get record from data platform",
+  ILLEGAL_REQUEST_TIMESTAMP: "Illegal timestamp",
+  ILLEGAL_ARGUMENT: "Illegal argument",
+  PARSE_MEDIA_BUFFER_FAILED: "Failed to parse media buffer",
+  GENERATE_MEDIA_FAILED: "Failed to generate media",
+  GENERATE_DATA_INTERPRETATION_FAILED: "Failed to generate data interpretation",
+  FILE_MEDIA_LOST: "Media is missing, generating asynchronously, please try again later",
+  READ_MEDIA_FILE_FAILED: "Failed to read media file",
+  BLANK_AUTH_TOKEN: "Auth token is empty",
+  INVALID_TOKEN: "Invalid token",
+  TOKEN_PERMISSION_DENIED: "Token permission denied",
+  UNKNOWN_AUTH_ERROR: "Unknown token error",
+  GET_RESPONSE_FROM_BFF: "Failed to get information from bff",
+  USE_FOR_ALWAYS_FAIL: "This error code is only triggered by the alwaysFail interface",
+  UNKNOWN_ERROR: "Other errors",
 };
