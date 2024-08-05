@@ -201,15 +201,17 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
   }, [passingFile, event.fileName]);
 
   useEffect(() => {
-    setEvent((old) => ({
-      ...old,
-      startTime: markStartTime
-        ? timeMode === "relativeTime"
-          ? toDate(add(markStartTime, currentFile?.startTime ?? { sec: 0, nsec: 0 }))
-          : toDate(markStartTime)
-        : undefined,
-      duration: markEndTime && markStartTime ? toSec(subtract(markEndTime, markStartTime)) : 0,
-    }));
+    setEvent((old) => {
+      return {
+        ...old,
+        startTime: markStartTime
+          ? timeMode === "relativeTime"
+            ? toDate(add(markStartTime, currentFile?.startTime ?? { sec: 0, nsec: 0 }))
+            : toDate(markStartTime)
+          : undefined,
+        duration: markEndTime && markStartTime ? toSec(subtract(markEndTime, markStartTime)) : 0,
+      };
+    });
   }, [currentFile?.startTime, markEndTime, setEvent, timeMode, markStartTime, isEditing]);
 
   useEffect(() => {
