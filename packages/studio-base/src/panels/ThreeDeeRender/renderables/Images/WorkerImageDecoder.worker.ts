@@ -16,6 +16,8 @@ let h264Decoder: VideoDecoder | undefined;
 
 let H264Frames: VideoFrame[] = [];
 
+let foundKeyFrame = false;
+
 function decode(image: RosImage | RawImage, options: Partial<RawImageOptions>): ImageData {
   const result = new ImageData(image.width, image.height);
   decodeRawImage(image, options, result.data);
@@ -35,9 +37,9 @@ function convertToBinaryArray(uint8Array: Uint8Array) {
   }, []);
 }
 
-function isKeyFrame(frame: Uint8Array): "key" | "error frame" | "delta" {
+function isKeyFrame(frame: Uint8Array): "key" | "delta" | "b frame" | "unknow frame" {
   if (frame.length < 5) {
-    return "error frame"; // 帧太短，无法判断
+    return "unknow frame"; // 帧太短，无法判断
   }
 
   // 查找 NAL 单元的起始位置
@@ -49,7 +51,7 @@ function isKeyFrame(frame: Uint8Array): "key" | "error frame" | "delta" {
   }
 
   if (nalStart >= frame.length) {
-    return "error frame"; // NAL 单元起始位置无效
+    return "unknow frame"; // NAL 单元起始位置无效
   }
 
   // 获取 NAL 单元类型
@@ -83,16 +85,12 @@ function isKeyFrame(frame: Uint8Array): "key" | "error frame" | "delta" {
     frame[first_mb_in_slice + 1] == undefined ||
     frame[first_mb_in_slice + 2] == undefined
   ) {
-    return "error frame";
+    return "unknow frame";
   }
 
   //将 first_mb_in_slice 后面三位数转换为 2 进制数组
   const binaryArray = convertToBinaryArray(
-    new Uint8Array([
-      frame[first_mb_in_slice],
-      frame[first_mb_in_slice + 1] ?? 0,
-      frame[first_mb_in_slice + 2] ?? 0,
-    ]),
+    frame.subarray(first_mb_in_slice, first_mb_in_slice + 3),
   );
 
   // 找到第一个 1
@@ -112,6 +110,8 @@ function isKeyFrame(frame: Uint8Array): "key" | "error frame" | "delta" {
       2,
     );
 
+  log.debug("sliceType", sliceType);
+
   // 0: P slice
   // 1: B slice
   // 2: I slice
@@ -124,7 +124,7 @@ function isKeyFrame(frame: Uint8Array): "key" | "error frame" | "delta" {
   // 9: SI slice (IDR)
   // 不支持 b frame
   if (sliceType === 1 || sliceType === 6) {
-    return "error frame";
+    return "b frame";
   }
 
   return "delta";
@@ -150,12 +150,24 @@ function getH264Decoder(): VideoDecoder {
 }
 
 function decodeH264Frame(data: Uint8Array | Int8Array, sequenceNumber: number): void {
-  let type: "delta" | "key" | "error frame" = "delta";
+  let type: "delta" | "key" | "unknow frame" | "b frame" = "delta";
   if (data.length > 4) {
     type = isKeyFrame(data as Uint8Array);
   }
 
-  if (type === "error frame") {
+  if (type === "b frame") {
+    log.error("b frame is not supported");
+  }
+
+  if (type === "unknow frame" || type === "b frame") {
+    return;
+  }
+
+  if (type === "key" && !foundKeyFrame) {
+    foundKeyFrame = true;
+  }
+
+  if (!foundKeyFrame) {
     return;
   }
 
