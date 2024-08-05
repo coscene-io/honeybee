@@ -110,8 +110,6 @@ function isKeyFrame(frame: Uint8Array): "key" | "delta" | "b frame" | "unknow fr
       2,
     );
 
-  log.debug("sliceType", sliceType);
-
   // 0: P slice
   // 1: B slice
   // 2: I slice
