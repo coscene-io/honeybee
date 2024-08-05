@@ -213,10 +213,13 @@ function EventMark({
       )}
       <Popper
         placement="top-start"
-        open={open && !isHiddenCreateMomentPopper}
+        open={open}
         anchorEl={anchorEl}
         transition
         id="event-mark-popper"
+        style={{
+          opacity: isHiddenCreateMomentPopper ? 0.5 : 1,
+        }}
       >
         {({ TransitionProps }) => (
           <Fade {...TransitionProps} timeout={350}>
