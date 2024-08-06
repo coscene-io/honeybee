@@ -10,11 +10,11 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-// import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppURLState, parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
-// const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 
 const log = Log.getLogger(__filename);
 
@@ -35,31 +35,28 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   }, [playerPresence, setSelectedLayoutId, unappliedLayoutArgs?.layoutId]);
 }
 
-// NOT READY FOR PRIME TIME @Woodii1998
-// migrate sync time to this
+function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
+  const seekPlayback = useMessagePipeline(selectSeek);
+  const playerPresence = useMessagePipeline(selectPlayerPresence);
+  const [unappliedTime, setUnappliedTime] = useState(
+    targetUrlState ? { time: targetUrlState.time } : undefined,
+  );
+  // Seek to time in URL.
+  useEffect(() => {
+    if (unappliedTime?.time == undefined || !seekPlayback) {
+      return;
+    }
 
-// function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
-//   const seekPlayback = useMessagePipeline(selectSeek);
-//   const playerPresence = useMessagePipeline(selectPlayerPresence);
-//   const [unappliedTime, setUnappliedTime] = useState(
-//     targetUrlState ? { time: targetUrlState.time } : undefined,
-//   );
-//   // Seek to time in URL.
-//   useEffect(() => {
-//     if (unappliedTime?.time == undefined || !seekPlayback) {
-//       return;
-//     }
+    // Wait until player is ready before we try to seek.
+    if (playerPresence !== PlayerPresence.PRESENT) {
+      return;
+    }
 
-//     // Wait until player is ready before we try to seek.
-//     if (playerPresence !== PlayerPresence.PRESENT) {
-//       return;
-//     }
-
-//     log.debug(`Seeking to url time:`, unappliedTime.time);
-//     seekPlayback(unappliedTime.time);
-//     setUnappliedTime({ time: undefined });
-//   }, [playerPresence, seekPlayback, unappliedTime]);
-// }
+    log.debug(`Seeking to url time:`, unappliedTime.time);
+    seekPlayback(unappliedTime.time);
+    setUnappliedTime({ time: undefined });
+  }, [playerPresence, seekPlayback, unappliedTime]);
+}
 
 /**
  * Ensure only one copy of the hook is mounted so we don't trigger side effects like selectSource
@@ -86,5 +83,5 @@ export function useInitialDeepLinkState(deepLinks: readonly string[]): void {
   );
 
   useSyncLayoutFromUrl(targetUrlState);
-  // useSyncTimeFromUrl(targetUrlState);
+  useSyncTimeFromUrl(targetUrlState);
 }
