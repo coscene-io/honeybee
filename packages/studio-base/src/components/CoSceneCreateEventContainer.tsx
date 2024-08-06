@@ -552,10 +552,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
             maxRows={1}
             value={event.eventName}
             onChange={(val) => {
-              // µ = option + M 是 mac 打开弹窗的快捷键
-              if (val.target.value !== "µ") {
-                setEvent((old) => ({ ...old, eventName: val.target.value }));
-              }
+              setEvent((old) => ({ ...old, eventName: val.target.value }));
             }}
             variant="outlined"
             autoFocus

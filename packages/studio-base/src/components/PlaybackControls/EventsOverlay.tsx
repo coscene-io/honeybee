@@ -222,7 +222,7 @@ function EventMark({
         }}
       >
         {({ TransitionProps }) => (
-          <Fade {...TransitionProps} timeout={350}>
+          <Fade {...TransitionProps}>
             <div className={classes.creatEventContainer}>
               <CoSceneCreateEventContainer
                 onClose={() => {
