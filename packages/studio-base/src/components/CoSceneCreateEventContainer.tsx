@@ -51,6 +51,7 @@ import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDia
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
+  BagFileInfo,
   CoScenePlaylistStore,
   usePlaylist,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
@@ -146,6 +147,19 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
       !isLessThan(bagEndTime, markStartTime)
     );
   });
+
+  const recordItems = useMemo(() => {
+    const tempRecordItems: BagFileInfo[] = [];
+    passingFile?.forEach((ele) => {
+      if (
+        tempRecordItems.find((item) => ele.recordDisplayName === item.recordDisplayName) ==
+        undefined
+      ) {
+        tempRecordItems.push(ele);
+      }
+    });
+    return tempRecordItems;
+  }, [passingFile]);
 
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
@@ -791,13 +805,13 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("record")}</FormLabel>
             <Select
-              value={event.fileName}
-              disabled={passingFile == undefined || passingFile.length <= 1}
+              value={recordItems[0]?.name ?? ""}
+              disabled={recordItems.length <= 1}
               onChange={(e) => {
                 setEvent((old) => ({ ...old, fileName: e.target.value }));
               }}
             >
-              {(passingFile ?? []).map((bag) => (
+              {recordItems.map((bag) => (
                 <MenuItem key={bag.name} value={bag.name}>
                   {bag.recordDisplayName}
                 </MenuItem>
