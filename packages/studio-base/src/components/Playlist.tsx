@@ -83,6 +83,7 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
     gap: theme.spacing(1),
     textWrap: "nowrap",
+    width: "100%",
   },
   accordion: {
     padding: 0,
