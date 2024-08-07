@@ -459,25 +459,6 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     baseInfo,
   ]);
 
-  const [unappliedTime, setUnappliedTime] = useState(
-    targetUrlState ? { time: targetUrlState.time } : undefined,
-  );
-  // Seek to time in URL.
-  useEffect(() => {
-    if (unappliedTime?.time == undefined || !seek) {
-      return;
-    }
-
-    // Wait until player is ready before we try to seek.
-    if (playerPresence !== PlayerPresence.PRESENT) {
-      return;
-    }
-
-    log.debug(`Seeking to url time:`, unappliedTime.time);
-    seek(unappliedTime.time);
-    setUnappliedTime({ time: undefined });
-  }, [playerPresence, seek, unappliedTime]);
-
   const appBar = useMemo(
     () => (
       <AppBarComponent
