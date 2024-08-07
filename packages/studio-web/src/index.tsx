@@ -4,7 +4,7 @@
 import * as Sentry from "@sentry/browser";
 import { BrowserTracing } from "@sentry/tracing";
 import { StrictMode, useEffect } from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import Logger from "@foxglove/log";
 import type { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
@@ -88,15 +88,15 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
     />
   );
 
+  const root = createRoot(rootEl);
+
   if (!canRender) {
-    // eslint-disable-next-line react/no-deprecated
-    ReactDOM.render(
+    root.render(
       <StrictMode>
         <LogAfterRender>
           <CssBaseline>{banner}</CssBaseline>
         </LogAfterRender>
       </StrictMode>,
-      rootEl,
     );
     return;
   }
@@ -119,14 +119,12 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
     </WebRoot>
   );
 
-  // eslint-disable-next-line react/no-deprecated
-  ReactDOM.render(
+  root.render(
     <StrictMode>
       <LogAfterRender>
         {banner}
         {rootElement}
       </LogAfterRender>
     </StrictMode>,
-    rootEl,
   );
 }
