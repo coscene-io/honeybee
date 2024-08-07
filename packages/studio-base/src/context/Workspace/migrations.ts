@@ -78,6 +78,9 @@ export function migrateV0WorkspaceState(
       repeat: v0State.playbackControls.repeat,
       speed: v0State.playbackControls.speed,
     },
+    layoutMenu: {
+      open: false,
+    },
   };
   return migrated;
 }

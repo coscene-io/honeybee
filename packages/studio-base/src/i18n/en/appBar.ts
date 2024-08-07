@@ -38,4 +38,9 @@ export const appBar = {
     "media File generation in progress, refresh page to play when finished ({{successfulCount}}/{{totalCount}})",
   mediaSuccessfulGeneration:
     "All media files have been generated, refresh page to play all files ({{count}}/{{count}})",
+  loadingTips: "Loading playback data at full speed, please wait...",
+  layoutGuideliens:
+    "Create a new 'layout' to customize your visualization view, or use the organization's shared layout directly",
+  toSetupLayout: "Go to Setup Layout",
+  noMoreTips: "Do not show again",
 };
