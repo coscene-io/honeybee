@@ -92,6 +92,7 @@ export type WorkspaceActions = {
     // This will perform a browser download of the current layout to a file
     exportToFile: (layout: Layout) => void;
     unsavedChangesPrompt: JSX.Element | undefined;
+    setOpen: Dispatch<SetStateAction<boolean>>;
   };
 };
 
@@ -466,6 +467,12 @@ export function useWorkspaceActions(): WorkspaceActions {
         importFromFile: importLayout,
         exportToFile: onExportLayout,
         unsavedChangesPrompt,
+        setOpen: (setter: SetStateAction<boolean>) => {
+          set((draft) => {
+            const layoutMenuOpen = setterValue(setter, draft.layoutMenu.open);
+            draft.layoutMenu.open = layoutMenuOpen;
+          });
+        },
       },
     };
   }, [onExportLayout, importLayout, openFile, set, unsavedChangesPrompt]);

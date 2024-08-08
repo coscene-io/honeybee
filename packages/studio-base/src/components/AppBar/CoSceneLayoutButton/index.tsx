@@ -43,6 +43,10 @@ import {
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import {
+  useWorkspaceStore,
+  WorkspaceContextStore,
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { usePrompt } from "@foxglove/studio-base/hooks/useCoScenePrompt";
@@ -86,8 +90,9 @@ const useStyles = makeStyles()((theme) => {
   };
 });
 
+const selectLayoutMenuOpen = (store: WorkspaceContextStore) => store.layoutMenu.open;
 export function CoSceneLayoutButton(): JSX.Element {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const menuOpen = useWorkspaceStore(selectLayoutMenuOpen);
   const { classes, cx } = useStyles();
   const anchorEl = useRef<HTMLButtonElement>(ReactNull);
   const { t } = useTranslation("cosLayout");
@@ -105,7 +110,6 @@ export function CoSceneLayoutButton(): JSX.Element {
   const [prompt, promptModal] = usePrompt();
   const [confirm, confirmModal] = useConfirm();
   const [selectLayoutTemplateModalOpen, setSelectLayoutTemplateModalOpen] = useState(false);
-
   const layoutManager = useLayoutManager();
 
   const consoleApi = useConsoleApi();
@@ -126,6 +130,14 @@ export function CoSceneLayoutButton(): JSX.Element {
     },
     [layoutManager],
     { loading: true },
+  );
+
+  const setMenuOpen = useCallback(
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    (open: boolean) => {
+      layoutActions.setOpen(open);
+    },
+    [layoutActions],
   );
 
   useEffect(() => {
@@ -316,6 +328,7 @@ export function CoSceneLayoutButton(): JSX.Element {
       dispatch,
       layouts.value,
       promptForUnsavedChanges,
+      setMenuOpen,
       setSelectedLayoutId,
     ],
   );
@@ -609,7 +622,7 @@ export function CoSceneLayoutButton(): JSX.Element {
         title={currentLayouts?.name ?? t("noLayouts")}
         selected={menuOpen}
         onClick={() => {
-          setMenuOpen((open) => !open);
+          setMenuOpen(!menuOpen);
         }}
         ref={anchorEl}
       />
