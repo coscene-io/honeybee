@@ -5,7 +5,7 @@
 type WebpackArgv = {
   mode?: string;
   env?: {
-    WEBPACK_SERVE?: boolean;
+    WEBPACK_SERVE?: "true" | "false";
     WEBPACK_BUNDLE?: boolean;
     WEBPACK_BUILD?: boolean;
   };

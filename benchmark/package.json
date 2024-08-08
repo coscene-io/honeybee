@@ -11,7 +11,7 @@
     "@foxglove/schemas": "1.6.2",
     "@foxglove/studio": "workspace:*",
     "@foxglove/tsconfig": "2.0.0",
-    "@pmmmwh/react-refresh-webpack-plugin": "0.5.11",
+    "@pmmmwh/react-refresh-webpack-plugin": "0.5.15",
     "@types/react": "18.2.23",
     "@types/react-dom": "18.2.7",
     "clean-webpack-plugin": "4.0.0",
@@ -19,6 +19,7 @@
     "mathjs": "11.11.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "react-refresh": "0.14.2",
     "webpack": "5.93.0",
     "webpack-dev-server": "5.0.4"
   }
