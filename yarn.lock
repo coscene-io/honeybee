@@ -5706,17 +5706,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sentry-internal/tracing@npm:7.114.0":
-  version: 7.114.0
-  resolution: "@sentry-internal/tracing@npm:7.114.0"
-  dependencies:
-    "@sentry/core": 7.114.0
-    "@sentry/types": 7.114.0
-    "@sentry/utils": 7.114.0
-  checksum: c25c920d52672cd245925aee2969064a16861e6ce92299605c4e4fa7bae37ad8dcd2882d07f77868a90f8e9b66f1874fb342bde2b69b55a0817c462d83d4e787
-  languageName: node
-  linkType: hard
-
 "@sentry/babel-plugin-component-annotate@npm:2.22.0":
   version: 2.22.0
   resolution: "@sentry/babel-plugin-component-annotate@npm:2.22.0"
@@ -5841,16 +5830,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sentry/core@npm:7.114.0":
-  version: 7.114.0
-  resolution: "@sentry/core@npm:7.114.0"
-  dependencies:
-    "@sentry/types": 7.114.0
-    "@sentry/utils": 7.114.0
-  checksum: f5bcb22c6e9ef886846584f1bb6cac5e4bbed6920a0cb2013517c462d9bbd87a501c440cef1a98d1663bb699832c0e2617dab1b526f6c264d540ed452641d4b9
-  languageName: node
-  linkType: hard
-
 "@sentry/core@npm:8.24.0":
   version: 8.24.0
   resolution: "@sentry/core@npm:8.24.0"
@@ -5861,35 +5840,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sentry/tracing@npm:7.114.0":
-  version: 7.114.0
-  resolution: "@sentry/tracing@npm:7.114.0"
-  dependencies:
-    "@sentry-internal/tracing": 7.114.0
-  checksum: ba4960c3f302d536b1bdeb8ca5b79786740d1f56e2a98ecaa36eff89347788e190eb742945f7f47c0f37d9788a892b4bdfb1f7f214c24dbfdf07fb40f9be2383
-  languageName: node
-  linkType: hard
-
-"@sentry/types@npm:7.114.0":
-  version: 7.114.0
-  resolution: "@sentry/types@npm:7.114.0"
-  checksum: bf734ea310269c4ea533e165891219a2a7fa1df5641e6d662d3a02b630e7039792f957381fb2ec0e974b559b02860a1955955fd623c7b2e1106873a5b6745a4e
-  languageName: node
-  linkType: hard
-
 "@sentry/types@npm:8.24.0":
   version: 8.24.0
   resolution: "@sentry/types@npm:8.24.0"
   checksum: 3f9cc9ac7f9f1e3386e7f3b2e256641211bccdb9bf895f9d2a751af8dee5117c9a44e0a4b5157bbccb0c3bc40e9fa9b46602c93a39385372cff65bfc3e7a650f
-  languageName: node
-  linkType: hard
-
-"@sentry/utils@npm:7.114.0":
-  version: 7.114.0
-  resolution: "@sentry/utils@npm:7.114.0"
-  dependencies:
-    "@sentry/types": 7.114.0
-  checksum: ded7c60b3804f24fee62bb119bdc81704b903a84a5e0339616796deba234770003511b19a91bbf42313a76af383a4fc2162c36b71b49b0cbced63ebd04547a18
   languageName: node
   linkType: hard
 
@@ -23001,7 +22955,6 @@ __metadata:
     "@foxglove/studio-web": "workspace:*"
     "@foxglove/tsconfig": 2.0.0
     "@sentry/browser": 8.24.0
-    "@sentry/tracing": 7.114.0
     "@sentry/webpack-plugin": 2.22.0
     "@types/serve-handler": ^6
     playwright: 1.37.1
