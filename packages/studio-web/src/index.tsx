@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import * as Sentry from "@sentry/browser";
-import { BrowserTracing } from "@sentry/tracing";
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -57,8 +56,8 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
         return integrations
           .filter((integration) => integration.name !== "Breadcrumbs")
           .concat([
-            new BrowserTracing({
-              startTransactionOnLocationChange: false, // location changes as a result of non-navigation interactions such as seeking
+            Sentry.browserTracingIntegration({
+              instrumentNavigation: false,
             }),
           ]);
       },

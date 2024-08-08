@@ -49,7 +49,7 @@ const devServerConfig: WebpackConfiguration = {
 
 const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
   const isDev = argv.mode === "development";
-  const isServe = argv.env?.WEBPACK_SERVE ?? false;
+  const isServe = argv.env?.WEBPACK_SERVE === "true";
 
   const allowUnusedVariables = isDev;
 
