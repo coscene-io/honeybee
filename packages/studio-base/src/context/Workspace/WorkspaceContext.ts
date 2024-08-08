@@ -60,6 +60,9 @@ export type WorkspaceContextStore = {
       size: undefined | number;
     };
   };
+  layoutMenu: {
+    open: boolean;
+  };
 };
 
 export const WorkspaceContext = createContext<undefined | StoreApi<WorkspaceContextStore>>(
