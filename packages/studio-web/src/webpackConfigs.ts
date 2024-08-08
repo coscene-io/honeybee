@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ReactRefreshPlugin from "@pmmmwh/react-refresh-webpack-plugin";
-import SentryWebpackPlugin from "@sentry/webpack-plugin";
+import { sentryWebpackPlugin } from "@sentry/webpack-plugin";
 import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import CopyPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
@@ -60,18 +60,20 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
     //  "[WDS] Disconnected!"
     // Since we are only connecting to localhost, DNS rebinding attacks are not a concern during dev
     allowedHosts: "all",
-    proxy: {
-      "/v1/data": {
+    proxy: [
+      {
+        context: ["/v1/data"],
         target: "https://honeybee.coscene.dev",
         secure: false,
         changeOrigin: true,
       },
-      "/bff": {
+      {
+        context: ["/bff"],
         target: "https://bff.coscene.dev",
         secure: false,
         changeOrigin: true,
       },
-    },
+    ],
     headers: {
       // Enable cross-origin isolation: https://resourcepolicy.fyi
       "cross-origin-opener-policy": "same-origin",
@@ -111,6 +113,12 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
     },
   },
 
+  resolve: {
+    fallback: {
+      assert: require.resolve("assert/"),
+    },
+  },
+
   plugins: [new CleanWebpackPlugin()],
 });
 
@@ -118,7 +126,7 @@ export const mainConfig =
   (params: ConfigParams) =>
   (env: unknown, argv: WebpackArgv): Configuration => {
     const isDev = argv.mode === "development";
-    const isServe = argv.env?.WEBPACK_SERVE ?? false;
+    const isServe = argv.env?.WEBPACK_SERVE === "true";
 
     const allowUnusedVariables = isDev;
 
@@ -137,20 +145,24 @@ export const mainConfig =
     // Source map upload if configuration permits
     if (!isDev) {
       plugins.push(
-        new SentryWebpackPlugin({
+        sentryWebpackPlugin({
           url: "https://sentry.coscene.site/",
           authToken: process.env.SENTRY_AUTH_TOKEN,
-          release:
-            process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
-              ? process.env.GITHUB_SHA
-              : process.env.IMAGE_TAG,
+          release: {
+            name:
+              process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
+                ? process.env.GITHUB_SHA
+                : process.env.IMAGE_TAG,
+          },
           org: "coscene",
           project: "honeybee-web",
-          include: path.resolve(__dirname, ".webpack"),
+          sourcemaps: {
+            assets: path.resolve(__dirname, ".webpack"),
+          },
           errorHandler: (err) => {
             console.warn(err);
           },
-        }),
+        }) as WebpackPluginInstance,
       );
     }
 

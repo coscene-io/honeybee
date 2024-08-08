@@ -47,7 +47,7 @@ export function makeConfig(
   options: Options,
 ): Pick<Configuration, "resolve" | "module" | "optimization" | "plugins" | "node"> {
   const isDev = argv.mode === "development";
-  const isServe = argv.env?.WEBPACK_SERVE ?? false;
+  const isServe = argv.env?.WEBPACK_SERVE === "true";
 
   const { allowUnusedVariables = isDev && isServe, version, tsconfigPath } = options;
 
