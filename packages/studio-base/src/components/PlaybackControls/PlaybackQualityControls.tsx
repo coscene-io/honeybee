@@ -37,7 +37,7 @@ const useStyles = makeStyles()((theme) => ({
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 
-export default function PlaybackQualityControls(): JSX.Element {
+function PlaybackQualityControls(): JSX.Element {
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const [playbackQuality, setPlaybackQuality] = useState<string>(ORIGINAL);
   const { t } = useTranslation("cosSettings");
@@ -144,3 +144,5 @@ export default function PlaybackQualityControls(): JSX.Element {
     </>
   );
 }
+
+export default React.memo(PlaybackQualityControls);

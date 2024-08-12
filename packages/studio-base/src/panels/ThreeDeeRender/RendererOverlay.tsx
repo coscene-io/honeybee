@@ -129,7 +129,7 @@ type Props = {
 /**
  * Provides DOM overlay elements on top of the 3D scene (e.g. stats, debug GUI).
  */
-export function RendererOverlay(props: Props): JSX.Element {
+function UnMemoedRendererOverlay(props: Props): JSX.Element {
   const { t } = useTranslation("threeDee");
   const { classes } = useStyles();
   const { onResetCamera, onZoomIn, onZoomOut } = props;
@@ -481,3 +481,5 @@ export function RendererOverlay(props: Props): JSX.Element {
     </>
   );
 }
+
+export const RendererOverlay = React.memo(UnMemoedRendererOverlay);

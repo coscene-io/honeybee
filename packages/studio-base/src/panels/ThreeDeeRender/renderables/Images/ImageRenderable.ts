@@ -179,30 +179,13 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     let decodePromise: Promise<ImageBitmap | ImageData | undefined> | undefined = undefined;
     if ("format" in image && image.format === "h264") {
-      (this.decoder ??= new WorkerImageDecoder()).decodeH264Frame(
-        image,
-        this.#receivedImageSequenceNumber,
-      );
+      if (this.decoder == undefined) {
+        this.decoder = new WorkerImageDecoder();
+      }
 
-      const videoframe = new Promise<undefined | ImageBitmap>((resolve, reject) => {
-        (this.decoder ??= new WorkerImageDecoder())
-          .getH264Frames()
-          .then((result) => {
-            if (result == undefined) {
-              resolve(undefined);
-            } else {
-              resolve(createImageBitmap(result));
-              result.close();
-            }
-          })
-          .catch((err) => {
-            reject(err);
-          });
-      });
-
-      decodePromise = videoframe;
+      decodePromise = this.decoder.decodeH264Frame(image, this.#receivedImageSequenceNumber);
     } else {
-      decodePromise = this.#decodeImage(image, resizeWidth);
+      decodePromise = this.decodeImage(image, resizeWidth);
     }
 
     decodePromise
@@ -254,7 +237,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.renderer.queueAnimationFrame();
   }
 
-  async #decodeImage(image: AnyImage, resizeWidth?: number): Promise<ImageBitmap | ImageData> {
+  protected async decodeImage(
+    image: AnyImage,
+    resizeWidth?: number,
+  ): Promise<ImageBitmap | ImageData> {
     if ("format" in image) {
       return await decodeCompressedImageToBitmap(image, resizeWidth);
     }
@@ -333,7 +319,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         canvasTexture.image = decodedImage;
         canvasTexture.needsUpdate = true;
       }
-    } else if (decodedImage instanceof ImageData) {
+    } else {
       let dataTexture = this.userData.texture;
       if (
         dataTexture == undefined ||

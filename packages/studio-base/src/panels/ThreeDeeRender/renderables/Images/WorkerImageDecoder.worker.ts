@@ -14,7 +14,7 @@ const log = Logger.getLogger(__filename);
 
 let h264Decoder: VideoDecoder | undefined;
 
-let H264Frames: VideoFrame[] = [];
+let H264Frames: ImageBitmap[] = [];
 
 let foundKeyFrame = false;
 
@@ -132,7 +132,12 @@ function getH264Decoder(): VideoDecoder {
   if (!h264Decoder) {
     h264Decoder = new VideoDecoder({
       output: (frame: VideoFrame) => {
-        H264Frames.push(frame);
+        createImageBitmap(frame).then((imageBitmap) => {
+          H264Frames.push(imageBitmap);
+
+          // 释放内存
+          frame.close();
+        });
       },
       error: (error: Error) => {
         log.error(error.message);
@@ -184,7 +189,7 @@ function decodeH264Frame(data: Uint8Array | Int8Array, sequenceNumber: number): 
   }
 }
 
-function getH264Frames(): VideoFrame | undefined {
+function getH264Frames(): ImageBitmap | undefined {
   const frame = H264Frames.pop();
   if (frame) {
     return Comlink.transfer(frame, [frame]);
