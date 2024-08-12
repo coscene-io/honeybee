@@ -29,6 +29,7 @@ export class WorkerImageDecoder {
   #dispose: () => void;
 
   public constructor() {
+    log.debug("Creating WorkerImageDecoder");
     const { remote, dispose } = ComlinkWrap<WorkerService>(
       new Worker(
         // foxglove-depcheck-used: babel-plugin-transform-import-meta
@@ -53,7 +54,7 @@ export class WorkerImageDecoder {
     return await this.#remote.getH264Frames();
   }
 
-  public decodeH264Frame(
+  public async decodeH264Frame(
     image: AnyImage,
     sequenceNumber: number,
   ): Promise<ImageBitmap | undefined> {
@@ -62,7 +63,7 @@ export class WorkerImageDecoder {
     try {
       void this.#remote.decodeH264Frame(data, sequenceNumber);
 
-      return this.#getH264Frames();
+      return await this.#getH264Frames();
     } catch (error) {
       throw new Error(`Failed to decode H264 frame: ${error}`);
     }

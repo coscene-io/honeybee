@@ -132,12 +132,16 @@ function getH264Decoder(): VideoDecoder {
   if (!h264Decoder) {
     h264Decoder = new VideoDecoder({
       output: (frame: VideoFrame) => {
-        createImageBitmap(frame).then((imageBitmap) => {
-          H264Frames.push(imageBitmap);
+        createImageBitmap(frame)
+          .then((imageBitmap) => {
+            H264Frames.push(imageBitmap);
 
-          // 释放内存
-          frame.close();
-        });
+            // 释放内存
+            frame.close();
+          })
+          .catch((error) => {
+            log.error("videoFrame to image bitmap error: ", error);
+          });
       },
       error: (error: Error) => {
         log.error(error.message);
