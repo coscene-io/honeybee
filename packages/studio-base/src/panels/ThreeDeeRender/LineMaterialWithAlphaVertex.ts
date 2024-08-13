@@ -42,6 +42,7 @@ import {
 };
 
 ShaderLib["foxglove.line"] = {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   uniforms: UniformsUtils.merge([UniformsLib.common, UniformsLib.fog, (UniformsLib as any).line]),
 
   vertexShader: /* glsl */ `
@@ -573,11 +574,11 @@ export class LineMaterialWithAlphaVertex extends ShaderMaterial {
     this.uniforms.opacity!.value = value;
   }
 
-  public get resolution(): THREE.Vector2 {
+  public get resolution(): Vector2 {
     return this.uniforms.resolution!.value;
   }
 
-  public set resolution(value: THREE.Vector2) {
+  public set resolution(value: Vector2) {
     this.uniforms.resolution!.value.copy(value);
   }
 }

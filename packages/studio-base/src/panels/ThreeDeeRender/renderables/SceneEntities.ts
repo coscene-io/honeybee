@@ -2,6 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Color } from "three";
+
 import { toNanoSec } from "@foxglove/rostime";
 import {
   ArrowPrimitive,
@@ -114,7 +116,7 @@ export class FoxgloveSceneEntities extends SceneExtension<TopicEntities> {
 
   public override setColorScheme(
     colorScheme: "dark" | "light",
-    _backgroundColor: THREE.Color | undefined,
+    _backgroundColor: Color | undefined,
   ): void {
     for (const renderable of this.renderables.values()) {
       renderable.setColorScheme(colorScheme);
