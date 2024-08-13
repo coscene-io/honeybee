@@ -185,7 +185,7 @@ function EventViewComponent(params: {
 
   const displayName = event.event.displayName;
   const triggerTime = formatTime(fromDate(event.event.triggerTime?.toDate() ?? new Date()));
-  const duration = `${durationToSeconds(event.event.duration)} s`;
+  const duration = `${durationToSeconds(event.event.duration).toFixed(3)} s`;
   const description = event.event.description;
   const metadataMap = Object.entries(event.event.customizedFields);
   const imgUrl = event.imgUrl;
