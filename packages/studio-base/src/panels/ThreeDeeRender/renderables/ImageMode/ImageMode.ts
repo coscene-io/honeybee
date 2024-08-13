@@ -902,7 +902,6 @@ export class ImageMode
 
     const model = this.#getPinholeCameraModel(newCameraInfo);
     if (model) {
-      log.debug("h264 1");
       this.#cameraModel = {
         model,
         info: newCameraInfo,
@@ -922,7 +921,6 @@ export class ImageMode
       model = new PinholeCameraModel(cameraInfo);
       this.renderer.settings.errors.remove(CALIBRATION_TOPIC_PATH, CAMERA_MODEL);
     } catch (errUnk) {
-      log.debug("h264 2", errUnk);
       this.#cameraModel = undefined;
       const err = errUnk as Error;
       this.renderer.settings.errors.add(CALIBRATION_TOPIC_PATH, CAMERA_MODEL, err.message);
