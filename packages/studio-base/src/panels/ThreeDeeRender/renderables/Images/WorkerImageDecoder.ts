@@ -50,20 +50,13 @@ export class WorkerImageDecoder {
     return await this.#remote.decode(image, options);
   }
 
-  async #getH264Frames(): Promise<ImageBitmap | undefined> {
-    return await this.#remote.getH264Frames();
-  }
-
-  public async decodeH264Frame(
-    image: AnyImage,
-    sequenceNumber: number,
-  ): Promise<ImageBitmap | undefined> {
+  public async decodeH264Frame(image: AnyImage): Promise<VideoFrame | undefined> {
     const data = image.data;
 
     try {
-      void this.#remote.decodeH264Frame(data, sequenceNumber);
+      void this.#remote.decodeH264Frame(data);
 
-      return await this.#getH264Frames();
+      return await this.#remote.getH264Frames();
     } catch (error) {
       throw new Error(`Failed to decode H264 frame: ${error}`);
     }

@@ -14,7 +14,7 @@ const log = Logger.getLogger(__filename);
 
 let h264Decoder: VideoDecoder | undefined;
 
-let H264Frames: ImageBitmap[] = [];
+let H264Frames: VideoFrame[] = [];
 
 let foundKeyFrame = false;
 
@@ -132,16 +132,7 @@ function getH264Decoder(): VideoDecoder {
   if (!h264Decoder) {
     h264Decoder = new VideoDecoder({
       output: (frame: VideoFrame) => {
-        createImageBitmap(frame)
-          .then((imageBitmap) => {
-            H264Frames.push(imageBitmap);
-
-            // 释放内存
-            frame.close();
-          })
-          .catch((error) => {
-            log.error("videoFrame to image bitmap error: ", error);
-          });
+        H264Frames.push(frame);
       },
       error: (error: Error) => {
         log.error(error.message);
@@ -156,7 +147,7 @@ function getH264Decoder(): VideoDecoder {
   return h264Decoder;
 }
 
-function decodeH264Frame(data: Uint8Array | Int8Array, sequenceNumber: number): void {
+function decodeH264Frame(data: Uint8Array | Int8Array): void {
   let type: "delta" | "key" | "unknow frame" | "b frame" = "delta";
   if (data.length > 4) {
     type = isKeyFrame(data as Uint8Array);
@@ -178,14 +169,14 @@ function decodeH264Frame(data: Uint8Array | Int8Array, sequenceNumber: number): 
     return;
   }
 
+  const now = performance.now();
+  const decoder = getH264Decoder();
+
   const chunk = new EncodedVideoChunk({
-    timestamp: sequenceNumber,
+    timestamp: now,
     type,
     data,
   });
-
-  const decoder = getH264Decoder();
-
   try {
     decoder.decode(chunk);
   } catch (error) {
@@ -193,7 +184,7 @@ function decodeH264Frame(data: Uint8Array | Int8Array, sequenceNumber: number): 
   }
 }
 
-function getH264Frames(): ImageBitmap | undefined {
+function getH264Frames(): VideoFrame | undefined {
   const frame = H264Frames.pop();
   if (frame) {
     return Comlink.transfer(frame, [frame]);

@@ -456,6 +456,7 @@ export class Images extends SceneExtension<ImageRenderable> {
     this.renderables.set(imageTopic, renderable);
     return renderable;
   }
+
   protected initRenderable(topicName: string, userData: ImageUserData): ImageRenderable {
     return new ImageRenderable(topicName, this.renderer, userData);
   }

@@ -69,7 +69,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   #isUpdating = false;
 
-  #decodedImage?: ImageBitmap | ImageData;
+  #decodedImage?: ImageBitmap | VideoFrame | ImageData;
 
   protected decoder?: WorkerImageDecoder;
   #receivedImageSequenceNumber = 0;
@@ -86,7 +86,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     return this.#disposed;
   }
 
-  public getDecodedImage(): ImageBitmap | ImageData | undefined {
+  public getDecodedImage(): ImageBitmap | ImageData | VideoFrame | undefined {
     return this.#decodedImage;
   }
 
@@ -177,13 +177,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     const seq = ++this.#receivedImageSequenceNumber;
 
-    let decodePromise: Promise<ImageBitmap | ImageData | undefined> | undefined = undefined;
+    let decodePromise: Promise<ImageBitmap | ImageData | VideoFrame | undefined> | undefined =
+      undefined;
     if ("format" in image && image.format === "h264") {
       if (this.decoder == undefined) {
         this.decoder = new WorkerImageDecoder();
       }
 
-      decodePromise = this.decoder.decodeH264Frame(image, this.#receivedImageSequenceNumber);
+      decodePromise = this.decoder.decodeH264Frame(image);
     } else {
       decodePromise = this.decodeImage(image, resizeWidth);
     }
@@ -196,6 +197,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         // prevent displaying an image older than the one currently displayed
         if (this.#displayedImageSequenceNumber > seq) {
           return;
+        }
+        if (this.#decodedImage instanceof VideoFrame) {
+          this.#decodedImage.close();
         }
         this.#displayedImageSequenceNumber = seq;
         this.#decodedImage = result;
@@ -300,16 +304,30 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       "Decoded image must be set before texture can be updated or created",
     );
     const decodedImage = this.#decodedImage;
+    if (
+      decodedImage instanceof VideoFrame &&
+      (decodedImage.displayWidth === 0 || decodedImage.displayHeight === 0)
+    ) {
+      decodedImage.close();
+      return;
+    }
+
     // Create or update the bitmap texture
-    if (decodedImage instanceof ImageBitmap) {
+    if (decodedImage instanceof ImageBitmap || decodedImage instanceof VideoFrame) {
       const canvasTexture = this.userData.texture;
       if (
         canvasTexture == undefined ||
         // instanceof check allows us to switch from a raw image (DataTexture) to a compressed image (CanvasTexture)
         !(canvasTexture instanceof THREE.CanvasTexture) ||
-        !bitmapDimensionsEqual(decodedImage, canvasTexture.image as ImageBitmap | undefined)
+        !bitmapDimensionsEqual(
+          decodedImage,
+          canvasTexture.image as ImageBitmap | VideoFrame | undefined,
+        )
       ) {
-        if (canvasTexture?.image instanceof ImageBitmap) {
+        if (
+          canvasTexture?.image instanceof ImageBitmap ||
+          canvasTexture?.image instanceof VideoFrame
+        ) {
           // don't close the image if it is the error image
           canvasTexture.image.close();
         }
@@ -419,7 +437,31 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
 let tempColor = { r: 0, g: 0, b: 0, a: 0 };
 
-function createCanvasTexture(bitmap: ImageBitmap): THREE.CanvasTexture {
+function createCanvasTexture(bitmap: ImageBitmap | VideoFrame): THREE.CanvasTexture {
+  if (bitmap instanceof VideoFrame) {
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.displayWidth;
+    canvas.height = bitmap.displayHeight;
+
+    const context = canvas.getContext("2d");
+    if (context != undefined) {
+      context.drawImage(bitmap, 0, 0);
+    }
+
+    const texture = new THREE.CanvasTexture(
+      canvas,
+      THREE.UVMapping,
+      THREE.ClampToEdgeWrapping,
+      THREE.ClampToEdgeWrapping,
+      THREE.NearestFilter,
+      THREE.LinearFilter,
+      THREE.RGBAFormat,
+      THREE.UnsignedByteType,
+    );
+    texture.generateMipmaps = false;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
   const texture = new THREE.CanvasTexture(
     bitmap,
     THREE.UVMapping,
@@ -509,8 +551,17 @@ function createGeometry(
   return geometry;
 }
 
-const bitmapDimensionsEqual = (a?: ImageBitmap, b?: ImageBitmap) =>
-  a?.width === b?.width && a?.height === b?.height;
+const bitmapDimensionsEqual = (a?: ImageBitmap | VideoFrame, b?: ImageBitmap | VideoFrame) => {
+  if (a instanceof ImageBitmap && b instanceof ImageBitmap) {
+    return a.width === b.width && a.height === b.height;
+  }
+
+  if (a instanceof VideoFrame && b instanceof VideoFrame) {
+    return a.displayWidth === b.displayWidth && a.displayHeight === b.displayHeight;
+  }
+
+  return true;
+};
 
 async function getErrorImage(width: number, height: number): Promise<ImageBitmap> {
   const canvas = document.createElement("canvas");
