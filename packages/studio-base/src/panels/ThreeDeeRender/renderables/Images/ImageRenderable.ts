@@ -438,30 +438,6 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 let tempColor = { r: 0, g: 0, b: 0, a: 0 };
 
 function createCanvasTexture(bitmap: ImageBitmap | VideoFrame): THREE.CanvasTexture {
-  if (bitmap instanceof VideoFrame) {
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.displayWidth;
-    canvas.height = bitmap.displayHeight;
-
-    const context = canvas.getContext("2d");
-    if (context != undefined) {
-      context.drawImage(bitmap, 0, 0);
-    }
-
-    const texture = new THREE.CanvasTexture(
-      canvas,
-      THREE.UVMapping,
-      THREE.ClampToEdgeWrapping,
-      THREE.ClampToEdgeWrapping,
-      THREE.NearestFilter,
-      THREE.LinearFilter,
-      THREE.RGBAFormat,
-      THREE.UnsignedByteType,
-    );
-    texture.generateMipmaps = false;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    return texture;
-  }
   const texture = new THREE.CanvasTexture(
     bitmap,
     THREE.UVMapping,
