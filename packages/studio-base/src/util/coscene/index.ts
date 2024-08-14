@@ -6,11 +6,7 @@
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
 import { ServiceType, Timestamp, Value, JsonObject } from "@bufbuild/protobuf";
-import {
-  ACCESS_TOKEN_NAME,
-  SUPER_TOKEN_ACCESS_TOKEN_NAME,
-  uuidv4,
-} from "@coscene-io/coscene/queries";
+import { ACCESS_TOKEN_NAME, SUPER_TOKEN_ACCESS_TOKEN_NAME } from "@coscene-io/coscene/queries";
 import {
   Layout,
   LayoutDetail,
@@ -18,6 +14,7 @@ import {
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
+import { v4 as uuidv4 } from "uuid";
 
 import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 
