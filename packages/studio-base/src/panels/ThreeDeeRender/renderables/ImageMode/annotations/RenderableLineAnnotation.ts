@@ -37,7 +37,10 @@ class PickingMaterial extends LineMaterialWithAlphaVertex {
     this.uniforms.objectId = { value: [NaN, NaN, NaN, NaN] };
   }
 
-  public override onBeforeCompile(shader: THREE.Shader, renderer: THREE.WebGLRenderer): void {
+  public override onBeforeCompile(
+    shader: THREE.WebGLProgramParametersWithUniforms,
+    renderer: THREE.WebGLRenderer,
+  ): void {
     super.onBeforeCompile(shader, renderer);
     shader.fragmentShader = /* glsl */ `
       uniform vec4 objectId;

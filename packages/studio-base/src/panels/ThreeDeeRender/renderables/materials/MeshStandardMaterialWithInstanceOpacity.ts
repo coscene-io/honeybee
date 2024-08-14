@@ -7,7 +7,10 @@ import * as THREE from "three";
 // Same as MeshStandardMaterial, but supporting a per-instance alpha using an `instanceOpacity` attribute.
 // Based on https://github.com/pailhead/three-instanced-mesh/pull/35
 export class MeshStandardMaterialWithInstanceOpacity extends THREE.MeshStandardMaterial {
-  public override onBeforeCompile(shader: THREE.Shader, renderer: THREE.WebGLRenderer): void {
+  public override onBeforeCompile(
+    shader: THREE.WebGLProgramParametersWithUniforms,
+    renderer: THREE.WebGLRenderer,
+  ): void {
     super.onBeforeCompile(shader, renderer);
     shader.vertexShader = shader.vertexShader
       .replace(

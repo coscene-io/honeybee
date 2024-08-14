@@ -33,7 +33,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export default function PlaybackSpeedControls(props: { disabled?: boolean }): JSX.Element {
+function PlaybackSpeedControls(props: { disabled?: boolean }): JSX.Element {
   const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const open = Boolean(anchorEl);
@@ -119,3 +119,5 @@ export default function PlaybackSpeedControls(props: { disabled?: boolean }): JS
     </>
   );
 }
+
+export default React.memo(PlaybackSpeedControls);
