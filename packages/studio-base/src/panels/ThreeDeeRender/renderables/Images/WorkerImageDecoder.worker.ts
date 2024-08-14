@@ -147,7 +147,7 @@ function getH264Decoder(): VideoDecoder {
   return h264Decoder;
 }
 
-function decodeH264Frame(data: Uint8Array | Int8Array, sequenceNumber: number): void {
+function decodeH264Frame(data: Uint8Array | Int8Array): void {
   let type: "delta" | "key" | "unknow frame" | "b frame" = "delta";
   if (data.length > 4) {
     type = isKeyFrame(data as Uint8Array);
@@ -169,14 +169,14 @@ function decodeH264Frame(data: Uint8Array | Int8Array, sequenceNumber: number): 
     return;
   }
 
+  const now = performance.now();
+  const decoder = getH264Decoder();
+
   const chunk = new EncodedVideoChunk({
-    timestamp: sequenceNumber,
+    timestamp: now,
     type,
     data,
   });
-
-  const decoder = getH264Decoder();
-
   try {
     decoder.decode(chunk);
   } catch (error) {

@@ -736,7 +736,14 @@ export class ImageMode
     // otherwise we would need to wait for the next image
     if (decodedImage && lastImageMessage) {
       const frameId = getFrameIdFromImage(lastImageMessage);
-      const { width, height } = decodedImage;
+      let width, height;
+      if (decodedImage instanceof VideoFrame) {
+        width = decodedImage.displayWidth;
+        height = decodedImage.displayHeight;
+      } else {
+        width = decodedImage.width;
+        height = decodedImage.height;
+      }
       const cameraInfo = createFallbackCameraInfoForImage({
         frameId,
         height,
@@ -956,10 +963,13 @@ export class ImageMode
       if (!this.imageRenderable) {
         return;
       }
-      const currentImage = this.imageRenderable.getDecodedImage();
+      let currentImage = this.imageRenderable.getDecodedImage();
       if (!currentImage) {
         return;
       }
+
+      currentImage =
+        currentImage instanceof VideoFrame ? await createImageBitmap(currentImage) : currentImage;
 
       const { topic, image: imageMessage } = this.imageRenderable.userData;
       if (!imageMessage) {

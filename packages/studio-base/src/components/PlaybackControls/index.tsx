@@ -83,6 +83,40 @@ const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
+function MomentButton({ disableControls }: { disableControls: boolean }): JSX.Element {
+  const { t } = useTranslation("cosEvent");
+
+  return (
+    <HoverableIconButton
+      disabled={disableControls}
+      size="small"
+      title={t("createMomentTips")}
+      icon={<ShieldOutlinedIcon />}
+      activeIcon={<ShieldTwoToneIcon />}
+      onClick={() => {
+        const event = new KeyboardEvent("keydown", {
+          key: "1",
+          code: "Digit1",
+          keyCode: 49, // '1'  keyCode
+          which: 49,
+          altKey: true, // mock Option (Alt)
+          bubbles: true,
+          cancelable: true,
+        });
+        document.dispatchEvent(event);
+      }}
+    >
+      <Typography variant="body2" marginLeft="4px">
+        {t("createMomentButtonText", {
+          option: navigator.platform.toUpperCase().includes("MAC") ? "⌥" : "Alt",
+        })}
+      </Typography>
+    </HoverableIconButton>
+  );
+}
+
+const MemoedMomentButton = React.memo(MomentButton);
+
 export default function PlaybackControls(props: {
   play: NonNullable<Player["startPlayback"]>;
   pause: NonNullable<Player["pausePlayback"]>;
@@ -206,31 +240,7 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            <HoverableIconButton
-              disabled={disableControls}
-              size="small"
-              title={t("createMomentTips")}
-              icon={<ShieldOutlinedIcon />}
-              activeIcon={<ShieldTwoToneIcon />}
-              onClick={() => {
-                const event = new KeyboardEvent("keydown", {
-                  key: "1",
-                  code: "Digit1",
-                  keyCode: 49, // '1'  keyCode
-                  which: 49,
-                  altKey: true, // mock Option (Alt)
-                  bubbles: true,
-                  cancelable: true,
-                });
-                document.dispatchEvent(event);
-              }}
-            >
-              <Typography variant="body2" marginLeft="4px">
-                {t("createMomentButtonText", {
-                  option: navigator.platform.toUpperCase().includes("MAC") ? "⌥" : "Alt",
-                })}
-              </Typography>
-            </HoverableIconButton>
+            <MemoedMomentButton disableControls={disableControls} />
             <Tooltip
               // A desired workflow is the ability to copy data source info text (start, end, duration)
               // from the tooltip. However, there's a UX quirk where the tooltip will close if the user
