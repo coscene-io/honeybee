@@ -54,6 +54,66 @@ export type ImageUserData = BaseUserData & {
   mesh: THREE.Mesh | undefined;
 };
 
+class DecodedFrame {
+  readonly #data: ImageData | ImageBitmap | VideoFrame;
+
+  #width: number;
+
+  #height: number;
+
+  #type: "image" | "bitmap" | "video";
+
+  public constructor(image: ImageBitmap | ImageData | VideoFrame) {
+    this.#data = image;
+
+    if (this.#data instanceof VideoFrame) {
+      this.#width = this.#data.displayWidth;
+      this.#height = this.#data.displayHeight;
+
+      this.#type = "video";
+    } else if (this.#data instanceof ImageBitmap) {
+      this.#width = this.#data.width;
+      this.#height = this.#data.height;
+
+      this.#type = "bitmap";
+    } else {
+      this.#width = this.#data.width;
+      this.#height = this.#data.height;
+
+      this.#type = "image";
+    }
+  }
+
+  public getData(): ImageData | ImageBitmap | VideoFrame {
+    return this.#data;
+  }
+
+  public getWidth(): number {
+    return this.#width;
+  }
+
+  public getHeight(): number {
+    return this.#height;
+  }
+
+  public getType(): "image" | "bitmap" | "video" {
+    return this.#type;
+  }
+
+  public async getImage(): Promise<ImageBitmap | ImageData> {
+    if (this.#data instanceof VideoFrame) {
+      return await createImageBitmap(this.#data);
+    }
+    return this.#data;
+  }
+
+  public close(): void {
+    if (this.#data instanceof ImageBitmap || this.#data instanceof VideoFrame) {
+      this.#data.close();
+    }
+  }
+}
+
 export class ImageRenderable extends Renderable<ImageUserData> {
   // Make sure that everything is build the first time we render
   // set when camera info or image changes
@@ -69,7 +129,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   #isUpdating = false;
 
-  #decodedImage?: ImageBitmap | VideoFrame | ImageData;
+  #decodedFrame?: DecodedFrame;
 
   protected decoder?: WorkerImageDecoder;
   #receivedImageSequenceNumber = 0;
@@ -86,8 +146,8 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     return this.#disposed;
   }
 
-  public getDecodedImage(): ImageBitmap | ImageData | VideoFrame | undefined {
-    return this.#decodedImage;
+  public getDecodedFrame(): DecodedFrame | undefined {
+    return this.#decodedFrame;
   }
 
   public override dispose(): void {
@@ -198,11 +258,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         if (this.#displayedImageSequenceNumber > seq) {
           return;
         }
-        if (this.#decodedImage instanceof VideoFrame) {
-          this.#decodedImage.close();
+        if (this.#decodedFrame?.getType() === "video") {
+          this.#decodedFrame.close();
         }
         this.#displayedImageSequenceNumber = seq;
-        this.#decodedImage = result;
+        this.#decodedFrame = new DecodedFrame(result);
         this.#textureNeedsUpdate = true;
         this.update();
         this.#showingErrorImage = false;
@@ -232,7 +292,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     if (this.#displayedImageSequenceNumber > seq) {
       return;
     }
-    this.#decodedImage = errorBitmap;
+    this.#decodedFrame = new DecodedFrame(errorBitmap);
     this.#textureNeedsUpdate = true;
     this.update();
     this.#showingErrorImage = true;
@@ -257,7 +317,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     }
     this.#isUpdating = true;
 
-    if (this.#textureNeedsUpdate && this.#decodedImage) {
+    if (this.#textureNeedsUpdate && this.#decodedFrame) {
       this.#updateTexture();
       this.#textureNeedsUpdate = false;
     }
@@ -300,27 +360,22 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   #updateTexture(): void {
     assert(
-      this.#decodedImage,
+      this.#decodedFrame,
       "Decoded image must be set before texture can be updated or created",
     );
-    const decodedImage = this.#decodedImage;
-    if (
-      decodedImage instanceof VideoFrame &&
-      (decodedImage.displayWidth === 0 || decodedImage.displayHeight === 0)
-    ) {
-      decodedImage.close();
-      return;
-    }
+    const decodedData = this.#decodedFrame.getData();
+    const decodedFrameWidth = this.#decodedFrame.getWidth();
+    const decodedFrameHeight = this.#decodedFrame.getHeight();
 
     // Create or update the bitmap texture
-    if (decodedImage instanceof ImageBitmap || decodedImage instanceof VideoFrame) {
+    if (decodedData instanceof ImageBitmap || decodedData instanceof VideoFrame) {
       const canvasTexture = this.userData.texture;
       if (
         canvasTexture == undefined ||
         // instanceof check allows us to switch from a raw image (DataTexture) to a compressed image (CanvasTexture)
         !(canvasTexture instanceof THREE.CanvasTexture) ||
         !bitmapDimensionsEqual(
-          decodedImage,
+          decodedData,
           canvasTexture.image as ImageBitmap | VideoFrame | undefined,
         )
       ) {
@@ -332,9 +387,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           canvasTexture.image.close();
         }
         canvasTexture?.dispose();
-        this.userData.texture = createCanvasTexture(decodedImage);
+        this.userData.texture = createCanvasTexture(decodedData);
       } else {
-        canvasTexture.image = decodedImage;
+        canvasTexture.image = decodedData;
         canvasTexture.needsUpdate = true;
       }
     } else {
@@ -343,14 +398,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         dataTexture == undefined ||
         // instanceof check allows us to switch from a compressed image (CanvasTexture) to a raw image (DataTexture)
         !(dataTexture instanceof THREE.DataTexture) ||
-        dataTexture.image.width !== decodedImage.width ||
-        dataTexture.image.height !== decodedImage.height
+        dataTexture.image.width !== decodedFrameWidth ||
+        dataTexture.image.height !== decodedFrameHeight
       ) {
         dataTexture?.dispose();
-        dataTexture = createDataTexture(decodedImage);
+        dataTexture = createDataTexture(decodedData);
         this.userData.texture = dataTexture;
       } else {
-        dataTexture.image = decodedImage;
+        dataTexture.image = decodedData;
         dataTexture.needsUpdate = true;
       }
     }
