@@ -726,24 +726,19 @@ export class ImageMode
   };
 
   /** Creates a fallback camera model based off of the renderable with a decoded image and updates the camera.
-   * Will no-op if there is not a decodedImage on the renderable.
+   * Will no-op if there is not a decodedFrame on the renderable.
    * Be sure to call `#updateViewAndRenderables` after calling this method to update the camera and renderable.
    */
   #updateFallbackCameraModel(renderable: ImageRenderable) {
-    const decodedImage = renderable.getDecodedImage();
+    const decodedFrame = renderable.getDecodedFrame();
     const lastImageMessage = renderable.userData.image;
     // if we've already received an image, use it to create a fallback camera model
     // otherwise we would need to wait for the next image
-    if (decodedImage && lastImageMessage) {
+    if (decodedFrame && lastImageMessage) {
       const frameId = getFrameIdFromImage(lastImageMessage);
-      let width, height;
-      if (decodedImage instanceof VideoFrame) {
-        width = decodedImage.displayWidth;
-        height = decodedImage.displayHeight;
-      } else {
-        width = decodedImage.width;
-        height = decodedImage.height;
-      }
+      const width = decodedFrame.getWidth();
+      const height = decodedFrame.getHeight();
+
       const cameraInfo = createFallbackCameraInfoForImage({
         frameId,
         height,
@@ -963,13 +958,12 @@ export class ImageMode
       if (!this.imageRenderable) {
         return;
       }
-      let currentImage = this.imageRenderable.getDecodedImage();
+      const currentImage = await this.imageRenderable.getDecodedFrame()?.getImage();
+
       if (!currentImage) {
+        log.error("No image to download");
         return;
       }
-
-      currentImage =
-        currentImage instanceof VideoFrame ? await createImageBitmap(currentImage) : currentImage;
 
       const { topic, image: imageMessage } = this.imageRenderable.userData;
       if (!imageMessage) {
@@ -1039,7 +1033,7 @@ export class ImageMode
         type: "item",
         label: "Download image",
         onclick: this.#getDownloadImageCallback(),
-        disabled: this.imageRenderable?.getDecodedImage() == undefined,
+        disabled: this.imageRenderable?.getDecodedFrame() == undefined,
       },
     ];
   }
