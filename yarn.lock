@@ -4343,7 +4343,7 @@ __metadata:
     string-replace-loader: 3.1.0
     style-loader: 3.3.4
     text-metrics: 3.0.0
-    three: 0.167.1
+    three: "patch:three@npm%3A0.167.1#../../patches/three.patch"
     tinycolor2: 1.6.0
     ts-essentials: 9.4.1
     ts-key-enum: 2.0.12
@@ -21680,6 +21680,13 @@ __metadata:
   version: 0.167.1
   resolution: "three@npm:0.167.1"
   checksum: 4500a7eb16dc9143f0e71b11c4886d003f31cd8e4cd4e755a045afbcdce0f3f9cec47ab1c9d00eb45fa2bb3ace6ef17b105eee93b90b15b43f0af1139db8741d
+  languageName: node
+  linkType: hard
+
+"three@patch:three@npm%3A0.167.1#../../patches/three.patch::locator=%40foxglove%2Fstudio-base%40workspace%3Apackages%2Fstudio-base":
+  version: 0.167.1
+  resolution: "three@patch:three@npm%3A0.167.1#../../patches/three.patch::version=0.167.1&hash=0b603d&locator=%40foxglove%2Fstudio-base%40workspace%3Apackages%2Fstudio-base"
+  checksum: fd4708a0cb4715df500dc444f3db004d6c0057df116c3862b13335228da4487c50e52a5ef1efbb3b7eec729564f6913e971b697a2519910a7e879647e8bcc097
   languageName: node
   linkType: hard
 
