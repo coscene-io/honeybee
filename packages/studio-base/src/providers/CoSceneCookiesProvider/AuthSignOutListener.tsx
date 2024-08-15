@@ -4,7 +4,6 @@
 
 import { useEffect } from 'react';
 import { useCookies } from 'react-cookie';
-// import { useNavigate } from 'react-router-dom';
 
 import { AUTH_STATUS_COOKIE_NAME, AuthStatus } from './constant';
 
@@ -12,12 +11,10 @@ function AuthSignOutListener(): JSX.Element {
   const [cookies] = useCookies([AUTH_STATUS_COOKIE_NAME]);
   const status = cookies.coSceneAuthStatus?.status;
   const signOut = status === AuthStatus.SIGN_OUT;
-  // const navigate = useNavigate();
 
   useEffect(() => {
     if (signOut) {
       window.location.href = '/login';
-      // navigate('/login');
     }
   }, [ signOut]);
 
