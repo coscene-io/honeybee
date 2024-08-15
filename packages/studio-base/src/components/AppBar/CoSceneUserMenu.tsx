@@ -49,7 +49,7 @@ export function UserMenu({
   const { dialogActions } = useWorkspaceActions();
 
   const beginSignOut = useCallback(async () => {
-    window.location.href = `${window.location.origin}/login`;
+    window.location.href = '/login'
   }, []);
 
   const onSignoutClick = useCallback(() => {
