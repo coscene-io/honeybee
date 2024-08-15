@@ -4,11 +4,14 @@
 
 import { CookiesProvider } from 'react-cookie';
 
+import { AuthSignOutListener } from '@foxglove/studio-base/providers/CoSceneCookiesProvider/AuthSignOutListener';
+
 import { cookieSetOptions } from './constant';
 
 export default function CoSceneCookiesProvider({ children }: { children?: React.PropsWithChildren }): JSX.Element {
   return (
     <CookiesProvider defaultSetOptions={cookieSetOptions}>
+      <AuthSignOutListener/>
       {children}
     </CookiesProvider>
   );
