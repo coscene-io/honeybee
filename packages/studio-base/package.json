@@ -97,7 +97,6 @@
     "@uiw/react-textarea-code-editor": "3.0.2",
     "babel-jest": "29.7.0",
     "babel-plugin-transform-import-meta": "2.2.1",
-    "broadcast-channel": "5.5.1",
     "browserify-zlib": "0.2.0",
     "chart.js": "4.4.0",
     "chartjs-plugin-annotation": "3.0.1",
