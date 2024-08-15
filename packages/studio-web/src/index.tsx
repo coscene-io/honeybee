@@ -9,7 +9,6 @@ import Logger from "@foxglove/log";
 import type { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
 import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
 
 import { CompatibilityBanner } from "./CompatibilityBanner";
 import { canRenderApp } from "./canRenderApp";
@@ -33,12 +32,6 @@ export type MainParams = {
 
 export async function main(getParams: () => Promise<MainParams> = async () => ({})): Promise<void> {
   log.debug("initializing");
-
-  bcInstance.listenBroadcastMessage((msg) => {
-    if (msg === LOGOUT_MESSAGE) {
-      window.location.href = "/login";
-    }
-  });
 
   window.onerror = (...args) => {
     console.error(...args);
