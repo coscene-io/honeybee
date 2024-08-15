@@ -218,7 +218,7 @@ function EventMark({
         transition
         id="event-mark-popper"
         style={{
-          opacity: isHiddenCreateMomentPopper ? 0.5 : 1,
+          opacity: isHiddenCreateMomentPopper ? 0 : 1,
         }}
       >
         {({ TransitionProps }) => (
