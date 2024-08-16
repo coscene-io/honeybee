@@ -19,7 +19,6 @@ export class IdbUrdfStorage implements IUrdfStorage {
   }
 
   public async set(uri: string, content: Uint8Array): Promise<void> {
-    log.debug("set", uri);
     try {
       await idbSet(uri, content, this.#db);
     } catch (err) {
@@ -28,7 +27,6 @@ export class IdbUrdfStorage implements IUrdfStorage {
   }
 
   public async get(uri: string): Promise<Uint8Array | undefined> {
-    log.debug("get", uri);
     try {
       return await idbGet<Uint8Array>(uri, this.#db);
     } catch (err) {
