@@ -4,12 +4,13 @@
 
 import { SvgIcon, SvgIconProps } from "@mui/material";
 
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 export function CoSceneLogo(): JSX.Element {
-  if (APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor") {
+  const logo = getDomainConfig().logo;
+  if (logo === "supor") {
     return <SuporLogo fontSize="inherit" color="inherit" />;
-  } else if (APP_CONFIG.VITE_APP_BASE_API_PORT === "keenon") {
+  } else if (logo === "keenon") {
     return <KeenonLogo fontSize="inherit" color="inherit" />;
   } else {
     return <DefaultLogo fontSize="inherit" color="inherit" />;
@@ -17,9 +18,10 @@ export function CoSceneLogo(): JSX.Element {
 }
 
 export function CoSceneTextLogo(): JSX.Element {
-  if (APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor") {
+  const logo = getDomainConfig().logo;
+  if (logo === "supor") {
     return <SuporLogo fontSize="inherit" color="inherit" />;
-  } else if (APP_CONFIG.VITE_APP_BASE_API_PORT === "keenon") {
+  } else if (logo === "keenon") {
     return <KeenonTextLogo fontSize="inherit" color="inherit" />;
   } else {
     return <DefaultTextLogo fontSize="inherit" color="inherit" />;

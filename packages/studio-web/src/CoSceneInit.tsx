@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useFavicon } from "react-use";
 
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { APP_CONFIG, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 export function useCoSceneInit(): void {
   let favicon = "";
@@ -20,7 +20,8 @@ export function useCoSceneInit(): void {
     throw new Error(t("currentUrlNotSupported"));
   }
 
-  if (APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor") {
+  const logo = getDomainConfig().logo;
+  if (logo === "supor") {
     favicon = "/viz/supor.ico";
   } else {
     switch (APP_CONFIG.VITE_APP_PROJECT_ENV) {
