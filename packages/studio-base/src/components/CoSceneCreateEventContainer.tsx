@@ -57,7 +57,7 @@ import {
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents, KeyValue } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
 const fadeInAnimation = keyframes`
@@ -546,7 +546,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
 
   const inputRef = useRef<HTMLInputElement>(ReactNull);
 
-  const isSupor = APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor";
+  const isSupor = getDomainConfig().logo === "supor";
 
   return (
     <>
