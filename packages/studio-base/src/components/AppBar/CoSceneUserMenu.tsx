@@ -14,7 +14,6 @@ import { useCurrentUserType } from "@foxglove/studio-base/context/CurrentUserCon
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
 
 const useStyles = makeStyles()({
   menuList: {
@@ -50,8 +49,7 @@ export function UserMenu({
   const { dialogActions } = useWorkspaceActions();
 
   const beginSignOut = useCallback(async () => {
-    await bcInstance.sendBroadcastMessage(LOGOUT_MESSAGE);
-    window.location.href = `${window.location.origin}/login`;
+    window.location.href = "/login";
   }, []);
 
   const onSignoutClick = useCallback(() => {
