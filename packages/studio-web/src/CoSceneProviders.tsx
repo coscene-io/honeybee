@@ -11,6 +11,7 @@ import CoSceneLayoutStorageContext from "@foxglove/studio-base/context/CoSceneLa
 import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext";
 import CoSceneBaseProvider from "@foxglove/studio-base/providers/CoSceneBaseProvider";
 import CoSceneConsoleApiRemoteLayoutStorageProvider from "@foxglove/studio-base/providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
+import CoSceneCookiesProvider from "@foxglove/studio-base/providers/CoSceneCookiesProvider";
 import CoSceneCurrentLayoutProvider from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider";
 import CoSceneLayoutManagerProvider from "@foxglove/studio-base/providers/CoSceneLayoutManagerProvider";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
@@ -195,6 +196,7 @@ export function CoSceneProviders(): JSX.Element[] {
       <CoSceneCurrentLayoutProvider key="CoSceneCurrentLayoutProvider" />,
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
       <CoSceneProjectProvider key="CoSceneProjectProvider" />,
+      <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
     ],
     [consoleApi, layoutStorage, urdfStorage],
   );
