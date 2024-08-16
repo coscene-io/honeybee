@@ -78,7 +78,7 @@ export function getDomainConfig(): DomainConfig {
   return (
     APP_CONFIG.DOMAIN_CONFIG[window.location.hostname] ??
     APP_CONFIG.DOMAIN_CONFIG.default ??
-    DEFAULT_DOMAN_CONFIG.default
+    DEFAULT_DOMAN_CONFIG.default!
   );
 }
 
