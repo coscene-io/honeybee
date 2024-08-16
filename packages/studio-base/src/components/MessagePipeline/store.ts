@@ -21,6 +21,7 @@ import {
   PlayerState,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
+import { IUrdfStorage } from "@foxglove/studio-base/services/UrdfStorage";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { FramePromise } from "./pauseFrameForPromise";
@@ -92,9 +93,11 @@ export type MessagePipelineStateAction =
 export function createMessagePipelineStore({
   promisesToWaitForRef,
   initialPlayer,
+  urdfStorage,
 }: {
   promisesToWaitForRef: MutableRefObject<FramePromise[]>;
   initialPlayer: Player | undefined;
+  urdfStorage: IUrdfStorage;
 }): StoreApi<MessagePipelineInternalState> {
   return createStore((set, get) => ({
     player: initialPlayer,
@@ -169,6 +172,25 @@ export function createMessagePipelineStore({
         const { protocol } = new URL(uri);
         const { player, lastCapabilities } = get();
 
+        const cachedFetchAsset = async (fileUri: string, opts?: { signal?: AbortSignal }) => {
+          const storagedData = await urdfStorage.get(fileUri);
+
+          if (storagedData) {
+            return {
+              uri: fileUri,
+              data: storagedData,
+              mediaType: undefined,
+            };
+          }
+
+          const fetchedUrdfFile = await builtinFetch(fileUri, opts);
+          if (urdfStorage.checkUriNeedsCache(fileUri)) {
+            await urdfStorage.set(fileUri, fetchedUrdfFile.data);
+          }
+
+          return fetchedUrdfFile;
+        };
+
         if (protocol === "package:") {
           // For the desktop app, package:// is registered as a supported schema for builtin _fetch_ calls.
           const canBuiltinFetchPkgUri = isDesktopApp();
@@ -177,7 +199,22 @@ export function createMessagePipelineStore({
 
           if (lastCapabilities.includes(PlayerCapabilities.assets) && player?.fetchAsset) {
             try {
-              return await player.fetchAsset(uri);
+              const storagedData = await urdfStorage.get(uri);
+
+              if (storagedData) {
+                return {
+                  uri,
+                  data: storagedData,
+                  mediaType: undefined,
+                };
+              }
+
+              const fetchedUrdfFile = await player.fetchAsset(uri);
+              if (urdfStorage.checkUriNeedsCache(uri)) {
+                await urdfStorage.set(uri, fetchedUrdfFile.data);
+              }
+
+              return fetchedUrdfFile;
             } catch (_err) {
               // Do nothing here as one of the fallback methods below might work.
             }
@@ -185,7 +222,7 @@ export function createMessagePipelineStore({
 
           if (canBuiltinFetchPkgUri) {
             try {
-              return await builtinFetch(uri, options);
+              return await cachedFetchAsset(uri, options);
             } catch (_err) {
               // Do nothing here as the fallback method below might work.
             }
@@ -204,14 +241,14 @@ export function createMessagePipelineStore({
             //   resolved: https://example.com/<pkgName>/<pkgPath>
             const resolvedUrl =
               options.referenceUrl.slice(0, options.referenceUrl.lastIndexOf(pkgName)) + pkgPath;
-            return await builtinFetch(resolvedUrl, options);
+            return await cachedFetchAsset(resolvedUrl, options);
           }
 
           throw new Error(`Failed to load asset ${uri}`);
         }
 
         // Use a regular fetch for all other protocols
-        return await builtinFetch(uri, options);
+        return await cachedFetchAsset(uri, options);
       },
       startPlayback: undefined,
       playUntil: undefined,

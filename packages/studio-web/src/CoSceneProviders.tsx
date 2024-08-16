@@ -8,6 +8,7 @@ import { ConsoleApi } from "@foxglove/studio-base";
 import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutStorageContext from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
+import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext";
 import CoSceneBaseProvider from "@foxglove/studio-base/providers/CoSceneBaseProvider";
 import CoSceneConsoleApiRemoteLayoutStorageProvider from "@foxglove/studio-base/providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
 import CoSceneCookiesProvider from "@foxglove/studio-base/providers/CoSceneCookiesProvider";
@@ -21,6 +22,7 @@ import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { checkBagFileSupported } from "@foxglove/studio-base/util/coscene";
 
 import { IdbLayoutStorage } from "./services/CoSceneIdbLayoutStorage";
+import { IdbUrdfStorage } from "./services/IdbUrdfStorage";
 
 const log = Logger.getLogger(__filename);
 
@@ -50,6 +52,8 @@ export function CoSceneProviders(): JSX.Element[] {
   consoleApi.setAuthHeader(localStorage.getItem("coScene_org_jwt") ?? "");
 
   const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
+
+  const urdfStorage = useMemo(() => new IdbUrdfStorage(), []);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -187,13 +191,14 @@ export function CoSceneProviders(): JSX.Element[] {
         value={layoutStorage}
         key="CoSceneLayoutStorageContext"
       />,
+      <UrdfStorageContext.Provider value={urdfStorage} key="UrdfStorageContext" />,
       <CoSceneLayoutManagerProvider key="CoSceneLayoutManagerProvider" />,
       <CoSceneCurrentLayoutProvider key="CoSceneCurrentLayoutProvider" />,
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
       <CoSceneProjectProvider key="CoSceneProjectProvider" />,
       <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
     ],
-    [consoleApi, layoutStorage],
+    [consoleApi, layoutStorage, urdfStorage],
   );
 
   return providers;
