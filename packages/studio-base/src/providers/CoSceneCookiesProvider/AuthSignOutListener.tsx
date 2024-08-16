@@ -10,9 +10,9 @@ import { getAuthStatusCookieName } from "@foxglove/studio-base/util/appConfig";
 import { AuthStatus } from "./constant";
 
 function AuthSignOutListener(): JSX.Element {
-  const [cookies] = useCookies([getAuthStatusCookieName()]);
-  const status = cookies.coSceneAuthStatus?.status;
-  const signOut = status === AuthStatus.SIGN_OUT;
+  const authStatusCookieName = getAuthStatusCookieName();
+  const [cookies] = useCookies([authStatusCookieName]);
+  const signOut = cookies[authStatusCookieName]?.status === AuthStatus.SIGN_OUT;
 
   useEffect(() => {
     if (signOut) {
