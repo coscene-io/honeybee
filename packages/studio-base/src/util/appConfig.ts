@@ -2,11 +2,25 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-interface LogoType {
+interface DomainConfig {
+  env: string;
   logo: string;
-  sso_domain: string;
+  authStatusCookieName: string;
+  authStatusCookieDomain: string;
+  webDomain: string;
+  ssoDomain: string;
 }
 
+const DEFAULT_DOMAN_CONFIG: { [domain: string]: DomainConfig } = {
+  default: {
+    env: "local",
+    logo: "coscene",
+    authStatusCookieName: "coSceneAuthStatusDev",
+    authStatusCookieDomain: "localhost",
+    webDomain: "home.coscene.dev",
+    ssoDomain: "sso.coscene.dev",
+  },
+};
 declare global {
   interface Window {
     cosConfig: {
@@ -21,8 +35,8 @@ declare global {
       VITE_APP_BASE_API_URL?: string;
       VITE_APP_PROJECT_ENV?: string;
       VITE_APP_BFF_URL?: string;
-      LOGO_CONFIG?: { [domain: string]: LogoType };
       DEFAULT_TOPIC_PREFIX_OPEN?: { [domain: string]: string };
+      DOMAIN_CONFIG?: { [domain: string]: DomainConfig };
     };
   }
 }
@@ -56,8 +70,20 @@ export const APP_CONFIG = {
     "http://coscene-artifacts-production.oss-cn-hangzhou.aliyuncs.com/honeybee_layouts/dev/index.json",
   SENTRY_HONEYBEE_DSN: cosConfig.SENTRY_HONEYBEE_DSN ?? "",
   SENTRY_ENABLED: cosConfig.SENTRY_ENABLED ?? false,
-  LOGO_CONFIG: cosConfig.LOGO_CONFIG ?? {},
   DEFAULT_TOPIC_PREFIX_OPEN: cosConfig.DEFAULT_TOPIC_PREFIX_OPEN ?? {},
+  DOMAIN_CONFIG: cosConfig.DOMAIN_CONFIG ?? DEFAULT_DOMAN_CONFIG,
 };
+
+export function getDomainConfig(): DomainConfig {
+  return (
+    APP_CONFIG.DOMAIN_CONFIG[window.location.hostname] ??
+    APP_CONFIG.DOMAIN_CONFIG.default ??
+    DEFAULT_DOMAN_CONFIG.default!
+  );
+}
+
+export function getAuthStatusCookieName(): string {
+  return getDomainConfig().authStatusCookieName;
+}
 
 window.cosConfig = APP_CONFIG;
