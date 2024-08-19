@@ -62,6 +62,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       url,
       metricsCollector: args.metricsCollector,
       sourceId: this.id,
+      params: args.params ?? {},
     });
   }
 }

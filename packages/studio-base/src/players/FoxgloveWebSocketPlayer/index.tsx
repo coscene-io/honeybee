@@ -171,10 +171,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
     url,
     metricsCollector,
     sourceId,
+    params,
   }: {
     url: string;
     metricsCollector: PlayerMetricsCollectorInterface;
     sourceId: string;
+    params: Record<string, string | undefined>;
   }) {
     this.#metricsCollector = metricsCollector;
     this.#url = url;
@@ -183,7 +185,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#sourceId = sourceId;
     this.#urlState = {
       sourceId: this.#sourceId,
-      parameters: { url: this.#url },
+      parameters: { ...params, url: this.#url },
     };
     this.#open();
   }
