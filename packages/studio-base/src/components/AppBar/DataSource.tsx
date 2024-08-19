@@ -125,7 +125,7 @@ export function DataSource(): JSX.Element {
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
   const hostName = urlState?.parameters?.hostName;
-  const deviceLink = urlState?.parameters?.deviceLink;
+  const deviceLink = urlState?.parameters?.deviceLink ?? "";
 
   if (playerPresence === PlayerPresence.NOT_PRESENT) {
     return <div className={classes.sourceName}>{t("noDataSource")}</div>;
@@ -184,7 +184,7 @@ export function DataSource(): JSX.Element {
                 aria-label="breadcrumb"
               >
                 <Link
-                  href={deviceLink ?? "#"}
+                  href={deviceLink || "#"}
                   target="_blank"
                   underline="hover"
                   key="1"
