@@ -52,7 +52,10 @@ import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoS
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import {
+  DataSourceArgs,
+  usePlayerSelection,
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import {
@@ -425,6 +428,9 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     targetUrlState ? { ds: targetUrlState.ds, dsParams: targetUrlState.dsParams } : undefined,
   );
 
+  // Ensure that the data source is initialised only once
+  const currentSource = useRef<(DataSourceArgs & { id: string }) | undefined>(undefined);
+
   const selectEvent = useEvents(selectSelectEvent);
   // Load data source from URL.
   useEffect(() => {
@@ -438,7 +444,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     // Apply any available data source args
     if (unappliedSourceArgs.ds) {
       log.debug("Initialising source from url", unappliedSourceArgs);
-      selectSource(unappliedSourceArgs.ds, {
+      const sourceParams: DataSourceArgs = {
         type: "connection",
         params: {
           ...unappliedSourceArgs.dsParams,
@@ -446,7 +452,16 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
           files: JSON.stringify(baseInfo.files),
           userId: currentUser?.userId,
         },
-      });
+      };
+
+      if (_.isEqual({ id: unappliedSourceArgs.ds, ...sourceParams }, currentSource.current)) {
+        return;
+      }
+
+      currentSource.current = { id: unappliedSourceArgs.ds, ...sourceParams };
+
+      selectSource(unappliedSourceArgs.ds, sourceParams);
+
       selectEvent(unappliedSourceArgs.dsParams?.eventId);
       setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
     }
@@ -457,6 +472,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     unappliedSourceArgs,
     setUnappliedSourceArgs,
     baseInfo,
+    currentSource,
   ]);
 
   const appBar = useMemo(
