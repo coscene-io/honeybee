@@ -168,13 +168,6 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
       }
 
       // metricsCollector.setProperty("player", sourceId);
-
-      setSelectedSource(foundSource);
-
-      setSelectedSource(foundSource);
-
-      setSelectedSource(foundSource);
-
       setSelectedSource(foundSource);
 
       // Sample sources don't need args or prompts to initialize
