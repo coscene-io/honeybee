@@ -22,6 +22,7 @@ export function CoSceneBaseSyncAdapter(): ReactNull {
     const baseInfoKey = decodeURI(url.searchParams.get("ds.key") ?? "");
 
     if (baseInfoKey) {
+      consoleApi.setType("playback");
       try {
         setBaseInfo({ loading: true, value: {} });
         const baseInfo = await consoleApi.getBaseInfo(baseInfoKey);
@@ -31,6 +32,9 @@ export function CoSceneBaseSyncAdapter(): ReactNull {
       } catch (error) {
         setBaseInfo({ loading: false, error });
       }
+    } else {
+      // if no shorturl key, this is a ws realtime link
+      consoleApi.setType("realtime");
     }
   }, [consoleApi, setBaseInfo]);
 
