@@ -4,7 +4,7 @@
 
 import { ErrorCircle16Filled } from "@fluentui/react-icons";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import { CircularProgress, IconButton, Link, Breadcrumbs, Typography } from "@mui/material";
+import { CircularProgress, IconButton, Link, Breadcrumbs } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -39,6 +39,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     whiteSpace: "nowrap",
     maxHeight: "44px",
     minWidth: 0,
+    color: theme.palette.appBar.text,
   },
   adornment: {
     display: "flex",
@@ -74,9 +75,6 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     "svg:not(.MuiSvgIcon-root)": {
       fontSize: "1rem",
     },
-  },
-  numericValue: {
-    fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
   },
   breadcrumbs: {
     display: "flex",
@@ -127,6 +125,7 @@ export function DataSource(): JSX.Element {
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
   const hostName = urlState?.parameters?.hostName;
+  const deviceLink = urlState?.parameters?.deviceLink ?? "";
 
   if (playerPresence === PlayerPresence.NOT_PRESENT) {
     return <div className={classes.sourceName}>{t("noDataSource")}</div>;
@@ -180,9 +179,21 @@ export function DataSource(): JSX.Element {
                 {breadcrumbs}
               </Breadcrumbs>
             ) : (
-              <Typography className={classes.numericValue} variant="inherit">
-                {isLiveConnection ? `${hostName ?? playerDisplayName}` : `<${t("unknown")}>`}
-              </Typography>
+              <Breadcrumbs
+                separator={<NavigateNextIcon fontSize="small" />}
+                aria-label="breadcrumb"
+              >
+                <Link
+                  href={deviceLink || "#"}
+                  target="_blank"
+                  underline="hover"
+                  key="1"
+                  color="inherit"
+                  className={classes.breadcrumbs}
+                >
+                  {isLiveConnection ? `${hostName ?? playerDisplayName}` : `<${t("unknown")}>`}
+                </Link>
+              </Breadcrumbs>
             )}
           </div>
           {isLiveConnection && (
