@@ -294,6 +294,7 @@ class CoSceneConsoleApi {
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
   #baseInfo: BaseInfo = {};
+  #type: "realtime" | "playback" = "playback";
 
   public constructor(
     baseUrl: string,
@@ -313,6 +314,14 @@ class CoSceneConsoleApi {
 
   public getApiBaseInfo(): BaseInfo {
     return this.#baseInfo;
+  }
+
+  public setType(type: "realtime" | "playback"): void {
+    this.#type = type;
+  }
+
+  public getType(): "realtime" | "playback" {
+    return this.#type;
   }
 
   public getProblemManager(): PlayerProblemManager {
