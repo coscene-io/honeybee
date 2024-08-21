@@ -10,8 +10,7 @@ export const cosError = {
   insecureWebSocketConnectionMessage:
     "Check that the WebSocket server at {{url}} is reachable and supports protocol version {{version}}.",
   checkNetworkConnection: "Please check the network status of the device or robot you are using.",
-  checkFoxgloveBridge:
-    "Please check if your robot has installed <docLink>foxglove_bridge</docLink>",
+  checkFoxgloveBridge: "Please check if your robot has installed <docLink>coBridge</docLink>",
   contactUs: "If none of the above methods can solve the issue, please contact us.",
   connectionFailed: "Connection failed",
   inactivePage: "The page is inactive",

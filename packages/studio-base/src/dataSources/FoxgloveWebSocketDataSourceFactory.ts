@@ -12,10 +12,10 @@ import { Player } from "@foxglove/studio-base/players/types";
 export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-websocket";
   public type: IDataSourceFactory["type"] = "connection";
-  public displayName = "Foxglove WebSocket";
+  public displayName = "coScene WebSocket";
   public iconName: IDataSourceFactory["iconName"] = "Flow";
   public description =
-    "Connect to a ROS 1, ROS 2, or custom system using the Foxglove WebSocket protocol. For ROS systems, be sure to first install the foxglove_bridge ROS package.";
+    "Connect to a ROS 1, ROS 2, or custom system using the coScene WebSocket protocol. For ROS systems, be sure to first install the coBridge ROS package.";
   public docsLinks = [
     {
       label: "ROS 1",
