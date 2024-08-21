@@ -4,7 +4,6 @@
 
 export const cosEvent = {
   addPhoto: "Add Photo",
-  assignee: "Assignee",
   cancel: "Cancel",
   copiedMomentToClipboard: "Copied moment to clipboard",
   createMoment: "Create Moment",
@@ -70,4 +69,7 @@ export const cosEvent = {
   createMomentButtonText: "Create moment（{{option}} + 1）",
   date: "Date",
   startPoint: "Start Point",
+  taskName: "Task Name",
+  taskDescription: "Task Description",
+  taskAssignee: "Task Assignee",
 };

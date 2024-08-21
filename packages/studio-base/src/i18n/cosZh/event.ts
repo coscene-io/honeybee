@@ -6,7 +6,6 @@ import { TypeOptions } from "i18next";
 
 export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   addPhoto: "添加照片",
-  assignee: "经办人",
   cancel: "取消",
   copiedMomentToClipboard: "已复制一刻到剪贴板",
   createMoment: "创建一刻",
@@ -71,4 +70,7 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   createMomentButtonText: "创建一刻（{{option}} + 1）",
   date: "日期",
   startPoint: "起始点",
+  taskName: "任务名称",
+  taskDescription: "任务描述",
+  taskAssignee: "任务经办人",
 };

@@ -10,6 +10,8 @@ import HelpIcon from "@mui/icons-material/Help";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Alert,
+  // eslint-disable-next-line no-restricted-imports
+  Box,
   Button,
   Checkbox,
   CircularProgress,
@@ -23,15 +25,17 @@ import {
   Select,
   MenuItem,
   Tooltip,
+  Autocomplete,
 } from "@mui/material";
 import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
+import PinyinMatch from "pinyin-match";
 import { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { useAsyncFn } from "react-use";
+import { useAsyncFn, useAsync } from "react-use";
 import { keyframes } from "tss-react";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
@@ -47,7 +51,6 @@ import {
   fromSec,
   fromDate,
 } from "@foxglove/rostime";
-import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
@@ -97,6 +100,15 @@ const useStyles = makeStyles()((theme, _params) => ({
     gap: "8px",
     padding: "24px",
   },
+  avatar: {
+    width: 18,
+    height: 18,
+    borderRadius: "50%",
+    marginRight: 5,
+  },
+  // circularProgress: {
+  //   marginRight: "0.5rem",
+  // },
 }));
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
@@ -188,6 +200,20 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     record: "",
   });
 
+  const [task, setTask] = useImmer<{
+    title: string;
+    description: string;
+    assignee: string;
+    assigner: string;
+    needSyncTask: boolean;
+  }>({
+    title: "",
+    description: "",
+    assignee: "",
+    assigner: "",
+    needSyncTask: false,
+  });
+
   useEffect(() => {
     if (toModifyEvent != undefined) {
       setEvent((old) => ({
@@ -253,20 +279,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     };
   }, []);
 
-  const [task, setTask] = useImmer<{
-    enabled: boolean;
-    eventName: string;
-    title: string;
-    description: string;
-  }>({
-    enabled: false,
-    eventName: "",
-    title: "",
-    description: "",
-  });
-
-  const [targetEvent, setTargetEvent] = useState<Event | undefined>(undefined);
-
   const updateMetadata = useCallback(
     (index: number, updateType: keyof KeyValue, value: string) => {
       setEvent((draft) => {
@@ -296,197 +308,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
   );
   const canSubmit = event.startTime != undefined && event.duration != undefined && !duplicateKey;
   const { enqueueSnackbar } = useSnackbar();
-
-  const [createdEvent, createEvent] = useAsyncFn(async () => {
-    if (event.startTime == undefined || event.duration == undefined) {
-      return;
-    }
-
-    const filteredMeta = event.metadataEntries.filter(
-      (entry) => entry.key.length > 0 && entry.value.length > 0,
-    );
-    const keyedMetadata = Object.fromEntries(
-      filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
-    );
-
-    const fileName = event.fileName;
-    const projectName = fileName.split("/records/")[0];
-    const recordName = fileName.split("/files/")[0];
-
-    const newEvent = new Event();
-
-    newEvent.setDisplayName(event.eventName);
-    const timestamp = new Timestamp();
-
-    timestamp.fromDate(event.startTime);
-
-    newEvent.setTriggerTime(timestamp);
-
-    if (event.durationUnit === "sec") {
-      newEvent.setDuration(secondsToDuration(event.duration));
-    } else {
-      newEvent.setDuration(secondsToDuration(event.duration / 1e9));
-    }
-
-    if (event.description) {
-      newEvent.setDescription(event.description);
-    }
-
-    Object.keys(keyedMetadata).forEach((key) => {
-      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
-    });
-
-    if (projectName == undefined || recordName == undefined) {
-      toast.error(t("createMomentFailed"));
-      return;
-    }
-
-    try {
-      if (event.imageFile) {
-        const imgId = uuidv4();
-
-        const imgFileDisplayName = `${imgId}.${
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
-          ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
-        }`;
-
-        await consoleApi.uploadEventPicture({
-          recordName,
-          file: event.imageFile,
-          filename: imgFileDisplayName,
-        });
-
-        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
-      }
-
-      const result = await consoleApi.createEvent({
-        event: newEvent,
-        parent: projectName,
-        recordName,
-      });
-
-      const eventName = result.getName();
-
-      setTargetEvent(result);
-      if (event.enabledCreateNewTask) {
-        setTask({
-          enabled: true,
-          eventName,
-          title: event.eventName,
-          description: event.description ?? "",
-        });
-      } else {
-        onClose();
-      }
-
-      refreshEvents();
-      enqueueSnackbar(t("createMomentSuccess"), { variant: "success" });
-    } catch (e) {
-      enqueueSnackbar(t("createMomentFailed"), { variant: "error" });
-    }
-  }, [consoleApi, event, onClose, refreshEvents, setTask, enqueueSnackbar, t]);
-
-  const [editedEvent, editEvent] = useAsyncFn(async () => {
-    if (event.startTime == undefined || event.duration == undefined) {
-      return;
-    }
-
-    const filteredMeta = event.metadataEntries.filter(
-      (entry) => entry.key.length > 0 && entry.value.length > 0,
-    );
-    const keyedMetadata = Object.fromEntries(
-      filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
-    );
-
-    const newEvent = new Event();
-
-    newEvent.setName(toModifyEvent?.name ?? "");
-
-    newEvent.setDisplayName(event.eventName);
-    const timestamp = new Timestamp();
-
-    timestamp.fromDate(event.startTime);
-
-    newEvent.setTriggerTime(timestamp);
-
-    if (event.durationUnit === "sec") {
-      newEvent.setDuration(secondsToDuration(event.duration));
-    } else {
-      newEvent.setDuration(secondsToDuration(event.duration / 1e9));
-    }
-
-    if (event.description) {
-      newEvent.setDescription(event.description);
-    }
-
-    const maskArray = [
-      "displayName",
-      "duration_nanos",
-      "description",
-      "duration",
-      "customizedFields",
-    ];
-
-    if (!event.imgUrl && !event.imageFile) {
-      newEvent.setFilesList([]);
-      maskArray.push("files");
-    }
-
-    Object.keys(keyedMetadata).forEach((key) => {
-      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
-    });
-
-    try {
-      const imgId = uuidv4();
-      const recordName = event.record;
-
-      if (event.imageFile && recordName) {
-        const imgFileDisplayName = `${imgId}.${
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
-          ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
-        }`;
-
-        await consoleApi.uploadEventPicture({
-          recordName,
-          file: event.imageFile,
-          filename: imgFileDisplayName,
-        });
-
-        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
-        maskArray.push("files");
-      }
-
-      const fieldMask = new FieldMask();
-      fieldMask.setPathsList(maskArray);
-
-      await consoleApi.updateEvent({
-        event: newEvent,
-        updateMask: fieldMask,
-      });
-      onClose();
-
-      refreshEvents();
-      enqueueSnackbar(t("editMomentSuccess"), { variant: "success" });
-    } catch (e) {
-      enqueueSnackbar(t("editMomentFailed"), { variant: "error" });
-    }
-  }, [
-    consoleApi,
-    enqueueSnackbar,
-    event.description,
-    event.duration,
-    event.durationUnit,
-    event.eventName,
-    event.imageFile,
-    event.imgUrl,
-    event.metadataEntries,
-    event.record,
-    event.startTime,
-    onClose,
-    refreshEvents,
-    t,
-    toModifyEvent?.name,
-  ]);
 
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: React.KeyboardEvent) => {
@@ -547,6 +368,314 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
   const inputRef = useRef<HTMLInputElement>(ReactNull);
 
   const isSupor = getDomainConfig().logo === "supor";
+
+  // about task ---------------------
+  const projectName = event.fileName.split("/records/")[0];
+  const recordName = event.fileName.split("/files/")[0];
+
+  const { value: users } = useAsync(async () => {
+    return await consoleApi.listOrganizationUsers();
+  });
+
+  const { value: syncedTask } = useAsync(async () => {
+    const parent = `${projectName}/ticketSystem`;
+    return await consoleApi.getTicketSystemMetadata({ parent });
+  });
+
+  const activatedUsers = users?.filter((user) => user.getActive());
+
+  const jiraEnabled = syncedTask?.getJiraEnabled() === true;
+  const onesEnabled = syncedTask?.getOnesEnabled() === true;
+
+  const [, syncTask] = useAsyncFn(async (name: string) => {
+    try {
+      await consoleApi.syncTask({ name });
+      enqueueSnackbar(t("syncTaskSuccess"), { variant: "success" });
+    } catch (e) {
+      enqueueSnackbar(t("syncTaskFailed"), { variant: "error" });
+    }
+  });
+
+  const [createdTask, createTask] = useAsyncFn(
+    async ({ targetEvent }: { targetEvent: Event }) => {
+      const parent = projectName;
+      const record = recordName;
+
+      if (parent == undefined || record == undefined) {
+        toast.error("createTaskFailed");
+        return;
+      }
+
+      const description =
+        JSON.stringify({
+          root: {
+            children: [
+              {
+                children: [
+                  {
+                    sourceName: targetEvent.getName(),
+                    sourceType: "moment",
+                    type: "source",
+                    version: 1,
+                  },
+                ],
+                direction: "ltr",
+                format: "",
+                indent: 0,
+                type: "paragraph",
+                version: 1,
+              },
+              ...task.description.split("\n").map((text) => ({
+                children: [
+                  {
+                    detail: 0,
+                    format: 0,
+                    mode: "normal",
+                    style: "",
+                    text,
+                    type: "text",
+                    version: 1,
+                  },
+                ],
+                direction: "ltr",
+                format: "",
+                indent: 0,
+                type: "paragraph",
+                version: 1,
+              })),
+            ],
+            direction: "ltr",
+            format: "",
+            indent: 0,
+            type: "root",
+            version: 1,
+          },
+        }) ?? task.description;
+      try {
+        const newTask = await consoleApi.createTask({
+          parent,
+          record,
+          task: { ...task, description },
+          event: targetEvent,
+        });
+        enqueueSnackbar(t("createTaskSuccess"), { variant: "success" });
+        if (task.needSyncTask) {
+          await syncTask(newTask.getName());
+        }
+        onClose();
+      } catch (e) {
+        enqueueSnackbar(t("createTaskFailed"), { variant: "error" });
+      }
+    },
+    [consoleApi, enqueueSnackbar, onClose, projectName, recordName, syncTask, t, task],
+  );
+
+  // create moment ---------------------
+  const [createdEvent, createEvent] = useAsyncFn(async () => {
+    if (event.startTime == undefined || event.duration == undefined) {
+      return;
+    }
+
+    const filteredMeta = event.metadataEntries.filter(
+      (entry) => entry.key.length > 0 && entry.value.length > 0,
+    );
+    const keyedMetadata = Object.fromEntries(
+      filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
+    );
+
+    const newEvent = new Event();
+
+    newEvent.setDisplayName(event.eventName);
+    const timestamp = new Timestamp();
+
+    timestamp.fromDate(event.startTime);
+
+    newEvent.setTriggerTime(timestamp);
+
+    if (event.durationUnit === "sec") {
+      newEvent.setDuration(secondsToDuration(event.duration));
+    } else {
+      newEvent.setDuration(secondsToDuration(event.duration / 1e9));
+    }
+
+    if (event.description) {
+      newEvent.setDescription(event.description);
+    }
+
+    Object.keys(keyedMetadata).forEach((key) => {
+      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
+    });
+
+    if (projectName == undefined || recordName == undefined) {
+      toast.error(t("createMomentFailed"));
+      return;
+    }
+
+    try {
+      if (event.imageFile) {
+        const imgId = uuidv4();
+
+        const imgFileDisplayName = `${imgId}.${
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
+          ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
+        }`;
+
+        await consoleApi.uploadEventPicture({
+          recordName,
+          file: event.imageFile,
+          filename: imgFileDisplayName,
+        });
+
+        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
+      }
+
+      const result = await consoleApi.createEvent({
+        event: newEvent,
+        parent: projectName,
+        recordName,
+      });
+
+      // const eventName = result.getName();
+
+      // setTargetEvent(result);
+      if (event.enabledCreateNewTask) {
+        // setTask({
+        //   enabled: true,
+        //   eventName,
+        //   title: event.eventName,
+        //   description: event.description ?? "",
+        // });
+        await createTask({ targetEvent: result });
+      } else {
+        onClose();
+      }
+
+      refreshEvents();
+      enqueueSnackbar(t("createMomentSuccess"), { variant: "success" });
+    } catch (e) {
+      enqueueSnackbar(t("createMomentFailed"), { variant: "error" });
+    }
+    // consoleApi, event, onClose, refreshEvents, enqueueSnackbar, t
+  }, [
+    event.startTime,
+    event.duration,
+    event.metadataEntries,
+    event.eventName,
+    event.durationUnit,
+    event.description,
+    event.imageFile,
+    event.enabledCreateNewTask,
+    projectName,
+    recordName,
+    t,
+    consoleApi,
+    refreshEvents,
+    enqueueSnackbar,
+    createTask,
+    onClose,
+  ]);
+
+  // edit moment ---------------------
+  const [editedEvent, editEvent] = useAsyncFn(async () => {
+    if (event.startTime == undefined || event.duration == undefined) {
+      return;
+    }
+
+    const filteredMeta = event.metadataEntries.filter(
+      (entry) => entry.key.length > 0 && entry.value.length > 0,
+    );
+    const keyedMetadata = Object.fromEntries(
+      filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
+    );
+
+    const newEvent = new Event();
+
+    newEvent.setName(toModifyEvent?.name ?? "");
+
+    newEvent.setDisplayName(event.eventName);
+    const timestamp = new Timestamp();
+
+    timestamp.fromDate(event.startTime);
+
+    newEvent.setTriggerTime(timestamp);
+
+    if (event.durationUnit === "sec") {
+      newEvent.setDuration(secondsToDuration(event.duration));
+    } else {
+      newEvent.setDuration(secondsToDuration(event.duration / 1e9));
+    }
+
+    if (event.description) {
+      newEvent.setDescription(event.description);
+    }
+
+    const maskArray = [
+      "displayName",
+      "duration_nanos",
+      "description",
+      "duration",
+      "customizedFields",
+    ];
+
+    if (!event.imgUrl && !event.imageFile) {
+      newEvent.setFilesList([]);
+      maskArray.push("files");
+    }
+
+    Object.keys(keyedMetadata).forEach((key) => {
+      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
+    });
+
+    try {
+      const imgId = uuidv4();
+
+      if (event.imageFile && recordName) {
+        const imgFileDisplayName = `${imgId}.${
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
+          ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
+        }`;
+
+        await consoleApi.uploadEventPicture({
+          recordName,
+          file: event.imageFile,
+          filename: imgFileDisplayName,
+        });
+
+        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
+        maskArray.push("files");
+      }
+
+      const fieldMask = new FieldMask();
+      fieldMask.setPathsList(maskArray);
+
+      await consoleApi.updateEvent({
+        event: newEvent,
+        updateMask: fieldMask,
+      });
+      onClose();
+
+      refreshEvents();
+      enqueueSnackbar(t("editMomentSuccess"), { variant: "success" });
+    } catch (e) {
+      enqueueSnackbar(t("editMomentFailed"), { variant: "error" });
+    }
+  }, [
+    consoleApi,
+    enqueueSnackbar,
+    event.description,
+    event.duration,
+    event.durationUnit,
+    event.eventName,
+    event.imageFile,
+    event.imgUrl,
+    event.metadataEntries,
+    event.startTime,
+    onClose,
+    recordName,
+    refreshEvents,
+    t,
+    toModifyEvent?.name,
+  ]);
 
   return (
     <>
@@ -782,6 +911,24 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
         </Stack>
         {!isEditing && (
           <Stack paddingX={3} paddingTop={2}>
+            <FormLabel>{t("record")}</FormLabel>
+            <Select
+              value={recordItems[0]?.name ?? ""}
+              disabled={recordItems.length <= 1}
+              onChange={(e) => {
+                setEvent((old) => ({ ...old, fileName: e.target.value }));
+              }}
+            >
+              {recordItems.map((bag) => (
+                <MenuItem key={bag.name} value={bag.name}>
+                  {bag.recordDisplayName}
+                </MenuItem>
+              ))}
+            </Select>
+          </Stack>
+        )}
+        {!isEditing && (
+          <Stack paddingX={3} paddingTop={2}>
             <FormControlLabel
               disableTypography
               checked={event.enabledCreateNewTask}
@@ -801,23 +948,109 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
             />
           </Stack>
         )}
-        {!isEditing && (
-          <Stack paddingX={3} paddingTop={2}>
-            <FormLabel>{t("record")}</FormLabel>
-            <Select
-              value={recordItems[0]?.name ?? ""}
-              disabled={recordItems.length <= 1}
-              onChange={(e) => {
-                setEvent((old) => ({ ...old, fileName: e.target.value }));
-              }}
-            >
-              {recordItems.map((bag) => (
-                <MenuItem key={bag.name} value={bag.name}>
-                  {bag.recordDisplayName}
-                </MenuItem>
-              ))}
-            </Select>
-          </Stack>
+        {event.enabledCreateNewTask && (
+          <>
+            <Stack paddingX={3} paddingTop={2}>
+              <TextField
+                fullWidth
+                variant="outlined"
+                label={
+                  <>
+                    <span className={classes.requiredFlags}>*</span>
+                    {t("taskName")}
+                  </>
+                }
+                maxRows={1}
+                value={task.title}
+                onChange={(val) => {
+                  setTask((state) => ({ ...state, title: val.target.value }));
+                }}
+                onKeyDown={onMetaDataKeyDown}
+              />
+            </Stack>
+            <Stack paddingX={3} paddingTop={2}>
+              <TextField
+                id="description"
+                label={t("taskDescription")}
+                rows={3}
+                value={task.description}
+                onChange={(val) => {
+                  setTask((state) => ({ ...state, description: val.target.value }));
+                }}
+                fullWidth
+                variant="outlined"
+                onKeyDown={onMetaDataKeyDown}
+              />
+            </Stack>
+            <Stack paddingX={3} paddingTop={2}>
+              <FormControl>
+                <FormLabel>{t("taskAssignee")}</FormLabel>
+                <Autocomplete
+                  disableClearable
+                  options={activatedUsers ?? []}
+                  getOptionLabel={(option) => option.getNickname()}
+                  renderInput={(params) => <TextField {...params} autoFocus variant="outlined" />}
+                  renderOption={(optionProps, option) => (
+                    <Box component="li" {...optionProps} key={option.getName()}>
+                      <img className={classes.avatar} src={option.getAvatar()} />
+                      {option.getNickname()}
+                    </Box>
+                  )}
+                  value={activatedUsers?.find((user) => user.getName() === task.assignee)}
+                  isOptionEqualToValue={(option, value) => option.getName() === value.getName()}
+                  onChange={(_event, option) => {
+                    setTask((s) => ({ ...s, assignee: option.getName() }));
+                  }}
+                  filterOptions={(options, { inputValue }) => {
+                    if (!inputValue) {
+                      return options;
+                    }
+                    return options.filter((option) => {
+                      const pinyinMatch = PinyinMatch.match(option.getNickname(), inputValue);
+                      return option.getNickname().includes(inputValue) || pinyinMatch !== false;
+                    });
+                  }}
+                  onKeyDown={onMetaDataKeyDown}
+                />
+              </FormControl>
+            </Stack>
+            <Stack paddingX={3} paddingTop={2}>
+              {!jiraEnabled && !onesEnabled ? (
+                <Tooltip title={t("syncTaskTooltip")} placement="top-start">
+                  <FormControlLabel
+                    disableTypography
+                    checked={task.needSyncTask}
+                    control={
+                      <Checkbox
+                        size="medium"
+                        checked={task.needSyncTask}
+                        onChange={(e) => {
+                          setTask((state) => ({ ...state, needSyncTask: e.target.checked }));
+                        }}
+                        disabled={true}
+                      />
+                    }
+                    label={t("syncTask")}
+                  />
+                </Tooltip>
+              ) : (
+                <FormControlLabel
+                  disableTypography
+                  checked={task.needSyncTask}
+                  control={
+                    <Checkbox
+                      size="medium"
+                      checked={task.needSyncTask}
+                      onChange={(e) => {
+                        setTask((state) => ({ ...state, needSyncTask: e.target.checked }));
+                      }}
+                    />
+                  }
+                  label={t("syncTask")}
+                />
+              )}
+            </Stack>
+          </>
         )}
         <div className={classes.containerFooter}>
           <Button variant="outlined" size="large" onClick={onClose}>
@@ -837,7 +1070,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
             disabled={!canSubmit || createdEvent.loading || editedEvent.loading || !event.eventName}
             ref={createMomentBtnRef}
           >
-            {(createdEvent.loading || editedEvent.loading) && (
+            {(createdEvent.loading || editedEvent.loading || createdTask.loading) && (
               <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
             )}
             {isEditing ? t("edit") : t("createMoment")}
@@ -852,21 +1085,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
           <Alert severity="error">{createdEvent.error.message}</Alert>
         )}
       </Stack>
-      {task.enabled && targetEvent && (
-        <CreateTaskDialog
-          initialTask={{
-            title: task.title,
-            eventName: task.eventName,
-            description: task.description,
-          }}
-          onClose={() => {
-            setTask({ enabled: false, eventName: "", title: "", description: "" });
-            onClose();
-          }}
-          event={targetEvent}
-          fileName={event.fileName}
-        />
-      )}
     </>
   );
 }
