@@ -12,7 +12,7 @@ export const cosError: Partial<TypeOptions["resources"]["cosError"]> = {
   insecureWebSocketConnectionMessage:
     "请检查 WebSocket 服务器 {{url}} 是否可访问，并且支持协议版本 {{version}}。",
   checkNetworkConnection: "请检查您正在使用的设备或机器人的网络状态。",
-  checkFoxgloveBridge: "请检查您的机器人是否已安装了 <docLink>foxglove_bridge</docLink>",
+  checkFoxgloveBridge: "请检查您的机器人是否已安装了 <docLink>coBridge</docLink>",
   contactUs: "如果以上方法都无法解决问题，请联系我们。",
   connectionFailed: "连接失败",
   inactivePage: "页面不活跃",

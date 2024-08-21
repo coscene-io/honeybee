@@ -320,7 +320,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
                     <a
                       style={{ color: "#2563eb" }}
                       target="_blank"
-                      href="https://docs.coscene.cn/docs/recipes/device/device-remote-control/#%E5%AE%9E%E6%97%B6%E5%8F%AF%E8%A7%86%E5%8C%96"
+                      href="https://github.com/coscene-io/coBridge"
                       rel="noopener"
                     />
                   ),
