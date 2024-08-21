@@ -106,9 +106,6 @@ const useStyles = makeStyles()((theme, _params) => ({
     borderRadius: "50%",
     marginRight: 5,
   },
-  // circularProgress: {
-  //   marginRight: "0.5rem",
-  // },
 }));
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
@@ -535,16 +532,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
         recordName,
       });
 
-      // const eventName = result.getName();
-
-      // setTargetEvent(result);
       if (event.enabledCreateNewTask) {
-        // setTask({
-        //   enabled: true,
-        //   eventName,
-        //   title: event.eventName,
-        //   description: event.description ?? "",
-        // });
         await createTask({ targetEvent: result });
       } else {
         onClose();
