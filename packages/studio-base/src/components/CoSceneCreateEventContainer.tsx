@@ -543,7 +543,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     } catch (e) {
       enqueueSnackbar(t("createMomentFailed"), { variant: "error" });
     }
-    // consoleApi, event, onClose, refreshEvents, enqueueSnackbar, t
   }, [
     event.startTime,
     event.duration,
