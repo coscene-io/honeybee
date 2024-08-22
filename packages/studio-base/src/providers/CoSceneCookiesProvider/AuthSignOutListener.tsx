@@ -15,7 +15,7 @@ function AuthSignOutListener(): JSX.Element {
   const signOut = cookies[authStatusCookieName]?.status === AuthStatus.SIGN_OUT;
 
   useEffect(() => {
-    if (signOut) {
+    if (signOut && process.env.NODE_ENV !== "development") {
       window.location.href = "/login";
     }
   }, [signOut]);
