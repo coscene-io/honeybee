@@ -92,6 +92,7 @@ const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hover
 const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 const selectSetToModifyEvent = (store: EventsStore) => store.setToModifyEvent;
+const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
 
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
@@ -100,17 +101,22 @@ function EventTick({ event }: { event: TimelinePositionedEvent }): JSX.Element {
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
   const selectedEventId = useEvents(selectSelectedEventId);
+  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
+
   const { classes, cx } = useStyles();
 
   const left = `calc(${_.clamp(event.startPosition, 0, 1) * 100}% - 1px)`;
   const right = `calc(100% - ${_.clamp(event.endPosition, 0, 1) * 100}% - 1px)`;
 
+  const isHovered =
+    (hoveredEvent != undefined && event.event.name === hoveredEvent.event.name) ||
+    eventsAtHoverValue[event.event.name] != undefined ||
+    loopedEvent?.event.name === event.event.name;
+
   return (
     <div
       className={cx(classes.tick, {
-        [classes.tickHovered]: hoveredEvent
-          ? event.event.name === hoveredEvent.event.name
-          : eventsAtHoverValue[event.event.name] != undefined,
+        [classes.tickHovered]: isHovered,
         [classes.tickSelected]: selectedEventId === event.event.name,
       })}
       style={{ left, right }}

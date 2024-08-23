@@ -181,6 +181,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     description: undefined | string;
     metadataEntries: KeyValue[];
     enabledCreateNewTask: boolean;
+    // if is create new momnet, fileName is the target bag file name
+    // if is edit moment, fileName is the target record name
     fileName: string;
     imageFile?: File;
     imgUrl?: string;
@@ -225,7 +227,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
             ? toModifyEvent.metadataEntries
             : [{ key: "", value: "" }],
         enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
-        fileName: toModifyEvent.fileName,
+        fileName: toModifyEvent.record,
         imgUrl: toModifyEvent.imgUrl,
         record: toModifyEvent.record,
       }));

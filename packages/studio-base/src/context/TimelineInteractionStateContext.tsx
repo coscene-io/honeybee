@@ -53,6 +53,9 @@ export type TimelineInteractionStateStore = Immutable<{
   /** The point in time hovered over by the user. */
   hoverValue: undefined | HoverValue;
 
+  /** The event that is currently being looped over. */
+  loopedEvent: undefined | TimelinePositionedEvent;
+
   /** Clears the current hover value. */
   clearHoverValue: (componentId: string) => void;
 
@@ -77,6 +80,9 @@ export type TimelineInteractionStateStore = Immutable<{
 
   /** Sets the new hover value. */
   setHoverValue: (value: HoverValue) => void;
+
+  /** Sets the event that is currently being looped over. */
+  setLoopedEvent: (loopEvent: undefined | TimelinePositionedEvent) => void;
 }>;
 
 export const TimelineInteractionStateContext = createContext<

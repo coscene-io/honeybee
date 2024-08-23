@@ -72,4 +72,6 @@ export const cosEvent = {
   taskName: "Task Name",
   taskDescription: "Task Description",
   taskAssignee: "Task Assignee",
+  nameOnly: "Name Only",
+  showDetail: "Show Detail",
 };
