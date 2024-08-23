@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
-import { subtract, Time, toSec, fromNanoSec, add } from "@foxglove/rostime";
+import { subtract, Time, toSec, fromNanoSec, add, isTimeInRangeInclusive } from "@foxglove/rostime";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -158,6 +158,9 @@ const selectEventMarks = (store: EventsStore) => store.eventMarks;
 const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectPause = (ctx: MessagePipelineContext) => ctx.pausePlayback;
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
+const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
 
 /**
  * Syncs events from server and syncs hovered event with hovered time.
@@ -177,6 +180,24 @@ export function CoSceneEventsSyncAdapter(): JSX.Element {
   const bagFiles = usePlaylist(selectBagFiles);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const pause = useMessagePipeline(selectPause);
+  const seek = useMessagePipeline(selectSeek);
+  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
+  const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
+
+  useEffect(() => {
+    if (loopedEvent != undefined && currentTime != undefined && seek != undefined) {
+      if (
+        toSec(subtract(currentTime, loopedEvent.endTime)) > 0.1 ||
+        toSec(subtract(loopedEvent.startTime, currentTime)) > 0.1
+      ) {
+        setLoopedEvent(undefined);
+      } else {
+        if (!isTimeInRangeInclusive(currentTime, loopedEvent.startTime, loopedEvent.endTime)) {
+          seek(loopedEvent.startTime);
+        }
+      }
+    }
+  }, [currentTime, loopedEvent, seek, setLoopedEvent]);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {

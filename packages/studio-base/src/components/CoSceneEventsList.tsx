@@ -4,7 +4,6 @@
 
 import ClearIcon from "@mui/icons-material/Clear";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   AppBar,
@@ -15,8 +14,10 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Select,
+  MenuItem,
+  SelectChangeEvent,
 } from "@mui/material";
-import Tooltip from "@mui/material/Tooltip";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -49,8 +50,8 @@ const useStyles = makeStyles()((theme) => ({
     zIndex: theme.zIndex.appBar - 1,
     display: "flex",
     flexDirection: "row",
-    padding: theme.spacing(1),
     gap: theme.spacing(1),
+    padding: theme.spacing(0.5),
     alignItems: "center",
     borderBottom: `1px solid ${theme.palette.divider}`,
   },
@@ -68,13 +69,22 @@ const useStyles = makeStyles()((theme) => ({
   },
   accordion: {
     padding: 0,
+    position: "relative",
   },
   colorBlock: {
     width: "8px",
     minWidth: "8px",
     height: "8px",
     minHeight: "8px",
-    borderRadius: "2px",
+    borderRadius: "100%",
+  },
+  line: {
+    position: "absolute",
+    width: "1px",
+    height: "12px",
+    left: "25.5px",
+    top: "-12px",
+    backgroundColor: theme.palette.divider,
   },
   accordionRoot: {
     "&.MuiAccordion-root": {
@@ -109,6 +119,9 @@ const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 
+const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
+const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
+
 export function EventsList(): JSX.Element {
   const events = useEvents(selectEvents);
   const selectedEventId = useEvents(selectSelectedEventId);
@@ -124,6 +137,12 @@ export function EventsList(): JSX.Element {
   const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
   const filter = useEvents(selectEventFilter);
   const setFilter = useEvents(selectSetEventFilter);
+
+  const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
+  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
+
+  const [momentVariant, setMomentVariant] = useState<"small" | "learge">("learge");
+
   const { t } = useTranslation("cosEvent");
   const [confirm, confirmModal] = useConfirm();
 
@@ -205,6 +224,7 @@ export function EventsList(): JSX.Element {
           }}
           placeholder={t("searchByKV")}
           InputProps={{
+            size: "small",
             startAdornment: <SearchIcon fontSize="small" />,
             endAdornment: filter !== "" && (
               <IconButton edge="end" onClick={clearFilter} size="small">
@@ -213,11 +233,30 @@ export function EventsList(): JSX.Element {
             ),
           }}
         />
-        <Tooltip placement="top" title={t("momentTips")}>
-          <IconButton>
-            <HelpOutlineIcon />
-          </IconButton>
-        </Tooltip>
+        <Select
+          variant="filled"
+          size="small"
+          value={momentVariant}
+          onChange={(event: SelectChangeEvent<"small" | "learge">) => {
+            switch (event.target.value) {
+              case "small":
+                setMomentVariant("small");
+                break;
+              case "learge":
+                setMomentVariant("learge");
+                break;
+              default:
+                break;
+            }
+          }}
+        >
+          <MenuItem key="small" value="small">
+            {t("nameOnly")}
+          </MenuItem>
+          <MenuItem key="learge" value="learge">
+            {t("showDetail")}
+          </MenuItem>
+        </Select>
       </AppBar>
       {events.loading && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
@@ -257,22 +296,26 @@ export function EventsList(): JSX.Element {
                   className={classes.accordionSummary}
                 >
                   <div className={classes.accordionTitle}>
-                    <span
-                      className={classes.colorBlock}
-                      style={{
-                        backgroundColor: (timestampedEvents.get(recordTitle) ?? [])[0]?.color,
-                      }}
-                    />
+                    <Stack paddingLeft={0.75}>
+                      <span
+                        className={classes.colorBlock}
+                        style={{
+                          backgroundColor: (timestampedEvents.get(recordTitle) ?? [])[0]?.color,
+                        }}
+                      />
+                    </Stack>
                     {recordTitle}
                   </div>
                 </AccordionSummary>
                 <AccordionDetails className={classes.accordion}>
+                  <Stack className={classes.line} />
                   {(timestampedEvents.get(recordTitle) ?? []).map((event) => {
                     return (
                       <EventView
                         key={event.event.name}
                         event={event}
                         filter={filter}
+                        variant={momentVariant}
                         // When hovering within the event list only show hover state on directly
                         // hovered event.
                         isHovered={
@@ -280,6 +323,7 @@ export function EventsList(): JSX.Element {
                             ? event.event.name === hoveredEvent.event.name
                             : eventsAtHoverValue[event.event.name] != undefined
                         }
+                        isLoopedEvent={loopedEvent?.event.name === event.event.name}
                         disabledScroll={disabledScroll}
                         isSelected={event.event.name === selectedEventId}
                         onClick={onClick}
@@ -310,6 +354,7 @@ export function EventsList(): JSX.Element {
                             setToModifyEvent(currentEvent);
                           }
                         }}
+                        onSetLoopedEvent={setLoopedEvent}
                         confirm={confirm}
                       />
                     );
