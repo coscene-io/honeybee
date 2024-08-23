@@ -27,6 +27,7 @@ const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store
 const selectSetHoveredEvent = (store: TimelineInteractionStateStore) => store.setHoveredEvent;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
+const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
 
 const useStyles = makeStyles()((theme, _params) => ({
   momentMain: {
@@ -150,6 +151,7 @@ export default function MomentsList({
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
   const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
+  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const selectedEventId = useEvents(selectSelectedEventId);
   const seek = useMessagePipeline(selectSeek);
   const selectEvent = useEvents(selectSelectEvent);
@@ -192,21 +194,24 @@ export default function MomentsList({
       overflow="auto"
       className={classes.container}
     >
-      {events.map((event) => (
-        <SingleMomentView
-          event={event}
-          key={event.event.name}
-          isHovered={
-            hoveredEvent
-              ? event.event.name === hoveredEvent.event.name
-              : eventsAtHoverValue[event.event.name] != undefined
-          }
-          isSelected={event.event.name === selectedEventId}
-          onClick={onClick}
-          onHoverStart={onHoverStart}
-          onHoverEnd={onHoverEnd}
-        />
-      ))}
+      {events.map((event) => {
+        const isHovered =
+          (hoveredEvent != undefined && event.event.name === hoveredEvent.event.name) ||
+          eventsAtHoverValue[event.event.name] != undefined ||
+          loopedEvent?.event.name === event.event.name;
+
+        return (
+          <SingleMomentView
+            event={event}
+            key={event.event.name}
+            isHovered={isHovered}
+            isSelected={event.event.name === selectedEventId}
+            onClick={onClick}
+            onHoverStart={onHoverStart}
+            onHoverEnd={onHoverEnd}
+          />
+        );
+      })}
     </Stack>
   ) : (
     <></>

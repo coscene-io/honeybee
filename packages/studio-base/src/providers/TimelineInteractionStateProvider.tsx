@@ -24,6 +24,7 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
       hoveredEvent: undefined,
       hoveredBag: undefined,
       hoverValue: undefined,
+      loopedEvent: undefined,
 
       clearHoverValue: (componentId: string) => {
         set((store) => ({
@@ -88,6 +89,10 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
         } else {
           set({ hoveredBag: undefined, hoverValue: undefined });
         }
+      },
+
+      setLoopedEvent: (loopedEvent: undefined | TimelinePositionedEvent) => {
+        set({ loopedEvent });
       },
     };
   });

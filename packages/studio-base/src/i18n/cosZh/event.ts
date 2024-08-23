@@ -73,4 +73,6 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   taskName: "任务名称",
   taskDescription: "任务描述",
   taskAssignee: "任务经办人",
+  nameOnly: "仅名称",
+  showDetail: "展示详情",
 };
