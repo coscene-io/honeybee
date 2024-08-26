@@ -235,9 +235,14 @@ function EventViewComponent(params: {
     if (isLoopedEvent) {
       onSetLoopedEvent(undefined);
     } else {
-      onSetLoopedEvent(event);
       if (seek != undefined) {
         seek(event.startTime);
+        // seek time needs some time to take effect
+        // if set looped event immediately, current time will be out of the event
+        // then the event will be unselected
+        setTimeout(() => {
+          onSetLoopedEvent(event);
+        }, 1000);
       }
     }
   };
