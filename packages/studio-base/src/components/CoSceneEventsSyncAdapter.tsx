@@ -273,7 +273,9 @@ export function CoSceneEventsSyncAdapter(): JSX.Element {
         }
       }
     }
-  }, [bagFiles.loading, bagFiles.value, startTime, endTime, consoleApi, timeMode, setEvents]);
+    // Don't listen to bagFiles.value, because if generating media, it will cause infinite re-render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bagFiles.loading, startTime, endTime, consoleApi, timeMode, setEvents]);
 
   useEffect(() => {
     syncEvents().catch((error) => {

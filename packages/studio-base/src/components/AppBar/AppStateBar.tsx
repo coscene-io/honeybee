@@ -50,6 +50,13 @@ export function AppStateBar(): JSX.Element {
   const { layoutActions } = useWorkspaceActions();
   const [layoutTipsOpen, setLayoutTipsOpen] = useState(false);
 
+  const bagFileCount = bagFiles.value?.length ?? 0;
+
+  // bag file doesn't need generate file media
+  const normalBagFileCount = bagFiles.value?.filter((bagFile: BagFileInfo) => {
+    return bagFile.mediaStatues === "OK";
+  });
+
   const allGenerationgMediaCount = bagFiles.value?.filter((bagFile: BagFileInfo) => {
     return bagFile.mediaStatues === "PROCESSING" || bagFile.mediaStatues === "GENERATED_SUCCESS";
   });
@@ -106,8 +113,8 @@ export function AppStateBar(): JSX.Element {
           >
             <InfoIcon />
             {t("mediaGeneratingTips", {
-              successfulCount: generatedMediaCount.length,
-              totalCount: allGenerationgMediaCount.length,
+              successfulCount: generatedMediaCount.length + (normalBagFileCount?.length ?? 0),
+              totalCount: bagFileCount,
             })}
           </Stack>
         )}
