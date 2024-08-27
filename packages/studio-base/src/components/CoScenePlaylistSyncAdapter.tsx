@@ -246,6 +246,8 @@ export function PlaylistSyncAdapter(): ReactNull {
               // const stream = response.getReader();
               // Get the reader from the stream
               const reader = response.body?.getReader();
+              let buffer = "";
+
               // Define a function to read each chunk
               const readChunk = () => {
                 // Read a chunk from the reader
@@ -261,27 +263,28 @@ export function PlaylistSyncAdapter(): ReactNull {
                       return;
                     }
 
-                    const playlistString = new TextDecoder().decode(value);
-                    const cleanPlaylistString = playlistString.replace(/^data:/, "").trim();
+                    const chunk = new TextDecoder().decode(value);
 
-                    if (!cleanPlaylistString.trim()) {
-                      readChunk();
-                      return;
+                    buffer += chunk;
+
+                    // 尝试解析完整的消息
+                    const messages = buffer.split("\n");
+                    buffer = messages.pop() ?? ""; // 保留最后一个可能不完整的消息
+
+                    for (const message of messages) {
+                      if (message.trim()) {
+                        try {
+                          const cleanMessage = message.replace(/^data:/, "").trim();
+                          const mediaStatusList: { filename: string; status: MediaStatus }[] =
+                            JSON.parse(cleanMessage);
+                          updateBagFiles(playListFiles, "progressing", mediaStatusList);
+                        } catch (error) {
+                          log.error("解析消息错误", error, message);
+                        }
+                      }
                     }
 
-                    let mediaStatusList: { filename: string; status: MediaStatus }[] = [];
-                    try {
-                      mediaStatusList = JSON.parse(cleanPlaylistString);
-                    } catch (error) {
-                      log.error("decode playlistString error", error);
-                      log.error("cleanPlaylistString", cleanPlaylistString);
-                      log.error("playlistString", playlistString);
-                      readChunk();
-                      return;
-                    }
-
-                    updateBagFiles(playListFiles, "progressing", mediaStatusList);
-                    readChunk();
+                    readChunk(); // 继续读取下一个 chunk
                   })
                   .catch(console.error);
               };
