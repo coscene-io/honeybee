@@ -274,7 +274,8 @@ export function PlaylistSyncAdapter(): ReactNull {
                       mediaStatusList = JSON.parse(cleanPlaylistString);
                     } catch (error) {
                       log.error("decode playlistString error", error);
-                      log.error("playlistString", cleanPlaylistString);
+                      log.error("cleanPlaylistString", cleanPlaylistString);
+                      log.error("playlistString", playlistString);
                       readChunk();
                       return;
                     }
