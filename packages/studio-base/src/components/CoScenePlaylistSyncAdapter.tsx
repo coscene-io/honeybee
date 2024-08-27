@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
@@ -25,7 +25,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { MediaStatus } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import { MediaStatus, FileList } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
 const HOVER_TOLERANCE = 0.01;
@@ -167,6 +167,43 @@ export function PlaylistSyncAdapter(): ReactNull {
     return false;
   }, [baseInfoKey, startTime, endTime, consoleApi, setBagFiles]);
 
+  const updateBagFiles = useCallback(
+    (
+      playListFiles: FileList[],
+      streamType: "done" | "progressing",
+      mediaStatusList?: { filename: string; status: MediaStatus }[],
+    ) => {
+      if (startTime == undefined || endTime == undefined) {
+        return;
+      }
+
+      const newStateRecordBagFiles = playListFiles.map((ele) => {
+        const currentStatus = mediaStatusList?.find((media) => media.filename === ele.source)
+          ?.status;
+        return positionBag({
+          ...ele,
+          startTime,
+          endTime,
+          currentFileStartTime: ele.startTime,
+          currentFileEndTime: ele.endTime,
+          timeMode,
+          mediaStatus:
+            streamType === "done" ||
+            (ele.mediaStatus === "GENERATING" && currentStatus === "NORMAL")
+              ? "GENERATED_SUCCESS"
+              : ele.mediaStatus,
+        });
+      });
+
+      newStateRecordBagFiles.sort((a, b) =>
+        a.startTime && b.startTime ? compare(a.startTime, b.startTime) : a.startTime ? -1 : 1,
+      );
+
+      setBagFiles({ loading: false, value: newStateRecordBagFiles });
+    },
+    [startTime, endTime, timeMode, setBagFiles],
+  );
+
   const [_records, syncRecords] = useAsyncFn(async () => {
     if (
       urlState?.parameters?.key &&
@@ -209,6 +246,8 @@ export function PlaylistSyncAdapter(): ReactNull {
               // const stream = response.getReader();
               // Get the reader from the stream
               const reader = response.body?.getReader();
+              let buffer = "";
+
               // Define a function to read each chunk
               const readChunk = () => {
                 // Read a chunk from the reader
@@ -219,89 +258,35 @@ export function PlaylistSyncAdapter(): ReactNull {
                 reader
                   .read()
                   .then(({ value, done }) => {
-                    // Check if the stream is done
                     if (done) {
-                      const newStateRecordBagFiles: BagFileInfo[] = [];
-                      playListFiles.forEach((ele) => {
-                        newStateRecordBagFiles.push(
-                          positionBag({
-                            ...ele,
-                            startTime,
-                            endTime,
-                            currentFileStartTime: ele.startTime,
-                            currentFileEndTime: ele.endTime,
-                            timeMode,
-                            mediaStatus:
-                              ele.mediaStatus === "GENERATING"
-                                ? "GENERATED_SUCCESS"
-                                : ele.mediaStatus,
-                          }),
-                        );
-                      });
-
-                      newStateRecordBagFiles.sort((a, b) =>
-                        a.startTime && b.startTime
-                          ? compare(a.startTime, b.startTime)
-                          : a.startTime
-                          ? -1
-                          : 1,
-                      );
-
-                      setBagFiles({ loading: false, value: newStateRecordBagFiles });
-
+                      updateBagFiles(playListFiles, "done");
                       return;
                     }
 
-                    // Convert the chunk value to a string
-                    const chunkString = new TextDecoder().decode(value);
+                    const chunk = new TextDecoder().decode(value);
 
-                    const playlistString = chunkString.split("data:").pop();
+                    buffer += chunk;
 
-                    const mediaStatusList: { filename: string; status: MediaStatus }[] = JSON.parse(
-                      playlistString ?? "",
-                    );
+                    // 尝试解析完整的消息
+                    const messages = buffer.split("\n");
+                    buffer = messages.pop() ?? ""; // 保留最后一个可能不完整的消息
 
-                    const newStateRecordBagFiles: BagFileInfo[] = [];
-                    playListFiles.forEach((ele) => {
-                      const currentStatus = mediaStatusList.find(
-                        (media) => media.filename === ele.source,
-                      )?.status;
+                    for (const message of messages) {
+                      if (message.trim()) {
+                        try {
+                          const cleanMessage = message.replace(/^data:/, "").trim();
+                          const mediaStatusList: { filename: string; status: MediaStatus }[] =
+                            JSON.parse(cleanMessage);
+                          updateBagFiles(playListFiles, "progressing", mediaStatusList);
+                        } catch (error) {
+                          log.error("解析消息错误", error, message);
+                        }
+                      }
+                    }
 
-                      newStateRecordBagFiles.push(
-                        positionBag({
-                          ...ele,
-                          startTime,
-                          endTime,
-                          currentFileStartTime: ele.startTime,
-                          currentFileEndTime: ele.endTime,
-                          timeMode,
-                          mediaStatus:
-                            ele.mediaStatus === "GENERATING" &&
-                            currentStatus != undefined &&
-                            currentStatus === "NORMAL"
-                              ? "GENERATED_SUCCESS"
-                              : ele.mediaStatus,
-                        }),
-                      );
-                    });
-
-                    newStateRecordBagFiles.sort((a, b) =>
-                      a.startTime && b.startTime
-                        ? compare(a.startTime, b.startTime)
-                        : a.startTime
-                        ? -1
-                        : 1,
-                    );
-
-                    setBagFiles({ loading: false, value: newStateRecordBagFiles });
-
-                    // Read the next chunk
-                    readChunk();
+                    readChunk(); // 继续读取下一个 chunk
                   })
-                  .catch((error) => {
-                    // Log the error
-                    console.error(error);
-                  });
+                  .catch(console.error);
               };
               // Start reading the first chunk
               readChunk();
@@ -323,6 +308,7 @@ export function PlaylistSyncAdapter(): ReactNull {
     baseInfoKey,
     timeMode,
     consoleApi,
+    updateBagFiles,
   ]);
 
   useEffect(() => {
