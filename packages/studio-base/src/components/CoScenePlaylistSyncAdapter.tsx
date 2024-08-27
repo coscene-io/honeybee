@@ -168,17 +168,13 @@ export function PlaylistSyncAdapter(): ReactNull {
   }, [baseInfoKey, startTime, endTime, consoleApi, setBagFiles]);
 
   const updateBagFiles = useCallback(
-    (
-      playListFiles: FileList[],
-      streamType: "done" | "progressing",
-      mediaStatusList?: { filename: string; status: MediaStatus }[],
-    ) => {
+    (playListFiles: FileList[], mediaStatusList: { filename: string; status: MediaStatus }[]) => {
       if (startTime == undefined || endTime == undefined) {
         return;
       }
 
       const newStateRecordBagFiles = playListFiles.map((ele) => {
-        const currentStatus = mediaStatusList?.find((media) => media.filename === ele.source)
+        const currentStatus = mediaStatusList.find((media) => media.filename === ele.source)
           ?.status;
         return positionBag({
           ...ele,
@@ -188,8 +184,7 @@ export function PlaylistSyncAdapter(): ReactNull {
           currentFileEndTime: ele.endTime,
           timeMode,
           mediaStatus:
-            streamType === "done" ||
-            (ele.mediaStatus === "GENERATING" && currentStatus === "NORMAL")
+            ele.mediaStatus === "GENERATING" && currentStatus === "NORMAL"
               ? "GENERATED_SUCCESS"
               : ele.mediaStatus,
         });
@@ -258,18 +253,44 @@ export function PlaylistSyncAdapter(): ReactNull {
                 reader
                   .read()
                   .then(({ value, done }) => {
-                    if (done) {
-                      updateBagFiles(playListFiles, "done");
-                      return;
-                    }
-
                     const chunk = new TextDecoder().decode(value);
 
                     buffer += chunk;
 
-                    // 尝试解析完整的消息
                     const messages = buffer.split("\n");
                     buffer = messages.pop() ?? ""; // 保留最后一个可能不完整的消息
+
+                    if (done) {
+                      // if buffer is not a full message or last message has generating bag, This is an unintended disconnect
+                      try {
+                        const cleanBuffer = buffer
+                          .trim()
+                          .replace(/^data:/, "")
+                          .trim();
+                        const lastMessage: { filename: string; status: MediaStatus }[] =
+                          JSON.parse(cleanBuffer); // 尝试解析
+
+                        const generatingBag = lastMessage.find(
+                          (ele) => ele.status === "GENERATING",
+                        );
+
+                        if (generatingBag) {
+                          syncRecords().catch((err: Error) => {
+                            log.error("retry syncRecords", err);
+                          });
+                          return;
+                        }
+
+                        updateBagFiles(playListFiles, lastMessage);
+                        return;
+                      } catch (error) {
+                        // decode error, retry syncRecords
+                        syncRecords().catch((err: Error) => {
+                          log.error("retry syncRecords", err);
+                        });
+                        return;
+                      }
+                    }
 
                     for (const message of messages) {
                       if (message.trim()) {
@@ -277,7 +298,7 @@ export function PlaylistSyncAdapter(): ReactNull {
                           const cleanMessage = message.replace(/^data:/, "").trim();
                           const mediaStatusList: { filename: string; status: MediaStatus }[] =
                             JSON.parse(cleanMessage);
-                          updateBagFiles(playListFiles, "progressing", mediaStatusList);
+                          updateBagFiles(playListFiles, mediaStatusList);
                         } catch (error) {
                           log.error("解析消息错误", error, message);
                         }
