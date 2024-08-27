@@ -261,10 +261,9 @@ export function PlaylistSyncAdapter(): ReactNull {
                       return;
                     }
 
-                    const chunkString = new TextDecoder().decode(value);
-                    const playlistString = chunkString.split("data:").pop();
+                    const playlistString = new TextDecoder().decode(value);
 
-                    if (!playlistString?.trim()) {
+                    if (!playlistString.trim()) {
                       readChunk();
                       return;
                     }
@@ -274,6 +273,7 @@ export function PlaylistSyncAdapter(): ReactNull {
                       mediaStatusList = JSON.parse(playlistString);
                     } catch (error) {
                       log.error("decode playlistString error", error);
+                      log.error("playlistString", playlistString);
                       readChunk();
                       return;
                     }
