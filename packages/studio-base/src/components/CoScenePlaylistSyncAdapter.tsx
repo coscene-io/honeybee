@@ -259,11 +259,14 @@ export function PlaylistSyncAdapter(): ReactNull {
 
                     let mediaStatusList: { filename: string; status: MediaStatus }[] = [];
 
+                    if (playlistString == undefined || playlistString.trim().length === 0) {
+                      readChunk();
+                    }
+
                     try {
-                      mediaStatusList = JSON.parse(playlistString ?? "");
+                      mediaStatusList = JSON.parse(playlistString ?? "[]");
                     } catch (error) {
-                      console.log("error: ", error);
-                      console.log("error string", playlistString);
+                      log.error("decode playlistString error", error);
                       readChunk();
                     }
 
