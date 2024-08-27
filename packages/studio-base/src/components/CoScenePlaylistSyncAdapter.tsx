@@ -262,18 +262,19 @@ export function PlaylistSyncAdapter(): ReactNull {
                     }
 
                     const playlistString = new TextDecoder().decode(value);
+                    const cleanPlaylistString = playlistString.replace(/^data:/, "").trim();
 
-                    if (!playlistString.trim()) {
+                    if (!cleanPlaylistString.trim()) {
                       readChunk();
                       return;
                     }
 
                     let mediaStatusList: { filename: string; status: MediaStatus }[] = [];
                     try {
-                      mediaStatusList = JSON.parse(playlistString);
+                      mediaStatusList = JSON.parse(cleanPlaylistString);
                     } catch (error) {
                       log.error("decode playlistString error", error);
-                      log.error("playlistString", playlistString);
+                      log.error("playlistString", cleanPlaylistString);
                       readChunk();
                       return;
                     }
