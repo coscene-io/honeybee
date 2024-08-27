@@ -205,18 +205,20 @@ export type MediaStatus =
   | "PERMISSION"
   | "GENERATED_SUCCESS";
 
+export type FileList = {
+  source: string;
+  displayName: string;
+  startTime: number;
+  endTime: number;
+  projectName: string;
+  recordName: string;
+  ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
+  mediaStatus: MediaStatus;
+  sha256: string;
+};
+
 export type getPlaylistResponse = {
-  fileList: {
-    source: string;
-    displayName: string;
-    startTime: number;
-    endTime: number;
-    projectName: string;
-    recordName: string;
-    ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
-    mediaStatus: MediaStatus;
-    sha256: string;
-  }[];
+  fileList: FileList[];
 };
 
 type CoverageResponse = {
