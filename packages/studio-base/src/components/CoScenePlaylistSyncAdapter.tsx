@@ -257,8 +257,8 @@ export function PlaylistSyncAdapter(): ReactNull {
 
                     const playlistString = chunkString.split("data:").pop();
 
-                    let mediaStatusList: { filename: string; status: MediaStatus }[] | undefined =
-                      undefined;
+                    let mediaStatusList: { filename: string; status: MediaStatus }[] = [];
+
                     try {
                       mediaStatusList = JSON.parse(playlistString ?? "");
                     } catch (error) {
