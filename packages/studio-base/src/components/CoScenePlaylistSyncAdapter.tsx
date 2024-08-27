@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
@@ -25,7 +25,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { MediaStatus } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import { MediaStatus, FileList } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
 const HOVER_TOLERANCE = 0.01;
@@ -167,6 +167,43 @@ export function PlaylistSyncAdapter(): ReactNull {
     return false;
   }, [baseInfoKey, startTime, endTime, consoleApi, setBagFiles]);
 
+  const updateBagFiles = useCallback(
+    (
+      playListFiles: FileList[],
+      streamType: "done" | "progressing",
+      mediaStatusList?: { filename: string; status: MediaStatus }[],
+    ) => {
+      if (startTime == undefined || endTime == undefined) {
+        return;
+      }
+
+      const newStateRecordBagFiles = playListFiles.map((ele) => {
+        const currentStatus = mediaStatusList?.find((media) => media.filename === ele.source)
+          ?.status;
+        return positionBag({
+          ...ele,
+          startTime,
+          endTime,
+          currentFileStartTime: ele.startTime,
+          currentFileEndTime: ele.endTime,
+          timeMode,
+          mediaStatus:
+            streamType === "done" ||
+            (ele.mediaStatus === "GENERATING" && currentStatus === "NORMAL")
+              ? "GENERATED_SUCCESS"
+              : ele.mediaStatus,
+        });
+      });
+
+      newStateRecordBagFiles.sort((a, b) =>
+        a.startTime && b.startTime ? compare(a.startTime, b.startTime) : a.startTime ? -1 : 1,
+      );
+
+      setBagFiles({ loading: false, value: newStateRecordBagFiles });
+    },
+    [startTime, endTime, timeMode, setBagFiles],
+  );
+
   const [_records, syncRecords] = useAsyncFn(async () => {
     if (
       urlState?.parameters?.key &&
@@ -219,98 +256,32 @@ export function PlaylistSyncAdapter(): ReactNull {
                 reader
                   .read()
                   .then(({ value, done }) => {
-                    // Check if the stream is done
                     if (done) {
-                      const newStateRecordBagFiles: BagFileInfo[] = [];
-                      playListFiles.forEach((ele) => {
-                        newStateRecordBagFiles.push(
-                          positionBag({
-                            ...ele,
-                            startTime,
-                            endTime,
-                            currentFileStartTime: ele.startTime,
-                            currentFileEndTime: ele.endTime,
-                            timeMode,
-                            mediaStatus:
-                              ele.mediaStatus === "GENERATING"
-                                ? "GENERATED_SUCCESS"
-                                : ele.mediaStatus,
-                          }),
-                        );
-                      });
-
-                      newStateRecordBagFiles.sort((a, b) =>
-                        a.startTime && b.startTime
-                          ? compare(a.startTime, b.startTime)
-                          : a.startTime
-                          ? -1
-                          : 1,
-                      );
-
-                      setBagFiles({ loading: false, value: newStateRecordBagFiles });
-
+                      updateBagFiles(playListFiles, "done");
                       return;
                     }
 
-                    // Convert the chunk value to a string
                     const chunkString = new TextDecoder().decode(value);
-
                     const playlistString = chunkString.split("data:").pop();
 
-                    let mediaStatusList: { filename: string; status: MediaStatus }[] = [];
-
-                    if (playlistString == undefined || playlistString.trim().length === 0) {
+                    if (!playlistString?.trim()) {
                       readChunk();
+                      return;
                     }
 
+                    let mediaStatusList: { filename: string; status: MediaStatus }[] = [];
                     try {
-                      mediaStatusList = JSON.parse(playlistString ?? "[]");
+                      mediaStatusList = JSON.parse(playlistString);
                     } catch (error) {
                       log.error("decode playlistString error", error);
                       readChunk();
+                      return;
                     }
 
-                    const newStateRecordBagFiles: BagFileInfo[] = [];
-                    playListFiles.forEach((ele) => {
-                      const currentStatus = mediaStatusList.find(
-                        (media) => media.filename === ele.source,
-                      )?.status;
-
-                      newStateRecordBagFiles.push(
-                        positionBag({
-                          ...ele,
-                          startTime,
-                          endTime,
-                          currentFileStartTime: ele.startTime,
-                          currentFileEndTime: ele.endTime,
-                          timeMode,
-                          mediaStatus:
-                            ele.mediaStatus === "GENERATING" &&
-                            currentStatus != undefined &&
-                            currentStatus === "NORMAL"
-                              ? "GENERATED_SUCCESS"
-                              : ele.mediaStatus,
-                        }),
-                      );
-                    });
-
-                    newStateRecordBagFiles.sort((a, b) =>
-                      a.startTime && b.startTime
-                        ? compare(a.startTime, b.startTime)
-                        : a.startTime
-                        ? -1
-                        : 1,
-                    );
-
-                    setBagFiles({ loading: false, value: newStateRecordBagFiles });
-
-                    // Read the next chunk
+                    updateBagFiles(playListFiles, "progressing", mediaStatusList);
                     readChunk();
                   })
-                  .catch((error) => {
-                    // Log the error
-                    console.error(error);
-                  });
+                  .catch(console.error);
               };
               // Start reading the first chunk
               readChunk();
@@ -332,6 +303,7 @@ export function PlaylistSyncAdapter(): ReactNull {
     baseInfoKey,
     timeMode,
     consoleApi,
+    updateBagFiles,
   ]);
 
   useEffect(() => {
