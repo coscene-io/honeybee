@@ -202,6 +202,8 @@ export function PlaylistSyncAdapter(): ReactNull {
         setBagFiles({ loading: false, value: recordBagFiles });
 
         if (hasNoMediaFile && baseInfoKey) {
+          console.log("playListFiles", playListFiles);
+
           consoleApi
             .getFilesStatus(baseInfoKey)
             .then((response) => {
@@ -221,6 +223,7 @@ export function PlaylistSyncAdapter(): ReactNull {
                   .then(({ value, done }) => {
                     // Check if the stream is done
                     if (done) {
+                      console.log("read down", playListFiles, value);
                       const newStateRecordBagFiles: BagFileInfo[] = [];
                       playListFiles.forEach((ele) => {
                         newStateRecordBagFiles.push(
@@ -261,6 +264,8 @@ export function PlaylistSyncAdapter(): ReactNull {
                       playlistString ?? "",
                     );
 
+                    console.log("read progress", playListFiles, mediaStatusList);
+
                     const newStateRecordBagFiles: BagFileInfo[] = [];
                     playListFiles.forEach((ele) => {
                       const currentStatus = mediaStatusList.find(
@@ -294,6 +299,8 @@ export function PlaylistSyncAdapter(): ReactNull {
                     );
 
                     setBagFiles({ loading: false, value: newStateRecordBagFiles });
+
+                    console.log("newStateRecordBagFiles", newStateRecordBagFiles);
 
                     // Read the next chunk
                     readChunk();
