@@ -10,7 +10,7 @@ import type { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
 import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
-import { CompatibilityBanner } from "./CompatibilityBanner";
+import VersionBanner from "./VersionBanner";
 import { canRenderApp } from "./canRenderApp";
 
 const log = Logger.getLogger(__filename);
@@ -73,11 +73,7 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
 
   const canRender = canRenderApp();
   const banner = (
-    <CompatibilityBanner
-      isChrome={isChrome}
-      currentVersion={chromeVersion}
-      isDismissable={canRender}
-    />
+    <VersionBanner isChrome={isChrome} currentVersion={chromeVersion} isDismissable={canRender} />
   );
 
   const root = createRoot(rootEl);
