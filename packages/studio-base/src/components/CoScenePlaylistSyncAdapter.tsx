@@ -261,6 +261,7 @@ export function PlaylistSyncAdapter(): ReactNull {
                     buffer = messages.pop() ?? ""; // 保留最后一个可能不完整的消息
 
                     if (done) {
+                      log.debug("read chunk done", buffer);
                       // if buffer is not a full message or last message has generating bag, This is an unintended disconnect
                       try {
                         const cleanBuffer = buffer
@@ -275,15 +276,18 @@ export function PlaylistSyncAdapter(): ReactNull {
                         );
 
                         if (generatingBag) {
+                          log.debug("retry syncRecords", generatingBag);
                           syncRecords().catch((err: Error) => {
                             log.error("retry syncRecords", err);
                           });
                           return;
                         }
 
+                        log.debug("decode last chunk success", lastMessage);
                         updateBagFiles(playListFiles, lastMessage);
                         return;
                       } catch (error) {
+                        log.debug("decode last chunk error", error);
                         // decode error, retry syncRecords
                         syncRecords().catch((err: Error) => {
                           log.error("retry syncRecords", err);
@@ -307,7 +311,9 @@ export function PlaylistSyncAdapter(): ReactNull {
 
                     readChunk(); // 继续读取下一个 chunk
                   })
-                  .catch(console.error);
+                  .catch((error) => {
+                    log.error("read chunk error", error);
+                  });
               };
               // Start reading the first chunk
               readChunk();
