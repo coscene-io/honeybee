@@ -260,45 +260,6 @@ export function PlaylistSyncAdapter(): ReactNull {
                     const messages = buffer.split("\n");
                     buffer = messages.pop() ?? ""; // 保留最后一个可能不完整的消息
 
-                    if (done) {
-                      log.debug("read chunk done", buffer);
-                      // if buffer is not a full message or last message has generating bag, This is an unintended disconnect
-                      try {
-                        const cleanBuffer = buffer
-                          .trim()
-                          .replace(/^data:/, "")
-                          .trim();
-                        const lastMessage: { filename: string; status: MediaStatus }[] =
-                          JSON.parse(cleanBuffer); // 尝试解析
-
-                        const generatingBag = lastMessage.find(
-                          (ele) => ele.status === "GENERATING",
-                        );
-
-                        if (generatingBag) {
-                          setTimeout(() => {
-                            syncRecords().catch((err: Error) => {
-                              log.error("retry syncRecords", err);
-                            });
-                          }, 3000);
-                          return;
-                        }
-
-                        log.debug("decode last chunk success", lastMessage);
-                        updateBagFiles(playListFiles, lastMessage);
-                        return;
-                      } catch (error) {
-                        log.debug("decode last chunk error", error);
-                        // decode error, retry syncRecords
-                        setTimeout(() => {
-                          syncRecords().catch((err: Error) => {
-                            log.error("retry syncRecords", err);
-                          });
-                        }, 3000);
-                        return;
-                      }
-                    }
-
                     for (const message of messages) {
                       if (message.trim()) {
                         try {
@@ -307,11 +268,14 @@ export function PlaylistSyncAdapter(): ReactNull {
                             JSON.parse(cleanMessage);
                           updateBagFiles(playListFiles, mediaStatusList);
                         } catch (error) {
-                          log.error("解析消息错误", error, message);
+                          log.error("decode last chunk error", error, message);
                         }
                       }
                     }
 
+                    if (done) {
+                      return;
+                    }
                     readChunk(); // 继续读取下一个 chunk
                   })
                   .catch((error) => {
