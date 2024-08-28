@@ -261,7 +261,7 @@ export function PlaylistSyncAdapter(): ReactNull {
                     buffer = messages.pop() ?? ""; // 保留最后一个可能不完整的消息
 
                     if (done) {
-                      log.debug("read chunk done", buffer);
+                      console.log("read chunk done", buffer);
                       // if buffer is not a full message or last message has generating bag, This is an unintended disconnect
                       try {
                         const cleanBuffer = buffer
@@ -276,8 +276,8 @@ export function PlaylistSyncAdapter(): ReactNull {
                         );
 
                         if (generatingBag) {
-                          log.debug("have GENERATING file buffer:", buffer);
-                          log.debug("messages:", messages);
+                          console.log("have GENERATING file buffer:", buffer);
+                          console.log("messages:", messages);
                           setTimeout(() => {
                             syncRecords().catch((err: Error) => {
                               log.error("retry syncRecords", err);
@@ -286,11 +286,11 @@ export function PlaylistSyncAdapter(): ReactNull {
                           return;
                         }
 
-                        log.debug("decode last chunk success", lastMessage);
+                        console.log("decode last chunk success", lastMessage);
                         updateBagFiles(playListFiles, lastMessage);
                         return;
                       } catch (error) {
-                        log.debug("decode last chunk error", error);
+                        console.log("decode last chunk error", error);
                         // decode error, retry syncRecords
                         setTimeout(() => {
                           syncRecords().catch((err: Error) => {
@@ -317,7 +317,7 @@ export function PlaylistSyncAdapter(): ReactNull {
                     readChunk(); // 继续读取下一个 chunk
                   })
                   .catch((error) => {
-                    log.error("read chunk error", error);
+                    console.log("read chunk error", error);
                     setTimeout(() => {
                       syncRecords().catch((err: Error) => {
                         log.error("retry syncRecords", err);
@@ -356,7 +356,7 @@ export function PlaylistSyncAdapter(): ReactNull {
   }, [setBagFiles, syncPlaylist]);
 
   useEffect(() => {
-    log.debug("syncRecords");
+    console.log("syncRecords");
     syncRecords().catch((error) => {
       log.error(error);
     });
