@@ -356,6 +356,7 @@ export function PlaylistSyncAdapter(): ReactNull {
   }, [setBagFiles, syncPlaylist]);
 
   useEffect(() => {
+    log.debug("syncRecords");
     syncRecords().catch((error) => {
       log.error(error);
     });
