@@ -276,6 +276,8 @@ export function PlaylistSyncAdapter(): ReactNull {
                         );
 
                         if (generatingBag) {
+                          log.debug("have GENERATING file buffer:", buffer);
+                          log.debug("messages:", messages);
                           setTimeout(() => {
                             syncRecords().catch((err: Error) => {
                               log.error("retry syncRecords", err);
