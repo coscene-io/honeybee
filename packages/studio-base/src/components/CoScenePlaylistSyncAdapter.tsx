@@ -276,10 +276,11 @@ export function PlaylistSyncAdapter(): ReactNull {
                         );
 
                         if (generatingBag) {
-                          log.debug("retry syncRecords", generatingBag);
-                          syncRecords().catch((err: Error) => {
-                            log.error("retry syncRecords", err);
-                          });
+                          setTimeout(() => {
+                            syncRecords().catch((err: Error) => {
+                              log.error("retry syncRecords", err);
+                            });
+                          }, 3000);
                           return;
                         }
 
@@ -289,9 +290,11 @@ export function PlaylistSyncAdapter(): ReactNull {
                       } catch (error) {
                         log.debug("decode last chunk error", error);
                         // decode error, retry syncRecords
-                        syncRecords().catch((err: Error) => {
-                          log.error("retry syncRecords", err);
-                        });
+                        setTimeout(() => {
+                          syncRecords().catch((err: Error) => {
+                            log.error("retry syncRecords", err);
+                          });
+                        }, 3000);
                         return;
                       }
                     }
@@ -313,6 +316,11 @@ export function PlaylistSyncAdapter(): ReactNull {
                   })
                   .catch((error) => {
                     log.error("read chunk error", error);
+                    setTimeout(() => {
+                      syncRecords().catch((err: Error) => {
+                        log.error("retry syncRecords", err);
+                      });
+                    }, 3000);
                   });
               };
               // Start reading the first chunk
