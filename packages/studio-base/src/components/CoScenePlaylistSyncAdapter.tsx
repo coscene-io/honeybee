@@ -268,7 +268,7 @@ export function PlaylistSyncAdapter(): ReactNull {
                             JSON.parse(cleanMessage);
                           updateBagFiles(playListFiles, mediaStatusList);
                         } catch (error) {
-                          log.error("解析消息错误", error, message);
+                          log.error("decode last chunk error", error, message);
                         }
                       }
                     }
@@ -318,7 +318,6 @@ export function PlaylistSyncAdapter(): ReactNull {
   }, [setBagFiles, syncPlaylist]);
 
   useEffect(() => {
-    console.log("syncRecords");
     syncRecords().catch((error) => {
       log.error(error);
     });
