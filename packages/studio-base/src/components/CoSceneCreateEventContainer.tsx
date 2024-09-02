@@ -1056,7 +1056,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
                 await createEvent();
               }
             }}
-            disabled={!canSubmit || createdEvent.loading || editedEvent.loading || !event.eventName}
+            disabled={!canSubmit || createdEvent.loading || editedEvent.loading || !event.eventName || ( event.enabledCreateNewTask && !task.title ) }
             ref={createMomentBtnRef}
           >
             {(createdEvent.loading || editedEvent.loading || createdTask.loading) && (
