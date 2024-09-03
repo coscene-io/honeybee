@@ -256,7 +256,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           message: "Insecure WebSocket connection",
           tip: `Check that the WebSocket server at ${
             this.#url
-          } is reachable and supports protocol version ${FoxgloveClient.SUPPORTED_SUBPROTOCOL}.`,
+          } is reachable and supports protocol version coscene.websocket.protocol.`,
         });
         this.#emitState();
       }
@@ -306,7 +306,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
             <span>
               {`${t("cosError:insecureWebSocketConnectionMessage", {
                 url: this.#url,
-                version: FoxgloveClient.SUPPORTED_SUBPROTOCOL,
+                version: 'coscene.websocket.protocol'
               })}`}
               <br />
               1. {t("cosError:checkNetworkConnection")}
