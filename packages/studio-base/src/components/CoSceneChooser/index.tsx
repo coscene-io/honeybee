@@ -382,7 +382,7 @@ function ChooserComponent({
     const filter = CosQuery.Companion.empty();
 
     filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesFilter]);
-    filter.setField('recursive', [BinaryOperator.EQ], ['true']);
+    filter.setField("recursive", [BinaryOperator.EQ], ["true"]);
 
     if (record && listType === "files") {
       return await consoleApi.listFiles({
@@ -504,68 +504,70 @@ function ChooserComponent({
           {listType === "files" && (
             <List>
               {/* if filename end with '/' then it's a directory */}
-              {filesList.value?.files.filter((ele) => !ele.name.endsWith('/')).map((value) => {
-                const supportedImport = checkFileSupportedFunc(value);
+              {filesList.value?.files
+                .filter((ele) => !ele.name.endsWith("/"))
+                .map((value) => {
+                  const supportedImport = checkFileSupportedFunc(value);
 
-                const repeatFile = files.find(
-                  (file) => file.file.sha256 === value.sha256 && file.file.name !== value.name,
-                );
+                  const repeatFile = files.find(
+                    (file) => file.file.sha256 === value.sha256 && file.file.name !== value.name,
+                  );
 
-                return (
-                  <ListItem key={value.name} disablePadding>
-                    <ListItemButton
-                      disabled={!supportedImport || repeatFile != undefined}
-                      role={undefined}
-                      onClick={() => {
-                        const fileInfo = {
-                          file: value,
-                          projectDisplayName: project?.displayName ?? "",
-                          recordDisplayName: record?.title ?? "",
-                        };
-                        const newFiles = new Set(files);
-                        let fileExist = false;
-                        newFiles.forEach((file) => {
-                          if (file.file.name === fileInfo.file.name) {
-                            newFiles.delete(file);
-                            fileExist = true;
+                  return (
+                    <ListItem key={value.name} disablePadding>
+                      <ListItemButton
+                        disabled={!supportedImport || repeatFile != undefined}
+                        role={undefined}
+                        onClick={() => {
+                          const fileInfo = {
+                            file: value,
+                            projectDisplayName: project?.displayName ?? "",
+                            recordDisplayName: record?.title ?? "",
+                          };
+                          const newFiles = new Set(files);
+                          let fileExist = false;
+                          newFiles.forEach((file) => {
+                            if (file.file.name === fileInfo.file.name) {
+                              newFiles.delete(file);
+                              fileExist = true;
+                            }
+                          });
+
+                          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+                          if (!fileExist) {
+                            newFiles.add(fileInfo);
                           }
-                        });
-
-                        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-                        if (!fileExist) {
-                          newFiles.add(fileInfo);
-                        }
-                        setFiles(Array.from(newFiles));
-                      }}
-                      dense
-                    >
-                      <ListItemIcon>
-                        <Checkbox
-                          edge="start"
-                          checked={files.some((file) => file.file.name === value.name)}
-                          disabled={!supportedImport}
-                          tabIndex={-1}
-                          disableRipple
-                          inputProps={{ "aria-labelledby": value.filename }}
-                        />
-                      </ListItemIcon>
-                      <ListItemText id={value.name} primary={value.filename.split("/").pop()} />
-                    </ListItemButton>
-                    {repeatFile != undefined && (
-                      <Typography color="error">
-                        <Tooltip
-                          title={t("duplicateFile", {
-                            ns: "cosPlaylist",
-                            filename: repeatFile.file.filename,
-                          })}
-                        >
-                          <HelpOutlineIcon fontSize="small" />
-                        </Tooltip>
-                      </Typography>
-                    )}
-                  </ListItem>
-                );
-              })}
+                          setFiles(Array.from(newFiles));
+                        }}
+                        dense
+                      >
+                        <ListItemIcon>
+                          <Checkbox
+                            edge="start"
+                            checked={files.some((file) => file.file.name === value.name)}
+                            disabled={!supportedImport}
+                            tabIndex={-1}
+                            disableRipple
+                            inputProps={{ "aria-labelledby": value.filename }}
+                          />
+                        </ListItemIcon>
+                        <ListItemText id={value.name} primary={value.filename.split("/").pop()} />
+                      </ListItemButton>
+                      {repeatFile != undefined && (
+                        <Typography color="error">
+                          <Tooltip
+                            title={t("duplicateFile", {
+                              ns: "cosPlaylist",
+                              filename: repeatFile.file.filename,
+                            })}
+                          >
+                            <HelpOutlineIcon fontSize="small" />
+                          </Tooltip>
+                        </Typography>
+                      )}
+                    </ListItem>
+                  );
+                })}
             </List>
           )}
         </Stack>
