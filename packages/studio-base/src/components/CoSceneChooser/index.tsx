@@ -382,6 +382,7 @@ function ChooserComponent({
     const filter = CosQuery.Companion.empty();
 
     filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesFilter]);
+    filter.setField('recursive', [BinaryOperator.EQ], ['true']);
 
     if (record && listType === "files") {
       return await consoleApi.listFiles({
@@ -502,7 +503,8 @@ function ChooserComponent({
           )}
           {listType === "files" && (
             <List>
-              {filesList.value?.files.map((value) => {
+              {/* if filename end with '/' then it's a directory */}
+              {filesList.value?.files.filter((ele) => !ele.name.endsWith('/')).map((value) => {
                 const supportedImport = checkFileSupportedFunc(value);
 
                 const repeatFile = files.find(
