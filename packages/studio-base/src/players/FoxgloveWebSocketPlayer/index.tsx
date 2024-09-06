@@ -306,7 +306,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
             <span>
               {`${t("cosError:insecureWebSocketConnectionMessage", {
                 url: this.#url,
-                version: 'coscene.websocket.protocol'
+                version: "coscene.websocket.protocol",
               })}`}
               <br />
               1. {t("cosError:checkNetworkConnection")}
