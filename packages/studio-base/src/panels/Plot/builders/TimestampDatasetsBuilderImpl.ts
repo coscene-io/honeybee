@@ -72,6 +72,22 @@ const MAX_CURRENT_DATUMS_PER_SERIES = 50_000;
 
 const compareDatum = (a: Datum, b: Datum) => a.x - b.x;
 
+function binarySearch(arr: FullDatum[], x: number): number {
+  let low = 0;
+  let high = arr.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (arr[mid]!.x < x) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
+}
+
 export class TimestampDatasetsBuilderImpl {
   #seriesByKey = new Map<SeriesConfigKey, Series>();
 
@@ -317,7 +333,19 @@ export class TimestampDatasetsBuilderImpl {
           }
 
           const idx = series.current.length;
-          series.current.push({
+
+          const insertIndex = binarySearch(series.current, item.x);
+
+          // check if the item already exists in the current array
+          if (
+            insertIndex < series.current.length &&
+            series.current[insertIndex]!.x === item.x &&
+            series.current[insertIndex]!.y === item.y
+          ) {
+            continue; // skip duplicate
+          }
+
+          series.current.splice(insertIndex, 0, {
             index: idx,
             x: item.x,
             y: item.y,

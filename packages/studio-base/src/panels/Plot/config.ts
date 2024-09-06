@@ -38,7 +38,9 @@ export type PlotXAxisVal =
   // Similar to "index" mode except the x-axis the message path item values and the y-axis are the
   // correspondible series message path value at the same array index. Only the latest message is used
   // for x-axis and each series
-  | "currentCustom";
+  | "currentCustom"
+  // like "timestamp" but only accumulated the current timestamp is shown
+  | "partialTimestamp";
 
 export type PlotDataItem = {
   queriedData: MessagePathDataItem[];

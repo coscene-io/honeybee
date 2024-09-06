@@ -24,6 +24,7 @@ const getCSVColName = (xAxisVal: PlotXAxisVal): string => {
     case "index":
       return "index";
     case "timestamp":
+    case "partialTimestamp":
       return "elapsed time";
   }
 };
