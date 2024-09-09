@@ -39,4 +39,9 @@ export const plot: Partial<TypeOptions["resources"]["plot"]> = {
   xAxis: "X 轴",
   yAxis: "Y 轴",
   resetView: "重置视图",
+  fullTimestamp: "时间戳（完整）",
+  partialTimestamp: "时间戳（当前）",
+  tooManyMessages:
+    "当前面板消息数量过多，可能导致不可预期的崩溃，建议在「面板设置-X 轴-值」中切换为按当前时间戳播放",
+  switchImmediately: "立即切换",
 };

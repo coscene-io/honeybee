@@ -37,4 +37,9 @@ export const plot = {
   xAxis: "X Axis",
   yAxis: "Y Axis",
   resetView: "Reset view",
+  fullTimestamp: "Timestamp (full)",
+  partialTimestamp: "Timestamp (current)",
+  tooManyMessages:
+    "The current number of messages on the panel is too large, which may lead to unexpected crashes. It is recommended to switch to playback by the current timestamp in 'Panel Settings - X Axis - Value'.",
+  switchImmediately: "Switch immediately",
 };
