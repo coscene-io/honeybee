@@ -58,7 +58,18 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
 
   #series: Immutable<TimestampSeriesItem[]> = [];
 
-  public constructor({ handleWorkerError }: { handleWorkerError?: (event: Event) => void } = {}) {
+  #xAxisMode: "timestamp" | "partialTimestamp";
+
+  public constructor(
+    {
+      handleWorkerError,
+      xAxisMode,
+    }: {
+      handleWorkerError?: (event: Event) => void;
+      xAxisMode: "timestamp" | "partialTimestamp";
+    } = { xAxisMode: "timestamp" },
+  ) {
+    this.#xAxisMode = xAxisMode;
     const worker = new Worker(
       // foxglove-depcheck-used: babel-plugin-transform-import-meta
       new URL("./TimestampDatasetsBuilderImpl.worker", import.meta.url),
@@ -93,6 +104,9 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
           : undefined;
 
         if (didSeek) {
+          if (this.#xAxisMode === "partialTimestamp") {
+            return;
+          }
           this.#pendingDispatch.push({
             type: "reset-current",
             series: series.config.key,

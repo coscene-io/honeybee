@@ -193,7 +193,8 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
           input: "select",
           value: config.xAxisVal,
           options: [
-            { label: t("timestamp"), value: "timestamp" },
+            { label: t("fullTimestamp"), value: "timestamp" },
+            { label: t("partialTimestamp"), value: "partialTimestamp" },
             { label: t("index"), value: "index" },
             { label: t("currentPath"), value: "currentCustom" },
             { label: t("accumulatedPath"), value: "custom" },
