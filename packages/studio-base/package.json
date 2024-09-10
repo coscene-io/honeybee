@@ -157,7 +157,7 @@
     "react-hot-toast": "2.4.0",
     "react-hover-observer": "2.1.1",
     "react-i18next": "14.0.5",
-    "react-joyride": "2.5.4",
+    "react-joyride": "2.9.0",
     "react-json-tree": "patch:react-json-tree@npm:0.15.1#../../patches/react-json-tree.patch",
     "react-markdown": "8.0.7",
     "react-monaco-editor": "0.54.0",
