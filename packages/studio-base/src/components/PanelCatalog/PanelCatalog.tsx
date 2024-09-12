@@ -89,7 +89,7 @@ export const PanelCatalog = forwardRef<HTMLDivElement, Props>(function PanelCata
   const [searchQuery, setSearchQuery] = useState("");
   const [highlightedPanelIdx, setHighlightedPanelIdx] = useState<number | undefined>();
 
-  const currentDomain = getDomainConfig().logo;
+  const currentDomain = getDomainConfig();
 
   const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
@@ -143,18 +143,20 @@ export const PanelCatalog = forwardRef<HTMLDivElement, Props>(function PanelCata
         .filter(
           (panel) =>
             process.env.NODE_ENV === "development" ||
+            currentDomain.env === "staging" ||
             panel.whitelisting == undefined ||
             panel.whitelisting.length === 0 ||
-            panel.whitelisting.includes(currentDomain),
+            panel.whitelisting.includes(currentDomain.logo),
         )
         .sort(sortByTitle),
       allPreconfiguredPanels: [...preconfigured]
         .filter(
           (panel) =>
             process.env.NODE_ENV === "development" ||
+            currentDomain.env === "staging" ||
             panel.whitelisting == undefined ||
             panel.whitelisting.length === 0 ||
-            panel.whitelisting.includes(currentDomain),
+            panel.whitelisting.includes(currentDomain.logo),
         )
         .sort(sortByTitle),
     };
