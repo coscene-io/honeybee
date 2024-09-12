@@ -142,20 +142,20 @@ export const PanelCatalog = forwardRef<HTMLDivElement, Props>(function PanelCata
       allRegularPanels: [...regular]
         .filter(
           (panel) =>
-            process.env.NODE_ENV === "development" ||
+            currentDomain.env === "local" ||
+            currentDomain.env === "dev" ||
             currentDomain.env === "staging" ||
             panel.whitelisting == undefined ||
-            panel.whitelisting.length === 0 ||
             panel.whitelisting.includes(currentDomain.logo),
         )
         .sort(sortByTitle),
       allPreconfiguredPanels: [...preconfigured]
         .filter(
           (panel) =>
-            process.env.NODE_ENV === "development" ||
+            currentDomain.env === "local" ||
+            currentDomain.env === "dev" ||
             currentDomain.env === "staging" ||
             panel.whitelisting == undefined ||
-            panel.whitelisting.length === 0 ||
             panel.whitelisting.includes(currentDomain.logo),
         )
         .sort(sortByTitle),
