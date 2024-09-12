@@ -301,11 +301,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     id: LayoutID;
     name: string | undefined;
     data: LayoutData | undefined;
-  }): Promise<Layout> {
+  }): Promise<Layout | undefined> {
     const now = new Date().toISOString() as ISO8601Timestamp;
     const localLayout = await this.#local.runExclusive(async (local) => await local.get(id));
     if (!localLayout) {
-      throw new Error(`Cannot update layout ${id} because it does not exist`);
+      // if this layout is record recommended layout, this error is expected
+      // because the layout will be deleted when the user plays another record
+      return undefined;
     }
 
     // If the modifications result in the same layout data, set the working copy to undefined so the
