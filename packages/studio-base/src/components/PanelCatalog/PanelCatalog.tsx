@@ -14,6 +14,7 @@ import { makeStyles } from "tss-react/mui";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { PanelInfo, usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { mightActuallyBePartial } from "@foxglove/studio-base/util/mightActuallyBePartial";
 
 import { PanelGrid } from "./PanelGrid";
@@ -88,6 +89,8 @@ export const PanelCatalog = forwardRef<HTMLDivElement, Props>(function PanelCata
   const [searchQuery, setSearchQuery] = useState("");
   const [highlightedPanelIdx, setHighlightedPanelIdx] = useState<number | undefined>();
 
+  const currentDomain = getDomainConfig().logo;
+
   const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
     setSearchQuery(query);
@@ -116,14 +119,46 @@ export const PanelCatalog = forwardRef<HTMLDivElement, Props>(function PanelCata
     const panels = namespacedPanels;
     const regular = panels.filter((panel) => !panel.config);
     const preconfigured = panels.filter((panel) => panel.config);
-    const sortByTitle = (a: PanelInfo, b: PanelInfo) =>
-      a.title.localeCompare(b.title, undefined, { ignorePunctuation: true, sensitivity: "base" });
+
+    // sort by order property if it exists, otherwise by title
+    // if order is undefined, it will be sorted to the end
+    const sortByTitle = (a: PanelInfo, b: PanelInfo) => {
+      if (a.order != undefined && b.order != undefined) {
+        return a.order - b.order;
+      }
+      if (a.order == undefined && b.order != undefined) {
+        return 1;
+      }
+      if (a.order != undefined && b.order == undefined) {
+        return -1;
+      }
+      return a.title.localeCompare(b.title, undefined, {
+        ignorePunctuation: true,
+        sensitivity: "base",
+      });
+    };
 
     return {
-      allRegularPanels: [...regular].sort(sortByTitle),
-      allPreconfiguredPanels: [...preconfigured].sort(sortByTitle),
+      allRegularPanels: [...regular]
+        .filter(
+          (panel) =>
+            process.env.NODE_ENV === "development" ||
+            panel.whitelisting == undefined ||
+            panel.whitelisting.length === 0 ||
+            panel.whitelisting.includes(currentDomain),
+        )
+        .sort(sortByTitle),
+      allPreconfiguredPanels: [...preconfigured]
+        .filter(
+          (panel) =>
+            process.env.NODE_ENV === "development" ||
+            panel.whitelisting == undefined ||
+            panel.whitelisting.length === 0 ||
+            panel.whitelisting.includes(currentDomain),
+        )
+        .sort(sortByTitle),
     };
-  }, [namespacedPanels]);
+  }, [namespacedPanels, currentDomain]);
 
   useEffect(() => {
     verifyPanels([...allRegularPanels, ...allPreconfiguredPanels]);

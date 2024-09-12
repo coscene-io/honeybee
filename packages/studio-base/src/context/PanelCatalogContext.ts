@@ -14,6 +14,12 @@ export type PanelComponent = ComponentType<{ childId?: string; tabId?: string }>
 export type PanelInfo = {
   title: string;
   type: string;
+  // sort by order property if it exists, otherwise by title
+  // if order is undefined, it will be sorted to the end
+  order?: number;
+  // for product, if whitelisting is set, only show the panel if the panel type is in the whitelisting
+  // for development, this property is does't work, the panel will always be shown
+  whitelisting?: string[];
   description?: string;
   thumbnail?: string;
   help?: React.ReactNode;
