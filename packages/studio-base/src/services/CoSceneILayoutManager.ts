@@ -83,7 +83,11 @@ export interface ILayoutManager {
    * @note If the layout has not been edited before, the returned layout's id may be different from
    * the input id.
    */
-  updateLayout(params: { id: LayoutID; name?: string; data?: LayoutData }): Promise<Layout>;
+  updateLayout(params: {
+    id: LayoutID;
+    name?: string;
+    data?: LayoutData;
+  }): Promise<Layout | undefined>;
 
   deleteLayout(params: { id: LayoutID }): Promise<void>;
 
