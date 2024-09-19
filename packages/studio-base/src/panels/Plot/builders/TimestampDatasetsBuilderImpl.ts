@@ -70,6 +70,8 @@ export type UpdateDataAction =
 // we do not grow the memory for accumulated current data indefinitely
 const MAX_CURRENT_DATUMS_PER_SERIES = 50_000;
 
+const EPSILON = 1e-5;
+
 const compareDatum = (a: Datum, b: Datum) => a.x - b.x;
 
 function binarySearch(arr: FullDatum[], x: number): number {
@@ -352,9 +354,11 @@ export class TimestampDatasetsBuilderImpl {
 
           // check if the item already exists in the current array
           if (
-            insertIndex < series.current.length &&
-            series.current[insertIndex]!.x === item.x &&
-            series.current[insertIndex]!.y === item.y
+            insertIndex + 1 < series.current.length &&
+            ((Math.abs(series.current[insertIndex]!.x - item.x) < EPSILON &&
+              Math.abs(series.current[insertIndex]!.y - item.y) < EPSILON) ||
+              (Math.abs(series.current[insertIndex + 1]!.x - item.x) < EPSILON &&
+                Math.abs(series.current[insertIndex + 1]!.y - item.y) < EPSILON))
           ) {
             continue; // skip duplicate
           }
