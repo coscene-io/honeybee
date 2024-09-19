@@ -14,6 +14,7 @@ import { stringifyMessagePath } from "@foxglove/studio-base/components/MessagePa
 import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
+import { TimestampDatasetsBuilder } from "@foxglove/studio-base/panels/Plot/builders/TimestampDatasetsBuilder";
 import { MessageBlock, PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds } from "@foxglove/studio-base/types/Bounds";
 import delay from "@foxglove/studio-base/util/delay";
@@ -348,13 +349,13 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
   /**
    * Return true if the plot viewport has deviated from the config or dataset bounds and can reset
    */
-  #canReset(): boolean {
+  async #canReset(): Promise<boolean> {
     if (this.#interactionBounds) {
       return true;
     }
 
     if (this.#globalBounds) {
-      const resetBounds = this.#getXResetBounds();
+      const resetBounds = await this.#getXResetBounds();
       return (
         this.#globalBounds.min !== resetBounds.min || this.#globalBounds.max !== resetBounds.max
       );
@@ -367,7 +368,14 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
    * Get the xBounds if we cleared the interaction and global bounds (i.e) reset
    * back to the config or dataset bounds
    */
-  #getXResetBounds(): Partial<Bounds1D> {
+  async #getXResetBounds(): Promise<Partial<Bounds1D>> {
+    if (this.#datasetsBuilder instanceof TimestampDatasetsBuilder) {
+      const range = await this.#datasetsBuilder.getXRange();
+      if (range) {
+        return range;
+      }
+    }
+
     const currentSecondsIfFollowMode =
       this.#isTimeseriesPlot && this.#followRange != undefined && this.#currentSeconds != undefined
         ? this.#currentSeconds
@@ -383,12 +391,12 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     return { min: xMin, max: xMax };
   }
 
-  #getXBounds(): Partial<Bounds1D> {
+  async #getXBounds(): Promise<Partial<Bounds1D>> {
     // Interaction, synced global bounds override the config and data source bounds in precedence
     const resetBounds = this.#getXResetBounds();
     return {
-      min: this.#interactionBounds?.x.min ?? this.#globalBounds?.min ?? resetBounds.min,
-      max: this.#interactionBounds?.x.max ?? this.#globalBounds?.max ?? resetBounds.max,
+      min: this.#interactionBounds?.x.min ?? this.#globalBounds?.min ?? (await resetBounds).min,
+      max: this.#interactionBounds?.x.max ?? this.#globalBounds?.max ?? (await resetBounds).max,
     };
   }
 
@@ -400,7 +408,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (this.#isDestroyed()) {
       return;
     }
-    this.#updateAction.xBounds = this.#getXBounds();
+    this.#updateAction.xBounds = await this.#getXBounds();
 
     if (this.#shouldResetY) {
       const yMin = this.#interactionBounds?.y.min ?? this.#configBounds.y.min;
@@ -428,7 +436,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (haveInteractionEvents && bounds) {
       this.emit("timeseriesBounds", bounds.x);
     }
-    this.emit("viewportChange", this.#canReset());
+    this.emit("viewportChange", await this.#canReset());
     this.#queueDispatchDatasets();
   }
 
@@ -436,7 +444,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (this.#isDestroyed()) {
       return;
     }
-    this.#viewport.bounds.x = this.#getXBounds();
+    this.#viewport.bounds.x = await this.#getXBounds();
     this.#viewport.bounds.y = this.#interactionBounds?.y ?? this.#configBounds.y;
 
     const result = await this.#datasetsBuilder.getViewportDatasets(this.#viewport);
