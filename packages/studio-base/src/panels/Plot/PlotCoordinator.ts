@@ -29,7 +29,7 @@ import {
   SeriesItem,
   Viewport,
 } from "./builders/IDatasetsBuilder";
-import { isReferenceLinePlotPathType, PlotConfig } from "./config";
+import { isReferenceLinePlotPathType, PlotConfig, PlotXAxisVal } from "./config";
 
 type EventTypes = {
   timeseriesBounds(bounds: Immutable<Bounds1D>): void;
@@ -96,6 +96,8 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
   #destroyed = false;
 
   #latestBlocks?: Immutable<(MessageBlock | undefined)[]>;
+
+  #xAxisVal: PlotXAxisVal = "timestamp";
 
   public constructor(renderer: OffscreenCanvasRenderer, builder: IDatasetsBuilder) {
     super();
@@ -172,6 +174,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (this.#isDestroyed()) {
       return;
     }
+    this.#xAxisVal = config.xAxisVal;
     this.#isTimeseriesPlot = config.xAxisVal === "timestamp";
     if (!this.#isTimeseriesPlot) {
       this.#currentSeconds = undefined;
@@ -369,7 +372,10 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
    * back to the config or dataset bounds
    */
   async #getXResetBounds(): Promise<Partial<Bounds1D>> {
-    if (this.#datasetsBuilder instanceof TimestampDatasetsBuilder) {
+    if (
+      this.#datasetsBuilder instanceof TimestampDatasetsBuilder &&
+      this.#xAxisVal === "partialTimestamp"
+    ) {
       const range = await this.#datasetsBuilder.getXRange();
       if (range) {
         return range;
