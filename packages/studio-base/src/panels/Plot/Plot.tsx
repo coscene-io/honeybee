@@ -662,7 +662,8 @@ export function Plot(props: Props): JSX.Element {
   const globalBounds = useTimelineInteractionState(selectGlobalBounds);
   const setGlobalBounds = useTimelineInteractionState(selectSetGlobalBounds);
 
-  const shouldSync = config.xAxisVal === "timestamp" && config.isSynced;
+  const shouldSync =
+    (config.xAxisVal === "timestamp" || config.xAxisVal === "partialTimestamp") && config.isSynced;
 
   useEffect(() => {
     if (globalBounds?.sourceId === subscriberId || !shouldSync) {
