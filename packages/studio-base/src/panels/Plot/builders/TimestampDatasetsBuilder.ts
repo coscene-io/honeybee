@@ -224,6 +224,10 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   public async getCsvData(): Promise<CsvDataset[]> {
     return await this.#datasetsBuilderRemote.getCsvData();
   }
+
+  public async getXRange(): Promise<Bounds1D | undefined> {
+    return await this.#datasetsBuilderRemote.getXRange();
+  }
 }
 
 function readMessagePathItems(

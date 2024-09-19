@@ -275,6 +275,20 @@ export class TimestampDatasetsBuilderImpl {
     return datasets;
   }
 
+  public getXRange(): Bounds1D | undefined {
+    let min = Number.MAX_VALUE;
+    let max = Number.MIN_VALUE;
+
+    for (const series of this.#seriesByKey.values()) {
+      for (const item of series.current) {
+        min = Math.min(min, item.x);
+        max = Math.max(max, item.x);
+      }
+    }
+
+    return { min, max };
+  }
+
   public applyActions(actions: Immutable<UpdateDataAction[]>): void {
     for (const action of actions) {
       this.applyAction(action);
