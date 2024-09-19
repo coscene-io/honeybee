@@ -3128,10 +3128,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bufbuild/protobuf@npm:1.3.0":
-  version: 1.3.0
-  resolution: "@bufbuild/protobuf@npm:1.3.0"
-  checksum: a7286458776bf34e4c2709f221462330590f1078facdb6901d535890852acca6aa3496aff4aa9e17ac02e6969f5fdc5fa726706721946bbcecf299adf375f8ff
+"@bufbuild/protobuf@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@bufbuild/protobuf@npm:2.1.0"
+  checksum: 7a6aecb946163cdf15cdb0d04f9548b52c19dc0ed4eebe39be1989fd538dfbc65f11c483d5f20906028ab87bd7e49acf6ece3244f85b83651b79076648a6d7ae
   languageName: node
   linkType: hard
 
@@ -4180,7 +4180,7 @@ __metadata:
   dependencies:
     "@bufbuild/connect": 0.13.0
     "@bufbuild/connect-web": 0.13.0
-    "@bufbuild/protobuf": 1.3.0
+    "@bufbuild/protobuf": 2.1.0
     "@coscene-io/coscene": 0.3.129
     "@coscene-io/cosceneapis-es": 0.0.203
     "@coscene-io/cosel": 23.49.2
