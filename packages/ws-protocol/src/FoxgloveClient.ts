@@ -265,6 +265,6 @@ export default class FoxgloveClient {
   }
 
   #send(message: ClientMessage) {
-    this.#ws.send(JSON.stringify(message));
+    this.#ws.send(JSON.stringify(message) ?? "");
   }
 }

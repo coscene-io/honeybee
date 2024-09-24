@@ -409,7 +409,7 @@ export default class FoxgloveServer {
   }
 
   #send(client: IWebSocket, message: ServerMessage): void {
-    client.send(JSON.stringify(message));
+    client.send(JSON.stringify(message) ?? "");
   }
 
   #anySubscribed(chanId: ChannelId) {
