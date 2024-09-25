@@ -19,6 +19,7 @@ import { MessageWriter as Ros2MessageWriter } from "@foxglove/rosmsg2-serializat
 import { fromMillis, fromNanoSec, isGreaterThan, isLessThan, Time } from "@foxglove/rostime";
 import { ParameterValue } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { estimateObjectSize } from "@foxglove/studio-base/players/messageMemoryEstimation";
 import {
@@ -166,17 +167,32 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #messageSizeEstimateByTopic: Record<string, number> = {};
   // #INATIVE_TIMEOUT
   #inactiveTimeout = INATIVE_TIMEOUT;
+  #confirm: confirmTypes;
+
+  #userId: string;
+  #username: string;
+  #deviceName: string;
+
+  // #isOldBridge = false;
 
   public constructor({
     url,
     metricsCollector,
     sourceId,
     params,
+    confirm,
+    userId,
+    username,
+    deviceName,
   }: {
     url: string;
     metricsCollector: PlayerMetricsCollectorInterface;
     sourceId: string;
     params: Record<string, string | undefined>;
+    confirm: confirmTypes;
+    userId: string;
+    username: string;
+    deviceName: string;
   }) {
     this.#metricsCollector = metricsCollector;
     this.#url = url;
@@ -187,6 +203,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
       sourceId: this.#sourceId,
       parameters: { ...params, url: this.#url },
     };
+    this.#confirm = confirm;
+    this.#userId = userId;
+    this.#username = username;
+    this.#deviceName = deviceName;
     this.#open();
   }
 
@@ -214,7 +234,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     });
 
     this.#client.on("open", () => {
-      if (this.#closed) {
+      if (this.#closed || !this.#client) {
         return;
       }
       if (this.#connectionAttemptTimeout != undefined) {
@@ -242,6 +262,51 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#advertisedServices = undefined;
       this.#datatypes = new Map();
       this.#parameters = new Map();
+    });
+
+    this.#client.on("login", (message) => {
+      if (message.userId) {
+        void this.#confirm({
+          title: t("cosWebsocket:note"),
+          prompt: t("cosWebsocket:connectionOccupied", {
+            deviceName: this.#deviceName,
+            username: this.#username,
+          }),
+          ok: t("cosWebsocket:confirm"),
+          cancel: t("cosWebsocket:cancel"),
+          variant: "danger",
+        }).then((result) => {
+          if (result === "ok") {
+            this.#client?.login(this.#userId, this.#username);
+          }
+          if (result === "cancel") {
+            window.close();
+          }
+        });
+      } else {
+        this.#client?.login(this.#userId, this.#username);
+      }
+    });
+
+    this.#client.on("kicked", (message) => {
+      this.#client?.close();
+      void this.#confirm({
+        title: t("cosWebsocket:notification"),
+        prompt: t("cosWebsocket:vizIsTkenNow", {
+          deviceName: this.#deviceName,
+          username: message.username,
+        }),
+        ok: t("cosWebsocket:reconnect"),
+        cancel: t("cosWebsocket:cancel"),
+        variant: "danger",
+      }).then((result) => {
+        if (result === "ok") {
+          this.#open();
+        }
+        if (result === "cancel") {
+          window.close();
+        }
+      });
     });
 
     this.#client.on("error", (err) => {

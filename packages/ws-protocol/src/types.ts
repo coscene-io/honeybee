@@ -117,22 +117,6 @@ export type ServiceCallPayload = {
 export type ServiceCallRequest = ServiceCallPayload & {
   op: ClientBinaryOpcode.SERVICE_CALL_REQUEST;
 };
-
-export type ClientMessage =
-  | Subscribe
-  | Unsubscribe
-  | ClientAdvertise
-  | ClientUnadvertise
-  | GetParameters
-  | SetParameters
-  | SubscribeParameterUpdates
-  | UnsubscribeParameterUpdates
-  | ClientMessageData
-  | ServiceCallRequest
-  | SubscribeConnectionGraph
-  | UnsubscribeConnectionGraph
-  | FetchAsset;
-
 export type ServerInfo = {
   op: "serverInfo";
   name: string;
@@ -267,6 +251,19 @@ export type Parameter = {
   type?: "byte_array" | "float64" | "float64_array";
 };
 
+export type Login = {
+  op: "login";
+  userId: string;
+  username: string;
+};
+
+export type Kicked = {
+  op: "kicked";
+  userId: string;
+  username: string;
+  message: string;
+};
+
 export type ServerMessage =
   | ServerInfo
   | StatusMessage
@@ -281,7 +278,24 @@ export type ServerMessage =
   | ParameterValues
   | ConnectionGraphUpdate
   | FetchAssetResponse
-  | ServiceCallFailure;
+  | ServiceCallFailure
+  | Login;
+
+export type ClientMessage =
+  | Subscribe
+  | Unsubscribe
+  | ClientAdvertise
+  | ClientUnadvertise
+  | GetParameters
+  | SetParameters
+  | SubscribeParameterUpdates
+  | UnsubscribeParameterUpdates
+  | ClientMessageData
+  | ServiceCallRequest
+  | SubscribeConnectionGraph
+  | UnsubscribeConnectionGraph
+  | FetchAsset
+  | Login;
 
 /**
  * Abstraction that supports both browser and Node WebSocket clients.

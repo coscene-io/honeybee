@@ -28,6 +28,8 @@ import {
   ServiceId,
   SubscriptionId,
   Time,
+  Login,
+  Kicked,
 } from "./types";
 
 type EventTypes = {
@@ -49,6 +51,8 @@ type EventTypes = {
   connectionGraphUpdate: (event: ConnectionGraphUpdate) => void;
   fetchAssetResponse: (event: FetchAssetResponse) => void;
   serviceCallFailure: (event: ServiceCallFailure) => void;
+  login: (event: Login) => void;
+  kicked: (event: Kicked) => void;
 };
 
 const textEncoder = new TextEncoder();
@@ -146,6 +150,10 @@ export default class FoxgloveClient {
 
         case "serviceCallFailure":
           this.#emitter.emit("serviceCallFailure", message);
+          return;
+
+        case "login":
+          this.#emitter.emit("login", message);
           return;
 
         case BinaryOpcode.MESSAGE_DATA:
@@ -255,6 +263,10 @@ export default class FoxgloveClient {
 
   public fetchAsset(uri: string, requestId: number): void {
     this.#send({ op: "fetchAsset", uri, requestId });
+  }
+
+  public login(userId: string, username: string): void {
+    this.#send({ op: "login", userId, username });
   }
 
   /**
