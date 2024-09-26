@@ -4,7 +4,6 @@
 
 import EventEmitter from "eventemitter3";
 
-import { ChannelId, MessageData, ServerInfo, StatusMessage } from ".";
 import { parseServerMessage } from "./parse";
 import {
   BinaryOpcode,
@@ -30,6 +29,10 @@ import {
   Time,
   Login,
   Kicked,
+  ChannelId,
+  MessageData,
+  ServerInfo,
+  StatusMessage,
 } from "./types";
 
 type EventTypes = {
