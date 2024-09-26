@@ -279,7 +279,8 @@ export type ServerMessage =
   | ConnectionGraphUpdate
   | FetchAssetResponse
   | ServiceCallFailure
-  | Login;
+  | Login
+  | Kicked;
 
 export type ClientMessage =
   | Subscribe

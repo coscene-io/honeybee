@@ -159,6 +159,10 @@ export default class FoxgloveClient {
           this.#emitter.emit("login", message);
           return;
 
+        case "kicked":
+          this.#emitter.emit("kicked", message);
+          return;
+
         case BinaryOpcode.MESSAGE_DATA:
           this.#emitter.emit("message", message);
           return;

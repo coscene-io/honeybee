@@ -172,6 +172,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #userId: string;
   #username: string;
   #deviceName: string;
+  #isReconnect: boolean = false;
 
   // #isOldBridge = false;
 
@@ -265,6 +266,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
     });
 
     this.#client.on("login", (message) => {
+      if (this.#isReconnect) {
+        this.#isReconnect = false;
+        this.#client?.login(this.#userId, this.#username);
+        return;
+      }
       if (message.userId) {
         void this.#confirm({
           title: t("cosWebsocket:note"),
@@ -289,7 +295,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     });
 
     this.#client.on("kicked", (message) => {
-      this.#client?.close();
+      this.close();
       void this.#confirm({
         title: t("cosWebsocket:notification"),
         prompt: t("cosWebsocket:vizIsTkenNow", {
@@ -301,6 +307,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         variant: "danger",
       }).then((result) => {
         if (result === "ok") {
+          this.#closed = false;
+          this.#isReconnect = true;
           this.#open();
         }
         if (result === "cancel") {
