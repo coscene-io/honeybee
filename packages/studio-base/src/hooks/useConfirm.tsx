@@ -18,7 +18,7 @@ import { useKeyPressEvent } from "react-use";
 type ConfirmVariant = "danger" | "primary";
 type ConfirmAction = "ok" | "cancel";
 
-type ConfirmOptions = {
+export type ConfirmOptions = {
   // the title of the confirm modal
   title: string;
   // text in the body of the confirm modal. Specify a string or JSX Element

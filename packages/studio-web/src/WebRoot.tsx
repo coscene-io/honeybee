@@ -13,6 +13,7 @@ import {
   AppBarProps,
   AppSetting,
 } from "@foxglove/studio-base";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 import { useCoSceneInit } from "./CoSceneInit";
 import { CoSceneProviders } from "./CoSceneProviders";
@@ -29,6 +30,10 @@ export function WebRoot(props: {
 }): JSX.Element {
   useCoSceneInit();
 
+  // if has many sources need to set confirm
+  // recommand set confirm to message pipeline
+  const [confirm, confirmModal] = useConfirm();
+
   const appConfiguration = useMemo(
     () =>
       new LocalStorageAppConfiguration({
@@ -41,12 +46,12 @@ export function WebRoot(props: {
 
   const dataSources = useMemo(() => {
     const sources = [
-      new FoxgloveWebSocketDataSourceFactory(),
+      new FoxgloveWebSocketDataSourceFactory({ confirm }),
       new CoSceneDataPlatformDataSourceFactory(),
     ];
 
     return props.dataSources ?? sources;
-  }, [props.dataSources]);
+  }, [props.dataSources, confirm]);
 
   const coSceneProviders = CoSceneProviders();
 
@@ -73,6 +78,7 @@ export function WebRoot(props: {
       </SharedRoot>
       <JoyrideWrapper />
       <Toaster />
+      {confirmModal}
     </>
   );
 }
