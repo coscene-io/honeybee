@@ -6,8 +6,10 @@ import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import FoxgloveWebSocketPlayer from "@foxglove/studio-base/players/FoxgloveWebSocketPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-websocket";
@@ -30,6 +32,24 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/custom#foxglove-websocket",
     },
   ];
+
+  #confirm: confirmTypes;
+  #userId: string;
+  #username: string;
+  #deviceName: string;
+
+  public constructor({ confirm }: { confirm: confirmTypes }) {
+    const currentUser = localStorage.getItem("current_user") ?? "{}";
+    const currentUserId = JSON.parse(currentUser).userId ?? "";
+    const currentUsername = JSON.parse(currentUser).nickName ?? "";
+    const deviceName = windowAppURLState()?.dsParams?.hostName;
+
+    this.#userId = currentUserId;
+    this.#username = currentUsername;
+    this.#deviceName = deviceName ?? "unknown";
+
+    this.#confirm = confirm;
+  }
 
   public formConfig = {
     fields: [
@@ -63,6 +83,10 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       metricsCollector: args.metricsCollector,
       sourceId: this.id,
       params: args.params ?? {},
+      confirm: this.#confirm,
+      userId: this.#userId,
+      username: this.#username,
+      deviceName: this.#deviceName,
     });
   }
 }

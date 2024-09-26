@@ -8,4 +8,15 @@ export const cosWebsocket = {
     'By default, Chrome prevents a secure <code>https://</code> page from connecting to an insecure <code>ws://</code> WebSocket server. To allow the connection, enable "Unsafe Scripts" for this page.',
   websocketSSLErrorDesc2:
     'Click the shield icon at the end of your address bar, and then click "Load Unsafe Scripts."',
+  note: "Note",
+  connectionOccupied:
+    "The real-time visualisation of the device {{deviceName}} is being used by {{username}} and continuing to view it may affect others. Are you sure you want to continue?",
+  confirm: "Confirm",
+  cancel: "Cancel",
+  notification: "Notification",
+  vizIsTkenNow:
+    "The real-time visualisation of the current device {{deviceName}} has been taken over by the user {{username}} and you are automatically logged out!",
+  reconnetDesc: "Reconnect if necessary.",
+  reconnect: "Reconnect",
+  IKnow: "I know",
 };
