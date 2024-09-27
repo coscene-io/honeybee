@@ -376,9 +376,13 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       this.#datasetsBuilder instanceof TimestampDatasetsBuilder &&
       this.#xAxisVal === "partialTimestamp"
     ) {
-      const range = await this.#datasetsBuilder.getXRange();
-      if (range) {
-        return range;
+      const fullRange = await this.#datasetsBuilder.getXRange();
+      if (fullRange) {
+        const { min, max } = fullRange;
+        return {
+          min: this.#followRange != undefined ? max - this.#followRange : min,
+          max,
+        };
       }
     }
 
