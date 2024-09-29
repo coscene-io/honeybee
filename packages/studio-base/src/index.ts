@@ -49,3 +49,7 @@ export { IdbExtensionLoader } from "./services/IdbExtensionLoader";
 export type { IUrdfStorage } from "./services/UrdfStorage";
 
 export type { AppBarProps } from "./components/AppBar";
+
+// desktop
+export type { INativeWindow, NativeWindowEvent } from "./context/NativeWindowContext";
+export type { INativeAppMenu, NativeAppMenuEvent } from "./context/NativeAppMenuContext";
