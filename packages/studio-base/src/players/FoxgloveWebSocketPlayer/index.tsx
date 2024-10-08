@@ -274,10 +274,19 @@ export default class FoxgloveWebSocketPlayer implements Player {
       if (message.userId) {
         void this.#confirm({
           title: t("cosWebsocket:note"),
-          prompt: t("cosWebsocket:connectionOccupied", {
-            deviceName: this.#deviceName,
-            username: this.#username,
-          }),
+          prompt: (
+            <Trans
+              t={t}
+              i18nKey="cosWebsocket:connectionOccupied"
+              values={{
+                deviceName: this.#deviceName,
+                username: message.username,
+              }}
+              components={{
+                strong: <strong />,
+              }}
+            />
+          ),
           ok: t("cosWebsocket:confirm"),
           cancel: t("cosWebsocket:cancel"),
           variant: "danger",
@@ -298,10 +307,19 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.close();
       void this.#confirm({
         title: t("cosWebsocket:notification"),
-        prompt: t("cosWebsocket:vizIsTkenNow", {
-          deviceName: this.#deviceName,
-          username: message.username,
-        }),
+        prompt: (
+          <Trans
+            t={t}
+            i18nKey="cosWebsocket:vizIsTkenNow"
+            values={{
+              deviceName: this.#deviceName,
+              username: message.username,
+            }}
+            components={{
+              strong: <strong />,
+            }}
+          />
+        ),
         ok: t("cosWebsocket:reconnect"),
         cancel: t("cosWebsocket:cancel"),
         variant: "danger",

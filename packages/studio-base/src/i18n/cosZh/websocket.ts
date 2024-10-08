@@ -10,11 +10,12 @@ export const cosWebsocket: Partial<TypeOptions["resources"]["cosWebsocket"]> = {
   websocketSSLErrorDesc2: '单击地址栏末尾的盾牌图标，然后单击 "加载不安全的脚本"。',
   note: "注意",
   connectionOccupied:
-    "当前设备{{deviceName}}的实时可视化正在被用户{{username}}使用，继续查看可能会影响他人。您确定要继续吗？",
+    "当前设备<strong>{{deviceName}}</strong>的实时可视化正在被用户<strong>{{username}}</strong>使用，继续查看可能会影响他人。您确定要继续吗？",
   confirm: "继续",
   cancel: "取消",
   notification: "通知",
-  vizIsTkenNow: "当前设备{{deviceName}}的实时可视化已被用户{{username}}接管，您已自动登出。",
+  vizIsTkenNow:
+    "当前设备<strong>{{deviceName}}</strong>的实时可视化已被用户<strong>{{username}}</strong>接管，您已自动登出。",
   reconnetDesc: "如果需要，请重新连接。",
   reconnect: "重新连接",
   IKnow: "我知道了",

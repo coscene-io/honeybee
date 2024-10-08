@@ -6,6 +6,6 @@ export const cosVersionBanner = {
   outdatedVersion: "You’re using an outdated version of Chrome.",
   unsupportedBrowser: "You’re using an unsupported browser.",
   requireChrome:
-    'Chrome 104 or above is recommended to ensure smooth use of the platform"s services.',
+    "Chrome V104 and above is recommended, other browsers may not function properly, please switch for the best experience.",
   download: "Download",
 };
