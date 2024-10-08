@@ -3,9 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export const cosVersionBanner = {
-  outdatedVersion: "You’re using an outdated version of Chrome.",
-  unsupportedBrowser: "You’re using an unsupported browser.",
-  requireChrome:
-    "Chrome V104 and above is recommended, other browsers may not function properly, please switch for the best experience.",
   download: "Download",
+  browserVersionError:
+    "We recommend using Chrome V104 or higher for the best experience. Other browsers may not have full functionality. Please switch for the best experience.",
+  chromeVersionError:
+    "You’re using an outdated version of Chrome. Please upgrade to the latest version for the best experience.",
 };

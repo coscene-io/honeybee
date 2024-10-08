@@ -50,8 +50,6 @@ const VersionBanner = function ({
     return ReactNull;
   }
 
-  const prompt = isChrome ? t("outdatedVersion") : t("unsupportedBrowser");
-
   return (
     <MuiThemeProvider theme={muiTheme}>
       <BannerContainer isDismissable={isDismissable}>
@@ -66,7 +64,7 @@ const VersionBanner = function ({
           <Stack direction="row" alignItems="center" gap={1}>
             <WarningIcon color="warning" />
             <Typography align="center" color="#111827" variant="body1">
-              {prompt + ", "} {t("requireChrome")}
+              {isChrome ? t("chromeVersionError") : t("browserVersionError")}
             </Typography>
           </Stack>
 
