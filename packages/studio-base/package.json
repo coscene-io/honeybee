@@ -34,6 +34,7 @@
     "@foxglove/mcap-support": "workspace:*",
     "@foxglove/message-definition": "0.3.1",
     "@foxglove/message-path": "workspace:*",
+    "@foxglove/ros1": "3.0.0",
     "@foxglove/rosbag": "0.4.0",
     "@foxglove/rosbag2-web": "4.1.1",
     "@foxglove/roslibjs": "0.0.3",

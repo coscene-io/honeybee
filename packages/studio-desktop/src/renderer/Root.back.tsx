@@ -5,8 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  SharedRoot,
-  StudioApp,
+  App,
   AppSetting,
   FoxgloveWebSocketDataSourceFactory,
   IAppConfiguration,
@@ -22,14 +21,10 @@ import {
   SampleNuscenesDataSourceFactory,
   UlogLocalDataSourceFactory,
   VelodyneDataSourceFactory,
-  ExtensionCatalogProvider,
 } from "@foxglove/studio-base";
-import NativeAppMenuContext from "@foxglove/studio-base/src/context/NativeAppMenuContext";
-import NativeWindowContext from "@foxglove/studio-base/src/context/NativeWindowContext";
-import { useConfirm } from "@foxglove/studio-base/src/hooks/useConfirm";
 
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
-// import { DesktopLayoutLoader } from "./services/DesktopLayoutLoader";
+import { DesktopLayoutLoader } from "./services/DesktopLayoutLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
 import { NativeWindow } from "./services/NativeWindow";
 import { Desktop, NativeMenuBridge, Storage } from "../common/types";
@@ -48,10 +43,6 @@ export default function Root(props: {
     throw new Error("storageBridge is missing");
   }
   const { appConfiguration } = props;
-
-  // if has many sources need to set confirm
-  // recommand set confirm to message pipeline
-  const [confirm, confirmModal] = useConfirm();
 
   useEffect(() => {
     const handler = () => {
@@ -79,7 +70,7 @@ export default function Root(props: {
     new DesktopExtensionLoader(desktopBridge),
   ]);
 
-  // const [layoutLoaders] = useState(() => [new DesktopLayoutLoader(desktopBridge)]);
+  const [layoutLoaders] = useState(() => [new DesktopLayoutLoader(desktopBridge)]);
 
   const nativeAppMenu = useMemo(() => new NativeAppMenu(menuBridge), []);
   const nativeWindow = useMemo(() => new NativeWindow(desktopBridge), []);
@@ -90,7 +81,7 @@ export default function Root(props: {
     }
 
     const sources = [
-      new FoxgloveWebSocketDataSourceFactory({ confirm }),
+      new FoxgloveWebSocketDataSourceFactory(),
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
       new Ros1LocalBagDataSourceFactory(),
@@ -103,7 +94,7 @@ export default function Root(props: {
     ];
 
     return sources;
-  }, [confirm, props.dataSources]);
+  }, [props.dataSources]);
 
   // App url state in window.location will represent the user's current session state
   // better than the initial deep link so we prioritize the current window.location
@@ -153,46 +144,29 @@ export default function Root(props: {
     };
   }, []);
 
-  const extraProviders = useMemo(() => {
-    const providers = [];
-
-    providers.push(<ExtensionCatalogProvider loaders={extensionLoaders} />);
-
-    providers.push(<NativeAppMenuContext.Provider value={nativeAppMenu} />);
-
-    providers.push(<NativeWindowContext.Provider value={nativeWindow} />);
-
-    if (props.extraProviders != undefined) {
-      providers.push(...props.extraProviders);
-    }
-    return providers;
-  }, [extensionLoaders, nativeAppMenu, nativeWindow, props.extraProviders]);
-
   return (
     <>
-      <SharedRoot
-        appBarLeftInset={ctxbridge?.platform === "darwin" && !isFullScreen ? 72 : undefined}
+      <App
+        deepLinks={deepLinks}
+        dataSources={dataSources}
         appConfiguration={appConfiguration}
+        extensionLoaders={extensionLoaders}
+        layoutLoaders={layoutLoaders}
+        nativeAppMenu={nativeAppMenu}
+        nativeWindow={nativeWindow}
+        enableGlobalCss
+        appBarLeftInset={ctxbridge?.platform === "darwin" && !isFullScreen ? 72 : undefined}
         onAppBarDoubleClick={() => {
           nativeWindow.handleTitleBarDoubleClick();
         }}
-        dataSources={dataSources}
-        deepLinks={deepLinks}
-        enableGlobalCss
-        enableLaunchPreferenceScreen
-        extraProviders={extraProviders}
-        customWindowControlProps={{
-          showCustomWindowControls: ctxbridge?.platform === "linux",
-          isMaximized,
-          onMinimizeWindow,
-          onMaximizeWindow,
-          onUnmaximizeWindow,
-          onCloseWindow,
-        }}
-      >
-        <StudioApp />
-      </SharedRoot>
-      {confirmModal}
+        showCustomWindowControls={ctxbridge?.platform === "linux"}
+        isMaximized={isMaximized}
+        onMinimizeWindow={onMinimizeWindow}
+        onMaximizeWindow={onMaximizeWindow}
+        onUnmaximizeWindow={onUnmaximizeWindow}
+        onCloseWindow={onCloseWindow}
+        extraProviders={props.extraProviders}
+      />
     </>
   );
 }

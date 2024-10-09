@@ -4270,6 +4270,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@foxglove/just-fetch@npm:^1.2.4":
+  version: 1.3.1
+  resolution: "@foxglove/just-fetch@npm:1.3.1"
+  dependencies:
+    node-fetch: ^3.3.0
+  checksum: 11c2c5f07c9bb1e324382c55e7a0f6a1476f7ba446475b895bd33bf09043b3af3a7b3a1c6e773f39639e09386d8709dc2d235f579ede46976afee05fc0fd47a3
+  languageName: node
+  linkType: hard
+
 "@foxglove/log@workspace:*, @foxglove/log@workspace:packages/log":
   version: 0.0.0-use.local
   resolution: "@foxglove/log@workspace:packages/log"
@@ -4346,6 +4355,22 @@ __metadata:
     "@foxglove/cdr": ^3.2.1
     "@foxglove/message-definition": ^0.3.1
   checksum: 869a60bd287ba0ef25ceca6975a3a21658033d1f3378a57d8112905dc68a520fe5829767021e116a484f99d08f9f446edc15287685c1d2f627345ee9701dcbb3
+  languageName: node
+  linkType: hard
+
+"@foxglove/ros1@npm:3.0.0":
+  version: 3.0.0
+  resolution: "@foxglove/ros1@npm:3.0.0"
+  dependencies:
+    "@foxglove/message-definition": ^0.2.0
+    "@foxglove/rosmsg": ^4.0.0
+    "@foxglove/rosmsg-serialization": ^2.0.0
+    "@foxglove/xmlrpc": ^1.3.0
+    eventemitter3: ^5.0.0
+    ipaddr.js: ^2.0.1
+  bin:
+    roscore: dist/nodejs/roscore.js
+  checksum: 8fc81db65d042339302653e15ee3cde11ded6adc7ab2535da977c96cadbc3e15d26f4e000475b146dbb155c5347d751b8deb76fcda577b1b1f70d3fe043219cb
   languageName: node
   linkType: hard
 
@@ -4516,6 +4541,7 @@ __metadata:
     "@foxglove/mcap-support": "workspace:*"
     "@foxglove/message-definition": 0.3.1
     "@foxglove/message-path": "workspace:*"
+    "@foxglove/ros1": 3.0.0
     "@foxglove/rosbag": 0.4.0
     "@foxglove/rosbag2-web": 4.1.1
     "@foxglove/roslibjs": 0.0.3
@@ -4882,6 +4908,18 @@ __metadata:
     typescript: 5.6.2
   languageName: unknown
   linkType: soft
+
+"@foxglove/xmlrpc@npm:^1.3.0":
+  version: 1.3.0
+  resolution: "@foxglove/xmlrpc@npm:1.3.0"
+  dependencies:
+    "@foxglove/just-fetch": ^1.2.4
+    byte-base64: ^1.1.0
+    sax: ^1.2.4
+    xmlbuilder2: ^3.0.2
+  checksum: 9f772e147581081426d1353512b59b80e3335973920a305a6086dde2189627a74d227f6d54f9e85bccdc2843797f7a0eeeaedc5762e695c2da04bf7bfdff7246
+  languageName: node
+  linkType: hard
 
 "@gar/promisify@npm:^1.0.1":
   version: 1.1.3
@@ -5931,6 +5969,43 @@ __metadata:
   dependencies:
     "@octokit/openapi-types": ^19.0.0
   checksum: ad55e13cbeef96a63d0088df2ed0a8f3ca764db3f877aa2ecb1693de40b03c1f8e392603bd7fddaaaa74138970ea39f46e4b830d15eeeba74be1671f36440129
+  languageName: node
+  linkType: hard
+
+"@oozcitak/dom@npm:1.15.10":
+  version: 1.15.10
+  resolution: "@oozcitak/dom@npm:1.15.10"
+  dependencies:
+    "@oozcitak/infra": 1.0.8
+    "@oozcitak/url": 1.0.4
+    "@oozcitak/util": 8.3.8
+  checksum: c83f5dc778b12f8e52e35fac0aa741bfac074faf3f3b60345723de46cba4c8ef0dced2839379fb93e21007f52336f875cf9ddfff6c598020b0688cb7d6f03ec7
+  languageName: node
+  linkType: hard
+
+"@oozcitak/infra@npm:1.0.8":
+  version: 1.0.8
+  resolution: "@oozcitak/infra@npm:1.0.8"
+  dependencies:
+    "@oozcitak/util": 8.3.8
+  checksum: fc76a17187d67df39cf38ae8138ce1757d6b86e5d2ff3c90f5db12194380005b4e22fb6caec4bd40dce363fb8c89f6f945bb0577e6ecee59755773b7ff793164
+  languageName: node
+  linkType: hard
+
+"@oozcitak/url@npm:1.0.4":
+  version: 1.0.4
+  resolution: "@oozcitak/url@npm:1.0.4"
+  dependencies:
+    "@oozcitak/infra": 1.0.8
+    "@oozcitak/util": 8.3.8
+  checksum: ab4a9726b447910e093c0efcb92c4486e1bc314e0c9375f1a4082d1f0b2cc80bbfd433cc6953641b1ddaf73df21bd7002bb5cf581d8ff104a9eac5d21633b781
+  languageName: node
+  linkType: hard
+
+"@oozcitak/util@npm:8.3.8":
+  version: 8.3.8
+  resolution: "@oozcitak/util@npm:8.3.8"
+  checksum: 3aaa936fb3ba5a8561b54f41ef55cbba633b52f7f95c74e9c4a8068e3cbe893dc30865a24483d3887a0d8a201ee4584daf51f0a177fb8e5997c0bdd289c4f559
   languageName: node
   linkType: hard
 
@@ -11086,6 +11161,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"byte-base64@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "byte-base64@npm:1.1.0"
+  checksum: 95851fc758882ba6b28422d70c685f86257eb635be10eb37528765f39fc1c8766972f9bb39e0684539fafc7d9625145d26e5ab310a52c9eb9df3506952586e0c
+  languageName: node
+  linkType: hard
+
 "bytes@npm:3.0.0":
   version: 3.0.0
   resolution: "bytes@npm:3.0.0"
@@ -12365,6 +12447,13 @@ __metadata:
     graphlib: ^2.1.8
     lodash: ^4.17.15
   checksum: b9fabd425466d7b662381c2e457b1adda996bc4169aa60121d4de50250d83a6bb4b77d559e2f887c9c564caea781c2a377fd4de2a76c15f8f04ec3d086ca95f9
+  languageName: node
+  linkType: hard
+
+"data-uri-to-buffer@npm:^4.0.0":
+  version: 4.0.1
+  resolution: "data-uri-to-buffer@npm:4.0.1"
+  checksum: 0d0790b67ffec5302f204c2ccca4494f70b4e2d940fea3d36b09f0bb2b8539c2e86690429eb1f1dc4bcc9e4df0644193073e63d9ee48ac9fce79ec1506e4aa4c
   languageName: node
   linkType: hard
 
@@ -14504,7 +14593,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eventemitter3@npm:5.0.1, eventemitter3@npm:^5.0.1":
+"eventemitter3@npm:5.0.1, eventemitter3@npm:^5.0.0, eventemitter3@npm:^5.0.1":
   version: 5.0.1
   resolution: "eventemitter3@npm:5.0.1"
   checksum: 543d6c858ab699303c3c32e0f0f47fc64d360bf73c3daf0ac0b5079710e340d6fe9f15487f94e66c629f5f82cd1a8678d692f3dbb6f6fcd1190e1b97fcad36f8
@@ -14864,6 +14953,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fetch-blob@npm:^3.1.2, fetch-blob@npm:^3.1.4":
+  version: 3.2.0
+  resolution: "fetch-blob@npm:3.2.0"
+  dependencies:
+    node-domexception: ^1.0.0
+    web-streams-polyfill: ^3.0.3
+  checksum: f19bc28a2a0b9626e69fd7cf3a05798706db7f6c7548da657cbf5026a570945f5eeaedff52007ea35c8bcd3d237c58a20bf1543bc568ab2422411d762dd3d5bf
+  languageName: node
+  linkType: hard
+
 "fflate@npm:~0.8.2":
   version: 0.8.2
   resolution: "fflate@npm:0.8.2"
@@ -15114,6 +15213,15 @@ __metadata:
     combined-stream: ^1.0.8
     mime-types: ^2.1.12
   checksum: 01135bf8675f9d5c61ff18e2e2932f719ca4de964e3be90ef4c36aacfc7b9cb2fceb5eca0b7e0190e3383fe51c5b37f4cb80b62ca06a99aaabfcfd6ac7c9328c
+  languageName: node
+  linkType: hard
+
+"formdata-polyfill@npm:^4.0.10":
+  version: 4.0.10
+  resolution: "formdata-polyfill@npm:4.0.10"
+  dependencies:
+    fetch-blob: ^3.1.2
+  checksum: 82a34df292afadd82b43d4a740ce387bc08541e0a534358425193017bf9fb3567875dc5f69564984b1da979979b70703aa73dee715a17b6c229752ae736dd9db
   languageName: node
   linkType: hard
 
@@ -16805,7 +16913,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ipaddr.js@npm:^2.1.0":
+"ipaddr.js@npm:^2.0.1, ipaddr.js@npm:^2.1.0":
   version: 2.2.0
   resolution: "ipaddr.js@npm:2.2.0"
   checksum: 770ba8451fd9bf78015e8edac0d5abd7a708cbf75f9429ca9147a9d2f3a2d60767cd5de2aab2b1e13ca6e4445bdeff42bf12ef6f151c07a5c6cf8a44328e2859
@@ -18060,7 +18168,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"js-yaml@npm:^3.13.1, js-yaml@npm:^3.14.1":
+"js-yaml@npm:3.14.1, js-yaml@npm:^3.13.1, js-yaml@npm:^3.14.1":
   version: 3.14.1
   resolution: "js-yaml@npm:3.14.1"
   dependencies:
@@ -19834,6 +19942,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"node-domexception@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "node-domexception@npm:1.0.0"
+  checksum: ee1d37dd2a4eb26a8a92cd6b64dfc29caec72bff5e1ed9aba80c294f57a31ba4895a60fd48347cf17dd6e766da0ae87d75657dfd1f384ebfa60462c2283f5c7f
+  languageName: node
+  linkType: hard
+
 "node-fetch-native@npm:^1.0.2":
   version: 1.1.0
   resolution: "node-fetch-native@npm:1.1.0"
@@ -19852,6 +19967,17 @@ __metadata:
     encoding:
       optional: true
   checksum: d76d2f5edb451a3f05b15115ec89fc6be39de37c6089f1b6368df03b91e1633fd379a7e01b7ab05089a25034b2023d959b47e59759cb38d88341b2459e89d6e5
+  languageName: node
+  linkType: hard
+
+"node-fetch@npm:^3.3.0":
+  version: 3.3.2
+  resolution: "node-fetch@npm:3.3.2"
+  dependencies:
+    data-uri-to-buffer: ^4.0.0
+    fetch-blob: ^3.1.4
+    formdata-polyfill: ^4.0.10
+  checksum: 06a04095a2ddf05b0830a0d5302699704d59bda3102894ea64c7b9d4c865ecdff2d90fd042df7f5bc40337266961cb6183dcc808ea4f3000d024f422b462da92
   languageName: node
   linkType: hard
 
@@ -25633,6 +25759,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"web-streams-polyfill@npm:^3.0.3":
+  version: 3.3.3
+  resolution: "web-streams-polyfill@npm:3.3.3"
+  checksum: 21ab5ea08a730a2ef8023736afe16713b4f2023ec1c7085c16c8e293ee17ed085dff63a0ad8722da30c99c4ccbd4ccd1b2e79c861829f7ef2963d7de7004c2cb
+  languageName: node
+  linkType: hard
+
 "web@workspace:web":
   version: 0.0.0-use.local
   resolution: "web@workspace:web"
@@ -26214,6 +26347,18 @@ __metadata:
   version: 4.0.0
   resolution: "xml-name-validator@npm:4.0.0"
   checksum: af100b79c29804f05fa35aa3683e29a321db9b9685d5e5febda3fa1e40f13f85abc40f45a6b2bf7bee33f68a1dc5e8eaef4cec100a304a9db565e6061d4cb5ad
+  languageName: node
+  linkType: hard
+
+"xmlbuilder2@npm:^3.0.2":
+  version: 3.1.1
+  resolution: "xmlbuilder2@npm:3.1.1"
+  dependencies:
+    "@oozcitak/dom": 1.15.10
+    "@oozcitak/infra": 1.0.8
+    "@oozcitak/util": 8.3.8
+    js-yaml: 3.14.1
+  checksum: fdcd38d271f1571972ec1facda5bb0d441c4d7d4fa0696cb591a1804549527c462479937194329a453ae5efcd5110c6d3a3d6cf98e210afa2c78bd0400fc6d3c
   languageName: node
   linkType: hard
 
