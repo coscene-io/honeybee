@@ -380,7 +380,8 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       if (fullRange) {
         const { min, max } = fullRange;
         return {
-          min: this.#followRange != undefined ? max - this.#followRange : min,
+          min:
+            this.#followRange != undefined && this.#followRange > 0 ? max - this.#followRange : min,
           max,
         };
       }

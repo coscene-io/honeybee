@@ -372,7 +372,7 @@ export function Plot(props: Props): JSX.Element {
       resizeObserver.disconnect();
       plotCoordinator.destroy();
     };
-  }, [canvasDiv, datasetsBuilder, renderer]);
+  }, [canvasDiv, datasetsBuilder, renderer, xAxisMode]);
 
   const onWheel = useCallback(
     (event: React.WheelEvent<HTMLElement>) => {
