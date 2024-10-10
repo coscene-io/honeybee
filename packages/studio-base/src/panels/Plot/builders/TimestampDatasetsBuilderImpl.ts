@@ -278,17 +278,22 @@ export class TimestampDatasetsBuilderImpl {
   }
 
   public getXRange(): Bounds1D | undefined {
-    let min = Number.MAX_VALUE;
-    let max = Number.MIN_VALUE;
+    let min = undefined;
+    let max = undefined;
 
     for (const series of this.#seriesByKey.values()) {
-      for (const item of series.current) {
-        min = Math.min(min, item.x);
-        max = Math.max(max, item.x);
-      }
+      const partialTimestampMin = series.current[0]?.x;
+      const partialTimestampMax = series.current[series.current.length - 1]?.x;
+
+      const fullTimestampMin = series.full[0]?.x;
+      const fullTimestampMax = series.full[series.full.length - 1]?.x;
+
+      min = Math.min(partialTimestampMin ?? Number.MAX_VALUE, fullTimestampMin ?? Number.MAX_VALUE);
+
+      max = Math.max(partialTimestampMax ?? Number.MIN_VALUE, fullTimestampMax ?? Number.MIN_VALUE);
     }
 
-    return { min, max };
+    return { min: min ?? 0, max: max ?? 100 };
   }
 
   public applyActions(actions: Immutable<UpdateDataAction[]>): void {
