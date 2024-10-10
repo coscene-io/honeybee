@@ -172,6 +172,7 @@
     "react-window": "1.8.9",
     "readable-stream": "4.5.2",
     "recoil": "0.7.6",
+    "rehype-raw": "6.1.1",
     "reselect": "5.1.0",
     "sanitize-html": "2.11.0",
     "seedrandom": "3.0.5",

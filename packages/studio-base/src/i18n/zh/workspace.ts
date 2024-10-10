@@ -12,4 +12,5 @@ export const workspace: Partial<TypeOptions["resources"]["workspace"]> = {
   studioLogs: "日志",
   topics: "话题",
   variables: "变量",
+  extensions: "插件",
 };

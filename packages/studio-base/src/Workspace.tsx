@@ -27,6 +27,7 @@ import {
   DataSourceDialogItem,
 } from "@foxglove/studio-base/components/DataSourceDialog";
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
+import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -39,6 +40,7 @@ import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls"
 import { Playlist } from "@foxglove/studio-base/components/Playlist";
 import { ProblemsList } from "@foxglove/studio-base/components/ProblemsList";
 import RemountOnValueChange from "@foxglove/studio-base/components/RemountOnValueChange";
+import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import { Sidebars, SidebarItem } from "@foxglove/studio-base/components/Sidebars";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { StudioLogsSettings } from "@foxglove/studio-base/components/StudioLogsSettings";
@@ -365,6 +367,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
       ["variables", { title: t("variables"), component: VariablesList }],
+      ["extensions", { title: t("extensions"), component: ExtensionsSidebar }],
     ]);
     if (enableDebugMode) {
       if (PerformanceSidebarComponent) {
@@ -383,6 +386,14 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   const keyboardEventHasModifier = (event: KeyboardEvent) =>
     navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;
+
+  function ExtensionsSidebar() {
+    return (
+      <SidebarContent title="Extensions" disablePadding>
+        <ExtensionsSettings />
+      </SidebarContent>
+    );
+  }
 
   const keyDownHandlers = useMemo(() => {
     return {

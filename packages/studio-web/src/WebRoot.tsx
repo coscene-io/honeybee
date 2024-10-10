@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Toaster } from "react-hot-toast";
 
 import {
@@ -12,6 +12,7 @@ import {
   SharedRoot,
   AppBarProps,
   AppSetting,
+  IdbExtensionLoader,
 } from "@foxglove/studio-base";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
@@ -44,6 +45,11 @@ export function WebRoot(props: {
     [],
   );
 
+  const [extensionLoaders] = useState(() => [
+    new IdbExtensionLoader("org"),
+    new IdbExtensionLoader("local"),
+  ]);
+
   const dataSources = useMemo(() => {
     const sources = [
       new FoxgloveWebSocketDataSourceFactory({ confirm }),
@@ -70,6 +76,7 @@ export function WebRoot(props: {
         deepLinks={[window.location.href]}
         dataSources={dataSources}
         appConfiguration={appConfiguration}
+        extensionLoaders={extensionLoaders}
         enableGlobalCss
         extraProviders={extraProviders}
         AppBarComponent={props.AppBarComponent}
