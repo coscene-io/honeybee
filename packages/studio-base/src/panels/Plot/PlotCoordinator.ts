@@ -175,7 +175,8 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       return;
     }
     this.#xAxisVal = config.xAxisVal;
-    this.#isTimeseriesPlot = config.xAxisVal === "timestamp";
+    this.#isTimeseriesPlot =
+      config.xAxisVal === "timestamp" || config.xAxisVal === "partialTimestamp";
     if (!this.#isTimeseriesPlot) {
       this.#currentSeconds = undefined;
     }
@@ -379,10 +380,15 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       const fullRange = await this.#datasetsBuilder.getXRange();
       if (fullRange) {
         const { min, max } = fullRange;
+
         return {
           min:
-            this.#followRange != undefined && this.#followRange > 0 ? max - this.#followRange : min,
-          max,
+            this.#followRange != undefined &&
+            this.#followRange > 0 &&
+            this.#currentSeconds != undefined
+              ? this.#currentSeconds - this.#followRange
+              : min,
+          max: this.#currentSeconds ?? max,
         };
       }
     }
