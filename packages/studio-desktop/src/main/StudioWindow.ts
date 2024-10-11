@@ -4,7 +4,6 @@
 
 /// <reference types="../typings/i18next" />
 
-import { palette } from "@foxglove/theme";
 import {
   BrowserWindow,
   BrowserWindowConstructorOptions,
@@ -23,6 +22,7 @@ import path from "path";
 import Logger from "@foxglove/log";
 import { APP_BAR_HEIGHT } from "@foxglove/studio-base/src/components/AppBar/constants";
 import { NativeAppMenuEvent } from "@foxglove/studio-base/src/context/NativeAppMenuContext";
+import { palette } from "@foxglove/theme";
 
 import StudioAppUpdater from "./StudioAppUpdater";
 import getDevModeIcon from "./getDevModeIcon";

@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 import path from "path";
 
 import { launchApp } from "./launchApp";
@@ -10,7 +14,7 @@ describe("open extension", () => {
 
     const extensionPath = path.resolve(
       __dirname,
-      "../../packages/suite-base/src/test/fixtures/lichtblick.suite-extension-turtlesim-0.0.1.foxe",
+      "../../packages/studio-base/src/test/fixtures/lichtblick.suite-extension-turtlesim-0.0.1.foxe",
     );
 
     const fileInput = app.renderer.locator("[data-puppeteer-file-upload]");

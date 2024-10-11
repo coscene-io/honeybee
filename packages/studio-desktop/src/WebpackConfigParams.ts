@@ -5,13 +5,13 @@
 export type WebpackConfigParams = {
   packageJson: {
     productName: string;
-    name: string; //
-    version: string; //
+    name: string;
+    version: string;
     description: string;
     productDescription: string;
-    license: string; //
-    author: { name: string; email: string }; //
-    homepage: string; //
+    license: string;
+    author: { name: string; email: string };
+    homepage: string;
   };
 
   /** Directory to find `rendererEntrypoint` and `tsconfig.json`. */

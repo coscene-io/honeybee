@@ -14,7 +14,7 @@ import { WebpackConfigParams } from "./WebpackConfigParams";
 export const webpackMainConfig =
   (params: WebpackConfigParams) =>
   (_: unknown, argv: WebpackArgv): Configuration => {
-    const isServe = argv.env?.WEBPACK_SERVE != undefined;
+    const isServe = argv.env?.WEBPACK_SERVE ?? false;
 
     const isDev = argv.mode === "development";
 

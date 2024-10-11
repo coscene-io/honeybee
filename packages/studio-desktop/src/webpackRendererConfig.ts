@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import * as palette from "@foxglove/theme/src/palette";
 import ReactRefreshPlugin from "@pmmmwh/react-refresh-webpack-plugin";
 import { ESBuildMinifyPlugin } from "esbuild-loader";
 import HtmlWebpackPlugin from "html-webpack-plugin";
@@ -11,6 +10,7 @@ import { Configuration, WebpackPluginInstance } from "webpack";
 
 import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 import { makeConfig } from "@foxglove/studio-base/webpack";
+import * as palette from "@foxglove/theme/src/palette";
 
 import { WebpackConfigParams } from "./WebpackConfigParams";
 
@@ -24,6 +24,7 @@ export const webpackRendererConfig =
 
     const plugins: WebpackPluginInstance[] = [];
 
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (isServe) {
       plugins.push(new ReactRefreshPlugin());
     }
@@ -45,6 +46,7 @@ export const webpackRendererConfig =
       devtool: isDev ? "eval-cheap-module-source-map" : params.prodSourceMap,
 
       output: {
+        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         publicPath: isServe ? "/renderer/" : "",
         path: path.join(params.outputPath, "renderer"),
       },

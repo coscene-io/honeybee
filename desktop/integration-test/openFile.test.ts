@@ -16,7 +16,7 @@ describe("openFiles", () => {
     //Add rosbag file from source
     const filePath = path.resolve(
       __dirname,
-      "../../packages/suite-base/src/test/fixtures/example.bag",
+      "../../packages/studio-base/src/test/fixtures/example.bag",
     );
 
     //Expect that there are not preloaded files

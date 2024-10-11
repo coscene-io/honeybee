@@ -15,7 +15,7 @@ describe("mapPanel", () => {
     //Add rosbag file from source
     const filePath = path.resolve(
       __dirname,
-      "../../packages/suite-base/src/test/fixtures/example.bag",
+      "../../packages/studio-base/src/test/fixtures/example.bag",
     );
     //Drag and drop file
     const fileInput = app.renderer.locator("[data-puppeteer-file-upload]");

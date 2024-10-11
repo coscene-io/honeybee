@@ -8,7 +8,7 @@ import {
   SharedRoot,
   StudioApp,
   AppSetting,
-  FoxgloveWebSocketDataSourceFactory,
+  // FoxgloveWebSocketDataSourceFactory,
   IAppConfiguration,
   IDataSourceFactory,
   IdbExtensionLoader,
@@ -22,11 +22,11 @@ import {
   SampleNuscenesDataSourceFactory,
   UlogLocalDataSourceFactory,
   VelodyneDataSourceFactory,
-  ExtensionCatalogProvider,
+  // ExtensionCatalogProvider,
 } from "@foxglove/studio-base";
-import NativeAppMenuContext from "@foxglove/studio-base/src/context/NativeAppMenuContext";
-import NativeWindowContext from "@foxglove/studio-base/src/context/NativeWindowContext";
-import { useConfirm } from "@foxglove/studio-base/src/hooks/useConfirm";
+import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
+import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
+// import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
 // import { DesktopLayoutLoader } from "./services/DesktopLayoutLoader";
@@ -51,7 +51,7 @@ export default function Root(props: {
 
   // if has many sources need to set confirm
   // recommand set confirm to message pipeline
-  const [confirm, confirmModal] = useConfirm();
+  // const [confirm, confirmModal] = useConfirm();
 
   useEffect(() => {
     const handler = () => {
@@ -90,7 +90,7 @@ export default function Root(props: {
     }
 
     const sources = [
-      new FoxgloveWebSocketDataSourceFactory({ confirm }),
+      // new FoxgloveWebSocketDataSourceFactory({ confirm }),
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
       new Ros1LocalBagDataSourceFactory(),
@@ -103,7 +103,7 @@ export default function Root(props: {
     ];
 
     return sources;
-  }, [confirm, props.dataSources]);
+  }, [props.dataSources]);
 
   // App url state in window.location will represent the user's current session state
   // better than the initial deep link so we prioritize the current window.location
@@ -156,8 +156,6 @@ export default function Root(props: {
   const extraProviders = useMemo(() => {
     const providers = [];
 
-    providers.push(<ExtensionCatalogProvider loaders={extensionLoaders} />);
-
     providers.push(<NativeAppMenuContext.Provider value={nativeAppMenu} />);
 
     providers.push(<NativeWindowContext.Provider value={nativeWindow} />);
@@ -166,7 +164,7 @@ export default function Root(props: {
       providers.push(...props.extraProviders);
     }
     return providers;
-  }, [extensionLoaders, nativeAppMenu, nativeWindow, props.extraProviders]);
+  }, [nativeAppMenu, nativeWindow, props.extraProviders]);
 
   return (
     <>
@@ -189,10 +187,11 @@ export default function Root(props: {
           onUnmaximizeWindow,
           onCloseWindow,
         }}
+        extensionLoaders={extensionLoaders}
       >
         <StudioApp />
       </SharedRoot>
-      {confirmModal}
+      {/* {confirmModal} */}
     </>
   );
 }
