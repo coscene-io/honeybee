@@ -40,6 +40,7 @@ export { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPrefere
 export { reportError, setReportErrorHandler } from "./reportError";
 export { makeWorkspaceContextInitialState } from "./providers/WorkspaceContextProvider";
 export { default as ExtensionCatalogProvider } from "./providers/ExtensionCatalogProvider";
+export { SharedProviders } from "./providers/SharedProviders";
 
 // CoScene
 export { migratePanelsState, migrateLayout } from "./services/migrateLayout";

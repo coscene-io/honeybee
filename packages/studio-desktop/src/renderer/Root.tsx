@@ -8,7 +8,7 @@ import {
   SharedRoot,
   StudioApp,
   AppSetting,
-  // FoxgloveWebSocketDataSourceFactory,
+  FoxgloveWebSocketDataSourceFactory,
   IAppConfiguration,
   IDataSourceFactory,
   IdbExtensionLoader,
@@ -22,14 +22,14 @@ import {
   SampleNuscenesDataSourceFactory,
   UlogLocalDataSourceFactory,
   VelodyneDataSourceFactory,
-  // ExtensionCatalogProvider,
+  SharedProviders,
+  ConsoleApi,
 } from "@foxglove/studio-base";
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
-// import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
-// import { DesktopLayoutLoader } from "./services/DesktopLayoutLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
 import { NativeWindow } from "./services/NativeWindow";
 import { Desktop, NativeMenuBridge, Storage } from "../common/types";
@@ -51,7 +51,7 @@ export default function Root(props: {
 
   // if has many sources need to set confirm
   // recommand set confirm to message pipeline
-  // const [confirm, confirmModal] = useConfirm();
+  const [confirm, confirmModal] = useConfirm();
 
   useEffect(() => {
     const handler = () => {
@@ -79,8 +79,6 @@ export default function Root(props: {
     new DesktopExtensionLoader(desktopBridge),
   ]);
 
-  // const [layoutLoaders] = useState(() => [new DesktopLayoutLoader(desktopBridge)]);
-
   const nativeAppMenu = useMemo(() => new NativeAppMenu(menuBridge), []);
   const nativeWindow = useMemo(() => new NativeWindow(desktopBridge), []);
 
@@ -90,7 +88,7 @@ export default function Root(props: {
     }
 
     const sources = [
-      // new FoxgloveWebSocketDataSourceFactory({ confirm }),
+      new FoxgloveWebSocketDataSourceFactory({ confirm }),
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
       new Ros1LocalBagDataSourceFactory(),
@@ -103,7 +101,7 @@ export default function Root(props: {
     ];
 
     return sources;
-  }, [props.dataSources]);
+  }, [confirm, props.dataSources]);
 
   // App url state in window.location will represent the user's current session state
   // better than the initial deep link so we prioritize the current window.location
@@ -153,8 +151,24 @@ export default function Root(props: {
     };
   }, []);
 
+  // current not support connect to coscene
+  const consoleApi = useMemo(
+    () =>
+      new ConsoleApi(
+        "baseUrl",
+        "bffUrl",
+        "addTopicPrefix",
+        localStorage.getItem("CoScene_timeMode") === "relativeTime"
+          ? "relativeTime"
+          : "absoluteTime",
+      ),
+    [],
+  );
+
+  consoleApi.setAuthHeader("auth token");
+
   const extraProviders = useMemo(() => {
-    const providers = [];
+    const providers: JSX.Element[] = SharedProviders({ consoleApi });
 
     providers.push(<NativeAppMenuContext.Provider value={nativeAppMenu} />);
 
@@ -164,7 +178,7 @@ export default function Root(props: {
       providers.push(...props.extraProviders);
     }
     return providers;
-  }, [nativeAppMenu, nativeWindow, props.extraProviders]);
+  }, [consoleApi, nativeAppMenu, nativeWindow, props.extraProviders]);
 
   return (
     <>
@@ -191,7 +205,7 @@ export default function Root(props: {
       >
         <StudioApp />
       </SharedRoot>
-      {/* {confirmModal} */}
+      {confirmModal}
     </>
   );
 }
