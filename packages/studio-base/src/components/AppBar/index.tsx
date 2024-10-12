@@ -9,6 +9,7 @@ import {
   PanelRight24Regular,
   SlideAdd24Regular,
   QuestionCircle24Regular,
+  ChevronDown12Regular,
 } from "@fluentui/react-icons";
 import { Avatar, IconButton, Tooltip } from "@mui/material";
 import { useState } from "react";
@@ -74,13 +75,16 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
         backgroundColor: theme.palette.background.hover,
       },
       "&.Mui-selected": {
-        backgroundColor: theme.palette.appBar.primary,
+        backgroundColor: theme.palette.background.hover,
         color: theme.palette.common.white,
       },
       "&.Mui-disabled": {
         color: "currentColor",
         opacity: theme.palette.action.disabledOpacity,
       },
+    },
+    dropDownIcon: {
+      fontSize: "12px !important",
     },
     start: {
       gridArea: "start",
@@ -215,11 +219,15 @@ export function AppBar(props: AppBarProps): JSX.Element {
                 aria-haspopup="true"
                 aria-expanded={appMenuOpen ? "true" : undefined}
                 data-tourid="app-menu-button"
-                onClick={() => {
-                  window.location.href = window.location.origin;
+                onClick={(event) => {
+                  setAppMenuEl(event.currentTarget);
                 }}
               >
                 <CoSceneLogo />
+                <ChevronDown12Regular
+                  className={classes.dropDownIcon}
+                  primaryFill={theme.palette.common.white}
+                />
               </IconButton>
               <AppMenu
                 open={appMenuOpen}

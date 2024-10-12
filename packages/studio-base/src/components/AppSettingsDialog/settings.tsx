@@ -42,6 +42,7 @@ import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPrefere
 import { PrefixDisplayMedia, TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
@@ -371,21 +372,23 @@ export function LanguageSettings(): React.ReactElement {
     async (event: SelectChangeEvent<Language>) => {
       const lang = event.target.value as Language;
 
-      const userConfigMap = await consoleApi.getUserConfigMap({
-        userId: userInfo?.userId ?? "",
-        configId: "personalInfo",
-      });
-
-      const userConfig = userConfigMap?.value?.toJson() as UserPersonalInfo | undefined;
-      if ((lang === "zh" || lang === "en") && userConfig != undefined) {
-        await consoleApi.upsertUserConfig({
+      if (!isDesktopApp()) {
+        const userConfigMap = await consoleApi.getUserConfigMap({
           userId: userInfo?.userId ?? "",
           configId: "personalInfo",
-          obj: {
-            ...userConfig,
-            settings: { ...userConfig.settings, language: lang },
-          },
         });
+
+        const userConfig = userConfigMap?.value?.toJson() as UserPersonalInfo | undefined;
+        if ((lang === "zh" || lang === "en") && userConfig != undefined) {
+          await consoleApi.upsertUserConfig({
+            userId: userInfo?.userId ?? "",
+            configId: "personalInfo",
+            obj: {
+              ...userConfig,
+              settings: { ...userConfig.settings, language: lang },
+            },
+          });
+        }
       }
 
       setSelectedLanguage(lang);

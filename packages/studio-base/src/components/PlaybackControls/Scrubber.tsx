@@ -26,6 +26,7 @@ import {
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
@@ -241,11 +242,13 @@ export default function Scrubber(props: Props): JSX.Element {
           />
         </Stack>
         <BagsOverlay />
-        <EventsOverlay
-          componentId={hoverComponentId}
-          isDragging={isDragging}
-          setCursor={setCursor}
-        />
+        {!isDesktopApp() && (
+          <EventsOverlay
+            componentId={hoverComponentId}
+            isDragging={isDragging}
+            setCursor={setCursor}
+          />
+        )}
         <PlaybackBarHoverTicks componentId={hoverComponentId} />
       </Stack>
     </Tooltip>

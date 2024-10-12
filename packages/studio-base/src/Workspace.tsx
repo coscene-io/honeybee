@@ -76,6 +76,7 @@ import { PanelStateContextProvider } from "@foxglove/studio-base/providers/Panel
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 
@@ -334,11 +335,19 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const showEventsTab = currentUser != undefined && eventsSupported;
 
   const leftSidebarItems = useMemo(() => {
-    const items = new Map<LeftSidebarItemKey, SidebarItem>([
-      ["playlist", { title: t("playlist", { ns: "cosWorkspace" }), component: Playlist }],
+    const isDesktop = isDesktopApp();
+
+    const items: [LeftSidebarItemKey, SidebarItem][] = [
+      [
+        "playlist",
+        { title: t("playlist", { ns: "cosWorkspace" }), component: Playlist, hidden: isDesktop },
+      ],
       ["panel-settings", { title: t("panel", { ns: "cosWorkspace" }), component: PanelSettings }],
       ["topics", { title: t("topics", { ns: "cosWorkspace" }), component: TopicList }],
-      ["moment", { title: t("moment", { ns: "cosWorkspace" }), component: EventsList }],
+      [
+        "moment",
+        { title: t("moment", { ns: "cosWorkspace" }), component: EventsList, hidden: isDesktop },
+      ],
       [
         "problems",
         {
@@ -353,8 +362,12 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
               : undefined,
         },
       ],
-    ]);
-    return items;
+    ];
+
+    const cleanItems = new Map<LeftSidebarItemKey, SidebarItem>(
+      items.filter(([, item]) => item.hidden == undefined || !item.hidden),
+    );
+    return cleanItems;
   }, [playerProblems, t]);
 
   useEffect(() => {
@@ -581,7 +594,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     dialogs: {
       dataSource: {
         activeDataSource: undefined,
-        open: initialItem != undefined,
+        open: initialItem != undefined && isDesktopApp(),
         item: initialItem,
       },
       preferences: {
