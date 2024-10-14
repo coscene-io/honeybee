@@ -39,9 +39,6 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Update version in package.json
-        run: yarn run version:all ${{ env.new_version }}
-
       - name: Build prod files
         run: |
           yarn run desktop:build:prod
@@ -65,17 +62,13 @@ jobs:
           generateReleaseNotes: true
           prerelease: ${{ env.is_prerelease }}
           artifacts: |
-            dist/coScene-studio-${{ env.new_version }}-linux-amd64.deb
-            dist/coScene-studio-${{ env.new_version }}-linux-x64.tar.gz
-            dist/coScene-studio-${{ env.new_version }}-mac-universal.dmg
-            dist/coScene-studio-${{ env.new_version }}-win.exe
+            dist/coScene-studio-linux-amd64.deb
+            dist/coScene-studio-linux-x64.tar.gz
+            dist/coScene-studio-mac-universal.dmg
+            dist/coScene-studio-win.exe
             dist/latest-linux.yml
             dist/latest-mac.yml
             dist/latest.yml
-
-      - name: Save release notes to file
-        id: save_release_notes
-        run: echo "release_notes=${{ github.event.release.body }}" > $GITHUB_ENV
 
       - name: Notification to Feishu
         id: feishu

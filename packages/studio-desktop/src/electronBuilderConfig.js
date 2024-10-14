@@ -172,7 +172,7 @@ function makeElectronBuilderConfig(params) {
       applicationId: "coSceneStudio",
       backgroundColor: "#f7def6",
       displayName: "coScene",
-      identityName: "coScene.Suite",
+      identityName: "coScene.Studio",
       publisher: "CN=coScene, O=coScene, L=Shanghai, S=Shanghai, C=CN",
       publisherDisplayName: "coScene",
       languages: ["en-US"],
