@@ -9,7 +9,6 @@ import tinycolor from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
 import { CoSceneTextLogo } from "@foxglove/studio-base/components/CoSceneLogo";
-import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog/DataSourceDialog";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
@@ -158,11 +157,7 @@ type SidebarItem = {
   actions?: ReactNode;
 };
 
-function SidebarItems(props: {
-  onSelectView: (newValue: DataSourceDialogItem) => void;
-}): JSX.Element {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { onSelectView } = props;
+function SidebarItems(): JSX.Element {
   const { currentUserType, signIn } = useCurrentUser();
   const analytics = useAnalytics();
   const { classes } = useStyles();
@@ -524,7 +519,7 @@ export default function Start(): JSX.Element {
       </Stack>
       <div className={classes.spacer} />
       <Stack gap={4} className={classes.sidebar}>
-        <SidebarItems onSelectView={dialogActions.dataSource.open} />
+        <SidebarItems />
       </Stack>
     </Stack>
   );

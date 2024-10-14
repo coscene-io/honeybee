@@ -12,7 +12,7 @@ const path = require("path");
 function makeElectronBuilderConfig(params) {
   return {
     electronVersion,
-    appId: "dev.lichtblick.suite",
+    appId: "dev.coScene.studio",
     npmRebuild: false,
     asar: true,
     directories: {
@@ -24,8 +24,8 @@ function makeElectronBuilderConfig(params) {
     icon: path.join(__dirname, "../resources/icon/icon.icns"),
     protocols: [
       {
-        name: "lichtblick",
-        schemes: ["lichtblick"],
+        name: "coScene",
+        schemes: ["coScene"],
       },
     ],
     linux: {
