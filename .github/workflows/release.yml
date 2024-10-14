@@ -1,5 +1,8 @@
 name: Publish Studio
 
+permissions:
+  contents: write
+
 on:
   release:
     types: [published]
@@ -33,10 +36,6 @@ jobs:
           echo "new_version=${{ github.ref_name }}" >> $GITHUB_ENV
           echo "is_prerelease=${{ github.event.release.prerelease }}" >> $GITHUB_ENV
 
-      # - name: Bump studio version
-      #   run: yarn version minor
-      #   working-directory: packages/studio
-
       - name: Install dependencies
         run: yarn install --immutable
 
@@ -63,6 +62,11 @@ jobs:
       #     git commit -m "Bump version v${{ env.new_version }} [skip actions]"
       #     git tag "v${{ env.new_version }}"
       #     git push origin main --tags
+
+      - name: Update version to package.json
+        run: |
+          # yarn version --new-version ${{ env.new_version }} --no-git-tag-version
+          yarn run version:all --new-version ${{ env.new_version }}
 
       - name: Create GitHub Release
         id: create_release
