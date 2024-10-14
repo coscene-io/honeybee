@@ -8,7 +8,7 @@ import {
   SharedRoot,
   StudioApp,
   AppSetting,
-  // FoxgloveWebSocketDataSourceFactory,
+  FoxgloveWebSocketDataSourceFactory,
   IAppConfiguration,
   IDataSourceFactory,
   IdbExtensionLoader,
@@ -27,7 +27,7 @@ import {
 } from "@foxglove/studio-base";
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
-// import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
@@ -51,7 +51,7 @@ export default function Root(props: {
 
   // if has many sources need to set confirm
   // recommand set confirm to message pipeline
-  // const [confirm, confirmModal] = useConfirm();
+  const [confirm, confirmModal] = useConfirm();
 
   useEffect(() => {
     const handler = () => {
@@ -88,7 +88,7 @@ export default function Root(props: {
     }
 
     const sources = [
-      // new FoxgloveWebSocketDataSourceFactory({ confirm }),
+      new FoxgloveWebSocketDataSourceFactory({ confirm }),
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
       new Ros1LocalBagDataSourceFactory(),
@@ -101,8 +101,7 @@ export default function Root(props: {
     ];
 
     return sources;
-    // }, [confirm, props.dataSources]);
-  }, [props.dataSources]);
+  }, [confirm, props.dataSources]);
 
   // App url state in window.location will represent the user's current session state
   // better than the initial deep link so we prioritize the current window.location
@@ -208,7 +207,7 @@ export default function Root(props: {
       >
         <StudioApp />
       </SharedRoot>
-      {/* {confirmModal} */}
+      {confirmModal}
     </>
   );
 }

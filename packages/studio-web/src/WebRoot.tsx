@@ -58,8 +58,8 @@ export function WebRoot(props: {
 
   const dataSources = useMemo(() => {
     const sources = [
-      new FoxgloveWebSocketDataSourceFactory({ confirm }),
       new CoSceneDataPlatformDataSourceFactory(),
+      new FoxgloveWebSocketDataSourceFactory({ confirm }),
     ];
 
     return props.dataSources ?? sources;
