@@ -33,9 +33,9 @@ jobs:
           echo "new_version=${{ github.ref_name }}" >> $GITHUB_ENV
           echo "is_prerelease=${{ github.event.release.prerelease }}" >> $GITHUB_ENV
 
-      - name: Bump studio version
-        run: yarn version minor
-        working-directory: packages/studio
+      # - name: Bump studio version
+      #   run: yarn version minor
+      #   working-directory: packages/studio
 
       - name: Install dependencies
         run: yarn install --immutable
