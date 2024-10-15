@@ -40,7 +40,8 @@ jobs:
           echo "is_prerelease=${{ github.event.release.prerelease }}" >> $GITHUB_ENV
 
       - name: Update version in package.json
-        run: yarn run version:all ${{ env.new_version }}
+        # run: yarn run version:all ${{ env.new_version }}
+        run: yarn run version:all v24.42.0-rc1
 
       # - name: Install dependencies
       #   run: yarn install --immutable
