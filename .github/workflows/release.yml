@@ -51,6 +51,7 @@ jobs:
         id: create_pr
         uses: peter-evans/create-pull-request@v7
         with:
+          token: ${{ github.token }}
           title: "[bot] Update version to v${{ env.new_version }}"
           branch: update-version-to-v${{ env.new_version }}
           commit-message: "[bot] Update version to v${{ env.new_version }}"
@@ -71,7 +72,7 @@ jobs:
 
       # - name: Create GitHub Release
       #   id: create_release
-      #   uses: ncipollo/release-action@v1
+      # uses: ncipollo/release-action@v1
       #   with:
       #     tag: "v${{ env.new_version }}"
       #     name: "v${{ env.new_version }}"
