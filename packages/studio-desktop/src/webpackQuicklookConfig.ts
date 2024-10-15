@@ -32,6 +32,7 @@ export const webpackQuicklookConfig =
       devtool: isDev ? "eval-cheap-module-source-map" : params.prodSourceMap,
 
       output: {
+        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         publicPath: isServe ? "/quicklook/" : "",
         path: path.join(params.outputPath, "quicklook"),
       },
@@ -54,6 +55,7 @@ export const webpackQuicklookConfig =
                 getCustomTransformers: () => ({
                   before: [
                     // only include refresh plugin when using webpack server
+                    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
                     ...(isServe ? [ReactRefreshTypescript()] : []),
                   ],
                 }),
@@ -78,7 +80,9 @@ export const webpackQuicklookConfig =
           typescript: {
             configOverwrite: {
               compilerOptions: {
+                // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
                 noUnusedLocals: !allowUnusedVariables,
+                // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
                 noUnusedParameters: !allowUnusedVariables,
               },
             },
@@ -102,6 +106,7 @@ export const webpackQuicklookConfig =
           // the buffer module exposes the Buffer class as a property
           Buffer: ["buffer", "Buffer"],
         }),
+        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         ...(isServe ? [new ReactRefreshPlugin()] : []),
       ],
 

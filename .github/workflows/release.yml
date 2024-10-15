@@ -106,10 +106,10 @@ jobs:
           content: |
             text: |
               A new version of coScene Studio has been published.
-              Version: v${{ env.new_version }}
+              Version: ${{ env.new_version }}
               Is prerelease: ${{ env.is_prerelease }}
               Download:
-                mac: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/v${{ env.new_version }}/coScene-studio-v${{ env.new_version }}-linux-amd64.deb
-                win: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/exe/v${{ env.new_version }}/coScene-studio-v${{ env.new_version }}-win.exe
-                linux: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/v${{ env.new_version }}/coScene-studio-v${{ env.new_version }}-linux-amd64.deb
+                mac: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
+                win: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/exe/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-win.exe
+                linux: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
               Release notes: https://github.com/coscene-io/honeybee/releases

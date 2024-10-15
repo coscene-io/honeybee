@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { useMemo } from "react";
 
-import { ConsoleApi } from "@foxglove/studio-base";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutStorageContext from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
 import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext";
@@ -16,9 +15,9 @@ import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlay
 import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
 import CoSceneUserProfileLocalStorageProvider from "@foxglove/studio-base/providers/CoSceneUserProfileLocalStorageProvider";
 import CoSceneUserProvider from "@foxglove/studio-base/providers/CoSceneUserProvider";
+import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
-// import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 export function SharedProviders({ consoleApi }: { consoleApi: ConsoleApi }): JSX.Element[] {
   const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);

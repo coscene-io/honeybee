@@ -15,8 +15,8 @@ import {
   AppSetting,
   IdbExtensionLoader,
   ConsoleApi,
+  SharedProviders,
 } from "@foxglove/studio-base";
-import { SharedProviders } from "@foxglove/studio-base";
 import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";

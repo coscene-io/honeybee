@@ -32,6 +32,7 @@ export const webpackMainConfig =
     // When running under a development server the renderer entry comes from the server.
     // When making static builds (for packaging), the renderer entry is a file on disk.
     // This switches between the two and is injected below via DefinePlugin as MAIN_WINDOW_WEBPACK_ENTRY
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     const rendererEntry = isServe
       ? `"http://${argv.host ?? "localhost"}:8080/renderer/index.html"`
       : "`file://${require('path').join(__dirname, '..', 'renderer', 'index.html')}`";
