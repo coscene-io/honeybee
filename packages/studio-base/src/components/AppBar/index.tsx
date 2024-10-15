@@ -9,6 +9,7 @@ import {
   PanelRight24Regular,
   SlideAdd24Regular,
   QuestionCircle24Regular,
+  ChevronDown12Regular,
 } from "@fluentui/react-icons";
 import { Avatar, IconButton, Tooltip } from "@mui/material";
 import { useState } from "react";
@@ -34,6 +35,7 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { AddPanelMenu } from "./AddPanelMenu";
 import { AppBarContainer } from "./AppBarContainer";
@@ -74,13 +76,16 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
         backgroundColor: theme.palette.background.hover,
       },
       "&.Mui-selected": {
-        backgroundColor: theme.palette.appBar.primary,
+        backgroundColor: theme.palette.background.hover,
         color: theme.palette.common.white,
       },
       "&.Mui-disabled": {
         color: "currentColor",
         opacity: theme.palette.action.disabledOpacity,
       },
+    },
+    dropDownIcon: {
+      fontSize: "12px !important",
     },
     start: {
       gridArea: "start",
@@ -215,11 +220,14 @@ export function AppBar(props: AppBarProps): JSX.Element {
                 aria-haspopup="true"
                 aria-expanded={appMenuOpen ? "true" : undefined}
                 data-tourid="app-menu-button"
-                onClick={() => {
-                  window.location.href = window.location.origin;
+                onClick={(event) => {
+                  if (isDesktopApp()) {
+                    setAppMenuEl(event.currentTarget);
+                  }
                 }}
               >
                 <CoSceneLogo />
+                {isDesktopApp() && <ChevronDown12Regular className={classes.dropDownIcon} />}
               </IconButton>
               <AppMenu
                 open={appMenuOpen}

@@ -19,8 +19,9 @@ import {
   toRFC3339String,
   toString,
 } from "@foxglove/rostime";
-import { Immutable, MessageEvent, ParameterValue } from "@foxglove/studio";
+import { Immutable, MessageEvent, Metadata, ParameterValue } from "@foxglove/studio";
 import { DeserializedSourceWrapper } from "@foxglove/studio-base/players/IterablePlayer/DeserializedSourceWrapper";
+import { freezeMetadata } from "@foxglove/studio-base/players/IterablePlayer/freezeMetadata";
 import NoopMetricsCollector from "@foxglove/studio-base/players/NoopMetricsCollector";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import {
@@ -191,6 +192,8 @@ export class IterablePlayer implements Player {
   #queueEmitState: ReturnType<typeof debouncePromise>;
 
   readonly #sourceId: string;
+
+  #metadata: readonly Metadata[] = Object.freeze([]);
 
   #untilTime?: Time;
 
@@ -410,6 +413,10 @@ export class IterablePlayer implements Player {
     // no-op
   }
 
+  public getMetadata(): ReadonlyArray<Readonly<Metadata>> {
+    return this.#metadata;
+  }
+
   /** Request the state to switch to newState */
   #setState(newState: IterablePlayerState) {
     // nothing should override closing the player
@@ -511,6 +518,7 @@ export class IterablePlayer implements Player {
         profile,
         topicStats,
         problems,
+        metadata,
         publishersByTopic,
         datatypes,
         name,
@@ -521,6 +529,13 @@ export class IterablePlayer implements Player {
       if (this.#seekTarget) {
         this.#seekTarget = clampTime(this.#seekTarget, start, end);
       }
+
+      this.#metadata = metadata ?? [];
+
+      // This freezing has to be done here, in the main thread.
+      // If it is done inside the web worker, it will be serialized and deserialized
+      // and will lose the frozen attributes.
+      freezeMetadata(this.#metadata);
 
       this.#profile = profile;
       this.#start = start;

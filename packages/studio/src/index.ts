@@ -90,6 +90,26 @@ export type Subscription = {
 };
 
 /**
+ * An array of metadata entries. Each entry includes a name and a map of key-value pairs
+ * representing the metadata associated with that name.
+ */
+
+/**
+ * A metadata object containing a name and a map of key-value pairs representing the metadata.
+ */
+export type Metadata = {
+  /**
+   * The name of the metadata entry.
+   */
+  readonly name: string;
+
+  /**
+   * A key-value object associated with the metadata entry.
+   */
+  readonly metadata: Record<string, string>;
+};
+
+/**
  * A message event frames message data with the topic and receive time
  */
 export type MessageEvent<T = unknown> = {
@@ -129,6 +149,8 @@ export type MessageEvent<T = unknown> = {
    * un-converted message event.
    */
   originalMessageEvent?: MessageEvent;
+
+  topicConfig?: unknown;
 };
 
 export interface LayoutActions {
@@ -263,6 +285,12 @@ export type PanelExtensionContext = {
    * profiles concept at <https://github.com/foxglove/mcap/blob/main/docs/specification/appendix.md#well-known-profiles>.
    */
   readonly dataSourceProfile?: string;
+
+  /**
+   * An array of metadata entries. Each entry includes a name and a map of key-value pairs
+   * representing the metadata associated with that name (only avaiable in MCAP files).
+   */
+  readonly metadata: ReadonlyArray<Readonly<Metadata>>;
 
   /**
    * Subscribe to updates on this field within the render state. Render will only be invoked when
@@ -415,10 +443,30 @@ export type ExtensionPanelRegistration = {
   initPanel: (context: PanelExtensionContext) => void | (() => void);
 };
 
+export interface PanelSettings<ExtensionSettings> {
+  /**
+   * @param config value of the custom settings. It's type is the type of the object defined in the *defaultConfig* property
+   * @returns
+   * a settings tree node defined as it would be defined in an extension.
+   * That node will be merged with the node belonging to the concerned topic (path = ["topics", "__topic_name__"])
+   */
+  settings: (config?: ExtensionSettings) => SettingsTreeNode;
+  /**
+   * Simple settings handler run right after the default handler for settings.
+   * @param config is mutated, modifying it allows the state value to be modified and then sent to the converter
+   */
+  handler: (action: SettingsTreeAction, config?: ExtensionSettings) => void;
+  defaultConfig?: ExtensionSettings;
+}
+
 export type RegisterMessageConverterArgs<Src> = {
   fromSchemaName: string;
   toSchemaName: string;
   converter: (msg: Src, event: Immutable<MessageEvent<Src>>) => unknown;
+  /**
+   * Custom settings for the topics using the schema specified in the *toSchemaName* property
+   */
+  panelSettings?: Record<string, PanelSettings<unknown>>;
 };
 
 type BaseTopic = { name: string; schemaName?: string };

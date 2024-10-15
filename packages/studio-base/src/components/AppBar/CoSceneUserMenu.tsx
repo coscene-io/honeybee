@@ -14,6 +14,7 @@ import { useCurrentUserType } from "@foxglove/studio-base/context/CurrentUserCon
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const useStyles = makeStyles()({
   menuList: {
@@ -48,6 +49,8 @@ export function UserMenu({
 
   const { dialogActions } = useWorkspaceActions();
 
+  const isDesktop = isDesktopApp();
+
   const beginSignOut = useCallback(async () => {
     window.location.href = "/login";
   }, []);
@@ -74,6 +77,7 @@ export function UserMenu({
     },
     [analytics, currentUserType, dialogActions.preferences],
   );
+
   const onDocsClick = useCallback(() => {
     window.open(
       "https://docs.coscene.cn/docs/category/%E6%95%B0%E6%8D%AE%E5%8F%AF%E8%A7%86%E5%8C%96",
@@ -99,7 +103,7 @@ export function UserMenu({
           } as Partial<PaperProps & { "data-tourid"?: string }>
         }
       >
-        <MenuItem disabled>{userInfo?.nickName ?? "unknown"}</MenuItem>
+        {!isDesktop && <MenuItem disabled>{userInfo?.nickName ?? "unknown"}</MenuItem>}
         <MenuItem
           onClick={() => {
             onSettingsClick();
@@ -108,7 +112,7 @@ export function UserMenu({
           {t("settings")}
         </MenuItem>
         <MenuItem onClick={onDocsClick}>{t("documentation")}</MenuItem>
-        <MenuItem onClick={onSignoutClick}>{t("signOut")}</MenuItem>
+        {!isDesktop && <MenuItem onClick={onSignoutClick}>{t("signOut")}</MenuItem>}
       </Menu>
       {confirmModal}
     </>

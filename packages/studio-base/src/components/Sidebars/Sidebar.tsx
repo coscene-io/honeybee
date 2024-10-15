@@ -74,6 +74,7 @@ const useStyles = makeStyles()((theme) => ({
 export type SidebarItem = {
   title: string;
   component: React.ComponentType;
+  hidden?: boolean;
   badge?: {
     color: BadgeProps["color"];
     count: number;

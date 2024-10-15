@@ -37,4 +37,16 @@ export const openDialog = {
     "Make the most of your CoScene account – whether you want to dive deep on your data or share tools with your teammates.",
   uploadToDataPlatform: "Upload to Data Platform",
   viewOurDocs: "View our docs",
+
+  newToCoSceneStudio: "Welcome to coScene Studio",
+  newToCoSceneStudioDescription:
+    "Not sure where to start? Check out the help docs to accelerate your understanding and optimization of your usage practices",
+  helpDocs: "Help Docs",
+  monitoringEquipment:
+    "Continuously monitor equipment data to quickly identify and address potential issues",
+  storedData: "Safely store petabytes of multimodal data",
+  automaticData:
+    "Efficient automation processes, automatically collect, preprocess, and diagnose key segments",
+  coordination:
+    "Convenient data collaboration with R&D, operations, and testing personnel to drive the development of general artificial intelligence with data",
 };

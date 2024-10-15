@@ -22,6 +22,7 @@ import {
 } from "@foxglove/studio-base/context/CoSceneProjectContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { EndTimestamp } from "./EndTimestamp";
 
@@ -191,7 +192,11 @@ export function DataSource(): JSX.Element {
                   color="inherit"
                   className={classes.breadcrumbs}
                 >
-                  {isLiveConnection ? `${hostName ?? playerDisplayName}` : `<${t("unknown")}>`}
+                  {isLiveConnection
+                    ? `${hostName ?? playerDisplayName}`
+                    : isDesktopApp()
+                    ? playerDisplayName
+                    : `<${t("unknown")}>`}
                 </Link>
               </Breadcrumbs>
             )}
