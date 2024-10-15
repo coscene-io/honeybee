@@ -3,6 +3,7 @@ name: Publish Studio
 permissions:
   contents: write
   attestations: write
+  pull-requests: write
 
 on:
   workflow_dispatch:
@@ -45,6 +46,15 @@ jobs:
       - name: Update version in package.json
         # run: yarn run version:all ${{ env.new_version }}
         run: yarn run version:all v24.42.0-rc1
+
+      - name: Create a pull request
+        id: create_pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          title: "[bot] Update version to v${{ env.new_version }}"
+          branch: update-version-to-v${{ env.new_version }}
+          commit-message: "[bot] Update version to v${{ env.new_version }}"
+          delete-branch: true
 
       # - name: Build prod files
       #   run: |
