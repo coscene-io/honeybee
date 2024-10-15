@@ -75,16 +75,6 @@ jobs:
             dist/latest-mac.yml
             dist/latest.yml
 
-      - name: Create a pull request
-        id: cpr
-        uses: peter-evans/create-pull-request@v7
-        with:
-          title: "[bot] Update version to v${{ env.new_version }}"
-          base: main
-          branch: update-version-to-v${{ env.new_version }}
-          commit-message: "[bot] Update version to v${{ env.new_version }}"
-          delete-branch: true
-
       - name: Upload to OSS
         uses: tvrcgo/oss-action@master
         with:
@@ -96,6 +86,16 @@ jobs:
             dist/coScene-studio-${{ env.new_version }}-linux-amd64.deb:/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
             dist/coScene-studio-${{ env.new_version }}-mac-universal.dmg:/coScene-studio/dmg/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-mac-universal.dmg
             dist/coScene-studio-${{ env.new_version }}-win.exe:/coScene-studio/exe/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-win.exe
+
+      # - name: Create a pull request
+      #   id: cpr
+      #   uses: peter-evans/create-pull-request@v7
+      #   with:
+      #     title: "[bot] Update version to v${{ env.new_version }}"
+      #     base: main
+      #     branch: update-version-to-v${{ env.new_version }}
+      #     commit-message: "[bot] Update version to v${{ env.new_version }}"
+      #     delete-branch: true
 
       # - name: Notification to Feishu
       #   id: feishu

@@ -85,6 +85,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     },
     dropDownIcon: {
       fontSize: "12px !important",
+      color: theme.palette.appBar.icon,
     },
     start: {
       gridArea: "start",
