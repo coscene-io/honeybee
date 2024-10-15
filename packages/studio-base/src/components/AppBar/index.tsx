@@ -35,6 +35,7 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { AddPanelMenu } from "./AddPanelMenu";
 import { AppBarContainer } from "./AppBarContainer";
@@ -85,7 +86,6 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     },
     dropDownIcon: {
       fontSize: "12px !important",
-      color: theme.palette.appBar.icon,
     },
     start: {
       gridArea: "start",
@@ -221,14 +221,13 @@ export function AppBar(props: AppBarProps): JSX.Element {
                 aria-expanded={appMenuOpen ? "true" : undefined}
                 data-tourid="app-menu-button"
                 onClick={(event) => {
-                  setAppMenuEl(event.currentTarget);
+                  if (isDesktopApp()) {
+                    setAppMenuEl(event.currentTarget);
+                  }
                 }}
               >
                 <CoSceneLogo />
-                <ChevronDown12Regular
-                  className={classes.dropDownIcon}
-                  primaryFill={theme.palette.common.white}
-                />
+                {isDesktopApp() && <ChevronDown12Regular className={classes.dropDownIcon} />}
               </IconButton>
               <AppMenu
                 open={appMenuOpen}

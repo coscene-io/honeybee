@@ -97,16 +97,19 @@ jobs:
       #     commit-message: "[bot] Update version to v${{ env.new_version }}"
       #     delete-branch: true
 
-      # - name: Notification to Feishu
-      #   id: feishu
-      #   uses: foxundermoon/feishu-action@v2
-      #   with:
-      #     url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
-      #     msg_type: text
-      #     content: |
-      #       text: |
-      #         A new version of coScene Studio has been published.
-      #         Version: v${{ env.new_version }}
-      #         Is prerelease: ${{ env.is_prerelease }}
-      #         Download:
-      #         Release notes: https://github.com/coscene-io/honeybee/releases
+      - name: Notification to Feishu
+        id: feishu
+        uses: foxundermoon/feishu-action@v2
+        with:
+          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
+          msg_type: text
+          content: |
+            text: |
+              A new version of coScene Studio has been published.
+              Version: v${{ env.new_version }}
+              Is prerelease: ${{ env.is_prerelease }}
+              Download:
+                mac: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/v${{ env.new_version }}/coScene-studio-v${{ env.new_version }}-linux-amd64.deb
+                win: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/exe/v${{ env.new_version }}/coScene-studio-v${{ env.new_version }}-win.exe
+                linux: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/v${{ env.new_version }}/coScene-studio-v${{ env.new_version }}-linux-amd64.deb
+              Release notes: https://github.com/coscene-io/honeybee/releases
