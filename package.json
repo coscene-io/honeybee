@@ -1,8 +1,11 @@
 {
   "name": "foxglove-studio",
-  "version": "24.32.0",
+  "version": "24.42.0-rc1",
   "license": "MPL-2.0",
   "private": true,
+  "productName": "coScene",
+  "description": "Core components of coScene",
+  "productDescription": "coScene Studio",
   "packageManager": "yarn@3.6.3",
   "repository": {
     "type": "git",
@@ -22,6 +25,11 @@
     "web:build:dev": "webpack --mode development --progress --config web/webpack.config.ts",
     "web:build:prod": "webpack --mode production --progress --config web/webpack.config.ts",
     "web:serve": "webpack serve --env WEBPACK_SERVE=true --mode development --progress --config web/webpack.config.ts",
+    "desktop:build:dev": "webpack --mode development --progress --config desktop/webpack.config.ts",
+    "desktop:build:prod": "webpack --mode production --progress --config desktop/webpack.config.ts",
+    "desktop:serve": "webpack serve --mode development --progress --config desktop/webpack.config.ts",
+    "desktop:serve:quicklook": "webpack serve --mode development --progress --config desktop/webpack.quicklook.config.ts",
+    "desktop:start": "yarn workspace desktop electron .webpack",
     "benchmark:serve": "webpack serve --mode development --progress --config benchmark/webpack.config.ts",
     "benchmark:build:prod": "webpack --mode production --progress --config benchmark/webpack.config.ts",
     "license-check": "ts-node ci/license-check.ts",
@@ -34,6 +42,11 @@
     "test:watch": "jest --watch",
     "test:web-integration": "jest --forceExit --projects  web/integration-test",
     "test:web-integration:local": "BASE_URL=\"http://localhost:8080/\" jest --forceExit --projects  web/integration-test",
+    "package:win": "yarn package --win",
+    "package:darwin": "yarn package --mac",
+    "package:linux": "yarn package --linux",
+    "package": "cross-env NODE_OPTIONS='-r ts-node/register' electron-builder build --config desktop/electronBuilderConfig.js --publish never",
+    "package:e2e": "yarn && yarn clean && yarn desktop:build:prod && yarn package",
     "release:bump-nightly-version": "node -r ts-node/register ./ci/bump-nightly-version.ts",
     "storybook": "storybook dev --port 9009 --config-dir .storybook",
     "storybook:build": "storybook build --config-dir .storybook --webpack-stats-json",
@@ -44,7 +57,8 @@
       "packages/*",
       "packages/@types/*",
       "web",
-      "benchmark"
+      "benchmark",
+      "desktop"
     ]
   },
   "resolutions": {
@@ -80,6 +94,7 @@
     "babel-plugin-transform-import-meta": "2.2.1",
     "cross-env": "7.0.3",
     "depcheck": "1.4.7",
+    "electron-builder": "24.13.3",
     "eslint": "8.50.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-import-resolver-webpack": "0.13.8",
@@ -108,5 +123,6 @@
     "webpack-cli": "5.1.4",
     "webpack-dev-server": "5.0.4",
     "webpack-hot-middleware": "2.26.0"
-  }
+  },
+  "stableVersion": "24.32.0"
 }

@@ -14,7 +14,7 @@
 import { MessageDefinition } from "@foxglove/message-definition";
 import { Time } from "@foxglove/rostime";
 import type { MessageEvent, ParameterValue } from "@foxglove/studio";
-import { Immutable } from "@foxglove/studio";
+import { Immutable, Metadata } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
@@ -74,6 +74,7 @@ export interface Player {
   // PlayerCapabilities.setSpeed), set that speed. E.g. 1.0 is real time, 0.2 is 20% of real time.
   setPlaybackSpeed?(speedFraction: PlaybackSpeed): void;
   setGlobalVariables(globalVariables: GlobalVariables): void;
+  getMetadata?: () => ReadonlyArray<Readonly<Metadata>>;
 }
 
 export enum PlayerPresence {

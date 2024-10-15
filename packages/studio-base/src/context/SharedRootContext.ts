@@ -8,11 +8,13 @@ import { AppBarProps } from "@foxglove/studio-base/components/AppBar";
 import { CustomWindowControlsProps } from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
 import { IAppConfiguration } from "@foxglove/studio-base/context/AppConfigurationContext";
 import { IDataSourceFactory } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { ExtensionLoader } from "@foxglove/studio-base/services/ExtensionLoader";
 
 interface ISharedRootContext {
   deepLinks: readonly string[];
   appConfiguration?: IAppConfiguration;
   dataSources: readonly IDataSourceFactory[];
+  extensionLoaders: readonly ExtensionLoader[];
   enableLaunchPreferenceScreen?: boolean;
   enableGlobalCss?: boolean;
   appBarLeftInset?: number;
@@ -25,6 +27,7 @@ interface ISharedRootContext {
 const SharedRootContext = createContext<ISharedRootContext>({
   deepLinks: [],
   dataSources: [],
+  extensionLoaders: [],
 });
 SharedRootContext.displayName = "SharedRootContext";
 

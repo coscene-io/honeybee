@@ -22,6 +22,8 @@ import SendNotificationToastAdapter from "./components/SendNotificationToastAdap
 import StudioToastProvider from "./components/StudioToastProvider";
 import { UserScriptStateProvider } from "./context/UserScriptStateContext";
 import CurrentLayoutProvider from "./providers/CurrentLayoutProvider";
+import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
+import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
 import { LaunchPreference } from "./screens/LaunchPreference";
 
@@ -43,6 +45,7 @@ function contextMenuHandler(event: MouseEvent) {
 export function StudioApp(): JSX.Element {
   const {
     dataSources,
+    extensionLoaders,
     deepLinks,
     enableLaunchPreferenceScreen,
     extraProviders,
@@ -57,6 +60,8 @@ export function StudioApp(): JSX.Element {
     <TimelineInteractionStateProvider />,
     <CurrentLayoutProvider />,
     <UserScriptStateProvider />,
+    <ExtensionMarketplaceProvider />,
+    <ExtensionCatalogProvider loaders={extensionLoaders} />,
     <PlayerManager playerSources={dataSources} />,
     <EventsProvider />,
     /* eslint-enable react/jsx-key */

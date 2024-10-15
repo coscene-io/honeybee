@@ -22,6 +22,7 @@ export type LeftSidebarItemKey = (typeof LeftSidebarItemKeys)[number];
 
 export const RightSidebarItemKeys = [
   "events",
+  "extensions",
   "variables",
   "studio-logs-settings",
   "performance",

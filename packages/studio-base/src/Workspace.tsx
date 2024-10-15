@@ -23,10 +23,11 @@ import { AppBarProps, AppBar } from "@foxglove/studio-base/components/AppBar";
 import { CustomWindowControlsProps } from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
 import { EventsList } from "@foxglove/studio-base/components/CoSceneEventsList";
 import {
-  // DataSourceDialog,
+  DataSourceDialog,
   DataSourceDialogItem,
 } from "@foxglove/studio-base/components/DataSourceDialog";
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
+import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -39,6 +40,7 @@ import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls"
 import { Playlist } from "@foxglove/studio-base/components/Playlist";
 import { ProblemsList } from "@foxglove/studio-base/components/ProblemsList";
 import RemountOnValueChange from "@foxglove/studio-base/components/RemountOnValueChange";
+import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import { Sidebars, SidebarItem } from "@foxglove/studio-base/components/Sidebars";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { StudioLogsSettings } from "@foxglove/studio-base/components/StudioLogsSettings";
@@ -74,6 +76,7 @@ import { PanelStateContextProvider } from "@foxglove/studio-base/providers/Panel
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 
@@ -120,7 +123,7 @@ const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId
 const selectEventsSupported = (store: EventsStore) => store.eventsSupported;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 
-// const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
+const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
 const selectWorkspaceLeftSidebarItem = (store: WorkspaceContextStore) => store.sidebars.left.item;
 const selectWorkspaceLeftSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.left.open;
 const selectWorkspaceLeftSidebarSize = (store: WorkspaceContextStore) => store.sidebars.left.size;
@@ -139,7 +142,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems);
 
-  // const dataSourceDialog = useWorkspaceStore(selectWorkspaceDataSourceDialog);
+  const dataSourceDialog = useWorkspaceStore(selectWorkspaceDataSourceDialog);
   const leftSidebarItem = useWorkspaceStore(selectWorkspaceLeftSidebarItem);
   const leftSidebarOpen = useWorkspaceStore(selectWorkspaceLeftSidebarOpen);
   const leftSidebarSize = useWorkspaceStore(selectWorkspaceLeftSidebarSize);
@@ -332,11 +335,19 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const showEventsTab = currentUser != undefined && eventsSupported;
 
   const leftSidebarItems = useMemo(() => {
-    const items = new Map<LeftSidebarItemKey, SidebarItem>([
-      ["playlist", { title: t("playlist", { ns: "cosWorkspace" }), component: Playlist }],
+    const isDesktop = isDesktopApp();
+
+    const items: [LeftSidebarItemKey, SidebarItem][] = [
+      [
+        "playlist",
+        { title: t("playlist", { ns: "cosWorkspace" }), component: Playlist, hidden: isDesktop },
+      ],
       ["panel-settings", { title: t("panel", { ns: "cosWorkspace" }), component: PanelSettings }],
       ["topics", { title: t("topics", { ns: "cosWorkspace" }), component: TopicList }],
-      ["moment", { title: t("moment", { ns: "cosWorkspace" }), component: EventsList }],
+      [
+        "moment",
+        { title: t("moment", { ns: "cosWorkspace" }), component: EventsList, hidden: isDesktop },
+      ],
       [
         "problems",
         {
@@ -351,8 +362,12 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
               : undefined,
         },
       ],
-    ]);
-    return items;
+    ];
+
+    const cleanItems = new Map<LeftSidebarItemKey, SidebarItem>(
+      items.filter(([, item]) => item.hidden == undefined || !item.hidden),
+    );
+    return cleanItems;
   }, [playerProblems, t]);
 
   useEffect(() => {
@@ -365,6 +380,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
       ["variables", { title: t("variables"), component: VariablesList }],
+      ["extensions", { title: t("extensions"), component: ExtensionsSidebar }],
     ]);
     if (enableDebugMode) {
       if (PerformanceSidebarComponent) {
@@ -383,6 +399,14 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   const keyboardEventHasModifier = (event: KeyboardEvent) =>
     navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;
+
+  function ExtensionsSidebar() {
+    return (
+      <SidebarContent title="Extensions" disablePadding>
+        <ExtensionsSettings />
+      </SidebarContent>
+    );
+  }
 
   const keyDownHandlers = useMemo(() => {
     return {
@@ -505,7 +529,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   return (
     <PanelStateContextProvider>
-      {/* {dataSourceDialog.open && <DataSourceDialog />} */}
+      {dataSourceDialog.open && <DataSourceDialog />}
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
@@ -570,7 +594,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     dialogs: {
       dataSource: {
         activeDataSource: undefined,
-        open: initialItem != undefined,
+        open: initialItem != undefined && isDesktopApp(),
         item: initialItem,
       },
       preferences: {
