@@ -85,17 +85,17 @@ jobs:
           commit-message: "[bot] Update version to v${{ env.new_version }}"
           delete-branch: true
 
-      # - name: Upload to OSS
-      #   uses: tvrcgo/oss-action@master
-      #   with:
-      #     key-id: ${{ secrets.ACCESS_KEY_ID }}
-      #     key-secret: ${{ secrets.ACCESS_KEY_SECRET }}
-      #     region: oss-cn-hangzhou
-      #     bucket: coscene-download
-      #     assets: |
-      #       dist/coScene-studio-${{ env.new_version }}-linux-amd64.deb:/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
-      #       dist/coScene-studio-${{ env.new_version }}-mac-universal.dmg:/coScene-studio/dmg/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-mac-universal.dmg
-      #       dist/coScene-studio-${{ env.new_version }}-win.exe:/coScene-studio/exe/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-win.exe
+      - name: Upload to OSS
+        uses: tvrcgo/oss-action@master
+        with:
+          key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
+          region: oss-cn-hangzhou
+          bucket: coscene-download
+          assets: |
+            dist/coScene-studio-${{ env.new_version }}-linux-amd64.deb:/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
+            dist/coScene-studio-${{ env.new_version }}-mac-universal.dmg:/coScene-studio/dmg/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-mac-universal.dmg
+            dist/coScene-studio-${{ env.new_version }}-win.exe:/coScene-studio/exe/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-win.exe
 
       # - name: Notification to Feishu
       #   id: feishu
