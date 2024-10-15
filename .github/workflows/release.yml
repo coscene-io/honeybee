@@ -75,6 +75,15 @@ jobs:
             dist/latest-mac.yml
             dist/latest.yml
 
+      - name: Create a pull request
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          title: "[bot] Update version to v${{ env.new_version }}"
+          branch: update-version-to-v${{ env.new_version }}
+          commit-message: "[bot] Update version to v${{ env.new_version }}"
+          delete-branch: true
+
       # - name: Notification to Feishu
       #   id: feishu
       #   uses: foxundermoon/feishu-action@v2
