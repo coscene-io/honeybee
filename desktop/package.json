@@ -7,7 +7,7 @@
     "@foxglove/studio-base": "workspace:*",
     "@foxglove/studio-desktop": "workspace:*",
     "@foxglove/tsconfig": "2.0.0",
-    "@foxglove/ws-protocol": "0.7.4",
+    "@foxglove/ws-protocol": "24.42.0-rc1",
     "@types/ws": "^8",
     "electron": "25.8.4",
     "playwright": "1.37.1",

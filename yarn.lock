@@ -4878,7 +4878,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@foxglove/ws-protocol@0.7.4, @foxglove/ws-protocol@workspace:*, @foxglove/ws-protocol@workspace:packages/ws-protocol":
+"@foxglove/ws-protocol@24.42.0-rc1, @foxglove/ws-protocol@workspace:*, @foxglove/ws-protocol@workspace:packages/ws-protocol":
   version: 0.0.0-use.local
   resolution: "@foxglove/ws-protocol@workspace:packages/ws-protocol"
   dependencies:
@@ -12850,7 +12850,7 @@ __metadata:
     "@foxglove/studio-base": "workspace:*"
     "@foxglove/studio-desktop": "workspace:*"
     "@foxglove/tsconfig": 2.0.0
-    "@foxglove/ws-protocol": 0.7.4
+    "@foxglove/ws-protocol": 24.42.0-rc1
     "@types/ws": ^8
     electron: 25.8.4
     playwright: 1.37.1
