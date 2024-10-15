@@ -3,6 +3,7 @@ name: Publish Studio
 permissions:
   contents: write
   attestations: write
+  pull-requests: write
 
 on:
   release:
@@ -44,12 +45,6 @@ jobs:
       - name: \[bot\] Update version in package.json
         run: yarn run version:all ${{ env.new_version }}
 
-      - name: Commit changes to main
-        run: git commit -am "[bot] Update version to ${{ env.new_version }}"
-
-      - name: Push changes to main
-        run: git push
-
       - name: Build prod files
         run: |
           yarn run desktop:build:prod
@@ -74,23 +69,22 @@ jobs:
           prerelease: ${{ env.is_prerelease }}
           artifacts: |
             dist/coScene-studio-${{ env.new_version }}-linux-amd64.deb
-            dist/coScene-studio-${{ env.new_version }}-linux-x64.tar.gz
             dist/coScene-studio-${{ env.new_version }}-mac-universal.dmg
             dist/coScene-studio-${{ env.new_version }}-win.exe
             dist/latest-linux.yml
             dist/latest-mac.yml
             dist/latest.yml
 
-      - name: Notification to Feishu
-        id: feishu
-        uses: foxundermoon/feishu-action@v2
-        with:
-          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
-          msg_type: text
-          content: |
-            text: |
-              A new version of coScene Studio has been published.
-              Version: v${{ env.new_version }}
-              Is prerelease: ${{ env.is_prerelease }}
-              Download:
-              Release notes: https://github.com/coscene-io/honeybee/releases
+      # - name: Notification to Feishu
+      #   id: feishu
+      #   uses: foxundermoon/feishu-action@v2
+      #   with:
+      #     url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
+      #     msg_type: text
+      #     content: |
+      #       text: |
+      #         A new version of coScene Studio has been published.
+      #         Version: v${{ env.new_version }}
+      #         Is prerelease: ${{ env.is_prerelease }}
+      #         Download:
+      #         Release notes: https://github.com/coscene-io/honeybee/releases
