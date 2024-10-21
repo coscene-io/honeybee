@@ -365,7 +365,10 @@ export function RosPackagePath(): React.ReactElement {
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
   const consoleApi = useConsoleApi();
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>(i18n.language as Language);
+
+  const [selectedLanguage = "en", setSelectedLanguage] = useAppConfigurationValue<Language>(
+    AppSetting.LANGUAGE,
+  );
   const userInfo = useCurrentUser(selectUser);
 
   const onChangeLanguage = useCallback(
@@ -391,7 +394,7 @@ export function LanguageSettings(): React.ReactElement {
         }
       }
 
-      setSelectedLanguage(lang);
+      void setSelectedLanguage(lang);
       await i18n.changeLanguage(lang).catch((error) => {
         console.error("Failed to switch languages", error);
         reportError(error as Error);

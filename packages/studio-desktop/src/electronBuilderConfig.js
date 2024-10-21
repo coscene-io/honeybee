@@ -199,7 +199,8 @@ function makeElectronBuilderConfig(params) {
         "libgbm1",
         "libxcb-dri3-0",
       ],
-      afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
+      // after install script
+      // afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
     },
     snap: {
       confinement: "strict",
