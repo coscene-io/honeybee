@@ -77,12 +77,7 @@ async function positionEvents(
         event.triggerTime.seconds * BigInt(1e9) + BigInt(event.triggerTime.nanos),
       );
 
-      console.log("eventStartTime", eventStartTime);
-      console.log("event.duration", event.duration);
-
       let eventEndTime = add(eventStartTime, fromNanoSec(ducationToNanoSeconds(event.duration)));
-
-      console.log("eventEndTime", eventEndTime);
 
       if (timeMode === "relativeTime" && bagFile?.startTime != undefined) {
         eventStartTime = subtract(eventStartTime, bagFile.startTime);
