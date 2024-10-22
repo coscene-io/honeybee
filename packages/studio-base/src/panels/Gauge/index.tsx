@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { StrictMode, useMemo } from "react";
-import { createRoot } from "react-dom/client";
+import ReactDOM from "react-dom";
 
 import { useCrash } from "@foxglove/hooks";
 import { PanelExtensionContext } from "@foxglove/studio";
@@ -17,9 +17,8 @@ import { Gauge } from "./Gauge";
 import { Config } from "./types";
 
 function initPanel(crash: ReturnType<typeof useCrash>, context: PanelExtensionContext) {
-  const root = createRoot(context.panelElement);
-
-  root.render(
+  // eslint-disable-next-line react/no-deprecated
+  ReactDOM.render(
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
         <ThemeProvider isDark>
@@ -27,10 +26,11 @@ function initPanel(crash: ReturnType<typeof useCrash>, context: PanelExtensionCo
         </ThemeProvider>
       </CaptureErrorBoundary>
     </StrictMode>,
+    context.panelElement,
   );
-
   return () => {
-    root.unmount();
+    // eslint-disable-next-line react/no-deprecated
+    ReactDOM.unmountComponentAtNode(context.panelElement);
   };
 }
 
