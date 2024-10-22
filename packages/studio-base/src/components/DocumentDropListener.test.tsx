@@ -13,7 +13,7 @@
 //   You may not use this file except in compliance with the License.
 
 import { SnackbarProvider } from "notistack";
-import { createRoot } from "react-dom/client";
+import ReactDOM from "react-dom";
 import { act } from "react-dom/test-utils";
 
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
@@ -30,19 +30,17 @@ describe("<DocumentDropListener>", () => {
     wrapper = document.createElement("div");
     document.body.appendChild(wrapper);
 
-    const root = createRoot(wrapper);
-
-    root.render(
+    // eslint-disable-next-line react/no-deprecated
+    ReactDOM.render(
       <div>
         <SnackbarProvider>
           <ThemeProvider isDark={false}>
             <DocumentDropListener allowedExtensions={[]} />
           </ThemeProvider>
         </SnackbarProvider>
-        ,
       </div>,
+      wrapper,
     );
-
     (console.error as jest.Mock).mockClear();
   });
 
