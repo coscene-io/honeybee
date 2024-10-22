@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { StrictMode, useMemo } from "react";
-import { createRoot } from "react-dom/client";
+import ReactDOM from "react-dom";
 
 import { useCrash } from "@foxglove/hooks";
 import { PanelExtensionContext } from "@foxglove/studio";
@@ -15,17 +15,18 @@ import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import TeleopPanel from "./TeleopPanel";
 
 function initPanel(crash: ReturnType<typeof useCrash>, context: PanelExtensionContext) {
-  const root = createRoot(context.panelElement);
-  root.render(
+  // eslint-disable-next-line react/no-deprecated
+  ReactDOM.render(
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
         <TeleopPanel context={context} />
       </CaptureErrorBoundary>
     </StrictMode>,
+    context.panelElement,
   );
-
   return () => {
-    root.unmount();
+    // eslint-disable-next-line react/no-deprecated
+    ReactDOM.unmountComponentAtNode(context.panelElement);
   };
 }
 
