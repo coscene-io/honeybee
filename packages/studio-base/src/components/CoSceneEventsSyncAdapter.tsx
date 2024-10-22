@@ -76,6 +76,7 @@ async function positionEvents(
       let eventStartTime = fromNanoSec(
         event.triggerTime.seconds * BigInt(1e9) + BigInt(event.triggerTime.nanos),
       );
+
       let eventEndTime = add(eventStartTime, fromNanoSec(ducationToNanoSeconds(event.duration)));
 
       if (timeMode === "relativeTime" && bagFile?.startTime != undefined) {
