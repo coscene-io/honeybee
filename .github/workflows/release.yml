@@ -6,8 +6,9 @@ permissions:
   pull-requests: write
 
 on:
-  release:
-    types: [published]
+  # release:
+  #   types: [published]
+  workflow_run:
 
 jobs:
   build:
@@ -36,14 +37,14 @@ jobs:
       - name: Get the version
         id: get_version
         run: |
-          echo "new_version=${{ github.ref_name }}" >> $GITHUB_ENV
-          echo "is_prerelease=${{ github.event.release.prerelease }}" >> $GITHUB_ENV
+          echo "new_version=v0.0.0" >> $GITHUB_ENV
+          echo "is_prerelease=true" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: \[bot\] Update version in package.json
-        run: yarn run version:all ${{ env.new_version }}
+      # - name: \[bot\] Update version in package.json
+      #   run: yarn run version:all ${{ env.new_version }}
 
       - name: Build prod files
         run: |
@@ -58,22 +59,22 @@ jobs:
       - name: Build macOS version
         run: yarn run package:darwin
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: "v${{ env.new_version }}"
-          name: "v${{ env.new_version }}"
-          commit: main
-          generateReleaseNotes: true
-          prerelease: ${{ env.is_prerelease }}
-          artifacts: |
-            dist/coScene-studio-${{ env.new_version }}-linux-amd64.deb
-            dist/coScene-studio-${{ env.new_version }}-mac-universal.dmg
-            dist/coScene-studio-${{ env.new_version }}-win.exe
-            dist/latest-linux.yml
-            dist/latest-mac.yml
-            dist/latest.yml
+      # - name: Create GitHub Release
+      #   id: create_release
+      #   uses: ncipollo/release-action@v1
+      #   with:
+      #     tag: "v${{ env.new_version }}"
+      #     name: "v${{ env.new_version }}"
+      #     commit: main
+      #     generateReleaseNotes: true
+      #     prerelease: ${{ env.is_prerelease }}
+      #     artifacts: |
+      #       dist/coScene-studio-${{ env.new_version }}-linux-amd64.deb
+      #       dist/coScene-studio-${{ env.new_version }}-mac-universal.dmg
+      #       dist/coScene-studio-${{ env.new_version }}-win.exe
+      #       dist/latest-linux.yml
+      #       dist/latest-mac.yml
+      #       dist/latest.yml
 
       - name: Upload to OSS
         uses: tvrcgo/oss-action@master
@@ -97,19 +98,19 @@ jobs:
       #     commit-message: "[bot] Update version to v${{ env.new_version }}"
       #     delete-branch: true
 
-      - name: Notification to Feishu
-        id: feishu
-        uses: foxundermoon/feishu-action@v2
-        with:
-          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
-          msg_type: text
-          content: |
-            text: |
-              A new version of coScene Studio has been published.
-              Version: ${{ env.new_version }}
-              Is prerelease: ${{ env.is_prerelease }}
-              Download:
-                mac: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
-                win: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/exe/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-win.exe
-                linux: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
-              Release notes: https://github.com/coscene-io/honeybee/releases
+      # - name: Notification to Feishu
+      #   id: feishu
+      #   uses: foxundermoon/feishu-action@v2
+      #   with:
+      #     url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
+      #     msg_type: text
+      #     content: |
+      #       text: |
+      #         A new version of coScene Studio has been published.
+      #         Version: ${{ env.new_version }}
+      #         Is prerelease: ${{ env.is_prerelease }}
+      #         Download:
+      #           mac: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
+      #           win: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/exe/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-win.exe
+      #           linux: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
+      #         Release notes: https://github.com/coscene-io/honeybee/releases
