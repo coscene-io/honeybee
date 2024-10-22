@@ -80,7 +80,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
       const eventStartTime = fromNanoSec(
         event.triggerTime!.seconds * BigInt(1e9) + BigInt(event.triggerTime!.nanos),
       );
-      const eventEndTime = add(startTime, fromNanoSec(ducationToNanoSeconds(event.duration)));
+      const eventEndTime = add(eventStartTime, fromNanoSec(ducationToNanoSeconds(event.duration)));
 
       tooltipItems.push({
         type: "item",
