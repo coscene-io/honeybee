@@ -58,7 +58,7 @@ const useStyles = makeStyles()((theme) => ({
 export const EmptyPanelLayout = ({ tabId }: Props): JSX.Element => {
   const { classes, cx } = useStyles();
   const { addPanel } = useCurrentLayoutActions();
-  const { t } = useTranslation("addPanel");
+  const { t, i18n } = useTranslation("addPanel");
 
   const [{ isOver }, drop] = useDrop<unknown, MosaicDropResult, { isOver: boolean }>({
     accept: MosaicDragType.WINDOW,
@@ -87,11 +87,15 @@ export const EmptyPanelLayout = ({ tabId }: Props): JSX.Element => {
       <div className={classes.root}>
         <Stack paddingBottom={2}>
           <Typography variant="body2" paddingX={2} paddingTop={2}>
-            {t("selectPanelToAddToLayout")}{" "}
+            {t("selectPanelToAddToLayout")}
             <Link
               color="primary"
               target="_blank"
-              href="https://docs.coscene.cn/docs/recipes/viz/set-layout/"
+              href={
+                i18n.language === "zh"
+                  ? "https://docs.coscene.cn/docs/recipes/viz/layout/"
+                  : "https://docs.coscene.cn/en/docs/recipes/viz/layout/"
+              }
             >
               {t("userGuide", { ns: "cosGeneral" })}
             </Link>
