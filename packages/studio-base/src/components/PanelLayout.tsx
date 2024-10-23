@@ -217,7 +217,7 @@ export default function PanelLayout(): JSX.Element {
   const layoutExists = useCurrentLayoutSelector(selectedLayoutExistsSelector);
   const mosaicLayout = useCurrentLayoutSelector(selectedLayoutMosaicSelector);
   const registeredExtensions = useExtensionCatalog((state) => state.installedExtensions);
-  const { t } = useTranslation("cosLayout");
+  const { t, i18n } = useTranslation("cosLayout");
 
   const createNewLayout = async () => {
     const layoutData: Omit<LayoutData, "name" | "id"> = {
@@ -269,7 +269,11 @@ export default function PanelLayout(): JSX.Element {
           target="_blank"
           underline="hover"
           variant="body1"
-          href="https://docs.coscene.cn/docs/recipes/viz/set-layout/"
+          href={
+            i18n.language === "zh"
+              ? "https://docs.coscene.cn/docs/recipes/viz/layout/"
+              : "https://docs.coscene.cn/en/docs/recipes/viz/layout/"
+          }
         >
           {t("userGuide", { ns: "cosGeneral" })}
         </Link>
