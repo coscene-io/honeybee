@@ -6,7 +6,7 @@ import { Divider, Typography } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 
 import CopyButton from "@foxglove/studio-base/components/CopyButton";
-// import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
+import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import {
   MessagePipelineContext,
@@ -16,6 +16,7 @@ import Panel from "@foxglove/studio-base/components/Panel";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { Topic } from "@foxglove/studio-base/src/players/types";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const useStyles = makeStyles<void, "copyIcon">()((theme, _params, classes) => ({
   copyIcon: {
@@ -151,8 +152,8 @@ function SourceInfo(): JSX.Element {
             ))}
           </tbody>
         </table>
-        {/* coScene 防止频率数值覆盖 */}
-        {/* <DirectTopicStatsUpdater interval={6} /> */}
+        {/* 连接 honeybee server 的情况下，从 metadata 中获取消息频率 */}
+        {isDesktopApp() && <DirectTopicStatsUpdater interval={6} />}
       </Stack>
     </>
   );
