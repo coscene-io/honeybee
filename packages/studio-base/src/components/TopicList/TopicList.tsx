@@ -34,6 +34,7 @@ import { DraggedMessagePath } from "@foxglove/studio-base/components/PanelExtens
 import { ContextMenu } from "@foxglove/studio-base/components/TopicList/ContextMenu";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { MessagePathSelectionProvider } from "@foxglove/studio-base/services/messagePathDragging/MessagePathSelectionProvider";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { MessagePathRow } from "./MessagePathRow";
 import { TopicRow } from "./TopicRow";
@@ -297,8 +298,10 @@ export function TopicList(): JSX.Element {
             {playerPresence === PlayerPresence.RECONNECTING && t("waitingForConnection")}
           </EmptyState>
         )}
-        {/* coScene 仅在实时可视化时启用，防止频率数值覆盖 */}
-        {sourceId === "coscene-websocket" && <DirectTopicStatsUpdater interval={6} />}
+        {/* 连接 honeybee server 的情况下，从 metadata 中获取消息频率 */}
+        {(sourceId === "coscene-websocket" || isDesktopApp()) && (
+          <DirectTopicStatsUpdater interval={6} />
+        )}
       </div>
       {contextMenuState && (
         <ContextMenu
