@@ -14,7 +14,7 @@ export class IdbUrdfStorage implements IUrdfStorage {
   #cacheFileExtensions = ["dae", "stl", "urdf", "xacro", "xml"];
 
   public checkUriNeedsCache(uri: string): boolean {
-    const extension = uri.split(".").pop();
+    const extension = uri.split(".").pop()?.toLocaleLowerCase();
     return extension != undefined && this.#cacheFileExtensions.includes(extension);
   }
 
