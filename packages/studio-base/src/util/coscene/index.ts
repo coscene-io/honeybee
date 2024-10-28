@@ -87,7 +87,6 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
     if (error.code === StatusCode.UNAUTHENTICATED) {
       localStorage.removeItem("demoSite");
-      localStorage.removeItem("joyrideInfoList");
       localStorage.removeItem("honeybeeDemoStatus");
       if (window.location.pathname !== "/login") {
         window.location.href = `/login?redirectToPath=${encodeURIComponent(
