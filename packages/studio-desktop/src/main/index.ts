@@ -128,8 +128,8 @@ export async function main(): Promise<void> {
     }
   });
 
-  if (!app.isDefaultProtocolClient("foxglove")) {
-    if (!app.setAsDefaultProtocolClient("foxglove")) {
+  if (!app.isDefaultProtocolClient("coScene")) {
+    if (!app.setAsDefaultProtocolClient("coScene")) {
       log.warn("Could not set app as handler for lichtblick://");
     }
   }
