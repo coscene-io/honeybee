@@ -19,7 +19,13 @@ import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
 
-export function SharedProviders({ consoleApi }: { consoleApi: ConsoleApi }): JSX.Element[] {
+export function SharedProviders({
+  consoleApi,
+  loginStatusKey,
+}: {
+  consoleApi: ConsoleApi;
+  loginStatusKey?: number;
+}): JSX.Element[] {
   const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
   const urdfStorage = useMemo(() => new IdbUrdfStorage(), []);
 
@@ -28,7 +34,7 @@ export function SharedProviders({ consoleApi }: { consoleApi: ConsoleApi }): JSX
       <CoSceneConsoleApiContext.Provider value={consoleApi} key="CoSceneConsoleApiContext" />,
       <CoSceneBaseProvider key="CoSceneBaseProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
-      <CoSceneUserProvider key="CoSceneUserProvider" />,
+      <CoSceneUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
       <CoSceneConsoleApiRemoteLayoutStorageProvider key="CoSceneConsoleApiRemoteLayoutStorageProvider" />,
       <CoSceneLayoutStorageContext.Provider
         value={layoutStorage}
@@ -41,7 +47,7 @@ export function SharedProviders({ consoleApi }: { consoleApi: ConsoleApi }): JSX
       <CoSceneProjectProvider key="CoSceneProjectProvider" />,
       <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
     ],
-    [consoleApi, layoutStorage, urdfStorage],
+    [consoleApi, loginStatusKey, layoutStorage, urdfStorage],
   );
 
   return providers;

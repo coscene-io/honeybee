@@ -369,7 +369,6 @@ export function AppBar(props: AppBarProps): JSX.Element {
         handleClose={() => {
           setUserAnchorEl(undefined);
         }}
-        userInfo={userInfo}
       />
     </>
   );

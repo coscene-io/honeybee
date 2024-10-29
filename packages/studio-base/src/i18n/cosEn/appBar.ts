@@ -5,6 +5,7 @@
 export const cosAppBar = {
   settings: "Settings",
   documentation: "Documentation",
+  login: "Login",
   signOut: "Sign Out",
   signOutConfirmTitle: "Are you sure you want to sign out?",
   signOutConfirmOk: "Sign out",
