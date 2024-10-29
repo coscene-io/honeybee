@@ -4,6 +4,7 @@
 
 import { Menu, MenuItem, PaperProps, PopoverPosition, PopoverReference } from "@mui/material";
 import { useCallback } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -64,10 +65,11 @@ export function UserMenu({
     if (isDesktop) {
       localStorage.removeItem("coScene_org_jwt");
       setLoginStatus("notLogin");
+      toast.success(t("signoutSuccess"));
     } else {
       window.location.href = "/login";
     }
-  }, [isDesktop, setLoginStatus]);
+  }, [isDesktop, setLoginStatus, t]);
 
   const onSignoutClick = useCallback(() => {
     void confirm({

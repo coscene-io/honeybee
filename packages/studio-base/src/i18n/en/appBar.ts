@@ -43,4 +43,5 @@ export const appBar = {
     "Create a new 'layout' to customize your visualization view, or use the organization's shared layout directly",
   toSetupLayout: "Go to Setup Layout",
   noMoreTips: "Do not show again",
+  loginSuccess: "Login success",
 };

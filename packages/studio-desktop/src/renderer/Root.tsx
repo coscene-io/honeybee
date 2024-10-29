@@ -3,6 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 import {
   SharedRoot,
@@ -49,6 +51,8 @@ export default function Root(props: {
     throw new Error("storageBridge is missing");
   }
   const { appConfiguration } = props;
+
+  const { t } = useTranslation("appBar");
 
   // if has many sources need to set confirm
   // recommand set confirm to message pipeline
@@ -102,10 +106,11 @@ export default function Root(props: {
       localStorage.setItem("coScene_org_jwt", token);
       consoleApi.setAuthHeader(token);
       setLoginStatusKey((key) => key + 1);
+      toast.success(t("loginSuccess"));
     });
 
     return cleanup;
-  }, [consoleApi]);
+  }, [consoleApi, t]);
 
   const [extensionLoaders] = useState(() => [
     new IdbExtensionLoader("org"),
@@ -225,6 +230,7 @@ export default function Root(props: {
         <StudioApp />
       </SharedRoot>
       {confirmModal}
+      <Toaster />
     </>
   );
 }

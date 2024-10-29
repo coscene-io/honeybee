@@ -42,4 +42,5 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   layoutGuideliens: "新建「布局」自定义你的可视化视图，或直接使用组织共享布局",
   toSetupLayout: "前往设置布局",
   noMoreTips: "不再提示",
+  loginSuccess: "登录成功",
 };

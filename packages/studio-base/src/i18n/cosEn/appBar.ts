@@ -11,4 +11,5 @@ export const cosAppBar = {
   signOutConfirmOk: "Sign out",
   signOutConfirmCancel: "No",
   menu: "Menu",
+  signoutSuccess: "Sign out success",
 };
