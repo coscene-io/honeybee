@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, IpcRendererEvent } from "electron";
 import os from "os";
 import { join as pathJoin } from "path";
 
@@ -20,6 +20,7 @@ import {
   ForwardedWindowEvent,
   NativeMenuBridge,
   Storage,
+  Auth,
 } from "../common/types";
 import { LICHTBLICK_PRODUCT_NAME, LICHTBLICK_PRODUCT_VERSION } from "../common/webpackDefines";
 
@@ -200,6 +201,19 @@ export function main(): void {
     },
   };
 
+  const authBridge: Auth = {
+    onAuthToken: (callback: (token: string) => void) => {
+      const subscription = (_event: IpcRendererEvent, token: string) => {
+        callback(token);
+      };
+      ipcRenderer.on("auth-token", subscription);
+
+      return () => {
+        ipcRenderer.removeListener("auth-token", subscription);
+      };
+    },
+  };
+
   // NOTE: Context Bridge imposes a number of limitations around how objects move between the context
   // and the renderer. These restrictions impact what the api surface can expose and how.
   //
@@ -210,6 +224,7 @@ export function main(): void {
   contextBridge.exposeInMainWorld("menuBridge", menuBridge);
   contextBridge.exposeInMainWorld("storageBridge", storageBridge);
   contextBridge.exposeInMainWorld("desktopBridge", desktopBridge);
+  contextBridge.exposeInMainWorld("authBridge", authBridge);
 
   log.debug(`End Preload`);
 }
