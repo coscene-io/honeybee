@@ -13,65 +13,98 @@ import {
   UserStore,
   OrganizationRoleCode,
   ProjectRoleCode,
+  User,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 
 const log = Logger.getLogger(__filename);
 
 const selectCurrentUser = (store: UserStore) => store.user;
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
+
 const selectSetUserRole = (store: UserStore) => store.setRole;
+const selectSetUser = (store: UserStore) => store.setUser;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
 export function CoSceneCurrentUserSyncAdapter(): ReactNull {
+  const loginStatus = useCurrentUser(selectLoginStatus);
   const currentUser = useCurrentUser(selectCurrentUser);
+
   const setUserRole = useCurrentUser(selectSetUserRole);
+  const setUser = useCurrentUser(selectSetUser);
 
   const consoleApi = useConsoleApi();
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
-  const [_userRole, syncUserRole] = useAsyncFn(async (warehouseId, projectId) => {
-    if (currentUser != undefined) {
-      const res = await consoleApi.getRoleLists();
-      const roles = res.roles;
+  const [_userRole, syncUserRole] = useAsyncFn(
+    async (warehouseId, projectId) => {
+      if (currentUser != undefined) {
+        const res = await consoleApi.getRoleLists();
+        const roles = res.roles;
 
-      const projectRoles = await consoleApi.batchGetProjectUserRoles(
-        `warehouses/${warehouseId}/projects/${projectId}`,
-        [`users/${currentUser.userId}`],
-      );
+        const projectRoles = await consoleApi.batchGetProjectUserRoles(
+          `warehouses/${warehouseId}/projects/${projectId}`,
+          [`users/${currentUser.userId}`],
+        );
 
-      const orgRoles = await consoleApi.batchGetOrgUserRoles([`users/${currentUser.userId}`]);
+        const orgRoles = await consoleApi.batchGetOrgUserRoles([`users/${currentUser.userId}`]);
 
-      let projectRoleCode = "";
+        let projectRoleCode = "";
 
-      if (projectRoles.userRoles.length > 0) {
-        projectRoleCode = projectRoles.userRoles[0]?.role ?? "";
+        if (projectRoles.userRoles.length > 0) {
+          projectRoleCode = projectRoles.userRoles[0]?.role ?? "";
+        }
+
+        let orgRolesCode = "";
+        if (orgRoles.userRoles.length > 0) {
+          orgRolesCode = orgRoles.userRoles[0]?.role ?? "";
+        }
+
+        const organizationRole = roles.find((role) => role.name === orgRolesCode);
+
+        const projectRole = roles.find((role) => role.name === projectRoleCode);
+
+        setUserRole(
+          organizationRole?.code ? (organizationRole.code as OrganizationRoleCode) : undefined,
+          projectRole?.code ? (projectRole.code as ProjectRoleCode) : undefined,
+        );
       }
+    },
+    [consoleApi, currentUser, setUserRole],
+  );
 
-      let orgRolesCode = "";
-      if (orgRoles.userRoles.length > 0) {
-        orgRolesCode = orgRoles.userRoles[0]?.role ?? "";
-      }
+  const [_userInfo, syncUserInfo] = useAsyncFn(async () => {
+    if (loginStatus === "alreadyLogin") {
+      const userInfo = await consoleApi.getUser("users/current");
 
-      const organizationRole = roles.find((role) => role.name === orgRolesCode);
+      const userId = userInfo.getName().split("/").pop() ?? "";
 
-      const projectRole = roles.find((role) => role.name === projectRoleCode);
-
-      setUserRole(
-        organizationRole?.code ? (organizationRole.code as OrganizationRoleCode) : undefined,
-        projectRole?.code ? (projectRole.code as ProjectRoleCode) : undefined,
-      );
+      setUser({
+        ...(currentUser ?? {}),
+        avatarUrl: userInfo.getAvatar() || "",
+        email: userInfo.getEmail() || "",
+        nickName: userInfo.getNickname() || "",
+        phoneNumber: userInfo.getPhoneNumber() || "",
+        userId,
+      } as User);
+    } else {
+      setUser(undefined);
     }
-  });
+  }, [consoleApi, currentUser, loginStatus, setUser]);
 
   useEffect(() => {
+    syncUserInfo().catch((err) => {
+      log.error("syncUserInfo", err);
+    });
+
     if (baseInfo.projectId != undefined && baseInfo.warehouseId != undefined) {
       syncUserRole(baseInfo.warehouseId, baseInfo.projectId).catch((err) => {
         log.error("syncUserRole", err);
       });
     }
-  }, [syncUserRole, baseInfo]);
+  }, [syncUserRole, baseInfo, loginStatus, syncUserInfo]);
 
   return ReactNull;
 }

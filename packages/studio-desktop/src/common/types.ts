@@ -120,4 +120,16 @@ interface Desktop {
   updateLanguage(): void;
 }
 
-export type { Desktop, DesktopExtension, DesktopLayout, NativeMenuBridge, Storage, StorageContent };
+interface Auth {
+  onAuthToken: (callback: (token: string) => void) => UnregisterFn;
+}
+
+export type {
+  Desktop,
+  DesktopExtension,
+  DesktopLayout,
+  NativeMenuBridge,
+  Storage,
+  StorageContent,
+  Auth,
+};
