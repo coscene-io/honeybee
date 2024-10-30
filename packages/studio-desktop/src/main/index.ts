@@ -110,7 +110,7 @@ export async function main(): Promise<void> {
     someWindow?.restore();
     someWindow?.focus();
 
-    const deepLinks = argv.slice(1).filter((arg) => arg.startsWith("lichtblick://"));
+    const deepLinks = argv.slice(1).filter((arg) => arg.startsWith("coscene://"));
     for (const link of deepLinks) {
       app.emit("open-url", { preventDefault() {} }, link);
     }
@@ -128,9 +128,9 @@ export async function main(): Promise<void> {
     }
   });
 
-  if (!app.isDefaultProtocolClient("foxglove")) {
-    if (!app.setAsDefaultProtocolClient("foxglove")) {
-      log.warn("Could not set app as handler for lichtblick://");
+  if (!app.isDefaultProtocolClient("coscene")) {
+    if (!app.setAsDefaultProtocolClient("coscene")) {
+      log.warn("Could not set app as handler for coscene://");
     }
   }
 
@@ -181,13 +181,26 @@ export async function main(): Promise<void> {
   // tho it is a bit strange since it isn't clear when this runs...
   app.on("open-url", (ev, url) => {
     log.debug("open-url handler", url);
-    if (!url.startsWith("lichtblick://")) {
+    if (!url.startsWith("coscene://")) {
       return;
     }
 
     ev.preventDefault();
 
-    if (url.startsWith("lichtblick://signin-complete")) {
+    if (url.startsWith("coscene://signin-complete")) {
+      const urlObj = new URL(url);
+      const params = urlObj.searchParams;
+
+      const token = params.get("jwt");
+      if (token) {
+        const decodedToken = Buffer.from(token, "base64").toString("utf8");
+
+        BrowserWindow.getAllWindows().forEach((win) => {
+          win.webContents.send("auth-token", decodedToken);
+        });
+      } else {
+        log.warn(`signin-complete token not found`);
+      }
       // When completing sign in from Console, the browser can launch this URL to re-focus the app.
       app.focus({ steal: true });
     } else if (app.isReady()) {
@@ -218,7 +231,7 @@ export async function main(): Promise<void> {
   app.on("ready", async () => {
     updateNativeColorScheme();
     const argv = process.argv;
-    const deepLinks = argv.filter((arg) => arg.startsWith("lichtblick://"));
+    const deepLinks = argv.filter((arg) => arg.startsWith("coscene://"));
 
     // create the initial window now to display to the user immediately
     // loading the app url happens at the end of ready to ensure we've setup all the handlers, settings, etc

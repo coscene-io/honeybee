@@ -65,13 +65,6 @@ export function WebRoot(props: {
     return props.dataSources ?? sources;
   }, [props.dataSources, confirm]);
 
-  const currentUser = localStorage.getItem("current_user") ?? "{}";
-  const currentUserId = JSON.parse(currentUser).userId ?? "";
-
-  if (currentUserId == undefined || currentUserId === "") {
-    window.location.href = "/login";
-  }
-
   const consoleApi = useMemo(
     () =>
       new ConsoleApi(

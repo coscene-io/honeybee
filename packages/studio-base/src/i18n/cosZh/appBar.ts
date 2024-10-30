@@ -7,9 +7,11 @@ import { TypeOptions } from "i18next";
 export const cosAppBar: Partial<TypeOptions["resources"]["cosAppBar"]> = {
   settings: "设置",
   documentation: "文档",
+  login: "登录",
   signOut: "登出",
   signOutConfirmTitle: "确定要登出吗",
   signOutConfirmOk: "登出",
   signOutConfirmCancel: "取消",
   menu: "菜单",
+  signoutSuccess: "登出成功",
 };

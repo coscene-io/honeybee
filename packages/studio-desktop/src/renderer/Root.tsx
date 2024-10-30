@@ -3,6 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 import {
   SharedRoot,
@@ -32,12 +34,13 @@ import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
 import { NativeWindow } from "./services/NativeWindow";
-import { Desktop, NativeMenuBridge, Storage } from "../common/types";
+import { Auth, Desktop, NativeMenuBridge, Storage } from "../common/types";
 
 const desktopBridge = (global as unknown as { desktopBridge: Desktop }).desktopBridge;
 const storageBridge = (global as unknown as { storageBridge?: Storage }).storageBridge;
 const menuBridge = (global as { menuBridge?: NativeMenuBridge }).menuBridge;
 const ctxbridge = (global as { ctxbridge?: OsContext }).ctxbridge;
+const authBridge = (global as { authBridge?: Auth }).authBridge;
 
 export default function Root(props: {
   appConfiguration: IAppConfiguration;
@@ -49,9 +52,28 @@ export default function Root(props: {
   }
   const { appConfiguration } = props;
 
+  const { t } = useTranslation("appBar");
+
   // if has many sources need to set confirm
   // recommand set confirm to message pipeline
   const [confirm, confirmModal] = useConfirm();
+
+  // notify user login status change
+  const [loginStatusKey, setLoginStatusKey] = useState(0);
+
+  // current not support connect to coscene
+  const consoleApi = useMemo(
+    () =>
+      new ConsoleApi(
+        "baseUrl",
+        "bffUrl",
+        "addTopicPrefix",
+        localStorage.getItem("CoScene_timeMode") === "relativeTime"
+          ? "relativeTime"
+          : "absoluteTime",
+      ),
+    [],
+  );
 
   useEffect(() => {
     const handler = () => {
@@ -73,6 +95,22 @@ export default function Root(props: {
       appConfiguration.removeChangeListener(AppSetting.LANGUAGE, handler);
     };
   }, [appConfiguration]);
+
+  useEffect(() => {
+    const authToken = localStorage.getItem("coScene_org_jwt");
+    if (authToken) {
+      consoleApi.setAuthHeader(authToken);
+    }
+
+    const cleanup = authBridge?.onAuthToken((token) => {
+      localStorage.setItem("coScene_org_jwt", token);
+      consoleApi.setAuthHeader(token);
+      setLoginStatusKey((key) => key + 1);
+      toast.success(t("loginSuccess"));
+    });
+
+    return cleanup;
+  }, [consoleApi, t]);
 
   const [extensionLoaders] = useState(() => [
     new IdbExtensionLoader("org"),
@@ -151,23 +189,7 @@ export default function Root(props: {
     };
   }, []);
 
-  // current not support connect to coscene
-  const consoleApi = useMemo(
-    () =>
-      new ConsoleApi(
-        "baseUrl",
-        "bffUrl",
-        "addTopicPrefix",
-        localStorage.getItem("CoScene_timeMode") === "relativeTime"
-          ? "relativeTime"
-          : "absoluteTime",
-      ),
-    [],
-  );
-
-  consoleApi.setAuthHeader("auth token");
-
-  const initProviders = SharedProviders({ consoleApi });
+  const initProviders = SharedProviders({ consoleApi, loginStatusKey });
 
   const extraProviders = useMemo(() => {
     const providers: JSX.Element[] = initProviders;
@@ -208,6 +230,7 @@ export default function Root(props: {
         <StudioApp />
       </SharedRoot>
       {confirmModal}
+      <Toaster />
     </>
   );
 }

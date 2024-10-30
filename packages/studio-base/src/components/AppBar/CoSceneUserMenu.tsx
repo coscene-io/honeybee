@@ -4,12 +4,16 @@
 
 import { Menu, MenuItem, PaperProps, PopoverPosition, PopoverReference } from "@mui/material";
 import { useCallback } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
+  useCurrentUser as useCoSceneCurrentUser,
+  UserStore,
+} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useCurrentUserType } from "@foxglove/studio-base/context/CurrentUserContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
@@ -28,9 +32,12 @@ type UserMenuProps = {
   anchorReference?: PopoverReference;
   anchorPosition?: PopoverPosition;
   disablePortal?: boolean;
-  userInfo?: User;
   open: boolean;
 };
+
+const selectUser = (store: UserStore) => store.user;
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
+const selectSetLoginStatus = (store: UserStore) => store.setLoginStatus;
 
 export function UserMenu({
   anchorEl,
@@ -38,7 +45,6 @@ export function UserMenu({
   anchorPosition,
   disablePortal,
   handleClose,
-  userInfo,
   open,
 }: UserMenuProps): JSX.Element {
   const { classes } = useStyles();
@@ -51,9 +57,19 @@ export function UserMenu({
 
   const isDesktop = isDesktopApp();
 
+  const userInfo = useCoSceneCurrentUser(selectUser);
+  const loginStatus = useCoSceneCurrentUser(selectLoginStatus);
+  const setLoginStatus = useCoSceneCurrentUser(selectSetLoginStatus);
+
   const beginSignOut = useCallback(async () => {
-    window.location.href = "/login";
-  }, []);
+    if (isDesktop) {
+      localStorage.removeItem("coScene_org_jwt");
+      setLoginStatus("notLogin");
+      toast.success(t("signoutSuccess"));
+    } else {
+      window.location.href = "/login";
+    }
+  }, [isDesktop, setLoginStatus, t]);
 
   const onSignoutClick = useCallback(() => {
     void confirm({
@@ -103,7 +119,10 @@ export function UserMenu({
           } as Partial<PaperProps & { "data-tourid"?: string }>
         }
       >
-        {!isDesktop && <MenuItem disabled>{userInfo?.nickName ?? "unknown"}</MenuItem>}
+        {loginStatus === "alreadyLogin" && (
+          <MenuItem disabled>{userInfo?.nickName ?? "unknow"}</MenuItem>
+        )}
+
         <MenuItem
           onClick={() => {
             onSettingsClick();
@@ -112,7 +131,20 @@ export function UserMenu({
           {t("settings")}
         </MenuItem>
         <MenuItem onClick={onDocsClick}>{t("documentation")}</MenuItem>
-        {!isDesktop && <MenuItem onClick={onSignoutClick}>{t("signOut")}</MenuItem>}
+
+        {(isDesktop || loginStatus === "alreadyLogin") && (
+          <MenuItem
+            onClick={() => {
+              if (isDesktop && loginStatus === "notLogin") {
+                window.open("https://dev.coscene.cn/studio/login");
+              } else {
+                onSignoutClick();
+              }
+            }}
+          >
+            {loginStatus === "alreadyLogin" ? t("signOut") : t("login")}
+          </MenuItem>
+        )}
       </Menu>
       {confirmModal}
     </>

@@ -21,9 +21,14 @@ export type User = {
   phoneNumber: string;
   agreedAgreement: string;
   role: string;
+  email: string;
 };
 
+export type LoginStatus = "alreadyLogin" | "notLogin";
+
 export type UserStore = {
+  loginStatus: LoginStatus;
+
   user: User | undefined;
 
   role: {
@@ -35,6 +40,8 @@ export type UserStore = {
   setUser: (user: User | undefined) => void;
 
   setRole: (organizationRole?: OrganizationRoleCode, projectRole?: ProjectRoleCode) => void;
+
+  setLoginStatus: (loginStatus: LoginStatus) => void;
 };
 export const CoSceneCurrentUserContext = createContext<StoreApi<UserStore> | undefined>(undefined);
 
