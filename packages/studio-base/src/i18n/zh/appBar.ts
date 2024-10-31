@@ -52,4 +52,9 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   recordName: "记录名称",
   recordDescription: "记录描述",
   create: "创建",
+  copyRecordLink: "复制记录链接",
+  copyRecordLinkSuccess: "复制成功, 请在浏览器中打开",
+  loginFirst: "上传文件需要先登录 coScene 账号",
+  clickToUpload: "点击上传文件",
+  openInBrowser: "在浏览器中打开",
 };

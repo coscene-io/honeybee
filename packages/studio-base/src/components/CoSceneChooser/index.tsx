@@ -158,6 +158,8 @@ function FilesList({
   );
 }
 
+const selectUser = (store: UserStore) => store.user;
+
 const CustomBreadcrumbs = ({
   project,
   clearProject,
@@ -176,6 +178,8 @@ const CustomBreadcrumbs = ({
   setRecordType: (recordType: "create" | "select") => void;
 }) => {
   const { t } = useTranslation("cosGeneral");
+  const currentUser = useCurrentUser(selectUser);
+
   let breadcrumbs: JSX.Element[] = [];
 
   if (!project && !record) {
@@ -243,7 +247,7 @@ const CustomBreadcrumbs = ({
         <Button
           variant="text"
           onClick={() => {
-            window.open("https://dev.coscene.cn", "_blank");
+            window.open(currentUser?.targetSite, "_blank");
           }}
         >
           {t("toCreateProject", { ns: "appBar" })}
@@ -275,8 +279,6 @@ const CustomBreadcrumbs = ({
     </Stack>
   );
 };
-
-const selectUser = (store: UserStore) => store.user;
 
 export function ChooserComponent({
   setTargetRecordName,

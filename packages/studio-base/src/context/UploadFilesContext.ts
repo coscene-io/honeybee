@@ -19,7 +19,7 @@ export type UploadFileInfo = {
   progress?: number;
   status: UploadStatus;
   target: {
-    recordTitle: string;
+    recordName: string;
   };
   url: string;
 };

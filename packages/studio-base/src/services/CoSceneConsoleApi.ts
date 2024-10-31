@@ -31,6 +31,9 @@ import {
   GetTicketSystemMetadataRequest,
   TicketSystemMetadata,
 } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
+import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import { OrganizationService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_connect";
+import { GetOrganizationRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_pb";
 import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
 import {
   ListUserProjectsRequest,
@@ -729,6 +732,11 @@ class CoSceneConsoleApi {
     const request = new GetUserRequest().setName(userName);
     const result = await CsWebClient.getUserClient().getUser(request);
     return result;
+  }
+
+  public async getOrg(orgName: string): Promise<Organization> {
+    const request = new GetOrganizationRequest({ name: orgName });
+    return await getPromiseClient(OrganizationService).getOrganization(request);
   }
 
   public async createTask({

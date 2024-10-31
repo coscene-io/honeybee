@@ -7,16 +7,27 @@ import { Tooltip, IconButton, CircularProgress, Typography, Stack } from "@mui/m
 import { useCallback, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import { ChoiceRecordDialog } from "@foxglove/studio-base/components/AppBar/UploadFile/ChoiceRecord";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 import { generateFileName, uploadWithProgress } from "@foxglove/studio-base/util/coscene/upload";
 
+import { UploadingFileList } from "./UploadingFileList";
+
 const selectCurrentFile = (store: UploadFilesStore) => store.currentFile;
 const selectUploadingFiles = (store: UploadFilesStore) => store.uploadingFiles;
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 const selectSetUpdateUploadingFiles = (store: UploadFilesStore) => store.setUpdateUploadingFiles;
+
+const useStyles = makeStyles()(() => ({
+  tooltip: {
+    maxWidth: "none",
+  },
+}));
 
 function useHandleUploadFile() {
   const setUpdateUploadingFiles = useUploadFiles(selectSetUpdateUploadingFiles);
@@ -54,7 +65,7 @@ function useHandleUploadFile() {
           setUpdateUploadingFiles(file.name, {
             fileBlob: file,
             status: "uploading",
-            target: { recordTitle: recordName },
+            target: { recordName },
             url,
             progress,
             abortController,
@@ -64,7 +75,7 @@ function useHandleUploadFile() {
         setUpdateUploadingFiles(file.name, {
           fileBlob: file,
           status: "succeeded",
-          target: { recordTitle: recordName },
+          target: { recordName },
           url,
           progress: 100,
           abortController,
@@ -74,7 +85,7 @@ function useHandleUploadFile() {
         setUpdateUploadingFiles(file.name, {
           fileBlob: file,
           status: "failed",
-          target: { recordTitle: recordName },
+          target: { recordName },
           url,
           progress: 0,
           abortController,
@@ -91,15 +102,38 @@ export function UploadFile(): JSX.Element {
   const currentFile = useUploadFiles(selectCurrentFile);
   const handleUploadFile = useHandleUploadFile();
   const uploadingFiles = useUploadFiles(selectUploadingFiles);
+  const loginStatus = useCurrentUser(selectLoginStatus);
 
   const currentFileStatus = uploadingFiles[currentFile?.name ?? ""];
 
+  const { t } = useTranslation("appBar");
+
+  const { classes } = useStyles();
+
   return (
     <>
-      <Tooltip title="Upload File">
+      <Tooltip
+        describeChild
+        title={
+          loginStatus !== "alreadyLogin" ? (
+            t("loginFirst")
+          ) : Object.keys(currentFileStatus ?? {}).length > 0 ? (
+            <UploadingFileList />
+          ) : (
+            t("clickToUpload")
+          )
+        }
+        classes={{ tooltip: classes.tooltip }}
+        open
+      >
         <IconButton
           onClick={() => {
-            setOpenChooser(true);
+            if (
+              (currentFileStatus == undefined || currentFileStatus.status === "failed") &&
+              loginStatus === "alreadyLogin"
+            ) {
+              setOpenChooser(true);
+            }
           }}
         >
           <Stack display="flex" alignItems="center" justifyContent="center">

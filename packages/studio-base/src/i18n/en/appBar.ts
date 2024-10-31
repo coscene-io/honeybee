@@ -53,4 +53,9 @@ export const appBar = {
   recordName: "Record name",
   recordDescription: "Record description",
   create: "Create",
+  copyRecordLink: "Copy record link",
+  copyRecordLinkSuccess: "Copy success, please open in browser",
+  loginFirst: "Upload file requires logging in to coScene account first",
+  clickToUpload: "Click to upload file",
+  openInBrowser: "Open in browser",
 };

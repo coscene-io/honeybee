@@ -79,6 +79,8 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
     if (loginStatus === "alreadyLogin") {
       const userInfo = await consoleApi.getUser("users/current");
 
+      const currentOrg = await consoleApi.getOrg("organizations/current");
+
       const userId = userInfo.getName().split("/").pop() ?? "";
 
       setUser({
@@ -87,6 +89,11 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         email: userInfo.getEmail() || "",
         nickName: userInfo.getNickname() || "",
         phoneNumber: userInfo.getPhoneNumber() || "",
+        orgDisplayName: currentOrg.displayName,
+        orgId: currentOrg.name.split("/")[1],
+        orgSlug: currentOrg.slug,
+        // temp
+        targetSite: "https://coscene.cn",
         userId,
       } as User);
     } else {
