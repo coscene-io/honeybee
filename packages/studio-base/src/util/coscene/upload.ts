@@ -30,3 +30,42 @@ export const generateFileName = ({
 
   return `${recordName}/files${formattedTargetDir}${formattedFilename}`;
 };
+
+export async function uploadWithProgress(
+  url: string,
+  file: File,
+  method: "PUT" | "POST" = "PUT",
+  abortController: AbortController,
+  onProgress: (progress: number) => void,
+): Promise<unknown> {
+  const xhr = new XMLHttpRequest();
+
+  // 监听上传进度
+  xhr.upload.addEventListener("progress", (event) => {
+    if (event.lengthComputable) {
+      const progress = (event.loaded / event.total) * 100;
+      onProgress(progress);
+    }
+  });
+
+  abortController.signal.addEventListener("abort", () => {
+    xhr.abort();
+  });
+
+  return await new Promise((resolve, reject) => {
+    xhr.open(method, url);
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        resolve(xhr.response);
+      } else {
+        reject(new Error("Upload failed"));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("Upload failed"));
+    };
+    xhr.send(file);
+  });
+}

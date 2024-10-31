@@ -44,4 +44,13 @@ export const appBar = {
   toSetupLayout: "Go to Setup Layout",
   noMoreTips: "Do not show again",
   loginSuccess: "Login success",
+  uploadTo: "Upload to",
+  uploadingFile: "Uploading file...",
+  uploadFileFailed: "Upload file failed",
+  toCreateProject: "Go to the main site to create a project",
+  createRecord: "Create record",
+  selectRecord: "Select existing record",
+  recordName: "Record name",
+  recordDescription: "Record description",
+  create: "Create",
 };

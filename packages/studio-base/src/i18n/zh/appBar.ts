@@ -43,4 +43,13 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   toSetupLayout: "前往设置布局",
   noMoreTips: "不再提示",
   loginSuccess: "登录成功",
+  uploadTo: "上传到",
+  uploadingFile: "文件上传中",
+  uploadFileFailed: "上传文件失败",
+  toCreateProject: "前往主站创建项目",
+  createRecord: "创建记录",
+  selectRecord: "选择现有记录",
+  recordName: "记录名称",
+  recordDescription: "记录描述",
+  create: "创建",
 };

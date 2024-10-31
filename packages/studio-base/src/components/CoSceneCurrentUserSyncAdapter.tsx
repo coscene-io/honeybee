@@ -92,19 +92,22 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
     } else {
       setUser(undefined);
     }
-  }, [consoleApi, currentUser, loginStatus, setUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consoleApi, loginStatus, setUser]);
 
   useEffect(() => {
-    syncUserInfo().catch((err) => {
-      log.error("syncUserInfo", err);
-    });
-
     if (baseInfo.projectId != undefined && baseInfo.warehouseId != undefined) {
       syncUserRole(baseInfo.warehouseId, baseInfo.projectId).catch((err) => {
         log.error("syncUserRole", err);
       });
     }
-  }, [syncUserRole, baseInfo, loginStatus, syncUserInfo]);
+  }, [syncUserRole, baseInfo]);
+
+  useEffect(() => {
+    syncUserInfo().catch((err) => {
+      log.error("syncUserInfo", err);
+    });
+  }, [loginStatus, syncUserInfo]);
 
   return ReactNull;
 }

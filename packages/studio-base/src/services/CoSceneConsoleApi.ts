@@ -45,6 +45,7 @@ import {
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
 import { Event as Event_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { Record as Record_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
 import {
   UpsertConfigMapRequest,
@@ -54,6 +55,7 @@ import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v
 import {
   ListRecordsRequest,
   ListRecordsResponse,
+  CreateRecordRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
 import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_connect";
@@ -1090,6 +1092,11 @@ class CoSceneConsoleApi {
   public async getFilesStatus(key: string): Promise<Response> {
     const { fullConfig, fullUrl } = this.getRequectConfig(`/v1/data/getFilesStatus/${key}`);
     return await fetch(fullUrl, fullConfig);
+  }
+
+  public async createRecord(payload: PartialMessage<CreateRecordRequest>): Promise<Record_es> {
+    const req = new CreateRecordRequest(payload);
+    return await getPromiseClient(RecordService).createRecord(req);
   }
 }
 
