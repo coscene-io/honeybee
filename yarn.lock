@@ -4731,7 +4731,6 @@ __metadata:
     jest-canvas-mock: 2.5.2
     jszip: 3.10.1
     just-diff: 6.0.2
-    jwt-decode: 4.0.0
     keyboardjs: 2.7.0
     leaflet: 1.9.4
     leaflet-ellipse: 0.9.1
@@ -18590,13 +18589,6 @@ __metadata:
   version: 6.0.2
   resolution: "just-diff@npm:6.0.2"
   checksum: 1a0c7524f640cb88ab013862733e710f840927834208fd3b85cbc5da2ced97acc75e7dcfe493268ac6a6514c51dd8624d2fd9d057050efba3c02b81a6dcb7ff9
-  languageName: node
-  linkType: hard
-
-"jwt-decode@npm:4.0.0":
-  version: 4.0.0
-  resolution: "jwt-decode@npm:4.0.0"
-  checksum: 390e2edcb31a92e86c8cbdd1edeea4c0d62acd371f8a8f0a8878e499390c0ecf4c658b365c4e941e4ef37d0170e4ca650aaa49f99a45c0b9695a235b210154b0
   languageName: node
   linkType: hard
 

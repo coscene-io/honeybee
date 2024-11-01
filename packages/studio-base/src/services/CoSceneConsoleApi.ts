@@ -554,6 +554,7 @@ class CoSceneConsoleApi {
     this.#responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
+        console.error("error 3");
         window.location.href = "/login";
       } else if (res.status === 403) {
         throw new Error(

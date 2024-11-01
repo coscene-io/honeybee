@@ -89,6 +89,7 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
       localStorage.removeItem("demoSite");
       localStorage.removeItem("honeybeeDemoStatus");
       if (window.location.pathname !== "/login") {
+        console.error("error 4");
         window.location.href = `/login?redirectToPath=${encodeURIComponent(
           window.location.pathname + window.location.search,
         )}`;

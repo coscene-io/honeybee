@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { useCookies } from "react-cookie";
 
 import { getAuthStatusCookieName } from "@foxglove/studio-base/util/appConfig";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { AuthStatus } from "./constant";
 
@@ -15,7 +16,8 @@ function AuthSignOutListener(): JSX.Element {
   const signOut = cookies[authStatusCookieName]?.status === AuthStatus.SIGN_OUT;
 
   useEffect(() => {
-    if (signOut && process.env.NODE_ENV !== "development") {
+    if (signOut && process.env.NODE_ENV !== "development" && !isDesktopApp()) {
+      console.error("error 2");
       window.location.href = "/login";
     }
   }, [signOut]);
