@@ -92,7 +92,7 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         orgDisplayName: currentOrg.displayName,
         orgId: currentOrg.name.split("/")[1],
         orgSlug: currentOrg.slug,
-        // temp
+        // TODO: this address need from config file
         targetSite: "https://coscene.cn",
         userId,
       } as User);

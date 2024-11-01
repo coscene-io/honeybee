@@ -67,7 +67,6 @@ export function UserMenu({
       setLoginStatus("notLogin");
       toast.success(t("signoutSuccess"));
     } else {
-      console.error("error 1");
       window.location.href = "/login";
     }
   }, [isDesktop, setLoginStatus, t]);

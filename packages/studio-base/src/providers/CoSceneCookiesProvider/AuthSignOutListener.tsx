@@ -17,7 +17,6 @@ function AuthSignOutListener(): JSX.Element {
 
   useEffect(() => {
     if (signOut && process.env.NODE_ENV !== "development" && !isDesktopApp()) {
-      console.error("error 2");
       window.location.href = "/login";
     }
   }, [signOut]);
