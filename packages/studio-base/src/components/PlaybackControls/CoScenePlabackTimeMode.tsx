@@ -50,7 +50,7 @@ function CoScenePlabackTimeMode(): JSX.Element {
 
   return (
     <>
-      <Tooltip title={t("quality")}>
+      <Tooltip title={t("timeMode")}>
         <Button
           id="playback-quality-button"
           aria-controls={open ? "playback-quality-menu" : undefined}
