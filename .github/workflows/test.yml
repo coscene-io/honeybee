@@ -22,4 +22,4 @@ jobs:
       - name: echo APP_CONFIG
         id: echo_app_config
         run: |
-          echo "APP_CONFIG: ${{ env.APP_CONFIG }}"
+          echo "APP_CONFIG: ${{ vars.APP_CONFIG }}"
