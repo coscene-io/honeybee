@@ -10,7 +10,7 @@ on:
         default: "dev"
         options:
           - dev
-          - sass
+          - saas
 
 jobs:
   test:
