@@ -6,6 +6,7 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CheckIcon from "@mui/icons-material/Check";
 import { Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
+import i18n from "i18next";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -140,6 +141,19 @@ function PlaybackQualityControls(): JSX.Element {
             />
           </MenuItem>
         ))}
+        <Button
+          variant="text"
+          fullWidth
+          onClick={() => {
+            if (i18n.language === "zh") {
+              window.open("https://docs.coscene.cn/docs/recipes/viz/frame-rate-optimization/");
+            } else {
+              window.open("https://docs.coscene.cn/en/docs/recipes/viz/frame-rate-optimization/");
+            }
+          }}
+        >
+          {t("understandFrameRateOptimization")}
+        </Button>
       </Menu>
     </>
   );
