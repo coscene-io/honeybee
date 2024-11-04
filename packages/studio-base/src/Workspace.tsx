@@ -466,7 +466,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     }
 
     // Apply any available data source args
-    if (unappliedSourceArgs.ds) {
+    if (unappliedSourceArgs.ds && currentUser?.userId) {
       log.debug("Initialising source from url", unappliedSourceArgs);
       const sourceParams: DataSourceArgs = {
         type: "connection",
@@ -474,7 +474,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
           ...unappliedSourceArgs.dsParams,
           ...baseInfo,
           files: JSON.stringify(baseInfo.files),
-          userId: currentUser?.userId,
+          userId: currentUser.userId,
         },
       };
 

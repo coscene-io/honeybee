@@ -16,9 +16,9 @@ export function useCoSceneInit({ baseUrl, jwt }: { baseUrl: string; jwt: string 
 
   const url = new URL(window.location.href);
 
-  useEffect(() => {
-    const urlKey = url.searchParams.get("ds.key");
+  const urlKey = url.searchParams.get("ds.key");
 
+  useEffect(() => {
     fetch(`${baseUrl}/v1/data/sync`, {
       method: "PATCH",
       headers: {
@@ -34,7 +34,7 @@ export function useCoSceneInit({ baseUrl, jwt }: { baseUrl: string; jwt: string 
         log.error("Failed sync data to honeybee server");
         setIsLoading(false);
       });
-  }, [baseUrl, jwt, url.searchParams]);
+  }, [baseUrl, jwt, urlKey]);
 
   let favicon = "";
   const { t } = useTranslation("cosError");
