@@ -58,22 +58,22 @@ jobs:
       - name: Build macOS version
         run: yarn run package:darwin
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: "v${{ env.new_version }}"
-          name: "v${{ env.new_version }}"
-          commit: main
-          generateReleaseNotes: true
-          prerelease: ${{ env.is_prerelease }}
-          artifacts: |
-            dist/coScene-studio-${{ env.new_version }}-linux-amd64.deb
-            dist/coScene-studio-${{ env.new_version }}-mac-universal.dmg
-            dist/coScene-studio-${{ env.new_version }}-win.exe
-            dist/latest-linux.yml
-            dist/latest-mac.yml
-            dist/latest.yml
+      # - name: Create GitHub Release
+      #   id: create_release
+      #   uses: ncipollo/release-action@v1
+      #   with:
+      #     tag: "v${{ env.new_version }}"
+      #     name: "v${{ env.new_version }}"
+      #     commit: main
+      #     generateReleaseNotes: true
+      #     prerelease: ${{ env.is_prerelease }}
+      #     artifacts: |
+      #       dist/coStudio-${{ env.new_version }}-linux-amd64.deb
+      #       dist/coStudio-${{ env.new_version }}-mac-universal.dmg
+      #       dist/coStudio-${{ env.new_version }}-win.exe
+      #       dist/latest-linux.yml
+      #       dist/latest-mac.yml
+      #       dist/latest.yml
 
       - name: Upload to OSS
         uses: tvrcgo/oss-action@master
@@ -83,9 +83,9 @@ jobs:
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
-            dist/coScene-studio-${{ env.new_version }}-linux-amd64.deb:/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
-            dist/coScene-studio-${{ env.new_version }}-mac-universal.dmg:/coScene-studio/dmg/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-mac-universal.dmg
-            dist/coScene-studio-${{ env.new_version }}-win.exe:/coScene-studio/exe/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-win.exe
+            dist/coStudio-${{ env.new_version }}-linux-amd64.deb:/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
+            dist/coStudio-${{ env.new_version }}-mac-universal.dmg:/coStudio/dmg/${{ env.new_version }}/coStudio-${{ env.new_version }}-mac-universal.dmg
+            dist/coStudio-${{ env.new_version }}-win.exe:/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
 
       # - name: Create a pull request
       #   id: cpr
@@ -109,7 +109,7 @@ jobs:
               Version: ${{ env.new_version }}
               Is prerelease: ${{ env.is_prerelease }}
               Download:
-                mac: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
-                win: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/exe/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-win.exe
-                linux: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coScene-studio/deb/${{ env.new_version }}/coScene-studio-${{ env.new_version }}-linux-amd64.deb
+                mac: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
+                win: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
+                linux: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
               Release notes: https://github.com/coscene-io/honeybee/releases
