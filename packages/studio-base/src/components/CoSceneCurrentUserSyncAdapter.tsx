@@ -79,6 +79,8 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
     if (loginStatus === "alreadyLogin") {
       const userInfo = await consoleApi.getUser("users/current");
 
+      const currentOrg = await consoleApi.getOrg("organizations/current");
+
       const userId = userInfo.getName().split("/").pop() ?? "";
 
       setUser({
@@ -87,24 +89,31 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         email: userInfo.getEmail() || "",
         nickName: userInfo.getNickname() || "",
         phoneNumber: userInfo.getPhoneNumber() || "",
+        orgDisplayName: currentOrg.displayName,
+        orgId: currentOrg.name.split("/")[1],
+        orgSlug: currentOrg.slug,
+        targetSite: "https://coscene.cn",
         userId,
       } as User);
     } else {
       setUser(undefined);
     }
-  }, [consoleApi, currentUser, loginStatus, setUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consoleApi, loginStatus, setUser]);
 
   useEffect(() => {
-    syncUserInfo().catch((err) => {
-      log.error("syncUserInfo", err);
-    });
-
     if (baseInfo.projectId != undefined && baseInfo.warehouseId != undefined) {
       syncUserRole(baseInfo.warehouseId, baseInfo.projectId).catch((err) => {
         log.error("syncUserRole", err);
       });
     }
-  }, [syncUserRole, baseInfo, loginStatus, syncUserInfo]);
+  }, [syncUserRole, baseInfo]);
+
+  useEffect(() => {
+    syncUserInfo().catch((err) => {
+      log.error("syncUserInfo", err);
+    });
+  }, [loginStatus, syncUserInfo]);
 
   return ReactNull;
 }

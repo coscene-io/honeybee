@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { UploadFile } from "@foxglove/studio-base/components/AppBar/UploadFile";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -172,32 +173,28 @@ export function DataSource(): JSX.Element {
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
           <div className={classes.textTruncate}>
-            {baseInfo.projectSlug && baseInfo.warehouseSlug ? (
-              <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" />}
-                aria-label="breadcrumb"
-              >
-                {breadcrumbs}
-              </Breadcrumbs>
+            {isDesktopApp() ? (
+              <Stack direction="row" alignItems="center" gap={1}>
+                {playerDisplayName} <UploadFile />
+              </Stack>
             ) : (
               <Breadcrumbs
                 separator={<NavigateNextIcon fontSize="small" />}
                 aria-label="breadcrumb"
               >
-                <Link
-                  href={deviceLink || "#"}
-                  target="_blank"
-                  underline="hover"
-                  key="1"
-                  color="inherit"
-                  className={classes.breadcrumbs}
-                >
-                  {isLiveConnection
-                    ? `${hostName ?? playerDisplayName}`
-                    : isDesktopApp()
-                    ? playerDisplayName
-                    : `<${t("unknown")}>`}
-                </Link>
+                {baseInfo.projectSlug && baseInfo.warehouseSlug ? breadcrumbs : ""}
+                {isLiveConnection && (
+                  <Link
+                    href={deviceLink || "#"}
+                    target="_blank"
+                    underline="hover"
+                    key="1"
+                    color="inherit"
+                    className={classes.breadcrumbs}
+                  >
+                    {`${hostName ?? playerDisplayName ?? t("unknown")}`}
+                  </Link>
+                )}
               </Breadcrumbs>
             )}
           </div>

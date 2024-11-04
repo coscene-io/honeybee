@@ -119,7 +119,7 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
   return createPromiseClient(
     service,
     createGrpcWebTransport({
-      baseUrl: window.cosConfig.VITE_APP_BASE_API_URL ?? "",
+      baseUrl: window.cosConfig.VITE_APP_BASE_API_URL ?? "https://api.coscene.cn",
       interceptors: [setAuthorizationUnaryInterceptor, setLocaleInfoUnaryInterceptor],
     }),
   );

@@ -12,6 +12,7 @@ import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
+import UploadFilesProvider from "@foxglove/studio-base/providers/UploadFilesProvider";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import Workspace from "./Workspace";
@@ -64,6 +65,7 @@ export function StudioApp(): JSX.Element {
     <ExtensionCatalogProvider loaders={extensionLoaders} />,
     <PlayerManager playerSources={dataSources} />,
     <EventsProvider />,
+    <UploadFilesProvider />,
     /* eslint-enable react/jsx-key */
   ];
 

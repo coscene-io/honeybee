@@ -136,7 +136,7 @@ export function UserMenu({
           <MenuItem
             onClick={() => {
               if (isDesktop && loginStatus === "notLogin") {
-                window.open("https://dev.coscene.cn/studio/login");
+                window.open("https://coscene.cn/studio/login");
               } else {
                 onSignoutClick();
               }

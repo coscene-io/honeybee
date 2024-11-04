@@ -12,14 +12,14 @@ const path = require("path");
 function makeElectronBuilderConfig(params) {
   return {
     electronVersion,
-    appId: "dev.coScene.studio",
+    appId: "dev.coStudio",
     npmRebuild: false,
     asar: true,
     directories: {
       app: params.appPath,
       buildResources: path.join(__dirname, "../resources"),
     },
-    artifactName: "coScene-studio-v${version}-${os}-${arch}.${ext}",
+    artifactName: "coStudio-v${version}-${os}-${arch}.${ext}",
     afterPack: path.resolve(__dirname, "afterPack.ts"),
     icon: path.join(__dirname, "../resources/icon/icon.icns"),
     protocols: [
@@ -48,7 +48,7 @@ function makeElectronBuilderConfig(params) {
         },
         {
           ext: "foxe",
-          name: "Lichtblick Extension",
+          name: "coScene Extension",
           mimeType: "application/zip",
         },
       ],
@@ -74,7 +74,7 @@ function makeElectronBuilderConfig(params) {
         },
         {
           ext: "foxe",
-          name: "Lichtblick Extension",
+          name: "coScene Extension",
           mimeType: "application/zip",
         },
       ],
@@ -125,7 +125,7 @@ function makeElectronBuilderConfig(params) {
           {
             CFBundleTypeExtensions: ["foxe"],
             CFBundleTypeIconFile: "FoxeIcon",
-            CFBundleTypeName: "Lichtblick Extension File",
+            CFBundleTypeName: "coScene Extension File",
             CFBundleTypeRole: "Viewer",
             LSHandlerRank: "Owner",
             CFBundleTypeIconSystemGenerated: 1,
@@ -134,7 +134,7 @@ function makeElectronBuilderConfig(params) {
         ],
         CFBundleURLTypes: [
           {
-            CFBundleURLSchemes: ["foxglove"],
+            CFBundleURLSchemes: ["coscene"],
             CFBundleTypeRole: "Viewer",
           },
         ],
@@ -149,7 +149,7 @@ function makeElectronBuilderConfig(params) {
           },
           {
             UTTypeConformsTo: ["public.data", "public.archive", "public.zip-archive"],
-            UTTypeDescription: "Lichtblick Extension File",
+            UTTypeDescription: "coScene Extension File",
             UTTypeIcons: { UTTypeIconText: "foxe" },
             UTTypeIdentifier: "dev.foxglove.extension",
             UTTypeTagSpecification: { "public.filename-extension": "foxe" },
@@ -172,7 +172,7 @@ function makeElectronBuilderConfig(params) {
       applicationId: "coSceneStudio",
       backgroundColor: "#f7def6",
       displayName: "coScene",
-      identityName: "coScene.Studio",
+      identityName: "coStudio",
       publisher: "CN=coScene, O=coScene, L=Shanghai, S=Shanghai, C=CN",
       publisherDisplayName: "coScene",
       languages: ["en-US"],

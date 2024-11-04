@@ -1,6 +1,6 @@
 {
   "name": "@foxglove/studio",
-  "version": "24.42.0-rc1",
+  "version": "24.44.0",
   "license": "MPL-2.0",
   "repository": {
     "type": "git",
@@ -21,6 +21,5 @@
   "devDependencies": {
     "@foxglove/tsconfig": "2.0.0",
     "typescript": "5.3.3"
-  },
-  "stableVersion": "24.32.0"
+  }
 }

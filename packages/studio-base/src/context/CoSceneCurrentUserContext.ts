@@ -22,6 +22,11 @@ export type User = {
   agreedAgreement: string;
   role: string;
   email: string;
+  orgDisplayName: string;
+  orgId: string;
+  orgSlug: string;
+  // for studio login from this site
+  targetSite: string;
 };
 
 export type LoginStatus = "alreadyLogin" | "notLogin";
