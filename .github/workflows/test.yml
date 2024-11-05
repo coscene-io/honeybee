@@ -33,4 +33,4 @@ jobs:
           echo "pwd: $(pwd)"
           echo "ls: $(ls)"
           echo "${{ vars.APP_CONFIG }}" > packages/studio-desktop/src/public/cos-config.js
-          cat packages/studio-desktop/src/public/cos-config.js
+          echo "$(cat packages/studio-desktop/src/public/cos-config.js)"
