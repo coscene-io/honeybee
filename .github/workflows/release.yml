@@ -40,6 +40,8 @@ jobs:
           echo "${{ vars.APP_CONFIG }}" > packages/studio-desktop/src/public/cos-config.js
 
   build:
+    environment: ${{ github.event.inputs.environment }}
+
     runs-on: macos-latest
 
     env:
@@ -48,6 +50,17 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Set cos config file
+        id: set_cos_config_file
+        run: |
+          echo "${{ vars.APP_CONFIG }}" > packages/studio-desktop/src/public/cos-config.js
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
