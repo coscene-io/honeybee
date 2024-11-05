@@ -3,21 +3,26 @@ name: test cli
 on:
   workflow_dispatch:
     inputs:
+      version:
+        type: string
+        description: "Version to publish (e.g., v1.0.0)"
+        required: true
       environment:
         type: choice
-        description: "The environment to test"
+        description: "publish studio to"
         required: true
-        default: "dev"
+        default: "saas"
         options:
           - dev
           - saas
 
 jobs:
-  test:
+  set_cos_config_file:
     environment: ${{ github.event.inputs.environment }}
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
-      - name: echo APP_CONFIG
-        id: echo_app_config
+      - name: Set cos config file
+        id: set_cos_config_file
         run: |
-          echo "APP_CONFIG: ${{ vars.APP_CONFIG }}"
+          echo "${{ vars.APP_CONFIG }}" > packages/studio-desktop/src/public/config.js
+          cat packages/studio-desktop/src/public/config.js
