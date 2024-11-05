@@ -17,6 +17,7 @@ import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
 
 import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 export * from "./cosel";
 
@@ -88,7 +89,7 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     if (error.code === StatusCode.UNAUTHENTICATED) {
       localStorage.removeItem("demoSite");
       localStorage.removeItem("honeybeeDemoStatus");
-      if (window.location.pathname !== "/login") {
+      if (window.location.pathname !== "/login" && !isDesktopApp()) {
         window.location.href = `/login?redirectToPath=${encodeURIComponent(
           window.location.pathname + window.location.search,
         )}`;

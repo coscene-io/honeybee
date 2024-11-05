@@ -14,7 +14,7 @@ on:
 
 jobs:
   test:
-    environment: saas
+    environment: ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
     steps:
       - name: echo APP_CONFIG

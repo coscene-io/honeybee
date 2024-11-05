@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ReactRefreshPlugin from "@pmmmwh/react-refresh-webpack-plugin";
+import CopyPlugin from "copy-webpack-plugin";
 import { ESBuildMinifyPlugin } from "esbuild-loader";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import path from "path";
@@ -64,11 +65,17 @@ export const webpackRendererConfig =
       plugins: [
         ...plugins,
         ...(appWebpackConfig.plugins ?? []),
+        new CopyPlugin({
+          patterns: [{ from: path.resolve(__dirname, "public") }],
+        }),
         new HtmlWebpackPlugin({
           templateContent: `
   <!doctype html>
   <html>
     <head><meta charset="utf-8"></head>
+     <script src="/cos-config.js?t=${
+       process.env.LAST_BUILD_TIME ?? "local"
+     }" type="text/javascript"></script>
     <script>
       global = globalThis;
     </script>

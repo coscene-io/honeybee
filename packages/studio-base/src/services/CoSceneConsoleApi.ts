@@ -88,6 +88,7 @@ import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutCo
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 
 export type User = {
@@ -554,7 +555,9 @@ class CoSceneConsoleApi {
     this.#responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
-        window.location.href = "/login";
+        if (!isDesktopApp()) {
+          window.location.href = "/login";
+        }
       } else if (res.status === 403) {
         throw new Error(
           "Unauthorized. Please check if you are logged in and have permission to access.",
