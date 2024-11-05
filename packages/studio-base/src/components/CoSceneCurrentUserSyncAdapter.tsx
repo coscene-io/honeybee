@@ -15,6 +15,7 @@ import {
   ProjectRoleCode,
   User,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger(__filename);
 
@@ -92,7 +93,7 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         orgDisplayName: currentOrg.displayName,
         orgId: currentOrg.name.split("/")[1],
         orgSlug: currentOrg.slug,
-        targetSite: "https://coscene.cn",
+        targetSite: `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}`,
         userId,
       } as User);
     } else {

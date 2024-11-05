@@ -3,7 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { CleanWebpackPlugin } from "clean-webpack-plugin";
+import CopyPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
+import path from "path";
 import type { Configuration } from "webpack";
 
 import { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
@@ -88,6 +90,9 @@ export const webpackDevServerConfig =
       },
       plugins: [
         new CleanWebpackPlugin(),
+        new CopyPlugin({
+          patterns: [{ from: path.resolve(__dirname, "public") }],
+        }),
         // electron-packager needs a package.json file to indicate the entry script
         // We purpose the htmlwebpackplugin to write the json rather than an html file
         new HtmlWebpackPlugin({
