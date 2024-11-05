@@ -28,11 +28,16 @@ jobs:
     environment: ${{ github.event.inputs.environment }}
     runs-on: macos-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
       - name: Set cos config file
         id: set_cos_config_file
         run: |
           echo "${{ vars.APP_CONFIG }}" > packages/studio-desktop/src/public/cos-config.js
-          cat packages/studio-desktop/src/public/cos-config.js
 
   build:
     runs-on: macos-latest
@@ -43,12 +48,6 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-          fetch-depth: 0
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -60,7 +59,7 @@ jobs:
       - name: Get the version
         id: get_version
         run: |
-          echo "new_version=${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "new_version=${{ github.event_name == 'release' && github.ref_name || github.event.inputs.version }}" >> $GITHUB_ENV
           echo "is_prerelease=${{ github.event.release.prerelease }}" >> $GITHUB_ENV
 
       - name: Install dependencies
@@ -81,23 +80,6 @@ jobs:
 
       - name: Build macOS version
         run: yarn run package:darwin
-
-      # - name: Create GitHub Release
-      #   id: create_release
-      #   uses: ncipollo/release-action@v1
-      #   with:
-      #     tag: "v${{ env.new_version }}"
-      #     name: "v${{ env.new_version }}"
-      #     commit: main
-      #     generateReleaseNotes: true
-      #     prerelease: ${{ env.is_prerelease }}
-      #     artifacts: |
-      #       dist/coStudio-${{ env.new_version }}-linux-amd64.deb
-      #       dist/coStudio-${{ env.new_version }}-mac-universal.dmg
-      #       dist/coStudio-${{ env.new_version }}-win.exe
-      #       dist/latest-linux.yml
-      #       dist/latest-mac.yml
-      #       dist/latest.yml
 
       - name: Upload to OSS
         uses: tvrcgo/oss-action@master
