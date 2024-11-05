@@ -807,7 +807,7 @@ export function ThreeDeeRender(props: {
             value: "follow-none",
           },
         });
-      }, 0);
+      }, 100);
       const currentState = renderer.config.cameraState.perspective;
       renderer.updateConfig((draft) => {
         draft.cameraState = {
