@@ -10,11 +10,14 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppURLState, parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 const log = Log.getLogger(__filename);
 
@@ -24,15 +27,28 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   const [unappliedLayoutArgs, setUnappliedLayoutArgs] = useState(
     targetUrlState ? { layoutId: targetUrlState.layoutId } : undefined,
   );
+  const loginStatus = useCurrentUser(selectLoginStatus);
+  const remoteLayoutStorage = useRemoteLayoutStorage();
+
   // Select layout from URL.
+  // if loginStatus is alreadyLogin, we need to check if remoteLayoutStorage is rady
   useEffect(() => {
-    if (!unappliedLayoutArgs?.layoutId) {
+    if (
+      !unappliedLayoutArgs?.layoutId ||
+      (loginStatus === "alreadyLogin" && remoteLayoutStorage == undefined)
+    ) {
       return;
     }
     log.debug(`Initializing layout from url: ${unappliedLayoutArgs.layoutId}`);
     setSelectedLayoutId(unappliedLayoutArgs.layoutId);
     setUnappliedLayoutArgs({ layoutId: undefined });
-  }, [playerPresence, setSelectedLayoutId, unappliedLayoutArgs?.layoutId]);
+  }, [
+    playerPresence,
+    setSelectedLayoutId,
+    unappliedLayoutArgs?.layoutId,
+    loginStatus,
+    remoteLayoutStorage,
+  ]);
 }
 
 function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
