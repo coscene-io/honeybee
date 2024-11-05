@@ -21,6 +21,12 @@ jobs:
     environment: ${{ github.event.inputs.environment }}
     runs-on: macos-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
       - name: Set cos config file
         id: set_cos_config_file
         run: |
