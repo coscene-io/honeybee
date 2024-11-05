@@ -24,7 +24,7 @@ jobs:
       - name: Set cos config file
         id: set_cos_config_file
         run: |
-          pwd
-          ls
+          echo "pwd: $(pwd)"
+          echo "ls: $(ls)"
           echo "${{ vars.APP_CONFIG }}" > packages/studio-desktop/src/public/cos-config.js
           cat packages/studio-desktop/src/public/cos-config.js
