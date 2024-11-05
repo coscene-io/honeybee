@@ -44,7 +44,7 @@ jobs:
       - name: Set cos config file
         id: set_cos_config_file
         run: |
-          echo '${{ vars.APP_CONFIG }}' | jq '.' > packages/studio-desktop/src/public/cos-config.js
+          echo '${{ vars.APP_CONFIG }}' > packages/studio-desktop/src/public/cos-config.js
           cat packages/studio-desktop/src/public/cos-config.js
 
       # - name: Set up Node.js
