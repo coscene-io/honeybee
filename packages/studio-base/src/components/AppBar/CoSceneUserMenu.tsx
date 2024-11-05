@@ -18,6 +18,7 @@ import { useCurrentUserType } from "@foxglove/studio-base/context/CurrentUserCon
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const useStyles = makeStyles()({
@@ -136,7 +137,9 @@ export function UserMenu({
           <MenuItem
             onClick={() => {
               if (isDesktop && loginStatus === "notLogin") {
-                window.open("https://coscene.cn/studio/login");
+                window.open(
+                  `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/studio/login`,
+                );
               } else {
                 onSignoutClick();
               }
