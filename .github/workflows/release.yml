@@ -24,21 +24,6 @@ on:
           - saas
 
 jobs:
-  set_cos_config_file:
-    environment: ${{ github.event.inputs.environment }}
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-          fetch-depth: 0
-
-      - name: Set cos config file
-        id: set_cos_config_file
-        run: |
-          echo "${{ vars.APP_CONFIG }}" > packages/studio-desktop/src/public/cos-config.js
-
   build:
     environment: ${{ github.event.inputs.environment }}
 
@@ -60,75 +45,76 @@ jobs:
         id: set_cos_config_file
         run: |
           echo "${{ vars.APP_CONFIG }}" > packages/studio-desktop/src/public/cos-config.js
+          cat packages/studio-desktop/src/public/cos-config.js
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Enable corepack
-        run: corepack enable yarn
-
-      - name: Get the version
-        id: get_version
-        run: |
-          echo "new_version=${{ github.event_name == 'release' && github.ref_name || github.event.inputs.version }}" >> $GITHUB_ENV
-          echo "is_prerelease=${{ github.event.release.prerelease }}" >> $GITHUB_ENV
-
-      - name: Install dependencies
-        run: yarn install --immutable
-
-      - name: \[bot\] Update version in package.json
-        run: yarn run version:all ${{ env.new_version }}
-
-      - name: Build prod files
-        run: |
-          yarn run desktop:build:prod
-
-      - name: Build windows version
-        run: yarn run package:win
-
-      - name: Build linux version
-        run: yarn run package:linux
-
-      - name: Build macOS version
-        run: yarn run package:darwin
-
-      - name: Upload to OSS
-        uses: tvrcgo/oss-action@master
-        with:
-          key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
-          key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
-          region: oss-cn-hangzhou
-          bucket: coscene-download
-          assets: |
-            dist/coStudio-${{ env.new_version }}-linux-amd64.deb:/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
-            dist/coStudio-${{ env.new_version }}-mac-universal.dmg:/coStudio/dmg/${{ env.new_version }}/coStudio-${{ env.new_version }}-mac-universal.dmg
-            dist/coStudio-${{ env.new_version }}-win.exe:/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
-
-      # - name: Create a pull request
-      #   id: cpr
-      #   uses: peter-evans/create-pull-request@v7
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v4
       #   with:
-      #     title: "[bot] Update version to v${{ env.new_version }}"
-      #     base: main
-      #     branch: update-version-to-v${{ env.new_version }}
-      #     commit-message: "[bot] Update version to v${{ env.new_version }}"
-      #     delete-branch: true
+      #     node-version: 18
 
-      - name: Notification to Feishu
-        id: feishu
-        uses: foxundermoon/feishu-action@v2
-        with:
-          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
-          msg_type: text
-          content: |
-            text: |
-              A new version of coScene Studio has been published.
-              Version: ${{ env.new_version }}
-              Is prerelease: ${{ env.is_prerelease }}
-              Download:
-                mac: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
-                win: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
-                linux: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
-              Release notes: https://github.com/coscene-io/honeybee/releases
+      # - name: Enable corepack
+      #   run: corepack enable yarn
+
+      # - name: Get the version
+      #   id: get_version
+      #   run: |
+      #     echo "new_version=${{ github.event_name == 'release' && github.ref_name || github.event.inputs.version }}" >> $GITHUB_ENV
+      #     echo "is_prerelease=${{ github.event.release.prerelease }}" >> $GITHUB_ENV
+
+      # - name: Install dependencies
+      #   run: yarn install --immutable
+
+      # - name: \[bot\] Update version in package.json
+      #   run: yarn run version:all ${{ env.new_version }}
+
+      # - name: Build prod files
+      #   run: |
+      #     yarn run desktop:build:prod
+
+      # - name: Build windows version
+      #   run: yarn run package:win
+
+      # - name: Build linux version
+      #   run: yarn run package:linux
+
+      # - name: Build macOS version
+      #   run: yarn run package:darwin
+
+      # - name: Upload to OSS
+      #   uses: tvrcgo/oss-action@master
+      #   with:
+      #     key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
+      #     key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
+      #     region: oss-cn-hangzhou
+      #     bucket: coscene-download
+      #     assets: |
+      #       dist/coStudio-${{ env.new_version }}-linux-amd64.deb:/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
+      #       dist/coStudio-${{ env.new_version }}-mac-universal.dmg:/coStudio/dmg/${{ env.new_version }}/coStudio-${{ env.new_version }}-mac-universal.dmg
+      #       dist/coStudio-${{ env.new_version }}-win.exe:/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
+
+      # # - name: Create a pull request
+      # #   id: cpr
+      # #   uses: peter-evans/create-pull-request@v7
+      # #   with:
+      # #     title: "[bot] Update version to v${{ env.new_version }}"
+      # #     base: main
+      # #     branch: update-version-to-v${{ env.new_version }}
+      # #     commit-message: "[bot] Update version to v${{ env.new_version }}"
+      # #     delete-branch: true
+
+      # - name: Notification to Feishu
+      #   id: feishu
+      #   uses: foxundermoon/feishu-action@v2
+      #   with:
+      #     url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
+      #     msg_type: text
+      #     content: |
+      #       text: |
+      #         A new version of coScene Studio has been published.
+      #         Version: ${{ env.new_version }}
+      #         Is prerelease: ${{ env.is_prerelease }}
+      #         Download:
+      #           mac: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
+      #           win: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
+      #           linux: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
+      #         Release notes: https://github.com/coscene-io/honeybee/releases
