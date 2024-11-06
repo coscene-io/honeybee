@@ -72,10 +72,19 @@ export const webpackRendererConfig =
           templateContent: `
   <!doctype html>
   <html>
-    <head><meta charset="utf-8"></head>
-     <script src="/cos-config.js?t=${
-       process.env.LAST_BUILD_TIME ?? "local"
-     }" type="text/javascript"></script>
+    <head>
+      <meta charset="utf-8">
+      <script>
+        // 根据协议动态设置配置文件路径
+        const configPath = window.location.protocol === 'file:'
+          ? './cos-config.js'
+          : '/cos-config.js';
+        const script = document.createElement('script');
+        script.src = configPath + '?t=${process.env.LAST_BUILD_TIME ?? "local"}';
+        script.type = 'text/javascript';
+        document.head.appendChild(script);
+      </script>
+    </head>
     <script>
       global = globalThis;
     </script>
