@@ -8,4 +8,5 @@ export const cosAccount = {
   shareLayout: "Share your layouts with others",
   signIn: "Sign in",
   syncLayout: "Sync your layouts across multiple devices",
+  loginExpired: "Login expired, please sign in again",
 };

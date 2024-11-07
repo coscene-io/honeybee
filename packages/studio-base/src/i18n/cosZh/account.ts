@@ -9,4 +9,5 @@ export const cosAccount: Partial<TypeOptions["resources"]["cosAccount"]> = {
   shareLayout: "分享你的布局",
   signIn: "登录",
   syncLayout: "多个设备同步布局",
+  loginExpired: "登录状态过期, 请重新登录",
 };

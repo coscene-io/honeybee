@@ -2,7 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Event } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { Timestamp, FieldMask } from "@bufbuild/protobuf";
+import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
@@ -27,8 +28,6 @@ import {
   Tooltip,
   Autocomplete,
 } from "@mui/material";
-import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
-import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
 import PinyinMatch from "pinyin-match";
@@ -381,10 +380,10 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     return await consoleApi.getTicketSystemMetadata({ parent });
   });
 
-  const activatedUsers = users?.filter((user) => user.getActive());
+  const activatedUsers = users?.filter((user) => user.active);
 
-  const jiraEnabled = syncedTask?.getJiraEnabled() === true;
-  const onesEnabled = syncedTask?.getOnesEnabled() === true;
+  const jiraEnabled = syncedTask?.jiraEnabled;
+  const onesEnabled = syncedTask?.onesEnabled;
 
   const [, syncTask] = useAsyncFn(async (name: string) => {
     try {
@@ -412,7 +411,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
               {
                 children: [
                   {
-                    sourceName: targetEvent.getName(),
+                    sourceName: targetEvent.name,
                     sourceType: "moment",
                     type: "source",
                     version: 1,
@@ -459,7 +458,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
         });
         enqueueSnackbar(t("createTaskSuccess"), { variant: "success" });
         if (task.needSyncTask) {
-          await syncTask(newTask.getName());
+          await syncTask(newTask.name);
         }
         onClose();
       } catch (e) {
@@ -484,25 +483,23 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
 
     const newEvent = new Event();
 
-    newEvent.setDisplayName(event.eventName);
-    const timestamp = new Timestamp();
+    newEvent.displayName = event.eventName;
+    const timestamp = Timestamp.fromDate(event.startTime);
 
-    timestamp.fromDate(event.startTime);
-
-    newEvent.setTriggerTime(timestamp);
+    newEvent.triggerTime = timestamp;
 
     if (event.durationUnit === "sec") {
-      newEvent.setDuration(secondsToDuration(event.duration));
+      newEvent.duration = secondsToDuration(event.duration);
     } else {
-      newEvent.setDuration(secondsToDuration(event.duration / 1e9));
+      newEvent.duration = secondsToDuration(event.duration / 1e9);
     }
 
     if (event.description) {
-      newEvent.setDescription(event.description);
+      newEvent.description = event.description;
     }
 
     Object.keys(keyedMetadata).forEach((key) => {
-      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
+      newEvent.customizedFields[key] = keyedMetadata[key] ?? "";
     });
 
     if (projectName == undefined || recordName == undefined) {
@@ -525,7 +522,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
           filename: imgFileDisplayName,
         });
 
-        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
+        newEvent.files = [`${recordName}/files/.cos/moments/${imgFileDisplayName}`];
       }
 
       const result = await consoleApi.createEvent({
@@ -579,23 +576,21 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
 
     const newEvent = new Event();
 
-    newEvent.setName(toModifyEvent?.name ?? "");
+    newEvent.name = toModifyEvent?.name ?? "";
 
-    newEvent.setDisplayName(event.eventName);
-    const timestamp = new Timestamp();
+    newEvent.displayName = event.eventName;
+    const timestamp = Timestamp.fromDate(event.startTime);
 
-    timestamp.fromDate(event.startTime);
-
-    newEvent.setTriggerTime(timestamp);
+    newEvent.triggerTime = timestamp;
 
     if (event.durationUnit === "sec") {
-      newEvent.setDuration(secondsToDuration(event.duration));
+      newEvent.duration = secondsToDuration(event.duration);
     } else {
-      newEvent.setDuration(secondsToDuration(event.duration / 1e9));
+      newEvent.duration = secondsToDuration(event.duration / 1e9);
     }
 
     if (event.description) {
-      newEvent.setDescription(event.description);
+      newEvent.description = event.description;
     }
 
     const maskArray = [
@@ -607,12 +602,12 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     ];
 
     if (!event.imgUrl && !event.imageFile) {
-      newEvent.setFilesList([]);
+      newEvent.files = [];
       maskArray.push("files");
     }
 
     Object.keys(keyedMetadata).forEach((key) => {
-      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
+      newEvent.customizedFields[key] = keyedMetadata[key] ?? "";
     });
 
     try {
@@ -630,12 +625,12 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
           filename: imgFileDisplayName,
         });
 
-        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
+        newEvent.files = [`${recordName}/files/.cos/moments/${imgFileDisplayName}`];
         maskArray.push("files");
       }
 
       const fieldMask = new FieldMask();
-      fieldMask.setPathsList(maskArray);
+      fieldMask.paths = maskArray;
 
       await consoleApi.updateEvent({
         event: newEvent,
@@ -977,26 +972,26 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
                 <Autocomplete
                   disableClearable
                   options={activatedUsers ?? []}
-                  getOptionLabel={(option) => option.getNickname()}
+                  getOptionLabel={(option) => option.nickname ?? ""}
                   renderInput={(params) => <TextField {...params} autoFocus variant="outlined" />}
                   renderOption={(optionProps, option) => (
-                    <Box component="li" {...optionProps} key={option.getName()}>
-                      <img className={classes.avatar} src={option.getAvatar()} />
-                      {option.getNickname()}
+                    <Box component="li" {...optionProps} key={option.name}>
+                      <img className={classes.avatar} src={option.avatar} />
+                      {option.nickname}
                     </Box>
                   )}
-                  value={activatedUsers?.find((user) => user.getName() === task.assignee)}
-                  isOptionEqualToValue={(option, value) => option.getName() === value.getName()}
+                  value={activatedUsers?.find((user) => user.name === task.assignee)}
+                  isOptionEqualToValue={(option, value) => option.name === value.name}
                   onChange={(_event, option) => {
-                    setTask((s) => ({ ...s, assignee: option.getName() }));
+                    setTask((s) => ({ ...s, assignee: option.name }));
                   }}
                   filterOptions={(options, { inputValue }) => {
                     if (!inputValue) {
                       return options;
                     }
                     return options.filter((option) => {
-                      const pinyinMatch = PinyinMatch.match(option.getNickname(), inputValue);
-                      return option.getNickname().includes(inputValue) || pinyinMatch !== false;
+                      const pinyinMatch = PinyinMatch.match(option.nickname ?? "", inputValue);
+                      return (option.nickname ?? "").includes(inputValue) || pinyinMatch !== false;
                     });
                   }}
                   onKeyDown={onMetaDataKeyDown}
@@ -1004,7 +999,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
               </FormControl>
             </Stack>
             <Stack paddingX={3} paddingTop={2}>
-              {!jiraEnabled && !onesEnabled ? (
+              {!(jiraEnabled ?? false) && !(onesEnabled ?? false) ? (
                 <Tooltip title={t("syncTaskTooltip")} placement="top-start">
                   <FormControlLabel
                     disableTypography

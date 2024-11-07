@@ -6,7 +6,7 @@
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
 import { ServiceType, Timestamp, Value, JsonObject } from "@bufbuild/protobuf";
-import { ACCESS_TOKEN_NAME, SUPER_TOKEN_ACCESS_TOKEN_NAME } from "@coscene-io/coscene/queries";
+import { ACCESS_TOKEN_NAME } from "@coscene-io/coscene/queries";
 import {
   Layout,
   LayoutDetail,
@@ -18,8 +18,11 @@ import { v4 as uuidv4 } from "uuid";
 
 import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 export * from "./cosel";
+
+const authBridge = (global as { authBridge?: Auth }).authBridge;
 
 export function getPlaybackQualityLevelByLocalStorage(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
   const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
@@ -70,8 +73,7 @@ export function getOS(): string | undefined {
 }
 
 const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
-  const jwt =
-    localStorage.getItem(ACCESS_TOKEN_NAME) ?? localStorage.getItem(SUPER_TOKEN_ACCESS_TOKEN_NAME);
+  const jwt = localStorage.getItem(ACCESS_TOKEN_NAME);
   if (jwt) {
     req.header.set("Authorization", jwt);
     req.header.set("x-cos-request-id", uuidv4());
@@ -89,10 +91,14 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     if (error.code === StatusCode.UNAUTHENTICATED) {
       localStorage.removeItem("demoSite");
       localStorage.removeItem("honeybeeDemoStatus");
-      if (window.location.pathname !== "/login" && !isDesktopApp()) {
-        window.location.href = `/login?redirectToPath=${encodeURIComponent(
-          window.location.pathname + window.location.search,
-        )}`;
+      if (window.location.pathname !== "/login") {
+        if (isDesktopApp()) {
+          authBridge?.logout();
+        } else {
+          window.location.href = `/login?redirectToPath=${encodeURIComponent(
+            window.location.pathname + window.location.search,
+          )}`;
+        }
       }
     }
 
