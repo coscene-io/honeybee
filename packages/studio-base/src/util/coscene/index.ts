@@ -6,7 +6,7 @@
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
 import { ServiceType, Timestamp, Value, JsonObject } from "@bufbuild/protobuf";
-import { ACCESS_TOKEN_NAME, SUPER_TOKEN_ACCESS_TOKEN_NAME } from "@coscene-io/coscene/queries";
+import { ACCESS_TOKEN_NAME } from "@coscene-io/coscene/queries";
 import {
   Layout,
   LayoutDetail,
@@ -73,8 +73,7 @@ export function getOS(): string | undefined {
 }
 
 const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
-  const jwt =
-    localStorage.getItem(ACCESS_TOKEN_NAME) ?? localStorage.getItem(SUPER_TOKEN_ACCESS_TOKEN_NAME);
+  const jwt = localStorage.getItem(ACCESS_TOKEN_NAME);
   if (jwt) {
     req.header.set("Authorization", jwt);
     req.header.set("x-cos-request-id", uuidv4());

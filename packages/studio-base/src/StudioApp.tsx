@@ -2,7 +2,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Fragment, Suspense, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -13,7 +12,6 @@ import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsCon
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import UploadFilesProvider from "@foxglove/studio-base/providers/UploadFilesProvider";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import Workspace from "./Workspace";
 import DocumentTitleAdapter from "./components/DocumentTitleAdapter";
@@ -27,11 +25,6 @@ import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
 import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
 import { LaunchPreference } from "./screens/LaunchPreference";
-
-CsWebClient.init({
-  hostname: APP_CONFIG.VITE_APP_BASE_API_URL,
-  port: APP_CONFIG.VITE_APP_BASE_API_PORT,
-});
 
 // Suppress context menu for the entire app except on inputs & textareas.
 function contextMenuHandler(event: MouseEvent) {

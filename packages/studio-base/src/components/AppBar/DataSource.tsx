@@ -153,7 +153,7 @@ export function DataSource(): JSX.Element {
       color="inherit"
       className={classes.breadcrumbs}
     >
-      {project.value?.getDisplayName()}
+      {project.value?.displayName}
     </Link>,
     <Link
       href={secondaryHref}
