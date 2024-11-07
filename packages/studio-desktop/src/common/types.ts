@@ -122,6 +122,8 @@ interface Desktop {
 
 interface Auth {
   onAuthToken: (callback: (token: string) => void) => UnregisterFn;
+  onLogout: (callback: () => void) => UnregisterFn;
+  logout: () => void;
 }
 
 export type {

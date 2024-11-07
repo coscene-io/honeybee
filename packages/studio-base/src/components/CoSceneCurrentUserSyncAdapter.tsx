@@ -82,14 +82,14 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
 
       const currentOrg = await consoleApi.getOrg("organizations/current");
 
-      const userId = userInfo.getName().split("/").pop() ?? "";
+      const userId = userInfo.name.split("/").pop() ?? "";
 
       setUser({
         ...(currentUser ?? {}),
-        avatarUrl: userInfo.getAvatar() || "",
-        email: userInfo.getEmail() || "",
-        nickName: userInfo.getNickname() || "",
-        phoneNumber: userInfo.getPhoneNumber() || "",
+        avatarUrl: userInfo.avatar ?? "",
+        email: userInfo.email,
+        nickName: userInfo.nickname,
+        phoneNumber: userInfo.phoneNumber,
         orgDisplayName: currentOrg.displayName,
         orgId: currentOrg.name.split("/")[1],
         orgSlug: currentOrg.slug,

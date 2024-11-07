@@ -3003,12 +3003,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:^7.20.6, @babel/runtime@npm:^7.21.0":
-  version: 7.23.6
-  resolution: "@babel/runtime@npm:7.23.6"
+"@babel/runtime@npm:^7.21.0":
+  version: 7.26.0
+  resolution: "@babel/runtime@npm:7.26.0"
   dependencies:
     regenerator-runtime: ^0.14.0
-  checksum: 1a8eaf3d3a103ef5227b60ca7ab5c589118c36ca65ef2d64e65380b32a98a3f3b5b3ef96660fa0471b079a18b619a8317f3e7f03ab2b930c45282a8b69ed9a16
+  checksum: c8e2c0504ab271b3467a261a8f119bf2603eb857a0d71e37791f4e3fae00f681365073cc79f141ddaa90c6077c60ba56448004ad5429d07ac73532be9f7cf28a
   languageName: node
   linkType: hard
 
@@ -3246,23 +3246,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/coscene@npm:0.3.129":
-  version: 0.3.129
-  resolution: "@coscene-io/coscene@npm:0.3.129::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.3.129%2F71829e0680e29c35134920b00ed41400a63bbfd5"
+"@coscene-io/coscene@npm:0.3.137":
+  version: 0.3.137
+  resolution: "@coscene-io/coscene@npm:0.3.137::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcoscene%2F0.3.137%2F57f83f67b19a25d6341017c99d81e10e69d2532f"
   dependencies:
-    "@coscene-io/cosceneapis": 0.0.451
-    "@coscene-io/cosel": 24.2.1
-    "@tanstack/react-query": 5.28.2
-    ahooks: 3.7.10
-    i18next: 22.5.0
+    "@coscene-io/cosceneapis": 0.0.501
+    "@coscene-io/cosel": 24.14.0
+    "@tanstack/react-query": 5.51.23
+    ahooks: 3.8.1
+    i18next: 23.12.3
     lodash: 4.17.21
-    react-router-dom: 6.22.3
-    recoil: 0.7.7
+    react-cookie: 7.2.0
+    react-router-dom: 6.26.0
+    uuid: 10.0.0
   peerDependencies:
     "@types/google-protobuf": 3.15.12
-    google-protobuf: 3.21.2
+    google-protobuf: 3.21.4
     grpc-web: 1.4.2
-  checksum: ad53419419ade27a39a2286e16881b71df08fe11d22533f1d12eb3900c263068d1d8d8b74a09bf8ff16f387efa8aa067978182417905464148b0dbf9f769823f
+  checksum: 86813ffe808d04a98b61e7d507edcf2c7f0f39dd968bfe60ee96685370f620bc00e0c6ff7a2f511d0c732b801169101299b0f881bb6296c43f08f4d3de43f9d5
   languageName: node
   linkType: hard
 
@@ -3277,9 +3278,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis@npm:0.0.451":
-  version: 0.0.451
-  resolution: "@coscene-io/cosceneapis@npm:0.0.451::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.451%2F04a3eabc1546e4584aa071113489518697e9b13a"
+"@coscene-io/cosceneapis@npm:0.0.501":
+  version: 0.0.501
+  resolution: "@coscene-io/cosceneapis@npm:0.0.501::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis%2F0.0.501%2F7917c2e3c5fb73198fcfc2ceeae304cf394b15f5"
   dependencies:
     "@buf/coscene-io_argo-workflows-apis.grpc_web": 1.4.2-20230525123417-60301f3766e7.2
     "@buf/coscene-io_kubernetes-apis.grpc_web": 1.4.2-20230525122111-b678ebd95a88.2
@@ -3288,7 +3289,7 @@ __metadata:
     "@types/google-protobuf": 3.15.6
     google-protobuf: 3.21.2
     grpc-web: 1.4.2
-  checksum: 9c20412ef893692aa261c2aced94fe45ffe3e72cba68bc0d5dd38b1c440b49605c2a9cde20150acb5ff6406965d7d47575ae6facc9d58c35ee1e734b7cf8ea11
+  checksum: 69f26350bdd5d4e87e42191776a84ac17ef7175bfb96acbc1e904ced28b6582d5f2ce5859581da1257e923d82af142753b86cd84a8c6aa091b34013c29ded2da
   languageName: node
   linkType: hard
 
@@ -3299,10 +3300,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/cosel@npm:24.2.1":
-  version: 24.2.1
-  resolution: "@coscene-io/cosel@npm:24.2.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosel%2F24.2.1%2Fdc17889d6ffb216f67c476820d5f481d19417e8b"
-  checksum: 0c9a87bb20b70c502d26da59796b451841060f0744047cc3b7ab5b676fdf972f28ba1fd33d1cdb69188a1c417476d506819bab26d76db147ad0b0eb9b0fedb26
+"@coscene-io/cosel@npm:24.14.0":
+  version: 24.14.0
+  resolution: "@coscene-io/cosel@npm:24.14.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosel%2F24.14.0%2Fc79ce512a1b6e4ff75fc101b3733df2009481af7"
+  checksum: 09954cb612b8bcb18323a8fe7e816bae6a14c1eb3d90c76d1957ae3e2bcfc79019e0f2646a9593f854fa75a42a3a5c5749eff613416d8d695849fc42e7b865c9
   languageName: node
   linkType: hard
 
@@ -4619,7 +4620,7 @@ __metadata:
     "@bufbuild/connect": 0.13.0
     "@bufbuild/connect-web": 0.13.0
     "@bufbuild/protobuf": 1.3.0
-    "@coscene-io/coscene": 0.3.129
+    "@coscene-io/coscene": 0.3.137
     "@coscene-io/cosceneapis-es": 0.0.203
     "@coscene-io/cosel": 23.49.2
     "@emotion/cache": 11.13.1
@@ -6288,10 +6289,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@remix-run/router@npm:1.15.3":
-  version: 1.15.3
-  resolution: "@remix-run/router@npm:1.15.3"
-  checksum: 9e70bd334d99fdf9285f0885c10353d7e25f66369080f551d997e3ce204e1af3a12d6f12b091f94a2dc9a54c80598bbe3c5194b57cbae17b7b40ab815dcd49a0
+"@remix-run/router@npm:1.19.0":
+  version: 1.19.0
+  resolution: "@remix-run/router@npm:1.19.0"
+  checksum: 467495864dd99fed3ba7861482cee56fd8c3a1a5cb17fe7bbf22774b0d90315c75d155f7eced0616bdeaceef1d79846b7c44f99873619e3204cfb9e4665e0a3c
   languageName: node
   linkType: hard
 
@@ -7435,21 +7436,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tanstack/query-core@npm:5.28.2":
-  version: 5.28.2
-  resolution: "@tanstack/query-core@npm:5.28.2"
-  checksum: 9221969783cd956846bf11a904e732ca2ec1be067c76556b44f8075f103cb5dc8bde5c9f6573ab8a649f5644ca660abf847e7f5d50754ed74c57f0d385eb34a7
+"@tanstack/query-core@npm:5.51.21":
+  version: 5.51.21
+  resolution: "@tanstack/query-core@npm:5.51.21"
+  checksum: a602e70bfbfa1fa28333be8c1b9ac9c9b97937b236d3997a757079ae04086fe59c2688cb6406fd82dcf9ef07f73e7a4ba1d373040f6cad340e1f64bceafe0e07
   languageName: node
   linkType: hard
 
-"@tanstack/react-query@npm:5.28.2":
-  version: 5.28.2
-  resolution: "@tanstack/react-query@npm:5.28.2"
+"@tanstack/react-query@npm:5.51.23":
+  version: 5.51.23
+  resolution: "@tanstack/react-query@npm:5.51.23"
   dependencies:
-    "@tanstack/query-core": 5.28.2
+    "@tanstack/query-core": 5.51.21
   peerDependencies:
     react: ^18.0.0
-  checksum: a3dee1c457b942f256dce394b43acd60c236a16b803a86f0ddd13915db5325bcaa355b0f60fa727a83f40dd40e018443008a387688e7fb42a0d94de7e11f7ed4
+  checksum: d1d8131232430635923694befff9bdabc8d18ca2392789456a28191020d489671577e02ee5b0107e0064fea981c74c99cea3077a4e34cc1ac7438175bd50effe
   languageName: node
   linkType: hard
 
@@ -9918,21 +9919,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ahooks@npm:3.7.10":
-  version: 3.7.10
-  resolution: "ahooks@npm:3.7.10"
+"ahooks@npm:3.8.1":
+  version: 3.8.1
+  resolution: "ahooks@npm:3.8.1"
   dependencies:
     "@babel/runtime": ^7.21.0
     dayjs: ^1.9.1
     intersection-observer: ^0.12.0
-    js-cookie: ^2.x.x
+    js-cookie: ^3.0.5
     lodash: ^4.17.21
+    react-fast-compare: ^3.2.2
     resize-observer-polyfill: ^1.5.1
     screenfull: ^5.0.0
     tslib: ^2.4.1
   peerDependencies:
     react: ^16.8.0 || ^17.0.0 || ^18.0.0
-  checksum: 8b5a618a5745f39a9d40e689f8d52938276d03dfda9fcf6c57ff3dec13f7313cb70dc1b5a2d8ca8ddaec650e7045ce2b9bcab5e04f4ebeb41c4ff76318959cd8
+  checksum: 1ffb401a737f5885529e8c30a6e47144fc32fc43e62e8747bc3a528ded9208f4add40b5b8b0d9cde552658b5ab18aec8988a2678099cf12c1977ff337cbec9ec
   languageName: node
   linkType: hard
 
@@ -12681,9 +12683,9 @@ __metadata:
   linkType: hard
 
 "dayjs@npm:^1.9.1":
-  version: 1.11.10
-  resolution: "dayjs@npm:1.11.10"
-  checksum: a6b5a3813b8884f5cd557e2e6b7fa569f4c5d0c97aca9558e38534af4f2d60daafd3ff8c2000fed3435cfcec9e805bcebd99f90130c6d1c5ef524084ced588c4
+  version: 1.11.13
+  resolution: "dayjs@npm:1.11.13"
+  checksum: f388db88a6aa93956c1f6121644e783391c7b738b73dbc54485578736565c8931bdfba4bb94e9b1535c6e509c97d5deb918bbe1ae6b34358d994de735055cca9
   languageName: node
   linkType: hard
 
@@ -16838,12 +16840,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"i18next@npm:22.5.0":
-  version: 22.5.0
-  resolution: "i18next@npm:22.5.0"
+"i18next@npm:23.12.3":
+  version: 23.12.3
+  resolution: "i18next@npm:23.12.3"
   dependencies:
-    "@babel/runtime": ^7.20.6
-  checksum: 291c0e02fda20bd1827b6529dad74c01867892c7ac000befe0f69e10ad97ab074a2ae5b4ce1e0638c28ae1a6f59d1ed8503ea05bd1c324d731a44dd94c43a49a
+    "@babel/runtime": ^7.23.2
+  checksum: 5a776a9c5254a4249550457941b2be7a05d436e87e216941c9e0196a55f3d421de1de43c27f8028176acc172f3af190a3cf4266ab8db8b7d051d95b028fd156a
   languageName: node
   linkType: hard
 
@@ -18339,10 +18341,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"js-cookie@npm:^2.2.1, js-cookie@npm:^2.x.x":
+"js-cookie@npm:^2.2.1":
   version: 2.2.1
   resolution: "js-cookie@npm:2.2.1"
   checksum: 9b1fb980a1c5e624fd4b28ea4867bb30c71e04c4484bb3a42766344c533faa684de9498e443425479ec68609e96e27b60614bfe354877c449c631529b6d932f2
+  languageName: node
+  linkType: hard
+
+"js-cookie@npm:^3.0.5":
+  version: 3.0.5
+  resolution: "js-cookie@npm:3.0.5"
+  checksum: 2dbd2809c6180fbcf060c6957cb82dbb47edae0ead6bd71cbeedf448aa6b6923115003b995f7d3e3077bfe2cb76295ea6b584eb7196cca8ba0a09f389f64967a
   languageName: node
   linkType: hard
 
@@ -21858,6 +21867,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-fast-compare@npm:^3.2.2":
+  version: 3.2.2
+  resolution: "react-fast-compare@npm:3.2.2"
+  checksum: 2071415b4f76a3e6b55c84611c4d24dcb12ffc85811a2840b5a3f1ff2d1a99be1020d9437ee7c6e024c9f4cbb84ceb35e48cf84f28fcb00265ad2dfdd3947704
+  languageName: node
+  linkType: hard
+
 "react-hot-toast@npm:2.4.0":
   version: 2.4.0
   resolution: "react-hot-toast@npm:2.4.0"
@@ -22062,27 +22078,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-router-dom@npm:6.22.3":
-  version: 6.22.3
-  resolution: "react-router-dom@npm:6.22.3"
+"react-router-dom@npm:6.26.0":
+  version: 6.26.0
+  resolution: "react-router-dom@npm:6.26.0"
   dependencies:
-    "@remix-run/router": 1.15.3
-    react-router: 6.22.3
+    "@remix-run/router": 1.19.0
+    react-router: 6.26.0
   peerDependencies:
     react: ">=16.8"
     react-dom: ">=16.8"
-  checksum: 5ae3759a70e4123cd4b8efbb82199a69f5d8c4a7a434d186d2ec7b532b6ef3302df2a98e5c27db977d3f0d725c7a279010a16ae77a3bf6257f1fee96123d8b77
+  checksum: 1579aa122884c286ffb2821c90403ac58b3c39f0d1cc8440b2bdd5de406c2dec0826c3a2bc473528b28728f0c35904045fdd7b7bfc17ad788c69816411ef5074
   languageName: node
   linkType: hard
 
-"react-router@npm:6.22.3":
-  version: 6.22.3
-  resolution: "react-router@npm:6.22.3"
+"react-router@npm:6.26.0":
+  version: 6.26.0
+  resolution: "react-router@npm:6.26.0"
   dependencies:
-    "@remix-run/router": 1.15.3
+    "@remix-run/router": 1.19.0
   peerDependencies:
     react: ">=16.8"
-  checksum: 1f7d9a5a849761ff69ef8f3d3131b4c1c25d18b76317ba5ad6f0d9421192c0b8b71ab0cc818c57aad7b81ada725559e513307d0ab43296a460262f0358602672
+  checksum: 60ed0f33584f43ff64ffc66e8d58fd1605749e249684e15637f6af427d35b01d91addcaf857300e955bb09a33ea644322b28da98adf0764cd07ceb7399118561
   languageName: node
   linkType: hard
 
@@ -22363,22 +22379,6 @@ __metadata:
     react-native:
       optional: true
   checksum: 2b31dd29a7e0b369bc986a16f7253006776845144684c9e38bb6760e4ea954c5d7dc682aaf88e815e69098b8dea3ff62b6fa4e6c156157a29d2d9cb824db1779
-  languageName: node
-  linkType: hard
-
-"recoil@npm:0.7.7":
-  version: 0.7.7
-  resolution: "recoil@npm:0.7.7"
-  dependencies:
-    hamt_plus: 1.0.2
-  peerDependencies:
-    react: ">=16.13.1"
-  peerDependenciesMeta:
-    react-dom:
-      optional: true
-    react-native:
-      optional: true
-  checksum: 65edecbcb8d2cde89bfd61ec679c200483472a6cd343c33e4e9142b6ce524fb17d1fecc2bfd8c392926aaa8178c81457f165b32abce2a9662f51f98822c0a9cc
   languageName: node
   linkType: hard
 
@@ -24907,7 +24907,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:2.6.2, tslib@npm:^2, tslib@npm:^2.0.0, tslib@npm:^2.0.1, tslib@npm:^2.0.3, tslib@npm:^2.1.0, tslib@npm:^2.4.0, tslib@npm:^2.4.1, tslib@npm:^2.5.0, tslib@npm:^2.6.2":
+"tslib@npm:2.6.2, tslib@npm:^2, tslib@npm:^2.0.0, tslib@npm:^2.0.1, tslib@npm:^2.0.3, tslib@npm:^2.1.0, tslib@npm:^2.4.0, tslib@npm:^2.5.0, tslib@npm:^2.6.2":
   version: 2.6.2
   resolution: "tslib@npm:2.6.2"
   checksum: 329ea56123005922f39642318e3d1f0f8265d1e7fcb92c633e0809521da75eeaca28d2cf96d7248229deb40e5c19adf408259f4b9640afd20d13aecc1430f3ad
@@ -24918,6 +24918,13 @@ __metadata:
   version: 1.14.1
   resolution: "tslib@npm:1.14.1"
   checksum: dbe628ef87f66691d5d2959b3e41b9ca0045c3ee3c7c7b906cc1e328b39f199bb1ad9e671c39025bd56122ac57dfbf7385a94843b1cc07c60a4db74795829acd
+  languageName: node
+  linkType: hard
+
+"tslib@npm:^2.4.1":
+  version: 2.8.1
+  resolution: "tslib@npm:2.8.1"
+  checksum: e4aba30e632b8c8902b47587fd13345e2827fa639e7c3121074d5ee0880723282411a8838f830b55100cbe4517672f84a2472667d355b81e8af165a55dc6203a
   languageName: node
   linkType: hard
 
@@ -25751,6 +25758,15 @@ __metadata:
   version: 1.0.1
   resolution: "utils-merge@npm:1.0.1"
   checksum: c81095493225ecfc28add49c106ca4f09cdf56bc66731aa8dabc2edbbccb1e1bfe2de6a115e5c6a380d3ea166d1636410b62ef216bb07b3feb1cfde1d95d5080
+  languageName: node
+  linkType: hard
+
+"uuid@npm:10.0.0":
+  version: 10.0.0
+  resolution: "uuid@npm:10.0.0"
+  bin:
+    uuid: dist/bin/uuid
+  checksum: 4b81611ade2885d2313ddd8dc865d93d8dccc13ddf901745edca8f86d99bc46d7a330d678e7532e7ebf93ce616679fb19b2e3568873ac0c14c999032acb25869
   languageName: node
   linkType: hard
 

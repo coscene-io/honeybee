@@ -64,7 +64,7 @@ After opening it on the local browser, we need to set tokens to obtain access au
 
 > Note: If you choose to set the Bearer token, you need to set it every day (expire every day).
 
-1. Go to [CoScene Development Page](https://home.coscene.dev/) and Sign In.
+1. Go to [CoScene Development Page](https://dev.coscene.cn/) and Sign In.
 2. Open "Chrome Inspector", go to "Application" tab, search for "Local Storage", and copy the following two keys to the local development environment.
    - coScene_org_jwt
    - CoSceneContext (optional)
@@ -73,7 +73,7 @@ After opening it on the local browser, we need to set tokens to obtain access au
 
 #### (1.2) Basic Token
 
-1. Go to [CoScene Development Page](https://home.coscene.dev/) and Sign In.
+1. Go to [CoScene Development Page](https://dev.coscene.cn/) and Sign In.
 2. Go to "Setting" and choose the "Security" tab.
 3. Click on Generate Access Token, give it a name and expiration time.
 4. With token, you need to encode with [base64](https://www.base64encoder.io/) by adding "_apikey:_" to the beginning of the token, e.g.: `apikey:{ACCESS_TOKEN}`.
@@ -83,7 +83,7 @@ After opening it on the local browser, we need to set tokens to obtain access au
 
 ### (2) Data Source Simulation
 
-To open a data source file, you need to copy the link query of the record on the [CoScene Development Page](https://home.coscene.dev/) and paste it into the local environment, you can follow the pictures below.
+To open a data source file, you need to copy the link query of the record on the [CoScene Development Page](https://dev.coscene.cn/) and paste it into the local environment, you can follow the pictures below.
 
 <img src="./resources/readme/data-source-get-1.png" width="fit-content"/>
 <img src="./resources/readme/data-source-get-2.png" width="fit-content"/>

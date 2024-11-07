@@ -204,13 +204,13 @@ export async function main(): Promise<void> {
       // When completing sign in from Console, the browser can launch this URL to re-focus the app.
       app.focus({ steal: true });
     } else if (app.isReady()) {
-      new StudioWindow([url]).load();
+      // new StudioWindow([url]).load();
     } else {
-      openUrls.push(url);
+      // openUrls.push(url);
     }
   });
 
-  // support preload lookups for the user data path and home directory
+  // upport preload lookups for the user data path and home directory
   ipcMain.handle("getUserDataPath", () => app.getPath("userData"));
   ipcMain.handle("getHomePath", () => app.getPath("home"));
 
@@ -223,6 +223,14 @@ export async function main(): Promise<void> {
 
   ipcMain.handle("updateLanguage", () => {
     void updateLanguage();
+  });
+
+  ipcMain.handle("auth-logout", () => {
+    log.debug("auth-logout");
+
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send("auth-signout");
+    });
   });
 
   // This method will be called when Electron has finished

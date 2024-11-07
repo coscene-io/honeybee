@@ -17,8 +17,8 @@ const DEFAULT_DOMAN_CONFIG: { [domain: string]: DomainConfig } = {
     logo: "coscene",
     authStatusCookieName: "coSceneAuthStatusDev",
     authStatusCookieDomain: "localhost",
-    webDomain: "home.coscene.dev",
-    ssoDomain: "sso.coscene.dev",
+    webDomain: "dev.coscene.cn",
+    ssoDomain: "sso.dev.coscene.cn",
   },
 };
 declare global {

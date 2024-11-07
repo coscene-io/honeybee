@@ -39,7 +39,7 @@ import CoSceneConsoleApi, {
   EventList,
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
-import { ducationToNanoSeconds } from "@foxglove/studio-base/util/time";
+import { durationToNanoSeconds } from "@foxglove/studio-base/util/time";
 
 const HOVER_TOLERANCE = 0.01;
 
@@ -77,7 +77,7 @@ async function positionEvents(
         event.triggerTime.seconds * BigInt(1e9) + BigInt(event.triggerTime.nanos),
       );
 
-      let eventEndTime = add(eventStartTime, fromNanoSec(ducationToNanoSeconds(event.duration)));
+      let eventEndTime = add(eventStartTime, fromNanoSec(durationToNanoSeconds(event.duration)));
 
       if (timeMode === "relativeTime" && bagFile?.startTime != undefined) {
         eventStartTime = subtract(eventStartTime, bagFile.startTime);
