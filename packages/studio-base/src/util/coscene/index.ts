@@ -18,8 +18,11 @@ import { v4 as uuidv4 } from "uuid";
 
 import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 export * from "./cosel";
+
+const authBridge = (global as { authBridge?: Auth }).authBridge;
 
 export function getPlaybackQualityLevelByLocalStorage(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
   const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
@@ -89,10 +92,14 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     if (error.code === StatusCode.UNAUTHENTICATED) {
       localStorage.removeItem("demoSite");
       localStorage.removeItem("honeybeeDemoStatus");
-      if (window.location.pathname !== "/login" && !isDesktopApp()) {
-        window.location.href = `/login?redirectToPath=${encodeURIComponent(
-          window.location.pathname + window.location.search,
-        )}`;
+      if (window.location.pathname !== "/login") {
+        if (isDesktopApp()) {
+          authBridge?.logout();
+        } else {
+          window.location.href = `/login?redirectToPath=${encodeURIComponent(
+            window.location.pathname + window.location.search,
+          )}`;
+        }
       }
     }
 

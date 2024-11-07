@@ -47,6 +47,8 @@ export default function CoSceneUserProvider({
     const authToken = localStorage.getItem("coScene_org_jwt");
     if (authToken != undefined) {
       store.setState({ loginStatus: "alreadyLogin" });
+    } else {
+      store.setState({ loginStatus: "notLogin" });
     }
   }, [loginStatusKey, store]);
 

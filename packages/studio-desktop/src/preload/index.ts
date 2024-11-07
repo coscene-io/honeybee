@@ -212,6 +212,20 @@ export function main(): void {
         ipcRenderer.removeListener("auth-token", subscription);
       };
     },
+    onLogout: (callback: () => void) => {
+      const subscription = (_event: IpcRendererEvent) => {
+        callback();
+      };
+      ipcRenderer.on("auth-signout", subscription);
+
+      return () => {
+        ipcRenderer.removeListener("auth-signout", subscription);
+      };
+    },
+    // notify main process send message to all windows
+    logout: () => {
+      void ipcRenderer.invoke("auth-logout");
+    },
   };
 
   // NOTE: Context Bridge imposes a number of limitations around how objects move between the context

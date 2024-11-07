@@ -90,6 +90,9 @@ import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
+import { Auth } from "@foxglove/studio-desktop/src/common/types";
+
+const authBridge = (global as { authBridge?: Auth }).authBridge;
 
 export type User = {
   id: string;
@@ -557,6 +560,8 @@ class CoSceneConsoleApi {
       if (res.status === 401) {
         if (!isDesktopApp()) {
           window.location.href = "/login";
+        } else {
+          authBridge?.logout();
         }
       } else if (res.status === 403) {
         throw new Error(

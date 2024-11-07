@@ -136,7 +136,7 @@ export function DataSource(): JSX.Element {
   // CoScene
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://home.coscene.dev/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
+      ? `https://dev.coscene.cn/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
       : `/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
 
   const recordHref = `${projectHref}/records/${baseInfo.recordId}`;

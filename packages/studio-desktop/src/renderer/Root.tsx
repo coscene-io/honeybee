@@ -112,6 +112,17 @@ export default function Root(props: {
     return cleanup;
   }, [consoleApi, t]);
 
+  useEffect(() => {
+    // Passive logout, token expired
+    const cleanup = authBridge?.onLogout(() => {
+      toast.error(t("loginExpired", { ns: "cosAccount" }));
+      localStorage.removeItem("coScene_org_jwt");
+      setLoginStatusKey((key) => key + 1);
+    });
+
+    return cleanup;
+  }, [t]);
+
   const [extensionLoaders] = useState(() => [
     new IdbExtensionLoader("org"),
     new DesktopExtensionLoader(desktopBridge),
