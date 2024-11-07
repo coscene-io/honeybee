@@ -13,8 +13,8 @@ import { IncCounterRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatfo
 import { OrganizationService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_connect";
 import { GetOrganizationRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_pb";
 import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
-import { GetProjectRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
 import {
+  GetProjectRequest,
   ListUserProjectsRequest,
   ListUserProjectsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
@@ -32,9 +32,7 @@ import {
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
-import { Event as Event_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { Record as Record_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/task_pb";
 import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
 import {
@@ -48,8 +46,8 @@ import {
   UpdateEventRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
-import { GetRecordRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
 import {
+  GetRecordRequest,
   ListRecordsRequest,
   ListRecordsResponse,
   CreateRecordRequest,
@@ -283,7 +281,7 @@ export type SingleFileGetEventsRequest = {
 };
 
 export type EventList = {
-  event: Event_es;
+  event: Event;
   projectDisplayName: string;
   recordDisplayName: string;
 }[];
@@ -708,7 +706,7 @@ class CoSceneConsoleApi {
         uint8Array[i] = binaryString.charCodeAt(i);
       }
       return {
-        event: Event_es.fromBinary(uint8Array),
+        event: Event.fromBinary(uint8Array),
         projectDisplayName: event.projectDisplayName,
         recordDisplayName: event.recordDisplayName,
       };
@@ -1129,7 +1127,7 @@ class CoSceneConsoleApi {
     return await fetch(fullUrl, fullConfig);
   }
 
-  public async createRecord(payload: PartialMessage<CreateRecordRequest>): Promise<Record_es> {
+  public async createRecord(payload: PartialMessage<CreateRecordRequest>): Promise<CoSceneRecord> {
     const req = new CreateRecordRequest(payload);
     return await getPromiseClient(RecordService).createRecord(req);
   }
