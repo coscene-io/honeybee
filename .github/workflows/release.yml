@@ -24,9 +24,16 @@ on:
           - saas
 
 jobs:
-  set_cos_config_file:
+  build:
     environment: ${{ github.event.inputs.environment }}
+
     runs-on: macos-latest
+
+    env:
+      BUF_BUILD_TOKEN: ${{ secrets.BUF_BUILD_TOKEN }}
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -37,17 +44,9 @@ jobs:
       - name: Set cos config file
         id: set_cos_config_file
         run: |
-          echo "${{ vars.APP_CONFIG }}" > packages/studio-desktop/src/public/cos-config.js
+          echo '${{ vars.APP_CONFIG }}' > packages/studio-desktop/src/public/cos-config.js
+          cat packages/studio-desktop/src/public/cos-config.js
 
-  build:
-    runs-on: macos-latest
-
-    env:
-      BUF_BUILD_TOKEN: ${{ secrets.BUF_BUILD_TOKEN }}
-      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
-      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-
-    steps:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
