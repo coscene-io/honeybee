@@ -115,6 +115,7 @@ export function UploadFile(): JSX.Element {
       <Tooltip
         describeChild
         title={
+          // "test"
           loginStatus !== "alreadyLogin" ? (
             t("loginFirst")
           ) : Object.keys(currentFileStatus ?? {}).length > 0 ? (
@@ -124,7 +125,6 @@ export function UploadFile(): JSX.Element {
           )
         }
         classes={{ tooltip: classes.tooltip }}
-        open
       >
         <IconButton
           onClick={() => {
