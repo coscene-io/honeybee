@@ -11,6 +11,7 @@ import {
   QuestionCircle24Regular,
   ChevronDown12Regular,
 } from "@fluentui/react-icons";
+import PersonIcon from "@mui/icons-material/Person";
 import { Avatar, IconButton, Tooltip } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -129,7 +130,6 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     },
     avatar: {
       color: theme.palette.common.white,
-      backgroundColor: tc(theme.palette.appBar.main).lighten().toString(),
       height: theme.spacing(3.5),
       width: theme.spacing(3.5),
     },
@@ -337,7 +337,9 @@ export function AppBar(props: AppBarProps): JSX.Element {
                     src={userInfo?.avatarUrl ?? undefined}
                     className={classes.avatar}
                     variant="rounded"
-                  />
+                  >
+                    {userInfo?.avatarUrl == undefined && <PersonIcon color="secondary" />}
+                  </Avatar>
                 </IconButton>
               </Tooltip>
               {showCustomWindowControls && (
