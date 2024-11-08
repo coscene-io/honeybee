@@ -47,7 +47,7 @@ export const appBar = {
   uploadTo: "Upload to",
   uploadingFile: "Uploading file...",
   uploadFileFailed: "Upload file failed",
-  toCreateProject: "Go to the main site to create a project",
+  toCreateProject: "Go to the cloud to create a project",
   createRecord: "Create record",
   selectRecord: "Select existing record",
   recordName: "Record name",
