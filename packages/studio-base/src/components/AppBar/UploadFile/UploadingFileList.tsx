@@ -34,7 +34,7 @@ export function UploadingFileList(): JSX.Element {
         <ListItem key={name}>
           <Stack direction="row" alignItems="center" gap={1} width="">
             <Stack alignItems="center" gap={1} display="flex" flex={1}>
-              <Stack flex={1}>{123123}</Stack>
+              <Stack flex={1}>{name}</Stack>
               <LinearProgress
                 className={classes.linearProgress}
                 variant="determinate"
