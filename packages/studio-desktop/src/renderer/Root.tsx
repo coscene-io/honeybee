@@ -30,6 +30,7 @@ import {
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
@@ -61,13 +62,14 @@ export default function Root(props: {
   // notify user login status change
   const [loginStatusKey, setLoginStatusKey] = useState(0);
 
-  // current not support connect to coscene
   const consoleApi = useMemo(
     () =>
       new ConsoleApi(
-        "baseUrl",
-        "bffUrl",
-        "addTopicPrefix",
+        APP_CONFIG.CS_HONEYBEE_BASE_URL,
+        APP_CONFIG.VITE_APP_BFF_URL,
+        localStorage.getItem("CoScene_addTopicPrefix") ??
+          APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
+          "false",
         localStorage.getItem("CoScene_timeMode") === "relativeTime"
           ? "relativeTime"
           : "absoluteTime",
