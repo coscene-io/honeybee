@@ -52,6 +52,8 @@ function makeElectronBuilderConfig(params) {
           mimeType: "application/zip",
         },
       ],
+      executableName: "coStudio",
+      prefix: "coStudio",
     },
     win: {
       target: [
@@ -171,10 +173,10 @@ function makeElectronBuilderConfig(params) {
     appx: {
       applicationId: "coSceneStudio",
       backgroundColor: "#f7def6",
-      displayName: "coScene",
+      displayName: "coStudio",
       identityName: "coStudio",
       publisher: "CN=coScene, O=coScene, L=Shanghai, S=Shanghai, C=CN",
-      publisherDisplayName: "coScene",
+      publisherDisplayName: "coStudio",
       languages: ["en-US"],
       addAutoLaunchExtension: false,
       showNameOnTiles: false,
@@ -200,7 +202,7 @@ function makeElectronBuilderConfig(params) {
         "libxcb-dri3-0",
       ],
       // after install script
-      // afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
+      afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
     },
     snap: {
       confinement: "strict",
