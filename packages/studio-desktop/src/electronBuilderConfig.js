@@ -52,7 +52,6 @@ function makeElectronBuilderConfig(params) {
           mimeType: "application/zip",
         },
       ],
-      executableName: "coStudio",
     },
     win: {
       target: [
@@ -201,7 +200,7 @@ function makeElectronBuilderConfig(params) {
         "libxcb-dri3-0",
       ],
       // after install script
-      afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
+      // afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
     },
     snap: {
       confinement: "strict",
