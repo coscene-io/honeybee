@@ -25,7 +25,6 @@ import {
   Typography,
   IconButton,
   ListItemText,
-  CircularProgress,
   TablePagination,
   Breadcrumbs,
   Link,
@@ -287,6 +286,7 @@ export function ChooserComponent({
   setFiles,
   checkFileSupportedFunc,
   defaultRecordType = "select",
+  defaultRecordName,
 }: {
   setTargetRecordName: (recordName?: Record) => void;
   files: SelectedFile[];
@@ -294,6 +294,7 @@ export function ChooserComponent({
   type: "record" | "files";
   checkFileSupportedFunc: (file: File) => boolean;
   defaultRecordType?: "create" | "select";
+  defaultRecordName?: string;
 }): JSX.Element {
   const { t } = useTranslation("cosGeneral");
 
@@ -466,24 +467,6 @@ export function ChooserComponent({
     return Number(filesList.value?.totalSize ?? 0);
   }, [filesList.value?.totalSize, listType, projects.value?.totalSize, records.value?.totalSize]);
 
-  const Pagination = useCallback(() => {
-    return (
-      <TablePagination
-        component="div"
-        count={count}
-        page={page}
-        onPageChange={(_e, selectedPage) => {
-          setPage(selectedPage);
-        }}
-        rowsPerPageOptions={[20, 50, 100]}
-        rowsPerPage={pageSize}
-        onRowsPerPageChange={(e) => {
-          setPageSize(+e.target.value);
-        }}
-      />
-    );
-  }, [count, page, pageSize, setPage, setPageSize]);
-
   return (
     <Stack flex={1} gap={1} padding={2}>
       <CustomBreadcrumbs
@@ -526,145 +509,146 @@ export function ChooserComponent({
         />
       )}
 
-      {projects.loading || records.loading || filesList.loading ? (
-        <Stack flex={1} fullHeight fullWidth justifyContent="center" alignItems="center">
-          <CircularProgress />
-        </Stack>
-      ) : (
-        <Stack flex={1} overflowY="scroll" fullWidth>
-          {listType === "projects" && (
-            <>
-              <List>
-                {projects.value?.userProjects.map((value) => {
-                  return (
-                    <ListItem key={value.name} disablePadding>
-                      <ListItemButton
-                        role={undefined}
-                        onClick={() => {
-                          resetState();
-                          setProject(value);
-                        }}
-                        dense
-                      >
-                        <ListItemText id={value.name} primary={value.displayName} />
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-              <Pagination />
-            </>
-          )}
-          {listType === "records" &&
-            (recordType === "select" ? (
-              <>
-                <List>
-                  {records.value?.records.map((value) => {
-                    return (
-                      <ListItem key={value.name} disablePadding>
-                        <ListItemButton
-                          selected={record?.name === value.name}
-                          role={undefined}
-                          onClick={() => {
-                            resetState();
-                            setRecord(value);
-                          }}
-                          dense
+      <Stack flex={1} overflowY="scroll" fullWidth>
+        {listType === "projects" && (
+          <List>
+            {projects.value?.userProjects.map((value) => {
+              return (
+                <ListItem key={value.name} disablePadding>
+                  <ListItemButton
+                    role={undefined}
+                    onClick={() => {
+                      resetState();
+                      setProject(value);
+                    }}
+                    dense
+                  >
+                    <ListItemText id={value.name} primary={value.displayName} />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </List>
+        )}
+        {listType === "records" &&
+          (recordType === "select" ? (
+            <List>
+              {records.value?.records.map((value) => {
+                return (
+                  <ListItem key={value.name} disablePadding>
+                    <ListItemButton
+                      selected={record?.name === value.name}
+                      role={undefined}
+                      onClick={() => {
+                        resetState();
+                        setRecord(value);
+                      }}
+                      dense
+                    >
+                      <ListItemText id={value.name} primary={value.title} />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+            </List>
+          ) : (
+            <CreateRecordForm
+              parent={project?.name ?? ""}
+              onCreated={(targetRecord: Record) => {
+                setRecordType("select");
+                setFilterText(targetRecord.title);
+                setRecord(targetRecord);
+              }}
+              defaultRecordName={defaultRecordName}
+            />
+          ))}
+
+        {listType === "files" && (
+          <List>
+            {/* if filename end with '/' then it's a directory */}
+            {filesList.value?.files
+              .filter((ele) => !ele.name.endsWith("/"))
+              .map((value) => {
+                const supportedImport = checkFileSupportedFunc(value);
+
+                const repeatFile = files.find(
+                  (file) => file.file.sha256 === value.sha256 && file.file.name !== value.name,
+                );
+
+                return (
+                  <ListItem key={value.name} disablePadding>
+                    <ListItemButton
+                      disabled={!supportedImport || repeatFile != undefined}
+                      role={undefined}
+                      onClick={() => {
+                        const fileInfo = {
+                          file: value,
+                          projectDisplayName: project?.displayName ?? "",
+                          recordDisplayName: record?.title ?? "",
+                        };
+                        const newFiles = new Set(files);
+                        let fileExist = false;
+                        newFiles.forEach((file) => {
+                          if (file.file.name === fileInfo.file.name) {
+                            newFiles.delete(file);
+                            fileExist = true;
+                          }
+                        });
+
+                        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+                        if (!fileExist) {
+                          newFiles.add(fileInfo);
+                        }
+                        setFiles(Array.from(newFiles));
+                      }}
+                      dense
+                    >
+                      <ListItemIcon>
+                        <Checkbox
+                          edge="start"
+                          checked={files.some((file) => file.file.name === value.name)}
+                          disabled={!supportedImport}
+                          tabIndex={-1}
+                          disableRipple
+                          inputProps={{ "aria-labelledby": value.filename }}
+                        />
+                      </ListItemIcon>
+                      <ListItemText id={value.name} primary={value.filename.split("/").pop()} />
+                    </ListItemButton>
+                    {repeatFile != undefined && (
+                      <Typography color="error">
+                        <Tooltip
+                          title={t("duplicateFile", {
+                            ns: "cosPlaylist",
+                            filename: repeatFile.file.filename,
+                          })}
                         >
-                          <ListItemText id={value.name} primary={value.title} />
-                        </ListItemButton>
-                      </ListItem>
-                    );
-                  })}
-                </List>
-                <Pagination />
-              </>
-            ) : (
-              <CreateRecordForm
-                parent={project?.name ?? ""}
-                onCreated={(targetRecord: Record) => {
-                  setRecordType("select");
-                  setFilterText(targetRecord.title);
-                  setRecord(targetRecord);
-                }}
-              />
-            ))}
+                          <HelpOutlineIcon fontSize="small" />
+                        </Tooltip>
+                      </Typography>
+                    )}
+                  </ListItem>
+                );
+              })}
+          </List>
+        )}
 
-          {listType === "files" && (
-            <>
-              {/* <SearchBar /> */}
-              <List>
-                {/* if filename end with '/' then it's a directory */}
-                {filesList.value?.files
-                  .filter((ele) => !ele.name.endsWith("/"))
-                  .map((value) => {
-                    const supportedImport = checkFileSupportedFunc(value);
-
-                    const repeatFile = files.find(
-                      (file) => file.file.sha256 === value.sha256 && file.file.name !== value.name,
-                    );
-
-                    return (
-                      <ListItem key={value.name} disablePadding>
-                        <ListItemButton
-                          disabled={!supportedImport || repeatFile != undefined}
-                          role={undefined}
-                          onClick={() => {
-                            const fileInfo = {
-                              file: value,
-                              projectDisplayName: project?.displayName ?? "",
-                              recordDisplayName: record?.title ?? "",
-                            };
-                            const newFiles = new Set(files);
-                            let fileExist = false;
-                            newFiles.forEach((file) => {
-                              if (file.file.name === fileInfo.file.name) {
-                                newFiles.delete(file);
-                                fileExist = true;
-                              }
-                            });
-
-                            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-                            if (!fileExist) {
-                              newFiles.add(fileInfo);
-                            }
-                            setFiles(Array.from(newFiles));
-                          }}
-                          dense
-                        >
-                          <ListItemIcon>
-                            <Checkbox
-                              edge="start"
-                              checked={files.some((file) => file.file.name === value.name)}
-                              disabled={!supportedImport}
-                              tabIndex={-1}
-                              disableRipple
-                              inputProps={{ "aria-labelledby": value.filename }}
-                            />
-                          </ListItemIcon>
-                          <ListItemText id={value.name} primary={value.filename.split("/").pop()} />
-                        </ListItemButton>
-                        {repeatFile != undefined && (
-                          <Typography color="error">
-                            <Tooltip
-                              title={t("duplicateFile", {
-                                ns: "cosPlaylist",
-                                filename: repeatFile.file.filename,
-                              })}
-                            >
-                              <HelpOutlineIcon fontSize="small" />
-                            </Tooltip>
-                          </Typography>
-                        )}
-                      </ListItem>
-                    );
-                  })}
-              </List>
-              <Pagination />
-            </>
-          )}
-        </Stack>
-      )}
+        {!(listType === "records" && recordType === "create") && (
+          <TablePagination
+            component="div"
+            count={count}
+            page={page}
+            onPageChange={(_e, selectedPage) => {
+              setPage(selectedPage);
+            }}
+            rowsPerPageOptions={[20, 50, 100]}
+            rowsPerPage={pageSize}
+            onRowsPerPageChange={(e) => {
+              setPageSize(+e.target.value);
+            }}
+          />
+        )}
+      </Stack>
     </Stack>
   );
 }
