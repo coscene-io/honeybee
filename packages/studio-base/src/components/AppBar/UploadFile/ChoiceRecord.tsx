@@ -4,32 +4,25 @@
 import { Button, Dialog, Stack, Typography } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { makeStyles } from "tss-react/mui";
 
 import { ChooserComponent } from "@foxglove/studio-base/components/CoSceneChooser";
-
-const useStyles = makeStyles()(() => ({
-  dialog: {
-    // height: "80%",
-    // width: "50%",
-  },
-}));
 
 export function ChoiceRecordDialog({
   open,
   onClose,
   onConfirm,
+  defaultRecordName,
 }: {
   open: boolean;
   onClose: () => void;
   onConfirm: (recordName: string) => void;
+  defaultRecordName?: string;
 }): JSX.Element {
   const { t } = useTranslation("appBar");
   const [targetRecordName, setTargetRecordName] = useState<string | undefined>(undefined);
-  const { classes } = useStyles();
 
   return (
-    <Dialog open={open} onClose={onClose} className={classes.dialog}>
+    <Dialog open={open} onClose={onClose}>
       <Stack pt={2} px={2}>
         <Typography variant="h6">{t("uploadTo")}</Typography>
       </Stack>
@@ -43,6 +36,7 @@ export function ChoiceRecordDialog({
           files={[]}
           setFiles={() => {}}
           defaultRecordType="create"
+          defaultRecordName={defaultRecordName}
         />
         <Stack direction="row" justifyContent="flex-end" paddingX={2} paddingBottom={2} gap={1}>
           <Button variant="outlined" size="large" color="inherit" onClick={onClose}>

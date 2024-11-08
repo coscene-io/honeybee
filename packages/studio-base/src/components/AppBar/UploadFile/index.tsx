@@ -181,6 +181,7 @@ export function UploadFile(): JSX.Element {
             void handleUploadFile(currentFile, record);
           }
         }}
+        defaultRecordName={currentFile?.name}
       />
     </>
   );

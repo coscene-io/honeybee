@@ -18,12 +18,14 @@ const useStyles = makeStyles()(() => ({
 export function CreateRecordForm({
   parent,
   onCreated,
+  defaultRecordName,
 }: {
   parent: string;
   onCreated: (record: Record_es) => void;
+  defaultRecordName?: string;
 }): JSX.Element {
   const cosceneApi = useConsoleApi();
-  const [recordName, setRecordName] = useState("");
+  const [recordName, setRecordName] = useState(defaultRecordName ?? "");
   const [recordDescription, setRecordDescription] = useState("");
   const { classes } = useStyles();
 

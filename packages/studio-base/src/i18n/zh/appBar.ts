@@ -46,7 +46,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   uploadTo: "上传到",
   uploadingFile: "文件上传中",
   uploadFileFailed: "上传文件失败",
-  toCreateProject: "前往主站创建项目",
+  toCreateProject: "前往云端创建项目",
   createRecord: "创建记录",
   selectRecord: "选择现有记录",
   recordName: "记录名称",
