@@ -53,7 +53,6 @@ function makeElectronBuilderConfig(params) {
         },
       ],
       executableName: "coStudio",
-      prefix: "coStudio",
     },
     win: {
       target: [
