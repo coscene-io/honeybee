@@ -11,10 +11,12 @@ export function ChoiceRecordDialog({
   open,
   onClose,
   onConfirm,
+  defaultRecordName,
 }: {
   open: boolean;
   onClose: () => void;
   onConfirm: (recordName: string) => void;
+  defaultRecordName?: string;
 }): JSX.Element {
   const { t } = useTranslation("appBar");
   const [targetRecordName, setTargetRecordName] = useState<string | undefined>(undefined);
@@ -34,6 +36,7 @@ export function ChoiceRecordDialog({
           files={[]}
           setFiles={() => {}}
           defaultRecordType="create"
+          defaultRecordName={defaultRecordName}
         />
         <Stack direction="row" justifyContent="flex-end" paddingX={2} paddingBottom={2} gap={1}>
           <Button variant="outlined" size="large" color="inherit" onClick={onClose}>
