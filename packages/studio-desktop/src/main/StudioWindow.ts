@@ -77,7 +77,7 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
     frame: isLinux ? false : true,
     titleBarStyle: "hidden",
     trafficLightPosition: isMac ? { x: macTrafficLightInset, y: macTrafficLightInset } : undefined,
-    titleBarOverlay: getTitleBarOverlayOptions(),
+    titleBarOverlay: isWindows ? getTitleBarOverlayOptions() : false,
     webPreferences: {
       contextIsolation: true,
       sandbox: false, // Allow preload script to access Node builtins
