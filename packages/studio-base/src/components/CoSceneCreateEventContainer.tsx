@@ -397,9 +397,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
   const [createdTask, createTask] = useAsyncFn(
     async ({ targetEvent }: { targetEvent: Event }) => {
       const parent = projectName;
-      const record = recordName;
 
-      if (parent == undefined || record == undefined) {
+      if (parent == undefined) {
         toast.error("createTaskFailed");
         return;
       }
@@ -452,7 +451,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
       try {
         const newTask = await consoleApi.createTask({
           parent,
-          record,
           task: { ...task, description },
           event: targetEvent,
         });
@@ -465,7 +463,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
         enqueueSnackbar(t("createTaskFailed"), { variant: "error" });
       }
     },
-    [consoleApi, enqueueSnackbar, onClose, projectName, recordName, syncTask, t, task],
+    [consoleApi, enqueueSnackbar, onClose, projectName, syncTask, t, task],
   );
 
   // create moment ---------------------
