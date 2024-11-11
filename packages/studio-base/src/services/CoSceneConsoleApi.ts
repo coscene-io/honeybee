@@ -3,8 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Value, PartialMessage, Empty, FieldMask } from "@bufbuild/protobuf";
 import { Metric } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/common/metric_pb";
-import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/task_category_pb";
-import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/task_state_pb";
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
@@ -33,7 +31,6 @@ import {
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/task_pb";
 import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
 import {
   UpsertConfigMapRequest,
@@ -52,17 +49,15 @@ import {
   ListRecordsResponse,
   CreateRecordRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
-import { TaskService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/task_connect";
-import {
-  UpsertTaskRequest,
-  SyncTaskRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/task_pb";
 import { TicketSystemService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/ticket_system_connect";
 import {
   GetTicketSystemMetadataRequest,
   TicketSystemMetadata,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
+import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
+import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_connect";
 import {
   ListFilesRequest,
@@ -73,6 +68,11 @@ import {
   GenerateFileUploadUrlsRequest,
   GenerateFileUploadUrlsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
+import { TaskService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_connect";
+import {
+  UpsertTaskRequest,
+  SyncTaskRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
 import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resources/job_run_pb";
 import { JobRunService } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_connect";
 import { GetJobRunRequest } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_pb";
@@ -751,12 +751,10 @@ class CoSceneConsoleApi {
 
   public async createTask({
     parent,
-    record,
     task,
     event,
   }: {
     parent: string;
-    record: string;
     task: {
       title: string;
       description: string;
@@ -767,23 +765,28 @@ class CoSceneConsoleApi {
   }): Promise<Task> {
     const currentUser = await this.getUser("users/current");
     const newTask = new Task({
-      category: TaskCategoryEnum_TaskCategory.RECORD,
-      parent: {
-        value: record,
-        case: "record",
-      },
+      category: TaskCategoryEnum_TaskCategory.COMMON,
       title: task.title,
       description: task.description,
       state: TaskStateEnum_TaskState.PENDING,
       assignee: task.assignee,
       assigner: currentUser.name,
+      detail: {
+        case: "commonTaskDetail",
+        value: {
+          related: {
+            case: "event",
+            value: event.name,
+          },
+        },
+      },
     });
 
     const request = new UpsertTaskRequest({
       parent,
       task: newTask,
-      event,
     });
+    // create task does not have remove dumplicates logic, so we use upsert task to create task
     return await getPromiseClient(TaskService).upsertTask(request);
   }
 
