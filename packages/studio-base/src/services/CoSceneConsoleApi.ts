@@ -786,7 +786,7 @@ class CoSceneConsoleApi {
       parent,
       task: newTask,
     });
-    // create task does not have repeat dumplicates logic, so we use upsert task to create task
+    // create task does not have remove dumplicates logic, so we use upsert task to create task
     return await getPromiseClient(TaskService).upsertTask(request);
   }
 
