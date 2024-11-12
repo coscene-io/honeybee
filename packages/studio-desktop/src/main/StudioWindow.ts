@@ -26,7 +26,7 @@ import { palette } from "@foxglove/theme";
 
 import StudioAppUpdater from "./StudioAppUpdater";
 import getDevModeIcon from "./getDevModeIcon";
-import { simulateUserClick } from "./simulateUserClick";
+// import { simulateUserClick } from "./simulateUserClick";
 import { getTelemetrySettings } from "./telemetry";
 import { encodeRendererArg } from "../common/rendererArgs";
 import { LICHTBLICK_PRODUCT_NAME } from "../common/webpackDefines";
@@ -77,7 +77,7 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
     frame: isLinux ? false : true,
     titleBarStyle: "hidden",
     trafficLightPosition: isMac ? { x: macTrafficLightInset, y: macTrafficLightInset } : undefined,
-    titleBarOverlay: getTitleBarOverlayOptions(),
+    titleBarOverlay: isWindows ? getTitleBarOverlayOptions() : false,
     webPreferences: {
       contextIsolation: true,
       sandbox: false, // Allow preload script to access Node builtins
@@ -241,7 +241,7 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
 
   menuTemplate.push({
     role: "fileMenu",
-    label: t("desktopWindow:file"),
+    label: t("desktopWindow:windows"),
     id: "fileMenu",
     submenu: [
       {
@@ -251,31 +251,31 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
         },
       },
       { type: "separator" },
-      {
-        id: "open",
-        label: t("appBar:open"),
-        click: async () => {
-          await simulateUserClick(browserWindow);
-          sendNativeAppMenuEvent("open", browserWindow);
-        },
-      },
-      {
-        id: "openLocalFile",
-        label: t("appBar:openLocalFile"),
-        click: async () => {
-          await simulateUserClick(browserWindow);
-          sendNativeAppMenuEvent("open-file", browserWindow);
-        },
-      },
-      {
-        id: "openConnection",
-        label: t("appBar:openConnection"),
-        click: async () => {
-          await simulateUserClick(browserWindow);
-          sendNativeAppMenuEvent("open-connection", browserWindow);
-        },
-      },
-      { type: "separator" },
+      // {
+      //   id: "open",
+      //   label: t("appBar:open"),
+      //   click: async () => {
+      //     await simulateUserClick(browserWindow);
+      //     sendNativeAppMenuEvent("open", browserWindow);
+      //   },
+      // },
+      // {
+      //   id: "openLocalFile",
+      //   label: t("appBar:openLocalFile"),
+      //   click: async () => {
+      //     await simulateUserClick(browserWindow);
+      //     sendNativeAppMenuEvent("open-file", browserWindow);
+      //   },
+      // },
+      // {
+      //   id: "openConnection",
+      //   label: t("appBar:openConnection"),
+      //   click: async () => {
+      //     await simulateUserClick(browserWindow);
+      //     sendNativeAppMenuEvent("open-connection", browserWindow);
+      //   },
+      // },
+      // { type: "separator" },
       closeMenuItem,
     ],
   });
@@ -353,25 +353,25 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
     ],
   });
 
-  menuTemplate.push({
-    role: "help",
-    submenu: [
-      {
-        label: t("appBar:about"),
-        click: () => {
-          sendNativeAppMenuEvent("open-help-about", browserWindow);
-        },
-      },
-      { type: "separator" },
-      {
-        label: t("appBar:exploreSampleData"),
-        click: async () => {
-          await simulateUserClick(browserWindow);
-          sendNativeAppMenuEvent("open-demo", browserWindow);
-        },
-      },
-    ],
-  });
+  // menuTemplate.push({
+  //   role: "help",
+  //   submenu: [
+  //     {
+  //       label: t("appBar:about"),
+  //       click: () => {
+  //         sendNativeAppMenuEvent("open-help-about", browserWindow);
+  //       },
+  //     },
+  //     { type: "separator" },
+  // {
+  //   label: t("appBar:exploreSampleData"),
+  //   click: async () => {
+  //     await simulateUserClick(browserWindow);
+  //     sendNativeAppMenuEvent("open-demo", browserWindow);
+  //   },
+  // },
+  //   ],
+  // });
 
   return Menu.buildFromTemplate(menuTemplate);
 }
