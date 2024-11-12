@@ -14,4 +14,5 @@ export const desktopWindow: Partial<TypeOptions["resources"]["desktopWindow"]> =
   noSharedWorkers: "没有共享工作者",
   settings: "设置……",
   view: "视图",
+  windows: "窗口",
 };

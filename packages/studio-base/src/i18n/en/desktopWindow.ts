@@ -12,4 +12,5 @@ export const desktopWindow = {
   noSharedWorkers: "No Shared Workers",
   settings: "Settings…",
   view: "View",
+  windows: "Windows",
 };
