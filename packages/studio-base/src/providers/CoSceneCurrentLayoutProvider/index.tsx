@@ -33,18 +33,13 @@ import {
   StartDragPayload,
   SwapPanelPayload,
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useUserProfileStorage } from "@foxglove/studio-base/context/CoSceneUserProfileStorageContext";
-import {
-  gs75Layout,
-  gs50Layout,
-} from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/defaultLayoutGaussian";
-import { keenonDefaultLayout } from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/defaultLayoutKeenon";
 import panelsReducer from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/reducers";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
@@ -53,6 +48,8 @@ import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert
 const log = Logger.getLogger(__filename);
 
 export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
+
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 /**
  * Concrete implementation of CurrentLayoutContext.Provider which handles
@@ -66,6 +63,7 @@ export default function CoSceneCurrentLayoutProvider({
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
   const isMounted = useMountedState();
+  const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
 
   const [mosaicId] = useState(() => uuidv4());
 
@@ -261,10 +259,11 @@ export default function CoSceneCurrentLayoutProvider({
     };
   }, [enqueueSnackbar, layoutManager, setSelectedLayoutId]);
 
+  // http://localhost:8080/?ds=coscene-data-platform&ds.key=721rggf1VjThu7KzCK2bs
   // Load initial state by re-selecting the last selected layout from the UserProfile.
   useAsync(async () => {
     // Don't restore the layout if there's one specified in the app state url.
-    if (windowAppURLState()?.layoutId != undefined) {
+    if (windowAppURLState()?.layoutId != undefined || currentUserLoginStatus !== "alreadyLogin") {
       return;
     }
 
@@ -274,33 +273,8 @@ export default function CoSceneCurrentLayoutProvider({
     const layout = currentLayoutId ? await layoutManager.getLayout(currentLayoutId) : undefined;
     if (layout) {
       await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
-    } else {
-      if (APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon") {
-        const defaultLayout = await layoutManager.saveNewLayout({
-          name: "default",
-          data: keenonDefaultLayout,
-          permission: "CREATOR_WRITE",
-        });
-
-        await setSelectedLayoutId(defaultLayout.id);
-      } else if (APP_CONFIG.VITE_APP_PROJECT_ENV === "gaussian") {
-        const newGs50Layout = await layoutManager.saveNewLayout({
-          name: `50 layout`,
-          data: gs50Layout,
-          permission: "CREATOR_WRITE",
-        });
-
-        const newGs75Layout = await layoutManager.saveNewLayout({
-          name: `75 layout`,
-          data: gs75Layout,
-          permission: "CREATOR_WRITE",
-        });
-
-        await setSelectedLayoutId(newGs50Layout.id);
-        await setSelectedLayoutId(newGs75Layout.id);
-      }
     }
-  }, [getUserProfile, layoutManager, setSelectedLayoutId]);
+  }, [getUserProfile, layoutManager, setSelectedLayoutId, currentUserLoginStatus]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({
