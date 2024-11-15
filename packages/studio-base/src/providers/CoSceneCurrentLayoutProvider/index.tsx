@@ -259,7 +259,6 @@ export default function CoSceneCurrentLayoutProvider({
     };
   }, [enqueueSnackbar, layoutManager, setSelectedLayoutId]);
 
-  // http://localhost:8080/?ds=coscene-data-platform&ds.key=721rggf1VjThu7KzCK2bs
   // Load initial state by re-selecting the last selected layout from the UserProfile.
   useAsync(async () => {
     // Don't restore the layout if there's one specified in the app state url.
@@ -271,6 +270,7 @@ export default function CoSceneCurrentLayoutProvider({
     // or we can't load it then save and select a default layout.
     const { currentLayoutId } = await getUserProfile();
     const layout = currentLayoutId ? await layoutManager.getLayout(currentLayoutId) : undefined;
+    console.log("currentLayoutId", currentLayoutId);
     if (layout) {
       await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
     }
