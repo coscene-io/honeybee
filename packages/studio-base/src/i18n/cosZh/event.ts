@@ -75,4 +75,5 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   taskAssignee: "任务经办人",
   nameOnly: "仅名称",
   showDetail: "展示详情",
+  toView: "前往查看",
 };

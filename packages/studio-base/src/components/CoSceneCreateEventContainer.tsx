@@ -7,6 +7,7 @@ import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import EastIcon from "@mui/icons-material/East";
 import HelpIcon from "@mui/icons-material/Help";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
@@ -27,6 +28,7 @@ import {
   MenuItem,
   Tooltip,
   Autocomplete,
+  Link,
 } from "@mui/material";
 import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
@@ -51,6 +53,7 @@ import {
   fromDate,
 } from "@foxglove/rostime";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   BagFileInfo,
@@ -112,9 +115,27 @@ const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectEventMarks = (store: EventsStore) => store.eventMarks;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+
 const PIVOT_METRIC = "pivotMetric";
 const temperature = [...new Array(9).keys()].map((i) => `温度0${i + 1}`);
 const pivotMetricValues = ["General", "功率", "压力", "转速", "风速", ...temperature, "温度10"];
+
+function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.ReactNode {
+  const { t } = useTranslation("cosEvent");
+
+  return (
+    <Stack direction="row" alignItems="center" gap={1}>
+      <Typography>{t("createTaskSuccess")}</Typography>
+      <Link href={targetUrl} target="_blank" underline="hover" color="inherit">
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("toView")}
+          <EastIcon />
+        </Stack>
+      </Link>
+    </Stack>
+  );
+}
 
 export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX.Element {
   const { onClose } = props;
@@ -134,6 +155,10 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
   const { t } = useTranslation("cosEvent");
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
   const bagFiles = usePlaylist(selectBagFiles);
+
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+
   const timeMode = useMemo(() => {
     return localStorage.getItem("CoScene_timeMode") === "relativeTime"
       ? "relativeTime"
@@ -454,7 +479,13 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
           task: { ...task, description },
           event: targetEvent,
         });
-        enqueueSnackbar(t("createTaskSuccess"), { variant: "success" });
+        const targetUrl = `${window.location.origin}/${baseInfo.organizationSlug}/${
+          baseInfo.projectSlug
+        }/tasks/general-tasks/${newTask.name.split("/").pop()}`;
+
+        enqueueSnackbar(<CreateTaskSuccessToast targetUrl={targetUrl} />, {
+          variant: "success",
+        });
         if (task.needSyncTask) {
           await syncTask(newTask.name);
         }
@@ -463,7 +494,17 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
         enqueueSnackbar(t("createTaskFailed"), { variant: "error" });
       }
     },
-    [consoleApi, enqueueSnackbar, onClose, projectName, syncTask, t, task],
+    [
+      baseInfo.organizationSlug,
+      baseInfo.projectSlug,
+      consoleApi,
+      enqueueSnackbar,
+      onClose,
+      projectName,
+      syncTask,
+      t,
+      task,
+    ],
   );
 
   // create moment ---------------------

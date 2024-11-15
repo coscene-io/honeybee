@@ -74,4 +74,5 @@ export const cosEvent = {
   taskAssignee: "Task Assignee",
   nameOnly: "Name Only",
   showDetail: "Show Detail",
+  toView: "to view",
 };
