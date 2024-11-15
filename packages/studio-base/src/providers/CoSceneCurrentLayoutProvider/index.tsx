@@ -270,7 +270,6 @@ export default function CoSceneCurrentLayoutProvider({
     // or we can't load it then save and select a default layout.
     const { currentLayoutId } = await getUserProfile();
     const layout = currentLayoutId ? await layoutManager.getLayout(currentLayoutId) : undefined;
-    console.log("currentLayoutId", currentLayoutId);
     if (layout) {
       await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
     }
