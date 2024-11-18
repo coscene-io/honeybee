@@ -53,7 +53,7 @@ const FullSizeStack = () => {
   return (
     <div style={style}>
       <Stack alignItems="center" fullHeight fullWidth justifyContent="center" gap={3}>
-        <img src="/logo-with-text.svg" alt="logo" />
+        <img src="/viz/logo-with-text.svg" alt="logo" />
         <Typography align="center" color="#111827" variant="body1">
           {t("chromeVersionError")}
         </Typography>
