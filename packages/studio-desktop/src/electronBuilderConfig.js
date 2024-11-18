@@ -24,8 +24,8 @@ function makeElectronBuilderConfig(params) {
     icon: path.join(__dirname, "../resources/icon/icon.icns"),
     protocols: [
       {
-        name: "coScene",
-        schemes: ["coScene"],
+        name: "coscene",
+        schemes: ["coscene"],
       },
     ],
     linux: {
@@ -200,7 +200,7 @@ function makeElectronBuilderConfig(params) {
         "libxcb-dri3-0",
       ],
       // after install script
-      // afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
+      afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
     },
     snap: {
       confinement: "strict",

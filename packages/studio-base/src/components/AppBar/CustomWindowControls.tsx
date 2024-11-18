@@ -26,9 +26,17 @@ export type CustomWindowControlsProps = {
 
 const useStyles = makeStyles()((theme) => ({
   closeButton: {
+    color: theme.palette.secondary.main,
     ":hover": {
       backgroundColor: theme.palette.error.main,
+      color: theme.palette.error.contrastText,
     },
+  },
+  minimizeIcon: {
+    color: theme.palette.secondary.main,
+  },
+  maximizeIcon: {
+    color: theme.palette.secondary.main,
   },
 }));
 
@@ -47,6 +55,7 @@ export function CustomWindowControls({
         color="inherit"
         onClick={onMinimizeWindow}
         data-testid="win-minimize"
+        className={classes.minimizeIcon}
       >
         <MinimizeIcon fontSize="inherit" color="inherit" />
       </IconButton>
@@ -56,6 +65,7 @@ export function CustomWindowControls({
         color="inherit"
         onClick={isMaximized ? onUnmaximizeWindow : onMaximizeWindow}
         data-testid="win-maximize"
+        className={classes.maximizeIcon}
       >
         {isMaximized ? (
           <FilterNoneIcon fontSize="inherit" color="inherit" />
