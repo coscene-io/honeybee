@@ -35,6 +35,45 @@ const BannerContainer = (props: PropsWithChildren<{ isDismissable: boolean }>) =
   return <div style={style}>{children}</div>;
 };
 
+const FullSizeStack = () => {
+  const { t } = useTranslation("cosVersionBanner");
+
+  const style: CSSProperties = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "#fff7ed",
+  };
+
+  return (
+    <div style={style}>
+      <Stack alignItems="center" fullHeight fullWidth justifyContent="center" gap={3}>
+        <img src="/logo-with-text.svg" alt="logo" />
+        <Typography align="center" color="#111827" variant="body1">
+          {t("chromeVersionError")}
+        </Typography>
+
+        <Button
+          href="https://www.google.cn/chrome/"
+          target="_blank"
+          rel="noreferrer"
+          variant="contained"
+          style={{
+            textTransform: "none",
+          }}
+        >
+          {t("download")} Chrome
+        </Button>
+      </Stack>
+    </div>
+  );
+};
+
 const VersionBanner = function ({
   isChrome,
   currentVersion,
@@ -45,11 +84,19 @@ const VersionBanner = function ({
   isDismissable: boolean;
 }): ReactElement | ReactNull {
   const { i18n, t } = useTranslation("cosVersionBanner");
+
   const muiTheme = useMemo(() => createMuiTheme("dark", i18n.language), [i18n.language]);
-  if (currentVersion >= MINIMUM_CHROME_VERSION) {
+  // high version chrome
+  if (isChrome && currentVersion >= MINIMUM_CHROME_VERSION) {
     return ReactNull;
   }
 
+  // low version chrome
+  if (isChrome) {
+    return <FullSizeStack />;
+  }
+
+  // other browser
   return (
     <MuiThemeProvider theme={muiTheme}>
       <BannerContainer isDismissable={isDismissable}>
@@ -64,7 +111,7 @@ const VersionBanner = function ({
           <Stack direction="row" alignItems="center" gap={1}>
             <WarningIcon color="warning" />
             <Typography align="center" color="#111827" variant="body1">
-              {isChrome ? t("chromeVersionError") : t("browserVersionError")}
+              {t("browserVersionError")}
             </Typography>
           </Stack>
 
