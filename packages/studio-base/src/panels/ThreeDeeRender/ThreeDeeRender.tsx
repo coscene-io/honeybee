@@ -92,6 +92,7 @@ export function ThreeDeeRender(props: {
     saveState,
     unstable_fetchAsset: fetchAsset,
     unstable_setMessagePathDropConfig: setMessagePathDropConfig,
+    seekPlayback,
   } = context;
   const analytics = useAnalytics();
 
@@ -201,10 +202,29 @@ export function ThreeDeeRender(props: {
   const [currentFrameMessages, setCurrentFrameMessages] = useState<
     ReadonlyArray<MessageEvent> | undefined
   >();
+  /**
+   * message pipeline distributes currentTime to all panels
+   * every panel uses this to sync playback
+   */
   const [currentTime, setCurrentTime] = useState<Time | undefined>();
+  /**
+   * map info only send in first frame, if close and re-open panel,
+   * map will be undefined, so we need to request topics again
+   * if we seek to any time, map will be resent again
+   * so we need seek to currentTime at init threeDeeRender
+   * this state is used to avoid seeking twice
+   */
+  const [isAlreadyRequestedMap, setIsAlreadyRequestedMap] = useState<boolean>(false);
   const [didSeek, setDidSeek] = useState<boolean>(false);
   const [sharedPanelState, setSharedPanelState] = useState<undefined | Shared3DPanelState>();
   const [allFrames, setAllFrames] = useState<readonly MessageEvent[] | undefined>(undefined);
+
+  useEffect(() => {
+    if (seekPlayback && currentTime && !isAlreadyRequestedMap) {
+      seekPlayback(currentTime);
+      setIsAlreadyRequestedMap(true);
+    }
+  }, [seekPlayback, isAlreadyRequestedMap, currentTime]);
 
   const renderRef = useRef({ needsRender: false });
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
