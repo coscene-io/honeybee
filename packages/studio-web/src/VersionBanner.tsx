@@ -35,9 +35,8 @@ const BannerContainer = (props: PropsWithChildren<{ isDismissable: boolean }>) =
   return <div style={style}>{children}</div>;
 };
 
+// if chrome version is too low, in this case, i18next cannot be init, so we hard code the text
 const FullSizeStack = () => {
-  const { t } = useTranslation("cosVersionBanner");
-
   const style: CSSProperties = {
     position: "absolute",
     top: 0,
@@ -50,12 +49,17 @@ const FullSizeStack = () => {
     backgroundColor: "#fff7ed",
   };
 
+  const browserLang =
+    navigator.language || (navigator as unknown as { userLanguage: string }).userLanguage;
+
   return (
     <div style={style}>
       <Stack alignItems="center" fullHeight fullWidth justifyContent="center" gap={3}>
         <img src="/viz/logo-with-text.svg" alt="logo" />
         <Typography align="center" color="#111827" variant="body1">
-          {t("chromeVersionError")}
+          {browserLang === "zh-CN"
+            ? "当前使用的 Chrome 版本过低，建议升级至最新版本以获得最佳体验"
+            : "You’re using an outdated version of Chrome. Please upgrade to the latest version for the best experience."}
         </Typography>
 
         <Button
@@ -67,7 +71,7 @@ const FullSizeStack = () => {
             textTransform: "none",
           }}
         >
-          {t("download")} Chrome
+          {browserLang === "zh-CN" ? "下载Chrome" : "Download Chrome"}
         </Button>
       </Stack>
     </div>
