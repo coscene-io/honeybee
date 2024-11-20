@@ -89,8 +89,11 @@ jobs:
           bucket: coscene-download
           assets: |
             dist/coStudio-${{ env.new_version }}-linux-amd64.deb:/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
+            dist/coStudio-${{ env.new_version }}-linux-arm64.deb:/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-arm64.deb
             dist/coStudio-${{ env.new_version }}-mac-universal.dmg:/coStudio/dmg/${{ env.new_version }}/coStudio-${{ env.new_version }}-mac-universal.dmg
             dist/coStudio-${{ env.new_version }}-win.exe:/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
+            dist/coStudio-${{ env.new_version }}-win-arm64.exe:/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win-arm64.exe
+            dist/coStudio-${{ env.new_version }}-win-x64.exe:/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win-x64.exe
 
       # - name: Create a pull request
       #   id: cpr
@@ -114,7 +117,16 @@ jobs:
               Version: ${{ env.new_version }}
               Is prerelease: ${{ env.is_prerelease }}
               Download:
-                mac: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/dmg/${{ env.new_version }}/coStudio-${{ env.new_version }}-mac-universal.dmg
-                win: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
-                linux: http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
+                mac:
+                  http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/dmg/${{ env.new_version }}/coStudio-${{ env.new_version }}-mac-universal.dmg
+
+                win:
+                  http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
+                  http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win-arm64.exe
+                  http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win-x64.exe
+
+                linux:
+                  http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
+                  http://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-arm64.deb
+
               Release notes: https://github.com/coscene-io/honeybee/releases
