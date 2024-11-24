@@ -210,7 +210,15 @@ class CachingIterableSource<MessageType = unknown>
           // update the last time this block was accessed
           block.lastAccess = Date.now();
 
-          yield cachedItem[1];
+          const test = cachedItem[1];
+
+          // for await (const result of test) {
+          if (test.type === "message-event" && test.msgEvent.topic === "/map") {
+            // console.log("topic test cache.enqueue", test.msgEvent);
+            console.log("topic test yeld 3");
+          }
+          // }
+          yield test;
         }
 
         // We've read all the messages cached for the block, this means our next read can start
@@ -346,6 +354,9 @@ class CachingIterableSource<MessageType = unknown>
         // Store the latest message in pending results and flush to the block when time moves forward
         pendingIterResults.push([lastTime, iterResult]);
 
+        if (iterResult.type === "message-event" && iterResult.msgEvent.topic === "/map") {
+          console.log("topic test yeld 4");
+        }
         yield iterResult;
       }
 

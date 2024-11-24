@@ -114,6 +114,15 @@ type IterablePlayerState =
   | "close"
   | "reset-playback-iterator";
 
+function consoleTest(messageEvents: MessageEvent[], name: string) {
+  // console.log(`topic test ${name}`, messageEvents);
+  for (const messageEvent of messageEvents) {
+    if (messageEvent.topic === "/map") {
+      console.log(`topic test ${name}`, messageEvent);
+    }
+  }
+}
+
 /**
  * IterablePlayer implements the Player interface for IIterableSource instances.
  *
@@ -756,6 +765,8 @@ export class CoSceneIterablePlayer implements Player {
 
     this.#currentTime = stopTime;
     this.#messages = messageEvents;
+    // console.log("topic test messages 3", messageEvents);
+    consoleTest(messageEvents, "messages 3");
     this.#presence = PlayerPresence.PRESENT;
     this.#queueEmitState();
     this.#setState("idle");
@@ -808,6 +819,8 @@ export class CoSceneIterablePlayer implements Player {
       }
 
       this.#messages = messages;
+      consoleTest(messages, "messages 4");
+
       this.#currentTime = targetTime;
       this.#lastSeekEmitTime = Date.now();
       this.#presence = PlayerPresence.PRESENT;
@@ -859,6 +872,14 @@ export class CoSceneIterablePlayer implements Player {
     // After we emit the messages we clear the outgoing message array so we do not emit the messages again
     // Use a stable EMPTY_ARRAY so we don't keep emitting a new messages reference as if messages have changed
     this.#messages = EMPTY_ARRAY;
+
+    for (const messageEvent of messages) {
+      // Save the last message on every topic to send the last message
+      // to newly subscribed panels.
+      if (messageEvent.topic === "/map") {
+        console.log("topic test fuck", messageEvent);
+      }
+    }
 
     let activeData: PlayerStateActiveData | undefined;
     if (this.#start && this.#end && this.#currentTime) {
@@ -972,12 +993,17 @@ export class CoSceneIterablePlayer implements Player {
 
         this.#currentTime = end;
         this.#messages = msgEvents;
+        consoleTest(msgEvents, "messages 1");
         this.#queueEmitState();
 
         if (this.#untilTime && compare(this.#currentTime, this.#untilTime) >= 0) {
           this.pausePlayback();
         }
         return;
+      }
+
+      if (this.#lastMessageEvent.topic === "/map") {
+        console.log("topic test push lastMessageEvent ", this.#lastMessageEvent);
       }
 
       msgEvents.push(this.#lastMessageEvent);
@@ -1022,6 +1048,10 @@ export class CoSceneIterablePlayer implements Player {
             break;
           }
 
+          if (iterResult.msgEvent.topic === "/map") {
+            console.log("topic test push 1", iterResult.msgEvent);
+          }
+
           msgEvents.push(iterResult.msgEvent);
         }
       }
@@ -1043,6 +1073,7 @@ export class CoSceneIterablePlayer implements Player {
 
     this.#currentTime = end;
     this.#messages = msgEvents;
+    consoleTest(msgEvents, "messages 2");
     this.#queueEmitState();
 
     // This tick has reached the end of the untilTime so we go back to pause

@@ -114,6 +114,7 @@ class BufferedIterableSource<MessageType = unknown>
 
     log.debug("Starting producer");
 
+    console.log("topic test cache.clear");
     // Clear the cache and start producing into an empty array, the consumer removes elements from
     // the start of the array.
     this.#cache.clear();
@@ -171,6 +172,10 @@ class BufferedIterableSource<MessageType = unknown>
           continue;
         }
 
+        if (result.type === "message-event" && result.msgEvent.topic === "/map") {
+          console.log("topic test cache.enqueue", result.msgEvent);
+        }
+
         this.#cache.enqueue(result);
 
         // We tend to expect message revents (not problems) so optimistically grab the receive time
@@ -222,6 +227,7 @@ class BufferedIterableSource<MessageType = unknown>
   /** Calls stopProducer, clears cache, and terminates sources */
   public async terminate(): Promise<void> {
     await this.stopProducer();
+    console.log("topic test cache.clear 2");
     this.#cache.clear();
     this.#source.removeAllListeners("loadedRangesChange");
     await this.#source.terminate();
@@ -300,11 +306,19 @@ class BufferedIterableSource<MessageType = unknown>
           // currently reading
           if (item.type === "message-event") {
             self.#readHead = item.msgEvent.receiveTime;
+            // console.log("topic test push 1", item.msgEvent);
+            if (item.msgEvent.topic === "/map") {
+              console.log("topic test buffer iterable source", item.msgEvent);
+            }
           }
 
           // Notify the producer thread that it can load more data. Since our producer and consumer are on the same _thread_
           // this notification is picked up on the next tick.
           self.#writeSignal.notifyAll();
+
+          // if (item.type === "message-event" && item.msgEvent.topic === "/map") {
+          //   console.log("topic test push 1", item.msgEvent);
+          // }
 
           yield item;
         }

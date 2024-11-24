@@ -272,6 +272,9 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       for await (const messages of stream) {
         for (const message of messages) {
+          if (message.topic === "/map") {
+            console.log("topic test yeld source message", message);
+          }
           yield { type: "message-event", msgEvent: message };
         }
       }
@@ -340,6 +343,8 @@ export class DataPlatformIterableSource implements IIterableSource {
 
     streamByParams.replayPolicy = "lastPerChannel";
     streamByParams.replayLookbackSeconds = 30 * 60;
+
+    console.log("topic test getBackfillMessages");
 
     const messages: MessageEvent[] = [];
     for await (const block of streamMessages({

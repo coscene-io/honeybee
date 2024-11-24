@@ -324,6 +324,9 @@ function updateSubscriberAction(
     // they won't get this old stale message when they resubscribe again before getting the message
     // at the current time frome seek-backfill.
     if (!subscriberIdsByTopic.has(topic)) {
+      if (topic === "/map") {
+        console.log("topic test rm lastMessageEventByTopic", topic);
+      }
       lastMessageEventByTopic.delete(topic);
     }
   }
@@ -332,6 +335,11 @@ function updateSubscriberAction(
   const messagesForSubscriber = [];
   for (const topic of newTopicsForId) {
     const msgEvent = lastMessageEventByTopic.get(topic);
+
+    if (topic === "/map") {
+      console.log("topic test lastMessageEventByTopic", msgEvent);
+    }
+
     if (msgEvent) {
       messagesForSubscriber.push(msgEvent);
     }
@@ -389,6 +397,10 @@ function updatePlayerStateAction(
       // Save the last message on every topic to send the last message
       // to newly subscribed panels.
       lastMessageEventByTopic.set(messageEvent.topic, messageEvent);
+
+      if (messageEvent.topic === "/map") {
+        console.log("topic test set lastMessageEventByTopic", messageEvent);
+      }
 
       seenTopics.add(messageEvent.topic);
       const ids = subscriberIdsByTopic.get(messageEvent.topic);

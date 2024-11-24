@@ -136,6 +136,9 @@ export async function* streamMessages({
             info.schemaEncoding === schema.encoding &&
             _.isEqual(info.schema, schema.data)
           ) {
+            if (record.topic === "/map") {
+              console.log("end of world channelInfoById.set");
+            }
             channelInfoById.set(record.id, {
               channel: record,
               parsedChannel: info.parsedChannel,
@@ -161,6 +164,9 @@ export async function* streamMessages({
 
         parsedChannelsByTopic.set(record.topic, parsedChannels);
 
+        if (record.topic === "/map") {
+          console.log("end of world channelInfoById.set 2");
+        }
         channelInfoById.set(record.id, {
           channel: record,
           parsedChannel,
@@ -181,6 +187,11 @@ export async function* streamMessages({
         }
         const receiveTime = fromNanoSec(record.logTime);
         totalMessages++;
+
+        if (info.channel.topic === "/map") {
+          console.log("end of world", info, record);
+        }
+
         messages.push({
           topic: info.channel.topic,
           receiveTime,
@@ -247,9 +258,18 @@ export async function* streamMessages({
             normalReturn = true;
             break;
           }
+
+          if (record.type === "Channel" && record.topic === "/map") {
+            console.log("end of world test 111", record);
+          }
           processRecord(record);
         }
         if (messages.length > 0) {
+          for (const message of messages) {
+            if (message.topic === "/map") {
+              console.log("topic test yeld streamMessages 1", message);
+            }
+          }
           yield messages;
           messages = [];
         }
