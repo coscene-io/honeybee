@@ -82,6 +82,7 @@ export class DataPlatformIterableSource implements IIterableSource {
   #coverage: CoverageResponse[] = [];
 
   public constructor(options: DataPlatformIterableSourceOptions) {
+    console.log("DataPlatformIterableSource", options);
     this.#consoleApi = options.api;
     this.#params = options.params;
   }
@@ -128,6 +129,9 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       let parsedChannels = this.#parsedChannelsByTopic.get(topic);
       if (!parsedChannels) {
+        if (topic === "/map") {
+          console.log("DataPlatformIterableSource, setTopicCatch", topic);
+        }
         parsedChannels = [];
         this.#parsedChannelsByTopic.set(topic, parsedChannels);
       }
@@ -274,6 +278,14 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       for await (const messages of stream) {
         for (const message of messages) {
+          if (message.topic === "/map") {
+            console.log("DataPlatformIterableSource, messageIterator, message", message);
+
+            console.log(
+              "DataPlatformIterableSource parsedChannelsByTopic",
+              this.#parsedChannelsByTopic.get("/map"),
+            );
+          }
           yield { type: "message-event", msgEvent: message };
         }
       }
