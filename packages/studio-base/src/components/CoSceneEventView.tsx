@@ -420,10 +420,12 @@ function EventViewComponent(params: {
           )}
         </div>
 
-        <Stack flexDirection="row" gap={1}>
-          <Stack>{t("rule")}:</Stack>
-          {ruleNavAddress}
-        </Stack>
+        {event.event.rule != undefined && (
+          <Stack flexDirection="row" gap={1}>
+            <Stack>{t("rule")}:</Stack>
+            {ruleNavAddress}
+          </Stack>
+        )}
 
         <Stack flexDirection="row" gap={1}>
           <Stack>{t("creater")}:</Stack>
