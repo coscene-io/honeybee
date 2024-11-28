@@ -18,10 +18,12 @@ import {
   MenuItem,
   SelectChangeEvent,
 } from "@mui/material";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
+import Logger from "@foxglove/log";
 import { fromDate, add, fromSec } from "@foxglove/rostime";
 import { positionEventMark } from "@foxglove/studio-base/components/CoSceneEventsSyncAdapter";
 import {
@@ -29,6 +31,7 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   EventsStore,
   TimelinePositionedEvent,
@@ -43,6 +46,8 @@ import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 import { EventView } from "./CoSceneEventView";
+
+const log = Logger.getLogger(__filename);
 
 const useStyles = makeStyles()((theme) => ({
   appBar: {
@@ -123,6 +128,8 @@ const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.looped
 const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
 
 export function EventsList(): JSX.Element {
+  const consoleApi = useConsoleApi();
+
   const events = useEvents(selectEvents);
   const selectedEventId = useEvents(selectSelectedEventId);
   const selectEvent = useEvents(selectSelectEvent);
@@ -211,6 +218,16 @@ export function EventsList(): JSX.Element {
   );
 
   const { classes } = useStyles();
+
+  const [diagnosisRuleData, getDiagnosisRule] = useAsyncFn(async () => {
+    return await consoleApi.getDiagnosisRule();
+  }, [consoleApi]);
+
+  useEffect(() => {
+    getDiagnosisRule().catch((error) => {
+      log.error(error);
+    });
+  }, [getDiagnosisRule]);
 
   return (
     <Stack className={classes.root} fullHeight>
@@ -316,6 +333,7 @@ export function EventsList(): JSX.Element {
                         event={event}
                         filter={filter}
                         variant={momentVariant}
+                        diagnosisRuleData={diagnosisRuleData.value}
                         // When hovering within the event list only show hover state on directly
                         // hovered event.
                         isHovered={
