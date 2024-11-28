@@ -9,7 +9,7 @@
     "@foxglove/tsconfig": "2.0.0",
     "@foxglove/ws-protocol": "24.44.0",
     "@types/ws": "^8",
-    "electron": "25.8.4",
+    "electron": "33.2.0",
     "playwright": "1.37.1",
     "webpack": "5.93.0",
     "ws": "8.18.0"

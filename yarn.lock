@@ -4827,7 +4827,7 @@ __metadata:
     builder-util: "*"
     clean-webpack-plugin: 4.0.0
     copy-webpack-plugin: 11.0.0
-    electron: 25.8.4
+    electron: 33.2.0
     electron-builder: 24.13.3
     electron-devtools-installer: 3.2.0
     electron-squirrel-startup: 1.0.0
@@ -13036,7 +13036,7 @@ __metadata:
     "@foxglove/tsconfig": 2.0.0
     "@foxglove/ws-protocol": 24.44.0
     "@types/ws": ^8
-    electron: 25.8.4
+    electron: 33.2.0
     playwright: 1.37.1
     webpack: 5.93.0
     ws: 8.18.0
@@ -13537,16 +13537,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"electron@npm:25.8.4":
-  version: 25.8.4
-  resolution: "electron@npm:25.8.4"
+"electron@npm:33.2.0":
+  version: 33.2.0
+  resolution: "electron@npm:33.2.0"
   dependencies:
     "@electron/get": ^2.0.0
-    "@types/node": ^18.11.18
+    "@types/node": ^20.9.0
     extract-zip: ^2.0.1
   bin:
     electron: cli.js
-  checksum: 1e021cf83747d73d1629027a82a344ed22c9256309f712cf785eec622a9112c53936209a74ef8de546c28fa9961e831d03dc66a8115ce3835c7616dc7a6d2293
+  checksum: 4feacc8923fe4ab45da45d34823f949231da425c83ea2db2e483c2531f0320a1279a5b65913f447e145ab0a3f4e190bc192ed3a63ebe17a06347156e2ec52081
   languageName: node
   linkType: hard
 
