@@ -58,17 +58,11 @@ jobs:
       - name: Enable corepack
         run: corepack enable yarn
 
-      - name: Get the version
-        id: get_version
-        run: |
-          echo "new_version=${{ github.event_name == 'release' && github.ref_name || github.event.inputs.version }}" >> $GITHUB_ENV
-          echo "is_prerelease=${{ github.event.release.prerelease }}" >> $GITHUB_ENV
-
       - name: Install dependencies
         run: yarn install --immutable
 
       - name: \[bot\] Update version in package.json
-        run: yarn run version:all ${{ env.new_version }}
+        run: yarn run version:all ${{ github.event.inputs.version }}
 
       - name: Build prod files
         run: |
@@ -95,6 +89,10 @@ jobs:
           path: dist/
           merge-multiple: true
 
+      - name: echo dist
+        run: |
+          ls -l dist/
+
       - name: Upload to OSS
         uses: tvrcgo/oss-action@master
         with:
@@ -103,12 +101,12 @@ jobs:
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
-            dist/coStudio-${{ env.new_version }}-linux-amd64.deb:/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
-            dist/coStudio-${{ env.new_version }}-linux-arm64.deb:/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-arm64.deb
-            dist/coStudio-${{ env.new_version }}-mac-universal.dmg:/coStudio/dmg/${{ env.new_version }}/coStudio-${{ env.new_version }}-mac-universal.dmg
-            dist/coStudio-${{ env.new_version }}-win.exe:/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
-            dist/coStudio-${{ env.new_version }}-win-arm64.exe:/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win-arm64.exe
-            dist/coStudio-${{ env.new_version }}-win-x64.exe:/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win-x64.exe
+            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio/deb/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio/deb/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+            dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg:/coStudio/dmg/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
+            dist/coStudio-${{ github.event.inputs.version }}-win.exe:/coStudio/exe/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-win.exe
+            dist/coStudio-${{ github.event.inputs.version }}-win-arm64.exe:/coStudio/exe/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
+            dist/coStudio-${{ github.event.inputs.version }}-win-x64.exe:/coStudio/exe/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-win-x64.exe
 
       # - name: Notification to Feishu
       #   id: feishu
@@ -119,19 +117,19 @@ jobs:
       #     content: |
       #       text: |
       #         A new version of coScene Studio has been published.
-      #         Version: ${{ env.new_version }}
+      #         Version: ${{ github.event.inputs.version }}
       #         Is prerelease: ${{ env.is_prerelease }}
       #         Download:
       #           mac:
-      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/dmg/${{ env.new_version }}/coStudio-${{ env.new_version }}-mac-universal.dmg
+      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/dmg/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
 
       #           win:
-      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win.exe
-      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win-arm64.exe
-      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ env.new_version }}/coStudio-${{ env.new_version }}-win-x64.exe
+      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-win.exe
+      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
+      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/exe/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-win-x64.exe
 
       #           linux:
-      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-amd64.deb
-      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ env.new_version }}/coStudio-${{ env.new_version }}-linux-arm64.deb
+      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+      #             https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/deb/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
 
       #         Release notes: https://github.com/coscene-io/honeybee/releases
