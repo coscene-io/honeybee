@@ -145,7 +145,7 @@ function TeleopPanel(props: TeleopPanelProps): JSX.Element {
     }
 
     setConfig((previous) => {
-      const newConfig = { ...previous };
+      const newConfig = _.cloneDeep(previous);
       _.set(newConfig, action.payload.path.slice(1), action.payload.value);
       return newConfig;
     });
