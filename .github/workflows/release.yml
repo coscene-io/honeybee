@@ -101,7 +101,6 @@ jobs:
             text: |
             A new version of coScene Studio has been published.
             Version: ${{ github.event.inputs.version }}
-            Is prerelease: ${{ env.is_prerelease }}
             Download:
               mac:
                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/dmg/${{ github.event.inputs.version }}/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
