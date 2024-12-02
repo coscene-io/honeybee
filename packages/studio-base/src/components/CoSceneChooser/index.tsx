@@ -288,7 +288,7 @@ export function ChooserComponent({
   defaultRecordType = "select",
   defaultRecordName,
 }: {
-  setTargetRecordName: (recordName?: Record) => void;
+  setTargetRecordName: (recordName?: Record, recordType?: "create" | "select") => void;
   files: SelectedFile[];
   setFiles: (files: SelectedFile[]) => void;
   type: "record" | "files";
@@ -323,7 +323,7 @@ export function ChooserComponent({
   const [debounceFilesFilter] = useDebounce(filesFilter, 500);
 
   useEffect(() => {
-    setTargetRecordName(record);
+    setTargetRecordName(record, "select");
   }, [record, setTargetRecordName]);
 
   const resetState = () => {
@@ -555,9 +555,7 @@ export function ChooserComponent({
             <CreateRecordForm
               parent={project?.name ?? ""}
               onCreated={(targetRecord: Record) => {
-                setRecordType("select");
-                setFilterText(targetRecord.title);
-                setRecord(targetRecord);
+                setTargetRecordName(targetRecord, "create");
               }}
               defaultRecordName={defaultRecordName}
             />

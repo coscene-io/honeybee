@@ -115,11 +115,14 @@ export function UploadFile(): JSX.Element {
       <Tooltip
         describeChild
         title={
-          // "test"
           loginStatus !== "alreadyLogin" ? (
             t("loginFirst")
           ) : Object.keys(currentFileStatus ?? {}).length > 0 ? (
-            <UploadingFileList />
+            <UploadingFileList
+              handleReUpload={() => {
+                setOpenChooser(true);
+              }}
+            />
           ) : (
             t("clickToUpload")
           )
@@ -132,7 +135,12 @@ export function UploadFile(): JSX.Element {
               (currentFileStatus == undefined || currentFileStatus.status === "failed") &&
               loginStatus === "alreadyLogin"
             ) {
-              setOpenChooser(true);
+              if (
+                currentFile != undefined &&
+                (currentFileStatus == undefined || currentFileStatus.status === "failed")
+              ) {
+                setOpenChooser(true);
+              }
             }
           }}
         >
@@ -174,10 +182,7 @@ export function UploadFile(): JSX.Element {
           setOpenChooser(false);
         }}
         onConfirm={(record) => {
-          if (
-            currentFile != undefined &&
-            (currentFileStatus == undefined || currentFileStatus.status === "failed")
-          ) {
+          if (currentFile != undefined) {
             void handleUploadFile(currentFile, record);
           }
         }}

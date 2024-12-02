@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import ReplayIcon from "@mui/icons-material/Replay";
 import { IconButton, LinearProgress, List, ListItem, Stack, Tooltip } from "@mui/material";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -21,7 +22,7 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-export function UploadingFileList(): JSX.Element {
+export function UploadingFileList({ handleReUpload }: { handleReUpload: () => void }): JSX.Element {
   const uploadingFiles = useUploadFiles(selectUploadingFiles);
   const currentUser = useCurrentUser(selectCurrentUser);
 
@@ -50,46 +51,69 @@ export function UploadingFileList(): JSX.Element {
             </Stack>
             <Stack direction="row" alignItems="center" gap={1}>
               <Tooltip title={t("copyRecordLink")}>
-                <IconButton
-                  onClick={async () => {
-                    const orgSlug = currentUser?.orgSlug;
-                    const targetSite = currentUser?.targetSite;
+                <span>
+                  <IconButton
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const orgSlug = currentUser?.orgSlug;
+                      const targetSite = currentUser?.targetSite;
 
-                    const projectId = status.target.recordName
-                      .split("/projects/")[1]
-                      ?.split("/")[0];
-                    const recordId = status.target.recordName.split("/records/")[1]?.split("/")[0];
+                      const projectId = status.target.recordName
+                        .split("/projects/")[1]
+                        ?.split("/")[0];
+                      const recordId = status.target.recordName
+                        .split("/records/")[1]
+                        ?.split("/")[0];
 
-                    await navigator.clipboard.writeText(
-                      `${targetSite}/${orgSlug}/${projectId}/records/${recordId}`,
-                    );
-                    toast.success(t("copyRecordLinkSuccess"));
-                  }}
-                  disabled={status.status !== "succeeded"}
-                >
-                  <ContentCopyIcon />
-                </IconButton>
+                      await navigator.clipboard.writeText(
+                        `${targetSite}/${orgSlug}/${projectId}/records/${recordId}`,
+                      );
+                      toast.success(t("copyRecordLinkSuccess"));
+                    }}
+                    disabled={status.status !== "succeeded"}
+                  >
+                    <ContentCopyIcon />
+                  </IconButton>
+                </span>
               </Tooltip>
               <Tooltip title={t("openInBrowser")}>
-                <IconButton
-                  onClick={async () => {
-                    const orgSlug = currentUser?.orgSlug;
-                    const targetSite = currentUser?.targetSite;
+                <span>
+                  <IconButton
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const orgSlug = currentUser?.orgSlug;
+                      const targetSite = currentUser?.targetSite;
 
-                    const projectId = status.target.recordName
-                      .split("/projects/")[1]
-                      ?.split("/")[0];
-                    const recordId = status.target.recordName.split("/records/")[1]?.split("/")[0];
+                      const projectId = status.target.recordName
+                        .split("/projects/")[1]
+                        ?.split("/")[0];
+                      const recordId = status.target.recordName
+                        .split("/records/")[1]
+                        ?.split("/")[0];
 
-                    window.open(
-                      `${targetSite}/${orgSlug}/${projectId}/records/${recordId}`,
-                      "_blank",
-                    );
-                  }}
-                  disabled={status.status !== "succeeded"}
-                >
-                  <OpenInNewIcon />
-                </IconButton>
+                      window.open(
+                        `${targetSite}/${orgSlug}/${projectId}/records/${recordId}`,
+                        "_blank",
+                      );
+                    }}
+                    disabled={status.status !== "succeeded"}
+                  >
+                    <OpenInNewIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={t("reUpload")}>
+                <span>
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReUpload();
+                    }}
+                    disabled={status.status !== "succeeded"}
+                  >
+                    <ReplayIcon />
+                  </IconButton>
+                </span>
               </Tooltip>
             </Stack>
           </Stack>
