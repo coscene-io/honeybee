@@ -2,25 +2,28 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import EditIcon from "@mui/icons-material/EditOutlined";
 import RepeatOneOutlinedIcon from "@mui/icons-material/RepeatOneOutlined";
 import ShareIcon from "@mui/icons-material/ShareOutlined";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
-import { alpha, Stack, IconButton } from "@mui/material";
-import { useCallback, useEffect, useRef, useState, Fragment } from "react";
+import { alpha, Stack, IconButton, Link } from "@mui/material";
+import { useCallback, useEffect, useRef, useState, Fragment, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
+import Logger from "@foxglove/log";
 import { toRFC3339String, fromDate, areEqual } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import {
   useMessagePipeline,
   MessagePipelineContext,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   TimelinePositionedEvent,
@@ -53,7 +56,7 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.hoverOpacity),
   },
   eventTitle: {
-    padding: "12px 0 8px 0",
+    padding: "12px 0 0 0",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
@@ -80,6 +83,10 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+
+const log = Logger.getLogger(__filename);
+
 function EventViewComponent(params: {
   event: TimelinePositionedEvent;
   filter: string;
@@ -88,6 +95,7 @@ function EventViewComponent(params: {
   isLoopedEvent: boolean;
   variant: "small" | "learge";
   disabledScroll?: boolean;
+  diagnosisRuleData?: DiagnosisRule;
   onClick: (event: TimelinePositionedEvent) => void;
   onHoverStart: (event: TimelinePositionedEvent) => void;
   onHoverEnd: (event: TimelinePositionedEvent) => void;
@@ -102,6 +110,7 @@ function EventViewComponent(params: {
     isSelected,
     isLoopedEvent,
     variant,
+    diagnosisRuleData,
     onClick,
     onHoverStart,
     onHoverEnd,
@@ -115,6 +124,9 @@ function EventViewComponent(params: {
   const refreshEvents = useEvents(selectRefreshEvents);
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
+
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const seek = useMessagePipeline(selectSeek);
 
@@ -247,6 +259,52 @@ function EventViewComponent(params: {
     }
   };
 
+  const ruleNavAddress: JSX.Element = useMemo(() => {
+    const rule = event.event.rule;
+
+    if (diagnosisRuleData == undefined || rule == undefined) {
+      return <Stack>{event.event.rule?.name}</Stack>;
+    }
+
+    const ruleIndex = diagnosisRuleData.rules.findIndex((diagnosisRule) =>
+      diagnosisRule.rules.find((r) => r.id === rule.id),
+    );
+
+    const address = `/${baseInfo.organizationSlug}/${baseInfo.projectSlug}/data-collection-diagnosis/${ruleIndex}/${rule.id}`;
+
+    return (
+      <Link href={address} target="_blank">
+        <Stack>{event.event.rule?.name}</Stack>
+      </Link>
+    );
+  }, [diagnosisRuleData, event.event.rule, baseInfo]);
+
+  const deviceCreator = useMemo(() => {
+    if (event.event.device?.name && event.event.device.name.length > 0) {
+      const deviceNavAddress = `/${baseInfo.organizationSlug}/${
+        baseInfo.projectSlug
+      }/devices/${event.event.device.name.split("/").pop()}`;
+
+      return (
+        <Link href={deviceNavAddress} target="_blank">
+          <Stack>{event.event.device.displayName}</Stack>
+        </Link>
+      );
+    }
+    return undefined;
+  }, [baseInfo.organizationSlug, baseInfo.projectSlug, event.event.device]);
+
+  const [humanCreator, getHumanCreator] = useAsyncFn(async () => {
+    const user = await consoleApi.getUser(event.event.creator);
+    return user.nickname;
+  }, [consoleApi, event.event.creator]);
+
+  useEffect(() => {
+    getHumanCreator().catch((err) => {
+      log.error("getHumanCreator", err);
+    });
+  }, [getHumanCreator]);
+
   return show ? (
     <Stack flexDirection="row" paddingRight={2} ref={scrollRef}>
       <Stack marginLeft={2.5} marginRight={1.5} gap={0.5} alignItems="center">
@@ -260,7 +318,7 @@ function EventViewComponent(params: {
         <Stack width="1px" flex="1" className={classes.line} />
       </Stack>
 
-      <Stack flex={1}>
+      <Stack flex={1} gap={1}>
         <div className={classes.eventTitle}>
           <div>
             <HighlightedText text={triggerTime} highlight={filter} />
@@ -361,6 +419,18 @@ function EventViewComponent(params: {
             </Stack>
           )}
         </div>
+
+        {event.event.rule != undefined && (
+          <Stack flexDirection="row" gap={1}>
+            <Stack>{t("rule")}:</Stack>
+            {ruleNavAddress}
+          </Stack>
+        )}
+
+        <Stack flexDirection="row" gap={1}>
+          <Stack>{t("creater")}:</Stack>
+          <Stack>{deviceCreator ?? humanCreator.value}</Stack>
+        </Stack>
       </Stack>
     </Stack>
   ) : (

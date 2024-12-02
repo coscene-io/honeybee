@@ -75,4 +75,6 @@ export const cosEvent = {
   nameOnly: "Name Only",
   showDetail: "Show Detail",
   toView: "to view",
+  rule: "Rule",
+  creater: "Creater",
 };

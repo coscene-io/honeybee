@@ -76,4 +76,6 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   nameOnly: "仅名称",
   showDetail: "展示详情",
   toView: "前往查看",
+  rule: "规则",
+  creater: "创建者",
 };
