@@ -79,21 +79,13 @@ jobs:
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
-            ${{ matrix.os == 'linux' && format(
-              'dist/coStudio-{0}-linux-amd64.deb:/coStudio/deb/{0}/coStudio-{0}-linux-amd64.deb
-              dist/coStudio-{0}-linux-arm64.deb:/coStudio/deb/{0}/coStudio-{0}-linux-arm64.deb',
-              github.event.inputs.version
-            ) || '' }}
-            ${{ matrix.os == 'darwin' && format(
-              'dist/coStudio-{0}-mac-universal.dmg:/coStudio/dmg/{0}/coStudio-{0}-mac-universal.dmg',
-              github.event.inputs.version
-            ) || '' }}
-            ${{ matrix.os == 'win' && format(
-              'dist/coStudio-{0}-win.exe:/coStudio/exe/{0}/coStudio-{0}-win.exe
-              dist/coStudio-{0}-win-arm64.exe:/coStudio/exe/{0}/coStudio-{0}-win-arm64.exe
-              dist/coStudio-{0}-win-x64.exe:/coStudio/exe/{0}/coStudio-{0}-win-x64.exe',
-              github.event.inputs.version
-            ) || '' }}
+            ${{ matrix.os == 'linux' && format('dist/coStudio-{0}-linux-amd64.deb:/coStudio/deb/{0}/coStudio-{0}-linux-amd64.deb', github.event.inputs.version) || '' }}
+            ${{ matrix.os == 'linux' && format('dist/coStudio-{0}-linux-arm64.deb:/coStudio/deb/{0}/coStudio-{0}-linux-arm64.deb', github.event.inputs.version) || '' }}
+            ${{ matrix.os == 'darwin' && format('dist/coStudio-{0}-mac-universal.dmg:/coStudio/dmg/{0}/coStudio-{0}-mac-universal.dmg', github.event.inputs.version) || '' }}
+            ${{ matrix.os == 'win' && format('dist/coStudio-{0}-win.exe:/coStudio/exe/{0}/coStudio-{0}-win.exe', github.event.inputs.version) || '' }}
+            ${{ matrix.os == 'win' && format('dist/coStudio-{0}-win-arm64.exe:/coStudio/exe/{0}/coStudio-{0}-win-arm64.exe', github.event.inputs.version) || '' }}
+            ${{ matrix.os == 'win' && format('dist/coStudio-{0}-win-x64.exe:/coStudio/exe/{0}/coStudio-{0}-win-x64.exe', github.event.inputs.version) || '' }}
+
       # - name: Upload build artifacts
       #   uses: actions/upload-artifact@v4
       #   with:
