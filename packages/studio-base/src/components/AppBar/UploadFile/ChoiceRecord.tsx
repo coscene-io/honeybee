@@ -30,8 +30,13 @@ export function ChoiceRecordDialog({
         <ChooserComponent
           type="record"
           checkFileSupportedFunc={() => true}
-          setTargetRecordName={(record) => {
-            setTargetRecordName(record?.name);
+          setTargetRecordName={(record, recordType) => {
+            if (recordType === "create") {
+              onConfirm(record?.name ?? "");
+              onClose();
+            } else {
+              setTargetRecordName(record?.name);
+            }
           }}
           files={[]}
           setFiles={() => {}}

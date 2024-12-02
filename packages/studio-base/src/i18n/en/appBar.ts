@@ -58,4 +58,5 @@ export const appBar = {
   loginFirst: "Upload file requires logging in to coScene account first",
   clickToUpload: "Click to upload file",
   openInBrowser: "Open in browser",
+  reUpload: "Re-upload",
 };

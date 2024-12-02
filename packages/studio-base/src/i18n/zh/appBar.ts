@@ -57,4 +57,5 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   loginFirst: "上传文件需要先登录 coScene 账号",
   clickToUpload: "点击上传文件",
   openInBrowser: "在浏览器中打开",
+  reUpload: "重新上传",
 };
