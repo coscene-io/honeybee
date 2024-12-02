@@ -29,6 +29,7 @@ import {
   ListOrganizationUsersRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
+import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
@@ -36,6 +37,8 @@ import {
   UpsertConfigMapRequest,
   GetConfigMapRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
+import { DiagnosisService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_connect";
+import { GetDiagnosisRuleRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_pb";
 import { EventService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_connect";
 import {
   CreateEventRequest,
@@ -1133,6 +1136,19 @@ class CoSceneConsoleApi {
   public async createRecord(payload: PartialMessage<CreateRecordRequest>): Promise<CoSceneRecord> {
     const req = new CreateRecordRequest(payload);
     return await getPromiseClient(RecordService).createRecord(req);
+  }
+
+  public async getDiagnosisRule(): Promise<DiagnosisRule> {
+    const projectId = this.#baseInfo.projectId;
+    const warehouseId = this.#baseInfo.warehouseId;
+
+    const name = `warehouses/${warehouseId}/projects/${projectId}/diagnosisRule`;
+
+    const req = new GetDiagnosisRuleRequest({
+      name,
+    });
+
+    return await getPromiseClient(DiagnosisService).getDiagnosisRule(req);
   }
 }
 
