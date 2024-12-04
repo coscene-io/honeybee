@@ -11,4 +11,6 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   on: "开",
   off: "关",
   auto: "自动",
+  from: "来自",
+  project: "项目",
 };

@@ -334,16 +334,17 @@ function EventViewComponent(params: {
               color={isLoopedEvent ? "warning" : "default"}
               onClick={handleLoopEvent}
               disabled={areEqual(event.startTime, event.endTime)}
+              title={t("loopPlay")}
             >
               <RepeatOneOutlinedIcon fontSize="small" />
             </IconButton>
-            <IconButton size="small" onClick={handleEditEvent}>
+            <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
               <EditIcon fontSize="small" />
             </IconButton>
-            <IconButton size="small" onClick={handleShareEvent}>
+            <IconButton size="small" onClick={handleShareEvent} title={t("share")}>
               <ShareIcon fontSize="small" />
             </IconButton>
-            <IconButton size="small" onClick={confirmDelete}>
+            <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
               <DeleteIcon fontSize="small" />
             </IconButton>
           </div>
@@ -382,9 +383,14 @@ function EventViewComponent(params: {
           </Stack>
 
           {variant === "learge" && (
-            <Stack gap={1} fontSize="12px" color={theme.palette.text.secondary}>
+            <Stack
+              gap={1}
+              fontSize="12px"
+              color={theme.palette.text.secondary}
+              marginTop={description || imgUrl || metadataMap.length > 0 ? "12px" : undefined}
+            >
               {description && (
-                <Stack marginTop="12px">
+                <Stack lineHeight="1.5">
                   <HighlightedText text={description} highlight={filter} />
                 </Stack>
               )}
