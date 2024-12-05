@@ -14,7 +14,6 @@ import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/Ti
 import UploadFilesProvider from "@foxglove/studio-base/providers/UploadFilesProvider";
 
 import Workspace from "./Workspace";
-import DocumentTitleAdapter from "./components/DocumentTitleAdapter";
 import MultiProvider from "./components/MultiProvider";
 import PlayerManager from "./components/PlayerManager";
 import SendNotificationToastAdapter from "./components/SendNotificationToastAdapter";
@@ -85,7 +84,6 @@ export function StudioApp(): JSX.Element {
   return (
     <MaybeLaunchPreference>
       <MultiProvider providers={providers}>
-        <DocumentTitleAdapter />
         <SendNotificationToastAdapter />
         <DndProvider backend={HTML5Backend}>
           <Suspense fallback={<></>}>

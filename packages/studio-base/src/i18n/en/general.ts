@@ -11,4 +11,8 @@ export const general = {
   auto: "auto",
   from: "From",
   project: "Project",
+  viz: "Viz",
+  shadowMode: "Shadow Mode",
+  realtimeViz: "Realtime Viz",
+  testing: "Testing",
 };

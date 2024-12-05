@@ -13,4 +13,8 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   auto: "自动",
   from: "来自",
   project: "项目",
+  viz: "可视化",
+  shadowMode: "影子模式",
+  realtimeViz: "实时可视化",
+  testing: "批量测试",
 };
