@@ -78,4 +78,6 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   toView: "前往查看",
   rule: "规则",
   creater: "创建者",
+  share: "分享",
+  loopPlay: "循环播放",
 };

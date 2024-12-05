@@ -66,6 +66,8 @@ const useStyles = makeStyles()((theme) => ({
   },
   accordionTitle: {
     display: "flex",
+    flex: 1,
+    width: 0,
     alignItems: "center",
     gap: theme.spacing(1),
     overflow: "hidden",
@@ -230,7 +232,7 @@ export function EventsList(): JSX.Element {
   }, [getDiagnosisRule]);
 
   return (
-    <Stack className={classes.root} fullHeight>
+    <Stack className={classes.root} overflow="hidden" fullHeight>
       <AppBar className={classes.appBar} position="sticky" color="inherit" elevation={0}>
         <TextField
           variant="filled"
@@ -301,6 +303,7 @@ export function EventsList(): JSX.Element {
         onMouseLeave={() => {
           setDisabledScroll(false);
         }}
+        style={{ overflow: "auto", paddingBottom: "16px" }}
       >
         {Array.from(timestampedEvents.keys()).map((recordTitle, index) => {
           return (
@@ -312,7 +315,7 @@ export function EventsList(): JSX.Element {
                   id="panel1-header"
                   className={classes.accordionSummary}
                 >
-                  <div className={classes.accordionTitle}>
+                  <div className={classes.accordionTitle} title="test">
                     <Stack paddingLeft={0.75}>
                       <span
                         className={classes.colorBlock}
@@ -321,7 +324,17 @@ export function EventsList(): JSX.Element {
                         }}
                       />
                     </Stack>
-                    {recordTitle}
+                    <Stack
+                      flex={1}
+                      overflow="hidden"
+                      title={`${t("from", { ns: "general" })} ${timestampedEvents.get(
+                        recordTitle,
+                      )?.[0]?.projectDisplayName} ${t("project", { ns: "general" })}`}
+                    >
+                      <Typography noWrap>
+                        {timestampedEvents.get(recordTitle)?.[0]?.recordDisplayName}
+                      </Typography>
+                    </Stack>
                   </div>
                 </AccordionSummary>
                 <AccordionDetails className={classes.accordion}>

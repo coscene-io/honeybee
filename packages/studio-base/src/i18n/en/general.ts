@@ -9,4 +9,6 @@ export const general = {
   on: "On",
   off: "Off",
   auto: "auto",
+  from: "From",
+  project: "Project",
 };
