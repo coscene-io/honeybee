@@ -21,6 +21,7 @@ import {
   useState,
   useContext,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 
 import { useWarnImmediateReRender } from "@foxglove/hooks";
@@ -71,6 +72,10 @@ type PlayerManagerProps = {
 export default function PlayerManager(props: PropsWithChildren<PlayerManagerProps>): JSX.Element {
   const { children, playerSources } = props;
   // const perfRegistry = usePerformance();
+  const [currentSourceArgs, setCurrentSourceArgs] = useState<DataSourceArgs | undefined>();
+  const [currentSourceId, setCurrentSourceId] = useState<string | undefined>();
+
+  const { t } = useTranslation("general");
 
   useWarnImmediateReRender();
 
@@ -134,6 +139,32 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
     });
   }, [extensionCatalogContext, playerInstances?.topicAliasPlayer]);
 
+  // handle page title
+  useEffect(() => {
+    let title = "coScene";
+
+    if (currentSourceArgs?.type === "connection") {
+      if (currentSourceId === "coscene-websocket") {
+        const deviceName = currentSourceArgs.params?.hostName;
+
+        title = `${t("realtimeViz")} - ${deviceName}`;
+      } else if (currentSourceId === "coscene-data-platform") {
+        const recordDisplayName = currentSourceArgs.params?.recordDisplayName;
+        const projectDisplayName = currentSourceArgs.params?.projectDisplayName;
+        const jobRunsSerialNumber = currentSourceArgs.params?.jobRunsSerialNumber;
+
+        if (jobRunsSerialNumber) {
+          // shadow mode
+          title = `${t("shadowMode")} - #${jobRunsSerialNumber} - ${t("testing")}`;
+        } else {
+          title = `${t("viz")} - ${recordDisplayName} - ${projectDisplayName}`;
+        }
+      }
+    }
+
+    document.title = title;
+  }, [currentSourceArgs, currentSourceId, t]);
+
   // const player = useMemo(() => {
   //   if (!playerInstances?.topicAliasPlayer) {
   //     return undefined;
@@ -157,6 +188,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
   const selectSource = useCallback(
     async (sourceId: string, args?: DataSourceArgs) => {
       log.debug(`Select Source: ${sourceId}`);
+      setCurrentSourceId(sourceId);
 
       const foundSource = playerSources.find(
         (source) => source.id === sourceId || source.legacyIds?.includes(sourceId),
@@ -186,6 +218,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
         return;
       }
 
+      setCurrentSourceArgs(args);
       try {
         switch (args.type) {
           case "connection": {
