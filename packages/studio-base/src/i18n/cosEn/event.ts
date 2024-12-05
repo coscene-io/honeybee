@@ -77,4 +77,6 @@ export const cosEvent = {
   toView: "to view",
   rule: "Rule",
   creater: "Creater",
+  share: "Share",
+  loopPlay: "Loop Play",
 };

@@ -16,12 +16,12 @@ export function HighlightedText({
   highlight?: string;
 }): JSX.Element {
   if (!highlight?.trim()) {
-    return <span>{text}</span>;
+    return <span style={{ wordBreak: "break-word" }}>{text}</span>;
   }
   const regex = new RegExp(`(${_.escapeRegExp(highlight)})`, "gi");
   const parts = text.split(regex);
   return (
-    <span>
+    <span style={{ wordBreak: "break-word" }}>
       {parts
         .filter((part) => part)
         .map((part, i) =>
