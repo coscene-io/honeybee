@@ -28,18 +28,33 @@ export default class CoSceneAnalyticsMetricsCollector implements PlayerMetricsCo
       if (this.#playing) {
         this.#timeStatistics += 0.1;
         if (~~(this.#timeStatistics * 10) % 50 === 0) {
-          await this.#analytics.logEvent(AppEvent.PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL);
+          void this.#syncEventToAnalytics({
+            event: AppEvent.PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL,
+          });
         }
       }
     }, 100);
   }
 
+  async #syncEventToAnalytics({
+    event,
+    data,
+  }: {
+    event: AppEvent;
+    data?: { [key: string]: unknown };
+  }): Promise<void> {
+    await this.#analytics.logEvent(event, data);
+  }
+
   // sets sourceId in every time  opening a file or connecting to server
-  public async setProperty(key: string, value: string | number | boolean): Promise<void> {
+  public setProperty(key: string, value: string | number | boolean): void {
     console.debug(`coScene setProperty: ${key}=${value}`);
     if (key === "player") {
       this.#sourceId = value as string;
-      await this.#analytics.logEvent(AppEvent.PLAYER_INIT, { sourceId: this.#sourceId });
+      void this.#syncEventToAnalytics({
+        event: AppEvent.PLAYER_INIT,
+        data: { sourceId: this.#sourceId },
+      });
     }
   }
   public seek(time: Time): void {
