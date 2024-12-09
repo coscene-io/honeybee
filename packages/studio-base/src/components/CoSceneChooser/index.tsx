@@ -287,6 +287,7 @@ export function ChooserComponent({
   checkFileSupportedFunc,
   defaultRecordType = "select",
   defaultRecordName,
+  createRecordConfirmText,
 }: {
   setTargetRecordName: (recordName?: Record, recordType?: "create" | "select") => void;
   files: SelectedFile[];
@@ -295,6 +296,7 @@ export function ChooserComponent({
   checkFileSupportedFunc: (file: File) => boolean;
   defaultRecordType?: "create" | "select";
   defaultRecordName?: string;
+  createRecordConfirmText?: string;
 }): JSX.Element {
   const { t } = useTranslation("cosGeneral");
 
@@ -558,6 +560,7 @@ export function ChooserComponent({
                 setTargetRecordName(targetRecord, "create");
               }}
               defaultRecordName={defaultRecordName}
+              createRecordConfirmText={createRecordConfirmText}
             />
           ))}
 
