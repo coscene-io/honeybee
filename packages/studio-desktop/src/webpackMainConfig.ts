@@ -80,9 +80,9 @@ export const webpackMainConfig =
       plugins: [
         new DefinePlugin({
           MAIN_WINDOW_WEBPACK_ENTRY: rendererEntry,
-          LICHTBLICK_PRODUCT_NAME: JSON.stringify(params.packageJson.productName),
-          LICHTBLICK_PRODUCT_VERSION: JSON.stringify(params.packageJson.version),
-          LICHTBLICK_PRODUCT_HOMEPAGE: JSON.stringify(params.packageJson.homepage),
+          COSCENE_PRODUCT_NAME: JSON.stringify(params.packageJson.productName),
+          COSCENE_PRODUCT_VERSION: JSON.stringify(params.packageJson.version),
+          COSCENE_PRODUCT_HOMEPAGE: JSON.stringify(params.packageJson.homepage),
         }),
         new ForkTsCheckerWebpackPlugin(),
       ],
