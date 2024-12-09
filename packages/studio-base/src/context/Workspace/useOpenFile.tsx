@@ -25,7 +25,7 @@ export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promi
         return all;
       }
 
-      return [...all, ...source.supportedFileTypes];
+      return [...new Set([...all, ...source.supportedFileTypes])];
     }, []);
   }, [sources]);
 
