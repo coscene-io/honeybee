@@ -73,6 +73,10 @@ enum AppEvent {
   // User engagement
   USER_OBSERVATION = "Studio: User Makes Observation",
   USER_ACTIVATION = "Studio: User Activated",
+
+  // Player events
+  PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL = "Studio: Player Records Plays Every Five Seconds Total",
+  PLAYER_INIT = "Studio: Player Initialized",
 }
 
 interface IAnalytics {

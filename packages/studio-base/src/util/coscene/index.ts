@@ -92,8 +92,6 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     // grpc error code-16 === http status code 401
     // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
     if (error.code === StatusCode.UNAUTHENTICATED) {
-      localStorage.removeItem("demoSite");
-      localStorage.removeItem("honeybeeDemoStatus");
       if (window.location.pathname !== "/login") {
         if (isDesktopApp()) {
           authBridge?.logout();

@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { useMemo } from "react";
 
+import AnalyticsProvider from "@foxglove/studio-base/context/AnalyticsProvider";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutStorageContext from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
 import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext";
@@ -38,6 +39,8 @@ export function SharedProviders({
       <CoSceneBaseProvider key="CoSceneBaseProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
       <CoSceneUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
+      // dependent - CoSceneUserProvider
+      <AnalyticsProvider key="AnalyticsProvider" />,
       <CoSceneConsoleApiRemoteLayoutStorageProvider key="CoSceneConsoleApiRemoteLayoutStorageProvider" />,
       <CoSceneLayoutStorageContext.Provider
         value={layoutStorage}

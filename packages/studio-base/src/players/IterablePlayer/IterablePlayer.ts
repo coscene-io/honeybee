@@ -963,9 +963,9 @@ export class IterablePlayer implements Player {
 
     // When ending the previous tick, we might have already read a message from the iterator which
     // belongs to our tick. This logic brings that message into our current batch of message events.
-    if (this.#lastMessageEvent) {
+    if (this.#lastMessageEvent != undefined) {
       // If the last message we saw is still ahead of the tick end time, we don't emit anything
-      if (compare(this.#lastMessageEvent.receiveTime, end) > 0) {
+      if (compare(this.#lastMessageEvent.receiveTime as Time, end) > 0) {
         // Wait for the previous render frame to finish
         await this.#queueEmitState.currentPromise;
 
