@@ -29,7 +29,7 @@ import getDevModeIcon from "./getDevModeIcon";
 // import { simulateUserClick } from "./simulateUserClick";
 import { getTelemetrySettings } from "./telemetry";
 import { encodeRendererArg } from "../common/rendererArgs";
-import { LICHTBLICK_PRODUCT_NAME } from "../common/webpackDefines";
+import { COSCENE_PRODUCT_NAME } from "../common/webpackDefines";
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 
@@ -73,7 +73,7 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
     minWidth: 350,
     minHeight: 250,
     autoHideMenuBar: true,
-    title: LICHTBLICK_PRODUCT_NAME,
+    title: COSCENE_PRODUCT_NAME,
     frame: isLinux ? false : true,
     titleBarStyle: "hidden",
     trafficLightPosition: isMac ? { x: macTrafficLightInset, y: macTrafficLightInset } : undefined,
@@ -449,7 +449,7 @@ class StudioWindow {
     const newMenu = buildMenu(browserWindow);
     const id = browserWindow.webContents.id;
 
-    log.info(`New Lichtblick window ${id}`);
+    log.info(`New coStudio window ${id}`);
     StudioWindow.#windowsByContentId.set(id, this);
 
     browserWindow.once("closed", () => {

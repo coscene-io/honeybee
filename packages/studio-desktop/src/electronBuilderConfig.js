@@ -169,7 +169,7 @@ function makeElectronBuilderConfig(params) {
       },
     },
     appx: {
-      applicationId: "coSceneStudio",
+      applicationId: "coStudio",
       backgroundColor: "#f7def6",
       displayName: "coStudio",
       identityName: "coStudio",

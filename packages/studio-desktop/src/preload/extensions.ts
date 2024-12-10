@@ -18,11 +18,11 @@ type ExtensionPackageJson = { name: string; version: string; main: string; publi
 /**
  * Returns a unique identifier for an extension based on the publisher and package name. The
  * publisher can either be explicitly specified with a "publisher" field or extracted from the
- * "name" field if it contains a namespace such as "@foxglove".
+ * "name" field if it contains a namespace such as "@coscene".
  *
  * This method will throw if any required fields are missing or invalid.
  * @param pkgJson Parsed package.json file
- * @returns An identifier string such as "lichtblick.suite-extension-turtlesim"
+ * @returns An identifier string such as "coscene.studio-extension-turtlesim"
  */
 function getPackageId(pkgJson: undefined | ExtensionPackageJson): string {
   if (pkgJson == undefined) {
@@ -53,7 +53,7 @@ function getPackageId(pkgJson: undefined | ExtensionPackageJson): string {
 /**
  * Get the directory name to use for an installed extension
  * @param pkgJson Parsed package.json file
- * @returns A directory name such as "lichtblick.suite-extension-turtlesim-1.0.0"
+ * @returns A directory name such as "coscene.studio-extension-turtlesim-1.0.0"
  */
 function getPackageDirname(pkgJson: ExtensionPackageJson): string {
   const pkgId = getPackageId(pkgJson);
@@ -65,7 +65,7 @@ function getPackageDirname(pkgJson: ExtensionPackageJson): string {
 }
 
 /**
- * Separate a package.json "name" field into separate namespace (i.e. @foxglove) and name fields
+ * Separate a package.json "name" field into separate namespace (i.e. @coscene) and name fields
  * @param name The "name" field from a package.json file
  * @returns An object containing the unprefixed name and the namespace, if present
  */
