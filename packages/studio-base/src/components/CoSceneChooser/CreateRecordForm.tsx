@@ -19,10 +19,12 @@ export function CreateRecordForm({
   parent,
   onCreated,
   defaultRecordName,
+  createRecordConfirmText,
 }: {
   parent: string;
   onCreated: (record: Record_es) => void;
   defaultRecordName?: string;
+  createRecordConfirmText?: string;
 }): JSX.Element {
   const cosceneApi = useConsoleApi();
   const [recordName, setRecordName] = useState(defaultRecordName ?? "");
@@ -68,7 +70,7 @@ export function CreateRecordForm({
         }}
         variant="contained"
       >
-        {t("create")}
+        {createRecordConfirmText ?? t("create")}
       </Button>
     </Stack>
   );

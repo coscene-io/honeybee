@@ -42,6 +42,7 @@ export function ChoiceRecordDialog({
           setFiles={() => {}}
           defaultRecordType="create"
           defaultRecordName={defaultRecordName}
+          createRecordConfirmText={t("createRecordAndUpload")}
         />
         <Stack direction="row" justifyContent="flex-end" paddingX={2} paddingBottom={2} gap={1}>
           <Button variant="outlined" size="large" color="inherit" onClick={onClose}>
