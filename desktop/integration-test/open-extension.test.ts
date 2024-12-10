@@ -14,7 +14,7 @@ describe("open extension", () => {
 
     const extensionPath = path.resolve(
       __dirname,
-      "../../packages/studio-base/src/test/fixtures/lichtblick.suite-extension-turtlesim-0.0.1.foxe",
+      "../../packages/studio-base/src/test/fixtures/coscene.studio-extension-turtlesim-0.0.1.foxe",
     );
 
     const fileInput = app.renderer.locator("[data-puppeteer-file-upload]");

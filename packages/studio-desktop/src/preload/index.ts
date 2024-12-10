@@ -22,7 +22,7 @@ import {
   Storage,
   Auth,
 } from "../common/types";
-import { LICHTBLICK_PRODUCT_NAME, LICHTBLICK_PRODUCT_VERSION } from "../common/webpackDefines";
+import { COSCENE_PRODUCT_NAME, COSCENE_PRODUCT_VERSION } from "../common/webpackDefines";
 
 // Since we have no way of modifying `window.process.argv` we use a sentinel cookie and reload
 // hack to reset the page without deep links. By setting a session cookie and reloading
@@ -36,7 +36,7 @@ export function main(): void {
   const log = Logger.getLogger(__filename);
 
   log.debug(`Start Preload`);
-  log.info(`${LICHTBLICK_PRODUCT_NAME} ${LICHTBLICK_PRODUCT_VERSION}`);
+  log.info(`${COSCENE_PRODUCT_NAME} ${COSCENE_PRODUCT_VERSION}`);
   log.info(`initializing preloader, argv="${window.process.argv.join(" ")}"`);
 
   window.onerror = (ev) => {
@@ -89,7 +89,7 @@ export function main(): void {
       return output;
     },
     getAppVersion: (): string => {
-      return LICHTBLICK_PRODUCT_VERSION;
+      return COSCENE_PRODUCT_VERSION;
     },
   };
 

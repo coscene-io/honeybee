@@ -3,16 +3,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // This is injected by DefinePlugin from the webpack config that builds these files
-declare const LICHTBLICK_PRODUCT_NAME: string;
-declare const LICHTBLICK_PRODUCT_VERSION: string;
-declare const LICHTBLICK_PRODUCT_HOMEPAGE: string;
+declare const COSCENE_PRODUCT_NAME: string;
+declare const COSCENE_PRODUCT_VERSION: string;
+declare const COSCENE_PRODUCT_HOMEPAGE: string;
 
-const productName = LICHTBLICK_PRODUCT_NAME;
-const version = LICHTBLICK_PRODUCT_VERSION;
-const homepage = LICHTBLICK_PRODUCT_HOMEPAGE;
+const productName = COSCENE_PRODUCT_NAME;
+const version = COSCENE_PRODUCT_VERSION;
+const homepage = COSCENE_PRODUCT_HOMEPAGE;
 
 export {
-  homepage as LICHTBLICK_PRODUCT_HOMEPAGE,
-  productName as LICHTBLICK_PRODUCT_NAME,
-  version as LICHTBLICK_PRODUCT_VERSION,
+  homepage as COSCENE_PRODUCT_HOMEPAGE,
+  productName as COSCENE_PRODUCT_NAME,
+  version as COSCENE_PRODUCT_VERSION,
 };
