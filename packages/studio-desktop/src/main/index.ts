@@ -21,9 +21,9 @@ import {
 } from "./rosPackageResources";
 import { getAppSetting } from "./settings";
 import {
-  LICHTBLICK_PRODUCT_HOMEPAGE,
-  LICHTBLICK_PRODUCT_NAME,
-  LICHTBLICK_PRODUCT_VERSION,
+  COSCENE_PRODUCT_HOMEPAGE,
+  COSCENE_PRODUCT_NAME,
+  COSCENE_PRODUCT_VERSION,
 } from "../common/webpackDefines";
 
 const log = Logger.getLogger(__filename);
@@ -70,7 +70,7 @@ export async function main(): Promise<void> {
   app.commandLine.appendSwitch("enable-experimental-web-platform-features");
 
   const start = Date.now();
-  log.info(`${LICHTBLICK_PRODUCT_NAME} ${LICHTBLICK_PRODUCT_VERSION}`);
+  log.info(`${COSCENE_PRODUCT_NAME} ${COSCENE_PRODUCT_VERSION}`);
 
   const isProduction = process.env.NODE_ENV === "production";
 
@@ -95,7 +95,7 @@ export async function main(): Promise<void> {
   // If another instance of the app is already open, this call triggers the "second-instance" event
   // in the original instance and returns false.
   if (!app.requestSingleInstanceLock()) {
-    log.info(`Another instance of ${LICHTBLICK_PRODUCT_NAME} is already running. Quitting.`);
+    log.info(`Another instance of ${COSCENE_PRODUCT_NAME} is already running. Quitting.`);
     app.quit();
     return;
   }
@@ -251,7 +251,7 @@ export async function main(): Promise<void> {
     // Only production builds check for automatic updates
     if (process.env.NODE_ENV !== "production") {
       log.info("Automatic updates disabled (development environment)");
-    } else if (/-(dev|nightly)/.test(LICHTBLICK_PRODUCT_VERSION)) {
+    } else if (/-(dev|nightly)/.test(COSCENE_PRODUCT_VERSION)) {
       log.info("Automatic updates disabled (development version)");
     }
 
@@ -259,11 +259,11 @@ export async function main(): Promise<void> {
     // StudioAppUpdater.Instance().start();
 
     app.setAboutPanelOptions({
-      applicationName: LICHTBLICK_PRODUCT_NAME,
-      applicationVersion: LICHTBLICK_PRODUCT_VERSION,
+      applicationName: COSCENE_PRODUCT_NAME,
+      applicationVersion: COSCENE_PRODUCT_VERSION,
       version: process.platform,
       copyright: undefined,
-      website: LICHTBLICK_PRODUCT_HOMEPAGE,
+      website: COSCENE_PRODUCT_HOMEPAGE,
       iconPath: undefined,
     });
 
