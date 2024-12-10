@@ -48,12 +48,9 @@ import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
 import { TopicList } from "@foxglove/studio-base/components/TopicList";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
-import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
   DataSourceArgs,
   usePlayerSelection,
@@ -71,10 +68,8 @@ import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useCoSceneI
 import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDefaultWebLaunchPreference";
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { sampleLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutCoScene";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
-import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -149,39 +144,12 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const rightSidebarItem = useWorkspaceStore(selectWorkspaceRightSidebarItem);
   const rightSidebarOpen = useWorkspaceStore(selectWorkspaceRightSidebarOpen);
   const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
-  const layoutManager = useLayoutManager();
-  const analytics = useAnalytics();
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
 
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   // coScene set demo layout in demo mode
-  const { setSelectedLayoutId } = useCurrentLayoutActions();
-
-  const loadDemoLayout = useCallback(async () => {
-    const newLayout = await layoutManager.saveNewLayout({
-      name: "Demo Layout",
-      data: sampleLayout,
-      permission: "CREATOR_WRITE",
-    });
-    setTimeout(() => {
-      setSelectedLayoutId(newLayout.id);
-    }, 0);
-
-    void analytics.logEvent(AppEvent.LAYOUT_CREATE);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const isDemoSite =
-      localStorage.getItem("demoSite") === "true" &&
-      localStorage.getItem("honeybeeDemoStatus") === "start";
-
-    if (isDemoSite) {
-      void loadDemoLayout();
-    }
-  }, [loadDemoLayout]);
 
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
@@ -354,7 +322,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
           title: t("problems"),
           component: ProblemsList,
           badge:
-            playerProblems && playerProblems.length > 0
+            playerProblems != undefined && playerProblems.length > 0
               ? {
                   count: playerProblems.length,
                   color: "error",
@@ -371,7 +339,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   }, [playerProblems, t]);
 
   useEffect(() => {
-    if (playerProblems && playerProblems.length > 0) {
+    if (playerProblems != undefined && playerProblems.length > 0) {
       sidebarActions.left.setOpen(true);
       sidebarActions.left.selectItem("problems");
     }
@@ -554,20 +522,23 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
             </Stack>
           </RemountOnValueChange>
         </Sidebars>
-        {play && pause && seek && enableRepeat && (
-          <div style={{ flexShrink: 0 }}>
-            <PlaybackControls
-              play={play}
-              pause={pause}
-              seek={seek}
-              playUntil={playUntil}
-              isPlaying={isPlaying}
-              repeatEnabled={repeatEnabled}
-              enableRepeatPlayback={enableRepeat}
-              getTimeInfo={getTimeInfo}
-            />
-          </div>
-        )}
+        {play != undefined &&
+          pause != undefined &&
+          seek != undefined &&
+          enableRepeat != undefined && (
+            <div style={{ flexShrink: 0 }}>
+              <PlaybackControls
+                play={play}
+                pause={pause}
+                seek={seek}
+                playUntil={playUntil}
+                isPlaying={isPlaying}
+                repeatEnabled={repeatEnabled}
+                enableRepeatPlayback={enableRepeat}
+                getTimeInfo={getTimeInfo}
+              />
+            </div>
+          )}
       </div>
       {/* Splat to avoid requiring unique a `key` on each item in workspaceExtensions */}
       {...workspaceExtensions}

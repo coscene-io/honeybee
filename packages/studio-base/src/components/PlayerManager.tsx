@@ -28,6 +28,7 @@ import { useWarnImmediateReRender } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { Immutable } from "@foxglove/studio";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 // import {
@@ -74,6 +75,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
   // const perfRegistry = usePerformance();
   const [currentSourceArgs, setCurrentSourceArgs] = useState<DataSourceArgs | undefined>();
   const [currentSourceId, setCurrentSourceId] = useState<string | undefined>();
+  const analytics = useAnalytics();
 
   const { t } = useTranslation("general");
 
@@ -88,8 +90,11 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
   const consoleApi = useConsoleApi();
 
   const metricsCollector = useMemo(
-    () => new CoSceneAnalyticsMetricsCollector(consoleApi),
-    [consoleApi],
+    () =>
+      new CoSceneAnalyticsMetricsCollector({
+        analytics,
+      }),
+    [analytics],
   );
 
   const [playerInstances, setPlayerInstances] = useState<
@@ -199,7 +204,7 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
         return;
       }
 
-      // metricsCollector.setProperty("player", sourceId);
+      void metricsCollector.setProperty("player", sourceId);
       setSelectedSource(foundSource);
 
       // Sample sources don't need args or prompts to initialize

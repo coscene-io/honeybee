@@ -8,30 +8,51 @@ import {
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
 import CoSceneConsoleApi, { MetricType } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 export default class CoSceneAnalyticsMetricsCollector implements PlayerMetricsCollectorInterface {
   #timeStatistics: number = 0;
   #playing: boolean = false;
   #consoleApi: CoSceneConsoleApi | undefined;
+  #analytics: IAnalytics;
+  #sourceId: string | undefined;
 
-  public constructor(consoleApi: CoSceneConsoleApi | undefined) {
+  public constructor({ analytics }: { analytics: IAnalytics }) {
     this.#timeStatistics = 0;
-    this.#consoleApi = consoleApi;
+    this.#analytics = analytics;
+
     setInterval(async () => {
       if (this.#playing) {
         this.#timeStatistics += 0.1;
         if (~~(this.#timeStatistics * 10) % 50 === 0) {
-          if (this.#consoleApi) {
-            await this.#consoleApi.sendIncCounter({
-              name: MetricType.RecordPlaysEveryFiveSecondsTotal,
-            });
-          }
+          void this.#syncEventToAnalytics({
+            event: AppEvent.PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL,
+          });
         }
       }
     }, 100);
   }
+
+  async #syncEventToAnalytics({
+    event,
+    data,
+  }: {
+    event: AppEvent;
+    data?: { [key: string]: unknown };
+  }): Promise<void> {
+    await this.#analytics.logEvent(event, data);
+  }
+
+  // sets sourceId in every time  opening a file or connecting to server
   public setProperty(key: string, value: string | number | boolean): void {
     console.debug(`coScene setProperty: ${key}=${value}`);
+    if (key === "player") {
+      this.#sourceId = value as string;
+      void this.#syncEventToAnalytics({
+        event: AppEvent.PLAYER_INIT,
+        data: { sourceId: this.#sourceId },
+      });
+    }
   }
   public seek(time: Time): void {
     console.debug(`coScene seek: ${time.sec}.${time.nsec}`);
