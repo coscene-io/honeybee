@@ -20,13 +20,13 @@ export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promi
   const setCurrentFile = useUploadFiles(selectSetCurrentFile);
 
   const allExtensions = useMemo(() => {
-    return sources.reduce<string[]>((all, source) => {
+    const extensions = sources.reduce<string[]>((all, source) => {
       if (!source.supportedFileTypes) {
         return all;
       }
-
       return [...all, ...source.supportedFileTypes];
     }, []);
+    return [...new Set(extensions)];
   }, [sources]);
 
   return useCallback(async () => {
