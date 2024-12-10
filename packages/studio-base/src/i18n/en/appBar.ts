@@ -59,4 +59,5 @@ export const appBar = {
   clickToUpload: "Click to upload file",
   openInBrowser: "Open in browser",
   reUpload: "Re-upload",
+  createRecordAndUpload: "Create record and upload",
 };
