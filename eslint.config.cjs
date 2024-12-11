@@ -5,12 +5,10 @@
 const fileProgress = require("eslint-plugin-file-progress");
 const tssUnusedClasses = require("eslint-plugin-tss-unused-classes");
 const globals = require("globals");
-const path = require("path");
 const tslintPlugin = require("typescript-eslint");
 
 const foxgloveEslintPlugin = require("@foxglove/eslint-plugin");
 const foxgloveEslintPluginStudio = require("@foxglove/eslint-plugin-studio");
-
 
 module.exports = tslintPlugin.config(
   {
@@ -21,23 +19,29 @@ module.exports = tslintPlugin.config(
       "packages/**/wasm/*.js",
       "!**/.storybook",
       "**/storybook-static",
-      "**/.webpack",
-      "**/.yarn",
+      "**/.webpack/**",
+      "**/.yarn/**",
     ],
   },
 
   ...foxgloveEslintPlugin.configs.base,
 
+  {
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+      parserOptions: {
+        project: "tsconfig.json",
+        tsconfigRootDir: __dirname,
+      },
+    },
+  },
+
   ...foxgloveEslintPlugin.configs.typescript.map((config) => ({
     ...config,
     files: ["**/*.@(ts|tsx)"],
-    languageOptions: {
-      ...config.languageOptions,
-      parserOptions: {
-        // project: "./tsconfig.eslint.json",
-        project: path.resolve(__dirname, "tsconfig.eslint.json"),
-      },
-    },
   })),
 
   ...foxgloveEslintPlugin.configs.react.map((config) => ({
@@ -87,13 +91,6 @@ module.exports = tslintPlugin.config(
       "file-progress": fileProgress,
       "tss-unused-classes": tssUnusedClasses,
       "@foxglove/studio": foxgloveEslintPluginStudio,
-    },
-
-    languageOptions: {
-      globals: {
-        ...globals.browser,
-        ...globals.node,
-      },
     },
 
     settings: {
