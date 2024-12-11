@@ -40,7 +40,7 @@ export class AppError extends Error {
         try {
           const stringifiedExtraInfo = JSON.stringify(extraInfo);
           this.message += `\n\n${stringifiedExtraInfo}`;
-        } catch (e) {
+        } catch {
           this.message += `\n\n[ Either cyclic object or object with BigInt(s) ]`;
         }
       }

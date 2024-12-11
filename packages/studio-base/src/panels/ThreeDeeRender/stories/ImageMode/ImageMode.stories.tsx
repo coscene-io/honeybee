@@ -912,6 +912,7 @@ export const RationalPolynomialDistortion: StoryObj = {
     const imageTopic = "camera";
     const calibrationTopic = "calibration";
     const annotationsTopic = "annotations";
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const topics: Topic[] = useMemo(
       () => [
         { name: imageTopic, schemaName: "foxglove.RawImage" },

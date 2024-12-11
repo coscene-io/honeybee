@@ -20,7 +20,7 @@ const DEFAULT_FONT_SIZE = 12;
 const DEFAULT_PADDING = 4;
 
 // Supported annotation schema names
-const ANNOTATION_DATATYPES = [
+type ANNOTATION_DATATYPES = [
   // Single marker
   "visualization_msgs/ImageMarker",
   "visualization_msgs/msg/ImageMarker",
@@ -40,7 +40,7 @@ const ANNOTATION_DATATYPES = [
   "foxglove_msgs/msg/ImageAnnotations",
   "foxglove.ImageAnnotations",
   "foxglove::ImageAnnotations",
-] as const;
+];
 
 function foxglovePointTypeToStyle(
   type: PointsAnnotationType,
@@ -204,7 +204,7 @@ function normalizeRosImageMarker(
 
 function normalizeAnnotations(message: unknown, datatype: string): Annotation[] {
   // Cast to the union of all supported datatypes to ensure we handle all cases
-  switch (datatype as (typeof ANNOTATION_DATATYPES)[number]) {
+  switch (datatype as ANNOTATION_DATATYPES[number]) {
     // single marker
     case "visualization_msgs/ImageMarker":
     case "visualization_msgs/msg/ImageMarker":

@@ -148,11 +148,16 @@ export default function CoSceneCurrentLayoutProvider({
             },
           });
           if (saveToProfile) {
-            setUserProfile({ currentLayoutId: id }).catch((error) => {
+            setUserProfile({ currentLayoutId: id }).catch((error: unknown) => {
               console.error(error);
-              enqueueSnackbar(`The current layout could not be saved. ${error.toString()}`, {
-                variant: "error",
-              });
+              enqueueSnackbar(
+                `The current layout could not be saved. ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+                {
+                  variant: "error",
+                },
+              );
             });
           }
         }

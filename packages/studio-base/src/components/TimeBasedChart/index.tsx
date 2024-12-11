@@ -715,6 +715,7 @@ export default function TimeBasedChart(props: Props): React.JSX.Element {
     }
 
     return Object.fromEntries(
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
       datasets.map((dataset, index) => [index, dataset.borderColor?.toString()]),
     );
   }, [datasets]);

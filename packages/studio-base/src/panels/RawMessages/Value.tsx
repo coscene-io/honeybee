@@ -115,7 +115,7 @@ function Value(props: ValueProps): React.JSX.Element {
           setCopied(false);
         }, 1500);
       })
-      .catch((e) => {
+      .catch((e: unknown) => {
         console.warn(e);
       });
   }, []);

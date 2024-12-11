@@ -175,6 +175,9 @@ module.exports = tslintPlugin.config(
       "@typescript-eslint/prefer-regexp-exec": "off",
       "@typescript-eslint/no-unnecessary-condition": "error",
 
+      "@typescript-eslint/no-unnecessary-type-parameters": "off",
+      "@typescript-eslint/switch-exhaustiveness-check": "off",
+
       "@typescript-eslint/unbound-method": [
         "error",
         {
@@ -207,6 +210,31 @@ module.exports = tslintPlugin.config(
 
     rules: {
       "react/forbid-component-props": "off",
+    },
+  },
+  {
+    files: [
+      "./packages/studio-desktop/src/main/**/*.ts",
+      "./packages/studio-desktop/src/main/**/*.js",
+    ],
+
+    rules: {
+      "import/no-unresolved": "off",
+      "import/namespace": "off",
+      "import/default": "off",
+      "import/no-named-as-default": "off",
+      "import/no-named-as-default-member": "off",
+    },
+  },
+
+  {
+    files: [
+      "./packages/studio-base/src/players/UserScriptPlayer/transformerWorker/typescript/userUtils/**/*.ts",
+      "./packages/studio-base/src/players/UserScriptPlayer/transformerWorker/typescript/userUtils/**/*.js",
+    ],
+
+    rules: {
+      "@foxglove/license-header": "off",
     },
   },
 );

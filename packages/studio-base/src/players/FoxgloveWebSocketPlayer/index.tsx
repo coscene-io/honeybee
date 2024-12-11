@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated */
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -1265,7 +1266,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       throw new Error(`Attempted to set parameters without a valid coScene WebSocket connection`);
     }
 
-    log.debug(`FoxgloveWebSocketPlayer.setParameter(key=${key}, value=${value})`);
+    log.debug(`FoxgloveWebSocketPlayer.setParameter(key=${key}, value=${JSON.stringify(value)})`);
     const isByteArray = value instanceof Uint8Array;
     const paramValueToSent = isByteArray ? btoa(textDecoder.decode(value)) : value;
     this.#client.setParameters(
@@ -1349,8 +1350,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         try {
           const data = parsedResponse.deserialize(response.data);
           resolve(data as Record<string, unknown>);
-        } catch (error) {
-          reject(error);
+        } catch (error: unknown) {
+          reject(error as Error);
         }
       });
     });

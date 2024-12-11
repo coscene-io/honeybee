@@ -59,7 +59,7 @@ export function Stats(): React.JSX.Element {
       if (stats) {
         try {
           div.removeChild(stats.dom);
-        } catch (ex) {
+        } catch {
           // ignore
         }
       }

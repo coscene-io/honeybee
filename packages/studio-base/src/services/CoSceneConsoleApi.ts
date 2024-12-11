@@ -572,7 +572,9 @@ class CoSceneConsoleApi {
         );
       }
       const json = (await res.json().catch((err: unknown) => {
-        throw new Error(`Status ${res.status}: ${err.message}`);
+        throw new Error(
+          `Status ${res.status}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       })) as { message?: string; error?: string; errorCode?: number };
       const message = json.message ?? json.error;
       if (json.errorCode != undefined) {
@@ -591,7 +593,7 @@ class CoSceneConsoleApi {
 
     try {
       return { status: res.status, json: (await res.json()) as T };
-    } catch (err) {
+    } catch {
       throw new Error("Request Failed.");
     }
   }
@@ -887,7 +889,7 @@ class CoSceneConsoleApi {
     const req = new GetConfigMapRequest({ name: configName });
     const configMapClient = getPromiseClient(ConfigMapService);
     return await configMapClient.getConfigMap(req).catch((err: unknown) => {
-      if (err.code === StatusCode.NOT_FOUND) {
+      if (err instanceof Error && (err.message as unknown as StatusCode) === StatusCode.NOT_FOUND) {
         return undefined;
       }
     });
@@ -987,8 +989,7 @@ class CoSceneConsoleApi {
     return await getPromiseClient(FileService)
       .generateFileUploadUrls(req)
       .catch((err: unknown) => {
-        console.error("error code", err.code);
-        console.error("error message", err.message);
+        console.error("generateFileUploadUrls", err);
         throw err;
       });
   }

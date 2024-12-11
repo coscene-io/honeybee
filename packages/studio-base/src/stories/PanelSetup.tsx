@@ -148,11 +148,15 @@ function MockExtensionCatalogProvider(props: PropsWithChildren<ExtensionCatalogP
     return createStore(
       () =>
         ({
-          installExtension: async () => await Promise.reject("unsupported"),
+          downloadExtension: async () => new Uint8Array(),
+          installExtension: async () => await Promise.reject(new Error("unsupported")),
+          refreshExtensions: async () => {},
+          uninstallExtension: async () => {},
           installedExtensions: [],
           installedMessageConverters: props.messageConverters ?? [],
           installedPanels: {},
           installedTopicAliasFunctions: [],
+          panelSettings: undefined,
         }) satisfies ExtensionCatalog,
     );
   }, [props.messageConverters]);

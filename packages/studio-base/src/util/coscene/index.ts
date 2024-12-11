@@ -156,7 +156,7 @@ export const getCoSceneLayout = (layout: {
   newLayout.name =
     layout.permission === "CREATOR_WRITE"
       ? `users/${layout.userId}/layouts/${layout.id}`
-      : "layouts/" + layout.id;
+      : "layouts/" + (layout.id ?? "");
   const layoutDetail = new LayoutDetail();
 
   layoutDetail.name = layout.name ?? "";
@@ -183,7 +183,7 @@ export function stringToColor(str: string): string {
   for (let i = 0; i < 3; i++) {
     let value = (hash >> (i * 8)) & 0xff;
     value = Math.floor(value * 0.3 + 0.5 * 0xff); // adjust value to get a brightness between 30% and 50%
-    color += ("00" + value.toString(16)).substr(-2);
+    color += ("00" + value.toString(16)).slice(-2);
   }
   return color;
 }

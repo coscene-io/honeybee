@@ -53,7 +53,7 @@ function ModalPrompt({
   const onConfirmAction = () => {
     try {
       onComplete(transformer ? transformer(value) : value);
-    } catch (err) {
+    } catch {
       onComplete(undefined);
     }
   };

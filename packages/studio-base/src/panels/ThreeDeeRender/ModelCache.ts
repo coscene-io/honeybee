@@ -70,7 +70,7 @@ export class ModelCache {
 
     promise = this.#loadModel(url, opts, reportError)
       .then((model) => addEdges(model, this.#edgeMaterial))
-      .catch(async (err) => {
+      .catch(async (err: unknown) => {
         reportError(err as Error);
         return undefined;
       });
@@ -208,6 +208,7 @@ export class ModelCache {
     // Preload textures. We do this here since we can't pass in an async function in LoadingManager.setURLModifier
     // which is supposed to be used for overriding loading behavior. See also
     // https://threejs.org/docs/index.html#api/en/loaders/managers/LoadingManager.setURLModifier
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     for await (const node of xml.querySelectorAll("init_from")) {
       if (!node.textContent) {
         continue;

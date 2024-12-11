@@ -6,6 +6,7 @@ import Cytoscape from "cytoscape";
 import CytoscapeDagre from "cytoscape-dagre";
 import { MutableRefObject, useEffect, useRef } from "react";
 
+// eslint-disable-next-line react-hooks/rules-of-hooks
 Cytoscape.use(CytoscapeDagre);
 Cytoscape.warnings(false);
 

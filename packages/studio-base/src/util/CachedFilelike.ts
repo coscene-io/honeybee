@@ -174,7 +174,7 @@ export default class CachedFilelike implements Filelike {
           this.#updateState();
         })
         .catch((err: unknown) => {
-          reject(err);
+          reject(err instanceof Error ? err : new Error(err as string));
         });
     });
   }

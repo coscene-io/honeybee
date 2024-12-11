@@ -1003,7 +1003,7 @@ export class ImageMode
             if (result) {
               resolve(result);
             } else {
-              reject(`Failed to create an image from ${width}x${height} canvas`);
+              reject(new Error(`Failed to create an image from ${width}x${height} canvas`));
             }
           }, "image/png");
         });

@@ -34,7 +34,7 @@ export async function rosPackageNameAtPath(packagePath: string): Promise<string 
       encoding: "utf-8",
     });
     return rosPackageName(contents);
-  } catch (err) {
+  } catch {
     return undefined;
   }
 }

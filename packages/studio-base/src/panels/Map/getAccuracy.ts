@@ -87,7 +87,7 @@ export function getAccuracy(
           radii: [primaryRadius, secondaryRadius],
           tilt,
         };
-      } catch (err) {
+      } catch {
         return undefined;
       }
     }

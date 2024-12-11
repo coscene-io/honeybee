@@ -19,6 +19,7 @@ type Options = {
   overrideUserDataDir?: string;
 };
 
+ 
 export function getAppSetting<T>(
   key: AppSetting,
   { overrideUserDataDir }: Options = {},
