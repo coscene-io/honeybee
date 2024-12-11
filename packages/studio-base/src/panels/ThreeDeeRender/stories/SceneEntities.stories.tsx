@@ -766,7 +766,7 @@ const lineLoopSampleData = [
   },
 ];
 
-function LineLoops(): JSX.Element {
+function LineLoops(): React.JSX.Element {
   const readySignal = useReadySignal();
 
   // We're testing a Line loop using a position buffer bigger than it needs from a previous frame
@@ -920,7 +920,7 @@ function makeMultiEntityScene({
   };
 }
 
-function CheckVisibleAfterSeek(): JSX.Element {
+function CheckVisibleAfterSeek(): React.JSX.Element {
   const readySignal = useReadySignal();
 
   const frames = useMemo(() => {

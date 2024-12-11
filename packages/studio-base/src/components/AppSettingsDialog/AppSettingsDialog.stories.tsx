@@ -9,7 +9,7 @@ import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceC
 
 import { AppSettingsDialog } from "./AppSettingsDialog";
 
-function Wrapper(StoryComponent: StoryFn): JSX.Element {
+function Wrapper(StoryComponent: StoryFn): React.JSX.Element {
   return (
     <WorkspaceContextProvider>
       <StoryComponent />

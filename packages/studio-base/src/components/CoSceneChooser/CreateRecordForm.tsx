@@ -25,7 +25,7 @@ export function CreateRecordForm({
   onCreated: (record: Record_es) => void;
   defaultRecordName?: string;
   createRecordConfirmText?: string;
-}): JSX.Element {
+}): React.JSX.Element {
   const cosceneApi = useConsoleApi();
   const [recordName, setRecordName] = useState(defaultRecordName ?? "");
   const [recordDescription, setRecordDescription] = useState("");

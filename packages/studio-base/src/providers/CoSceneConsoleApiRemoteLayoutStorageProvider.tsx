@@ -13,7 +13,7 @@ const selectUser = (store: UserStore) => store.user;
 
 export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
   children,
-}: React.PropsWithChildren): JSX.Element {
+}: React.PropsWithChildren): React.JSX.Element {
   const api = useConsoleApi();
   const currentUser = useCurrentUser(selectUser);
   const apiStorage = useMemo(

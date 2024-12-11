@@ -271,7 +271,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         this.removeError(DECODE_IMAGE_ERR_KEY);
         this.renderer.queueAnimationFrame();
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         log.error(err);
         if (this.isDisposed()) {
           return;

@@ -30,7 +30,7 @@ function update(renderer: IRenderer) {
   stats?.update();
 }
 
-export function Stats(): JSX.Element {
+export function Stats(): React.JSX.Element {
   const [div, setDiv] = useState<HTMLDivElement | ReactNull>(ReactNull);
 
   useRendererEvent("endFrame", (_curTime, curRenderer) => {

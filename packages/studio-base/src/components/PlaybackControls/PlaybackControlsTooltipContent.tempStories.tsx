@@ -11,7 +11,7 @@ import { PlaybackControlsTooltipContent } from "@foxglove/studio-base/components
 import { useTimelineInteractionState } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 
-function Wrapper(Wrapped: StoryFn): JSX.Element {
+function Wrapper(Wrapped: StoryFn): React.JSX.Element {
   const theme = useTheme();
   return (
     <TimelineInteractionStateProvider>

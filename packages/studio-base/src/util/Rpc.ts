@@ -118,7 +118,7 @@ export default class Rpc {
         };
         this.#channel.postMessage(message, transferables);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         const message = {
           topic: RESPONSE,
           id,

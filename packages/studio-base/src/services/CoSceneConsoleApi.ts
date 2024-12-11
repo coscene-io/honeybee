@@ -571,7 +571,7 @@ class CoSceneConsoleApi {
           "Unauthorized. Please check if you are logged in and have permission to access.",
         );
       }
-      const json = (await res.json().catch((err) => {
+      const json = (await res.json().catch((err: unknown) => {
         throw new Error(`Status ${res.status}: ${err.message}`);
       })) as { message?: string; error?: string; errorCode?: number };
       const message = json.message ?? json.error;
@@ -886,7 +886,7 @@ class CoSceneConsoleApi {
     const configName = `users/${userId}/configMaps/${configId}`;
     const req = new GetConfigMapRequest({ name: configName });
     const configMapClient = getPromiseClient(ConfigMapService);
-    return await configMapClient.getConfigMap(req).catch((err) => {
+    return await configMapClient.getConfigMap(req).catch((err: unknown) => {
       if (err.code === StatusCode.NOT_FOUND) {
         return undefined;
       }
@@ -986,7 +986,7 @@ class CoSceneConsoleApi {
     const req = new GenerateFileUploadUrlsRequest(payload);
     return await getPromiseClient(FileService)
       .generateFileUploadUrls(req)
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error("error code", err.code);
         console.error("error message", err.message);
         throw err;
@@ -1037,7 +1037,7 @@ class CoSceneConsoleApi {
     const req = new GenerateFileDownloadUrlRequest(payload);
     return await getPromiseClient(FileService)
       .generateFileDownloadUrl(req)
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error("error", err);
         throw err;
       });
@@ -1123,7 +1123,7 @@ class CoSceneConsoleApi {
     const req = new DeleteFileRequest(payload);
     await getPromiseClient(FileService)
       .deleteFile(req)
-      .catch((err) => {
+      .catch((err: unknown) => {
         throw err;
       });
   }

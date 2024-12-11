@@ -40,7 +40,7 @@ export function SettingsMenu({
   disablePortal,
   handleClose,
   open,
-}: SettingsMenuProps): JSX.Element {
+}: SettingsMenuProps): React.JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("appBar");
 

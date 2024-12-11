@@ -43,7 +43,7 @@ function DataSourceInfoContent(props: {
   playerPresence: PlayerPresence;
   startTime?: Time;
   isLiveConnection: boolean;
-}): JSX.Element {
+}): React.JSX.Element {
   const urlState = useMessagePipeline(selectUrlState);
 
   const {
@@ -121,7 +121,11 @@ const MemoDataSourceInfoContent = React.memo(DataSourceInfoContent);
 
 const EmDash = "\u2014";
 
-export function DataSourceInfoView({ disableSource }: { disableSource?: boolean }): JSX.Element {
+export function DataSourceInfoView({
+  disableSource,
+}: {
+  disableSource?: boolean;
+}): React.JSX.Element {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const playerPresence = useMessagePipeline(selectPlayerPresence);

@@ -12,7 +12,6 @@ import HelpIcon from "@mui/icons-material/Help";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Alert,
-   
   Box,
   Button,
   Checkbox,
@@ -137,7 +136,7 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
   );
 }
 
-export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX.Element {
+export function CoSceneCreateEventContainer(props: { onClose: () => void }): React.JSX.Element {
   const { onClose } = props;
 
   const refreshEvents = useEvents(selectRefreshEvents);

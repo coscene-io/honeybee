@@ -165,7 +165,7 @@ const getFormattedKeyValues = createSelector(
 );
 
 // component to display a single diagnostic status
-export default function DiagnosticStatus(props: Props): JSX.Element {
+export default function DiagnosticStatus(props: Props): React.JSX.Element {
   const {
     onChangeSplitFraction,
     info,

@@ -373,7 +373,7 @@ function PlotWrapper(props: {
   fixture?: Fixture;
   pauseFrame: (_arg: string) => () => void;
   config: PlotConfig;
-}): JSX.Element {
+}): React.JSX.Element {
   const delayedFixture = useDelayedFixture(props.fixture);
   return (
     <PanelSetup

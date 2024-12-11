@@ -24,7 +24,7 @@ export function ActionMenu({
   onReset: () => void;
   onShare: () => void;
   fontSize?: SvgIconProps["fontSize"];
-}): JSX.Element {
+}): React.JSX.Element {
   const { classes, cx } = useStyles();
   const [anchorEl, setAnchorEl] = React.useState<undefined | HTMLElement>();
   const { t } = useTranslation("panelSettings");

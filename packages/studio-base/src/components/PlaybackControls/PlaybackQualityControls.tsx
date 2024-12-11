@@ -38,7 +38,7 @@ const useStyles = makeStyles()((theme) => ({
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 
-function PlaybackQualityControls(): JSX.Element {
+function PlaybackQualityControls(): React.JSX.Element {
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const [playbackQuality, setPlaybackQuality] = useState<string>(ORIGINAL);
   const { t } = useTranslation("cosSettings");

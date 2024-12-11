@@ -47,7 +47,7 @@ function displayNameForNamespace(namespace: string): string {
 function ExtensionListEntry(props: {
   entry: Immutable<ExtensionMarketplaceDetail>;
   onClick: () => void;
-}): JSX.Element {
+}): React.JSX.Element {
   const {
     entry: { id, description, name, publisher, version },
     onClick,

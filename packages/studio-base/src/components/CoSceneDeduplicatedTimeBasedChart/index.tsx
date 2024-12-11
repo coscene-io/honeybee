@@ -150,7 +150,7 @@ export type Props = {
 // start of the bag, and which is kept in sync with other instances of this
 // component. Uses chart.js internally, with a zoom/pan plugin, and with our
 // standard tooltips.
-export default function CoSceneDeduplicatedTimeBasedChart(props: Props): JSX.Element {
+export default function CoSceneDeduplicatedTimeBasedChart(props: Props): React.JSX.Element {
   const { t } = useTranslation("cosAnnotatedPlot");
   const requestID = useRef<number>(0);
   const {

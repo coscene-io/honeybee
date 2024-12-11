@@ -129,7 +129,7 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
 const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
 const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
 
-export function EventsList(): JSX.Element {
+export function EventsList(): React.JSX.Element {
   const consoleApi = useConsoleApi();
 
   const events = useEvents(selectEvents);

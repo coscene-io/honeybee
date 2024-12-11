@@ -135,7 +135,7 @@ function updateUrl(newState: AppURLState) {
   window.history.replaceState(undefined, "", newStateUrl.href);
 }
 
-export function Playlist(): JSX.Element {
+export function Playlist(): React.JSX.Element {
   const [filterText, setFilterText] = useState<string>("");
   const bagFiles = usePlaylist(selectBagFiles);
   const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);

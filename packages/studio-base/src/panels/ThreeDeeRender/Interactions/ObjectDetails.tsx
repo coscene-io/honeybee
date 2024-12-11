@@ -27,7 +27,7 @@ type Props = {
   readonly timezone: string | undefined;
 };
 
-function ObjectDetails({ interactionData, selectedObject, timezone }: Props): JSX.Element {
+function ObjectDetails({ interactionData, selectedObject, timezone }: Props): React.JSX.Element {
   const jsonTreeTheme = useJsonTreeTheme();
   const topic = interactionData?.topic ?? "";
 

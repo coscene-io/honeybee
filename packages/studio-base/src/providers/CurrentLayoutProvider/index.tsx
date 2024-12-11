@@ -46,7 +46,9 @@ export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
  * Concrete implementation of CurrentLayoutContext.Provider which handles
  * automatically restoring the current layout from LayoutStorage.
  */
-export default function CurrentLayoutProvider({ children }: React.PropsWithChildren): JSX.Element {
+export default function CurrentLayoutProvider({
+  children,
+}: React.PropsWithChildren): React.JSX.Element {
   const analytics = useAnalytics();
 
   const [mosaicId] = useState(() => uuidv4());

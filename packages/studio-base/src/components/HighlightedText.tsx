@@ -14,7 +14,7 @@ export function HighlightedText({
 }: {
   text: string;
   highlight?: string;
-}): JSX.Element {
+}): React.JSX.Element {
   if (!highlight?.trim()) {
     return <span style={{ wordBreak: "break-word" }}>{text}</span>;
   }

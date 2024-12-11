@@ -38,7 +38,7 @@ export default {
   },
   parameters: { colorScheme: "light" },
   decorators: [
-    (_StoryFn, { args: { color } }): JSX.Element => {
+    (_StoryFn, { args: { color } }): React.JSX.Element => {
       const sharedProps = (variant: TextFieldProps["variant"], size: TextFieldProps["size"]) => ({
         defaultValue: size,
         error: color === "error",

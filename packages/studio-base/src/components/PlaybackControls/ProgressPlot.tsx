@@ -54,7 +54,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export function ProgressPlot(props: ProgressProps): JSX.Element {
+export function ProgressPlot(props: ProgressProps): React.JSX.Element {
   const { availableRanges, loading } = props;
   const { classes } = useStyles();
 

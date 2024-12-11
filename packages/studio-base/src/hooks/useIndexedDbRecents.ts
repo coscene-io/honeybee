@@ -112,7 +112,7 @@ function useIndexedDbRecents(): IRecentsStore {
     }
 
     setRecents(recentsToSave);
-    idbSet(IDB_KEY, recentsToSave, IDB_STORE).catch((err) => {
+    idbSet(IDB_KEY, recentsToSave, IDB_STORE).catch((err: unknown) => {
       log.error(err);
     });
   }, [loading]);

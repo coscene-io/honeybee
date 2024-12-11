@@ -25,7 +25,7 @@ export default function CoSceneProjectProvider({
   children,
 }: {
   children?: ReactNode;
-}): JSX.Element {
+}): React.JSX.Element {
   const [store] = useState(createProjectStore);
 
   return <CoSceneProjectContext.Provider value={store}>{children}</CoSceneProjectContext.Provider>;

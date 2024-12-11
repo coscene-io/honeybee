@@ -14,7 +14,7 @@ import { URLStateSyncAdapter } from "@foxglove/studio-base/components/URLStateSy
 // import { UpdateChecker } from "@foxglove/studio-base/components/UpdateChecker";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 
-export function SyncAdapters(): JSX.Element {
+export function SyncAdapters(): React.JSX.Element {
   // Sync adapters from app context override any local sync adapters
   const { syncAdapters } = useAppContext();
 

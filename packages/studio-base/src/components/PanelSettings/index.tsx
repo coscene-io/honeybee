@@ -46,7 +46,7 @@ export default function PanelSettings({
 }: React.PropsWithChildren<{
   disableToolbar?: boolean;
   selectedPanelIdsForTests?: readonly string[];
-}>): JSX.Element {
+}>): React.JSX.Element {
   const { t } = useTranslation("panelSettings");
   const singlePanelId = useCurrentLayoutSelector(singlePanelIdSelector);
   const {

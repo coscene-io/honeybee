@@ -96,7 +96,7 @@ function useHandleUploadFile() {
   );
 }
 
-export function UploadFile(): JSX.Element {
+export function UploadFile(): React.JSX.Element {
   const [openChooser, setOpenChooser] = useState(false);
 
   const currentFile = useUploadFiles(selectCurrentFile);

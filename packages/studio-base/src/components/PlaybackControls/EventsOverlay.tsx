@@ -97,7 +97,7 @@ const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.looped
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 
-function EventTick({ event }: { event: TimelinePositionedEvent }): JSX.Element {
+function EventTick({ event }: { event: TimelinePositionedEvent }): React.JSX.Element {
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
   const selectedEventId = useEvents(selectSelectedEventId);
@@ -132,7 +132,7 @@ function EventMark({
 }: {
   marks: TimelinePositionedEventMark[];
   isHiddenCreateMomentPopper: boolean;
-}): JSX.Element {
+}): React.JSX.Element {
   const leftMarkRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
   const { position: leftMarkPosition } = marks[0] ?? {};
   const { position: rightMarkPosition } = marks[1] ?? {};
@@ -255,7 +255,7 @@ type Props = {
   setCursor: (cursor: string) => void;
 };
 
-export function EventsOverlay(props: Props): JSX.Element | ReactNull {
+export function EventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const { componentId, isDragging, setCursor } = props;
 
   const events = useEvents(selectEvents);

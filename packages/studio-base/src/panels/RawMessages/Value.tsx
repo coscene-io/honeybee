@@ -75,7 +75,7 @@ const emptyAction: ValueActionItem = {
 
 const MAX_ACTION_ITEMS = 4;
 
-function Value(props: ValueProps): JSX.Element {
+function Value(props: ValueProps): React.JSX.Element {
   const timeOutID = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const {
     arrLabel,

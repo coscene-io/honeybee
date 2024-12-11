@@ -50,7 +50,7 @@ export function UserMenu({
   disablePortal,
   handleClose,
   open,
-}: UserMenuProps): JSX.Element {
+}: UserMenuProps): React.JSX.Element {
   const { classes } = useStyles();
   const { currentUser, signIn, signOut } = useCurrentUser();
   const currentUserType = useCurrentUserType();

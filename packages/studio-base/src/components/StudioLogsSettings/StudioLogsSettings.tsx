@@ -6,7 +6,7 @@ import SettingsTreeEditor from "@foxglove/studio-base/components/SettingsTreeEdi
 
 import { useStudioLogsSettingsTree } from "./useStudioLogsSettingsTree";
 
-export function StudioLogsSettings(): JSX.Element {
+export function StudioLogsSettings(): React.JSX.Element {
   const logSettings = useStudioLogsSettingsTree();
 
   return <SettingsTreeEditor variant="log" settings={logSettings} />;

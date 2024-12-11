@@ -169,7 +169,7 @@ const selectRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.
 
 const selectUser = (store: UserStore) => store.user;
 
-export function AppBar(props: AppBarProps): JSX.Element {
+export function AppBar(props: AppBarProps): React.JSX.Element {
   const {
     debugDragRegion,
     isMaximized,

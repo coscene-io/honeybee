@@ -45,9 +45,9 @@ const authBridge = (global as { authBridge?: Auth }).authBridge;
 
 export default function Root(props: {
   appConfiguration: IAppConfiguration;
-  extraProviders: JSX.Element[] | undefined;
+  extraProviders: React.JSX.Element[] | undefined;
   dataSources: IDataSourceFactory[] | undefined;
-}): JSX.Element {
+}): React.JSX.Element {
   if (!storageBridge) {
     throw new Error("storageBridge is missing");
   }
@@ -205,7 +205,7 @@ export default function Root(props: {
   const initProviders = SharedProviders({ consoleApi, loginStatusKey });
 
   const extraProviders = useMemo(() => {
-    const providers: JSX.Element[] = initProviders;
+    const providers: React.JSX.Element[] = initProviders;
 
     providers.push(<NativeAppMenuContext.Provider value={nativeAppMenu} />);
 

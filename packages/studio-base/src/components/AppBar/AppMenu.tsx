@@ -25,7 +25,7 @@ const useStyles = makeStyles()({
   },
 });
 
-export function AppMenu(props: AppMenuProps): JSX.Element {
+export function AppMenu(props: AppMenuProps): React.JSX.Element {
   const { open, handleClose, anchorEl, anchorReference, anchorPosition, disablePortal } = props;
   const { classes } = useStyles();
   const { t } = useTranslation("appBar");

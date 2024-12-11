@@ -57,7 +57,7 @@ const selectLoginStatus = (store: UserStore) => store.loginStatus;
  */
 export default function CoSceneCurrentLayoutProvider({
   children,
-}: React.PropsWithChildren): JSX.Element {
+}: React.PropsWithChildren): React.JSX.Element {
   const { enqueueSnackbar } = useSnackbar();
   const { getUserProfile, setUserProfile } = useUserProfileStorage();
   const layoutManager = useLayoutManager();

@@ -27,11 +27,11 @@ import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguratio
 const isDevelopment = process.env.NODE_ENV === "development";
 
 export function WebRoot(props: {
-  extraProviders: JSX.Element[] | undefined;
+  extraProviders: React.JSX.Element[] | undefined;
   dataSources: CoSceneIDataSourceFactory[] | undefined;
-  AppBarComponent?: (props: AppBarProps) => JSX.Element;
-  children: JSX.Element;
-}): JSX.Element {
+  AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
+  children: React.JSX.Element;
+}): React.JSX.Element {
   const baseUrl = APP_CONFIG.CS_HONEYBEE_BASE_URL;
   const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
 

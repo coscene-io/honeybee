@@ -94,7 +94,7 @@ export class RenderableMeshResource extends RenderableMarker {
           // Render a new frame now that the model is loaded
           this.renderer.queueAnimationFrame();
         })
-        .catch((err) => {
+        .catch((err: unknown) => {
           errors.add(
             this.userData.settingsPath,
             MESH_FETCH_FAILED,

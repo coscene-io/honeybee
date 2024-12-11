@@ -97,7 +97,7 @@ export function Sidebar<K extends string>({
   onClose: () => void;
   activeTab: K | undefined;
   setActiveTab: (newValue: K) => void;
-}): JSX.Element {
+}): React.JSX.Element {
   const { classes, cx } = useStyles();
 
   const SelectedComponent = (activeTab && items.get(activeTab)?.component) ?? Noop;

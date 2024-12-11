@@ -357,7 +357,7 @@ function BagViewComponent(params: {
             })}
             onClick={(e) => {
               e.stopPropagation();
-              onDeleteBag().catch((err) => {
+              onDeleteBag().catch((err: unknown) => {
                 console.error(err);
               });
             }}

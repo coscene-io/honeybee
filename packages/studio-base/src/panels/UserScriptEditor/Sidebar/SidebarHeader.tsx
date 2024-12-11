@@ -13,7 +13,7 @@ export const SidebarHeader = ({
   title: string;
   subheader?: CardHeaderProps["subheader"];
   onClose: () => void;
-}): JSX.Element => (
+}): React.JSX.Element => (
   <CardHeader
     title={title}
     titleTypographyProps={{

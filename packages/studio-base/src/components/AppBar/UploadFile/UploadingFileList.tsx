@@ -22,7 +22,11 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-export function UploadingFileList({ handleReUpload }: { handleReUpload: () => void }): JSX.Element {
+export function UploadingFileList({
+  handleReUpload,
+}: {
+  handleReUpload: () => void;
+}): React.JSX.Element {
   const uploadingFiles = useUploadFiles(selectUploadingFiles);
   const currentUser = useCurrentUser(selectCurrentUser);
 

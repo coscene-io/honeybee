@@ -21,7 +21,11 @@ function CreateBaseStore() {
   }));
 }
 
-export default function CoSceneBaseProvider({ children }: { children?: ReactNode }): JSX.Element {
+export default function CoSceneBaseProvider({
+  children,
+}: {
+  children?: ReactNode;
+}): React.JSX.Element {
   const [store] = useState(CreateBaseStore);
 
   return <CoSceneBaseContext.Provider value={store}>{children}</CoSceneBaseContext.Provider>;

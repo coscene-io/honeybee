@@ -102,7 +102,7 @@ function EventViewComponent(params: {
   onEdit: (event: ToModifyEvent) => void;
   onSetLoopedEvent: (event: TimelinePositionedEvent | undefined) => void;
   confirm: confirmTypes;
-}): JSX.Element {
+}): React.JSX.Element {
   const {
     event,
     filter,
@@ -259,7 +259,7 @@ function EventViewComponent(params: {
     }
   };
 
-  const ruleNavAddress: JSX.Element = useMemo(() => {
+  const ruleNavAddress: React.JSX.Element = useMemo(() => {
     const rule = event.event.rule;
 
     if (diagnosisRuleData == undefined || rule == undefined) {
@@ -300,7 +300,7 @@ function EventViewComponent(params: {
   }, [consoleApi, event.event.creator]);
 
   useEffect(() => {
-    getHumanCreator().catch((err) => {
+    getHumanCreator().catch((err: unknown) => {
       log.error("getHumanCreator", err);
     });
   }, [getHumanCreator]);

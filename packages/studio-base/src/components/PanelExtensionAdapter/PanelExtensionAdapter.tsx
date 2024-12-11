@@ -108,7 +108,7 @@ type RenderFn = NonNullable<PanelExtensionContext["onRender"]>;
  */
 function PanelExtensionAdapter(
   props: React.PropsWithChildren<PanelExtensionAdapterProps>,
-): JSX.Element {
+): React.JSX.Element {
   const { initPanel, config, saveConfig, highestSupportedConfigVersion } = props;
 
   // Unlike the react data flow, the config is only provided to the panel once on setup.

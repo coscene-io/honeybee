@@ -10,7 +10,7 @@ import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { AuthStatus } from "./constant";
 
-function AuthSignOutListener(): JSX.Element {
+function AuthSignOutListener(): React.JSX.Element {
   const authStatusCookieName = getAuthStatusCookieName();
   const [cookies] = useCookies([authStatusCookieName]);
   const signOut = cookies[authStatusCookieName]?.status === AuthStatus.SIGN_OUT;

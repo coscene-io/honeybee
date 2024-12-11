@@ -96,7 +96,7 @@ const selectProject = (store: CoSceneProjectStore) => store.project;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
-export function DataSource(): JSX.Element {
+export function DataSource(): React.JSX.Element {
   const { t } = useTranslation("appBar");
   const { classes, cx } = useStyles();
 

@@ -65,7 +65,7 @@ export default {
   component: ({ mode }) => <PanelCatalogComponent mode={mode} onPanelSelect={() => {}} />,
   parameters: { colorScheme: "dark" },
   decorators: [
-    (Wrapped: StoryFn): JSX.Element => {
+    (Wrapped: StoryFn): React.JSX.Element => {
       const theme = useTheme();
       return (
         <DndProvider backend={HTML5Backend}>

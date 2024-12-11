@@ -91,7 +91,7 @@ export type WorkspaceActions = {
     // Export the current layout to a file
     // This will perform a browser download of the current layout to a file
     exportToFile: (layout: Layout) => void;
-    unsavedChangesPrompt: JSX.Element | undefined;
+    unsavedChangesPrompt: React.JSX.Element | undefined;
     setOpen: Dispatch<SetStateAction<boolean>>;
   };
 };

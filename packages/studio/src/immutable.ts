@@ -33,7 +33,7 @@ export type Primitive = string | number | boolean | bigint | symbol | undefined 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyArray<Type = any> = Array<Type> | ReadonlyArray<Type>;
 
-// eslint-disable-next-line @typescript-eslint/ban-types
+// eslint-disable-next-line
 export type Builtin = Primitive | Function | Date | Error | RegExp;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,7 +73,7 @@ export type Immutable<Type> = Type extends Exclude<Builtin, Error>
   ? Type extends IsTuple<Type>
     ? { readonly [Key in keyof Type]: Immutable<Type[Key]> }
     : ReadonlyArray<Immutable<Values>>
-  : // eslint-disable-next-line @typescript-eslint/ban-types
+  : // eslint-disable-next-line
   Type extends {}
   ? { readonly [Key in keyof Type]: Immutable<Type[Key]> }
   : IsUnknown<Type> extends true

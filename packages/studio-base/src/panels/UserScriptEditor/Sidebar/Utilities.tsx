@@ -20,7 +20,7 @@ export function Utilities({
   onClose: () => void;
   gotoUtils: (filePath: string) => void;
   script?: Script;
-}): JSX.Element {
+}): React.JSX.Element {
   return (
     <Stack flex="auto" position="relative">
       <SidebarHeader

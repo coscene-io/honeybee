@@ -1047,7 +1047,7 @@ export default class UserScriptPlayer implements Player {
       .runExclusive(async (state) => {
         this.#setSubscriptionsUnlocked(subscriptions, state);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         log.error(err);
         reportError(err as Error);
       });

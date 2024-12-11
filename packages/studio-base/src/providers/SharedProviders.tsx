@@ -25,7 +25,7 @@ export function SharedProviders({
 }: {
   consoleApi: ConsoleApi;
   loginStatusKey?: number;
-}): JSX.Element[] {
+}): React.JSX.Element[] {
   const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
   const urdfStorage = useMemo(() => new IdbUrdfStorage(), []);
 

@@ -155,7 +155,7 @@ const useStyles = makeStyles<void, "grid" | "toggleButton" | "toggleButtonFloati
   }),
 );
 
-function PlotLegendComponent(props: Props): JSX.Element {
+function PlotLegendComponent(props: Props): React.JSX.Element {
   const {
     currentTime,
     datasets,

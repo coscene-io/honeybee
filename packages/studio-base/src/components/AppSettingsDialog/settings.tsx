@@ -95,7 +95,7 @@ function formatTimezone(name: string) {
   return `${name} (${zoneAbbr}, ${offsetStr})`;
 }
 
-export function ColorSchemeSettings(): JSX.Element {
+export function ColorSchemeSettings(): React.JSX.Element {
   const { classes } = useStyles();
   const [colorScheme = "system", setColorScheme] = useAppConfigurationValue<string>(
     AppSetting.COLOR_SCHEME,

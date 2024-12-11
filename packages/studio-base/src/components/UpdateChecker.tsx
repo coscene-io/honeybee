@@ -14,7 +14,7 @@ type VersionResponse = {
   message?: string;
 };
 
-export function UpdateChecker(): JSX.Element {
+export function UpdateChecker(): React.JSX.Element {
   const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function UpdateChecker(): JSX.Element {
           enqueueSnackbar(message);
         }
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         log.error(err);
       });
 

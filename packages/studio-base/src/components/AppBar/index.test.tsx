@@ -17,7 +17,7 @@ import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockApp
 
 import { AppBar } from ".";
 
-function Wrapper({ children }: React.PropsWithChildren): JSX.Element {
+function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
   const appConfiguration = makeMockAppConfiguration();
   const providers = [
     /* eslint-disable react/jsx-key */
