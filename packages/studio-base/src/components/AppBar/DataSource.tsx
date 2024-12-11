@@ -192,7 +192,7 @@ export function DataSource(): JSX.Element {
                     color="inherit"
                     className={classes.breadcrumbs}
                   >
-                    {`${hostName ?? playerDisplayName ?? t("unknown")}`}
+                    {hostName ?? playerDisplayName ?? t("unknown")}
                   </Link>
                 )}
               </Breadcrumbs>

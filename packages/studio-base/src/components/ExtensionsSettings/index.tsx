@@ -190,7 +190,7 @@ export default function ExtensionsSettings(): React.ReactElement {
             </Stack>
             {entries.map((entry) => (
               <ExtensionListEntry
-                key={`${entry.id}`}
+                key={entry.id}
                 entry={entry}
                 onClick={() => {
                   setFocusedExtension({ installed: true, entry });

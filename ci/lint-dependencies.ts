@@ -111,7 +111,7 @@ async function getAllWorkspacePackages(roots: string[]) {
   const results: { name: string; path: string }[] = [];
   const workspacePackages: string[] = [];
   for (const workspaceRoot of roots) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const workspaceInfo = require(path.resolve(process.cwd(), workspaceRoot, "package.json"));
     const patterns: string[] = Array.isArray(workspaceInfo.workspaces)
       ? workspaceInfo.workspaces
@@ -126,7 +126,7 @@ async function getAllWorkspacePackages(roots: string[]) {
   }
   for (const packagePath of workspacePackages) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+       
       const packageInfo = require(path.join(packagePath, "package.json"));
       const name = packageInfo.name;
       if (typeof name !== "string") {

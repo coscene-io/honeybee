@@ -73,7 +73,7 @@ export default function LayoutSection({
             }
             return layout.name.toLowerCase().includes(searchQuery.toLowerCase());
           })
-          ?.map((layout) => (
+          .map((layout) => (
             <LayoutRow
               searchQuery={searchQuery}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}

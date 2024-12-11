@@ -4,7 +4,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-/* eslint-disable jest/no-done-callback */
+ 
 
 import { render } from "@testing-library/react";
 import { act } from "react-dom/test-utils";
@@ -201,9 +201,9 @@ describe("PanelExtensionAdapter", () => {
                 ++count;
 
                 if (count === 1) {
-                  // eslint-disable-next-line jest/no-conditional-expect
+                   
                   expect(advertisements).toEqual(
-                    // eslint-disable-next-line jest/no-conditional-expect
+                     
                     expect.arrayContaining<AdvertiseOptions>([
                       {
                         topic: "/some/topic",
@@ -213,9 +213,9 @@ describe("PanelExtensionAdapter", () => {
                     ]),
                   );
                 } else if (count === 2) {
-                  // eslint-disable-next-line jest/no-conditional-expect
+                   
                   expect(advertisements).toEqual(
-                    // eslint-disable-next-line jest/no-conditional-expect
+                     
                     expect.arrayContaining<AdvertiseOptions>([
                       {
                         topic: "/some/topic",
@@ -327,9 +327,9 @@ describe("PanelExtensionAdapter", () => {
                 ++count;
 
                 if (count === 1) {
-                  // eslint-disable-next-line jest/no-conditional-expect
+                   
                   expect(advertisements).toEqual(
-                    // eslint-disable-next-line jest/no-conditional-expect
+                     
                     expect.arrayContaining<AdvertiseOptions>([
                       {
                         topic: "/some/topic",
@@ -339,9 +339,9 @@ describe("PanelExtensionAdapter", () => {
                     ]),
                   );
                 } else if (count === 2) {
-                  // eslint-disable-next-line jest/no-conditional-expect
+                   
                   expect(advertisements).toEqual(
-                    // eslint-disable-next-line jest/no-conditional-expect
+                     
                     expect.arrayContaining<AdvertiseOptions>([
                       {
                         topic: "/some/topic",
@@ -356,9 +356,9 @@ describe("PanelExtensionAdapter", () => {
                     ]),
                   );
                 } else if (count === 3) {
-                  // eslint-disable-next-line jest/no-conditional-expect
+                   
                   expect(advertisements).toEqual(
-                    // eslint-disable-next-line jest/no-conditional-expect
+                     
                     expect.arrayContaining<AdvertiseOptions>([
                       {
                         topic: "/another/topic",
@@ -403,9 +403,9 @@ describe("PanelExtensionAdapter", () => {
         ++count;
 
         if (count === 1) {
-          // eslint-disable-next-line jest/no-conditional-expect
+           
           expect(advertisements).toEqual(
-            // eslint-disable-next-line jest/no-conditional-expect
+             
             expect.arrayContaining<AdvertiseOptions>([
               {
                 topic: "/some/topic",
@@ -415,7 +415,7 @@ describe("PanelExtensionAdapter", () => {
             ]),
           );
         } else if (count === 2) {
-          // eslint-disable-next-line jest/no-conditional-expect
+           
           expect(advertisements).toEqual(expect.arrayContaining([]));
           done();
         }
