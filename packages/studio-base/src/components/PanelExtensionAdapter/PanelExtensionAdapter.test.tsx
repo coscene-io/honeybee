@@ -4,8 +4,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
- 
-
 import { render } from "@testing-library/react";
 import { act } from "react-dom/test-utils";
 
@@ -67,6 +65,7 @@ describe("PanelExtensionAdapter", () => {
     const initPanel = jest.fn((context: PanelExtensionContext) => {
       context.watch("currentFrame");
       context.watch("didSeek");
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       context.subscribe(["x"]);
       context.onRender = (renderState, done) => {
         renderStates.push({ ...renderState });
@@ -201,9 +200,7 @@ describe("PanelExtensionAdapter", () => {
                 ++count;
 
                 if (count === 1) {
-                   
                   expect(advertisements).toEqual(
-                     
                     expect.arrayContaining<AdvertiseOptions>([
                       {
                         topic: "/some/topic",
@@ -213,9 +210,7 @@ describe("PanelExtensionAdapter", () => {
                     ]),
                   );
                 } else if (count === 2) {
-                   
                   expect(advertisements).toEqual(
-                     
                     expect.arrayContaining<AdvertiseOptions>([
                       {
                         topic: "/some/topic",
@@ -327,9 +322,7 @@ describe("PanelExtensionAdapter", () => {
                 ++count;
 
                 if (count === 1) {
-                   
                   expect(advertisements).toEqual(
-                     
                     expect.arrayContaining<AdvertiseOptions>([
                       {
                         topic: "/some/topic",
@@ -339,9 +332,7 @@ describe("PanelExtensionAdapter", () => {
                     ]),
                   );
                 } else if (count === 2) {
-                   
                   expect(advertisements).toEqual(
-                     
                     expect.arrayContaining<AdvertiseOptions>([
                       {
                         topic: "/some/topic",
@@ -356,9 +347,7 @@ describe("PanelExtensionAdapter", () => {
                     ]),
                   );
                 } else if (count === 3) {
-                   
                   expect(advertisements).toEqual(
-                     
                     expect.arrayContaining<AdvertiseOptions>([
                       {
                         topic: "/another/topic",
@@ -403,9 +392,7 @@ describe("PanelExtensionAdapter", () => {
         ++count;
 
         if (count === 1) {
-           
           expect(advertisements).toEqual(
-             
             expect.arrayContaining<AdvertiseOptions>([
               {
                 topic: "/some/topic",
@@ -415,7 +402,6 @@ describe("PanelExtensionAdapter", () => {
             ]),
           );
         } else if (count === 2) {
-           
           expect(advertisements).toEqual(expect.arrayContaining([]));
           done();
         }
@@ -507,6 +493,7 @@ describe("PanelExtensionAdapter", () => {
 
   it("should unsubscribe from all topics when subscribing to empty topics array", async () => {
     const initPanel = (context: PanelExtensionContext) => {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       context.subscribe([]);
     };
 
@@ -681,8 +668,10 @@ describe("PanelExtensionAdapter", () => {
     const sig = signal();
     const initPanel = jest.fn((context: PanelExtensionContext) => {
       context.watch("currentFrame");
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       context.subscribe(["x"]);
       setTimeout(() => {
+        // eslint-disable-next-line @typescript-eslint/no-deprecated
         context.subscribe(["y"]);
         sig.resolve();
       }, 10);

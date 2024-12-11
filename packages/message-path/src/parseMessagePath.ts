@@ -41,7 +41,7 @@ const parseMessagePath = (path: string): MessagePath | undefined => {
   const parser = new Parser(grammarObj);
   try {
     return parser.feed(path).results[0];
-  } catch (_err) {
+  } catch {
     return undefined;
   }
 };

@@ -255,7 +255,7 @@ export function Playlist(): React.JSX.Element {
           toast.error(t("addFilesFailed"));
         }
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         toast.error(t("addFilesFailed"));
         console.error("Failed to set base info", error);
       });

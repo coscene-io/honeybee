@@ -114,11 +114,11 @@ export function UserMenu({
         onClose={handleClose}
         onClick={handleClose}
         MenuListProps={{ className: classes.menuList, dense: true }}
-        PaperProps={
-          {
+        slotProps={{
+          paper: {
             "data-tourid": "user-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>
-        }
+          } as Partial<PaperProps & { "data-tourid"?: string }>,
+        }}
       >
         {loginStatus === "alreadyLogin" && (
           <MenuItem disabled>{userInfo?.nickName ?? "unknow"}</MenuItem>

@@ -52,11 +52,11 @@ export function AppMenu(props: AppMenuProps): React.JSX.Element {
           dense: true,
           className: classes.menuList,
         }}
-        PaperProps={
-          {
+        slotProps={{
+          paper: {
             "data-tourid": "app-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>
-        }
+          } as Partial<PaperProps & { "data-tourid"?: string }>,
+        }}
       >
         <MenuItem
           onClick={() => {

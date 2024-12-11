@@ -162,7 +162,9 @@ export function ProblemsList(): React.JSX.Element {
         <Accordion
           className={classes.acccordion}
           key={`${idx}.${problem.severity}.${problem.message}`}
-          TransitionProps={{ unmountOnExit: true }}
+          slotProps={{
+            transition: { unmountOnExit: true },
+          }}
           defaultExpanded
         >
           <AccordionSummary

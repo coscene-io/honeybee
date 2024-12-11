@@ -22,8 +22,8 @@ import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import Connection from "./Connection";
 import Start from "./Start";
 
-const DataSourceDialogItems = ["start", "file", "demo", "remote", "connection"] as const;
-export type DataSourceDialogItem = (typeof DataSourceDialogItems)[number];
+type DataSourceDialogItems = ["start", "file", "demo", "remote", "connection"];
+export type DataSourceDialogItem = DataSourceDialogItems[number];
 
 type DataSourceDialogProps = {
   backdropAnimation?: boolean;
@@ -127,7 +127,9 @@ export function DataSourceDialog(props: DataSourceDialogProps): React.JSX.Elemen
       onClose={onModalClose}
       fullWidth
       maxWidth="lg"
-      BackdropProps={{ children: backdrop }}
+      slotProps={{
+        backdrop: { children: backdrop },
+      }}
       PaperProps={{
         square: false,
         elevation: 4,

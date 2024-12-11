@@ -37,14 +37,16 @@ export function quoteFieldNameIfNeeded(name: string): string {
   return `"${name.replace(/[\\"]/g, (char) => `\\${char}`)}"`;
 }
 
-const parseRosPath = _.memoize((path: string): RosPath | undefined => {
-  // Need to create a new Parser object for every new string to parse (should be cheap).
-  const parser = new Parser(grammarObj);
-  try {
-    return parser.feed(path).results[0];
-  } catch (_err) {
-    return undefined;
-  }
-});
+const parseRosPath: (path: string) => RosPath | undefined = _.memoize(
+  (path: string): RosPath | undefined => {
+    // Need to create a new Parser object for every new string to parse (should be cheap).
+    const parser = new Parser(grammarObj);
+    try {
+      return parser.feed(path).results[0];
+    } catch {
+      return undefined;
+    }
+  },
+);
 
 export default parseRosPath;

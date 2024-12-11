@@ -300,7 +300,7 @@ export function CoSceneEventsSyncAdapter(): React.JSX.Element {
   }, [bagFiles.loading, startTime, endTime, consoleApi, timeMode, setEvents]);
 
   useEffect(() => {
-    syncEvents().catch((error) => {
+    syncEvents().catch((error: unknown) => {
       log.error(error);
     });
   }, [syncEvents, eventFetchCount]);

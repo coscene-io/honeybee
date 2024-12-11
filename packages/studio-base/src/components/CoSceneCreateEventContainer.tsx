@@ -413,7 +413,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     try {
       await consoleApi.syncTask({ name });
       enqueueSnackbar(t("syncTaskSuccess"), { variant: "success" });
-    } catch (e) {
+    } catch {
       enqueueSnackbar(t("syncTaskFailed"), { variant: "error" });
     }
   });
@@ -489,7 +489,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
           await syncTask(newTask.name);
         }
         onClose();
-      } catch (e) {
+      } catch {
         enqueueSnackbar(t("createTaskFailed"), { variant: "error" });
       }
     },
@@ -577,7 +577,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
 
       refreshEvents();
       enqueueSnackbar(t("createMomentSuccess"), { variant: "success" });
-    } catch (e) {
+    } catch {
       enqueueSnackbar(t("createMomentFailed"), { variant: "error" });
     }
   }, [
@@ -678,7 +678,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
 
       refreshEvents();
       enqueueSnackbar(t("editMomentSuccess"), { variant: "success" });
-    } catch (e) {
+    } catch {
       enqueueSnackbar(t("editMomentFailed"), { variant: "error" });
     }
   }, [

@@ -3,4 +3,5 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // React available everywhere (matches webpack config)
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 global.React = require("react");

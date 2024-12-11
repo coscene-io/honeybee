@@ -148,7 +148,7 @@ export default function ExtensionsSettings(): React.ReactElement {
   );
 
   useEffect(() => {
-    refreshMarketplaceEntries().catch((error) => {
+    refreshMarketplaceEntries().catch((error: unknown) => {
       log.error(error);
     });
   }, [refreshMarketplaceEntries]);

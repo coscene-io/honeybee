@@ -87,6 +87,7 @@ export default {
     if (args.inputValue) {
       await keyboard(args.inputValue);
     }
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     args.events?.map(async (keypress) => {
       await keyboard(keypress);
     });

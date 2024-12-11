@@ -395,7 +395,7 @@ export function LanguageSettings(): React.ReactElement {
       }
 
       void setSelectedLanguage(lang);
-      await i18n.changeLanguage(lang).catch((error) => {
+      await i18n.changeLanguage(lang).catch((error: unknown) => {
         console.error("Failed to switch languages", error);
         reportError(error as Error);
       });

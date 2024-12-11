@@ -226,7 +226,7 @@ export function EventsList(): React.JSX.Element {
   }, [consoleApi]);
 
   useEffect(() => {
-    getDiagnosisRule().catch((error) => {
+    getDiagnosisRule().catch((error: unknown) => {
       log.error(error);
     });
   }, [getDiagnosisRule]);

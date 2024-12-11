@@ -109,7 +109,7 @@ function MomentButton({ disableControls }: { disableControls: boolean }): React.
     >
       <Typography variant="body2" marginLeft="4px">
         {t("createMomentButtonText", {
-          option: navigator.platform.toUpperCase().includes("MAC") ? "⌥" : "Alt",
+          option: /Mac/i.test(navigator.userAgent) ? "⌥" : "Alt",
         })}
       </Typography>
     </HoverableIconButton>

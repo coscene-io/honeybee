@@ -52,11 +52,11 @@ export function AddPanelMenu(props: AddPanelProps): React.JSX.Element {
         vertical: "top",
         horizontal: "left",
       }}
-      PaperProps={
-        {
+      slotProps={{
+        paper: {
           "data-tourid": "add-panel-menu",
-        } as Partial<PaperProps & { "data-tourid"?: string }>
-      }
+        } as Partial<PaperProps & { "data-tourid"?: string }>,
+      }}
     >
       <PanelCatalog
         isMenu

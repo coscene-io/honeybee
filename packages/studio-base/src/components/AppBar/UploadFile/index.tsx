@@ -80,7 +80,7 @@ function useHandleUploadFile() {
           progress: 100,
           abortController,
         });
-      } catch (error) {
+      } catch {
         toast.error(t("uploadFileFailed"));
         setUpdateUploadingFiles(file.name, {
           fileBlob: file,

@@ -301,11 +301,13 @@ function PanelExtensionAdapter(
 
   const partialExtensionContext = useMemo<PartialPanelExtensionContext>(() => {
     const layout: PanelExtensionContext["layout"] = {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       addPanel({ position, type, updateIfExists, getState }) {
         if (!isMounted()) {
           return;
         }
         switch (position) {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           case "sibling":
             openSiblingPanel({
               panelType: type,

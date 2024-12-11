@@ -651,11 +651,11 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           vertical: "top",
           horizontal: "right",
         }}
-        PaperProps={
-          {
+        slotProps={{
+          paper: {
             "data-tourid": "add-panel-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>
-        }
+          } as Partial<PaperProps & { "data-tourid"?: string }>,
+        }}
       >
         <div className={cx(classes.toolbar, classes.toolbarMenu)}>
           <TextField

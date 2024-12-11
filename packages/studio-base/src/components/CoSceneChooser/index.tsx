@@ -700,7 +700,9 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
       onClose={onModalClose}
       fullWidth
       maxWidth="lg"
-      BackdropProps={{ children: backdrop }}
+      slotProps={{
+        backdrop: { children: backdrop },
+      }}
       PaperProps={{
         square: false,
         elevation: 4,

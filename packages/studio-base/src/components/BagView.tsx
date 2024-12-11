@@ -245,7 +245,7 @@ function BagViewComponent(params: {
           });
           location.reload();
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           toast.error(t("addFilesFailed"));
           console.error("Failed to set base info", error);
         });
