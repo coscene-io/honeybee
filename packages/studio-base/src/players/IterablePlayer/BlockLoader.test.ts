@@ -296,7 +296,6 @@ describe("BlockLoader", () => {
       progress: async (progress) => {
         count++;
         if (count === 2) {
-           
           expect(progress).toEqual({
             fullyLoadedFractionRanges: [
               {
@@ -340,7 +339,6 @@ describe("BlockLoader", () => {
       progress: async (progress) => {
         count += 1;
         if (count === 2) {
-           
           expect(progress).toEqual({
             fullyLoadedFractionRanges: [
               {
@@ -423,7 +421,6 @@ describe("BlockLoader", () => {
         }
 
         if (count === 2) {
-           
           expect(progress).toEqual({
             fullyLoadedFractionRanges: [
               {
@@ -554,7 +551,6 @@ describe("BlockLoader", () => {
         }
 
         if (count === maxBlockCount) {
-           
           expect(progress).toEqual({
             fullyLoadedFractionRanges: [
               {

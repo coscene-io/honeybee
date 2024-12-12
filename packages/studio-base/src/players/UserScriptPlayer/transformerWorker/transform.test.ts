@@ -11,8 +11,6 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
- 
-
 import exampleDatatypes from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/fixtures/example-datatypes";
 import generateRosLib from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/generateRosLib";
 import {

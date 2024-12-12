@@ -98,7 +98,9 @@ export class RenderableMeshResource extends RenderableMarker {
           errors.add(
             this.userData.settingsPath,
             MESH_FETCH_FAILED,
-            `Unhandled error loading mesh from "${marker.mesh_resource}": ${err.message}`,
+            `Unhandled error loading mesh from "${marker.mesh_resource}": ${
+              err instanceof Error ? err.message : err
+            }`,
           );
         });
     }

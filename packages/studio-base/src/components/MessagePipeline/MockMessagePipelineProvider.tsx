@@ -82,7 +82,6 @@ export type MockMessagePipelineProps = {
   playerId?: string;
   progress?: Progress;
   urlState?: PlayerURLState;
-   
 };
 type MockMessagePipelineState = MessagePipelineInternalState & {
   mockProps: MockMessagePipelineProps;
@@ -113,6 +112,7 @@ function getPublicState(
   }
 
   return {
+    getMetadata: () => [],
     playerState: {
       name: props.name,
       presence: props.presence ?? PlayerPresence.PRESENT,

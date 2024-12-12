@@ -124,9 +124,9 @@ export default class Rpc {
           id,
           data: {
             [ERROR]: true,
-            name: err.name,
-            message: err.message,
-            stack: err.stack,
+            name: err instanceof Error ? err.name : "Error",
+            message: err instanceof Error ? err.message : err,
+            stack: err instanceof Error ? err.stack : new Error().stack,
           },
         };
         this.#channel.postMessage(message);
