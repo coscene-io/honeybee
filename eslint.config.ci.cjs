@@ -1,8 +1,10 @@
 // We keep some slow lint rules here, and only run them in CI.
 // Please only add rules here if they are unlikely to be encountered
 // during normal development.
+const baseConfig = require("./eslint.config.cjs");
 
-export default [
+module.exports = [
+  ...baseConfig,
   {
     rules: {
       // disable progress spinner
