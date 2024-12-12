@@ -8,6 +8,7 @@ module.exports = {
     "lodash-ramda-imports": require("./lodash-ramda-imports"),
     "ramda-usage": require("./ramda-usage"),
     "no-map-type-argument": require("./no-map-type-argument"),
+    "license-header": require("./license-header"),
   },
 
   configs: {
@@ -18,6 +19,7 @@ module.exports = {
         "@foxglove/studio/lodash-ramda-imports": "error",
         "@foxglove/studio/ramda-usage": "error",
         "@foxglove/studio/no-map-type-argument": "error",
+        "@foxglove/studio/license-header": "error",
       },
     },
   },
