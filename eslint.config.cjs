@@ -151,7 +151,8 @@ module.exports = tslintPlugin.config(
       sourceType: "script",
 
       parserOptions: {
-        project: "/Users/lijunhui/Documents/GitHub/honeybee/tsconfig.eslint.json",
+        project: "tsconfig.eslint.json",
+        tsconfigRootDir: __dirname,
       },
     },
 
