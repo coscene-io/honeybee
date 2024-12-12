@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -98,7 +101,6 @@ module.exports = tslintPlugin.config(
     },
 
     rules: {
-      // "@foxglove/license-header": "error",
       "tss-unused-classes/unused-classes": "error",
       "file-progress/activate": "warn",
       "prettier/prettier": "off",
@@ -106,6 +108,7 @@ module.exports = tslintPlugin.config(
       "import/no-duplicates": "off",
       "id-denylist": ["error", "useEffectOnce", "window"],
       "no-console": "off",
+      "@foxglove/studio/license-header": "error",
 
       "no-restricted-syntax": [
         "error",

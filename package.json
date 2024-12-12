@@ -77,7 +77,6 @@
     "@foxglove/eslint-plugin": "2.0.0",
     "@foxglove/eslint-plugin-studio": "workspace:*",
     "@foxglove/tsconfig": "2.0.0",
-    "@octokit/rest": "20.0.2",
     "@storybook/addon-actions": "8.2.8",
     "@storybook/addon-essentials": "8.2.8",
     "@storybook/addon-interactions": "8.2.8",
