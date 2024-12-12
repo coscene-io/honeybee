@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-deprecated */
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
@@ -6,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+/* eslint-disable @typescript-eslint/no-deprecated */
 import { MarkOptional } from "ts-essentials";
 
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
