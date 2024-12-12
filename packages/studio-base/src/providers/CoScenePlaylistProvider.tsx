@@ -28,7 +28,7 @@ export default function CoScenePlaylistProvider({
   children,
 }: {
   children?: ReactNode;
-}): JSX.Element {
+}): React.JSX.Element {
   const [store] = useState(createPlaylistStore);
 
   return (

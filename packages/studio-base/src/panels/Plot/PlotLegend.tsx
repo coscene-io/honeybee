@@ -143,7 +143,7 @@ const useStyles = makeStyles<void, "grid" | "toggleButton" | "toggleButtonFloati
 
 const emptyPaths: string[] = [];
 
-function PlotLegendComponent(props: Props): JSX.Element {
+function PlotLegendComponent(props: Props): React.JSX.Element {
   const {
     coordinator,
     legendDisplay,

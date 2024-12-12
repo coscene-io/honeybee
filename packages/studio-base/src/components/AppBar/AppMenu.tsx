@@ -25,7 +25,7 @@ const useStyles = makeStyles()({
   },
 });
 
-export function AppMenu(props: AppMenuProps): JSX.Element {
+export function AppMenu(props: AppMenuProps): React.JSX.Element {
   const { open, handleClose, anchorEl, anchorReference, anchorPosition, disablePortal } = props;
   const { classes } = useStyles();
   const { t } = useTranslation("appBar");
@@ -52,11 +52,11 @@ export function AppMenu(props: AppMenuProps): JSX.Element {
           dense: true,
           className: classes.menuList,
         }}
-        PaperProps={
-          {
+        slotProps={{
+          paper: {
             "data-tourid": "app-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>
-        }
+          } as Partial<PaperProps & { "data-tourid"?: string }>,
+        }}
       >
         <MenuItem
           onClick={() => {

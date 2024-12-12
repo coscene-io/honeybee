@@ -39,7 +39,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-function DropOverlay(props: PropsWithChildren<{ open: boolean }>): JSX.Element {
+function DropOverlay(props: PropsWithChildren<{ open: boolean }>): React.JSX.Element {
   const { classes } = useStyles();
   return (
     <Dialog

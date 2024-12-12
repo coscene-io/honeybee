@@ -109,7 +109,7 @@ function buildSettingsTree(config: Config, topics: readonly Topic[]): SettingsTr
   return { general };
 }
 
-function TeleopPanel(props: TeleopPanelProps): JSX.Element {
+function TeleopPanel(props: TeleopPanelProps): React.JSX.Element {
   const { context } = props;
   const { saveState } = context;
 

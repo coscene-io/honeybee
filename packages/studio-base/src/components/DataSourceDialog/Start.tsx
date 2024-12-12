@@ -112,13 +112,13 @@ const useStyles = makeStyles()((theme) => ({
 type DataSourceOptionProps = {
   text: string;
   secondaryText: string;
-  icon: JSX.Element;
+  icon: React.JSX.Element;
   onClick: () => void;
   href?: string;
   target: "_blank";
 };
 
-function DataSourceOption(props: DataSourceOptionProps): JSX.Element {
+function DataSourceOption(props: DataSourceOptionProps): React.JSX.Element {
   const { icon, onClick, text, secondaryText, href, target } = props;
   const { classes } = useStyles();
   const button = (
@@ -157,7 +157,7 @@ type SidebarItem = {
   actions?: ReactNode;
 };
 
-function SidebarItems(): JSX.Element {
+function SidebarItems(): React.JSX.Element {
   const { currentUserType, signIn } = useCurrentUser();
   const analytics = useAnalytics();
   const { classes } = useStyles();
@@ -412,7 +412,7 @@ function SidebarItems(): JSX.Element {
   );
 }
 
-export default function Start(): JSX.Element {
+export default function Start(): React.JSX.Element {
   const { recentSources, selectRecent } = usePlayerSelection();
   const { classes } = useStyles();
   const analytics = useAnalytics();

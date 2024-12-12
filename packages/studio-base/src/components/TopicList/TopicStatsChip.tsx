@@ -66,7 +66,7 @@ export function TopicStatsChip({
   selected: boolean;
   messageFrequency: number;
   messageCount: number;
-}): JSX.Element {
+}): React.JSX.Element {
   const { classes, cx } = useStyles();
 
   return (

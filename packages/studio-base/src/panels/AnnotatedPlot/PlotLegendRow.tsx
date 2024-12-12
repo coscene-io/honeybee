@@ -162,7 +162,7 @@ export function PlotLegendRow({
   enablePath,
   showPlotValuesInLegend,
   legendDisplay,
-}: PlotLegendRowProps): JSX.Element {
+}: PlotLegendRowProps): React.JSX.Element {
   const { openPanelSettings } = useWorkspaceActions();
   const { id: panelId } = usePanelContext();
   const { setSelectedPanelIds } = useSelectedPanels();

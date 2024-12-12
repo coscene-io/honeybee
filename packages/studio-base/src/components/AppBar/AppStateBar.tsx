@@ -40,7 +40,7 @@ const useStyles = makeStyles()((theme) => ({
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 
-export function AppStateBar(): JSX.Element {
+export function AppStateBar(): React.JSX.Element {
   const bagFiles = usePlaylist(selectBagFiles);
   const { classes, theme } = useStyles();
   const { t } = useTranslation("appBar");

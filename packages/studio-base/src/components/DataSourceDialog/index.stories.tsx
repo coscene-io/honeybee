@@ -9,7 +9,7 @@ import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceC
 
 import { DataSourceDialog } from "./DataSourceDialog";
 
-const Wrapper = (Story: StoryFn): JSX.Element => {
+const Wrapper = (Story: StoryFn): React.JSX.Element => {
   return (
     <MockCurrentLayoutProvider>
       <WorkspaceContextProvider

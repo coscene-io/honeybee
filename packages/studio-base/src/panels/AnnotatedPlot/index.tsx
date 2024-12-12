@@ -111,6 +111,7 @@ function Plot(props: Props) {
   const { saveConfig, config } = props;
   const { t } = useTranslation("cosAnnotatedPlot");
   const {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
     title: legacyTitle,
     followingViewWidth,
     paths: originalPaths,

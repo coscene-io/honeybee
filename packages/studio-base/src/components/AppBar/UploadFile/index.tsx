@@ -80,7 +80,7 @@ function useHandleUploadFile() {
           progress: 100,
           abortController,
         });
-      } catch (error) {
+      } catch {
         toast.error(t("uploadFileFailed"));
         setUpdateUploadingFiles(file.name, {
           fileBlob: file,
@@ -96,7 +96,7 @@ function useHandleUploadFile() {
   );
 }
 
-export function UploadFile(): JSX.Element {
+export function UploadFile(): React.JSX.Element {
   const [openChooser, setOpenChooser] = useState(false);
 
   const currentFile = useUploadFiles(selectCurrentFile);

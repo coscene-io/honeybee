@@ -103,9 +103,9 @@ export const registerScript = ({
     if (containsFuncDeclaration(args)) {
       const argsToPrint = getArgsToPrint(args);
       throw new Error(
-        `Cannot invoke log() with a function argument (registerScript) - log(${argsToPrint.join(
-          ", ",
-        )})`,
+        `Cannot invoke log() with a function argument (registerScript) - log(${argsToPrint
+          .map((arg) => JSON.stringify(arg))
+          .join(", ")})`,
       );
     }
     userScriptLogs.push(...args.map((value) => ({ source: "registerScript" as const, value })));
@@ -148,9 +148,9 @@ export const processMessage = ({
     if (containsFuncDeclaration(args)) {
       const argsToPrint = getArgsToPrint(args);
       throw new Error(
-        `Cannot invoke log() with a function argument (processMessage) - log(${argsToPrint.join(
-          ", ",
-        )})`,
+        `Cannot invoke log() with a function argument (processMessage) - log(${argsToPrint
+          .map((arg) => JSON.stringify(arg))
+          .join(", ")})`,
       );
     }
     userScriptLogs.push(...args.map((value) => ({ source: "processMessage" as const, value })));

@@ -40,7 +40,7 @@ export function SettingsMenu({
   disablePortal,
   handleClose,
   open,
-}: SettingsMenuProps): JSX.Element {
+}: SettingsMenuProps): React.JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("appBar");
 
@@ -74,11 +74,11 @@ export function SettingsMenu({
         onClose={handleClose}
         onClick={handleClose}
         MenuListProps={{ className: classes.menuList, dense: true }}
-        PaperProps={
-          {
+        slotProps={{
+          paper: {
             "data-tourid": "user-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>
-        }
+          } as Partial<PaperProps & { "data-tourid"?: string }>,
+        }}
       >
         <MenuItem
           onClick={() => {

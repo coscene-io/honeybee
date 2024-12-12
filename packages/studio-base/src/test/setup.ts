@@ -36,6 +36,7 @@ if (typeof window !== "undefined") {
 global.TextEncoder = util.TextEncoder;
 
 // React available everywhere (matches webpack config)
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 global.React = require("react");
 
 // Jest does not include ResizeObserver.

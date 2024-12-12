@@ -12,8 +12,6 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-/* eslint-disable jest/no-conditional-expect */
-
 import { renderHook, act } from "@testing-library/react";
 import { PropsWithChildren, useCallback, useState } from "react";
 import { DeepPartial } from "ts-essentials";

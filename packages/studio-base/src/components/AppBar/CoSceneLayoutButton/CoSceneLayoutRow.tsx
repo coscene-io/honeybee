@@ -160,7 +160,7 @@ export default React.memo(function LayoutRow({
   onMakePersonalCopy: (item: Layout) => void;
   onRecommendedToProjectLayout?: (item: Layout) => void;
   onCopyToRecordDefaultLayout?: (item: Layout) => void;
-}): JSX.Element {
+}): React.JSX.Element {
   const isMounted = useMountedState();
   const [confirm, confirmModal] = useConfirm();
   const layoutManager = useLayoutManager();

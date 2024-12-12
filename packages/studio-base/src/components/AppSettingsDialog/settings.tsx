@@ -95,7 +95,7 @@ function formatTimezone(name: string) {
   return `${name} (${zoneAbbr}, ${offsetStr})`;
 }
 
-export function ColorSchemeSettings(): JSX.Element {
+export function ColorSchemeSettings(): React.JSX.Element {
   const { classes } = useStyles();
   const [colorScheme = "system", setColorScheme] = useAppConfigurationValue<string>(
     AppSetting.COLOR_SCHEME,
@@ -154,7 +154,7 @@ export function TimezoneSettings(): React.ReactElement {
   const fixedItems: Option[] = useMemo(
     () => [
       detectItem,
-      { key: "zone:UTC", label: `${formatTimezone("UTC")}`, data: "UTC" },
+      { key: "zone:UTC", label: formatTimezone("UTC"), data: "UTC" },
       {
         key: "sep",
         label: "",
@@ -395,7 +395,7 @@ export function LanguageSettings(): React.ReactElement {
       }
 
       void setSelectedLanguage(lang);
-      await i18n.changeLanguage(lang).catch((error) => {
+      await i18n.changeLanguage(lang).catch((error: unknown) => {
         console.error("Failed to switch languages", error);
         reportError(error as Error);
       });
@@ -408,7 +408,7 @@ export function LanguageSettings(): React.ReactElement {
     () =>
       LANGUAGE_OPTIONS.map((language) => ({
         key: language.key,
-        text: `${language.value}`,
+        text: language.value,
         data: language.key,
       })),
     [],

@@ -45,7 +45,7 @@ export const CustomWindowControlsDragRegion: Story = {
   args: { showCustomWindowControls: true, debugDragRegion: true },
 };
 
-const Grid = (Story: StoryFn): JSX.Element => (
+const Grid = (Story: StoryFn): React.JSX.Element => (
   <Stack overflowY="auto">
     <div style={{ display: "grid", gridTemplateColumns: "max-content auto", alignItems: "center" }}>
       <Story />
@@ -60,7 +60,7 @@ const problems: MockMessagePipelineProps["problems"] = [
 
 export const PlayerStates: Story = {
   decorators: [
-    (Story: StoryFn): JSX.Element => {
+    (Story: StoryFn): React.JSX.Element => {
       const playerStates: (MockMessagePipelineProps & { label?: string })[] = [
         ...[
           PlayerPresence.NOT_PRESENT,
@@ -146,7 +146,7 @@ const remoteSources: MockMessagePipelineProps[] = [
 
 export const DataSources: Story = {
   decorators: [
-    (Story: StoryFn): JSX.Element => {
+    (Story: StoryFn): React.JSX.Element => {
       const playerStates: (MockMessagePipelineProps & { label?: string })[] = [
         {
           name: "Adapted from nuScenes dataset. Copyright © 2020 nuScenes. https://www.nuscenes.org/terms-of-use",

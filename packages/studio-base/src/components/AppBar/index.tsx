@@ -169,7 +169,7 @@ const selectRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.
 
 const selectUser = (store: UserStore) => store.user;
 
-export function AppBar(props: AppBarProps): JSX.Element {
+export function AppBar(props: AppBarProps): React.JSX.Element {
   const {
     debugDragRegion,
     isMaximized,
@@ -272,7 +272,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
                       <kbd className={classes.keyEquivalent}>[</kbd>
                     </>
                   }
-                  aria-label={`${leftSidebarOpen ? t("hideLeftSidebar") : t("showLeftSidebar")}`}
+                  aria-label={leftSidebarOpen ? t("hideLeftSidebar") : t("showLeftSidebar")}
                   onClick={() => {
                     sidebarActions.left.setOpen(!leftSidebarOpen);
                   }}
@@ -291,7 +291,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
                       <kbd className={classes.keyEquivalent}>]</kbd>
                     </>
                   }
-                  aria-label={`${rightSidebarOpen ? t("hideRightSidebar") : t("showRightSidebar")}`}
+                  aria-label={rightSidebarOpen ? t("hideRightSidebar") : t("showRightSidebar")}
                   onClick={() => {
                     sidebarActions.right.setOpen(!rightSidebarOpen);
                   }}

@@ -13,7 +13,9 @@ import { migrateLegacyToNewImagePanels } from "./migrateLegacyToNewImagePanels";
  * Perform any necessary migrations on old layout data.
  */
 export function migratePanelsState(data: MarkOptional<LayoutData, "configById">): LayoutData {
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   let result: LayoutData = { ...data, configById: data.configById ?? data.savedProps ?? {} };
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   delete result.savedProps;
 
   result = migrateLegacyToNew3DPanels(result);

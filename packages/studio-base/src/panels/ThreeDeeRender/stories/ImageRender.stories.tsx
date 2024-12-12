@@ -610,6 +610,7 @@ export const UpdateImageToGreen: StoryObj = {
     useReadySignal: true,
   },
   render: function Story() {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const readySignal = useReadySignal();
     const topics: Topic[] = [
       { name: "/cam1/info", schemaName: "foxglove.CameraCalibration" },

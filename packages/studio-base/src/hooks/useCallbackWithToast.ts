@@ -27,7 +27,6 @@ export default function useCallbackWithToast<Args extends unknown[]>(
         enqueueSnackbar((error as Error).toString(), { variant: "error" });
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [enqueueSnackbar, ...deps],
   );
 }

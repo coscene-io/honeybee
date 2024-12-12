@@ -20,7 +20,7 @@ const SYNC_INTERVAL_MAX_MS = 3 * 60_000;
 
 export default function CoSceneLayoutManagerProvider({
   children,
-}: React.PropsWithChildren): JSX.Element {
+}: React.PropsWithChildren): React.JSX.Element {
   const layoutStorage = useLayoutStorage();
   const remoteLayoutStorage = useRemoteLayoutStorage();
 

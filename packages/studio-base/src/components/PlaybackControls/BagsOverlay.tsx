@@ -44,7 +44,7 @@ const selectBags = (store: CoScenePlaylistStore) => store.bagFiles;
 const selectHoveredBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
 const selectBagsAtHoverValue = (store: TimelineInteractionStateStore) => store.bagsAtHoverValue;
 
-function BagTick({ bag }: { bag: BagFileInfo }): JSX.Element {
+function BagTick({ bag }: { bag: BagFileInfo }): React.JSX.Element {
   const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);
   const hoveredBag = useTimelineInteractionState(selectHoveredBag);
   const { classes, cx } = useStyles();
@@ -66,7 +66,7 @@ function BagTick({ bag }: { bag: BagFileInfo }): JSX.Element {
 
 const MemoBagTick = React.memo(BagTick);
 
-export function BagsOverlay(): JSX.Element {
+export function BagsOverlay(): React.JSX.Element {
   const bags = usePlaylist(selectBags);
   const { classes } = useStyles();
 

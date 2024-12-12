@@ -68,7 +68,7 @@ type PlotChartProps = {
   yAxesInfo: YAxesInfo;
   onClick?: TimeBasedChartProps["onClick"];
 };
-export default function PlotChart(props: PlotChartProps): JSX.Element {
+export default function PlotChart(props: PlotChartProps): React.JSX.Element {
   const theme = useTheme();
   const {
     currentTime,

@@ -42,13 +42,15 @@ export const ReactWindowListboxAdapter = React.forwardRef<
   React.HTMLAttributes<HTMLElement>
 >(function ListboxComponent(props, ref) {
   const { children, ...other } = props;
-  const itemData: React.ReactChild[] = [];
-  (children as React.ReactChild[]).forEach(
-    (item: React.ReactChild & { children?: React.ReactChild[] }) => {
+  const itemData: React.ReactNode[] = [];
+  (children as React.ReactNode[]).forEach((item) => {
+    if (item != undefined && typeof item === "object" && "children" in item) {
       itemData.push(item);
-      itemData.push(...(item.children ?? []));
-    },
-  );
+      itemData.push(...((item as { children?: React.ReactNode[] }).children ?? []));
+    } else {
+      itemData.push(item);
+    }
+  });
 
   const totalHeight =
     2 * Constants.LISTBOX_PADDING + Constants.ROW_HEIGHT * _.clamp(itemData.length, 16);

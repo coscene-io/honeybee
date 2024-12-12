@@ -19,7 +19,11 @@ function fallbackCopy(text: string) {
   body.appendChild(el);
   el.value = text;
   el.select();
-  document.execCommand("copy");
+  try {
+    void navigator.clipboard.writeText(el.value);
+  } finally {
+    body.removeChild(el);
+  }
   body.removeChild(el);
 }
 
@@ -32,7 +36,7 @@ export default {
       try {
         await navigator.clipboard.writeText(text);
         return;
-      } catch (error) {
+      } catch {
         fallbackCopy(text);
       }
     } else {

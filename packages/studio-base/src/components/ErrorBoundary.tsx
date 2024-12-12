@@ -12,7 +12,7 @@ import { AppError } from "@foxglove/studio-base/util/errors";
 import ErrorDisplay from "./ErrorDisplay";
 
 type Props = {
-  actions?: JSX.Element;
+  actions?: React.JSX.Element;
   showErrorDetails?: boolean;
   hideErrorSourceLocations?: boolean;
 };

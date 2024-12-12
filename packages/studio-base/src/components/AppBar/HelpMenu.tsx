@@ -56,7 +56,7 @@ type HelpMenuProps = {
   transformOrigin?: PopoverOrigin;
 };
 
-export function HelpMenu(props: HelpMenuProps): JSX.Element {
+export function HelpMenu(props: HelpMenuProps): React.JSX.Element {
   const {
     anchorEl,
     anchorOrigin,

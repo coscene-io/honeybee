@@ -31,7 +31,7 @@ export default {
     (
       WrappedStory: typeof PlaybackSpeedControls,
       { args }: { args: WorkspaceContextProviderProps },
-    ): JSX.Element => (
+    ): React.JSX.Element => (
       <WorkspaceContextProvider initialState={args.initialState} disablePersistenceForStorybook>
         <MockCurrentLayoutProvider>
           <MockMessagePipelineProvider>

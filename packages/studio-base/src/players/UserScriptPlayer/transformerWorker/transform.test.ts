@@ -11,8 +11,6 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-/* eslint-disable jest/no-conditional-expect */
-
 import exampleDatatypes from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/fixtures/example-datatypes";
 import generateRosLib from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/generateRosLib";
 import {
@@ -310,7 +308,7 @@ describe("pipeline", () => {
             }),
           ),
         });
-        const { diagnostics } = compile({ ...baseNodeData, sourceCode, rosLib: `${rosLib}` });
+        const { diagnostics } = compile({ ...baseNodeData, sourceCode, rosLib });
         expect(diagnostics).toEqual([]);
       });
     });

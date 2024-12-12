@@ -28,7 +28,7 @@ type Props = {
   }) => void;
 };
 
-export default function DocumentDropListener(props: Props): JSX.Element {
+export default function DocumentDropListener(props: Props): React.JSX.Element {
   const [hovering, setHovering] = useState(false);
 
   const { onDrop: onDropProp, allowedExtensions } = props;

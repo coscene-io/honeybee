@@ -37,7 +37,8 @@ describe("csv", () => {
               {
                 receiveTime: [{ sec: 0, nsec: 0 }],
                 x: new Float32Array([0]),
-                // eslint-disable-next-line @typescript-eslint/no-loss-of-precision
+
+                // eslint-disable-next-line no-loss-of-precision
                 y: new Float32Array([Number(9999999999999001)]),
                 value: [9999999999999001n],
               },

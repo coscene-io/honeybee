@@ -68,7 +68,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     top: "2px",
     width: "10px",
     height: "10px",
-    color: `${theme.palette.primary.main}`,
+    color: theme.palette.primary.main,
   },
   tooltip: {
     position: "absolute",
@@ -118,7 +118,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     cursor: "not-allowed",
   },
   barChartIcon: {
-    color: `${theme.palette.primary.main}`,
+    color: theme.palette.primary.main,
     height: "16px",
     width: "16px",
     marginBottom: "-2px",
@@ -245,7 +245,7 @@ function BagViewComponent(params: {
           });
           location.reload();
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           toast.error(t("addFilesFailed"));
           console.error("Failed to set base info", error);
         });
@@ -357,7 +357,7 @@ function BagViewComponent(params: {
             })}
             onClick={(e) => {
               e.stopPropagation();
-              onDeleteBag().catch((err) => {
+              onDeleteBag().catch((err: unknown) => {
                 console.error(err);
               });
             }}

@@ -104,14 +104,14 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
 
   useEffect(() => {
     if (baseInfo.projectId != undefined && baseInfo.warehouseId != undefined) {
-      syncUserRole(baseInfo.warehouseId, baseInfo.projectId).catch((err) => {
+      syncUserRole(baseInfo.warehouseId, baseInfo.projectId).catch((err: unknown) => {
         log.error("syncUserRole", err);
       });
     }
   }, [syncUserRole, baseInfo]);
 
   useEffect(() => {
-    syncUserInfo().catch((err) => {
+    syncUserInfo().catch((err: unknown) => {
       log.error("syncUserInfo", err);
     });
   }, [loginStatus, syncUserInfo]);

@@ -4,7 +4,7 @@
 
 import { SvgIcon, SvgIconProps } from "@mui/material";
 
-export default function FoxgloveLogoText(props: SvgIconProps): JSX.Element {
+export default function FoxgloveLogoText(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon viewBox="0 0 909 204" {...props}>
       <title>Foxglove</title>

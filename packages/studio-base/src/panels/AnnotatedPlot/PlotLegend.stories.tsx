@@ -54,7 +54,7 @@ function useDebouncedReadySignal(): ReadySignal {
   }, [readySignal]);
 }
 
-function Wrapper(Wrapped: StoryFn): JSX.Element {
+function Wrapper(Wrapped: StoryFn): React.JSX.Element {
   const readySignal = useDebouncedReadySignal();
   const pauseFrame = useCallback(() => readySignal, [readySignal]);
   const delayedFixture = useAsync(async () => fixture, []);

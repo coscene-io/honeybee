@@ -31,7 +31,7 @@ function blurActiveElement() {
   }
 }
 
-export function PanelList(props: Props): JSX.Element {
+export function PanelList(props: Props): React.JSX.Element {
   const {
     filteredPanels,
     highlightedPanelIdx,

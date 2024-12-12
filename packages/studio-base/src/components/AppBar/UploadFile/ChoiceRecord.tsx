@@ -17,7 +17,7 @@ export function ChoiceRecordDialog({
   onClose: () => void;
   onConfirm: (recordName: string) => void;
   defaultRecordName?: string;
-}): JSX.Element {
+}): React.JSX.Element {
   const { t } = useTranslation("appBar");
   const [targetRecordName, setTargetRecordName] = useState<string | undefined>(undefined);
 

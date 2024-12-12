@@ -9,7 +9,7 @@ type BuiltinIconProps = {
   name?: RegisteredIconNames;
 };
 
-export function BuiltinIcon(props: BuiltinIconProps): JSX.Element {
+export function BuiltinIcon(props: BuiltinIconProps): React.JSX.Element {
   if (props.name == undefined) {
     return <></>;
   }

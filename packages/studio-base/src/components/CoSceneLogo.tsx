@@ -6,7 +6,7 @@ import { SvgIcon, SvgIconProps } from "@mui/material";
 
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
-export function CoSceneLogo(): JSX.Element {
+export function CoSceneLogo(): React.JSX.Element {
   const logo = getDomainConfig().logo;
   if (logo === "supor") {
     return <SuporLogo fontSize="inherit" color="inherit" />;
@@ -17,7 +17,7 @@ export function CoSceneLogo(): JSX.Element {
   }
 }
 
-export function CoSceneTextLogo(): JSX.Element {
+export function CoSceneTextLogo(): React.JSX.Element {
   const logo = getDomainConfig().logo;
   if (logo === "supor") {
     return <SuporLogo fontSize="inherit" color="inherit" />;
@@ -28,7 +28,7 @@ export function CoSceneTextLogo(): JSX.Element {
   }
 }
 
-export function DefaultLogo(props: SvgIconProps): JSX.Element {
+export function DefaultLogo(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon
       viewBox="0 0 400 400"
@@ -53,7 +53,7 @@ export function DefaultLogo(props: SvgIconProps): JSX.Element {
   );
 }
 
-export function DefaultTextLogo(props: SvgIconProps): JSX.Element {
+export function DefaultTextLogo(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon
       viewBox="0 0 400 400"
@@ -78,7 +78,7 @@ export function DefaultTextLogo(props: SvgIconProps): JSX.Element {
   );
 }
 
-export function SuporLogo(props: SvgIconProps): JSX.Element {
+export function SuporLogo(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon
       viewBox="0 0 400 400"
@@ -101,7 +101,7 @@ export function SuporLogo(props: SvgIconProps): JSX.Element {
   );
 }
 
-export function KeenonLogo(props: SvgIconProps): JSX.Element {
+export function KeenonLogo(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon
       viewBox="0 0 400 400"
@@ -131,7 +131,7 @@ export function KeenonLogo(props: SvgIconProps): JSX.Element {
   );
 }
 
-export function KeenonTextLogo(props: SvgIconProps): JSX.Element {
+export function KeenonTextLogo(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon
       viewBox="0 0 400 400"

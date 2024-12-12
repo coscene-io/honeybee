@@ -38,7 +38,7 @@ function MockPanelContextProvider({
   ...rest
 }: MockProps & {
   children: ReactNode;
-}): JSX.Element {
+}): React.JSX.Element {
   return (
     <PanelContext.Provider
       value={{

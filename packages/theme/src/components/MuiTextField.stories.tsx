@@ -38,12 +38,12 @@ export default {
   },
   parameters: { colorScheme: "light" },
   decorators: [
-    (_StoryFn, { args: { color } }): JSX.Element => {
+    (_StoryFn, { args: { color } }): React.JSX.Element => {
       const sharedProps = (variant: TextFieldProps["variant"], size: TextFieldProps["size"]) => ({
         defaultValue: size,
         error: color === "error",
-        size: size as TextFieldProps["size"],
-        variant: variant as TextFieldProps["variant"],
+        size,
+        variant,
       });
 
       return (
@@ -122,7 +122,7 @@ export default {
                       )}
                     />
 
-                    <FormControl color={color} variant={variant as TextFieldProps["variant"]}>
+                    <FormControl color={color} variant={variant}>
                       <InputLabel id={`${variant}-${size}-select-label`}>Select</InputLabel>
                       <Select
                         labelId={`${variant}-${size}-select-label`}
