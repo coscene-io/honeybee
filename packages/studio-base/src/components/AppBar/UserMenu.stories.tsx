@@ -29,7 +29,7 @@ function MenuStory({ top, left }: { top: number; left: number }) {
   );
 }
 
-function SignInStates(): JSX.Element {
+function SignInStates(): React.JSX.Element {
   const currentUser: User = {
     id: "user-1",
     email: "user@example.com",

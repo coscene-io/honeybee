@@ -77,7 +77,7 @@ type SidebarProps<LeftKey, RightKey> = PropsWithChildren<{
 
 export function Sidebars<LeftKey extends string, RightKey extends string>(
   props: SidebarProps<LeftKey, RightKey>,
-): JSX.Element {
+): React.JSX.Element {
   const {
     children,
     leftItems,
@@ -161,7 +161,7 @@ export function Sidebars<LeftKey extends string, RightKey extends string>(
   );
 
   const childrenComponent = useMemo(
-    () => <ErrorBoundary>{children as JSX.Element}</ErrorBoundary>,
+    () => <ErrorBoundary>{children as React.JSX.Element}</ErrorBoundary>,
     [children],
   );
 

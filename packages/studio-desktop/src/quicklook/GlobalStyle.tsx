@@ -6,7 +6,7 @@ import { GlobalStyles } from "tss-react";
 
 import { BODY_PADDING } from "./styleConstants";
 
-export function GlobalStyle(): JSX.Element {
+export function GlobalStyle(): React.JSX.Element {
   return (
     <GlobalStyles
       styles={{

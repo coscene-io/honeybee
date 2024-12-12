@@ -215,7 +215,7 @@ export function createMessagePipelineStore({
               }
 
               return fetchedUrdfFile;
-            } catch (_err) {
+            } catch {
               // Do nothing here as one of the fallback methods below might work.
             }
           }
@@ -223,7 +223,7 @@ export function createMessagePipelineStore({
           if (canBuiltinFetchPkgUri) {
             try {
               return await cachedFetchAsset(uri, options);
-            } catch (_err) {
+            } catch {
               // Do nothing here as the fallback method below might work.
             }
           }

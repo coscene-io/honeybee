@@ -138,7 +138,7 @@ function itemToFzfResult<T>(item: T): FzfResultItem<T> {
 export default React.forwardRef(function Autocomplete<T = unknown>(
   props: AutocompleteProps<T>,
   ref: React.ForwardedRef<IAutocomplete>,
-): JSX.Element {
+): React.JSX.Element {
   const inputRef = useRef<HTMLInputElement>(ReactNull);
 
   const { classes, cx } = useStyles();
@@ -316,4 +316,4 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
       value={value ?? ReactNull}
     />
   );
-}) as <T>(props: AutocompleteProps<T> & React.RefAttributes<IAutocomplete>) => JSX.Element; // https://stackoverflow.com/a/58473012/23649
+}) as <T>(props: AutocompleteProps<T> & React.RefAttributes<IAutocomplete>) => React.JSX.Element; // https://stackoverflow.com/a/58473012/23649

@@ -22,7 +22,7 @@ export type ConfirmOptions = {
   // the title of the confirm modal
   title: string;
   // text in the body of the confirm modal. Specify a string or JSX Element
-  prompt?: string | JSX.Element;
+  prompt?: string | React.JSX.Element;
   // the text for the OK button - defaults to "OK"
   ok?: string;
   // the text for the cancel button - defaults to "Cancel"
@@ -104,15 +104,15 @@ function ConfirmModal(props: ConfirmModalProps) {
 }
 
 export type confirmTypes = (options: ConfirmOptions) => Promise<ConfirmAction>;
-export type confirmModalTypes = JSX.Element | undefined;
+export type confirmModalTypes = React.JSX.Element | undefined;
 
 // Returns a function that can be used similarly to the DOM confirm(), but
 // backed by a React element rather than a native modal, and asynchronous.
 export function useConfirm(): [
   confirm: (options: ConfirmOptions) => Promise<ConfirmAction>,
-  confirmModal: JSX.Element | undefined,
+  confirmModal: React.JSX.Element | undefined,
 ] {
-  const [modal, setModal] = useState<JSX.Element | undefined>();
+  const [modal, setModal] = useState<React.JSX.Element | undefined>();
 
   const openConfirm = useCallback(async (options: ConfirmOptions) => {
     return await new Promise<ConfirmAction>((resolve) => {

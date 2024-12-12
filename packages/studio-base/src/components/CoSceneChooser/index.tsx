@@ -105,7 +105,7 @@ function FilesList({
 }: {
   files: SelectedFile[];
   setFiles: (files: SelectedFile[]) => void;
-}): JSX.Element {
+}): React.JSX.Element {
   const { t } = useTranslation("cosPlaylist");
   const { classes } = useStyles();
 
@@ -179,7 +179,7 @@ const CustomBreadcrumbs = ({
   const { t } = useTranslation("cosGeneral");
   const currentUser = useCurrentUser(selectUser);
 
-  let breadcrumbs: JSX.Element[] = [];
+  let breadcrumbs: React.JSX.Element[] = [];
 
   if (!project && !record) {
     breadcrumbs = [
@@ -297,7 +297,7 @@ export function ChooserComponent({
   defaultRecordType?: "create" | "select";
   defaultRecordName?: string;
   createRecordConfirmText?: string;
-}): JSX.Element {
+}): React.JSX.Element {
   const { t } = useTranslation("cosGeneral");
 
   const [recordType, setRecordType] = useState<"create" | "select">(defaultRecordType);
@@ -654,7 +654,7 @@ export function ChooserComponent({
   );
 }
 
-function CoSceneChooser(props: ChooserDialogProps): JSX.Element {
+function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
   const {
     backdropAnimation,
     open,
@@ -700,7 +700,9 @@ function CoSceneChooser(props: ChooserDialogProps): JSX.Element {
       onClose={onModalClose}
       fullWidth
       maxWidth="lg"
-      BackdropProps={{ children: backdrop }}
+      slotProps={{
+        backdrop: { children: backdrop },
+      }}
       PaperProps={{
         square: false,
         elevation: 4,

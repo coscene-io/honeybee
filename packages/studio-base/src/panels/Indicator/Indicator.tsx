@@ -133,7 +133,7 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-export function Indicator({ context }: Props): JSX.Element {
+export function Indicator({ context }: Props): React.JSX.Element {
   // panel extensions must notify when they've completed rendering
   // onRender will setRenderDone to a done callback which we can invoke after we've rendered
   const [renderDone, setRenderDone] = useState<() => void>(() => () => {});

@@ -278,10 +278,10 @@ export function PlaylistSyncAdapter(): ReactNull {
                     }
                     readChunk(); // 继续读取下一个 chunk
                   })
-                  .catch((error) => {
+                  .catch((error: unknown) => {
                     log.error("read chunk error", error);
                     setTimeout(() => {
-                      syncRecords().catch((err: Error) => {
+                      syncRecords().catch((err: unknown) => {
                         log.error("retry syncRecords", err);
                       });
                     }, 3000);
@@ -290,7 +290,7 @@ export function PlaylistSyncAdapter(): ReactNull {
               // Start reading the first chunk
               readChunk();
             })
-            .catch((error) => {
+            .catch((error: unknown) => {
               console.error(error);
             });
         }
@@ -311,14 +311,14 @@ export function PlaylistSyncAdapter(): ReactNull {
   ]);
 
   useEffect(() => {
-    syncPlaylist().catch((error) => {
+    syncPlaylist().catch((error: unknown) => {
       log.error(error);
-      setBagFiles({ loading: false, error });
+      setBagFiles({ loading: false, error: error as Error });
     });
   }, [setBagFiles, syncPlaylist]);
 
   useEffect(() => {
-    syncRecords().catch((error) => {
+    syncRecords().catch((error: unknown) => {
       log.error(error);
     });
   }, [syncRecords]);

@@ -22,7 +22,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-function CoScenePlabackTimeMode(): JSX.Element {
+function CoScenePlabackTimeMode(): React.JSX.Element {
   const { t } = useTranslation("cosSettings");
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const open = Boolean(anchorEl);

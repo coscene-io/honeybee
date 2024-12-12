@@ -536,20 +536,22 @@ export default class Ros1Player implements Player {
       }
 
       // Advertise this topic to ROS as being published by us
-      this.#rosNode.advertise({ topic, dataType, messageDefinition: msgdef }).catch((error) => {
-        this.#addProblem(advertiseProblemId, {
-          severity: "error",
-          message: `Failed to advertise "${topic}"`,
-          error,
+      this.#rosNode
+        .advertise({ topic, dataType, messageDefinition: msgdef })
+        .catch((error: unknown) => {
+          this.#addProblem(advertiseProblemId, {
+            severity: "error",
+            message: `Failed to advertise "${topic}"`,
+            error: error as Error,
+          });
         });
-      });
     }
 
     this.#emitState();
   }
 
   public setParameter(key: string, value: ParameterValue): void {
-    log.debug(`Ros1Player.setParameter(key=${key}, value=${value})`);
+    log.debug(`Ros1Player.setParameter(key=${key}, value=${JSON.stringify(value)})`);
     void this.#rosNode?.setParameter(key, value);
   }
 
@@ -563,11 +565,11 @@ export default class Ros1Player implements Player {
           .then(() => {
             this.#clearProblem(problemId);
           })
-          .catch((error) => {
+          .catch((error: unknown) => {
             this.#addProblem(problemId, {
               severity: "error",
               message: `Publishing to ${topic} failed`,
-              error,
+              error: error as Error,
             });
           });
       } else {

@@ -49,7 +49,7 @@ function MessagePathInputStory(props: {
   prioritizedDatatype?: string;
   validTypes?: string[];
   heavy?: boolean;
-}): JSX.Element {
+}): React.JSX.Element {
   const [path, setPath] = useState(props.path);
 
   return (

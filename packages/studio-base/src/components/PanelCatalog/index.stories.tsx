@@ -65,7 +65,7 @@ export default {
   component: ({ mode }) => <PanelCatalogComponent mode={mode} onPanelSelect={() => {}} />,
   parameters: { colorScheme: "dark" },
   decorators: [
-    (Wrapped: StoryFn): JSX.Element => {
+    (Wrapped: StoryFn): React.JSX.Element => {
       const theme = useTheme();
       return (
         <DndProvider backend={HTML5Backend}>
@@ -87,6 +87,7 @@ export default {
     if (args.inputValue) {
       await keyboard(args.inputValue);
     }
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     args.events?.map(async (keypress) => {
       await keyboard(keypress);
     });

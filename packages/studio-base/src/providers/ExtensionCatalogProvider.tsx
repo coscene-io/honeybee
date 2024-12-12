@@ -226,13 +226,13 @@ export default function ExtensionCatalogProvider({
 }: PropsWithChildren<{
   loaders: readonly ExtensionLoader[];
   mockMessageConverters?: readonly RegisterMessageConverterArgs<unknown>[];
-}>): JSX.Element {
+}>): React.JSX.Element {
   const [store] = useState(createExtensionRegistryStore(loaders, mockMessageConverters));
 
   // Request an initial refresh on first mount
   const refreshExtensions = store.getState().refreshExtensions;
   useEffect(() => {
-    refreshExtensions().catch((err) => {
+    refreshExtensions().catch((err: unknown) => {
       log.error(err);
     });
   }, [refreshExtensions]);

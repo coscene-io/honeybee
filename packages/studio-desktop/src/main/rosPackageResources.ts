@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { DOMParser } from "@xmldom/xmldom";
-import { protocol } from "electron";
+import { net, protocol } from "electron";
 import { promises as fs } from "fs";
 import path from "path";
 import { PNG } from "pngjs";
@@ -34,7 +34,7 @@ export async function rosPackageNameAtPath(packagePath: string): Promise<string 
       encoding: "utf-8",
     });
     return rosPackageName(contents);
-  } catch (err) {
+  } catch {
     return undefined;
   }
 }
@@ -115,17 +115,13 @@ export async function findRosPackage(
   return undefined;
 }
 
-// https://source.chromium.org/chromium/chromium/src/+/master:net/base/net_error_list.h
-// The error code for registerFileProtocol must be from the net error list
-const NET_ERROR_FAILED = -2;
-
 /**
  * Register handlers for package: protocol
  *
  * The package: protocol handler attempts to load resources using ROS_PACKAGE_PATH lookup semantics.
  */
 export function registerRosPackageProtocolHandlers(): void {
-  protocol.registerFileProtocol("package", async (request, callback) => {
+  protocol.handle("package", async (request) => {
     try {
       // Give preference to the ROS_PACKAGE_PATH app setting over the environment variable
       const rosPackagePath =
@@ -153,20 +149,19 @@ export function registerRosPackageProtocolHandlers(): void {
 
       const resolvedResourcePath = path.join(pkgRoot, ...relPath.split("/"));
       log.info(`Resolved: ${resolvedResourcePath}`);
-      callback({ path: resolvedResourcePath });
+
+      // 使用 net.fetch 加载本地文件
+      return await net.fetch(resolvedResourcePath);
     } catch (err) {
       log.error(err);
-      callback({ error: NET_ERROR_FAILED });
+      return new Response("Not Found", { status: 404 });
     }
   });
 
   // Chrome does not support decoding .tiff images natively. As a workaround, the 3D panel's
   // ModelCache modifies `package://` urls ending in `.tiff?` to x-foxglove-converted-tiff.
-  //
-  // This handler converts the .tiff file into a PNG file which is supported in <img> tags
-  protocol.registerBufferProtocol("x-foxglove-converted-tiff", async (request, callback) => {
+  protocol.handle("x-foxglove-converted-tiff", async (request) => {
     try {
-      // Give preference to the ROS_PACKAGE_PATH app setting over the environment variable
       const rosPackagePath =
         getAppSetting<string>(AppSetting.ROS_PACKAGE_PATH) ?? process.env.ROS_PACKAGE_PATH;
 
@@ -201,10 +196,16 @@ export function registerRosPackageProtocolHandlers(): void {
       const png = new PNG({ width: ifd.width, height: ifd.height });
       png.data = Buffer.from(UTIF.toRGBA8(ifd));
       const pngData = PNG.sync.write(png);
-      callback({ mimeType: "image/png", data: pngData });
+
+      // 返回转换后的 PNG 数据
+      return new Response(pngData, {
+        headers: {
+          "Content-Type": "image/png",
+        },
+      });
     } catch (err) {
       log.warn("Error loading from ROS package url", request.url, err);
-      callback({ error: NET_ERROR_FAILED });
+      return new Response("Failed to convert TIFF", { status: 500 });
     }
   });
 }

@@ -42,7 +42,7 @@ async function main() {
   console.log((checker as any).asSummary(output));
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   console.error(err);
   process.exit(1);
 });

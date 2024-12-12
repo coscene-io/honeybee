@@ -65,7 +65,7 @@ function Foxglove_Grid_Uint8({
 }: {
   minValue?: number;
   maxValue?: number;
-}): JSX.Element {
+}): React.JSX.Element {
   const topics: Topic[] = [
     { name: "/grid", schemaName: "foxglove.Grid" },
     { name: "/tf", schemaName: "geometry_msgs/TransformStamped" },
@@ -283,7 +283,7 @@ function jet(x: number, a: number) {
   const b = Math.max(0, Math.min(255, 4 * i + 127, 255 - 4 * (i - 96)));
   return { r, g, b, a: (a * 255) | 0 };
 }
-function Foxglove_Grid_RGBA(): JSX.Element {
+function Foxglove_Grid_RGBA(): React.JSX.Element {
   const topics: Topic[] = [
     { name: "/grid", schemaName: "foxglove.Grid" },
     { name: "/tf", schemaName: "geometry_msgs/TransformStamped" },
@@ -419,7 +419,7 @@ function Foxglove_Grid_Float({
 }: {
   minValue?: number;
   maxValue?: number;
-}): JSX.Element {
+}): React.JSX.Element {
   const topics: Topic[] = [
     { name: "/grid", schemaName: "foxglove.Grid" },
     { name: "/tf", schemaName: "geometry_msgs/TransformStamped" },
@@ -543,7 +543,7 @@ function Foxglove_Grid_Float({
   );
 }
 
-function Row_Stride_Grid(): JSX.Element {
+function Row_Stride_Grid(): React.JSX.Element {
   const topics: Topic[] = [
     { name: "/grid", schemaName: "foxglove.Grid" },
     { name: "/tf", schemaName: "geometry_msgs/TransformStamped" },

@@ -24,7 +24,11 @@ function createUploadFilesStore() {
   }));
 }
 
-export default function UploadFilesProvider({ children }: { children?: ReactNode }): JSX.Element {
+export default function UploadFilesProvider({
+  children,
+}: {
+  children?: ReactNode;
+}): React.JSX.Element {
   const [store] = useState(createUploadFilesStore);
 
   return <UploadFilesContext.Provider value={store}>{children}</UploadFilesContext.Provider>;

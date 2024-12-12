@@ -84,7 +84,7 @@ const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
-function MomentButton({ disableControls }: { disableControls: boolean }): JSX.Element {
+function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
 
   return (
@@ -109,7 +109,7 @@ function MomentButton({ disableControls }: { disableControls: boolean }): JSX.El
     >
       <Typography variant="body2" marginLeft="4px">
         {t("createMomentButtonText", {
-          option: navigator.platform.toUpperCase().includes("MAC") ? "⌥" : "Alt",
+          option: /Mac/i.test(navigator.userAgent) ? "⌥" : "Alt",
         })}
       </Typography>
     </HoverableIconButton>
@@ -127,7 +127,7 @@ export default function PlaybackControls(props: {
   isPlaying: boolean;
   repeatEnabled: boolean;
   getTimeInfo: () => { startTime?: Time; endTime?: Time; currentTime?: Time };
-}): JSX.Element {
+}): React.JSX.Element {
   const isDemoSite =
     localStorage.getItem("demoSite") === "true" &&
     localStorage.getItem("honeybeeDemoStatus") === "start";

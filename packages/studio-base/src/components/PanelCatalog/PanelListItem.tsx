@@ -52,7 +52,7 @@ type Props = {
   onDrop: (arg0: DropDescription) => void;
 };
 
-export function PanelListItem(props: Props): JSX.Element {
+export function PanelListItem(props: Props): React.JSX.Element {
   const {
     searchQuery,
     panel,

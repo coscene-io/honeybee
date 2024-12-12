@@ -26,7 +26,7 @@ type Props = {
   tabTitle: string;
 };
 
-export function DraggableToolbarTab(props: Props): JSX.Element {
+export function DraggableToolbarTab(props: Props): React.JSX.Element {
   const { isActive, tabCount, actions, panelId, tabTitle, tabIndex } = props;
   const { moveTab } = useCurrentLayoutActions();
 

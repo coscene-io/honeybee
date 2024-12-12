@@ -12,7 +12,7 @@ export default function CoSceneCookiesProvider({
   children,
 }: {
   children?: React.PropsWithChildren;
-}): JSX.Element {
+}): React.JSX.Element {
   return (
     <CookiesProvider defaultSetOptions={cookieSetOptions}>
       <AuthSignOutListener />

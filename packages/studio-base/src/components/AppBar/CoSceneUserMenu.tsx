@@ -47,7 +47,7 @@ export function UserMenu({
   disablePortal,
   handleClose,
   open,
-}: UserMenuProps): JSX.Element {
+}: UserMenuProps): React.JSX.Element {
   const { classes } = useStyles();
   const currentUserType = useCurrentUserType();
   const analytics = useAnalytics();
@@ -114,11 +114,11 @@ export function UserMenu({
         onClose={handleClose}
         onClick={handleClose}
         MenuListProps={{ className: classes.menuList, dense: true }}
-        PaperProps={
-          {
+        slotProps={{
+          paper: {
             "data-tourid": "user-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>
-        }
+          } as Partial<PaperProps & { "data-tourid"?: string }>,
+        }}
       >
         {loginStatus === "alreadyLogin" && (
           <MenuItem disabled>{userInfo?.nickName ?? "unknow"}</MenuItem>

@@ -39,7 +39,7 @@ export function CoSceneBaseSyncAdapter(): ReactNull {
   }, [consoleApi, setBaseInfo]);
 
   useEffect(() => {
-    syncBaseInfo().catch((error) => {
+    syncBaseInfo().catch((error: unknown) => {
       log.error("Failed to sync base info", error);
     });
   }, [syncBaseInfo]);

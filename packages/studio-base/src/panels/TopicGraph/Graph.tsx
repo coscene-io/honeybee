@@ -6,6 +6,7 @@ import Cytoscape from "cytoscape";
 import CytoscapeDagre from "cytoscape-dagre";
 import { MutableRefObject, useEffect, useRef } from "react";
 
+// eslint-disable-next-line react-hooks/rules-of-hooks
 Cytoscape.use(CytoscapeDagre);
 Cytoscape.warnings(false);
 
@@ -29,7 +30,7 @@ type Props = {
   graphRef: MutableRefObject<GraphMutation | undefined>;
 };
 
-export default function Graph(props: Props): JSX.Element {
+export default function Graph(props: Props): React.JSX.Element {
   const cy = useRef<Cytoscape.Core>();
   const graphRef = useRef<HTMLDivElement>(ReactNull);
 

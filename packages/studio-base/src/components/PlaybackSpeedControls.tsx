@@ -33,7 +33,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-function PlaybackSpeedControls(props: { disabled?: boolean }): JSX.Element {
+function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element {
   const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const open = Boolean(anchorEl);

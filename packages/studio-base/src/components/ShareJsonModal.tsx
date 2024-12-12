@@ -52,7 +52,7 @@ export function ShareJsonModal({
   onChange,
   onRequestClose,
   title,
-}: ShareJsonModalProps): JSX.Element {
+}: ShareJsonModalProps): React.JSX.Element {
   const { classes } = useStyles();
   const [value, setValue] = useState(JSON.stringify(initialValue, undefined, 2) ?? "");
   const { t } = useTranslation("cosGeneral");

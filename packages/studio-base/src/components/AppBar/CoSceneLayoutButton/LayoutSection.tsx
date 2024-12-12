@@ -48,7 +48,7 @@ export default function LayoutSection({
   onRecommendedToProjectLayout?: (item: Layout) => void;
   onCopyToRecordDefaultLayout?: (item: Layout) => void;
   searchQuery: string;
-}): JSX.Element {
+}): React.JSX.Element {
   return (
     <Stack>
       {title != undefined && (
@@ -73,7 +73,7 @@ export default function LayoutSection({
             }
             return layout.name.toLowerCase().includes(searchQuery.toLowerCase());
           })
-          ?.map((layout) => (
+          .map((layout) => (
             <LayoutRow
               searchQuery={searchQuery}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}

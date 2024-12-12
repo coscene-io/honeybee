@@ -64,7 +64,7 @@ const useStyles = makeStyles<void, "copyIcon">()((theme, _params, classes) => ({
   },
 }));
 
-function TopicRow({ topic }: { topic: Topic }): JSX.Element {
+function TopicRow({ topic }: { topic: Topic }): React.JSX.Element {
   const { classes } = useStyles();
 
   return (
@@ -116,7 +116,7 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
 
 const MemoTopicRow = React.memo(TopicRow);
 
-function SourceInfo(): JSX.Element {
+function SourceInfo(): React.JSX.Element {
   const { classes } = useStyles();
 
   const topics = useMessagePipeline(selectSortedTopics);

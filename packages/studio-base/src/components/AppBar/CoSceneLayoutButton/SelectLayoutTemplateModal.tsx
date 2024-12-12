@@ -57,7 +57,7 @@ export default function SelectLayoutTemplateModal({
   open: boolean;
   onClose: () => void;
   onSelectedLayout: (layout: LayoutData, layoutName: string) => void;
-}): JSX.Element {
+}): React.JSX.Element {
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
   const { t } = useTranslation("cosLayout");

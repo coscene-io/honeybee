@@ -487,6 +487,10 @@ function buildSettingsTree(
 function matchingFields(targetValue: string, topicNames: string[]): string[] {
   const topic = targetValue.replace(/"/g, "").split(".")[0];
 
+  if (!topic) {
+    return [];
+  }
+
   return topicNames.filter((item) => item.endsWith("@" + topic));
 }
 
@@ -543,7 +547,6 @@ export function usePlotPanelSettings(
         }),
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicNames]);
 
   const actionHandler = useCallback(

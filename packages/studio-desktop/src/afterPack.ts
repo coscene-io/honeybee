@@ -83,8 +83,8 @@ async function copySpotlightImporter(context: AfterPackContext) {
     );
     await extractTargetArchitecture(executablePath, context);
   } finally {
-    await fs.unlink(zipPath).catch((err: Error) => {
-      log.error(err.toString());
+    await fs.unlink(zipPath).catch((err: unknown) => {
+      log.error(err instanceof Error ? err.toString() : "Unknown error");
     });
   }
   log.info({ path: spotlightDirPath }, "Copied mdimporter");

@@ -100,7 +100,7 @@ export type WorkspaceContextProviderProps = {
 
 export default function WorkspaceContextProvider(
   props: WorkspaceContextProviderProps,
-): JSX.Element {
+): React.JSX.Element {
   const { children, initialState, workspaceStoreCreator, disablePersistenceForStorybook } = props;
 
   const [store] = useState(() =>

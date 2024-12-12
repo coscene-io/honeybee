@@ -49,7 +49,7 @@ export function NestedMenuItem(
     open: boolean;
     onPointerEnter: (itemId: string) => void;
   }>,
-): JSX.Element {
+): React.JSX.Element {
   const { classes } = useStyles();
   const { children, items, open, onPointerEnter, id } = props;
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLLIElement>(undefined);

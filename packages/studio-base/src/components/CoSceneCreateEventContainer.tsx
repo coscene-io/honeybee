@@ -12,7 +12,6 @@ import HelpIcon from "@mui/icons-material/Help";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Alert,
-  // eslint-disable-next-line no-restricted-imports
   Box,
   Button,
   Checkbox,
@@ -137,7 +136,7 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
   );
 }
 
-export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX.Element {
+export function CoSceneCreateEventContainer(props: { onClose: () => void }): React.JSX.Element {
   const { onClose } = props;
 
   const refreshEvents = useEvents(selectRefreshEvents);
@@ -414,7 +413,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     try {
       await consoleApi.syncTask({ name });
       enqueueSnackbar(t("syncTaskSuccess"), { variant: "success" });
-    } catch (e) {
+    } catch {
       enqueueSnackbar(t("syncTaskFailed"), { variant: "error" });
     }
   });
@@ -490,7 +489,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
           await syncTask(newTask.name);
         }
         onClose();
-      } catch (e) {
+      } catch {
         enqueueSnackbar(t("createTaskFailed"), { variant: "error" });
       }
     },
@@ -578,7 +577,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
 
       refreshEvents();
       enqueueSnackbar(t("createMomentSuccess"), { variant: "success" });
-    } catch (e) {
+    } catch {
       enqueueSnackbar(t("createMomentFailed"), { variant: "error" });
     }
   }, [
@@ -679,7 +678,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
 
       refreshEvents();
       enqueueSnackbar(t("editMomentSuccess"), { variant: "success" });
-    } catch (e) {
+    } catch {
       enqueueSnackbar(t("editMomentFailed"), { variant: "error" });
     }
   }, [

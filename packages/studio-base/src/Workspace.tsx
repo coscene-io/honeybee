@@ -101,7 +101,7 @@ type WorkspaceProps = CustomWindowControlsProps & {
   onAppBarDoubleClick?: () => void;
   // eslint-disable-next-line react/no-unused-prop-types
   disablePersistenceForStorybook?: boolean;
-  AppBarComponent?: (props: AppBarProps) => JSX.Element;
+  AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
 };
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
@@ -134,7 +134,7 @@ const selectWorkspaceRightSidebarSize = (store: WorkspaceContextStore) => store.
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectUser = (store: UserStore) => store.user;
 
-function WorkspaceContent(props: WorkspaceProps): JSX.Element {
+function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
   const { classes } = useStyles();
   const containerRef = useRef<HTMLDivElement>(ReactNull);
@@ -576,7 +576,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   );
 }
 
-export default function Workspace(props: WorkspaceProps): JSX.Element {
+export default function Workspace(props: WorkspaceProps): React.JSX.Element {
   const [showOpenDialogOnStartup = true] = useAppConfigurationValue<boolean>(
     AppSetting.SHOW_OPEN_DIALOG_ON_STARTUP,
   );

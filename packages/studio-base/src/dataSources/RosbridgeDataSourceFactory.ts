@@ -32,7 +32,7 @@ class RosbridgeDataSourceFactory implements IDataSourceFactory {
               return new Error(`Invalid protocol: ${url.protocol}`);
             }
             return undefined;
-          } catch (err) {
+          } catch {
             return new Error("Enter a valid url");
           }
         },

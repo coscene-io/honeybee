@@ -271,7 +271,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         this.removeError(DECODE_IMAGE_ERR_KEY);
         this.renderer.queueAnimationFrame();
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         log.error(err);
         if (this.isDisposed()) {
           return;
@@ -280,7 +280,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         if (!this.#showingErrorImage) {
           void this.#setErrorImage(seq, onDecoded);
         }
-        this.addError(DECODE_IMAGE_ERR_KEY, `Error decoding image: ${err.message}`);
+        this.addError(
+          DECODE_IMAGE_ERR_KEY,
+          `Error decoding image: ${err instanceof Error ? err.message : err}`,
+        );
       });
   }
 

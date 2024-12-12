@@ -172,7 +172,7 @@ const selectWorkspaceInitialActiveTab = (store: WorkspaceContextStore) =>
 
 export function AppSettingsDialog(
   props: DialogProps & { activeTab?: AppSettingsTab },
-): JSX.Element {
+): React.JSX.Element {
   const { t } = useTranslation("appSettings");
   const { activeTab: _activeTab } = props;
   const initialActiveTab = useWorkspaceStore(selectWorkspaceInitialActiveTab);

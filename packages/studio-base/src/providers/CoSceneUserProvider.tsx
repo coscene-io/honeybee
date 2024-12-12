@@ -40,7 +40,7 @@ function createCurrentUserStore() {
 export default function CoSceneUserProvider({
   children,
   loginStatusKey,
-}: React.PropsWithChildren<{ loginStatusKey?: number }>): JSX.Element {
+}: React.PropsWithChildren<{ loginStatusKey?: number }>): React.JSX.Element {
   const [store] = useState(createCurrentUserStore);
 
   useEffect(() => {

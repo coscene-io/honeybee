@@ -621,7 +621,7 @@ export class IterablePlayer implements Player {
       this.#blockLoader?.setTopics(this.#preloadTopics);
 
       // Block loadings is constantly running and tries to keep the preloaded messages in memory
-      this.#blockLoadingProcess = this.#startBlockLoading().catch((err) => {
+      this.#blockLoadingProcess = this.#startBlockLoading().catch((err: unknown) => {
         this.#setError((err as Error).message, err as Error);
       });
 

@@ -73,7 +73,7 @@ const SingleMomentView: ({
   onClick: (event: TimelinePositionedEvent) => void;
   onHoverStart: (event: TimelinePositionedEvent) => void;
   onHoverEnd: (event: TimelinePositionedEvent) => void;
-}) => JSX.Element = ({ event, isHovered, isSelected, onClick, onHoverStart, onHoverEnd }) => {
+}) => React.JSX.Element = ({ event, isHovered, isSelected, onClick, onHoverStart, onHoverEnd }) => {
   const { classes, cx } = useStyles();
   const scrollRef = useRef<HTMLDivElement>(ReactNull);
 
@@ -147,7 +147,7 @@ export default function MomentsList({
   events,
 }: {
   events: TimelinePositionedEvent[];
-}): JSX.Element {
+}): React.JSX.Element {
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
   const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);

@@ -166,7 +166,7 @@ const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.set
 /**
  * Syncs events from server and syncs hovered event with hovered time.
  */
-export function CoSceneEventsSyncAdapter(): JSX.Element {
+export function CoSceneEventsSyncAdapter(): React.JSX.Element {
   const consoleApi = useConsoleApi();
   const setEvents = useEvents(selectSetEvents);
   const setEventsAtHoverValue = useTimelineInteractionState(selectSetEventsAtHoverValue);
@@ -300,7 +300,7 @@ export function CoSceneEventsSyncAdapter(): JSX.Element {
   }, [bagFiles.loading, startTime, endTime, consoleApi, timeMode, setEvents]);
 
   useEffect(() => {
-    syncEvents().catch((error) => {
+    syncEvents().catch((error: unknown) => {
       log.error(error);
     });
   }, [syncEvents, eventFetchCount]);

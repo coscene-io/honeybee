@@ -91,7 +91,7 @@ const useStyles = makeStyles()((theme) => {
 });
 
 const selectLayoutMenuOpen = (store: WorkspaceContextStore) => store.layoutMenu.open;
-export function CoSceneLayoutButton(): JSX.Element {
+export function CoSceneLayoutButton(): React.JSX.Element {
   const menuOpen = useWorkspaceStore(selectLayoutMenuOpen);
   const { classes, cx } = useStyles();
   const anchorEl = useRef<HTMLButtonElement>(ReactNull);
@@ -150,7 +150,7 @@ export function CoSceneLayoutButton(): JSX.Element {
 
   // Start loading on first mount
   useEffect(() => {
-    reloadLayouts().catch((err) => {
+    reloadLayouts().catch((err: unknown) => {
       log.error(err);
     });
   }, [reloadLayouts]);
@@ -241,7 +241,7 @@ export function CoSceneLayoutButton(): JSX.Element {
       }
     };
 
-    processAction().catch((err) => {
+    processAction().catch((err: unknown) => {
       log.error(err);
     });
   }, [dispatch, enqueueSnackbar, layoutManager, state.multiAction]);
@@ -651,11 +651,11 @@ export function CoSceneLayoutButton(): JSX.Element {
           vertical: "top",
           horizontal: "right",
         }}
-        PaperProps={
-          {
+        slotProps={{
+          paper: {
             "data-tourid": "add-panel-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>
-        }
+          } as Partial<PaperProps & { "data-tourid"?: string }>,
+        }}
       >
         <div className={cx(classes.toolbar, classes.toolbarMenu)}>
           <TextField
