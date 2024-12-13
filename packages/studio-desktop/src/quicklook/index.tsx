@@ -104,7 +104,7 @@ export function main(): void {
         {state.loading && "Loading…"}
         {state.error && <Flash color="error">{state.error.toString()}</Flash>}
         {fileStats && (
-          <FileInfoDisplay fileStats={fileStats} fileInfo={fileInfo} error={fileError} />
+          <FileInfoDisplay fileStats={fileStats} fileInfo={fileInfo} error={fileError as Error} />
         )}
         {loadMoreInfo && (!shouldLoadMoreInfo || moreInfo.loading) && (
           <Flash color="info">

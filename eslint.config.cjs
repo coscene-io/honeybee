@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-const fileProgress = require("eslint-plugin-file-progress");
+const fileProgress = import("eslint-plugin-file-progress");
 const tssUnusedClasses = require("eslint-plugin-tss-unused-classes");
 const globals = require("globals");
 const tslintPlugin = require("typescript-eslint");
@@ -150,9 +150,6 @@ module.exports = tslintPlugin.config(
     files: ["**/*.ts", "**/*.tsx"],
 
     languageOptions: {
-      ecmaVersion: 5,
-      sourceType: "script",
-
       parserOptions: {
         project: "tsconfig.eslint.json",
         tsconfigRootDir: __dirname,
