@@ -7,6 +7,15 @@
   "description": "Core components of coScene",
   "productDescription": "coScene Studio",
   "packageManager": "yarn@3.6.3",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coscene-io/honeybee.git"
+  },
+  "author": {
+    "name": "coScene Technologies",
+    "email": "contact@coscene.io"
+  },
+  "homepage": "https://www.coscene.cn/",
   "engines": {
     "node": ">=20"
   },
