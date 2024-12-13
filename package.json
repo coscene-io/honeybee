@@ -1,21 +1,12 @@
 {
   "name": "honeybee",
   "version": "24.44.0",
-  "license": "MPL-2.0",
+  "license": "MPL-2.0 AND Proprietary",
   "private": true,
   "productName": "coStudio",
   "description": "Core components of coScene",
   "productDescription": "coScene Studio",
   "packageManager": "yarn@3.6.3",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/foxglove/studio.git"
-  },
-  "author": {
-    "name": "Foxglove Technologies",
-    "email": "support@foxglove.dev"
-  },
-  "homepage": "https://foxglove.dev/",
   "engines": {
     "node": ">=20"
   },
