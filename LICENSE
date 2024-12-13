@@ -4,12 +4,12 @@ Copyright (C) 2024 Shanghai coScene Information Technology Co., Ltd.
 
 Copyright (C) 2021-2024 Foxglove Technologies Inc.
 
-This software includes components subject to the terms of the Mozilla Public License, v. 2.0. For more details, visit http://mozilla.org/MPL/2.0/.
+This software includes components subject to the terms of the Mozilla Public License 2.0. For more details, visit http://mozilla.org/MPL/2.0/.
 
 ### Additional Notices:
 
 1. **Forked Contributions:**
-   - Portions of this software forked from Foxglove Technologies Inc.'s original work are governed by the Mozilla Public License, v. 2.0. All modifications to such portions are also covered under the MPL.
+   - Portions of this software forked from Foxglove Technologies Inc.'s original work are governed by the Mozilla Public License 2.0. All modifications to such portions are also covered under the MPL.
 2. **New Additions by Shanghai coScene Information Technology Co., Ltd.:**
    - Any original components, modules, or software additions created by Shanghai coScene Information Technology Co., Ltd., and not derived from the Foxglove Technologies Inc. codebase, are not governed by the MPL. These components are the exclusive intellectual property of Shanghai coScene Information Technology Co., Ltd.
    - Redistribution, modification, or use of these new additions is not permitted without explicit prior written consent from Shanghai coScene Information Technology Co., Ltd.
