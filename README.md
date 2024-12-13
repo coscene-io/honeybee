@@ -54,10 +54,6 @@ A [Dockerfile](/Dockerfile) to self-host the browser app is also available.
     $ yarn test:watch   # run tests on changed files
     ```
 
-## License (Open Source)
-
-Honeybee follows an open core licensing model. Most functionality is available in this repository, and can be reproduced or modified per the terms of the [Mozilla Public License v2.0](/LICENSE).
-
 ## :star: Credits
 
 Honeybee originally began as a fork of [Foxglove Studio](https://github.com/foxglove/studio), an open-source project developed by [Foxglove](https://foxglove.dev/).
