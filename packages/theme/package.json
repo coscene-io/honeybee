@@ -10,7 +10,7 @@
     "name": "coScene Technologies",
     "email": "contact@coscene.io"
   },
-  "homepage": "https://foxglove.dev/",
+  "homepage": "https://www.coscene.cn/",
   "main": "./src/index",
   "devDependencies": {
     "@emotion/react": "11.13.0",
