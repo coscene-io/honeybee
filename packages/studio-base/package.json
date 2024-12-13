@@ -1,6 +1,6 @@
 {
   "name": "@foxglove/studio-base",
-  "description": "Core components of Foxglove Studio",
+  "description": "Core components of coScene Studio",
   "private": true,
   "license": "MPL-2.0",
   "repository": {

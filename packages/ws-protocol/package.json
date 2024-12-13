@@ -1,7 +1,7 @@
 {
   "name": "@foxglove/ws-protocol",
   "version": "24.44.0",
-  "description": "Foxglove WebSocket protocol",
+  "description": "coScene WebSocket protocol",
   "keywords": [
     "foxglove",
     "websocket",
@@ -12,7 +12,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/foxglove/ws-protocol.git"
+    "url": "https://github.com/coscene-io/honeybee.git"
   },
   "author": {
     "name": "coScene Technologies",
