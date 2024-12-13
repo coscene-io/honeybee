@@ -1,10 +1,10 @@
 {
   "name": "@foxglove/theme",
-  "description": "Foxglove @mui/material theme",
+  "description": "coScene @mui/material theme",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/foxglove/studio.git"
+    "url": "https://github.com/coscene-io/honeybee.git"
   },
   "author": {
     "name": "coScene Technologies",
