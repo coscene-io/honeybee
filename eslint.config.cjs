@@ -150,9 +150,6 @@ module.exports = tslintPlugin.config(
     files: ["**/*.ts", "**/*.tsx"],
 
     languageOptions: {
-      ecmaVersion: 5,
-      sourceType: "script",
-
       parserOptions: {
         project: "tsconfig.eslint.json",
         tsconfigRootDir: __dirname,
