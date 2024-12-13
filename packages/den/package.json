@@ -11,7 +11,7 @@
     "name": "coScene Technologies",
     "email": "contact@coscene.io"
   },
-  "homepage": "https://foxglove.dev/",
+  "homepage": "https://www.coscene.cn/",
   "dependencies": {
     "async-mutex": "0.4.1",
     "comlink": "github:foxglove/comlink#9181fa505671b35b1e66e0a8361a6fc1bdd03307",
