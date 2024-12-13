@@ -7,8 +7,8 @@
     "url": "https://github.com/foxglove/studio.git"
   },
   "author": {
-    "name": "Foxglove Technologies",
-    "email": "support@foxglove.dev"
+    "name": "coScene Technologies",
+    "email": "contact@coscene.io"
   },
   "homepage": "https://foxglove.dev/",
   "main": "./src/index.ts",
