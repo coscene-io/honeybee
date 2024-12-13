@@ -71,6 +71,15 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
         changeOrigin: true,
       },
       {
+        context: ["/honeybee-v2/v1/data"],
+        target: "https://viz.dev.coscene.cn",
+        secure: false,
+        changeOrigin: true,
+        pathRewrite: {
+          "^/honeybee-v2": "",
+        },
+      },
+      {
         context: ["/bff"],
         target: "https://bff.dev.coscene.cn",
         secure: false,

@@ -25,7 +25,6 @@ export type BaseInfo = {
   files?: Array<ParamsFile>;
   organizationId?: string;
   organizationSlug?: string;
-  isStandalonePlayback?: boolean;
 };
 
 export type CoSceneBaseStore = DeepReadonly<{

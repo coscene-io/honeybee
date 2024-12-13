@@ -40,6 +40,7 @@ declare global {
       VITE_APP_BFF_URL?: string;
       DEFAULT_TOPIC_PREFIX_OPEN?: { [domain: string]: string };
       DOMAIN_CONFIG?: { [domain: string]: DomainConfig };
+      CS_HONEYBEE_BASE_URL_V2?: string;
     };
   }
 }
@@ -57,6 +58,10 @@ export const APP_CONFIG = {
     cosConfig.VITE_APP_PROJECT_ENV ?? process.env.VITE_APP_PROJECT_ENV ?? "local",
   CS_HONEYBEE_BASE_URL:
     cosConfig.CS_HONEYBEE_BASE_URL ?? process.env.CS_HONEYBEE_BASE_URL ?? "http://localhost:8080",
+  CS_HONEYBEE_BASE_URL_V2:
+    cosConfig.CS_HONEYBEE_BASE_URL_V2 ??
+    process.env.CS_HONEYBEE_BASE_URL_V2 ??
+    "http://localhost:8080/honeybee-v2",
   VITE_APP_BFF_URL:
     cosConfig.VITE_APP_BFF_URL ?? process.env.VITE_APP_BFF_URL ?? "https://bff.dev.coscene.cn",
   IMAGE_TAG: process.env.IMAGE_TAG,

@@ -30,11 +30,6 @@ export function CoSceneBaseSyncAdapter(): ReactNull {
         setBaseInfo({ loading: true, value: {} });
         const baseInfo = await consoleApi.getBaseInfo(baseInfoKey);
 
-        // Hack: if baseInfo.files has only one file, set isStandalonePlayback to true
-        if (baseInfo.files && baseInfo.files.length === 1 && "filename" in baseInfo.files[0]!) {
-          baseInfo.isStandalonePlayback = true;
-        }
-
         setBaseInfo({ loading: false, value: baseInfo });
         consoleApi.setApiBaseInfo(baseInfo);
       } catch (error) {
