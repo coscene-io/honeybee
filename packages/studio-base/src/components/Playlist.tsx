@@ -285,7 +285,7 @@ export function Playlist(): React.JSX.Element {
             ),
           }}
         />
-        {urlState != undefined && (
+        {urlState != undefined && !(baseInfo.isStandalonePlayback ?? false) && (
           <Button
             className={classes.addFileButton}
             onClick={() => {
