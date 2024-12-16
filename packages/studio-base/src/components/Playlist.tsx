@@ -47,8 +47,11 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
-import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
+import {
+  AppURLState,
+  updateAppURLState,
+  windowAppURLState,
+} from "@foxglove/studio-base/util/appURLState";
 
 import { BagView } from "./BagView";
 
