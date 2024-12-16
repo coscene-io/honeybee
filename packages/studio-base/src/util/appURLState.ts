@@ -11,6 +11,7 @@ import { fromRFC3339String, toRFC3339String, Time } from "@foxglove/rostime";
 import { LayoutID } from "@foxglove/studio-base/index";
 
 export type AppURLState = {
+  isStandalonePlayback?: boolean;
   ds?: string;
   dsParams?: Record<string, string>;
   layoutId?: LayoutID;
@@ -81,6 +82,8 @@ export function parseAppURLState(url: URL): AppURLState | undefined {
   const timeString = url.searchParams.get("time");
   const time = timeString == undefined ? undefined : fromRFC3339String(timeString);
   const dsParams: Record<string, string> = {};
+  const isStandalonePlayback: boolean = url.searchParams.get("isStandalonePlayback") === "true";
+
   url.searchParams.forEach((v, k) => {
     if (k && v && k.startsWith("ds.")) {
       const cleanKey = k.replace(/^ds./, "");
@@ -88,15 +91,18 @@ export function parseAppURLState(url: URL): AppURLState | undefined {
     }
   });
 
-  const state: AppURLState = _.omitBy(
-    {
-      layoutId: layoutId ? (layoutId as LayoutID) : undefined,
-      time,
-      ds,
-      dsParams: _.isEmpty(dsParams) ? undefined : dsParams,
-    },
-    _.isEmpty,
-  );
+  const state: AppURLState = {
+    ..._.omitBy(
+      {
+        layoutId: layoutId ? (layoutId as LayoutID) : undefined,
+        time,
+        ds,
+        dsParams: _.isEmpty(dsParams) ? undefined : dsParams,
+      },
+      _.isEmpty,
+    ),
+    isStandalonePlayback, // 直接添加这个属性，不参与 _.omitBy 过滤
+  };
 
   return _.isEmpty(state) ? undefined : state;
 }

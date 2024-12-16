@@ -37,6 +37,7 @@
     "lint:ci": "TIMING=1 eslint --report-unused-disable-directives --config eslint.config.ci.cjs .",
     "lint:unused-exports": "ts-node ./ci/lint-unused-exports.ts",
     "lint:dependencies": "ts-node ./ci/lint-dependencies.ts .",
+    "lint:inspect": "eslint --inspect-config",
     "test": "jest",
     "test:debug": "cross-env NODE_OPTIONS='--inspect-brk' jest",
     "test:watch": "jest --watch",
