@@ -36,4 +36,10 @@ export const appSettings = {
   settings: "Settings",
   timestampFormat: "Timestamp format",
   webApp: "Web app",
+  contact: "Contact",
+  legal: "Legal",
+  licenseTerms: "License terms",
+  privacyPolicy: "Privacy policy",
+  termsOfService: "Terms of service",
+  security: "Security",
 };

@@ -111,57 +111,13 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-type SectionKey = "resources" | "products" | "contact" | "legal";
+const TERMS_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnA1CuBWbcU6PH2aXYLGhjrb";
+const PRIVACY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnzZNZ5kAuIw0stvaXxqkFAV";
+const SECURITY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnxpT8beRnb3JMLYxRMcBnq0";
+const CONTACT_EMAIL = "contact@coscene.io";
+const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
 
-const aboutItems = new Map<
-  SectionKey,
-  {
-    subheader: string;
-    links: { title: string; url?: string }[];
-  }
->([
-  [
-    "resources",
-    {
-      subheader: "External resources",
-      links: [
-        ...(isDesktopApp() ? [] : [{ title: "Desktop app", url: "https://foxglove.dev/download" }]),
-        { title: "Browse docs", url: "https://docs.foxglove.dev/docs" },
-        { title: "Join our community", url: "https://foxglove.dev/community" },
-      ],
-    },
-  ],
-  [
-    "products",
-    {
-      subheader: "Products",
-      links: [
-        { title: "Foxglove Studio", url: "https://foxglove.dev/studio" },
-        { title: "Foxglove Data Platform", url: "https://foxglove.dev/data-platform" },
-      ],
-    },
-  ],
-  [
-    "contact",
-    {
-      subheader: "Contact",
-      links: [
-        { title: "Give feedback", url: "https://foxglove.dev/contact" },
-        { title: "Schedule a demo", url: "https://foxglove.dev/demo" },
-      ],
-    },
-  ],
-  [
-    "legal",
-    {
-      subheader: "Legal",
-      links: [
-        { title: "License terms", url: "https://foxglove.dev/legal/studio-license" },
-        { title: "Privacy policy", url: "https://foxglove.dev/legal/privacy" },
-      ],
-    },
-  ],
-]);
+type SectionKey = "resources" | "products" | "contact" | "legal";
 
 export type AppSettingsTab =
   | "general"
@@ -183,6 +139,37 @@ export function AppSettingsDialog(
     _activeTab ?? initialActiveTab ?? "general",
   );
   const [confirmFunctions, setConfirmFunctions] = useState<Record<string, () => void>>({});
+
+  const aboutItems = new Map<
+    SectionKey,
+    {
+      subheader: string;
+      links: { title: string; url?: string }[];
+    }
+  >([
+    [
+      "contact",
+      {
+        subheader: t("contact"),
+        links: [{ title: t("contact"), url: `mailto:${CONTACT_EMAIL}` }],
+      },
+    ],
+    [
+      "legal",
+      {
+        subheader: "Legal",
+        links: [
+          {
+            title: t("licenseTerms"),
+            url: LICENSE_URL,
+          },
+          { title: t("privacyPolicy"), url: PRIVACY_DOC_URL },
+          { title: t("termsOfService"), url: TERMS_DOC_URL },
+          { title: t("security"), url: SECURITY_DOC_URL },
+        ],
+      },
+    ],
+  ]);
 
   // const [debugModeEnabled = false, setDebugModeEnabled] = useAppConfigurationValue<boolean>(
   //   AppSetting.SHOW_DEBUG_PANELS,
@@ -235,8 +222,7 @@ export function AppSettingsDialog(
             label={t("experimentalFeatures")}
             value="experimental-features"
           /> */}
-          {/* CoScene */}
-          {/* <Tab className={classes.tab} label={t("about")} value="about" /> */}
+          <Tab className={classes.tab} label={t("about")} value="about" />
         </Tabs>
         <Stack direction="row" fullHeight overflowY="auto">
           <section

@@ -32,4 +32,10 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   settings: "设置",
   timestampFormat: "时间戳格式",
   webApp: "网页应用",
+  contact: "联系我们",
+  legal: "法律",
+  licenseTerms: "许可证条款",
+  privacyPolicy: "隐私政策",
+  termsOfService: "服务条款",
+  security: "安全",
 };
