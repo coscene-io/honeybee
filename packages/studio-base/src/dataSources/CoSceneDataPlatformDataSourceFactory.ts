@@ -23,8 +23,10 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
   #readAheadDuration = { sec: 20, nsec: 0 };
+  #baseUrl: string;
 
-  public constructor() {
+  public constructor({ baseUrl }: { baseUrl: string }) {
+    this.#baseUrl = baseUrl;
     const readAheadDuration = localStorage.getItem("readAheadDuration");
     if (readAheadDuration && !isNaN(+readAheadDuration)) {
       this.#readAheadDuration = { sec: +readAheadDuration, nsec: 0 };
@@ -51,7 +53,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       },
       initArgs: {
         api: {
-          baseUrl: APP_CONFIG.CS_HONEYBEE_BASE_URL,
+          baseUrl: this.#baseUrl,
           bffUrl: APP_CONFIG.VITE_APP_BFF_URL,
           addTopicPrefix:
             localStorage.getItem("CoScene_addTopicPrefix") ??
