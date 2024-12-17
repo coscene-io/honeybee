@@ -37,7 +37,7 @@ Honeybee is an integrated visualization and diagnosis tool for robotics, availab
    $ yarn dlx electron@13.0.0-beta.13 .webpack # launch the version of electron for the current computer's platform
 
    # To launch the desktop app using production API endpoints
-   $ yarn desktop:serve --env FOXGLOVE_BACKEND=production
+   $ yarn desktop:serve
    $ yarn desktop:start
 
    # NOTE: yarn web:serve does not support connecting to the production endpoints
