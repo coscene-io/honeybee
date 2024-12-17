@@ -12,7 +12,7 @@ import EditIcon from "@mui/icons-material/EditOutlined";
 import RepeatOneOutlinedIcon from "@mui/icons-material/RepeatOneOutlined";
 import ShareIcon from "@mui/icons-material/ShareOutlined";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
-import { alpha, Stack, IconButton, Link } from "@mui/material";
+import { alpha, Stack, IconButton, Link, Typography } from "@mui/material";
 import { useCallback, useEffect, useRef, useState, Fragment, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -80,6 +80,16 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
     width: "8px",
     borderRadius: "14px",
     border: "2px solid",
+  },
+  truncate: {
+    display: "flex",
+    flex: 1,
+    width: 0,
+    alignItems: "center",
+    gap: theme.spacing(1),
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
 }));
 
@@ -262,11 +272,15 @@ function EventViewComponent(params: {
     }
   };
 
-  const ruleNavAddress: React.JSX.Element = useMemo(() => {
+  const ruleNavAddress: React.JSX.Element | undefined = useMemo(() => {
     const rule = event.event.rule;
 
+    if (event.event.rule?.name == undefined || event.event.rule?.name == "") {
+      return undefined;
+    }
+
     if (diagnosisRuleData == undefined || rule == undefined) {
-      return <Stack>{event.event.rule?.name}</Stack>;
+      return <Typography noWrap>{event.event.rule?.name}</Typography>;
     }
 
     const ruleIndex = diagnosisRuleData.rules.findIndex((diagnosisRule) =>
@@ -277,7 +291,7 @@ function EventViewComponent(params: {
 
     return (
       <Link href={address} target="_blank">
-        <Stack>{event.event.rule?.name}</Stack>
+        <Typography noWrap>{event.event.rule?.name}</Typography>
       </Link>
     );
   }, [diagnosisRuleData, event.event.rule, baseInfo]);
@@ -290,7 +304,7 @@ function EventViewComponent(params: {
 
       return (
         <Link href={deviceNavAddress} target="_blank">
-          <Stack>{event.event.device.displayName}</Stack>
+          <Typography noWrap>{event.event.device.displayName}</Typography>
         </Link>
       );
     }
@@ -321,7 +335,7 @@ function EventViewComponent(params: {
         <Stack width="1px" flex="1" className={classes.line} />
       </Stack>
 
-      <Stack flex={1} gap={1}>
+      <Stack flex={1} gap={1} width="0">
         <div className={classes.eventTitle}>
           <div>
             <HighlightedText text={triggerTime} highlight={filter} />
@@ -429,16 +443,16 @@ function EventViewComponent(params: {
           )}
         </div>
 
-        {event.event.rule != undefined && (
+        {ruleNavAddress != undefined && (
           <Stack flexDirection="row" gap={1}>
-            <Stack>{t("rule")}:</Stack>
-            {ruleNavAddress}
+            <Stack justifyContent="center">{t("rule")}:</Stack>
+            <Stack>{ruleNavAddress}</Stack>
           </Stack>
         )}
 
         <Stack flexDirection="row" gap={1}>
-          <Stack>{t("creater")}:</Stack>
-          <Stack>{deviceCreator ?? humanCreator.value}</Stack>
+          <Stack justifyContent="center">{t("creater")}:</Stack>
+          <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
         </Stack>
       </Stack>
     </Stack>
