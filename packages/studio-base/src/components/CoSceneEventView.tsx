@@ -81,16 +81,6 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
     borderRadius: "14px",
     border: "2px solid",
   },
-  truncate: {
-    display: "flex",
-    flex: 1,
-    width: 0,
-    alignItems: "center",
-    gap: theme.spacing(1),
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
 }));
 
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
