@@ -265,12 +265,12 @@ function EventViewComponent(params: {
   const ruleNavAddress: React.JSX.Element | undefined = useMemo(() => {
     const rule = event.event.rule;
 
-    if (event.event.rule?.name == undefined || event.event.rule?.name == "") {
+    if (event.event.rule?.name == undefined || event.event.rule.name === "") {
       return undefined;
     }
 
     if (diagnosisRuleData == undefined || rule == undefined) {
-      return <Typography noWrap>{event.event.rule?.name}</Typography>;
+      return <Typography noWrap>{event.event.rule.name}</Typography>;
     }
 
     const ruleIndex = diagnosisRuleData.rules.findIndex((diagnosisRule) =>
@@ -281,7 +281,7 @@ function EventViewComponent(params: {
 
     return (
       <Link href={address} target="_blank">
-        <Typography noWrap>{event.event.rule?.name}</Typography>
+        <Typography noWrap>{event.event.rule.name}</Typography>
       </Link>
     );
   }, [diagnosisRuleData, event.event.rule, baseInfo]);
