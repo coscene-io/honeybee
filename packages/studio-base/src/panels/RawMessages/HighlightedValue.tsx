@@ -20,13 +20,13 @@ import { DiffSpan } from "./DiffSpan";
 import MaybeCollapsedValue from "./MaybeCollapsedValue";
 
 type Props = {
-  itemLabel: string;
+  itemLabel: string | number;
 };
 
 export default function HighlightedValue({ itemLabel }: Props): React.JSX.Element {
   const diffArrowStr = ` ${diffArrow} `;
   // react-json-tree's valueRenderer only gets called for primitives, so diff before/after values must be at same level by the time it gets to the tree
-  const splitItemLabel = itemLabel.split(diffArrowStr);
+  const splitItemLabel = `${itemLabel}`.split(diffArrowStr);
   const itemLabelContainsChange = splitItemLabel.length === 2;
   if (itemLabelContainsChange) {
     const [before, after] = splitItemLabel;
@@ -43,7 +43,7 @@ export default function HighlightedValue({ itemLabel }: Props): React.JSX.Elemen
 
   return (
     <DiffSpan>
-      <MaybeCollapsedValue itemLabel={itemLabel} />
+      <MaybeCollapsedValue itemLabel={`${itemLabel}`} />
     </DiffSpan>
   );
 }
