@@ -189,7 +189,7 @@ function makeElectronBuilderConfig(params) {
         { x: 144, y: 170, type: "file" },
         { x: 390, y: 170, type: "link", path: "/Applications" },
       ],
-      license: path.join(__dirname, "../resources/LICENSE.txt"),
+      // license: path.join(__dirname, "../resources/LICENSE.txt"),
     },
     deb: {
       packageName: "costudio",
@@ -206,19 +206,19 @@ function makeElectronBuilderConfig(params) {
       ],
       // after install script
       afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
-      license: path.join(__dirname, "../resources/LICENSE.txt"), // 添加许可证文件
+      // license: path.join(__dirname, "../resources/LICENSE.txt"), // 添加许可证文件
       // 确保许可证文件被安装到正确的位置
-      lintianOverrides: [
-        // copyright-file-contains-full-license-text
-        // 这个规则通常要求不要在 copyright 文件中包含完整的许可证文本
-        // 默认建议引用 /usr/share/common-licenses 中的标准许可证文本
-        // 通过覆盖这个规则，我们可以在包中包含完整的许可证文本
-        "copyright-file-contains-full-license-text",
-        // copyright-should-refer-to-common-license-file-for-lgpl
-        // 这个规则要求 LGPL 许可证应该引用公共许可证文件
-        // 同样，通过覆盖这个规则，我们可以使用自己的许可证文本
-        "copyright-should-refer-to-common-license-file-for-lgpl",
-      ],
+      // lintianOverrides: [
+      //   // copyright-file-contains-full-license-text
+      //   // 这个规则通常要求不要在 copyright 文件中包含完整的许可证文本
+      //   // 默认建议引用 /usr/share/common-licenses 中的标准许可证文本
+      //   // 通过覆盖这个规则，我们可以在包中包含完整的许可证文本
+      //   "copyright-file-contains-full-license-text",
+      //   // copyright-should-refer-to-common-license-file-for-lgpl
+      //   // 这个规则要求 LGPL 许可证应该引用公共许可证文件
+      //   // 同样，通过覆盖这个规则，我们可以使用自己的许可证文本
+      //   "copyright-should-refer-to-common-license-file-for-lgpl",
+      // ],
     },
     snap: {
       confinement: "strict",
@@ -237,7 +237,6 @@ function makeElectronBuilderConfig(params) {
       allowToChangeInstallationDirectory: true,
       createDesktopShortcut: true,
       createStartMenuShortcut: true,
-      requiresLicenseAcceptance: true,
     },
   };
 }
