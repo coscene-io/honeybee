@@ -166,17 +166,15 @@ jobs:
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
-            ${{ format('dist/dists/stable/main/binary-amd64/coStudio-{0}-linux-amd64.deb:/coStudio/apt/studio/dists/stable/main/binary-amd64/coStudio-{0}-linux-amd64.deb', github.event.inputs.version) || '' }}
-            'dist/dists/stable/main/binary-amd64/Packages:/coStudio/apt/studio/dists/stable/main/binary-amd64/Packages'
-            'dist/dists/stable/main/binary-amd64/Packages.gz:/coStudio/apt/studio/dists/stable/main/binary-amd64/Packages.gz'
-
-            ${{ format('dist/dists/stable/main/binary-arm64/coStudio-{0}-linux-arm64.deb:/coStudio/apt/studio/dists/stable/main/binary-arm64/coStudio-{0}-linux-arm64.deb', github.event.inputs.version) || '' }}
-            'dist/dists/stable/main/binary-arm64/Packages:/coStudio/apt/studio/dists/stable/main/binary-arm64/Packages'
-            'dist/dists/stable/main/binary-arm64/Packages.gz:/coStudio/apt/studio/dists/stable/main/binary-arm64/Packages.gz'
-
-            'dist/dists/stable/Release:/coStudio/apt/studio/dists/stable/Release'
-            'dist/dists/stable/InRelease:/coStudio/apt/studio/dists/stable/InRelease'
-            'dist/dists/stable/Release.gpg:/coStudio/apt/studio/dists/stable/Release.gpg'
+            dist/dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio/apt/studio/dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+            dist/dists/stable/main/binary-amd64/Packages:/coStudio/apt/studio/dists/stable/main/binary-amd64/Packages
+            dist/dists/stable/main/binary-amd64/Packages.gz:/coStudio/apt/studio/dists/stable/main/binary-amd64/Packages.gz
+            dist/dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio/apt/studio/dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+            dist/dists/stable/main/binary-arm64/Packages:/coStudio/apt/studio/dists/stable/main/binary-arm64/Packages
+            dist/dists/stable/main/binary-arm64/Packages.gz:/coStudio/apt/studio/dists/stable/main/binary-arm64/Packages.gz
+            dist/dists/stable/Release:/coStudio/apt/studio/dists/stable/Release
+            dist/dists/stable/InRelease:/coStudio/apt/studio/dists/stable/InRelease
+            dist/dists/stable/Release.gpg:/coStudio/apt/studio/dists/stable/Release.gpg
 
   # notification:
   #   needs: build
