@@ -119,6 +119,15 @@ jobs:
             dist/latest-linux.yml:/coStudio/packages/latest-linux.yml
             dist/latest-linux-arm64.yml:/coStudio/packages/latest-linux-arm64.yml
 
+      - name: Upload deb files to artifacts
+        if: matrix.os == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-packages
+          path: |
+            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+
   update-apt-server:
     needs: build
     runs-on: ubuntu-latest
@@ -186,7 +195,7 @@ jobs:
             dist/dists/stable/Release.gpg:/coStudio/apt/studio/dists/stable/Release.gpg
 
   # notification:
-  #   needs: build
+  #   needs: update-apt-server
   #   runs-on: ubuntu-latest
 
   #   steps:
