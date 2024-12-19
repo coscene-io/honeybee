@@ -170,7 +170,6 @@ function makeElectronBuilderConfig(params) {
           },
         ],
       },
-      // charset: "UTF-8",
     },
     appx: {
       applicationId: "coStudio",
