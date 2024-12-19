@@ -12,7 +12,7 @@ In particular, the Actions feature enables you to create custom workflows for co
 1.2 Scope of License
 Kexing grants you a non-exclusive, non-transferable, global right to access and use the Platform for your own use subject to your compliance with this Agreement. You shall not permit unauthorized third parties to use or for the benefit of the Platform. Nothing in this Agreement shall be construed as granting you any transfer or assignment of your rights to access or use the Platform.
 All rights not expressly granted to you are reserved by Kexing and its licensors. You may not (i) modify or create derivative products based on the Platform; (ii) reverse engineer or access the Platform to (a) build a competing product or service, (b) build a product using similar features, functionality or graphics of the Platform, or Copy any features, functions or images therefrom. You further acknowledge and agree that, as between the parties, Kexing owns all right, title and interest in and to the Platform, including all intellectual property rights therein.
-2. User registration and autentication
+2. User registration and authentication
 2.1 User qualifications
 This platform can only be used by natural persons, legal persons or other organizations with full civil capacity who have the authority to sign this agreement. Your entering into this Agreement with us will not breach any of your legal obligations to third parties.
 If you are under 18 years old, you may click "Read and Agree" and use the Platform only under the supervision of your legal guardian, and you must be over 13 years old to have an account with us.

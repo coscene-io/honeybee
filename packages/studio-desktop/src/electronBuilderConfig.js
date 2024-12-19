@@ -170,6 +170,7 @@ function makeElectronBuilderConfig(params) {
           },
         ],
       },
+      // charset: "UTF-8",
     },
     appx: {
       applicationId: "coStudio",
@@ -230,13 +231,13 @@ function makeElectronBuilderConfig(params) {
         url: "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages",
       },
     ],
-    nsis: {
-      license: path.join(__dirname, "../resources/LICENSE.txt"), // 许可协议文件
-      oneClick: false,
-      allowToChangeInstallationDirectory: true,
-      createDesktopShortcut: true,
-      createStartMenuShortcut: true,
-    },
+    // nsis: {
+    //   license: path.join(__dirname, "../resources/LICENSE.txt"), // 许可协议文件
+    //   oneClick: false,
+    //   allowToChangeInstallationDirectory: true,
+    //   createDesktopShortcut: true,
+    //   createStartMenuShortcut: true,
+    // },
   };
 }
 
