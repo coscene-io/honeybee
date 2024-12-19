@@ -78,37 +78,16 @@ jobs:
           key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
           region: oss-cn-hangzhou
           bucket: coscene-download
-          assets: |
-            ${{ matrix.os == 'darwin' && format('dist/coStudio-{0}-mac-universal.dmg:/coStudio/packages/coStudio-{0}-mac-universal.dmg', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'darwin' && format('dist/coStudio-{0}-mac-universal.dmg.blockmap:/coStudio/packages/coStudio-{0}-mac-universal.dmg.blockmap', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'darwin' && format('dist/coStudio-{0}-mac-arm64.dmg:/coStudio/packages/coStudio-{0}-mac-arm64.dmg', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'darwin' && format('dist/coStudio-{0}-mac-arm64.dmg.blockmap:/coStudio/packages/coStudio-{0}-mac-arm64.dmg.blockmap', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'darwin' && format('dist/latest-mac.yml:/coStudio/packages/latest-mac.yml', github.event.inputs.version) || '' }}
-
-            # linux 下会优先使用 apt 服务器来更新
-            ${{ matrix.os == 'linux' && format('dist/coStudio-{0}-linux-amd64.deb:/coStudio/packages/coStudio-{0}-linux-amd64.deb', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'linux' && format('dist/coStudio-{0}-linux-amd64.deb.blockmap:/coStudio/packages/coStudio-{0}-linux-amd64.deb.blockmap', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'linux' && format('dist/coStudio-{0}-linux-arm64.deb:/coStudio/packages/coStudio-{0}-linux-arm64.deb', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'linux' && format('dist/coStudio-{0}-linux-arm64.deb.blockmap:/coStudio/packages/coStudio-{0}-linux-arm64.deb.blockmap', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'linux' && format('dist/latest-linux.yml:/coStudio/packages/latest-linux.yml', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'linux' && format('dist/latest-linux-arm64.yml:/coStudio/packages/latest-linux-arm64.yml', github.event.inputs.version) || '' }}
-
-            ${{ matrix.os == 'win' && format('dist/coStudio-{0}-win.exe:/coStudio/packages/coStudio-{0}-win.exe', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'win' && format('dist/coStudio-{0}-win.exe.blockmap:/coStudio/packages/coStudio-{0}-win.exe.blockmap', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'win' && format('dist/coStudio-{0}-win-arm64.exe:/coStudio/packages/coStudio-{0}-win-arm64.exe', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'win' && format('dist/coStudio-{0}-win-arm64.exe.blockmap:/coStudio/packages/coStudio-{0}-win-arm64.exe.blockmap', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'win' && format('dist/coStudio-{0}-win-x64.exe:/coStudio/packages/coStudio-{0}-win-x64.exe', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'win' && format('dist/coStudio-{0}-win-x64.exe.blockmap:/coStudio/packages/coStudio-{0}-win-x64.exe.blockmap', github.event.inputs.version) || '' }}
-            ${{ matrix.os == 'win' && format('dist/latest.yml:/coStudio/packages/latest.yml', github.event.inputs.version) || '' }}
-
-      - name: Upload deb files to artifacts
-        if: matrix.os == 'linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: deb-packages
-          path: |
-            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
-            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+          assets: >-
+            dist/dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio/apt/studio/dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb,
+            dist/dists/stable/main/binary-amd64/Packages:/coStudio/apt/studio/dists/stable/main/binary-amd64/Packages,
+            dist/dists/stable/main/binary-amd64/Packages.gz:/coStudio/apt/studio/dists/stable/main/binary-amd64/Packages.gz,
+            dist/dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio/apt/studio/dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb,
+            dist/dists/stable/main/binary-arm64/Packages:/coStudio/apt/studio/dists/stable/main/binary-arm64/Packages,
+            dist/dists/stable/main/binary-arm64/Packages.gz:/coStudio/apt/studio/dists/stable/main/binary-arm64/Packages.gz,
+            dist/dists/stable/Release:/coStudio/apt/studio/dists/stable/Release,
+            dist/dists/stable/InRelease:/coStudio/apt/studio/dists/stable/InRelease,
+            dist/dists/stable/Release.gpg:/coStudio/apt/studio/dists/stable/Release.gpg
 
   update-apt-server:
     needs: build
