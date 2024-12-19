@@ -112,7 +112,6 @@ jobs:
 
   update-apt-server:
     needs: build
-    environment: ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
     steps:
       - name: Use apt tools
