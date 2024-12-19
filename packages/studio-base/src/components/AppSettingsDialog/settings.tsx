@@ -320,6 +320,7 @@ export function MessageFramerate(): React.ReactElement {
 }
 
 export function AutoUpdate(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
   const [updatesEnabled = true, setUpdatedEnabled] = useAppConfigurationValue<boolean>(
     AppSetting.UPDATES_ENABLED,
   );
@@ -328,7 +329,7 @@ export function AutoUpdate(): React.ReactElement {
 
   return (
     <>
-      <FormLabel>Updates:</FormLabel>
+      <FormLabel>{t("updates")}:</FormLabel>
       <FormControlLabel
         className={classes.formControlLabel}
         control={
@@ -338,7 +339,7 @@ export function AutoUpdate(): React.ReactElement {
             onChange={(_event, checked) => void setUpdatedEnabled(checked)}
           />
         }
-        label="Automatically install updates"
+        label={t("automaticallyInstallUpdates")}
       />
     </>
   );

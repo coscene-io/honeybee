@@ -38,4 +38,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   privacyPolicy: "隐私政策",
   termsOfService: "服务条款",
   security: "安全",
+  updates: "自动更新",
+  automaticallyInstallUpdates: "自动安装更新",
 };

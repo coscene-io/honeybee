@@ -75,7 +75,8 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
     width: 1200,
     minWidth: 350,
     minHeight: 250,
-    autoHideMenuBar: true,
+    // autoHideMenuBar: true,
+    autoHideMenuBar: false,
     title: COSCENE_PRODUCT_NAME,
     frame: isLinux ? false : true,
     titleBarStyle: "hidden",
@@ -254,6 +255,7 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
         },
       },
       { type: "separator" },
+      checkForUpdatesItem,
       // {
       //   id: "open",
       //   label: t("appBar:open"),
