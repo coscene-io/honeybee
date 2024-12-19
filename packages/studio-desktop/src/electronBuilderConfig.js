@@ -189,7 +189,6 @@ function makeElectronBuilderConfig(params) {
         { x: 144, y: 170, type: "file" },
         { x: 390, y: 170, type: "link", path: "/Applications" },
       ],
-      // license: path.join(__dirname, "../resources/LICENSE.txt"),
     },
     deb: {
       packageName: "costudio",
