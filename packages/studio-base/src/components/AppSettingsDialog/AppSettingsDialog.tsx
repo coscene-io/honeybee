@@ -157,7 +157,7 @@ export function AppSettingsDialog(
     [
       "legal",
       {
-        subheader: "Legal",
+        subheader: t("legal"),
         links: [
           {
             title: t("licenseTerms"),

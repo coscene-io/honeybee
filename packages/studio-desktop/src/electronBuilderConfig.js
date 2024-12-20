@@ -85,7 +85,7 @@ function makeElectronBuilderConfig(params) {
     mac: {
       target: {
         target: "default",
-        arch: ["universal"],
+        arch: ["universal", "arm64"],
       },
       category: "public.app-category.developer-tools",
       icon: path.join(__dirname, "../resources/icon/icon.icns"),
@@ -191,6 +191,7 @@ function makeElectronBuilderConfig(params) {
       ],
     },
     deb: {
+      packageName: "costudio",
       depends: [
         "libgtk-3-0",
         "libnotify4",
@@ -202,13 +203,25 @@ function makeElectronBuilderConfig(params) {
         "libgbm1",
         "libxcb-dri3-0",
       ],
-      // after install script
       afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
     },
     snap: {
       confinement: "strict",
       grade: "stable",
       summary: "Integrated visualization and diagnosis tool for robotics",
+    },
+    publish: [
+      {
+        provider: "generic",
+        url: "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages",
+      },
+    ],
+    nsis: {
+      license: path.join(__dirname, "../resources/license_zh_CN.txt"),
+      oneClick: false,
+      allowToChangeInstallationDirectory: true,
+      createDesktopShortcut: true,
+      createStartMenuShortcut: true,
     },
   };
 }
