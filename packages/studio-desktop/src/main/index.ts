@@ -13,7 +13,7 @@ import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/src/AppSetting";
 import { initI18n } from "@foxglove/studio-base/src/i18n";
 
-// import StudioAppUpdater from "./StudioAppUpdater";
+import StudioAppUpdater from "./StudioAppUpdater";
 import StudioWindow from "./StudioWindow";
 import getDevModeIcon from "./getDevModeIcon";
 import injectFilesToOpen from "./injectFilesToOpen";
@@ -259,7 +259,7 @@ export async function main(): Promise<void> {
     }
 
     // check upload
-    // StudioAppUpdater.Instance().start();
+    StudioAppUpdater.Instance().start();
 
     app.setAboutPanelOptions({
       applicationName: COSCENE_PRODUCT_NAME,

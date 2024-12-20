@@ -42,4 +42,6 @@ export const appSettings = {
   privacyPolicy: "Privacy policy",
   termsOfService: "Terms of service",
   security: "Security",
+  updates: "Updates",
+  automaticallyInstallUpdates: "Automatically install updates",
 };

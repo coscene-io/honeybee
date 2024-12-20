@@ -27,7 +27,7 @@ import { APP_BAR_HEIGHT } from "@foxglove/studio-base/src/components/AppBar/cons
 import { NativeAppMenuEvent } from "@foxglove/studio-base/src/context/NativeAppMenuContext";
 import { palette } from "@foxglove/theme";
 
-import StudioAppUpdater from "./StudioAppUpdater";
+// import StudioAppUpdater from "./StudioAppUpdater";
 import getDevModeIcon from "./getDevModeIcon";
 // import { simulateUserClick } from "./simulateUserClick";
 import { getTelemetrySettings } from "./telemetry";
@@ -75,7 +75,8 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
     width: 1200,
     minWidth: 350,
     minHeight: 250,
-    autoHideMenuBar: true,
+    // autoHideMenuBar: true,
+    autoHideMenuBar: false,
     title: COSCENE_PRODUCT_NAME,
     frame: isLinux ? false : true,
     titleBarStyle: "hidden",
@@ -208,11 +209,11 @@ function sendNativeAppMenuEvent(event: NativeAppMenuEvent, browserWindow: Browse
 function buildMenu(browserWindow: BrowserWindow): Menu {
   const menuTemplate: MenuItemConstructorOptions[] = [];
 
-  const checkForUpdatesItem: MenuItemConstructorOptions = {
-    label: t("desktopWindow:checkForUpdates"),
-    click: () => void StudioAppUpdater.Instance().checkNow(),
-    enabled: StudioAppUpdater.Instance().canCheckForUpdates(),
-  };
+  // const checkForUpdatesItem: MenuItemConstructorOptions = {
+  //   label: t("desktopWindow:checkForUpdates"),
+  //   click: () => void StudioAppUpdater.Instance().checkNow(),
+  //   enabled: StudioAppUpdater.Instance().canCheckForUpdates(),
+  // };
 
   if (isMac) {
     menuTemplate.push({
@@ -220,7 +221,7 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
       label: app.name,
       submenu: [
         { role: "about" },
-        checkForUpdatesItem,
+        // checkForUpdatesItem,
         { type: "separator" },
         {
           label: t("desktopWindow:settings"),
