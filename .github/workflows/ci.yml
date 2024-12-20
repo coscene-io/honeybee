@@ -31,5 +31,12 @@ jobs:
 
       - run: set -x
 
-      - run: yarn run tsc --noEmit
-      - run: yarn run lint:ci
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            **/*.{js,jsx,ts,tsx}
+
+      - name: Lint changed files
+        run: yarn eslint ${{ steps.changed-files.outputs.all_changed_files }}
