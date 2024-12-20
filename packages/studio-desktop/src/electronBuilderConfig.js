@@ -231,7 +231,7 @@ function makeElectronBuilderConfig(params) {
       },
     ],
     nsis: {
-      license: path.join(__dirname, "../resources/license_en.txt"),
+      license: path.join(__dirname, "../resources/license_zh_CN.txt"),
       oneClick: false,
       allowToChangeInstallationDirectory: true,
       createDesktopShortcut: true,
