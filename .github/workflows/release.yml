@@ -154,23 +154,23 @@ jobs:
       - name: Create release file
         run: |
           # 创建标准目录结构
-          mkdir -p dist/dists/stable/main/binary-amd64
-          mkdir -p dist/dists/stable/main/binary-arm64
+          mkdir -p dists/stable/main/binary-amd64
+          mkdir -p dists/stable/main/binary-arm64
 
           # 移动 deb 包到对应架构目录
-          mv dist/*amd64.deb dist/dists/stable/main/binary-amd64/
-          mv dist/*arm64.deb dist/dists/stable/main/binary-arm64/
+          mv dist/*amd64.deb dists/stable/main/binary-amd64/
+          mv dist/*arm64.deb dists/stable/main/binary-arm64/
 
           # 为每个架构生成 Packages 文件
-          dpkg-scanpackages dist/dists/stable/main/binary-amd64 /dev/null > dist/dists/stable/main/binary-amd64/Packages
-          dpkg-scanpackages dist/dists/stable/main/binary-arm64 /dev/null > dist/dists/stable/main/binary-arm64/Packages
+          dpkg-scanpackages dists/stable/main/binary-amd64 /dev/null > dists/stable/main/binary-amd64/Packages
+          dpkg-scanpackages dists/stable/main/binary-arm64 /dev/null > dists/stable/main/binary-arm64/Packages
 
           # 压缩 Packages 文件
-          gzip -k -f dist/dists/stable/main/binary-amd64/Packages
-          gzip -k -f dist/dists/stable/main/binary-arm64/Packages
+          gzip -k -f dists/stable/main/binary-amd64/Packages
+          gzip -k -f dists/stable/main/binary-arm64/Packages
 
           # 生成 Release 文件
-          cd dist && apt-ftparchive release dists/stable > dists/stable/Release
+          apt-ftparchive release dists/stable > dists/stable/Release
 
           # 签名 Release 文件
           gpg --clearsign -o dists/stable/InRelease dists/stable/Release
@@ -194,30 +194,30 @@ jobs:
             dist/dists/stable/InRelease:/coStudio/apt/studio/dists/stable/InRelease
             dist/dists/stable/Release.gpg:/coStudio/apt/studio/dists/stable/Release.gpg
 
-  notification:
-    needs: update-apt-server
-    runs-on: ubuntu-latest
+  # notification:
+  #   needs: update-apt-server
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: Notification to Feishu
-        id: feishu
-        uses: foxundermoon/feishu-action@v2
-        with:
-          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
-          msg_type: text
-          content: |
-            text: |
-              A new version of coScene Studio has been published.
-              Version: ${{ github.event.inputs.version }}
-              Download:
-                mac:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-arm64.dmg
-                win:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win.exe
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
-                linux:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
-              Release notes: https://github.com/coscene-io/honeybee/releases
+  #   steps:
+  #     - name: Notification to Feishu
+  #       id: feishu
+  #       uses: foxundermoon/feishu-action@v2
+  #       with:
+  #         url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
+  #         msg_type: text
+  #         content: |
+  #           text: |
+  #             A new version of coScene Studio has been published.
+  #             Version: ${{ github.event.inputs.version }}
+  #             Download:
+  #               mac:
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-arm64.dmg
+  #               win:
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win.exe
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
+  #               linux:
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+  #             Release notes: https://github.com/coscene-io/honeybee/releases
