@@ -131,6 +131,7 @@ export function UploadFile(): React.JSX.Element {
           )
         }
         classes={{ tooltip: classes.tooltip }}
+        leaveDelay={500}
       >
         <IconButton
           onClick={() => {

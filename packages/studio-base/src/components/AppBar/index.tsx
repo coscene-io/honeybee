@@ -226,6 +226,8 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                 onClick={(event) => {
                   if (isDesktopApp()) {
                     setAppMenuEl(event.currentTarget);
+                  } else {
+                    window.open(window.location.origin, "_blank");
                   }
                 }}
               >
