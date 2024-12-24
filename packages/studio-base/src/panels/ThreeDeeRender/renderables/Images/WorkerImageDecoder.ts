@@ -53,11 +53,11 @@ export class WorkerImageDecoder {
     return await this.#remote.decode(image, options);
   }
 
-  public async decodeH264Frame(image: AnyImage): Promise<VideoFrame | undefined> {
+  public async decodeH264Frame(image: AnyImage, receiveTime: bigint): Promise<VideoFrame | undefined> {
     const data = image.data;
 
     try {
-      void this.#remote.decodeH264Frame(data);
+      void this.#remote.decodeH264Frame(data, Number(receiveTime/1000000n));
 
       return await this.#remote.getH264Frames();
     } catch (error) {

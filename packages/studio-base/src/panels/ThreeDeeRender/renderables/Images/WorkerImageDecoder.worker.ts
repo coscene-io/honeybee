@@ -150,7 +150,18 @@ function getH264Decoder(): VideoDecoder {
   return h264Decoder;
 }
 
-function decodeH264Frame(data: Uint8Array | Int8Array): void {
+let lastDecodeTime = 0;
+
+function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: number): void {
+  // prevent disordered frames
+  if (receiveTime <= lastDecodeTime) {
+    log.info("received image disordered", receiveTime, lastDecodeTime);
+    // cannot return, because seeking does not reset the decoder here.
+    // return;
+  }
+
+  lastDecodeTime = receiveTime;
+
   let type: "delta" | "key" | "unknow frame" | "b frame" = "delta";
   if (data.length > 4) {
     type = isKeyFrame(data as Uint8Array);
@@ -172,11 +183,10 @@ function decodeH264Frame(data: Uint8Array | Int8Array): void {
     return;
   }
 
-  const now = performance.now();
   const decoder = getH264Decoder();
 
   const chunk = new EncodedVideoChunk({
-    timestamp: now,
+    timestamp: receiveTime,
     type,
     data,
   });

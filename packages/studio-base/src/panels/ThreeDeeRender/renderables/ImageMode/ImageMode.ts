@@ -302,9 +302,11 @@ export class ImageMode
 
   #filterMessageQueue<T>(msgs: MessageEvent<T>[]): MessageEvent<T>[] {
     // only take multiple images in if synchronization is enabled
-    if (!this.getImageModeSettings().synchronize) {
-      return msgs.slice(msgs.length - 1);
-    }
+    // TODO: not sure how to fix this, all h264 frames must be passed to the decoder,
+    //       otherwise there will be mosaic frames
+    // if (!this.getImageModeSettings().synchronize) {
+    //   return msgs.slice(msgs.length - 1);
+    // }
     return msgs;
   }
 
@@ -720,6 +722,10 @@ export class ImageMode
     }
 
     renderable.userData.receiveTime = receiveTime;
+    // TODO: pass in the receiveTime in a proper way
+    Object.defineProperty(image, "receiveTime", {
+      get: () => receiveTime,
+    });
     renderable.setImage(image, /*resizeWidth=*/ undefined, () => {
       if (this.#fallbackCameraModelActive()) {
         this.#updateFallbackCameraModel(renderable);
