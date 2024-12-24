@@ -743,10 +743,6 @@ export class ImageMode
     }
 
     renderable.userData.receiveTime = receiveTime;
-    // TODO_: pass in the receiveTime in a proper way
-    Object.defineProperty(image, "receiveTime", {
-      get: () => receiveTime,
-    });
     renderable.setImage(image, /*resizeWidth=*/ undefined, () => {
       if (this.#fallbackCameraModelActive()) {
         this.#updateFallbackCameraModel(renderable);

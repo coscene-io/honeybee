@@ -281,7 +281,6 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         }
 
         // log disordered frames
-        // if (receiveTime < this.#lastReceivedImageTime) {
         if (timestamp && isLessThan(timestamp, this.#lastReceivedImageTime)) {
           log.info("received image disordered", timestamp, this.#lastReceivedImageTime);
         }
