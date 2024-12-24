@@ -201,15 +201,11 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void 
 function getH264Frames(): VideoFrame | undefined {
   const frame = H264Frames.pop();
   if (frame) {
-    return Comlink.transfer(frame, [frame]);
-  }
-
-  // we need latest frames only, drop frames if too many
-  if (H264Frames.length >= 5) {
     H264Frames.forEach((uselessFrame) => {
       uselessFrame.close();
     });
     H264Frames = [];
+    return Comlink.transfer(frame, [frame]);
   }
 
   return undefined;
