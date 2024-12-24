@@ -20,6 +20,11 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   gradient: "渐变",
   type: "类型",
   topic: "话题",
+  calibration: "校准",
+  syncAnnotations: "同步标注",
+  flipHorizontal: "水平翻转",
+  flipVertical: "垂直翻转",
+  syncAnnotationsHelp: "仅当消息的时间戳匹配时才显示注释（此消息类型不支持）",
 
   // Frame
   age: "陈旧度",

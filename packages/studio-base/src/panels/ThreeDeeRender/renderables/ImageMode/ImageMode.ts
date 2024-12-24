@@ -130,6 +130,8 @@ const DEFAULT_CONFIG = {
   ...IMAGE_DEFAULT_COLOR_MODE_SETTINGS,
 };
 
+const NOT_SUPPORT_SYNC_ANNOTATIONS_SCHEMAS = new Set([...COMPRESSED_VIDEO_DATATYPES]);
+
 type ConfigWithDefaults = ImageModeConfig & typeof DEFAULT_CONFIG;
 export class ImageMode
   extends SceneExtension<ImageRenderable, ImageModeEventMap>
@@ -156,6 +158,8 @@ export class ImageMode
   #dragStartPanOffset = new THREE.Vector2();
   #dragStartMouseCoords = new THREE.Vector2();
   #hasModifiedView = false;
+
+  #isSupportSyncAnnotations: boolean = true;
 
   public constructor(renderer: IRenderer, name: string = ImageMode.extensionId) {
     super(name, renderer);
@@ -296,17 +300,24 @@ export class ImageMode
           filterQueue: this.#filterMessageQueue.bind(this),
         },
       },
+      {
+        type: "schema",
+        schemaNames: COMPRESSED_VIDEO_DATATYPES,
+        subscription: {
+          handler: this.messageHandler.handleCompressedImage,
+          shouldSubscribe: this.imageShouldSubscribe,
+          filterQueue: this.#filterMessageQueue.bind(this),
+        },
+      },
     ];
     return subscriptions.concat(this.#annotations.getSubscriptions());
   }
 
   #filterMessageQueue<T>(msgs: MessageEvent<T>[]): MessageEvent<T>[] {
     // only take multiple images in if synchronization is enabled
-    // TODO: not sure how to fix this, all h264 frames must be passed to the decoder,
-    //       otherwise there will be mosaic frames
-    // if (!this.getImageModeSettings().synchronize) {
-    //   return msgs.slice(msgs.length - 1);
-    // }
+    if (!this.getImageModeSettings().synchronize && this.#isSupportSyncAnnotations) {
+      return msgs.slice(msgs.length - 1);
+    }
     return msgs;
   }
 
@@ -423,6 +434,14 @@ export class ImageMode
       return { label: topic.name, value: topic.name };
     });
 
+    const targetTopic = this.renderer.topics?.find((topic) => topic.name === imageTopicName);
+    const isSupportSyncAnnotations: boolean =
+      targetTopic && NOT_SUPPORT_SYNC_ANNOTATIONS_SCHEMAS.has(targetTopic.schemaName)
+        ? false
+        : true;
+
+    this.#isSupportSyncAnnotations = isSupportSyncAnnotations;
+
     const calibrationTopics: { label: string; value: string | undefined }[] = filterMap(
       this.renderer.topics ?? [],
       (topic) => {
@@ -496,7 +515,7 @@ export class ImageMode
       error: imageTopicError,
     };
     fields.calibrationTopic = {
-      label: "Calibration",
+      label: t3D("calibration"),
       input: "select",
       value: calibrationTopic,
       options: calibrationTopics,
@@ -504,22 +523,24 @@ export class ImageMode
     };
     fields.synchronize = {
       input: "boolean",
-      label: "Sync annotations",
-      value: synchronize,
+      label: t3D("syncAnnotations"),
+      value: this.#isSupportSyncAnnotations ? synchronize : undefined,
+      disabled: !this.#isSupportSyncAnnotations,
+      help: t3D("syncAnnotationsHelp"),
     };
     fields.flipHorizontal = {
       input: "boolean",
-      label: "Flip horizontal",
+      label: t3D("flipHorizontal"),
       value: flipHorizontal,
     };
     fields.flipVertical = {
       input: "boolean",
-      label: "Flip vertical",
+      label: t3D("flipVertical"),
       value: flipVertical,
     };
     fields.rotation = {
       input: "toggle",
-      label: "Rotation",
+      label: t3D("rotation"),
       value: rotation,
       options: [
         { label: "0°", value: 0 },
@@ -722,7 +743,7 @@ export class ImageMode
     }
 
     renderable.userData.receiveTime = receiveTime;
-    // TODO: pass in the receiveTime in a proper way
+    // TODO_: pass in the receiveTime in a proper way
     Object.defineProperty(image, "receiveTime", {
       get: () => receiveTime,
     });

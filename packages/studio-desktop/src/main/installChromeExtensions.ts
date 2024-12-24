@@ -18,10 +18,8 @@ export default async function installChromeExtensions(): Promise<void> {
   try {
     // Extension installation sometimes gets stuck between the download step and the extension loading step, for unknown reasons.
     // So don't wait indefinitely for installation to complete.
-    // TODO: fix installing react devtools
-    void REACT_DEVELOPER_TOOLS, promiseTimeout, installExtension;
-    // const result = await promiseTimeout(installExtension('acfogieiogmaanmbihnjhlgljnfcdjen'), 5000);
-    // log.info("Finished extension install:", result);
+    const result = await promiseTimeout(installExtension(REACT_DEVELOPER_TOOLS), 5000);
+    log.info("Finished extension install:", result);
   } catch (err) {
     if (err instanceof PromiseTimeoutError) {
       console.warn(

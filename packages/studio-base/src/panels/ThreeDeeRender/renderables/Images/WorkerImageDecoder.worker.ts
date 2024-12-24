@@ -8,6 +8,7 @@
 import * as Comlink from "comlink";
 
 import Logger from "@foxglove/log";
+import { isLessThan, Time, toMicroSec } from "@foxglove/rostime";
 import type { RawImage } from "@foxglove/schemas";
 
 import { decodeRawImage, RawImageOptions } from "./decodeImage";
@@ -150,11 +151,11 @@ function getH264Decoder(): VideoDecoder {
   return h264Decoder;
 }
 
-let lastDecodeTime = 0;
+let lastDecodeTime = { sec: 0, nsec: 0 };
 
-function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: number): void {
+function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void {
   // prevent disordered frames
-  if (receiveTime <= lastDecodeTime) {
+  if (isLessThan(receiveTime, lastDecodeTime)) {
     log.info("received image disordered", receiveTime, lastDecodeTime);
     // cannot return, because seeking does not reset the decoder here.
     // return;
@@ -186,7 +187,7 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: number): voi
   const decoder = getH264Decoder();
 
   const chunk = new EncodedVideoChunk({
-    timestamp: receiveTime,
+    timestamp: toMicroSec(receiveTime),
     type,
     data,
   });

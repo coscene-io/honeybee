@@ -11,7 +11,7 @@ import { assert } from "ts-essentials";
 
 import { PinholeCameraModel } from "@foxglove/den/image";
 import Logger from "@foxglove/log";
-import { toNanoSec } from "@foxglove/rostime";
+import { isLessThan, toNanoSec } from "@foxglove/rostime";
 import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import { BaseUserData, Renderable } from "@foxglove/studio-base/panels/ThreeDeeRender/Renderable";
 import { stringToRgba } from "@foxglove/studio-base/panels/ThreeDeeRender/color";
@@ -235,11 +235,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.userData.settings = newSettings;
   }
 
-  private lastReceivedImageTime = 0n;
-  private lastRenderImage = Date.now();
+  #lastReceivedImageTime = { sec: 0, nsec: 0 };
+  #lastRenderImage = Date.now();
   public setImage(image: AnyImage, resizeWidth?: number, onDecoded?: () => void): void {
     this.userData.image = image;
-    const receiveTime = (image as any).receiveTime as bigint;
+    const timestamp = "timestamp" in image ? image.timestamp : undefined;
 
     const seq = ++this.#receivedImageSequenceNumber;
 
@@ -250,7 +250,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         this.decoder = new WorkerImageDecoder();
       }
 
-      decodePromise = this.decoder.decodeH264Frame(image, receiveTime);
+      if (timestamp == undefined) {
+        throw new Error("timestamp is undefined");
+      }
+
+      decodePromise = this.decoder.decodeH264Frame(image, timestamp);
     } else {
       decodePromise = this.decodeImage(image, resizeWidth);
     }
@@ -265,20 +269,25 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           return;
         }
         // cap at 60 fps
-        if (this.lastRenderImage > Date.now() - 16) {
-          'close' in result && result.close();
+        if (this.#lastRenderImage > Date.now() - 16) {
+          if (result instanceof VideoFrame) {
+            result.close();
+          }
           return;
         }
-        this.lastRenderImage = Date.now();
+        this.#lastRenderImage = Date.now();
         if (this.#decodedFrame?.getType() === "video") {
           this.#decodedFrame.close();
         }
 
         // log disordered frames
-        if (receiveTime < this.lastReceivedImageTime) {
-          log.info("received image disordered", receiveTime, this.lastReceivedImageTime);
+        // if (receiveTime < this.#lastReceivedImageTime) {
+        if (timestamp && isLessThan(timestamp, this.#lastReceivedImageTime)) {
+          log.info("received image disordered", timestamp, this.#lastReceivedImageTime);
         }
-        this.lastReceivedImageTime = receiveTime;
+        if (timestamp) {
+          this.#lastReceivedImageTime = timestamp;
+        }
 
         this.#displayedImageSequenceNumber = seq;
         this.#decodedFrame = new DecodedFrame(result);
