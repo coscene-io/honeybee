@@ -23,7 +23,6 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { useCoSceneInit } from "./CoSceneInit";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
@@ -36,14 +35,7 @@ export function WebRoot(props: {
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
   children: React.JSX.Element;
 }): React.JSX.Element {
-  const urlState = windowAppURLState();
-
-  const baseUrl = useMemo(() => {
-    return urlState?.isStandalonePlayback === true
-      ? APP_CONFIG.CS_HONEYBEE_BASE_URL_V2
-      : APP_CONFIG.CS_HONEYBEE_BASE_URL;
-  }, [urlState?.isStandalonePlayback]);
-
+  const baseUrl = APP_CONFIG.CS_HONEYBEE_BASE_URL;
   const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
 
   const isLoading = useCoSceneInit({ baseUrl, jwt });
