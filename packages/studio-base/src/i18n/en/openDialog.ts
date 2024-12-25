@@ -52,4 +52,24 @@ export const openDialog = {
     "Efficient automation processes, automatically collect, preprocess, and diagnose key segments",
   coordination:
     "Convenient data collaboration with R&D, operations, and testing personnel to drive the development of general artificial intelligence with data",
+
+  openNewConnection: "Open a new connection",
+  webSocketDataSourceDesc:
+    "Connect to a ROS 1, ROS 2, or custom system using the coScene WebSocket protocol. For ROS systems, be sure to first install the coBridge ROS package.",
+  rosbridgeDataSourceDesc:
+    "Connect to a ROS 1 or ROS 2 system using the Rosbridge WebSocket protocol.",
+  ros1SocketDataSourceDesc:
+    "Connect to a running ROS 1 system via a native TCP connection that accesses your ROS master and nodes directly.",
+  rosMasterUriDesc: "Tells ROS nodes where they can locate the master",
+  rosHostnameDesc: "Acts as the declared network address of a ROS node or tool",
+  velodyneDataSourceDesc:
+    "Connect directly to Velodyne Lidar hardware to inspect incoming sensor data.",
+  loadingLargeFilesOverHttpCanBeSlow:
+    "Loading large files over HTTP can be slow. For better performance, we recommend",
+  urlMustEndWithAFileExtension: "URL must end with a filename and extension",
+  remoteDataSourceDesc: "Open pre-recorded .bag or .mcap files from a remote location.",
+  unsupportedExtension: "Unsupported extension: {extension}",
+  onlySupportedExtensions: "Only {extensions} files are supported.",
+  enterAValidUrl: "Enter a valid url",
+  getStarted: "Get started",
 };

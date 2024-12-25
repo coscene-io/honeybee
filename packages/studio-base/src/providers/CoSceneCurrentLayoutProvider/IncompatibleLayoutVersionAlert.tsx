@@ -36,8 +36,8 @@ export function IncompatibleLayoutVersionAlert(props: Props): React.JSX.Element 
         {showDesktopText && (
           <DialogContentText>
             {t("desktopText")}
-            <Link target="_blank" href="https://foxglove.dev/download">
-              https://foxglove.dev/download
+            <Link target="_blank" href="https://www.coscene.cn/download">
+              https://www.coscene.cn/download
             </Link>
             .
           </DialogContentText>
