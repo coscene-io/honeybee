@@ -5,8 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Alert, Link, Tab, Tabs, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, Tab, Tabs, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useState, useMemo, useCallback, useLayoutEffect, FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { BuiltinIcon } from "@foxglove/studio-base/components/BuiltinIcon";
@@ -92,6 +93,8 @@ export default function Connection(): React.JSX.Element {
   const { classes } = useStyles();
   const theme = useTheme();
   const mdUp = useMediaQuery(theme.breakpoints.up("md"));
+
+  const { t } = useTranslation("openDialog");
 
   const { activeDataSource } = useWorkspaceStore(selectDataSourceDialog);
   const { dialogActions } = useWorkspaceActions();
@@ -182,7 +185,7 @@ export default function Connection(): React.JSX.Element {
       <Stack className={classes.grid} data-testid="OpenConnection">
         <header className={classes.header}>
           <Typography variant="h3" fontWeight={600} gutterBottom>
-            Open a new connection
+            {t("openNewConnection")}
           </Typography>
         </header>
         <div className={classes.sidebar}>
@@ -258,7 +261,8 @@ export default function Connection(): React.JSX.Element {
                   </Stack>
                 </Stack>
               )}
-              <Stack direction="row" gap={1}>
+              {/* TODO: wait for docks */}
+              {/* <Stack direction="row" gap={1}>
                 {(selectedSource?.docsLinks ?? []).map((item) => (
                   <Link
                     key={item.url}
@@ -270,7 +274,7 @@ export default function Connection(): React.JSX.Element {
                     {item.label ? `View docs for ${item.label}` : "View docs"}
                   </Link>
                 ))}
-              </Stack>
+              </Stack> */}
             </Stack>
           </form>
         </Stack>

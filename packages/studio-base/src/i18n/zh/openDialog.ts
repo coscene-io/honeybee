@@ -47,4 +47,24 @@ export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   storedData: "安全地存储 PB 级多模态数据",
   automaticData: "高效的自动化流程，自动采集、自动预处理、自动诊断关键片段",
   coordination: "与研发、运维、测试人员便捷数据协作，以数据驱动通用人工智能发展",
+
+  openNewConnection: "打开一个新的连接",
+  webSocketDataSourceDesc:
+    "使用 coScene WebSocket 协议连接到 ROS 1、ROS 2 或自定义系统。对于 ROS 系统，请确保首先安装 coBridge ROS 包。",
+  rosbridgeDataSourceDesc: "使用 Rosbridge WebSocket 协议连接到 ROS 1 或 ROS 2 系统。",
+  ros1SocketDataSourceDesc:
+    "通过直接访问 ROS 主节点和节点的本地 TCP 连接连接到正在运行的 ROS 1 系统。",
+  rosMasterUriDesc: "告诉 ROS 节点它们可以定位主节点",
+  rosHostnameDesc: "作为 ROS 节点或工具的声明网络地址",
+  velodyneDataSourceDesc: "直接连接到 Velodyne Lidar 硬件以检查传入的传感器数据。",
+  loadingLargeFilesOverHttpCanBeSlow: "加载大型文件可能会很慢。为了更好的性能，我们推荐",
+  urlMustEndWithAFileExtension: "URL 必须以文件名和扩展名结尾",
+  remoteDataSourceDesc: "从远程位置打开预录制的 .bag 或 .mcap 文件。",
+  unsupportedExtension: "不支持的扩展名: {extension}",
+  onlySupportedExtensions: "仅支持 {extensions} 文件。",
+  enterAValidUrl: "输入一个有效的 URL",
+  getStarted: "开始使用",
+  open: "打开",
+  cancel: "取消",
+  back: "返回",
 };

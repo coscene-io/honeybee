@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { t } from "i18next";
+
 import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
@@ -19,8 +21,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
   public type: IDataSourceFactory["type"] = "connection";
   public displayName = "coScene WebSocket";
   public iconName: IDataSourceFactory["iconName"] = "Flow";
-  public description =
-    "Connect to a ROS 1, ROS 2, or custom system using the coScene WebSocket protocol. For ROS systems, be sure to first install the coBridge ROS package.";
+  public description = t("openDialog:webSocketDataSourceDesc");
   public docsLinks = [
     {
       label: "ROS 1",
