@@ -50,6 +50,7 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
     "&:hover": {
       backgroundColor: alpha(theme.palette.info.main, theme.palette.action.hoverOpacity),
     },
+    gap: "4px",
   },
   eventSelected: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.activatedOpacity),
@@ -394,7 +395,7 @@ function EventViewComponent(params: {
               gap={1}
               fontSize="12px"
               color={theme.palette.text.secondary}
-              marginTop={description || imgUrl || metadataMap.length > 0 ? "12px" : undefined}
+              marginTop={description || imgUrl || metadataMap.length > 0 ? "8px" : undefined}
             >
               {description && (
                 <Stack lineHeight="1.5">
@@ -431,19 +432,35 @@ function EventViewComponent(params: {
               </Stack>
             </Stack>
           )}
-        </div>
 
-        {ruleNavAddress != undefined && (
-          <Stack flexDirection="row" gap={1}>
-            <Stack justifyContent="center">{t("rule")}:</Stack>
-            <Stack>{ruleNavAddress}</Stack>
+          {ruleNavAddress != undefined && (
+            <Stack flexDirection="row" gap={1} fontSize="12px" color={theme.palette.text.secondary}>
+              <Stack justifyContent="center">{t("rule")}:</Stack>
+              <Stack
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                {ruleNavAddress}
+              </Stack>
+            </Stack>
+          )}
+
+          <Stack
+            alignItems="center"
+            flexDirection="row"
+            fontSize="12px"
+            color={theme.palette.text.secondary}
+          >
+            <Stack flexDirection="row" alignItems="center" gap={0.5}>
+              <Stack justifyContent="center">{t("creater")}</Stack>
+            </Stack>
+            <Stack marginRight={1}>:</Stack>
+            <Stack>
+              <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
+            </Stack>
           </Stack>
-        )}
-
-        <Stack flexDirection="row" gap={1}>
-          <Stack justifyContent="center">{t("creater")}:</Stack>
-          <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
-        </Stack>
+        </div>
       </Stack>
     </Stack>
   ) : (
