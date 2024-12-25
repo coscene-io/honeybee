@@ -18,6 +18,12 @@ export const threeDee = {
   gradient: "Gradient",
   type: "Type",
   topic: "Topic",
+  calibration: "Calibration",
+  syncAnnotations: "Sync annotations",
+  flipHorizontal: "Flip horizontal",
+  flipVertical: "Flip vertical",
+  syncAnnotationsHelp:
+    "Display annotations only when the message timestamp matches (this message type does not support this)",
 
   // Frame
   age: "Age",

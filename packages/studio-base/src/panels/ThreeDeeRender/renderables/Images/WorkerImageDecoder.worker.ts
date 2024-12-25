@@ -8,6 +8,7 @@
 import * as Comlink from "comlink";
 
 import Logger from "@foxglove/log";
+import { isLessThan, Time, toMicroSec } from "@foxglove/rostime";
 import type { RawImage } from "@foxglove/schemas";
 
 import { decodeRawImage, RawImageOptions } from "./decodeImage";
@@ -150,7 +151,18 @@ function getH264Decoder(): VideoDecoder {
   return h264Decoder;
 }
 
-function decodeH264Frame(data: Uint8Array | Int8Array): void {
+let lastDecodeTime = { sec: 0, nsec: 0 };
+
+function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void {
+  // prevent disordered frames
+  if (isLessThan(receiveTime, lastDecodeTime)) {
+    log.info("received image disordered", receiveTime, lastDecodeTime);
+    // cannot return, because seeking does not reset the decoder here.
+    // return;
+  }
+
+  lastDecodeTime = receiveTime;
+
   let type: "delta" | "key" | "unknow frame" | "b frame" = "delta";
   if (data.length > 4) {
     type = isKeyFrame(data as Uint8Array);
@@ -172,11 +184,10 @@ function decodeH264Frame(data: Uint8Array | Int8Array): void {
     return;
   }
 
-  const now = performance.now();
   const decoder = getH264Decoder();
 
   const chunk = new EncodedVideoChunk({
-    timestamp: now,
+    timestamp: toMicroSec(receiveTime),
     type,
     data,
   });
@@ -190,15 +201,11 @@ function decodeH264Frame(data: Uint8Array | Int8Array): void {
 function getH264Frames(): VideoFrame | undefined {
   const frame = H264Frames.pop();
   if (frame) {
-    return Comlink.transfer(frame, [frame]);
-  }
-
-  // we need latest frames only, drop frames if too many
-  if (H264Frames.length >= 5) {
     H264Frames.forEach((uselessFrame) => {
       uselessFrame.close();
     });
     H264Frames = [];
+    return Comlink.transfer(frame, [frame]);
   }
 
   return undefined;
