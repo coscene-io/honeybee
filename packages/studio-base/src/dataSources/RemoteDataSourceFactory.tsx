@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Link } from "@mui/material";
+import { t } from "i18next";
 import path from "path";
 
 import {
@@ -52,7 +53,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
   public displayName = "Remote file";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public supportedFileTypes = [".bag", ".mcap"];
-  public description = "Open pre-recorded .bag or .mcap files from a remote location.";
+  public description = t("openDialog:remoteDataSourceDesc");
   public docsLinks = [
     {
       label: "ROS 1",
@@ -79,8 +80,8 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
 
   public warning = (
     <>
-      Loading large files over HTTP can be slow. For better performance, we recommend{" "}
-      <Link href="https://foxglove.dev/data-platform" target="_blank">
+      {t("openDialog:loadingLargeFilesOverHttpCanBeSlow")}
+      <Link href="https://coscene.cn/" target="_blank">
         coScene Data Platform
       </Link>
       .
@@ -96,7 +97,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
     const extension = path.extname(new URL(url).pathname);
     const initWorker = initWorkers[extension];
     if (!initWorker) {
-      throw new Error(`Unsupported extension: ${extension}`);
+      throw new Error(t("openDialog:unsupportedExtension", { extension }));
     }
 
     const source = new WorkerSerializedIterableSource({ initWorker, initArgs: { url } });
@@ -117,19 +118,21 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
       const extension = path.extname(url.pathname);
 
       if (extension.length === 0) {
-        return new Error("URL must end with a filename and extension");
+        return new Error(t("openDialog:urlMustEndWithAFileExtension"));
       }
 
       if (!this.supportedFileTypes.includes(extension)) {
         const supportedExtensions = new Intl.ListFormat("en-US", { style: "long" }).format(
           this.supportedFileTypes,
         );
-        return new Error(`Only ${supportedExtensions} files are supported.`);
+        return new Error(
+          t("openDialog:onlySupportedExtensions", { extensions: supportedExtensions }),
+        );
       }
 
       return undefined;
     } catch {
-      return new Error("Enter a valid url");
+      return new Error(t("openDialog:enterAValidUrl"));
     }
   }
 }
