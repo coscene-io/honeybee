@@ -9,6 +9,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import InfoIcon from "@mui/icons-material/Info";
 import { Button, IconButton, CircularProgress, Stack } from "@mui/material";
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -53,6 +54,13 @@ export function AppStateBar(): React.JSX.Element {
   const { layoutActions } = useWorkspaceActions();
   const [layoutTipsOpen, setLayoutTipsOpen] = useState(false);
 
+  const [isToastMounted, setIsToastMounted] = useState(false);
+  const [successMediaToastId, setSuccessMediaToastId] = useState<string | undefined>(undefined);
+  const [generatingMediaToastId, setGeneratingMediaToastId] = useState<string | undefined>(
+    undefined,
+  );
+  const [fileLoadingToastId, setFileLoadingToastId] = useState<string | undefined>(undefined);
+
   const bagFileCount = bagFiles.value?.length ?? 0;
 
   // bag file doesn't need generate file media
@@ -83,9 +91,13 @@ export function AppStateBar(): React.JSX.Element {
       setTimer(timeout);
     } else {
       setShowLoadingStatus(false);
+      if (fileLoadingToastId) {
+        toast.remove(fileLoadingToastId);
+        setFileLoadingToastId(undefined);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
+  }, [loading, fileLoadingToastId]);
 
   useEffect(() => {
     const layoutTipsOpenTag = localStorage.getItem("CoScene_noMoreLayoutTips");
@@ -94,18 +106,29 @@ export function AppStateBar(): React.JSX.Element {
     }
   }, []);
 
+  useEffect(() => {
+    setIsToastMounted(true);
+    return () => {
+      setIsToastMounted(false);
+    };
+  }, []);
+
   const handleNoMoreTips = () => {
     localStorage.setItem("CoScene_noMoreLayoutTips", "true");
     setLayoutTipsOpen(false);
   };
 
-  return (
-    <>
-      {/* media generating status bar */}
-      {allGenerationgMediaCount &&
-        generatedMediaCount &&
-        allGenerationgMediaCount.length > 0 &&
-        allGenerationgMediaCount.length > generatedMediaCount.length && (
+  useEffect(() => {
+    if (
+      allGenerationgMediaCount &&
+      generatedMediaCount &&
+      isToastMounted &&
+      allGenerationgMediaCount.length > 0 &&
+      allGenerationgMediaCount.length > generatedMediaCount.length &&
+      generatingMediaToastId == undefined
+    ) {
+      const toastId = toast.custom(
+        (toastMessage) => (
           <Stack
             direction="row"
             paddingX={3}
@@ -119,14 +142,37 @@ export function AppStateBar(): React.JSX.Element {
               successfulCount: generatedMediaCount.length + (normalBagFileCount?.length ?? 0),
               totalCount: bagFileCount,
             })}
+            <IconButton
+              onClick={() => {
+                toast.remove(toastMessage.id);
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
           </Stack>
-        )}
+        ),
+        {
+          duration: Infinity,
+        },
+      );
 
-      {/* media generate success status bar */}
-      {allGenerationgMediaCount &&
-        generatedMediaCount &&
-        allGenerationgMediaCount.length > 0 &&
-        allGenerationgMediaCount.length === generatedMediaCount.length && (
+      setGeneratingMediaToastId(toastId);
+    }
+
+    if (
+      allGenerationgMediaCount &&
+      generatedMediaCount &&
+      isToastMounted &&
+      allGenerationgMediaCount.length > 0 &&
+      allGenerationgMediaCount.length === generatedMediaCount.length &&
+      successMediaToastId == undefined
+    ) {
+      if (generatingMediaToastId) {
+        toast.remove(generatingMediaToastId);
+        setGeneratingMediaToastId(undefined);
+      }
+      const toastId = toast.custom(
+        (toastMessage) => (
           <Stack
             direction="row"
             paddingX={3}
@@ -154,11 +200,42 @@ export function AppStateBar(): React.JSX.Element {
                 ns: "cosGeneral",
               })}
             </Button>
+            <IconButton
+              onClick={() => {
+                toast.remove(toastMessage.id);
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
           </Stack>
-        )}
+        ),
+        {
+          duration: Infinity,
+        },
+      );
 
-      {/* loading status bar */}
-      {showLoadingStatus && loading && (
+      setSuccessMediaToastId(toastId);
+    }
+  }, [
+    allGenerationgMediaCount?.length,
+    generatedMediaCount?.length,
+    generatingMediaToastId,
+    setGeneratingMediaToastId,
+    isToastMounted,
+    allGenerationgMediaCount,
+    generatedMediaCount,
+    classes.mediaGenerationStatusBar,
+    t,
+    normalBagFileCount?.length,
+    bagFileCount,
+    successMediaToastId,
+    classes.mediaGeneratSuccessStatusBar,
+    theme.palette.success.contrastText,
+  ]);
+
+  useEffect(() => {
+    if (showLoadingStatus && loading && fileLoadingToastId == undefined) {
+      const toastId = toast.custom(() => (
         <Stack
           paddingX={1}
           paddingY={1}
@@ -176,8 +253,21 @@ export function AppStateBar(): React.JSX.Element {
           />
           {t("loadingTips")}
         </Stack>
-      )}
+      ));
 
+      setFileLoadingToastId(toastId);
+    }
+  }, [
+    showLoadingStatus,
+    loading,
+    classes.loadingStatusBar,
+    t,
+    theme.palette.appBar.primary,
+    fileLoadingToastId,
+  ]);
+
+  return (
+    <>
       {layoutTipsOpen && (
         <Stack direction="row" alignItems="center" justifyContent="center" position="relative">
           <Stack direction="row" alignItems="center">
