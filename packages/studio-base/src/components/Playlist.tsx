@@ -47,11 +47,7 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import {
-  AppURLState,
-  updateAppURLState,
-  windowAppURLState,
-} from "@foxglove/studio-base/util/appURLState";
+import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { BagView } from "./BagView";
 
@@ -158,8 +154,6 @@ export function Playlist(): React.JSX.Element {
   const setHoveredBag = useTimelineInteractionState(selectSetHoverBag);
   const urlState = useMessagePipeline(selectUrlState);
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-
-  const windowUrlState = windowAppURLState();
 
   const bags = useMemo(() => {
     const serialisationBags: Record<
@@ -291,7 +285,7 @@ export function Playlist(): React.JSX.Element {
             ),
           }}
         />
-        {urlState != undefined && !(windowUrlState?.isStandalonePlayback ?? false) && (
+        {urlState != undefined && (
           <Button
             className={classes.addFileButton}
             onClick={() => {
