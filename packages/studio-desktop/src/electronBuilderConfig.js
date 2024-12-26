@@ -85,7 +85,7 @@ function makeElectronBuilderConfig(params) {
     mac: {
       target: {
         target: "default",
-        arch: ["universal", "arm64"],
+        arch: ["universal"],
       },
       category: "public.app-category.developer-tools",
       icon: path.join(__dirname, "../resources/icon/icon.icns"),

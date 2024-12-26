@@ -72,4 +72,7 @@ export const openDialog = {
   onlySupportedExtensions: "Only {extensions} files are supported.",
   enterAValidUrl: "Enter a valid url",
   getStarted: "Get started",
+  open: "Open",
+  cancel: "Cancel",
+  back: "Back",
 };
