@@ -189,7 +189,7 @@ export function PlaylistSyncAdapter(): ReactNull {
           mediaStatus:
             ele.mediaStatus === "GENERATING" && currentStatus === "NORMAL"
               ? "GENERATED_SUCCESS"
-              : ele.mediaStatus,
+              : currentStatus ?? "GENERATE_INCAPABLE",
         });
       });
 
