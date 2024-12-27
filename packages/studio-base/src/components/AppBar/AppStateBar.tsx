@@ -39,6 +39,10 @@ const useStyles = makeStyles()((theme) => ({
     color: theme.palette.text.primary,
     borderBottom: `1px solid ${theme.palette.divider}`,
   },
+  mediaGenerationErrorStatusBar: {
+    backgroundColor: theme.palette.error.main,
+    color: theme.palette.error.contrastText,
+  },
 }));
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
@@ -60,21 +64,42 @@ export function AppStateBar(): React.JSX.Element {
     undefined,
   );
   const [fileLoadingToastId, setFileLoadingToastId] = useState<string | undefined>(undefined);
+  const [errorMediaToastId, setErrorMediaToastId] = useState<string | undefined>(undefined);
 
   const bagFileCount = bagFiles.value?.length ?? 0;
 
   // bag file doesn't need generate file media
-  const normalBagFileCount = bagFiles.value?.filter((bagFile: BagFileInfo) => {
-    return bagFile.mediaStatues === "OK";
-  });
+  const normalBagFileCount =
+    bagFiles.value?.filter((bagFile: BagFileInfo) => {
+      return bagFile.mediaStatues === "OK";
+    }).length ?? 0;
 
-  const allGenerationgMediaCount = bagFiles.value?.filter((bagFile: BagFileInfo) => {
-    return bagFile.mediaStatues === "PROCESSING" || bagFile.mediaStatues === "GENERATED_SUCCESS";
-  });
+  const generatingMediaCount =
+    bagFiles.value?.filter((bagFile: BagFileInfo) => {
+      return bagFile.mediaStatues === "PROCESSING";
+    }).length ?? 0;
 
-  const generatedMediaCount = bagFiles.value?.filter((bagFile: BagFileInfo) => {
-    return bagFile.mediaStatues === "GENERATED_SUCCESS";
-  });
+  const generatedMediaCount =
+    bagFiles.value?.filter((bagFile: BagFileInfo) => {
+      return bagFile.mediaStatues === "GENERATED_SUCCESS";
+    }).length ?? 0;
+
+  const errorMediaCount =
+    bagFiles.value?.filter((bagFile: BagFileInfo) => {
+      return bagFile.mediaStatues === "ERROR";
+    }).length ?? 0;
+
+  const isGeneratingMedia = generatingMediaCount > 0;
+
+  const isGeneratingMediaSuccess =
+    bagFileCount > 0 &&
+    generatedMediaCount > 0 &&
+    normalBagFileCount + generatedMediaCount === bagFileCount;
+
+  const isGeneratingMediaError =
+    bagFileCount > 0 &&
+    normalBagFileCount + generatedMediaCount + errorMediaCount === bagFileCount &&
+    errorMediaCount > 0;
 
   const loading = presence === PlayerPresence.INITIALIZING || presence === PlayerPresence.BUFFERING;
 
@@ -119,14 +144,7 @@ export function AppStateBar(): React.JSX.Element {
   };
 
   useEffect(() => {
-    if (
-      allGenerationgMediaCount &&
-      generatedMediaCount &&
-      isToastMounted &&
-      allGenerationgMediaCount.length > 0 &&
-      allGenerationgMediaCount.length > generatedMediaCount.length &&
-      generatingMediaToastId == undefined
-    ) {
+    if (isToastMounted && isGeneratingMedia && generatingMediaToastId == undefined) {
       const toastId = toast.custom(
         (toastMessage) => (
           <Stack
@@ -139,7 +157,7 @@ export function AppStateBar(): React.JSX.Element {
           >
             <InfoIcon />
             {t("mediaGeneratingTips", {
-              successfulCount: generatedMediaCount.length + (normalBagFileCount?.length ?? 0),
+              successfulCount: generatedMediaCount + normalBagFileCount,
               totalCount: bagFileCount,
             })}
             <IconButton
@@ -159,14 +177,7 @@ export function AppStateBar(): React.JSX.Element {
       setGeneratingMediaToastId(toastId);
     }
 
-    if (
-      allGenerationgMediaCount &&
-      generatedMediaCount &&
-      isToastMounted &&
-      allGenerationgMediaCount.length > 0 &&
-      allGenerationgMediaCount.length === generatedMediaCount.length &&
-      successMediaToastId == undefined
-    ) {
+    if (isToastMounted && isGeneratingMediaSuccess && successMediaToastId == undefined) {
       if (generatingMediaToastId) {
         toast.remove(generatingMediaToastId);
         setGeneratingMediaToastId(undefined);
@@ -183,7 +194,7 @@ export function AppStateBar(): React.JSX.Element {
             <Stack direction="row" gap={1} alignItems="center">
               <CheckCircleOutlineIcon />
               {t("mediaSuccessfulGeneration", {
-                count: allGenerationgMediaCount.length,
+                count: bagFileCount,
               })}
             </Stack>
 
@@ -216,21 +227,61 @@ export function AppStateBar(): React.JSX.Element {
 
       setSuccessMediaToastId(toastId);
     }
+
+    if (isToastMounted && isGeneratingMediaError && errorMediaToastId == undefined) {
+      if (generatingMediaToastId) {
+        toast.remove(generatingMediaToastId);
+        setGeneratingMediaToastId(undefined);
+      }
+
+      const toastId = toast.custom(
+        (toastMessage) => (
+          <Stack
+            direction="row"
+            paddingX={3}
+            alignItems="center"
+            justifyContent="space-between"
+            className={classes.mediaGenerationErrorStatusBar}
+          >
+            <Stack direction="row" gap={1} alignItems="center">
+              <InfoIcon />
+              {t("mediaGenerationError")}
+            </Stack>
+
+            <IconButton
+              onClick={() => {
+                toast.remove(toastMessage.id);
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+        ),
+        {
+          duration: Infinity,
+        },
+      );
+
+      setErrorMediaToastId(toastId);
+    }
   }, [
-    allGenerationgMediaCount?.length,
-    generatedMediaCount?.length,
-    generatingMediaToastId,
-    setGeneratingMediaToastId,
     isToastMounted,
-    allGenerationgMediaCount,
-    generatedMediaCount,
-    classes.mediaGenerationStatusBar,
+    isGeneratingMediaError,
+    errorMediaToastId,
+    classes.loadingStatusBar,
     t,
-    normalBagFileCount?.length,
-    bagFileCount,
+    theme.palette.appBar.primary,
+    isGeneratingMedia,
+    generatingMediaToastId,
+    isGeneratingMediaSuccess,
     successMediaToastId,
+    classes.mediaGenerationStatusBar,
     classes.mediaGeneratSuccessStatusBar,
+    generatedMediaCount,
+    normalBagFileCount,
+    bagFileCount,
     theme.palette.success.contrastText,
+    classes.mediaGenerationErrorStatusBar,
   ]);
 
   useEffect(() => {
