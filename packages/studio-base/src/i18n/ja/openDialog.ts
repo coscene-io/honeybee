@@ -21,8 +21,8 @@ export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   learnMore: "詳細を見る",
   needHelp: "ヘルプが必要ですか？",
   needHelpDescription:
-    "ドキュメンテーションを見たり、CoSceneブログのチュートリアルをチェックしてみましょう。",
-  newToFoxgloveStudio: "CoScene を初めてご利用ですか？",
+    "ドキュメンテーションを見たり、coSceneブログのチュートリアルをチェックしてみましょう。",
+  newToFoxgloveStudio: "coScene を初めてご利用ですか？",
   newToFoxgloveStudioDescription:
     "サンプルデータセットを探索したり、ドキュメンテーションをチェックして開始してください。",
   openAGitHubIssue: "GitHubの問題を開く",
@@ -32,7 +32,7 @@ export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   openLocalFile: "ローカルファイルを開く",
   openLocalFileDescription: "ローカルファイルシステムから直接データを可視化します。",
   openUrl: "データをアップロードして共有する",
-  openUrlDescription: "CoScene を使用して、チームとデータを共有します。",
+  openUrlDescription: "coScene を使用して、チームとデータを共有します。",
   recentDataSources: "最近のデータソース",
   secureStorageOfData: "ROSまたはカスタムデータをペタバイト単位で安全に保存",
   seeTutorials: "チュートリアルを見る",
@@ -40,7 +40,7 @@ export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   signIn: "ログイン",
   startCollaborating: "CoSceneの組織とコラボレーションを開始する",
   startCollaboratingDescription:
-    "CoSceneアカウントを最大限に活用しましょう。たとえば、データを詳細に分析したり、チームメイトとツールを共有したりすることができます。",
+    "coSceneアカウントを最大限に活用しましょう。たとえば、データを詳細に分析したり、チームメイトとツールを共有したりすることができます。",
   uploadToDataPlatform: "Data Platformにアップロードする",
   viewOurDocs: "ドキュメンテーションを見る",
 };

@@ -82,8 +82,6 @@ jobs:
           assets: |
             dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
             dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg.blockmap
-            dist/coStudio-${{ github.event.inputs.version }}-mac-arm64.dmg:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-arm64.dmg
-            dist/coStudio-${{ github.event.inputs.version }}-mac-arm64.dmg.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-arm64.dmg.blockmap
             dist/latest-mac.yml:/coStudio/packages/latest-mac.yml
 
       - name: Upload to OSS (Windows)
@@ -212,7 +210,6 @@ jobs:
               Download:
                 mac:
                   https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-arm64.dmg
                 win:
                   https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win.exe
                   https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
