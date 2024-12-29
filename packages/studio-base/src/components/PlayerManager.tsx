@@ -146,12 +146,10 @@ export default function PlayerManager(
 
   // handle page title
   useEffect(() => {
-    let title = "coScene";
-
-    if (currentSourceArgs?.type === "connection") {
+    if (currentSourceArgs?.type === "connection" && currentSourceId) {
+      let title = "coScene";
       if (currentSourceId === "coscene-websocket") {
         const deviceName = currentSourceArgs.params?.hostName;
-
         title = `${t("realtimeViz")} - ${deviceName}`;
       } else if (currentSourceId === "coscene-data-platform") {
         const recordDisplayName = currentSourceArgs.params?.recordDisplayName;
@@ -159,15 +157,15 @@ export default function PlayerManager(
         const jobRunsSerialNumber = currentSourceArgs.params?.jobRunsSerialNumber;
 
         if (jobRunsSerialNumber) {
-          // shadow mode
           title = `${t("shadowMode")} - #${jobRunsSerialNumber} - ${t("testing")}`;
         } else {
           title = `${t("viz")} - ${recordDisplayName} - ${projectDisplayName}`;
         }
       }
+      if (document.title !== title) {
+        document.title = title;
+      }
     }
-
-    document.title = title;
   }, [currentSourceArgs, currentSourceId, t]);
 
   // const player = useMemo(() => {
