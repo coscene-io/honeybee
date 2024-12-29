@@ -11,7 +11,7 @@ import { TypeOptions } from "i18next";
 export const general: Partial<TypeOptions["resources"]["general"]> = {
   // Note that we use the term `CoScene` as an English word rather than a Japanese
   // word since it would sound very different - フォックスグローブ (Fokusugorobu).
-  foxglove: "CoScene",
+  foxglove: "coScene",
   learnMore: "もっと学ぶ",
   on: undefined,
   off: undefined,
