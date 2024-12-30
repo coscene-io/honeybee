@@ -4,7 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useFavicon } from "react-use";
@@ -39,7 +39,6 @@ export function useCoSceneInit({ baseUrl, jwt }: { baseUrl: string; jwt: string 
       });
   }, [baseUrl, jwt, urlKey]);
 
-  let favicon = "";
   const { t } = useTranslation("cosError");
 
   const urlFiles = url.searchParams.get("ds.files");
@@ -49,21 +48,21 @@ export function useCoSceneInit({ baseUrl, jwt }: { baseUrl: string; jwt: string 
     throw new Error(t("currentUrlNotSupported"));
   }
 
-  const logo = getDomainConfig().logo;
-  if (logo === "supor") {
-    favicon = "/viz/supor.ico";
-  } else {
-    switch (APP_CONFIG.VITE_APP_PROJECT_ENV) {
-      case "local":
-        favicon = "/logo-light.svg";
-        break;
-      case "keenon":
-        favicon = "/viz/keenon_favicon.svg";
-        break;
-      default:
-        favicon = "/viz/logo-light.svg";
+  const favicon = useMemo(() => {
+    const logo = getDomainConfig().logo;
+    if (logo === "supor") {
+      return "/viz/supor.ico";
+    } else {
+      switch (APP_CONFIG.VITE_APP_PROJECT_ENV) {
+        case "local":
+          return "/logo-light.svg";
+        case "keenon":
+          return "/viz/keenon_favicon.svg";
+        default:
+          return "/viz/logo-light.svg";
+      }
     }
-  }
+  }, []);
 
   useFavicon(favicon);
 
