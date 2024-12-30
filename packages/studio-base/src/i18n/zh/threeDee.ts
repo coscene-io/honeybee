@@ -110,6 +110,7 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   maxColor: "最大值颜色",
   minColor: "最小值颜色",
   unknownColor: "未知值颜色",
+  modifyHeight: "修改高度",
 
   // Point Extension Utils
   decayTime: "衰减时间",

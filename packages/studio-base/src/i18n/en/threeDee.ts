@@ -112,6 +112,7 @@ export const threeDee = {
   maxColor: "Max color",
   minColor: "Min color",
   unknownColor: "Unknown color",
+  modifyHeight: "Modify height",
 
   // Point Extension Utils
   decayTime: "Decay time",
