@@ -61,7 +61,6 @@ function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
   const startTime = useMessagePipeline(selectStartTime);
   const [isAppliedTime, setIsAppliedTime] = useState(false);
 
-  // 使用 useMemo 优化 time 的计算
   const time = useMemo(() => targetUrlState?.time ?? startTime, [targetUrlState?.time, startTime]);
 
   // Wait until player is ready before we try to seek.
