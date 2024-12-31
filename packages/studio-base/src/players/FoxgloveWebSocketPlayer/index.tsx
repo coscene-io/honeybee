@@ -1066,7 +1066,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       window.removeEventListener("keypress", resetTimer);
       window.removeEventListener("touchmove", resetTimer);
 
-      window.addEventListener("visibilitychange", resetInactiveTimeout);
+      window.removeEventListener("visibilitychange", resetInactiveTimeout);
     };
 
     if (this.#closed) {
