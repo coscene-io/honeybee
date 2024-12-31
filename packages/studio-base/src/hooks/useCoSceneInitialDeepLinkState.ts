@@ -59,26 +59,27 @@ function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
   const seekPlayback = useMessagePipeline(selectSeek);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const startTime = useMessagePipeline(selectStartTime);
-  // if targetUrlState.time is undefined, need seek to startTime, make sure have a snapshot frame(getStreams startTime === endTime)
-  // snapshot frame will reflash the static data
-  const [unappliedTime, setUnappliedTime] = useState(
-    targetUrlState ? { time: targetUrlState.time ?? startTime } : undefined,
-  );
+  const [isAppliedTime, setIsAppliedTime] = useState(false);
+
+  // 使用 useMemo 优化 time 的计算
+  const time = useMemo(() => targetUrlState?.time ?? startTime, [targetUrlState?.time, startTime]);
+
   // Wait until player is ready before we try to seek.
   // Seek to time in URL.
   useEffect(() => {
     if (
-      unappliedTime?.time == undefined ||
       playerPresence !== PlayerPresence.PRESENT ||
-      !seekPlayback
+      !seekPlayback ||
+      isAppliedTime ||
+      time == undefined
     ) {
       return;
     }
 
-    log.debug(`Seeking to url time:`, unappliedTime.time);
-    seekPlayback(unappliedTime.time);
-    setUnappliedTime({ time: undefined });
-  }, [playerPresence, seekPlayback, unappliedTime]);
+    log.debug(`Seeking to url time:`, time);
+    seekPlayback(time);
+    setIsAppliedTime(true);
+  }, [playerPresence, seekPlayback, isAppliedTime, time]);
 }
 
 /**
