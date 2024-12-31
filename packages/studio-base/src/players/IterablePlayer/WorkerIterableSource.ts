@@ -38,6 +38,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
   public readonly sourceType = "deserialized";
 
   public constructor(args: ConstructorArgs) {
+    console.log("WorkerIterableSource.constructor");
     this.#args = args;
   }
 
@@ -71,13 +72,16 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
         // at minimum ~16 milliseconds of messages before it will render a frame. Here we fetch
         // batches of 17 milliseconds so that one batch fetch could result in one frame render.
         // Fetching too much in a batch means we cannot render until the batch is returned.
+        console.log("WorkerIterableSource.messageIterator.nextBatch");
         const results = await cursor.nextBatch(17 /* milliseconds */);
         if (!results || results.length === 0) {
+          console.log("WorkerIterableSource.messageIterator.nextBatch.break");
           break;
         }
         yield* results;
       }
     } finally {
+      console.log("finally");
       await cursor.end();
     }
   }
@@ -115,6 +119,8 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
 
       async nextBatch(durationMs: number) {
         const messageCursor = await messageCursorPromise;
+        debugger;
+        console.log("WorkerIterableSource.nextBatch");
         return await messageCursor.nextBatch(durationMs);
       },
 

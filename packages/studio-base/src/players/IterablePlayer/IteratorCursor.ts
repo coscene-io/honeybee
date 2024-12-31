@@ -40,8 +40,10 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
   }
 
   public async nextBatch(durationMs: number): Promise<IteratorResult<MessageType>[] | undefined> {
+    console.log("IteratorCursor.nextBatch");
     const firstResult = await this.next();
     if (!firstResult) {
+      console.log("IteratorCursor.nextBatch.undefined");
       return undefined;
     }
 
@@ -73,6 +75,7 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
         break;
       }
       if (result.type === "stamp" && compare(result.stamp, cutoffTime) > 0) {
+        console.log("IteratorCursor.readUntil.stamp");
         break;
       }
       if (result.type === "message-event" && compare(result.msgEvent.receiveTime, cutoffTime) > 0) {

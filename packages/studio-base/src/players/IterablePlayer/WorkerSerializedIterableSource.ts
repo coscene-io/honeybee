@@ -37,6 +37,7 @@ export class WorkerSerializedIterableSource implements ISerializedIterableSource
   public readonly sourceType = "serialized";
 
   public constructor(args: ConstructorArgs) {
+    console.log("WorkerSerializedIterableSource.constructor");
     this.#args = args;
   }
 
