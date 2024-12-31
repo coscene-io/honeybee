@@ -20,6 +20,7 @@ import { AppURLState, parseAppURLState } from "@foxglove/studio-base/util/appURL
 
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 const log = Log.getLogger(__filename);
@@ -57,17 +58,20 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
 function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
   const seekPlayback = useMessagePipeline(selectSeek);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
+  const startTime = useMessagePipeline(selectStartTime);
+  // if targetUrlState.time is undefined, need seek to startTime, make sure have a snapshot frame(getStreams startTime === endTime)
+  // snapshot frame will reflash the static data
   const [unappliedTime, setUnappliedTime] = useState(
-    targetUrlState ? { time: targetUrlState.time } : undefined,
+    targetUrlState ? { time: targetUrlState.time ?? startTime } : undefined,
   );
+  // Wait until player is ready before we try to seek.
   // Seek to time in URL.
   useEffect(() => {
-    if (unappliedTime?.time == undefined || !seekPlayback) {
-      return;
-    }
-
-    // Wait until player is ready before we try to seek.
-    if (playerPresence !== PlayerPresence.PRESENT) {
+    if (
+      unappliedTime?.time == undefined ||
+      playerPresence !== PlayerPresence.PRESENT ||
+      !seekPlayback
+    ) {
       return;
     }
 
