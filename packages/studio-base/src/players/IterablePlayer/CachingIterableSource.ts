@@ -293,6 +293,7 @@ class CachingIterableSource<MessageType = unknown>
         // When receiving a message event or stamp, we update our known time on the block to the
         // stamp or receiveTime because we know we've received all the results up to this time
         if (iterResult.type === "message-event" || iterResult.type === "stamp") {
+          console.log("CachingIterableSource.messageIterator.iterResult");
           const receiveTime =
             iterResult.type === "stamp" ? iterResult.stamp : iterResult.msgEvent.receiveTime;
           const receiveTimeNs = toNanoSec(receiveTime);

@@ -267,11 +267,15 @@ export class DataPlatformIterableSource implements IIterableSource {
         playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
+      console.log("streamByParams1");
+
       const stream = streamMessages({
         api: this.#consoleApi,
         parsedChannelsByTopic,
         params: streamByParams,
       });
+
+      console.log("streamByParams2");
 
       for await (const messages of stream) {
         for (const message of messages) {
@@ -279,13 +283,22 @@ export class DataPlatformIterableSource implements IIterableSource {
         }
       }
 
+      console.log("streamByParams3");
+
       if (compare(localEnd, streamEnd) >= 0) {
+        console.log("streamByParams4");
         return;
       }
 
+      console.log("streamByParams5");
+
       yield { type: "stamp", stamp: localEnd };
 
+      console.log("streamByParams6");
+
       localStart = addTime(localEnd, { sec: 0, nsec: 1 });
+
+      console.log("streamByParams7");
 
       // Assumes coverage regions are sorted by start time
       for (const coverage of this.#coverage) {
@@ -309,6 +322,7 @@ export class DataPlatformIterableSource implements IIterableSource {
           break;
         }
       }
+      console.log("streamByParams8");
 
       localStart = clampTime(localStart, streamStart, streamEnd);
       localEnd = clampTime(
@@ -316,6 +330,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         streamStart,
         streamEnd,
       );
+      console.log("streamByParams9");
     }
   }
 
