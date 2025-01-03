@@ -18,9 +18,7 @@ import {
   MessageEvent,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
-import CoSceneConsoleApi, {
-  CoverageResponse,
-} from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";
@@ -42,7 +40,7 @@ const log = Logger.getLogger(__filename);
  * for tests.
  */
 export type DataPlatformInterableSourceConsoleApi = Pick<
-  CoSceneConsoleApi,
+  ConsoleApi,
   "topics" | "getDevice" | "getAuthHeader" | "getStreamUrl" | "getAddTopicPrefix" | "getTimeMode"
 >;
 
@@ -418,12 +416,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     singleRequestTime: singleRequestTime ?? 5,
   };
 
-  const consoleApi = new CoSceneConsoleApi(
-    api.baseUrl,
-    api.bffUrl,
-    api.addTopicPrefix,
-    api.timeMode,
-  );
+  const consoleApi = new ConsoleApi(api.baseUrl, api.bffUrl, api.addTopicPrefix, api.timeMode);
 
   if (api.auth) {
     consoleApi.setAuthHeader(api.auth);

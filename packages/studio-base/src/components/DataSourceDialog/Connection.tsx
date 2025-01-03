@@ -7,12 +7,14 @@
 
 import { Alert, Tab, Tabs, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useState, useMemo, useCallback, useLayoutEffect, FormEvent } from "react";
+import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { BuiltinIcon } from "@foxglove/studio-base/components/BuiltinIcon";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   WorkspaceContextStore,
@@ -20,6 +22,7 @@ import {
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { FormField } from "./FormField";
 import View from "./View";
@@ -88,6 +91,8 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const selectDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
+const selectUser = (store: UserStore) => store.user;
+const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 
 export default function Connection(): React.JSX.Element {
   const { classes } = useStyles();
@@ -95,6 +100,9 @@ export default function Connection(): React.JSX.Element {
   const mdUp = useMediaQuery(theme.breakpoints.up("md"));
 
   const { t } = useTranslation("openDialog");
+
+  const currentUser = useCurrentUser(selectUser);
+  const loginStatus = useCurrentUser(selectUserLoginStatus);
 
   const { activeDataSource } = useWorkspaceStore(selectDataSourceDialog);
   const { dialogActions } = useWorkspaceActions();
@@ -156,7 +164,28 @@ export default function Connection(): React.JSX.Element {
     if (!selectedSource) {
       return;
     }
-    selectSource(selectedSource.id, { type: "connection", params: fieldValues });
+    if (loginStatus === "notLogin" && selectedSource.id === "coscene-data-platform") {
+      toast.error("Please login first");
+      return;
+    }
+
+    if (selectedSource.id === "coscene-data-platform") {
+      const parsedUrl = parseAppURLState(new URL(fieldValues.url ?? ""));
+      if (parsedUrl?.dsParams?.key) {
+        selectSource(selectedSource.id, {
+          type: "connection",
+          params: { ...currentUser, key: parsedUrl.dsParams.key },
+        });
+      } else {
+        toast.error("baseInfoKey is required");
+      }
+    } else {
+      selectSource(selectedSource.id, {
+        type: "connection",
+        params: { ...currentUser, ...fieldValues },
+      });
+    }
+
     void analytics.logEvent(AppEvent.DIALOG_CLOSE, { activeDataSource });
     dialogActions.dataSource.close();
   }, [
@@ -166,6 +195,8 @@ export default function Connection(): React.JSX.Element {
     analytics,
     activeDataSource,
     dialogActions.dataSource,
+    loginStatus,
+    currentUser,
   ]);
 
   const disableOpen = selectedSource?.disabledReason != undefined || fieldErrors.size > 0;
@@ -261,7 +292,7 @@ export default function Connection(): React.JSX.Element {
                   </Stack>
                 </Stack>
               )}
-              {/* TODO: wait for docks */}
+              {/* TODO: wait for docs */}
               {/* <Stack direction="row" gap={1}>
                 {(selectedSource?.docsLinks ?? []).map((item) => (
                   <Link

@@ -53,7 +53,6 @@ import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
@@ -134,8 +133,8 @@ const selectWorkspaceRightSidebarItem = (store: WorkspaceContextStore) => store.
 const selectWorkspaceRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.right.open;
 const selectWorkspaceRightSidebarSize = (store: WorkspaceContextStore) => store.sidebars.right.size;
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectUser = (store: UserStore) => store.user;
+const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 
 function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
@@ -154,10 +153,6 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
-
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   // coScene set demo layout in demo mode
   const { setSelectedLayoutId } = useCurrentLayoutActions();
@@ -208,6 +203,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const playerId = useMessagePipeline(selectPlayerId);
 
   const currentUser = useCurrentUser(selectUser);
+  const loginStatus = useCurrentUser(selectUserLoginStatus);
 
   useDefaultWebLaunchPreference();
 
@@ -462,44 +458,41 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   // Load data source from URL.
   useEffect(() => {
     if (
-      !unappliedSourceArgs ||
-      (unappliedSourceArgs.ds !== "coscene-websocket" && _.isEmpty(baseInfo))
+      unappliedSourceArgs?.ds == undefined ||
+      currentUser?.userId == undefined ||
+      loginStatus === "notLogin"
     ) {
       return;
     }
 
     // Apply any available data source args
-    if (unappliedSourceArgs.ds && currentUser?.userId) {
-      log.debug("Initialising source from url", unappliedSourceArgs);
-      const sourceParams: DataSourceArgs = {
-        type: "connection",
-        params: {
-          ...unappliedSourceArgs.dsParams,
-          ...baseInfo,
-          files: JSON.stringify(baseInfo.files),
-          userId: currentUser.userId,
-        },
-      };
+    log.debug("Initialising source from url", unappliedSourceArgs);
+    const sourceParams: DataSourceArgs = {
+      type: "connection",
+      params: {
+        ...currentUser,
+        ...unappliedSourceArgs.dsParams,
+      },
+    };
 
-      if (_.isEqual({ id: unappliedSourceArgs.ds, ...sourceParams }, currentSource.current)) {
-        return;
-      }
-
-      currentSource.current = { id: unappliedSourceArgs.ds, ...sourceParams };
-
-      selectSource(unappliedSourceArgs.ds, sourceParams);
-
-      selectEvent(unappliedSourceArgs.dsParams?.eventId);
-      setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
+    if (_.isEqual({ id: unappliedSourceArgs.ds, ...sourceParams }, currentSource.current)) {
+      return;
     }
+
+    currentSource.current = { id: unappliedSourceArgs.ds, ...sourceParams };
+
+    selectSource(unappliedSourceArgs.ds, sourceParams);
+
+    selectEvent(unappliedSourceArgs.dsParams?.eventId);
+    setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
   }, [
     currentUser,
     selectEvent,
     selectSource,
     unappliedSourceArgs,
     setUnappliedSourceArgs,
-    baseInfo,
     currentSource,
+    loginStatus,
   ]);
 
   const appBar = useMemo(
