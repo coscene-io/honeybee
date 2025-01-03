@@ -15,7 +15,7 @@ import {
   AppSetting,
   FoxgloveWebSocketDataSourceFactory,
   IAppConfiguration,
-  IDataSourceFactory,
+  CoSceneIDataSourceFactory,
   IdbExtensionLoader,
   McapLocalDataSourceFactory,
   OsContext,
@@ -29,6 +29,7 @@ import {
   VelodyneDataSourceFactory,
   SharedProviders,
   ConsoleApi,
+  CoSceneDataPlatformDataSourceFactory,
 } from "@foxglove/studio-base";
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
@@ -49,7 +50,7 @@ const authBridge = (global as { authBridge?: Auth }).authBridge;
 export default function Root(props: {
   appConfiguration: IAppConfiguration;
   extraProviders: React.JSX.Element[] | undefined;
-  dataSources: IDataSourceFactory[] | undefined;
+  dataSources: CoSceneIDataSourceFactory[] | undefined;
 }): React.JSX.Element {
   if (!storageBridge) {
     throw new Error("storageBridge is missing");
@@ -136,12 +137,13 @@ export default function Root(props: {
   const nativeAppMenu = useMemo(() => new NativeAppMenu(menuBridge), []);
   const nativeWindow = useMemo(() => new NativeWindow(desktopBridge), []);
 
-  const dataSources: IDataSourceFactory[] = useMemo(() => {
+  const dataSources: CoSceneIDataSourceFactory[] = useMemo(() => {
     if (props.dataSources) {
       return props.dataSources;
     }
 
     const sources = [
+      new CoSceneDataPlatformDataSourceFactory(),
       new FoxgloveWebSocketDataSourceFactory({ confirm }),
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),

@@ -15,6 +15,7 @@ import {
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-data-platform";
@@ -22,16 +23,51 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public displayName = "Coscene Data Platform";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
+  public description = "this is a description";
   #readAheadDuration = { sec: 20, nsec: 0 };
-  #baseUrl: string;
 
-  public constructor({ baseUrl }: { baseUrl: string }) {
-    this.#baseUrl = baseUrl;
+  public constructor() {
     const readAheadDuration = localStorage.getItem("readAheadDuration");
     if (readAheadDuration && !isNaN(+readAheadDuration)) {
       this.#readAheadDuration = { sec: +readAheadDuration, nsec: 0 };
     }
   }
+
+  public formConfig = {
+    fields: [
+      {
+        id: "url",
+        label: "Data Platform URL",
+        placeholder: `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/viz?ds=coscene-data-platform&ds.key=example_key`,
+        validate: (newValue: string): Error | undefined => {
+          try {
+            const url = new URL(newValue);
+            if (url.hostname !== APP_CONFIG.DOMAIN_CONFIG.default?.webDomain) {
+              return new Error(
+                `Only support domain https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain} now`,
+              );
+            }
+            if (url.pathname !== "/viz") {
+              return new Error(`url pathname must be /viz`);
+            }
+
+            const parsedUrl = parseAppURLState(url);
+            if (parsedUrl?.ds !== "coscene-data-platform") {
+              return new Error(`data source must type error`);
+            }
+
+            if (parsedUrl.dsParams?.key == undefined) {
+              return new Error(`data source params key is required`);
+            }
+
+            return undefined;
+          } catch {
+            return new Error("Enter a valid url");
+          }
+        },
+      },
+    ],
+  };
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const consoleApi = args.consoleApi;
@@ -39,7 +75,13 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       console.error("coscene-data-platform initialize: consoleApi is undefined");
       return;
     }
+    // TODO: move to selectSource, 单独播放， 前缀， 时间模式, 预读取时间
     const singleRequestTime = localStorage.getItem("singleRequestTime");
+
+    const baseUrl = consoleApi.getBaseUrl();
+    const bffUrl = consoleApi.getBffUrl();
+    const auth = consoleApi.getAuthHeader();
+    const baseInfo = consoleApi.getApiBaseInfo();
 
     const source = new WorkerIterableSource({
       initWorker: () => {
@@ -53,8 +95,9 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       },
       initArgs: {
         api: {
-          baseUrl: this.#baseUrl,
-          bffUrl: APP_CONFIG.VITE_APP_BFF_URL,
+          baseUrl,
+          bffUrl,
+          // TODO: move to selectSource
           addTopicPrefix:
             localStorage.getItem("CoScene_addTopicPrefix") ??
             APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
@@ -63,9 +106,9 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
             localStorage.getItem("CoScene_timeMode") === "relativeTime"
               ? "relativeTime"
               : "absoluteTime",
-          auth: `${localStorage.getItem("coScene_org_jwt")}`,
+          auth,
         },
-        params: args.params,
+        params: { ...args.params, ...baseInfo, files: JSON.stringify(baseInfo.files) },
         singleRequestTime: singleRequestTime && !isNaN(+singleRequestTime) ? +singleRequestTime : 5,
       },
     });
