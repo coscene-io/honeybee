@@ -73,6 +73,7 @@ type PlayerManagerProps = {
 
 // const selectUserScriptActions = (store: UserScriptStore) => store.actions;
 const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
+const selectSetDataSource = (state: CoSceneBaseStore) => state.setDataSource;
 
 export default function PlayerManager(
   props: PropsWithChildren<PlayerManagerProps>,
@@ -191,6 +192,7 @@ export default function PlayerManager(
   const [selectedSource, setSelectedSource] = useState<IDataSourceFactory | undefined>();
 
   const setBaseInfo = useBaseInfo(selectSetBaseInfo);
+  const setDataSource = useBaseInfo(selectSetDataSource);
 
   const syncBaseInfo = useCallback(
     async (baseInfoKey: string) => {
@@ -227,6 +229,8 @@ export default function PlayerManager(
 
       // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {
+        setDataSource({ id: sourceId, type: "sample" });
+
         const newPlayer = foundSource.initialize({
           metricsCollector,
         });
@@ -245,6 +249,8 @@ export default function PlayerManager(
       try {
         switch (args.type) {
           case "connection": {
+            setDataSource({ id: sourceId, type: "connection" });
+
             if (args.params?.key != undefined) {
               await syncBaseInfo(args.params.key);
               consoleApi.setType("playback");
@@ -272,6 +278,8 @@ export default function PlayerManager(
             return;
           }
           case "file": {
+            setDataSource({ id: sourceId, type: "file" });
+
             const handle = args.handle;
             const files = args.files;
 
@@ -340,12 +348,13 @@ export default function PlayerManager(
     [
       playerSources,
       enqueueSnackbar,
+      setDataSource,
       metricsCollector,
       constructPlayers,
       consoleApi,
+      syncBaseInfo,
       addRecent,
       isMounted,
-      syncBaseInfo,
     ],
   );
 

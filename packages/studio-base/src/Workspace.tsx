@@ -53,6 +53,7 @@ import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
@@ -136,6 +137,8 @@ const selectWorkspaceRightSidebarSize = (store: WorkspaceContextStore) => store.
 const selectUser = (store: UserStore) => store.user;
 const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 
+const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
+
 function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
   const { classes } = useStyles();
@@ -153,6 +156,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
+
+  const enableList = useBaseInfo(selectEnableList);
 
   // coScene set demo layout in demo mode
   const { setSelectedLayoutId } = useCurrentLayoutActions();
@@ -334,18 +339,24 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const showEventsTab = currentUser != undefined && eventsSupported;
 
   const leftSidebarItems = useMemo(() => {
-    const isDesktop = isDesktopApp();
-
     const items: [LeftSidebarItemKey, SidebarItem][] = [
       [
         "playlist",
-        { title: t("playlist", { ns: "cosWorkspace" }), component: Playlist, hidden: isDesktop },
+        {
+          title: t("playlist", { ns: "cosWorkspace" }),
+          component: Playlist,
+          hidden: enableList.playlist === "DISABLE",
+        },
       ],
       ["panel-settings", { title: t("panel", { ns: "cosWorkspace" }), component: PanelSettings }],
       ["topics", { title: t("topics", { ns: "cosWorkspace" }), component: TopicList }],
       [
         "moment",
-        { title: t("moment", { ns: "cosWorkspace" }), component: EventsList, hidden: isDesktop },
+        {
+          title: t("moment", { ns: "cosWorkspace" }),
+          component: EventsList,
+          hidden: enableList.event === "DISABLE",
+        },
       ],
       [
         "problems",
@@ -367,7 +378,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       items.filter(([, item]) => item.hidden == undefined || !item.hidden),
     );
     return cleanItems;
-  }, [playerProblems, t]);
+  }, [enableList.event, enableList.playlist, playerProblems, t]);
 
   useEffect(() => {
     if (playerProblems && playerProblems.length > 0) {
