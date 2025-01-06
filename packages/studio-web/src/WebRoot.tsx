@@ -18,8 +18,8 @@ import {
   AppSetting,
   IdbExtensionLoader,
   ConsoleApi,
-  SharedProviders,
 } from "@foxglove/studio-base";
+import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
@@ -33,7 +33,6 @@ export function WebRoot(props: {
   extraProviders: React.JSX.Element[] | undefined;
   dataSources: CoSceneIDataSourceFactory[] | undefined;
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
-  children: React.JSX.Element;
 }): React.JSX.Element {
   const baseUrl = APP_CONFIG.CS_HONEYBEE_BASE_URL;
   const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
@@ -69,31 +68,9 @@ export function WebRoot(props: {
   }, [props.dataSources, confirm]);
 
   const consoleApi = useMemo(
-    () =>
-      new ConsoleApi(
-        baseUrl,
-        APP_CONFIG.VITE_APP_BFF_URL,
-        localStorage.getItem("CoScene_addTopicPrefix") ??
-          APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
-          "false",
-        localStorage.getItem("CoScene_timeMode") === "relativeTime"
-          ? "relativeTime"
-          : "absoluteTime",
-      ),
-    [baseUrl],
+    () => new ConsoleApi(baseUrl, APP_CONFIG.VITE_APP_BFF_URL, jwt),
+    [baseUrl, jwt],
   );
-
-  consoleApi.setAuthHeader(jwt);
-
-  const coSceneProviders = SharedProviders({ consoleApi });
-
-  const extraProviders = useMemo(() => {
-    const providers = coSceneProviders;
-    if (props.extraProviders != undefined) {
-      providers.push(...props.extraProviders);
-    }
-    return providers;
-  }, [coSceneProviders, props.extraProviders]);
 
   if (isLoading) {
     return (
@@ -112,10 +89,10 @@ export function WebRoot(props: {
         appConfiguration={appConfiguration}
         extensionLoaders={extensionLoaders}
         enableGlobalCss
-        extraProviders={extraProviders}
+        extraProviders={props.extraProviders}
         AppBarComponent={props.AppBarComponent}
       >
-        {props.children}
+        <StudioApp consoleApi={consoleApi} />
       </SharedRoot>
       <Toaster />
       {confirmModal}

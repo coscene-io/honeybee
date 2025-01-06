@@ -307,7 +307,7 @@ class CoSceneConsoleApi {
   #bffUrl: string;
   #authHeader?: string;
   #responseObserver: undefined | ((response: Response) => void);
-  #addTopicPrefix: string;
+  #addTopicPrefix: "false" | "true" = "false";
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
   #baseInfo: BaseInfo = {};
@@ -316,13 +316,15 @@ class CoSceneConsoleApi {
   public constructor(
     baseUrl: string,
     bffUrl: string,
-    addTopicPrefix: string,
-    timeMode: "absoluteTime" | "relativeTime",
+    jwt: string,
+    addTopicPrefix?: "true" | "false",
+    timeMode?: "absoluteTime" | "relativeTime",
   ) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
+    this.#authHeader = jwt;
     this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
-    this.#timeMode = timeMode;
+    this.#timeMode = timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime";
   }
 
   public setApiBaseInfo(baseInfo: BaseInfo): void {
@@ -373,7 +375,7 @@ class CoSceneConsoleApi {
     return this.#addTopicPrefix;
   }
 
-  public setAddTopicPrefix(prefix: string): void {
+  public setAddTopicPrefix(prefix: "true" | "false"): void {
     this.#addTopicPrefix = prefix;
   }
 
