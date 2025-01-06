@@ -26,7 +26,7 @@ import {
   ToggleButtonGroupProps,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { Dispatch, MouseEvent, SetStateAction, useCallback, useMemo } from "react";
+import { Dispatch, MouseEvent, SetStateAction, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -445,6 +445,9 @@ export function AddTopicPrefix({
 }): React.ReactElement {
   const [, setAddTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
   const addTopicPrefix = useTopicPrefixConfigurationValue();
+  const [tempVal, setTempVal] = useState<PrefixDisplayMedia>(
+    addTopicPrefix === "true" ? "true" : "false",
+  );
 
   const { t } = useTranslation("appSettings");
 
@@ -456,10 +459,10 @@ export function AddTopicPrefix({
         size="small"
         fullWidth
         exclusive
-        value={addTopicPrefix}
+        value={tempVal}
         onChange={(_, value?: PrefixDisplayMedia) => {
           if (value != undefined) {
-            void setAddTopicPrefix(value);
+            setTempVal(value);
             if (addTopicPrefix !== value) {
               setConfirmFunctions((prev) => {
                 return {
