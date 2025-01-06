@@ -47,13 +47,13 @@ import CoScenePlabackTimeMode from "@foxglove/studio-base/components/PlaybackCon
 import PlaybackQualityControls from "@foxglove/studio-base/components/PlaybackControls/PlaybackQualityControls";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
-import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import Scrubber from "./Scrubber";
@@ -86,6 +86,7 @@ const useStyles = makeStyles()((theme) => ({
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 
 function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
@@ -147,6 +148,7 @@ export default function PlaybackControls(props: {
   } = props;
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
+  const enableList = useBaseInfo(selectEnableList);
   const { t } = useTranslation("cosEvent");
 
   const { classes, cx } = useStyles();
@@ -244,7 +246,9 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            {!isDesktopApp() && <MemoedMomentButton disableControls={disableControls} />}
+            {enableList.event === "ENABLE" && (
+              <MemoedMomentButton disableControls={disableControls} />
+            )}
             <Tooltip
               // A desired workflow is the ability to copy data source info text (start, end, duration)
               // from the tooltip. However, there's a UX quirk where the tooltip will close if the user
