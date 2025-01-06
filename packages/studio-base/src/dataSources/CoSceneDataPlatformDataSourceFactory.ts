@@ -22,10 +22,10 @@ import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-data-platform";
   public type: IDataSourceFactory["type"] = "connection";
-  public displayName = "Coscene Data Platform";
+  public displayName = t("openDialog:coSceneDataPlatform");
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
-  public description = "this is a description";
+  public description = t("openDialog:coSceneDataPlatformDesc");
   #readAheadDuration = { sec: 20, nsec: 0 };
 
   public constructor() {
@@ -39,7 +39,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     fields: [
       {
         id: "url",
-        label: "Data Platform URL",
+        label: t("openDialog:dataPlatformUrl"),
         placeholder: `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/viz?ds=coscene-data-platform&ds.key=example_key`,
         validate: (newValue: string): Error | undefined => {
           try {

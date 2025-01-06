@@ -52,7 +52,6 @@ export const openDialog = {
     "Efficient automation processes, automatically collect, preprocess, and diagnose key segments",
   coordination:
     "Convenient data collaboration with R&D, operations, and testing personnel to drive the development of general artificial intelligence with data",
-
   openNewConnection: "Open a new connection",
   webSocketDataSourceDesc:
     "Connect to a ROS 1, ROS 2, or custom system using the coScene WebSocket protocol. For ROS systems, be sure to first install the coBridge ROS package.",
@@ -75,11 +74,13 @@ export const openDialog = {
   open: "Open",
   cancel: "Cancel",
   back: "Back",
-
   coSceneDataPlatform: "coScene Data Platform",
   coSceneDataPlatformDesc: "Paste the web link to use coStudio to visualize online data.",
   onlySupportDomain: "Only support {domain} domain now",
   urlPathnameMustBeViz: "url pathname must be /viz",
   dataSourceMustBeCosSceneDataPlatform: "data source must be coScene Data Platform",
   dataSourceParamsKeyIsRequired: "url must contain key parameter",
+  pleaseLoginFirst: "Please login first",
+  dataPlatformUrl: "Data Platform URL",
+  remoteFile: "Remote File",
 };

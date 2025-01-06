@@ -165,7 +165,7 @@ export default function Connection(): React.JSX.Element {
       return;
     }
     if (loginStatus === "notLogin" && selectedSource.id === "coscene-data-platform") {
-      toast.error("Please login first");
+      toast.error(t("pleaseLoginFirst"));
       return;
     }
 
@@ -190,12 +190,13 @@ export default function Connection(): React.JSX.Element {
     dialogActions.dataSource.close();
   }, [
     selectedSource,
-    selectSource,
-    fieldValues,
+    loginStatus,
     analytics,
     activeDataSource,
     dialogActions.dataSource,
-    loginStatus,
+    t,
+    fieldValues,
+    selectSource,
     currentUser,
   ]);
 
