@@ -134,8 +134,10 @@ const selectWorkspaceRightSidebarItem = (store: WorkspaceContextStore) => store.
 const selectWorkspaceRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.right.open;
 const selectWorkspaceRightSidebarSize = (store: WorkspaceContextStore) => store.sidebars.right.size;
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectUser = (store: UserStore) => store.user;
+const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
+
+const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 
 function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
@@ -155,9 +157,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const enableList = useBaseInfo(selectEnableList);
 
   // coScene set demo layout in demo mode
   const { setSelectedLayoutId } = useCurrentLayoutActions();
@@ -208,6 +208,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const playerId = useMessagePipeline(selectPlayerId);
 
   const currentUser = useCurrentUser(selectUser);
+  const loginStatus = useCurrentUser(selectUserLoginStatus);
 
   useDefaultWebLaunchPreference();
 
@@ -338,18 +339,24 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const showEventsTab = currentUser != undefined && eventsSupported;
 
   const leftSidebarItems = useMemo(() => {
-    const isDesktop = isDesktopApp();
-
     const items: [LeftSidebarItemKey, SidebarItem][] = [
       [
         "playlist",
-        { title: t("playlist", { ns: "cosWorkspace" }), component: Playlist, hidden: isDesktop },
+        {
+          title: t("playlist", { ns: "cosWorkspace" }),
+          component: Playlist,
+          hidden: enableList.playlist === "DISABLE",
+        },
       ],
       ["panel-settings", { title: t("panel", { ns: "cosWorkspace" }), component: PanelSettings }],
       ["topics", { title: t("topics", { ns: "cosWorkspace" }), component: TopicList }],
       [
         "moment",
-        { title: t("moment", { ns: "cosWorkspace" }), component: EventsList, hidden: isDesktop },
+        {
+          title: t("moment", { ns: "cosWorkspace" }),
+          component: EventsList,
+          hidden: enableList.event === "DISABLE",
+        },
       ],
       [
         "problems",
@@ -371,7 +378,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       items.filter(([, item]) => item.hidden == undefined || !item.hidden),
     );
     return cleanItems;
-  }, [playerProblems, t]);
+  }, [enableList.event, enableList.playlist, playerProblems, t]);
 
   useEffect(() => {
     if (playerProblems && playerProblems.length > 0) {
@@ -462,44 +469,41 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   // Load data source from URL.
   useEffect(() => {
     if (
-      !unappliedSourceArgs ||
-      (unappliedSourceArgs.ds !== "coscene-websocket" && _.isEmpty(baseInfo))
+      unappliedSourceArgs?.ds == undefined ||
+      currentUser?.userId == undefined ||
+      loginStatus === "notLogin"
     ) {
       return;
     }
 
     // Apply any available data source args
-    if (unappliedSourceArgs.ds && currentUser?.userId) {
-      log.debug("Initialising source from url", unappliedSourceArgs);
-      const sourceParams: DataSourceArgs = {
-        type: "connection",
-        params: {
-          ...unappliedSourceArgs.dsParams,
-          ...baseInfo,
-          files: JSON.stringify(baseInfo.files),
-          userId: currentUser.userId,
-        },
-      };
+    log.debug("Initialising source from url", unappliedSourceArgs);
+    const sourceParams: DataSourceArgs = {
+      type: "connection",
+      params: {
+        ...currentUser,
+        ...unappliedSourceArgs.dsParams,
+      },
+    };
 
-      if (_.isEqual({ id: unappliedSourceArgs.ds, ...sourceParams }, currentSource.current)) {
-        return;
-      }
-
-      currentSource.current = { id: unappliedSourceArgs.ds, ...sourceParams };
-
-      selectSource(unappliedSourceArgs.ds, sourceParams);
-
-      selectEvent(unappliedSourceArgs.dsParams?.eventId);
-      setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
+    if (_.isEqual({ id: unappliedSourceArgs.ds, ...sourceParams }, currentSource.current)) {
+      return;
     }
+
+    currentSource.current = { id: unappliedSourceArgs.ds, ...sourceParams };
+
+    selectSource(unappliedSourceArgs.ds, sourceParams);
+
+    selectEvent(unappliedSourceArgs.dsParams?.eventId);
+    setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
   }, [
     currentUser,
     selectEvent,
     selectSource,
     unappliedSourceArgs,
     setUnappliedSourceArgs,
-    baseInfo,
     currentSource,
+    loginStatus,
   ]);
 
   const appBar = useMemo(

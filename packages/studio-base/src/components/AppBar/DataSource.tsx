@@ -26,7 +26,6 @@ import {
 } from "@foxglove/studio-base/context/CoSceneProjectContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { EndTimestamp } from "./EndTimestamp";
 
@@ -97,7 +96,9 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 // CoScene
 const selectProject = (store: CoSceneProjectStore) => store.project;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 
 export function DataSource(): React.JSX.Element {
   const { t } = useTranslation("appBar");
@@ -110,7 +111,9 @@ export function DataSource(): React.JSX.Element {
   // CoScene
   const project = useProject(selectProject);
   const urlState = useMessagePipeline(selectUrlState);
+
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const enableList = useBaseInfo(selectEnableList);
 
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
@@ -176,7 +179,7 @@ export function DataSource(): React.JSX.Element {
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
           <div className={classes.textTruncate}>
-            {isDesktopApp() ? (
+            {enableList.uploadLocalFile === "ENABLE" ? (
               <Stack direction="row" alignItems="center" gap={1}>
                 {playerDisplayName} <UploadFile />
               </Stack>

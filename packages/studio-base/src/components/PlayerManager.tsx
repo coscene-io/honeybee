@@ -32,6 +32,7 @@ import Logger from "@foxglove/log";
 import { Immutable } from "@foxglove/studio";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 // import {
 //   LayoutState,
@@ -71,6 +72,8 @@ type PlayerManagerProps = {
 //   state.selectedLayout?.data?.userNodes ?? EMPTY_USER_NODES;
 
 // const selectUserScriptActions = (store: UserScriptStore) => store.actions;
+const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
+const selectSetDataSource = (state: CoSceneBaseStore) => state.setDataSource;
 
 export default function PlayerManager(
   props: PropsWithChildren<PlayerManagerProps>,
@@ -188,6 +191,25 @@ export default function PlayerManager(
 
   const [selectedSource, setSelectedSource] = useState<IDataSourceFactory | undefined>();
 
+  const setBaseInfo = useBaseInfo(selectSetBaseInfo);
+  const setDataSource = useBaseInfo(selectSetDataSource);
+
+  const syncBaseInfo = useCallback(
+    async (baseInfoKey: string) => {
+      consoleApi.setType("playback");
+      try {
+        setBaseInfo({ loading: true, value: {} });
+        const baseInfoRes = await consoleApi.getBaseInfo(baseInfoKey);
+
+        setBaseInfo({ loading: false, value: baseInfoRes });
+        consoleApi.setApiBaseInfo(baseInfoRes);
+      } catch (error) {
+        setBaseInfo({ loading: false, error });
+      }
+    },
+    [consoleApi, setBaseInfo],
+  );
+
   const selectSource = useCallback(
     async (sourceId: string, args?: DataSourceArgs) => {
       log.debug(`Select Source: ${sourceId}`);
@@ -207,6 +229,8 @@ export default function PlayerManager(
 
       // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {
+        setDataSource({ id: sourceId, type: "sample" });
+
         const newPlayer = foundSource.initialize({
           metricsCollector,
         });
@@ -225,6 +249,15 @@ export default function PlayerManager(
       try {
         switch (args.type) {
           case "connection": {
+            setDataSource({ id: sourceId, type: "connection" });
+
+            if (args.params?.key != undefined) {
+              await syncBaseInfo(args.params.key);
+              consoleApi.setType("playback");
+            } else {
+              consoleApi.setType("realtime");
+            }
+
             const newPlayer = foundSource.initialize({
               metricsCollector,
               params: args.params,
@@ -245,6 +278,8 @@ export default function PlayerManager(
             return;
           }
           case "file": {
+            setDataSource({ id: sourceId, type: "file" });
+
             const handle = args.handle;
             const files = args.files;
 
@@ -313,9 +348,11 @@ export default function PlayerManager(
     [
       playerSources,
       enqueueSnackbar,
+      setDataSource,
       metricsCollector,
       constructPlayers,
       consoleApi,
+      syncBaseInfo,
       addRecent,
       isMounted,
     ],

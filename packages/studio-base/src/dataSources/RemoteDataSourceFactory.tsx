@@ -50,7 +50,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
   public legacyIds = ["mcap-remote-file", "ros1-remote-bagfile"];
 
   public type: IDataSourceFactory["type"] = "connection";
-  public displayName = "Remote file";
+  public displayName = t("openDialog:remoteFile");
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public supportedFileTypes = [".bag", ".mcap"];
   public description = t("openDialog:remoteDataSourceDesc");

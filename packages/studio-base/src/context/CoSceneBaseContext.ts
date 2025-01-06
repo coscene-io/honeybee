@@ -28,8 +28,18 @@ export type BaseInfo = {
 };
 
 export type CoSceneBaseStore = DeepReadonly<{
+  dataSource?: {
+    id: string;
+    type: "connection" | "file" | "sample";
+  };
   baseInfo: AsyncState<BaseInfo>;
   setBaseInfo: (baseInfo: AsyncState<BaseInfo>) => void;
+  setDataSource: (dataSource: { id: string; type: "connection" | "file" | "sample" }) => void;
+  getEnableList: () => {
+    event: "ENABLE" | "DISABLE";
+    playlist: "ENABLE" | "DISABLE";
+    uploadLocalFile: "ENABLE" | "DISABLE";
+  };
 }>;
 
 export const CoSceneBaseContext = createContext<undefined | StoreApi<CoSceneBaseStore>>(undefined);
