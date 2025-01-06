@@ -75,4 +75,11 @@ export const openDialog = {
   open: "Open",
   cancel: "Cancel",
   back: "Back",
+
+  coSceneDataPlatform: "coScene Data Platform",
+  coSceneDataPlatformDesc: "Paste the web link to use coStudio to visualize online data.",
+  onlySupportDomain: "Only support {domain} domain now",
+  urlPathnameMustBeViz: "url pathname must be /viz",
+  dataSourceMustBeCosSceneDataPlatform: "data source must be coScene Data Platform",
+  dataSourceParamsKeyIsRequired: "url must contain key parameter",
 };

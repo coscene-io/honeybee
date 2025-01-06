@@ -62,9 +62,16 @@ export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   remoteDataSourceDesc: "从远程位置打开预录制的 .bag 或 .mcap 文件。",
   unsupportedExtension: "不支持的扩展名: {extension}",
   onlySupportedExtensions: "仅支持 {extensions} 文件。",
-  enterAValidUrl: "输入一个有效的 URL",
+  enterAValidUrl: "请输入一个有效的 URL",
   getStarted: "开始使用",
   open: "打开",
   cancel: "取消",
   back: "返回",
+
+  coSceneDataPlatform: "coScene 数据平台",
+  coSceneDataPlatformDesc: "粘贴网页链接来使用 coStudio 可视化线上数据。",
+  onlySupportDomain: "仅支持 {domain} 域名",
+  urlPathnameMustBeViz: "url pathname 必须为 /viz",
+  dataSourceMustBeCosSceneDataPlatform: "数据源必须为 coScene 数据平台",
+  dataSourceParamsKeyIsRequired: "url 中必须包含 key 参数",
 };

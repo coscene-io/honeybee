@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { t } from "i18next";
+
 import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
@@ -44,25 +46,27 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
             const url = new URL(newValue);
             if (url.hostname !== APP_CONFIG.DOMAIN_CONFIG.default?.webDomain) {
               return new Error(
-                `Only support domain https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain} now`,
+                t("openDialog:onlySupportDomain", {
+                  domain: APP_CONFIG.DOMAIN_CONFIG.default?.webDomain,
+                }),
               );
             }
             if (url.pathname !== "/viz") {
-              return new Error(`url pathname must be /viz`);
+              return new Error(t("openDialog:urlPathnameMustBeViz"));
             }
 
             const parsedUrl = parseAppURLState(url);
             if (parsedUrl?.ds !== "coscene-data-platform") {
-              return new Error(`data source must type error`);
+              return new Error(t("openDialog:dataSourceMustBeCosSceneDataPlatform"));
             }
 
             if (parsedUrl.dsParams?.key == undefined) {
-              return new Error(`data source params key is required`);
+              return new Error(t("openDialog:dataSourceParamsKeyIsRequired"));
             }
 
             return undefined;
           } catch {
-            return new Error("Enter a valid url");
+            return new Error(t("openDialog:enterAValidUrl"));
           }
         },
       },
