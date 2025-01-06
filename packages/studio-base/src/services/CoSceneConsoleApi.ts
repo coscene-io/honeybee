@@ -357,6 +357,10 @@ class CoSceneConsoleApi {
     return this.#baseUrl;
   }
 
+  public getBffUrl(): string {
+    return this.#bffUrl;
+  }
+
   public setAuthHeader(header: string): void {
     this.#authHeader = header;
   }

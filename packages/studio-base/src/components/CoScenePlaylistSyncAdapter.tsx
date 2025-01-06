@@ -95,7 +95,7 @@ function positionBag({
 
   let colorCertificate: string | undefined = undefined;
 
-  if (ghostModeFileType === "NORMAL_FILE" || ghostModeFileType === "GHOST_SOURCE_FILE") {
+  if (ghostModeFileType !== "GHOST_RESULT_FILE") {
     colorCertificate = source.split("/files/")[0];
   }
 
