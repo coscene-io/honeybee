@@ -26,14 +26,6 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
   public description = t("openDialog:coSceneDataPlatformDesc");
-  #readAheadDuration = { sec: 20, nsec: 0 };
-
-  public constructor() {
-    const readAheadDuration = localStorage.getItem("readAheadDuration");
-    if (readAheadDuration && !isNaN(+readAheadDuration)) {
-      this.#readAheadDuration = { sec: +readAheadDuration, nsec: 0 };
-    }
-  }
 
   public formConfig = {
     fields: [
@@ -75,17 +67,18 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const consoleApi = args.consoleApi;
+
     if (!consoleApi) {
       console.error("coscene-data-platform initialize: consoleApi is undefined");
       return;
     }
-    // TODO: move to selectSource, 单独播放， 前缀， 时间模式, 预读取时间
-    const singleRequestTime = localStorage.getItem("singleRequestTime");
 
     const baseUrl = consoleApi.getBaseUrl();
     const bffUrl = consoleApi.getBffUrl();
     const auth = consoleApi.getAuthHeader();
     const baseInfo = consoleApi.getApiBaseInfo();
+    const addTopicPrefix = consoleApi.getAddTopicPrefix();
+    const timeMode = consoleApi.getTimeMode();
 
     const source = new WorkerIterableSource({
       initWorker: () => {
@@ -101,19 +94,11 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
         api: {
           baseUrl,
           bffUrl,
-          // TODO: move to selectSource
-          addTopicPrefix:
-            localStorage.getItem("CoScene_addTopicPrefix") ??
-            APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
-            "false",
-          timeMode:
-            localStorage.getItem("CoScene_timeMode") === "relativeTime"
-              ? "relativeTime"
-              : "absoluteTime",
+          addTopicPrefix,
+          timeMode,
           auth,
         },
         params: { ...args.params, ...baseInfo, files: JSON.stringify(baseInfo.files) },
-        singleRequestTime: singleRequestTime && !isNaN(+singleRequestTime) ? +singleRequestTime : 5,
       },
     });
 
@@ -131,7 +116,6 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       source,
       sourceId: this.id,
       urlParams: definedParams,
-      readAheadDuration: this.#readAheadDuration,
     });
   }
 }

@@ -47,7 +47,6 @@ export type DataPlatformInterableSourceConsoleApi = Pick<
 type DataPlatformSourceParameters = {
   projectName?: string;
   key: string;
-  singleRequestTime: number;
 };
 
 type DataPlatformIterableSourceOptions = {
@@ -248,11 +247,7 @@ export class DataPlatformIterableSource implements IIterableSource {
     }
 
     let localStart = streamStart;
-    let localEnd = clampTime(
-      addTime(localStart, { sec: this.#params.singleRequestTime, nsec: 0 }),
-      streamStart,
-      streamEnd,
-    );
+    let localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
 
     for (;;) {
       const streamByParams: StreamParams = {
@@ -309,11 +304,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       }
 
       localStart = clampTime(localStart, streamStart, streamEnd);
-      localEnd = clampTime(
-        addTime(localStart, { sec: this.#params.singleRequestTime, nsec: 0 }),
-        streamStart,
-        streamEnd,
-      );
+      localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
     }
   }
 
@@ -356,7 +347,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 }
 
 export function initialize(args: IterableSourceInitializeArgs): DataPlatformIterableSource {
-  const { api, params, singleRequestTime } = args;
+  const { api, params } = args;
   if (!params) {
     throw new Error("params is required for data platform source");
   }
@@ -413,14 +404,15 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   const dpSourceParams: DataPlatformSourceParameters = {
     key,
     projectName: `warehouses/${warehouseId}/projects/${projectId}`,
-    singleRequestTime: singleRequestTime ?? 5,
   };
 
-  const consoleApi = new ConsoleApi(api.baseUrl, api.bffUrl, api.addTopicPrefix, api.timeMode);
-
-  if (api.auth) {
-    consoleApi.setAuthHeader(api.auth);
-  }
+  const consoleApi = new ConsoleApi(
+    api.baseUrl,
+    api.bffUrl,
+    api.auth ?? "",
+    api.addTopicPrefix,
+    api.timeMode,
+  );
 
   return new DataPlatformIterableSource({
     api: consoleApi,
