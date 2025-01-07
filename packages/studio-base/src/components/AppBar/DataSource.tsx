@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ErrorCircle16Filled } from "@fluentui/react-icons";
+import ComputerIcon from "@mui/icons-material/Computer";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { CircularProgress, IconButton, Link, Breadcrumbs } from "@mui/material";
 import { useMemo } from "react";
@@ -184,24 +185,36 @@ export function DataSource(): React.JSX.Element {
                 {playerDisplayName} <UploadFile />
               </Stack>
             ) : (
-              <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" />}
-                aria-label="breadcrumb"
-              >
-                {baseInfo.projectSlug && baseInfo.warehouseSlug ? breadcrumbs : ""}
-                {isLiveConnection && (
-                  <Link
-                    href={deviceLink || "#"}
-                    target="_blank"
-                    underline="hover"
-                    key="1"
-                    color="inherit"
-                    className={classes.breadcrumbs}
-                  >
-                    {hostName ?? playerDisplayName ?? t("unknown")}
-                  </Link>
-                )}
-              </Breadcrumbs>
+              <Stack direction="row" alignItems="center" gap={2}>
+                <Breadcrumbs
+                  separator={<NavigateNextIcon fontSize="small" />}
+                  aria-label="breadcrumb"
+                >
+                  {baseInfo.projectSlug && baseInfo.warehouseSlug ? breadcrumbs : ""}
+                  {isLiveConnection && (
+                    <Link
+                      href={deviceLink || "#"}
+                      target="_blank"
+                      underline="hover"
+                      key="1"
+                      color="inherit"
+                      className={classes.breadcrumbs}
+                    >
+                      {hostName ?? playerDisplayName ?? t("unknown")}
+                    </Link>
+                  )}
+                </Breadcrumbs>
+
+                <IconButton
+                  onClick={() => {
+                    const url = window.location.href;
+                    const studioUrl = url.replace(/^https?:\/\//i, "coscene://");
+                    window.open(studioUrl, "_self");
+                  }}
+                >
+                  <ComputerIcon />
+                </IconButton>
+              </Stack>
             )}
           </div>
           {isLiveConnection && (

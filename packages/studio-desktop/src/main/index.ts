@@ -207,9 +207,9 @@ export async function main(): Promise<void> {
       // When completing sign in from Console, the browser can launch this URL to re-focus the app.
       app.focus({ steal: true });
     } else if (app.isReady()) {
-      // new StudioWindow([url]).load();
+      new StudioWindow([url]).load();
     } else {
-      // openUrls.push(url);
+      openUrls.push(url);
     }
   });
 
@@ -287,6 +287,7 @@ export async function main(): Promise<void> {
       "img-src": "'self' data: https: package: x-foxglove-converted-tiff: http:",
       "media-src": "'self' data: https: http: blob: file:",
     };
+
     const cspHeader = Object.entries(contentSecurityPolicy)
       .map(([key, val]) => `${key} ${val}`)
       .join("; ");
