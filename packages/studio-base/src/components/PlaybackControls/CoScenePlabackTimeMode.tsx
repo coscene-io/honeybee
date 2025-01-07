@@ -8,9 +8,12 @@
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CheckIcon from "@mui/icons-material/Check";
 import { Button, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from "@mui/material";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
+
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 
 const RELATATIVE_TIME = "relativeTime";
 const ABSOLUTE_TIME = "absoluteTime";
@@ -31,18 +34,17 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
   const open = Boolean(anchorEl);
   const { classes, cx } = useStyles();
 
-  const timeMode = useMemo(() => {
-    const currentTimeMode = localStorage.getItem("CoScene_timeMode");
-    if (currentTimeMode === RELATATIVE_TIME || currentTimeMode === ABSOLUTE_TIME) {
-      return currentTimeMode;
-    }
-    return ABSOLUTE_TIME;
-  }, []);
+  const [timeMode, setTimeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
 
-  const setTimeMode = useCallback((changedTimeMode: string) => {
-    localStorage.setItem("CoScene_timeMode", changedTimeMode);
-    location.reload();
-  }, []);
+  const timeModeText = timeMode === RELATATIVE_TIME ? t(RELATATIVE_TIME) : t(ABSOLUTE_TIME);
+
+  const handleSetTimeMode = useCallback(
+    async (changedTimeMode: string) => {
+      await setTimeMode(changedTimeMode);
+      location.reload();
+    },
+    [setTimeMode],
+  );
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -67,7 +69,7 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
           endIcon={<ArrowDropDownIcon />}
           className={cx(classes.button)}
         >
-          {t(timeMode)}
+          {timeModeText}
         </Button>
       </Tooltip>
 
@@ -91,7 +93,7 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
         <MenuItem
           selected={timeMode === ABSOLUTE_TIME}
           onClick={() => {
-            setTimeMode(ABSOLUTE_TIME);
+            void handleSetTimeMode(ABSOLUTE_TIME);
           }}
         >
           {timeMode === ABSOLUTE_TIME && (
@@ -108,7 +110,7 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
         <MenuItem
           selected={timeMode === RELATATIVE_TIME}
           onClick={() => {
-            setTimeMode(RELATATIVE_TIME);
+            void handleSetTimeMode(RELATATIVE_TIME);
           }}
         >
           {timeMode === RELATATIVE_TIME && (

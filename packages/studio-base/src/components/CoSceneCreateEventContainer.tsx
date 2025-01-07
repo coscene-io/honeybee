@@ -54,6 +54,7 @@ import {
   fromSec,
   fromDate,
 } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -63,7 +64,7 @@ import {
   usePlaylist,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents, KeyValue } from "@foxglove/studio-base/context/EventsContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { useAppConfigurationValue, useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
@@ -142,6 +143,8 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
 export function CoSceneCreateEventContainer(props: { onClose: () => void }): React.JSX.Element {
   const { onClose } = props;
 
+  const [timeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+
   const refreshEvents = useEvents(selectRefreshEvents);
   const toModifyEvent = useEvents(selectToModifyEvent);
 
@@ -160,12 +163,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
-
-  const timeMode = useMemo(() => {
-    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
-      ? "relativeTime"
-      : "absoluteTime";
-  }, []);
 
   const passingFile = bagFiles.value?.filter((bag) => {
     if (bag.startTime == undefined || bag.endTime == undefined) {

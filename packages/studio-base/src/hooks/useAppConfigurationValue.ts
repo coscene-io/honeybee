@@ -6,10 +6,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { useCallback, useEffect, useState } from "react";
 
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import {
   AppConfigurationValue,
   useAppConfiguration,
 } from "@foxglove/studio-base/context/AppConfigurationContext";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 /**
  * Load a value from app configuration and provide a function to change it
@@ -49,4 +51,12 @@ export function useAppConfigurationValue<T extends AppConfigurationValue>(
   );
 
   return [configurationValue, wrappedSetter];
+}
+
+export function useTopicPrefixConfigurationValue(): string {
+  const [addTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
+
+  return (
+    addTopicPrefix ?? APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ?? "false"
+  );
 }

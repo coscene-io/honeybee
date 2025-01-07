@@ -27,7 +27,6 @@ import {
   SampleNuscenesDataSourceFactory,
   UlogLocalDataSourceFactory,
   VelodyneDataSourceFactory,
-  SharedProviders,
   ConsoleApi,
   CoSceneDataPlatformDataSourceFactory,
 } from "@foxglove/studio-base";
@@ -66,19 +65,12 @@ export default function Root(props: {
   // notify user login status change
   const [loginStatusKey, setLoginStatusKey] = useState(0);
 
+  const authToken = localStorage.getItem("coScene_org_jwt");
+
   const consoleApi = useMemo(
     () =>
-      new ConsoleApi(
-        APP_CONFIG.CS_HONEYBEE_BASE_URL,
-        APP_CONFIG.VITE_APP_BFF_URL,
-        localStorage.getItem("CoScene_addTopicPrefix") ??
-          APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
-          "false",
-        localStorage.getItem("CoScene_timeMode") === "relativeTime"
-          ? "relativeTime"
-          : "absoluteTime",
-      ),
-    [],
+      new ConsoleApi(APP_CONFIG.CS_HONEYBEE_BASE_URL, APP_CONFIG.VITE_APP_BFF_URL, authToken ?? ""),
+    [authToken],
   );
 
   useEffect(() => {
@@ -103,7 +95,6 @@ export default function Root(props: {
   }, [appConfiguration]);
 
   useEffect(() => {
-    const authToken = localStorage.getItem("coScene_org_jwt");
     if (authToken) {
       consoleApi.setAuthHeader(authToken);
     }
@@ -116,7 +107,7 @@ export default function Root(props: {
     });
 
     return cleanup;
-  }, [consoleApi, t]);
+  }, [consoleApi, t, authToken]);
 
   useEffect(() => {
     // Passive logout, token expired
@@ -207,10 +198,8 @@ export default function Root(props: {
     };
   }, []);
 
-  const initProviders = SharedProviders({ consoleApi, loginStatusKey });
-
   const extraProviders = useMemo(() => {
-    const providers: React.JSX.Element[] = initProviders;
+    const providers: React.JSX.Element[] = [];
 
     providers.push(<NativeAppMenuContext.Provider value={nativeAppMenu} />);
 
@@ -220,7 +209,7 @@ export default function Root(props: {
       providers.push(...props.extraProviders);
     }
     return providers;
-  }, [initProviders, nativeAppMenu, nativeWindow, props.extraProviders]);
+  }, [nativeAppMenu, nativeWindow, props.extraProviders]);
 
   return (
     <>
@@ -245,7 +234,7 @@ export default function Root(props: {
         }}
         extensionLoaders={extensionLoaders}
       >
-        <StudioApp />
+        <StudioApp consoleApi={consoleApi} loginStatusKey={loginStatusKey} />
       </SharedRoot>
       {confirmModal}
       <Toaster />
