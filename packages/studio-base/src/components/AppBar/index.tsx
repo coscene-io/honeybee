@@ -14,6 +14,7 @@ import {
   QuestionCircle24Regular,
   ChevronDown12Regular,
 } from "@fluentui/react-icons";
+import ComputerIcon from "@mui/icons-material/Computer";
 import PersonIcon from "@mui/icons-material/Person";
 import { Avatar, IconButton, Tooltip } from "@mui/material";
 import { useState } from "react";
@@ -270,6 +271,21 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
               {appBarLayoutButton}
               <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
+                {!isDesktopApp() && (
+                  <AppBarIconButton
+                    title={t("openInCoStudio")}
+                    aria-label={t("openInCoStudio")}
+                    onClick={() => {
+                      const url = window.location.href;
+                      const studioUrl = url.replace(/^https?:\/\//i, "coscene://");
+
+                      window.open(studioUrl, "_self");
+                    }}
+                    data-tourid="open-in-coStudio"
+                  >
+                    <ComputerIcon />
+                  </AppBarIconButton>
+                )}
                 <AppBarIconButton
                   title={
                     <>

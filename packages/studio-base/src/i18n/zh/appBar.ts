@@ -63,4 +63,5 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   openInBrowser: "在浏览器中打开",
   reUpload: "重新上传",
   createRecordAndUpload: "创建记录并上传",
+  openInCoStudio: "在 coStudio 中打开",
 };

@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ErrorCircle16Filled } from "@fluentui/react-icons";
-import ComputerIcon from "@mui/icons-material/Computer";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { CircularProgress, IconButton, Link, Breadcrumbs } from "@mui/material";
 import { useMemo } from "react";
@@ -204,16 +203,6 @@ export function DataSource(): React.JSX.Element {
                     </Link>
                   )}
                 </Breadcrumbs>
-
-                <IconButton
-                  onClick={() => {
-                    const url = window.location.href;
-                    const studioUrl = url.replace(/^https?:\/\//i, "coscene://");
-                    window.open(studioUrl, "_self");
-                  }}
-                >
-                  <ComputerIcon />
-                </IconButton>
               </Stack>
             )}
           </div>

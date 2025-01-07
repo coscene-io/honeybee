@@ -65,4 +65,5 @@ export const appBar = {
   openInBrowser: "Open in browser",
   reUpload: "Re-upload",
   createRecordAndUpload: "Create record and upload",
+  openInCoStudio: "Open in coStudio",
 };
