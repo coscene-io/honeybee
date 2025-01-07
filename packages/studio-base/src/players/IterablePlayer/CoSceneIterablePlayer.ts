@@ -218,12 +218,12 @@ export class CoSceneIterablePlayer implements Player {
       name,
       enablePreload,
       sourceId,
-      readAheadDuration,
+      readAheadDuration = { sec: 10, nsec: 0 },
     } = options;
 
     this.#iterableSource = source;
     if (source.sourceType === "deserialized") {
-      this.#bufferImpl = new BufferedIterableSource(source, { readAheadDuration });
+      this.#bufferImpl = new BufferedIterableSource(source);
       this.#bufferedSource = new DeserializedSourceWrapper(this.#bufferImpl);
     } else {
       const MEGABYTE_IN_BYTES = 1024 * 1024;

@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, toSec, Time, fromNanoSec, compare } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -28,6 +29,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { MediaStatus, FileList } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
@@ -142,11 +144,7 @@ export function PlaylistSyncAdapter(): ReactNull {
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
 
-  const timeMode = useMemo(() => {
-    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
-      ? "relativeTime"
-      : "absoluteTime";
-  }, []);
+  const [timeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -185,7 +183,7 @@ export function PlaylistSyncAdapter(): ReactNull {
           endTime,
           currentFileStartTime: ele.startTime,
           currentFileEndTime: ele.endTime,
-          timeMode,
+          timeMode: timeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
           mediaStatus:
             ele.mediaStatus === "GENERATING" && currentStatus === "NORMAL"
               ? "GENERATED_SUCCESS"
@@ -225,7 +223,7 @@ export function PlaylistSyncAdapter(): ReactNull {
               endTime,
               currentFileStartTime: ele.startTime,
               currentFileEndTime: ele.endTime,
-              timeMode,
+              timeMode: timeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
             }),
           );
         });

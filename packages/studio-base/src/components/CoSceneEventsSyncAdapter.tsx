@@ -15,6 +15,7 @@ import { v4 as uuidv4 } from "uuid";
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, Time, toSec, fromNanoSec, add, isTimeInRangeInclusive } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -37,6 +38,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
@@ -188,6 +190,8 @@ export function CoSceneEventsSyncAdapter(): React.JSX.Element {
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
 
+  const [timeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+
   useEffect(() => {
     if (loopedEvent != undefined && currentTime != undefined && seek != undefined) {
       if (
@@ -210,12 +214,6 @@ export function CoSceneEventsSyncAdapter(): React.JSX.Element {
 
     return toSec(subtract(endTime, startTime));
   }, [endTime, startTime]);
-
-  const timeMode = useMemo(() => {
-    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
-      ? "relativeTime"
-      : "absoluteTime";
-  }, []);
 
   // Sync events with console API.
   const [_events, syncEvents] = useAsyncFn(async () => {
@@ -286,7 +284,7 @@ export function CoSceneEventsSyncAdapter(): React.JSX.Element {
             value: await positionEvents(
               eventList,
               bagFiles.value,
-              timeMode,
+              timeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
               startTime,
               endTime,
               consoleApi,

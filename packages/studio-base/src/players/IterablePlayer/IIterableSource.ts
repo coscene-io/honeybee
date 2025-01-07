@@ -231,7 +231,6 @@ export type IterableSourceInitializeArgs = {
     timeMode: "relativeTime" | "absoluteTime";
     auth?: string;
   };
-  singleRequestTime?: number;
 };
 
 /**

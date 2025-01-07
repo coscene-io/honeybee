@@ -9,7 +9,8 @@
       "dom",
       "dom.iterable",
       "es2022",
-      "webworker"
+      "webworker",
+      "ESNext.Disposable"
     ],
     "noEmit": true,
     "experimentalDecorators": true,
@@ -18,6 +19,7 @@
       "@foxglove/studio-base/*": [
         "../studio-base/src/*"
       ]
-    }
+    },
+    "rootDir": "../.."
   }
 }
