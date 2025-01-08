@@ -55,6 +55,7 @@ export interface IDataSourceFactory {
   badgeText?: string;
   hidden?: boolean;
   warning?: string | React.JSX.Element;
+  needLogin?: boolean;
 
   sampleLayout?: LayoutData;
 

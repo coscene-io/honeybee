@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { t } from "i18next";
+// import toast from "react-hot-toast";
 
 import {
   IDataSourceFactory,
@@ -26,6 +27,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
   public description = t("openDialog:coSceneDataPlatformDesc");
+  public needLogin = true;
 
   public formConfig = {
     fields: [

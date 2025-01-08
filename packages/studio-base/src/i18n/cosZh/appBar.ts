@@ -17,4 +17,5 @@ export const cosAppBar: Partial<TypeOptions["resources"]["cosAppBar"]> = {
   signOutConfirmCancel: "取消",
   menu: "菜单",
   signoutSuccess: "登出成功",
+  downloadLatestStudio: "下载 coStudio",
 };

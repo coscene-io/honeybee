@@ -65,4 +65,9 @@ export const appBar = {
   openInBrowser: "Open in browser",
   reUpload: "Re-upload",
   createRecordAndUpload: "Create record and upload",
+  openInCoStudio: "Open in coStudio",
+  openInCoStudioPrompt:
+    "This page will be opened in coStudio, please confirm that coStudio has been installed, or click here <download>download</download> to download and allow external links to be opened",
+  openByCoStudio: "Open by coStudio",
+  doNotShowAgain: "Do not show again",
 };

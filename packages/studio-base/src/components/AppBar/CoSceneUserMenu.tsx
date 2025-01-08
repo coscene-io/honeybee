@@ -22,6 +22,7 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { downloadLatestStudio } from "@foxglove/studio-base/util/download";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const useStyles = makeStyles()({
@@ -135,6 +136,10 @@ export function UserMenu({
           {t("settings")}
         </MenuItem>
         <MenuItem onClick={onDocsClick}>{t("documentation")}</MenuItem>
+
+        {!isDesktop && (
+          <MenuItem onClick={downloadLatestStudio}>{t("downloadLatestStudio")}</MenuItem>
+        )}
 
         {(isDesktop || loginStatus === "alreadyLogin") && (
           <MenuItem

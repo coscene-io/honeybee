@@ -184,24 +184,26 @@ export function DataSource(): React.JSX.Element {
                 {playerDisplayName} <UploadFile />
               </Stack>
             ) : (
-              <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" />}
-                aria-label="breadcrumb"
-              >
-                {baseInfo.projectSlug && baseInfo.warehouseSlug ? breadcrumbs : ""}
-                {isLiveConnection && (
-                  <Link
-                    href={deviceLink || "#"}
-                    target="_blank"
-                    underline="hover"
-                    key="1"
-                    color="inherit"
-                    className={classes.breadcrumbs}
-                  >
-                    {hostName ?? playerDisplayName ?? t("unknown")}
-                  </Link>
-                )}
-              </Breadcrumbs>
+              <Stack direction="row" alignItems="center" gap={2}>
+                <Breadcrumbs
+                  separator={<NavigateNextIcon fontSize="small" />}
+                  aria-label="breadcrumb"
+                >
+                  {baseInfo.projectSlug && baseInfo.warehouseSlug ? breadcrumbs : ""}
+                  {isLiveConnection && (
+                    <Link
+                      href={deviceLink || "#"}
+                      target="_blank"
+                      underline="hover"
+                      key="1"
+                      color="inherit"
+                      className={classes.breadcrumbs}
+                    >
+                      {hostName ?? playerDisplayName ?? t("unknown")}
+                    </Link>
+                  )}
+                </Breadcrumbs>
+              </Stack>
             )}
           </div>
           {isLiveConnection && (

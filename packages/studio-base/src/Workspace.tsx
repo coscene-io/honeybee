@@ -17,6 +17,7 @@ import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
 import { extname } from "path";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -78,6 +79,7 @@ import { sampleLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvi
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -455,8 +457,28 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
   const targetUrlState = useMemo(() => {
     const deepLinks = props.deepLinks ?? [];
-    return deepLinks[0] ? parseAppURLState(new URL(deepLinks[0])) : undefined;
-  }, [props.deepLinks]);
+
+    if (deepLinks[0] == undefined) {
+      return undefined;
+    }
+
+    const url = new URL(deepLinks[0]);
+    const parsedUrl = parseAppURLState(url);
+
+    if (
+      parsedUrl?.ds === "coscene-data-platform" &&
+      url.hostname !== APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
+    ) {
+      dialogActions.dataSource.close();
+      setTimeout(() => {
+        toast.error(t("invalidDomain", { domain: APP_CONFIG.DOMAIN_CONFIG.default?.webDomain }));
+      }, 1000);
+      return undefined;
+    }
+
+    return parsedUrl;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.deepLinks, t]);
 
   const [unappliedSourceArgs, setUnappliedSourceArgs] = useState(
     targetUrlState ? { ds: targetUrlState.ds, dsParams: targetUrlState.dsParams } : undefined,
@@ -468,11 +490,12 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const selectEvent = useEvents(selectSelectEvent);
   // Load data source from URL.
   useEffect(() => {
-    if (
-      unappliedSourceArgs?.ds == undefined ||
-      currentUser?.userId == undefined ||
-      loginStatus === "notLogin"
-    ) {
+    if (unappliedSourceArgs?.ds == undefined || currentUser?.userId == undefined) {
+      return;
+    }
+
+    if (loginStatus === "notLogin" && unappliedSourceArgs.ds === "coscene-data-platform") {
+      toast.error(t("pleaseLoginFirst", { ns: "openDialog" }));
       return;
     }
 
@@ -504,6 +527,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     setUnappliedSourceArgs,
     currentSource,
     loginStatus,
+    t,
   ]);
 
   const appBar = useMemo(
