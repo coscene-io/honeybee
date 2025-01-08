@@ -74,7 +74,6 @@ import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFiles
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
-import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
