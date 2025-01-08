@@ -64,4 +64,8 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   reUpload: "重新上传",
   createRecordAndUpload: "创建记录并上传",
   openInCoStudio: "在 coStudio 中打开",
+  openInCoStudioPrompt:
+    "将在 coStudio 中打开当前页面，请确认已经安装 coStudio，或者点击此处<download>下载</download>，并允许打开外部链接",
+  openByCoStudio: "通过 coStudio 打开",
+  doNotShowAgain: "不再提示",
 };
