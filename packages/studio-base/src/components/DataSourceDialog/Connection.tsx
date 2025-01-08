@@ -164,10 +164,6 @@ export default function Connection(): React.JSX.Element {
     if (!selectedSource) {
       return;
     }
-    if (loginStatus === "notLogin" && selectedSource.id === "coscene-data-platform") {
-      toast.error(t("pleaseLoginFirst"));
-      return;
-    }
 
     if (selectedSource.id === "coscene-data-platform") {
       const parsedUrl = parseAppURLState(new URL(fieldValues.url ?? ""));
@@ -190,17 +186,18 @@ export default function Connection(): React.JSX.Element {
     dialogActions.dataSource.close();
   }, [
     selectedSource,
-    loginStatus,
     analytics,
     activeDataSource,
     dialogActions.dataSource,
-    t,
     fieldValues,
     selectSource,
     currentUser,
   ]);
 
-  const disableOpen = selectedSource?.disabledReason != undefined || fieldErrors.size > 0;
+  const disableOpen =
+    selectedSource?.disabledReason != undefined ||
+    fieldErrors.size > 0 ||
+    (selectedSource?.needLogin != undefined && loginStatus === "notLogin");
 
   const onSubmit = useCallback(
     (event: FormEvent) => {
@@ -259,6 +256,9 @@ export default function Connection(): React.JSX.Element {
                 )}
               {selectedSource?.disabledReason != undefined && (
                 <Alert severity="warning">{selectedSource.disabledReason}</Alert>
+              )}
+              {selectedSource?.needLogin != undefined && loginStatus === "notLogin" && (
+                <Alert severity="warning">{t("pleaseLoginFirst")}</Alert>
               )}
 
               {selectedSource?.description && <Typography>{selectedSource.description}</Typography>}
