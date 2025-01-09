@@ -12,10 +12,7 @@ import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import {
-  CoSceneIterablePlayer,
-  WorkerIterableSource,
-} from "@foxglove/studio-base/players/IterablePlayer";
+import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
@@ -113,7 +110,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       }
     }
 
-    return new CoSceneIterablePlayer({
+    return new IterablePlayer({
       metricsCollector: args.metricsCollector,
       source,
       sourceId: this.id,
