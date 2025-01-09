@@ -53,14 +53,14 @@ type DataPlatformIterableSourceOptions = {
 
 const getPlaybackQualityTranslation = (quality?: string) => {
   switch (quality) {
-    case "HIGH":
-      return "HIGH";
-    case "LOW":
-      return "LOW";
-    case "MID":
-      return "MID";
+    case "high":
+      return "high";
+    case "low":
+      return "low";
+    case "mid":
+      return "mid";
     default:
-      return "ORIGINAL";
+      return "original";
   }
 };
 

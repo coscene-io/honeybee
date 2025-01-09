@@ -307,7 +307,7 @@ class CoSceneConsoleApi {
   #problemManager = new PlayerProblemManager();
   #baseInfo: BaseInfo = {};
   #type: "realtime" | "playback" = "playback";
-  #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
+  #playbackQualityLevel: "original" | "high" | "mid" | "low" = "original";
 
   public constructor(
     baseUrl: string,
@@ -316,17 +316,17 @@ class CoSceneConsoleApi {
     // The following three parameters are only used in data sources
     addTopicPrefix?: "true" | "false",
     timeMode?: "absoluteTime" | "relativeTime",
-    playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW",
+    playbackQualityLevel?: "original" | "high" | "mid" | "low",
   ) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
     this.#authHeader = jwt;
     this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
     this.#timeMode = timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime";
-    this.#playbackQualityLevel = playbackQualityLevel ?? "ORIGINAL";
+    this.#playbackQualityLevel = playbackQualityLevel ?? "original";
   }
 
-  public getPlaybackQualityLevel(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
+  public getPlaybackQualityLevel(): "original" | "high" | "mid" | "low" {
     return this.#playbackQualityLevel;
   }
 

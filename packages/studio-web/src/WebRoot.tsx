@@ -18,6 +18,7 @@ import {
   AppSetting,
   IdbExtensionLoader,
   ConsoleApi,
+  SharedProviders,
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -72,6 +73,16 @@ export function WebRoot(props: {
     [baseUrl, jwt],
   );
 
+  const coSceneProviders = SharedProviders({ consoleApi });
+
+  const extraProviders = useMemo(() => {
+    const providers = coSceneProviders;
+    if (props.extraProviders != undefined) {
+      providers.push(...props.extraProviders);
+    }
+    return providers;
+  }, [coSceneProviders, props.extraProviders]);
+
   if (isLoading) {
     return (
       <Stack flex={1} fullHeight fullWidth justifyContent="center" alignItems="center">
@@ -89,10 +100,10 @@ export function WebRoot(props: {
         appConfiguration={appConfiguration}
         extensionLoaders={extensionLoaders}
         enableGlobalCss
-        extraProviders={props.extraProviders}
+        extraProviders={extraProviders}
         AppBarComponent={props.AppBarComponent}
       >
-        <StudioApp consoleApi={consoleApi} />
+        <StudioApp />
       </SharedRoot>
       <Toaster />
       {confirmModal}
