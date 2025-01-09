@@ -434,6 +434,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     const parsedUrl = parseAppURLState(url);
 
     if (
+      isDesktopApp() &&
       parsedUrl?.ds === "coscene-data-platform" &&
       url.hostname !== APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
     ) {

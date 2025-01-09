@@ -5,6 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+// import posthog from "posthog-js";
+// import { PostHogProvider } from "posthog-js/react";
+
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
 import {
   ISharedRootContext,
@@ -15,6 +18,10 @@ import { ColorSchemeThemeProvider } from "./components/ColorSchemeThemeProvider"
 import CssBaseline from "./components/CssBaseline";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AppConfigurationContext from "./context/AppConfigurationContext";
+
+// const posthogClient = posthog.init("test", {
+//   api_host: "https://test.com",
+// });
 
 export function SharedRoot(
   props: ISharedRootContext & { children: React.JSX.Element },
@@ -36,6 +43,7 @@ export function SharedRoot(
 
   return (
     <AppConfigurationContext.Provider value={appConfiguration}>
+      {/* <PostHogProvider client={posthogClient}> */}
       <ColorSchemeThemeProvider>
         {enableGlobalCss && <GlobalCss />}
         <CssBaseline>
@@ -59,6 +67,7 @@ export function SharedRoot(
           </ErrorBoundary>
         </CssBaseline>
       </ColorSchemeThemeProvider>
+      {/* </PostHogProvider> */}
     </AppConfigurationContext.Provider>
   );
 }

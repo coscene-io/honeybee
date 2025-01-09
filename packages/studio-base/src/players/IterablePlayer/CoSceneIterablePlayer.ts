@@ -23,15 +23,14 @@ import {
   toRFC3339String,
 } from "@foxglove/rostime";
 import { Immutable, MessageEvent, ParameterValue } from "@foxglove/studio";
-import NoopMetricsCollector from "@foxglove/studio-base/players/CoSceneNoopMetricsCollector";
 import { DeserializedSourceWrapper } from "@foxglove/studio-base/players/IterablePlayer/DeserializedSourceWrapper";
+import NoopMetricsCollector from "@foxglove/studio-base/players/NoopMetricsCollector";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import {
   AdvertiseOptions,
   PlaybackSpeed,
   Player,
-  // PlayerMetricsCollectorInterface,
-  CoScenePlayerMetricsCollectorInterface,
+  PlayerMetricsCollectorInterface,
   PlayerState,
   Progress,
   PublishPayload,
@@ -44,7 +43,6 @@ import {
   PlayerStateActiveData,
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
-import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 import delay from "@foxglove/studio-base/util/delay";
 
 import { BlockLoader } from "./BlockLoader";
@@ -85,7 +83,7 @@ const MEMORY_INFO_BUFFERED_MSGS = "Buffered messages";
 const EMPTY_ARRAY = Object.freeze([]);
 
 type IterablePlayerOptions = {
-  metricsCollector?: CoScenePlayerMetricsCollectorInterface;
+  metricsCollector?: PlayerMetricsCollectorInterface;
 
   source: IDeserializedIterableSource | ISerializedIterableSource;
 
@@ -159,7 +157,7 @@ export class CoSceneIterablePlayer implements Player {
 
   #capabilities: string[] = [PlayerCapabilities.setSpeed, PlayerCapabilities.playbackControl];
   #profile: string | undefined;
-  #metricsCollector: CoScenePlayerMetricsCollectorInterface;
+  #metricsCollector: PlayerMetricsCollectorInterface;
   #subscriptions: SubscribePayload[] = [];
   #allTopics: TopicSelection = new Map();
   #preloadTopics: TopicSelection = new Map();
@@ -278,7 +276,7 @@ export class CoSceneIterablePlayer implements Player {
       }
       this.#untilTime = clampTime(opt.untilTime, this.#start, this.#end);
     }
-    this.#metricsCollector.play();
+    this.#metricsCollector.play(this.#speed);
     this.#isPlaying = true;
 
     // If we are idling we can start playing, if we have a next state queued we let that state
@@ -650,15 +648,11 @@ export class CoSceneIterablePlayer implements Player {
     // set the playIterator to the seek time
     await this.#bufferImpl.stopProducer();
 
-    const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
-      getPlaybackQualityLevelByLocalStorage();
-
     log.debug("Initializing forward iterator from", next);
     this.#playbackIterator = this.#bufferedSource.messageIterator({
       topics: this.#allTopics,
       start: next,
       consumptionType: "partial",
-      playbackQualityLevel,
     });
   }
 
@@ -697,15 +691,11 @@ export class CoSceneIterablePlayer implements Player {
       throw new Error("Invariant. playbackIterator was already set");
     }
 
-    const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
-      getPlaybackQualityLevelByLocalStorage();
-
     log.debug("Initializing forward iterator from", this.#start);
     this.#playbackIterator = this.#bufferedSource.messageIterator({
       topics: this.#allTopics,
       start: this.#start,
       consumptionType: "partial",
-      playbackQualityLevel,
     });
 
     this.#lastMessageEvent = undefined;
@@ -794,13 +784,10 @@ export class CoSceneIterablePlayer implements Player {
 
     try {
       this.#abort = new AbortController();
-      const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
-        getPlaybackQualityLevelByLocalStorage();
       const messages = await this.#bufferedSource.getBackfillMessages({
         topics: this.#allTopics,
         time: targetTime,
         abortSignal: this.#abort.signal,
-        playbackQualityLevel,
       });
 
       // We've successfully loaded the messages and will emit those, no longer need the ackTimeout

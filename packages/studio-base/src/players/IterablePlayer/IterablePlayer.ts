@@ -44,7 +44,6 @@ import {
   TopicStats,
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
-import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 import delay from "@foxglove/studio-base/util/delay";
 
 import { BlockLoader } from "./BlockLoader";
@@ -272,6 +271,8 @@ export class IterablePlayer implements Player {
       }
       this.#untilTime = clampTime(opt.untilTime, this.#start, this.#end);
     }
+
+    this.#metricsCollector.play(this.#speed);
     this.#isPlaying = true;
 
     // If we are idling we can start playing, if we have a next state queued we let that state
@@ -287,6 +288,7 @@ export class IterablePlayer implements Player {
     if (!this.#isPlaying) {
       return;
     }
+    this.#metricsCollector.pause();
     // clear out last tick millis so we don't read a huge chunk when we unpause
     this.#lastTickMillis = undefined;
     this.#isPlaying = false;
@@ -302,6 +304,7 @@ export class IterablePlayer implements Player {
   public setPlaybackSpeed(speed: PlaybackSpeed): void {
     this.#lastRangeMillis = undefined;
     this.#speed = speed;
+    this.#metricsCollector.setSpeed(speed);
 
     // Queue event state update to update speed in player state to UI
     this.#queueEmitState();
@@ -341,6 +344,7 @@ export class IterablePlayer implements Player {
       return;
     }
 
+    this.#metricsCollector.seek(targetTime);
     this.#seekTarget = targetTime;
     this.#untilTime = undefined;
     this.#lastTickMillis = undefined;
@@ -790,13 +794,10 @@ export class IterablePlayer implements Player {
 
     try {
       this.#abort = new AbortController();
-      const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
-        getPlaybackQualityLevelByLocalStorage();
       const messages = await this.#bufferedSource.getBackfillMessages({
         topics: this.#allTopics,
         time: targetTime,
         abortSignal: this.#abort.signal,
-        playbackQualityLevel,
       });
 
       // We've successfully loaded the messages and will emit those, no longer need the ackTimeout

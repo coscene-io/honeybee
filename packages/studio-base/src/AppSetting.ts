@@ -40,4 +40,7 @@ export enum AppSetting {
 
   // Time Mode
   TIME_MODE = "timeMode",
+
+  // Playback Quality
+  PLAYBACK_QUALITY_LEVEL = "playbackQualityLevel",
 }
