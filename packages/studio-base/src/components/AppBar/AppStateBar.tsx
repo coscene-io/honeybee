@@ -59,12 +59,10 @@ export function AppStateBar(): React.JSX.Element {
   const [layoutTipsOpen, setLayoutTipsOpen] = useState(false);
 
   const [isToastMounted, setIsToastMounted] = useState(false);
-  const [successMediaToastId, setSuccessMediaToastId] = useState<string | undefined>(undefined);
   const [generatingMediaToastId, setGeneratingMediaToastId] = useState<string | undefined>(
     undefined,
   );
   const [fileLoadingToastId, setFileLoadingToastId] = useState<string | undefined>(undefined);
-  const [errorMediaToastId, setErrorMediaToastId] = useState<string | undefined>(undefined);
 
   const bagFileCount = bagFiles.value?.length ?? 0;
 
@@ -88,8 +86,6 @@ export function AppStateBar(): React.JSX.Element {
     bagFiles.value?.filter((bagFile: BagFileInfo) => {
       return bagFile.mediaStatues === "ERROR";
     }).length ?? 0;
-
-  const isGeneratingMedia = generatingMediaCount > 0;
 
   const isGeneratingMediaSuccess =
     bagFileCount > 0 &&
@@ -144,12 +140,18 @@ export function AppStateBar(): React.JSX.Element {
   };
 
   useEffect(() => {
-    if (isToastMounted && isGeneratingMedia) {
-      if (generatingMediaToastId) {
-        toast.remove(generatingMediaToastId);
-        setGeneratingMediaToastId(undefined);
-      }
+    if (generatingMediaToastId) {
+      toast.remove(generatingMediaToastId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatedMediaCount]);
 
+  useEffect(() => {
+    if (
+      isToastMounted &&
+      generatingMediaCount > 0 &&
+      generatedMediaCount + normalBagFileCount < bagFileCount
+    ) {
       const toastId = toast.custom(
         (toastMessage) => (
           <Stack
@@ -178,16 +180,21 @@ export function AppStateBar(): React.JSX.Element {
           duration: Infinity,
         },
       );
-
       setGeneratingMediaToastId(toastId);
     }
+  }, [
+    generatingMediaCount,
+    normalBagFileCount,
+    bagFileCount,
+    classes.mediaGenerationStatusBar,
+    t,
+    generatedMediaCount,
+    isToastMounted,
+  ]);
 
-    if (isToastMounted && isGeneratingMediaSuccess && successMediaToastId == undefined) {
-      if (generatingMediaToastId) {
-        toast.remove(generatingMediaToastId);
-        setGeneratingMediaToastId(undefined);
-      }
-      const toastId = toast.custom(
+  useEffect(() => {
+    if (isToastMounted && isGeneratingMediaSuccess) {
+      toast.custom(
         (toastMessage) => (
           <Stack
             direction="row"
@@ -229,17 +236,19 @@ export function AppStateBar(): React.JSX.Element {
           duration: Infinity,
         },
       );
-
-      setSuccessMediaToastId(toastId);
     }
+  }, [
+    bagFileCount,
+    classes.mediaGeneratSuccessStatusBar,
+    isGeneratingMediaSuccess,
+    t,
+    theme.palette.success.contrastText,
+    isToastMounted,
+  ]);
 
-    if (isToastMounted && isGeneratingMediaError && errorMediaToastId == undefined) {
-      if (generatingMediaToastId) {
-        toast.remove(generatingMediaToastId);
-        setGeneratingMediaToastId(undefined);
-      }
-
-      const toastId = toast.custom(
+  useEffect(() => {
+    if (isToastMounted && isGeneratingMediaError) {
+      toast.custom(
         (toastMessage) => (
           <Stack
             direction="row"
@@ -266,28 +275,8 @@ export function AppStateBar(): React.JSX.Element {
           duration: Infinity,
         },
       );
-
-      setErrorMediaToastId(toastId);
     }
-  }, [
-    isToastMounted,
-    isGeneratingMediaError,
-    errorMediaToastId,
-    classes.loadingStatusBar,
-    t,
-    theme.palette.appBar.primary,
-    isGeneratingMedia,
-    generatingMediaToastId,
-    isGeneratingMediaSuccess,
-    successMediaToastId,
-    classes.mediaGenerationStatusBar,
-    classes.mediaGeneratSuccessStatusBar,
-    generatedMediaCount,
-    normalBagFileCount,
-    bagFileCount,
-    theme.palette.success.contrastText,
-    classes.mediaGenerationErrorStatusBar,
-  ]);
+  }, [classes.mediaGenerationErrorStatusBar, isGeneratingMediaError, t, isToastMounted]);
 
   useEffect(() => {
     if (showLoadingStatus && loading && fileLoadingToastId == undefined) {
