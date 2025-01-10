@@ -38,7 +38,7 @@ import PinyinMatch from "pinyin-match";
 import { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { useAsyncFn, useAsync } from "react-use";
+import { useAsyncFn, useAsync, useDeepCompareEffect } from "react-use";
 import { keyframes } from "tss-react";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
@@ -276,7 +276,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     });
   }, [currentFile?.startTime, markEndTime, setEvent, timeMode, markStartTime, isEditing]);
 
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if ((passingFile == undefined || passingFile.length === 0) && !isEditing) {
       onClose();
       toast.error(t("creationUnavailableInCurrentPeriod"));
