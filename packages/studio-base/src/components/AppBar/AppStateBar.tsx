@@ -144,7 +144,12 @@ export function AppStateBar(): React.JSX.Element {
   };
 
   useEffect(() => {
-    if (isToastMounted && isGeneratingMedia && generatingMediaToastId == undefined) {
+    if (isToastMounted && isGeneratingMedia) {
+      if (generatingMediaToastId) {
+        toast.remove(generatingMediaToastId);
+        setGeneratingMediaToastId(undefined);
+      }
+
       const toastId = toast.custom(
         (toastMessage) => (
           <Stack
