@@ -121,13 +121,13 @@ export function AppStateBar(): React.JSX.Element {
     if (presence !== PlayerPresence.INITIALIZING && presence !== PlayerPresence.BUFFERING) {
       if (initializingTime > 0) {
         void analytics.logEvent(AppEvent.PLAYER_INITIALIZING_TIME, {
-          initializingTime: Date.now() - initializingTime,
+          initializing_time: Date.now() - initializingTime,
         });
         setInitializingTime(0);
       }
       if (bufferingTime > 0) {
         void analytics.logEvent(AppEvent.PLAYER_BUFFERING_TIME, {
-          bufferingTime: Date.now() - bufferingTime,
+          buffering_time: Date.now() - bufferingTime,
         });
         setBufferingTime(0);
       }
