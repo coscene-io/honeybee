@@ -5,23 +5,33 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// import posthog from "posthog-js";
-// import { PostHogProvider } from "posthog-js/react";
+import posthog from "posthog-js";
+import { PostHogProvider } from "posthog-js/react";
 
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
 import {
   ISharedRootContext,
   SharedRootContext,
 } from "@foxglove/studio-base/context/SharedRootContext";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { ColorSchemeThemeProvider } from "./components/ColorSchemeThemeProvider";
 import CssBaseline from "./components/CssBaseline";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AppConfigurationContext from "./context/AppConfigurationContext";
 
-// const posthogClient = posthog.init("test", {
-//   api_host: "https://test.com",
-// });
+if (APP_CONFIG.REACT_APP_PUBLIC_POSTHOG_KEY && APP_CONFIG.REACT_APP_PUBLIC_POSTHOG_HOST) {
+  posthog.init(APP_CONFIG.REACT_APP_PUBLIC_POSTHOG_KEY, {
+    api_host: APP_CONFIG.REACT_APP_PUBLIC_POSTHOG_HOST,
+    person_profiles: "always",
+  });
+}
+
+posthog.register_once({
+  platform: isDesktopApp() ? "coStudio" : "honeybee",
+  environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
+});
 
 export function SharedRoot(
   props: ISharedRootContext & { children: React.JSX.Element },
@@ -43,31 +53,31 @@ export function SharedRoot(
 
   return (
     <AppConfigurationContext.Provider value={appConfiguration}>
-      {/* <PostHogProvider client={posthogClient}> */}
-      <ColorSchemeThemeProvider>
-        {enableGlobalCss && <GlobalCss />}
-        <CssBaseline>
-          <ErrorBoundary>
-            <SharedRootContext.Provider
-              value={{
-                appBarLeftInset,
-                AppBarComponent,
-                appConfiguration,
-                customWindowControlProps,
-                dataSources,
-                deepLinks,
-                enableLaunchPreferenceScreen,
-                extensionLoaders,
-                extraProviders,
-                onAppBarDoubleClick,
-              }}
-            >
-              {children}
-            </SharedRootContext.Provider>
-          </ErrorBoundary>
-        </CssBaseline>
-      </ColorSchemeThemeProvider>
-      {/* </PostHogProvider> */}
+      <PostHogProvider client={posthog}>
+        <ColorSchemeThemeProvider>
+          {enableGlobalCss && <GlobalCss />}
+          <CssBaseline>
+            <ErrorBoundary>
+              <SharedRootContext.Provider
+                value={{
+                  appBarLeftInset,
+                  AppBarComponent,
+                  appConfiguration,
+                  customWindowControlProps,
+                  dataSources,
+                  deepLinks,
+                  enableLaunchPreferenceScreen,
+                  extensionLoaders,
+                  extraProviders,
+                  onAppBarDoubleClick,
+                }}
+              >
+                {children}
+              </SharedRootContext.Provider>
+            </ErrorBoundary>
+          </CssBaseline>
+        </ColorSchemeThemeProvider>
+      </PostHogProvider>
     </AppConfigurationContext.Provider>
   );
 }

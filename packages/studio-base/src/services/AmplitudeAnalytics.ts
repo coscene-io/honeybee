@@ -1,10 +1,15 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { posthog } from "posthog-js";
+
 import Logger from "@foxglove/log";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
-import { User } from "@foxglove/studio-base/context/CurrentUserContext";
+import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import CoSceneConsoleApi, { MetricType } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
@@ -12,7 +17,6 @@ const log = Logger.getLogger("Analytics");
 
 export class AmplitudeAnalytics implements IAnalytics {
   #consoleApi: CoSceneConsoleApi | undefined;
-  #user: User | undefined;
 
   // need console api
   public constructor({ consoleApi }: { consoleApi: CoSceneConsoleApi }) {
@@ -29,6 +33,24 @@ export class AmplitudeAnalytics implements IAnalytics {
         appVersion ? ` v${appVersion}` : ""
       }, GL Vendor: ${glVendor}, GL Renderer: ${glRenderer}`,
     );
+    posthog.register({
+      os: platform,
+      gl_vendor: glVendor,
+      gl_renderer: glRenderer,
+    });
+  }
+
+  public async initPlayer(sourceId: string): Promise<void> {
+    posthog.register({
+      source_id: sourceId,
+    });
+    posthog.capture(AppEvent.PLAYER_INIT, { source_id: sourceId });
+  }
+
+  public setSpeed(speed: number): void {
+    posthog.register({
+      speed,
+    });
   }
 
   public async logEvent(event: AppEvent, data?: { [key: string]: unknown }): Promise<void> {
@@ -37,6 +59,16 @@ export class AmplitudeAnalytics implements IAnalytics {
         await this.#consoleApi?.sendIncCounter({
           name: MetricType.RecordPlaysEveryFiveSecondsTotal,
         });
+        posthog.capture(event, data);
+        break;
+      case AppEvent.FILE_UPLOAD:
+        posthog.capture(event, data);
+        break;
+      case AppEvent.PLAYER_INITIALIZING_TIME:
+        posthog.capture(event, data);
+        break;
+      case AppEvent.PLAYER_BUFFERING_TIME:
+        posthog.capture(event, data);
         break;
       default:
         log.info(`[EVENT] ${event}`, data);
@@ -46,8 +78,13 @@ export class AmplitudeAnalytics implements IAnalytics {
 
   public setUser(user: User): void {
     // log this user
-    log.info(`[USER] ${user.id}`, user);
-    this.#user = user;
+    posthog.identify(user.userId, {
+      nick_name: user.nickName,
+      email: user.email,
+      phone: user.phoneNumber,
+      org_id: user.orgId,
+      org_display_name: user.orgDisplayName,
+    });
   }
 }
 

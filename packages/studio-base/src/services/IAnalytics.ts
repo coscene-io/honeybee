@@ -6,81 +6,90 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 enum AppEvent {
-  APP_INIT = "Studio: App Initialized",
+  APP_INIT = "app_initialized",
 
   // Dialog events
-  DIALOG_SELECT_VIEW = "Studio: Dialog View Selected",
-  DIALOG_CLOSE = "Studio: Dialog Closed",
-  DIALOG_CLICK_CTA = "Studio: Dialog CTA Clicked",
+  DIALOG_SELECT_VIEW = "dialog_view_selected",
+  DIALOG_CLOSE = "dialog_closed",
+  DIALOG_CLICK_CTA = "dialog_cta_clicked",
 
   // App Bar events
-  APP_BAR_CLICK_CTA = "Studio: App Bar CTA CLicked",
+  APP_BAR_CLICK_CTA = "app_bar_cta_clicked",
 
   // Tour events
-  TOUR_PROMPT_SHOWN = "Studio: New UI Tour prompt shown",
-  TOUR_STARTED = "Studio: New UI Tour started",
-  TOUR_BACK = "Studio: New UI Tour step back",
-  TOUR_NEXT = "Studio: New UI Tour step next",
-  TOUR_COMPLETED = "Studio: New UI Tour completed",
-  TOUR_DISMISSED = "Studio: New UI Tour dismissed",
+  TOUR_PROMPT_SHOWN = "new_ui_tour_prompt_shown",
+  TOUR_STARTED = "new_ui_tour_started",
+  TOUR_BACK = "new_ui_tour_step_back",
+  TOUR_NEXT = "new_ui_tour_step_next",
+  TOUR_COMPLETED = "new_ui_tour_completed",
+  TOUR_DISMISSED = "new_ui_tour_dismissed",
 
   // App Menu events
-  APP_MENU_CLICK = "Studio: App Menu Clicked",
+  APP_MENU_CLICK = "app_menu_clicked",
 
   // Help Menu events
-  HELP_MENU_CLICK_CTA = "Studio: Help Menu CTA Clicked",
+  HELP_MENU_CLICK_CTA = "help_menu_cta_clicked",
 
   // Player events
-  PLAYER_CONSTRUCTED = "Studio: Player Constructed",
-  PLAYER_PLAY = "Studio: Player Played",
-  PLAYER_SEEK = "Studio: Player Seeked",
-  PLAYER_SET_SPEED = "Studio: Player Speed Set",
-  PLAYER_PAUSE = "Studio: Player Paused",
-  PLAYER_CLOSE = "Studio: Player Closed",
+  PLAYER_CONSTRUCTED = "player_constructed",
+  PLAYER_PLAY = "player_played",
+  PLAYER_SEEK = "player_seeked",
+  PLAYER_SET_SPEED = "player_speed_set",
+  PLAYER_PAUSE = "player_paused",
+  PLAYER_CLOSE = "player_closed",
 
   // Layout events
-  LAYOUT_UPDATE = "Studio: Layout Updated",
-  LAYOUT_CREATE = "Studio: Layout Created",
-  LAYOUT_DUPLICATE = "Studio: Layout Duplicated",
-  LAYOUT_RENAME = "Studio: Layout Renamed",
-  LAYOUT_DELETE = "Studio: Layout Deleted",
-  LAYOUT_SELECT = "Studio: Layout Selected",
-  LAYOUT_IMPORT = "Studio: Layout Imported",
-  LAYOUT_EXPORT = "Studio: Layout Exported",
-  LAYOUT_SHARE = "Studio: Layout Shared",
-  LAYOUT_OVERWRITE = "Studio: Layout Overwritten",
-  LAYOUT_REVERT = "Studio: Layout Reverted",
-  LAYOUT_MAKE_PERSONAL_COPY = "Studio: Layout Personal Copy Made",
+  LAYOUT_UPDATE = "layout_updated",
+  LAYOUT_CREATE = "layout_created",
+  LAYOUT_DUPLICATE = "layout_duplicated",
+  LAYOUT_RENAME = "layout_renamed",
+  LAYOUT_DELETE = "layout_deleted",
+  LAYOUT_SELECT = "layout_selected",
+  LAYOUT_IMPORT = "layout_imported",
+  LAYOUT_EXPORT = "layout_exported",
+  LAYOUT_SHARE = "layout_shared",
+  LAYOUT_OVERWRITE = "layout_overwritten",
+  LAYOUT_REVERT = "layout_reverted",
+  LAYOUT_MAKE_PERSONAL_COPY = "layout_personal_copy_made",
 
   // Panel events
-  PANEL_ADD = "Studio: Panel Added",
-  PANEL_DELETE = "Studio: Panel Deleted",
+  PANEL_ADD = "panel_added",
+  PANEL_DELETE = "panel_deleted",
 
   // Variable events
-  VARIABLE_ADD = "Studio: Variable Added",
-  VARIABLE_DELETE = "Studio: Variable Deleted",
+  VARIABLE_ADD = "variable_added",
+  VARIABLE_DELETE = "variable_deleted",
 
   // Image events
-  IMAGE_DOWNLOAD = "Studio: Image Downloaded",
+  IMAGE_DOWNLOAD = "image_downloaded",
 
   // Extension events
-  EXTENSION_INSTALL = "Studio: Extension Installed",
-  EXTENSION_UNINSTALL = "Studio: Extension Uninstalled",
+  EXTENSION_INSTALL = "extension_installed",
+  EXTENSION_UNINSTALL = "extension_uninstalled",
 
   // Experimental features
-  EXPERIMENTAL_FEATURE_TOGGLE = "Studio: Experimental Feature Toggled",
+  EXPERIMENTAL_FEATURE_TOGGLE = "experimental_feature_toggled",
 
   // User engagement
-  USER_OBSERVATION = "Studio: User Makes Observation",
-  USER_ACTIVATION = "Studio: User Activated",
+  USER_OBSERVATION = "user_makes_observation",
+  USER_ACTIVATION = "user_activated",
 
   // Player events
-  PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL = "Studio: Player Records Plays Every Five Seconds Total",
-  PLAYER_INIT = "Studio: Player Initialized",
+  PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL = "player_records_plays_every_five_seconds_total",
+  PLAYER_INIT = "player_initialized",
+
+  // File events
+  FILE_UPLOAD = "file_uploaded",
+
+  // Player state events
+  PLAYER_INITIALIZING_TIME = "player_initializing_time",
+  PLAYER_BUFFERING_TIME = "player_buffering_time",
 }
 
 interface IAnalytics {
   logEvent(event: AppEvent, data?: { [key: string]: unknown }): void | Promise<void>;
+  setSpeed(speed: number): void;
+  initPlayer(sourceId: string): void;
 }
 
 export { AppEvent };

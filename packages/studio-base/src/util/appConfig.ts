@@ -40,6 +40,8 @@ declare global {
       VITE_APP_BFF_URL?: string;
       DEFAULT_TOPIC_PREFIX_OPEN?: { [domain: string]: string };
       DOMAIN_CONFIG?: { [domain: string]: DomainConfig };
+      REACT_APP_PUBLIC_POSTHOG_KEY?: string;
+      REACT_APP_PUBLIC_POSTHOG_HOST?: string;
     };
   }
 }
@@ -75,6 +77,8 @@ export const APP_CONFIG = {
   SENTRY_ENABLED: cosConfig.SENTRY_ENABLED ?? false,
   DEFAULT_TOPIC_PREFIX_OPEN: cosConfig.DEFAULT_TOPIC_PREFIX_OPEN ?? {},
   DOMAIN_CONFIG: cosConfig.DOMAIN_CONFIG ?? DEFAULT_DOMAN_CONFIG,
+  REACT_APP_PUBLIC_POSTHOG_KEY: cosConfig.REACT_APP_PUBLIC_POSTHOG_KEY ?? "",
+  REACT_APP_PUBLIC_POSTHOG_HOST: cosConfig.REACT_APP_PUBLIC_POSTHOG_HOST ?? "",
 };
 
 export function getDomainConfig(): DomainConfig {

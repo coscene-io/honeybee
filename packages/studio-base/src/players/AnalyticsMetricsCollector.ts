@@ -59,10 +59,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     console.debug(`coScene setProperty: ${key}=${value}`);
     if (key === "player") {
       this.#sourceId = value as string;
-      void this.#syncEventToAnalytics({
-        event: AppEvent.PLAYER_INIT,
-        data: { sourceId: this.#sourceId },
-      });
+      this.#analytics.initPlayer(this.#sourceId);
     }
   }
 
@@ -70,6 +67,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     console.debug(`coScene seek: ${time.sec}.${time.nsec}`);
   }
   public setSpeed(speed: number): void {
+    this.#analytics.setSpeed(speed);
     console.debug(`coScene setSpeed: ${speed}`);
   }
   public close(): void {

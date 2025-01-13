@@ -13,9 +13,11 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { ChoiceRecordDialog } from "@foxglove/studio-base/components/AppBar/UploadFile/ChoiceRecord";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { generateFileName, uploadWithProgress } from "@foxglove/studio-base/util/coscene/upload";
 
 import { UploadingFileList } from "./UploadingFileList";
@@ -109,6 +111,8 @@ export function UploadFile(): React.JSX.Element {
 
   const currentFileStatus = uploadingFiles[currentFile?.name ?? ""];
 
+  const analytics = useAnalytics();
+
   const { t } = useTranslation("appBar");
 
   const { classes } = useStyles();
@@ -187,6 +191,10 @@ export function UploadFile(): React.JSX.Element {
         }}
         onConfirm={(record) => {
           if (currentFile != undefined) {
+            void analytics.logEvent(AppEvent.FILE_UPLOAD, {
+              recordName: record,
+              fileName: currentFile.name,
+            });
             void handleUploadFile(currentFile, record);
           }
         }}

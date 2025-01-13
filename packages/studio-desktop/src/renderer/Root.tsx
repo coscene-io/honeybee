@@ -71,6 +71,7 @@ export default function Root(props: {
   const consoleApi = useMemo(
     () =>
       new ConsoleApi(APP_CONFIG.CS_HONEYBEE_BASE_URL, APP_CONFIG.VITE_APP_BFF_URL, authToken ?? ""),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 

@@ -370,7 +370,7 @@ export default class Ros1Player implements Player {
       clearTimeout(this.#emitTimer);
       this.#emitTimer = undefined;
     }
-    // this.#metricsCollector.close();
+    this.#metricsCollector.close();
     this.#hasReceivedMessage = false;
   }
 
@@ -449,7 +449,7 @@ export default class Ros1Player implements Player {
 
     if (external && !this.#hasReceivedMessage) {
       this.#hasReceivedMessage = true;
-      // this.#metricsCollector.recordTimeToFirstMsgs();
+      this.#metricsCollector.recordTimeToFirstMsgs();
     }
 
     const msg: MessageEvent = {
