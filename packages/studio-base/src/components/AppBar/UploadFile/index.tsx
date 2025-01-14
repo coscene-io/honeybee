@@ -192,8 +192,8 @@ export function UploadFile(): React.JSX.Element {
         onConfirm={(record) => {
           if (currentFile != undefined) {
             void analytics.logEvent(AppEvent.FILE_UPLOAD, {
-              recordName: record,
-              fileName: currentFile.name,
+              record_name: record,
+              file_name: currentFile.name,
             });
             void handleUploadFile(currentFile, record);
           }
