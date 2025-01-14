@@ -30,7 +30,8 @@ export class AmplitudeAnalytics implements IAnalytics {
     };
 
     log.info(
-      `[APP_INIT] ${platform}${appVersion ? ` v${appVersion}` : ""
+      `[APP_INIT] ${platform}${
+        appVersion ? ` v${appVersion}` : ""
       }, GL Vendor: ${glVendor}, GL Renderer: ${glRenderer}`,
     );
     posthog.register({
@@ -117,9 +118,9 @@ function getWebGLInfo(): { glVendor: string; glRenderer: string } | undefined {
   const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
   const res = debugInfo
     ? {
-      glVendor: gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL),
-      glRenderer: gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL),
-    }
+        glVendor: gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL),
+        glRenderer: gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL),
+      }
     : undefined;
 
   canvas.remove();

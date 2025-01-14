@@ -144,7 +144,8 @@ export function PlaylistSyncAdapter(): ReactNull {
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
 
-  const [timeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {

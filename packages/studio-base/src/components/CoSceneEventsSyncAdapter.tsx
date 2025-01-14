@@ -190,7 +190,8 @@ export function CoSceneEventsSyncAdapter(): React.JSX.Element {
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
 
-  const [timeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
   useEffect(() => {
     if (loopedEvent != undefined && currentTime != undefined && seek != undefined) {
@@ -284,7 +285,7 @@ export function CoSceneEventsSyncAdapter(): React.JSX.Element {
             value: await positionEvents(
               eventList,
               bagFiles.value,
-              timeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
+              timeMode,
               startTime,
               endTime,
               consoleApi,
