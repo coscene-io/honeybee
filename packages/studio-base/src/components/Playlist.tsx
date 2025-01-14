@@ -232,6 +232,7 @@ export function Playlist(): React.JSX.Element {
       if ("jobRunsName" in bag) {
         newFiles.push({
           jobRunsName: bag.jobRunsName,
+          recordName: bag.recordName,
         });
       }
       if ("recordName" in bag) {
