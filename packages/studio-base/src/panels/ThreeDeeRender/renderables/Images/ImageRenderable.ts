@@ -11,7 +11,7 @@ import { assert } from "ts-essentials";
 
 import { PinholeCameraModel } from "@foxglove/den/image";
 import Logger from "@foxglove/log";
-import { isLessThan, toNanoSec } from "@foxglove/rostime";
+import { toNanoSec } from "@foxglove/rostime";
 import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import { BaseUserData, Renderable } from "@foxglove/studio-base/panels/ThreeDeeRender/Renderable";
 import { stringToRgba } from "@foxglove/studio-base/panels/ThreeDeeRender/color";
@@ -235,7 +235,6 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.userData.settings = newSettings;
   }
 
-  #lastReceivedImageTime = { sec: 0, nsec: 0 };
   #lastRenderImage = Date.now();
   public setImage(image: AnyImage, resizeWidth?: number, onDecoded?: () => void): void {
     this.userData.image = image;
@@ -278,14 +277,6 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         this.#lastRenderImage = Date.now();
         if (this.#decodedFrame?.getType() === "video") {
           this.#decodedFrame.close();
-        }
-
-        // log disordered frames
-        if (timestamp && isLessThan(timestamp, this.#lastReceivedImageTime)) {
-          log.info("received image disordered", timestamp, this.#lastReceivedImageTime);
-        }
-        if (timestamp) {
-          this.#lastReceivedImageTime = timestamp;
         }
 
         this.#displayedImageSequenceNumber = seq;

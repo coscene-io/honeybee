@@ -144,7 +144,7 @@ function getH264Decoder(): VideoDecoder {
     });
 
     h264Decoder.configure({
-      codec: "avc1.42001E",
+      codec: "avc1.640028",
       optimizeForLatency: true,
     });
   }
@@ -157,8 +157,9 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void 
   // prevent disordered frames
   if (isLessThan(receiveTime, lastDecodeTime)) {
     log.info("received image disordered", receiveTime, lastDecodeTime);
-    // cannot return, because seeking does not reset the decoder here.
-    // return;
+    h264Decoder?.close();
+    h264Decoder = undefined;
+    foundKeyFrame = false;
   }
 
   lastDecodeTime = receiveTime;
@@ -169,10 +170,10 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void 
   }
 
   if (type === "b frame") {
-    log.error("b frame is not supported");
+    type = "delta";
   }
 
-  if (type === "unknow frame" || type === "b frame") {
+  if (type === "unknow frame") {
     return;
   }
 
@@ -194,7 +195,7 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void 
   try {
     decoder.decode(chunk);
   } catch (error) {
-    log.error(error);
+    log.error("Decode error:", error);
   }
 }
 
