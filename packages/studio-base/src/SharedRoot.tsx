@@ -21,9 +21,9 @@ import CssBaseline from "./components/CssBaseline";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AppConfigurationContext from "./context/AppConfigurationContext";
 
-if (APP_CONFIG.REACT_APP_PUBLIC_POSTHOG_KEY && APP_CONFIG.REACT_APP_PUBLIC_POSTHOG_HOST) {
-  posthog.init(APP_CONFIG.REACT_APP_PUBLIC_POSTHOG_KEY, {
-    api_host: APP_CONFIG.REACT_APP_PUBLIC_POSTHOG_HOST,
+if (APP_CONFIG.POSTHOG.token && APP_CONFIG.POSTHOG.api_host) {
+  posthog.init(APP_CONFIG.POSTHOG.token, {
+    api_host: APP_CONFIG.POSTHOG.api_host,
     person_profiles: "always",
   });
 }

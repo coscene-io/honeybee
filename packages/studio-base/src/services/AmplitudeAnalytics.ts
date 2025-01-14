@@ -12,6 +12,7 @@ import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import CoSceneConsoleApi, { MetricType } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger("Analytics");
 
@@ -82,8 +83,12 @@ export class AmplitudeAnalytics implements IAnalytics {
       nick_name: user.nickName,
       email: user.email,
       phone: user.phoneNumber,
-      org_id: user.orgId,
       org_display_name: user.orgDisplayName,
+      environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
+    });
+
+    posthog.register({
+      org_id: user.orgId,
     });
   }
 }
