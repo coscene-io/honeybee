@@ -526,6 +526,12 @@ function createCanvasTexture(bitmap: ImageBitmap | VideoFrame): THREE.CanvasText
   );
   texture.generateMipmaps = false;
   texture.colorSpace = THREE.SRGBColorSpace;
+
+  // 如果是 VideoFrame，翻转 Y 轴
+  if (bitmap instanceof VideoFrame) {
+    texture.flipY = false; // 防止 Three.js 默认的翻转
+  }
+
   return texture;
 }
 
