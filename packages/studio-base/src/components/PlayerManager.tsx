@@ -221,7 +221,10 @@ export default function PlayerManager(
   );
 
   const addTopicPrefix = useTopicPrefixConfigurationValue();
-  const [timeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
+
   const [playbackQualityLevel] = useAppConfigurationValue<string>(
     AppSetting.PLAYBACK_QUALITY_LEVEL,
   );
