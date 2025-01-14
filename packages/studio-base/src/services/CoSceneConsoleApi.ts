@@ -29,6 +29,8 @@ import {
 import { UserService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_connect";
 import {
   GetUserRequest,
+  BatchGetUsersRequest,
+  BatchGetUsersResponse,
   ListOrganizationUsersRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
@@ -693,7 +695,7 @@ class CoSceneConsoleApi {
     signal: AbortSignal;
     projectName: string;
   }): Promise<Response> {
-    return await fetch("/v1/data/getStreams", {
+    const { fullUrl, fullConfig } = this.getRequectConfig("/v1/data/getStreams", {
       method: "POST",
       signal,
       cache: "no-cache",
@@ -704,7 +706,6 @@ class CoSceneConsoleApi {
         "Topic-Prefix": this.#addTopicPrefix,
         "Playback-Quality-Level": this.#playbackQualityLevel,
         "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
-        Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
         ProjectName: projectName,
       },
       body: JSON.stringify({
@@ -714,6 +715,8 @@ class CoSceneConsoleApi {
         id,
       }),
     });
+
+    return await fetch(fullUrl, fullConfig);
   }
 
   public async getPlaylist(key: string): Promise<getPlaylistResponse> {
@@ -797,6 +800,13 @@ class CoSceneConsoleApi {
     });
     const result = await getPromiseClient(UserService).getUser(request);
     return result;
+  }
+
+  public async batchGetUsers(userNames: string[]): Promise<BatchGetUsersResponse> {
+    const request = new BatchGetUsersRequest({
+      names: userNames,
+    });
+    return await getPromiseClient(UserService).batchGetUsers(request);
   }
 
   public async getOrg(orgName: string): Promise<Organization> {
