@@ -34,7 +34,8 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
   const open = Boolean(anchorEl);
   const { classes, cx } = useStyles();
 
-  const [timeMode, setTimeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const [timeModeSetting, setTimeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
   const timeModeText = timeMode === RELATATIVE_TIME ? t(RELATATIVE_TIME) : t(ABSOLUTE_TIME);
 

@@ -143,7 +143,8 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
 export function CoSceneCreateEventContainer(props: { onClose: () => void }): React.JSX.Element {
   const { onClose } = props;
 
-  const [timeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
   const refreshEvents = useEvents(selectRefreshEvents);
   const toModifyEvent = useEvents(selectToModifyEvent);
