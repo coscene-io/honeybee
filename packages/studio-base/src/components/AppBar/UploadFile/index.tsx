@@ -39,6 +39,7 @@ function useHandleUploadFile() {
   const { t } = useTranslation("appBar");
 
   const consoleApi = useConsoleApi();
+  const analytics = useAnalytics();
 
   return useCallback(
     async (file: File, recordName: string) => {
@@ -65,6 +66,7 @@ function useHandleUploadFile() {
       const abortController = new AbortController();
 
       try {
+        const startTime = Date.now();
         // upload file to target url and update uploading files
         await uploadWithProgress(url, file, "PUT", abortController, (progress) => {
           setUpdateUploadingFiles(file.name, {
@@ -85,6 +87,13 @@ function useHandleUploadFile() {
           progress: 100,
           abortController,
         });
+
+        void analytics.logEvent(AppEvent.FILE_UPLOAD, {
+          record_name: recordName,
+          file_name: file.name,
+          upload_time: Date.now() - startTime,
+          file_size: file.size,
+        });
       } catch {
         toast.error(t("uploadFileFailed"));
         setUpdateUploadingFiles(file.name, {
@@ -97,7 +106,7 @@ function useHandleUploadFile() {
         });
       }
     },
-    [consoleApi, setUpdateUploadingFiles, t],
+    [analytics, consoleApi, setUpdateUploadingFiles, t],
   );
 }
 
@@ -110,8 +119,6 @@ export function UploadFile(): React.JSX.Element {
   const loginStatus = useCurrentUser(selectLoginStatus);
 
   const currentFileStatus = uploadingFiles[currentFile?.name ?? ""];
-
-  const analytics = useAnalytics();
 
   const { t } = useTranslation("appBar");
 
@@ -191,10 +198,6 @@ export function UploadFile(): React.JSX.Element {
         }}
         onConfirm={(record) => {
           if (currentFile != undefined) {
-            void analytics.logEvent(AppEvent.FILE_UPLOAD, {
-              record_name: record,
-              file_name: currentFile.name,
-            });
             void handleUploadFile(currentFile, record);
           }
         }}
