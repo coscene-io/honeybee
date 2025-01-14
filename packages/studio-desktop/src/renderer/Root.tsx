@@ -29,6 +29,7 @@ import {
   VelodyneDataSourceFactory,
   ConsoleApi,
   CoSceneDataPlatformDataSourceFactory,
+  SharedProviders,
 } from "@foxglove/studio-base";
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
@@ -70,7 +71,8 @@ export default function Root(props: {
   const consoleApi = useMemo(
     () =>
       new ConsoleApi(APP_CONFIG.CS_HONEYBEE_BASE_URL, APP_CONFIG.VITE_APP_BFF_URL, authToken ?? ""),
-    [authToken],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
 
   useEffect(() => {
@@ -198,8 +200,10 @@ export default function Root(props: {
     };
   }, []);
 
+  const initProviders = SharedProviders({ consoleApi, loginStatusKey });
+
   const extraProviders = useMemo(() => {
-    const providers: React.JSX.Element[] = [];
+    const providers: React.JSX.Element[] = initProviders;
 
     providers.push(<NativeAppMenuContext.Provider value={nativeAppMenu} />);
 
@@ -209,7 +213,7 @@ export default function Root(props: {
       providers.push(...props.extraProviders);
     }
     return providers;
-  }, [nativeAppMenu, nativeWindow, props.extraProviders]);
+  }, [initProviders, nativeAppMenu, nativeWindow, props.extraProviders]);
 
   return (
     <>
@@ -234,7 +238,7 @@ export default function Root(props: {
         }}
         extensionLoaders={extensionLoaders}
       >
-        <StudioApp consoleApi={consoleApi} loginStatusKey={loginStatusKey} />
+        <StudioApp />
       </SharedRoot>
       {confirmModal}
       <Toaster />

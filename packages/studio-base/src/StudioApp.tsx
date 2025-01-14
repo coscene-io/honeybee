@@ -9,12 +9,7 @@ import { Fragment, Suspense, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
-import { AppSetting, ConsoleApi, SharedProviders } from "@foxglove/studio-base";
 import { useSharedRootContext } from "@foxglove/studio-base/context/SharedRootContext";
-import {
-  useAppConfigurationValue,
-  useTopicPrefixConfigurationValue,
-} from "@foxglove/studio-base/hooks";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
@@ -43,13 +38,7 @@ function contextMenuHandler(event: MouseEvent) {
   return false;
 }
 
-export function StudioApp({
-  consoleApi,
-  loginStatusKey,
-}: {
-  consoleApi: ConsoleApi;
-  loginStatusKey?: number;
-}): React.JSX.Element {
+export function StudioApp(): React.JSX.Element {
   const {
     dataSources,
     extensionLoaders,
@@ -62,19 +51,8 @@ export function StudioApp({
     AppBarComponent,
   } = useSharedRootContext();
 
-  const addTopicPrefix = useTopicPrefixConfigurationValue();
-  const [timeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
-
-  useEffect(() => {
-    consoleApi.setAddTopicPrefix(addTopicPrefix === "true" ? "true" : "false");
-    consoleApi.setTimeMode(timeMode === "relativeTime" ? "relativeTime" : "absoluteTime");
-  }, [addTopicPrefix, timeMode, consoleApi]);
-
-  const coSceneProviders = SharedProviders({ consoleApi, loginStatusKey });
-
   const providers = [
     /* eslint-disable react/jsx-key */
-    ...coSceneProviders,
     <TimelineInteractionStateProvider />,
     <CurrentLayoutProvider />,
     <UserScriptStateProvider />,

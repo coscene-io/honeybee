@@ -36,11 +36,9 @@ export type StreamParams = {
   end: Time;
   id: string;
   projectName?: string;
-  authHeader?: string;
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
   topics: string[];
-  playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW";
 };
 
 /**
@@ -48,9 +46,7 @@ export type StreamParams = {
  * subset of CoSceneConsoleApi to make it easier to mock/stub for tests.
  */
 interface StreamMessageApi {
-  getStreamUrl: CoSceneConsoleApi["getStreamUrl"];
-  getAddTopicPrefix: CoSceneConsoleApi["getAddTopicPrefix"];
-  getTimeMode: CoSceneConsoleApi["getTimeMode"];
+  getStreams: CoSceneConsoleApi["getStreams"];
 }
 
 export async function* streamMessages({
@@ -90,10 +86,6 @@ export async function* streamMessages({
 
   if (controller.signal.aborted) {
     return;
-  }
-
-  if (!params.authHeader) {
-    throw new Error("Missing auth header");
   }
 
   let totalMessages = 0;
@@ -203,27 +195,16 @@ export async function* streamMessages({
   try {
     // Since every request is signed with a new token, there's no benefit to caching.
     fetchStartTime = performance.now();
-    const response = await fetch(api.getStreamUrl(), {
-      method: "POST",
+
+    const response = await api.getStreams({
+      start: toMillis(params.start),
+      end: toMillis(params.end),
+      topics: params.topics,
+      id: params.id,
       signal: controller.signal,
-      cache: "no-cache",
-      headers: {
-        // Include the version of studio in the request Useful when scraping logs to determine what
-        // versions of the app are making requests.
-        "Content-Type": "application/json",
-        "Topic-Prefix": api.getAddTopicPrefix(),
-        "Playback-Quality-Level": params.playbackQualityLevel,
-        "Relative-Time": api.getTimeMode() === "relativeTime" ? "true" : "false",
-        Authorization: params.authHeader.replace(/(^\s*)|(\s*$)/g, ""),
-        ProjectName: params.projectName ?? "",
-      },
-      body: JSON.stringify({
-        start: toMillis(params.start),
-        end: toMillis(params.end),
-        topics: params.topics,
-        id: params.id,
-      }),
+      projectName: params.projectName ?? "",
     });
+
     fetchEndTime = performance.now();
 
     if (response.status === 401) {

@@ -67,8 +67,6 @@ export type MessageIteratorArgs = {
    * `partial` indicates that the caller plans to read the iterator but may not read all the messages
    */
   consumptionType?: "full" | "partial";
-
-  playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW";
 };
 
 /**
@@ -105,7 +103,6 @@ export type IteratorResult<MessageType = unknown> =
 export type GetBackfillMessagesArgs = {
   topics: TopicSelection;
   time: Time;
-  playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW";
 
   abortSignal?: AbortSignal;
 };

@@ -30,7 +30,9 @@ import { useMountedState } from "react-use";
 import { useWarnImmediateReRender } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { Immutable } from "@foxglove/studio";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -50,8 +52,12 @@ import { ExtensionCatalogContext } from "@foxglove/studio-base/context/Extension
 //   useUserScriptState,
 // } from "@foxglove/studio-base/context/UserScriptStateContext";
 // import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
+import {
+  useAppConfigurationValue,
+  useTopicPrefixConfigurationValue,
+} from "@foxglove/studio-base/hooks";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
-import CoSceneAnalyticsMetricsCollector from "@foxglove/studio-base/players/CoSceneAnalyticsMetricsCollector";
+import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import {
   TopicAliasFunctions,
   TopicAliasingPlayer,
@@ -82,6 +88,7 @@ export default function PlayerManager(
   // const perfRegistry = usePerformance();
   const [currentSourceArgs, setCurrentSourceArgs] = useState<DataSourceArgs | undefined>();
   const [currentSourceId, setCurrentSourceId] = useState<string | undefined>();
+  const analytics = useAnalytics();
 
   const { t } = useTranslation("general");
 
@@ -96,8 +103,11 @@ export default function PlayerManager(
   const consoleApi = useConsoleApi();
 
   const metricsCollector = useMemo(
-    () => new CoSceneAnalyticsMetricsCollector(consoleApi),
-    [consoleApi],
+    () =>
+      new AnalyticsMetricsCollector({
+        analytics,
+      }),
+    [analytics],
   );
 
   const [playerInstances, setPlayerInstances] = useState<
@@ -210,6 +220,12 @@ export default function PlayerManager(
     [consoleApi, setBaseInfo],
   );
 
+  const addTopicPrefix = useTopicPrefixConfigurationValue();
+  const [timeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const [playbackQualityLevel] = useAppConfigurationValue<string>(
+    AppSetting.PLAYBACK_QUALITY_LEVEL,
+  );
+
   const selectSource = useCallback(
     async (sourceId: string, args?: DataSourceArgs) => {
       log.debug(`Select Source: ${sourceId}`);
@@ -224,7 +240,7 @@ export default function PlayerManager(
         return;
       }
 
-      // metricsCollector.setProperty("player", sourceId);
+      metricsCollector.setProperty("player", sourceId);
       setSelectedSource(foundSource);
 
       // Sample sources don't need args or prompts to initialize
@@ -260,7 +276,12 @@ export default function PlayerManager(
 
             const newPlayer = foundSource.initialize({
               metricsCollector,
-              params: args.params,
+              params: {
+                addTopicPrefix,
+                timeMode,
+                playbackQualityLevel,
+                ...args.params,
+              },
               consoleApi,
             });
             constructPlayers(newPlayer);
@@ -355,6 +376,9 @@ export default function PlayerManager(
       syncBaseInfo,
       addRecent,
       isMounted,
+      addTopicPrefix,
+      timeMode,
+      playbackQualityLevel,
     ],
   );
 

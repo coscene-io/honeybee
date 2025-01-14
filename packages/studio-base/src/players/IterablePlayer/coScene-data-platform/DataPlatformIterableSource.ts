@@ -39,10 +39,7 @@ const log = Logger.getLogger(__filename);
  * This scopes the required interface to a small subset of ConsoleApi to make it easier to mock/stub
  * for tests.
  */
-export type DataPlatformInterableSourceConsoleApi = Pick<
-  ConsoleApi,
-  "topics" | "getDevice" | "getAuthHeader" | "getStreamUrl" | "getAddTopicPrefix" | "getTimeMode"
->;
+export type DataPlatformInterableSourceConsoleApi = Pick<ConsoleApi, "topics" | "getStreams">;
 
 type DataPlatformSourceParameters = {
   projectName?: string;
@@ -52,6 +49,19 @@ type DataPlatformSourceParameters = {
 type DataPlatformIterableSourceOptions = {
   api: DataPlatformInterableSourceConsoleApi;
   params: DataPlatformSourceParameters;
+};
+
+const getPlaybackQualityTranslation = (quality?: string) => {
+  switch (quality) {
+    case "high":
+      return "HIGH";
+    case "low":
+      return "LOW";
+    case "mid":
+      return "MID";
+    default:
+      return "ORIGINAL";
+  }
 };
 
 export class DataPlatformIterableSource implements IIterableSource {
@@ -224,11 +234,9 @@ export class DataPlatformIterableSource implements IIterableSource {
       const streamByParams: StreamParams = {
         start: streamStart,
         end: streamEnd,
-        authHeader: this.#consoleApi.getAuthHeader(),
         id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
-        playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
       const stream = streamMessages({
@@ -253,11 +261,9 @@ export class DataPlatformIterableSource implements IIterableSource {
       const streamByParams: StreamParams = {
         start: localStart,
         end: localEnd,
-        authHeader: this.#consoleApi.getAuthHeader(),
         id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
-        playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
       const stream = streamMessages({
@@ -312,7 +318,6 @@ export class DataPlatformIterableSource implements IIterableSource {
     topics,
     time,
     abortSignal,
-    playbackQualityLevel,
   }: GetBackfillMessagesArgs): Promise<MessageEvent[]> {
     // Data platform treats topic array length 0 as "all topics". Until that is changed, we filter out
     // empty topic requests
@@ -323,10 +328,8 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamByParams: StreamParams = {
       start: time,
       end: time,
-      authHeader: this.#consoleApi.getAuthHeader(),
       id: this.#params.key,
       projectName: this.#params.projectName,
-      playbackQualityLevel,
       topics: Array.from(topics.keys()),
     };
 
@@ -362,6 +365,10 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   const warehouseSlug = params.warehouseSlug;
   const userId = params.userId;
   const key = params.key;
+
+  const addTopicPrefix = params.addTopicPrefix;
+  const timeMode = params.timeMode;
+  const playbackQualityLevel = params.playbackQualityLevel;
 
   if (!projectId) {
     throw new Error("projectId is required for data platform source");
@@ -410,8 +417,9 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     api.baseUrl,
     api.bffUrl,
     api.auth ?? "",
-    api.addTopicPrefix,
-    api.timeMode,
+    addTopicPrefix === "true" ? "true" : "false",
+    timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime",
+    getPlaybackQualityTranslation(playbackQualityLevel),
   );
 
   return new DataPlatformIterableSource({
