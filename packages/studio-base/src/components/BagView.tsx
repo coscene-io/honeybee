@@ -26,7 +26,6 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import {
   usePlaylist,
   CoScenePlaylistStore,
-  ParamsFile,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
@@ -201,7 +200,9 @@ function BagViewComponent(params: {
 
   const isLogFile = checkIsLogFile(bag);
 
-  const files: ParamsFile[] = JSON.parse(urlState?.parameters?.files ?? "{}");
+  const files = useMemo(() => {
+    return baseInfo.files ?? [];
+  }, [baseInfo.files]);
 
   /**
    *  - cannot delete shadow mode files
