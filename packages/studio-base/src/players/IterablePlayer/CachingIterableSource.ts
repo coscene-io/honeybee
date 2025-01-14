@@ -14,7 +14,6 @@ import { add, compare, subtract, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent, Time } from "@foxglove/studio";
 import { TopicSelection } from "@foxglove/studio-base/players/types";
 // CoScene
-import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 import { Range } from "@foxglove/studio-base/util/ranges";
 
 import {
@@ -249,15 +248,11 @@ class CachingIterableSource<MessageType = unknown>
         sourceReadEnd = maxEnd;
       }
 
-      const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
-        getPlaybackQualityLevelByLocalStorage();
-
       const sourceMessageIterator = this.#source.messageIterator({
         topics: this.#cachedTopics,
         start: sourceReadStart,
         end: sourceReadEnd,
         consumptionType: args.consumptionType,
-        playbackQualityLevel,
       });
 
       // The cache is indexed on time, but iterator results that are problems might not have a time.

@@ -10,22 +10,23 @@ import CheckIcon from "@mui/icons-material/Check";
 import { Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import i18n from "i18next";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { subtract } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 
 const ORIGINAL = "original";
 const HIGH = "high";
 const MEDIUM = "mid";
 const LOW = "low";
-const PLAYBACK_QUALITY_LEVEL = "playbackQualityLevel";
 
 const SPEED_OPTIONS = [ORIGINAL, HIGH, MEDIUM, LOW];
 const useStyles = makeStyles()((theme) => ({
@@ -43,7 +44,11 @@ const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activ
 
 function PlaybackQualityControls(): React.JSX.Element {
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
-  const [playbackQuality, setPlaybackQuality] = useState<string>(ORIGINAL);
+
+  const [playbackQuality, setPlaybackQuality] = useAppConfigurationValue<string>(
+    AppSetting.PLAYBACK_QUALITY_LEVEL,
+  );
+
   const { t } = useTranslation("cosSettings");
   const open = Boolean(anchorEl);
   const { classes, cx } = useStyles();
@@ -58,18 +63,7 @@ function PlaybackQualityControls(): React.JSX.Element {
     setAnchorEl(undefined);
   };
 
-  useEffect(() => {
-    const playbackQualityLevel = localStorage.getItem(PLAYBACK_QUALITY_LEVEL);
-    if (playbackQualityLevel) {
-      setPlaybackQuality(playbackQualityLevel.toLowerCase());
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(PLAYBACK_QUALITY_LEVEL, playbackQuality.toUpperCase());
-  }, [playbackQuality]);
-
-  const getPlaybackQualityTranslation = (quality: string) => {
+  const getPlaybackQualityTranslation = (quality?: string) => {
     switch (quality) {
       case HIGH:
         return t(HIGH);
@@ -123,8 +117,9 @@ function PlaybackQualityControls(): React.JSX.Element {
           <MenuItem
             selected={playbackQuality === option}
             key={option}
-            onClick={() => {
-              setPlaybackQuality(option);
+            onClick={async () => {
+              await setPlaybackQuality(option);
+
               toast.success(t("willTakeEffectOnTheNextStartup"));
               handleClose();
               if (seek && currentTime) {

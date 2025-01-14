@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Menu, MenuItem, PaperProps, PopoverPosition, PopoverReference } from "@mui/material";
+import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -66,6 +67,8 @@ export function UserMenu({
   const loginStatus = useCoSceneCurrentUser(selectLoginStatus);
   const setLoginStatus = useCoSceneCurrentUser(selectSetLoginStatus);
 
+  const posthog = usePostHog();
+
   const beginSignOut = useCallback(async () => {
     if (isDesktop) {
       localStorage.removeItem("coScene_org_jwt");
@@ -84,9 +87,10 @@ export function UserMenu({
     }).then((response) => {
       if (response === "ok") {
         void beginSignOut();
+        posthog.reset();
       }
     });
-  }, [beginSignOut, confirm, t]);
+  }, [beginSignOut, confirm, t, posthog]);
 
   const onSettingsClick = useCallback(
     (tab?: AppSettingsTab) => {

@@ -40,6 +40,10 @@ declare global {
       VITE_APP_BFF_URL?: string;
       DEFAULT_TOPIC_PREFIX_OPEN?: { [domain: string]: string };
       DOMAIN_CONFIG?: { [domain: string]: DomainConfig };
+      POSTHOG?: {
+        api_host: string;
+        token: string;
+      };
     };
   }
 }
@@ -75,6 +79,10 @@ export const APP_CONFIG = {
   SENTRY_ENABLED: cosConfig.SENTRY_ENABLED ?? false,
   DEFAULT_TOPIC_PREFIX_OPEN: cosConfig.DEFAULT_TOPIC_PREFIX_OPEN ?? {},
   DOMAIN_CONFIG: cosConfig.DOMAIN_CONFIG ?? DEFAULT_DOMAN_CONFIG,
+  POSTHOG: cosConfig.POSTHOG ?? {
+    api_host: "",
+    token: "",
+  },
 };
 
 export function getDomainConfig(): DomainConfig {

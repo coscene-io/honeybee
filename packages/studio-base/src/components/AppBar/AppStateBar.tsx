@@ -17,6 +17,7 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import {
   CoScenePlaylistStore,
   usePlaylist,
@@ -24,6 +25,7 @@ import {
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 const useStyles = makeStyles()((theme) => ({
   mediaGenerationStatusBar: {
@@ -64,6 +66,11 @@ export function AppStateBar(): React.JSX.Element {
   );
   const [fileLoadingToastId, setFileLoadingToastId] = useState<string | undefined>(undefined);
 
+  const [initializingTime, setInitializingTime] = useState(0);
+  const [bufferingTime, setBufferingTime] = useState(0);
+
+  const analytics = useAnalytics();
+
   const bagFileCount = bagFiles.value?.length ?? 0;
 
   // bag file doesn't need generate file media
@@ -98,6 +105,31 @@ export function AppStateBar(): React.JSX.Element {
     errorMediaCount > 0;
 
   const loading = presence === PlayerPresence.INITIALIZING || presence === PlayerPresence.BUFFERING;
+
+  useEffect(() => {
+    if (presence === PlayerPresence.INITIALIZING) {
+      setInitializingTime(Date.now());
+    }
+    if (presence === PlayerPresence.BUFFERING) {
+      setBufferingTime(Date.now());
+    }
+
+    if (presence !== PlayerPresence.INITIALIZING && presence !== PlayerPresence.BUFFERING) {
+      if (initializingTime > 0) {
+        void analytics.logEvent(AppEvent.PLAYER_INITIALIZING_TIME, {
+          initializing_time: Date.now() - initializingTime,
+        });
+        setInitializingTime(0);
+      }
+      if (bufferingTime > 0) {
+        void analytics.logEvent(AppEvent.PLAYER_BUFFERING_TIME, {
+          buffering_time: Date.now() - bufferingTime,
+        });
+        setBufferingTime(0);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presence, analytics]);
 
   useEffect(() => {
     if (timer) {

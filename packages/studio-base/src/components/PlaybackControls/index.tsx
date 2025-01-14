@@ -132,10 +132,6 @@ export default function PlaybackControls(props: {
   repeatEnabled: boolean;
   getTimeInfo: () => { startTime?: Time; endTime?: Time; currentTime?: Time };
 }): React.JSX.Element {
-  const isDemoSite =
-    localStorage.getItem("demoSite") === "true" &&
-    localStorage.getItem("honeybeeDemoStatus") === "start";
-
   const {
     play,
     pause,
@@ -171,9 +167,6 @@ export default function PlaybackControls(props: {
   }, [repeat, repeatEnabled, enableRepeatPlayback]);
 
   const togglePlayPause = useCallback(() => {
-    if (isDemoSite) {
-      window.nextStep();
-    }
     if (isPlaying) {
       pause();
     } else {
@@ -184,7 +177,7 @@ export default function PlaybackControls(props: {
       }
       play();
     }
-  }, [isPlaying, pause, getTimeInfo, play, seek, isDemoSite]);
+  }, [isPlaying, pause, getTimeInfo, play, seek]);
 
   const seekForwardAction = useCallback(
     (ev?: KeyboardEvent) => {
@@ -319,7 +312,7 @@ export default function PlaybackControls(props: {
           </Stack>
 
           <Stack direction="row" flex={1} alignItems="center" justifyContent="flex-end" gap={0.5}>
-            {urlState?.parameters?.jobRunsId && (
+            {urlState?.parameters?.jobRunsId != undefined && (
               <>
                 <ImageShadow20Filled />
                 <div>{t("shadowMode", { ns: "cosPlaylist" })}</div>

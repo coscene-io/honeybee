@@ -242,11 +242,6 @@ type CoverageResponse = {
   end: string;
 };
 
-type DeviceResponse = {
-  id: string;
-  name: string;
-};
-
 export type LayoutID = string & { __brand: "LayoutID" };
 export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
 export type Permission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
@@ -312,19 +307,27 @@ class CoSceneConsoleApi {
   #problemManager = new PlayerProblemManager();
   #baseInfo: BaseInfo = {};
   #type: "realtime" | "playback" = "playback";
+  #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
 
   public constructor(
     baseUrl: string,
     bffUrl: string,
     jwt: string,
+    // The following three parameters are only used in data sources
     addTopicPrefix?: "true" | "false",
     timeMode?: "absoluteTime" | "relativeTime",
+    playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW",
   ) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
     this.#authHeader = jwt;
     this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
     this.#timeMode = timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime";
+    this.#playbackQualityLevel = playbackQualityLevel ?? "ORIGINAL";
+  }
+
+  public getPlaybackQualityLevel(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
+    return this.#playbackQualityLevel;
   }
 
   public setApiBaseInfo(baseInfo: BaseInfo): void {
@@ -450,10 +453,6 @@ class CoSceneConsoleApi {
     return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
   }
 
-  public async getDevice(id: string): Promise<DeviceResponse> {
-    return await this.#get<DeviceResponse>(`/v1/devices/${id}`);
-  }
-
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
     return await this.#get<ConsoleApiLayout[]>("/bff/honeybee/layout/v2/layouts", {
       includeData: options.includeData ? "true" : "false",
@@ -532,16 +531,11 @@ class CoSceneConsoleApi {
         ? `${this.#bffUrl}${url}`
         : `${this.#baseUrl}${url}`;
 
-    const headers: Record<string, string> = {
-      Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
-    };
     const fullConfig: RequestInit = {
       ...config,
       headers: {
-        ...headers,
+        Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
         ...config?.headers,
-        "Topic-Prefix": this.#addTopicPrefix,
-        "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
       },
     };
 
@@ -607,15 +601,21 @@ class CoSceneConsoleApi {
     }
   }
 
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
-  async #post<T>(apiPath: string, body?: unknown, customHost?: boolean): Promise<T> {
+  async #post<T>(
+    apiPath: string,
+    body?: unknown,
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    customHost?: boolean,
+    config?: RequestInit,
+  ): Promise<T> {
     return (
       await this.#request<T>(
         apiPath,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
+          ...(config ?? {}),
+          headers: { "Content-Type": "application/json", ...(config?.headers ?? {}) },
         },
         {},
         customHost,
@@ -652,6 +652,13 @@ class CoSceneConsoleApi {
         id: key,
       },
       undefined,
+      {
+        headers: {
+          "Topic-Prefix": this.#addTopicPrefix,
+          "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
+          "Playback-Quality-Level": this.#playbackQualityLevel,
+        },
+      },
     );
 
     const metaData = topics.topics.map((topic) => {
@@ -671,8 +678,42 @@ class CoSceneConsoleApi {
     };
   }
 
-  public getStreamUrl(): string {
-    return `${this.#baseUrl}/v1/data/getStreams`;
+  public async getStreams({
+    start,
+    end,
+    topics,
+    id,
+    signal,
+    projectName,
+  }: {
+    start: number;
+    end: number;
+    topics: string[];
+    id: string;
+    signal: AbortSignal;
+    projectName: string;
+  }): Promise<Response> {
+    return await fetch("/v1/data/getStreams", {
+      method: "POST",
+      signal,
+      cache: "no-cache",
+      headers: {
+        // Include the version of studio in the request Useful when scraping logs to determine what
+        // versions of the app are making requests.
+        "Content-Type": "application/json",
+        "Topic-Prefix": this.#addTopicPrefix,
+        "Playback-Quality-Level": this.#playbackQualityLevel,
+        "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
+        Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
+        ProjectName: projectName,
+      },
+      body: JSON.stringify({
+        start,
+        end,
+        topics,
+        id,
+      }),
+    });
   }
 
   public async getPlaylist(key: string): Promise<getPlaylistResponse> {
