@@ -49,7 +49,8 @@ declare global {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-const cosConfig = window.cosConfig ?? {};
+const cosConfig = typeof window !== "undefined" ? window?.cosConfig ?? {} : {};
+
 export const APP_CONFIG = {
   VITE_APP_BASE_API_PORT:
     cosConfig.VITE_APP_BASE_API_PORT ?? process.env.VITE_APP_BASE_API_PORT ?? "443",
@@ -97,4 +98,6 @@ export function getAuthStatusCookieName(): string {
   return getDomainConfig().authStatusCookieName;
 }
 
-window.cosConfig = APP_CONFIG;
+if (typeof window !== "undefined") {
+  window.cosConfig = APP_CONFIG;
+}
