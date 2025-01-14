@@ -30,8 +30,7 @@ export class AmplitudeAnalytics implements IAnalytics {
     };
 
     log.info(
-      `[APP_INIT] ${platform}${
-        appVersion ? ` v${appVersion}` : ""
+      `[APP_INIT] ${platform}${appVersion ? ` v${appVersion}` : ""
       }, GL Vendor: ${glVendor}, GL Renderer: ${glRenderer}`,
     );
     posthog.register({
@@ -83,12 +82,14 @@ export class AmplitudeAnalytics implements IAnalytics {
       nick_name: user.nickName,
       email: user.email,
       phone: user.phoneNumber,
+      org_id: user.orgId,
       org_display_name: user.orgDisplayName,
       environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
     });
 
     posthog.register({
       org_id: user.orgId,
+      org_display_name: user.orgDisplayName,
     });
   }
 }
@@ -116,9 +117,9 @@ function getWebGLInfo(): { glVendor: string; glRenderer: string } | undefined {
   const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
   const res = debugInfo
     ? {
-        glVendor: gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL),
-        glRenderer: gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL),
-      }
+      glVendor: gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL),
+      glRenderer: gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL),
+    }
     : undefined;
 
   canvas.remove();
