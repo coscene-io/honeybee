@@ -57,6 +57,10 @@ export function useTopicPrefixConfigurationValue(): string {
   const [addTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
 
   return (
-    addTopicPrefix ?? APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ?? "false"
+    addTopicPrefix ??
+    (typeof window !== "undefined"
+      ? APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname]
+      : undefined) ??
+    "false"
   );
 }
