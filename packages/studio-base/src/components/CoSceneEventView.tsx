@@ -303,8 +303,9 @@ function EventViewComponent(params: {
   }, [baseInfo.organizationSlug, baseInfo.projectSlug, event.event.device]);
 
   const [humanCreator, getHumanCreator] = useAsyncFn(async () => {
-    const user = await consoleApi.getUser(event.event.creator);
-    return user.nickname;
+    const users = await consoleApi.batchGetUsers([event.event.creator]);
+    const user = users.users[0];
+    return user?.nickname ?? "";
   }, [consoleApi, event.event.creator]);
 
   useEffect(() => {
