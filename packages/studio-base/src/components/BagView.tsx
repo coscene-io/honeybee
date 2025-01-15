@@ -333,7 +333,7 @@ function BagViewComponent(params: {
             <HighlightedText text={bag.displayName} highlight={filter} />
           )}
         </Stack>
-        {bag.startTime && bag.endTime && (
+        {bag.startTime && bag.endTime && bag.mediaStatues === "OK" && (
           <Stack
             className={cx(classes.bagLength, {
               [classes.isCurrentBag]: isCurrent || isHovered,
