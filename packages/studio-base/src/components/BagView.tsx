@@ -23,6 +23,8 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   usePlaylist,
   CoScenePlaylistStore,
@@ -164,6 +166,7 @@ const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const checkIsLogFile = (bag: BagFileInfo) => bag.displayName.endsWith(".log");
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
+const selectUser = (store: UserStore) => store.user;
 
 function BagViewComponent(params: {
   bag: BagFileInfo;
@@ -195,6 +198,9 @@ function BagViewComponent(params: {
   const consoleApi = useConsoleApi();
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+
+  const currentUser = useCurrentUser(selectUser);
+  const { selectSource } = usePlayerSelection();
 
   const bagFiles = usePlaylist(selectBagFiles);
 
@@ -247,14 +253,29 @@ function BagViewComponent(params: {
               key,
             },
           });
-          location.reload();
+
+          selectSource("coscene-data-platform", {
+            type: "connection",
+            params: { ...currentUser, key },
+          });
         })
         .catch((error: unknown) => {
           toast.error(t("addFilesFailed"));
           console.error("Failed to set base info", error);
         });
     }
-  }, [bag.name, bagFiles.value, baseInfo, consoleApi, files, t, updateUrl, urlState]);
+  }, [
+    bag.name,
+    bagFiles.value,
+    baseInfo,
+    consoleApi,
+    files,
+    t,
+    updateUrl,
+    urlState,
+    currentUser,
+    selectSource,
+  ]);
 
   const onDeleteBag = useCallback(async () => {
     const response = await confirm({
