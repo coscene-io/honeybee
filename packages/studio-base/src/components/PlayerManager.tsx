@@ -80,6 +80,7 @@ type PlayerManagerProps = {
 // const selectUserScriptActions = (store: UserScriptStore) => store.actions;
 const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
 const selectSetDataSource = (state: CoSceneBaseStore) => state.setDataSource;
+const selectBaseInfo = (state: CoSceneBaseStore) => state.baseInfo;
 
 export default function PlayerManager(
   props: PropsWithChildren<PlayerManagerProps>,
@@ -89,6 +90,9 @@ export default function PlayerManager(
   const [currentSourceArgs, setCurrentSourceArgs] = useState<DataSourceArgs | undefined>();
   const [currentSourceId, setCurrentSourceId] = useState<string | undefined>();
   const analytics = useAnalytics();
+
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const { t } = useTranslation("general");
 
@@ -165,9 +169,9 @@ export default function PlayerManager(
         const deviceName = currentSourceArgs.params?.hostName;
         title = `${t("realtimeViz")} - ${deviceName}`;
       } else if (currentSourceId === "coscene-data-platform") {
-        const recordDisplayName = currentSourceArgs.params?.recordDisplayName;
-        const projectDisplayName = currentSourceArgs.params?.projectDisplayName;
-        const jobRunsSerialNumber = currentSourceArgs.params?.jobRunsSerialNumber;
+        const recordDisplayName = baseInfo.recordDisplayName;
+        const projectDisplayName = baseInfo.projectDisplayName;
+        const jobRunsSerialNumber = baseInfo.jobRunsSerialNumber;
 
         if (jobRunsSerialNumber) {
           title = `${t("shadowMode")} - #${jobRunsSerialNumber} - ${t("testing")}`;
@@ -179,7 +183,7 @@ export default function PlayerManager(
         document.title = title;
       }
     }
-  }, [currentSourceArgs, currentSourceId, t]);
+  }, [currentSourceArgs, currentSourceId, t, baseInfo]);
 
   // const player = useMemo(() => {
   //   if (!playerInstances?.topicAliasPlayer) {

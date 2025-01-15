@@ -15,6 +15,7 @@ import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext
 export type BaseInfo = {
   projectId?: string;
   projectSlug?: string;
+  projectDisplayName?: string;
   recordDisplayName?: string;
   recordId?: string;
   warehouseId?: string;
@@ -25,6 +26,7 @@ export type BaseInfo = {
   files?: Array<ParamsFile>;
   organizationId?: string;
   organizationSlug?: string;
+  jobRunsSerialNumber?: string;
 };
 
 export type CoSceneBaseStore = DeepReadonly<{
