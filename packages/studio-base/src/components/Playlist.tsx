@@ -36,6 +36,8 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   CoScenePlaylistStore,
   usePlaylist,
@@ -59,6 +61,7 @@ const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHov
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectUser = (store: UserStore) => store.user;
 
 const useStyles = makeStyles()((theme) => ({
   appBar: {
@@ -154,6 +157,9 @@ export function Playlist(): React.JSX.Element {
   const setHoveredBag = useTimelineInteractionState(selectSetHoverBag);
   const urlState = useMessagePipeline(selectUrlState);
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+
+  const currentUser = useCurrentUser(selectUser);
+  const { selectSource } = usePlayerSelection();
 
   const bags = useMemo(() => {
     const serialisationBags: Record<
@@ -254,7 +260,11 @@ export function Playlist(): React.JSX.Element {
               key,
             },
           });
-          location.reload();
+
+          selectSource("coscene-data-platform", {
+            type: "connection",
+            params: { ...currentUser, key },
+          });
         } else {
           toast.error(t("addFilesFailed"));
         }
