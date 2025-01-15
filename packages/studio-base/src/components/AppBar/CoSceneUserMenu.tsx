@@ -5,9 +5,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Menu, MenuItem, PaperProps, PopoverPosition, PopoverReference } from "@mui/material";
+import {
+  Menu,
+  MenuItem,
+  PaperProps,
+  PopoverPosition,
+  PopoverReference,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { usePostHog } from "posthog-js/react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -23,14 +31,14 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-import { downloadLatestStudio } from "@foxglove/studio-base/util/download";
+import { downloadLatestStudio, getCoStudioVersion } from "@foxglove/studio-base/util/download";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()(() => ({
   menuList: {
     minWidth: 200,
   },
-});
+}));
 
 type UserMenuProps = {
   handleClose: () => void;
@@ -58,6 +66,13 @@ export function UserMenu({
   const analytics = useAnalytics();
   const [confirm, confirmModal] = useConfirm();
   const { t } = useTranslation("cosAppBar");
+  const [latestVersion, setLatestVersion] = useState("");
+
+  useEffect(() => {
+    void getCoStudioVersion().then((version) => {
+      setLatestVersion(version);
+    });
+  }, []);
 
   const { dialogActions } = useWorkspaceActions();
 
@@ -142,7 +157,20 @@ export function UserMenu({
         <MenuItem onClick={onDocsClick}>{t("documentation")}</MenuItem>
 
         {!isDesktop && (
-          <MenuItem onClick={downloadLatestStudio}>{t("downloadLatestStudio")}</MenuItem>
+          <MenuItem onClick={downloadLatestStudio} className="test">
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              width="100%"
+              gap={1}
+            >
+              <span>{t("downloadLatestStudio")}</span>
+              <Typography variant="caption" color="text.secondary">
+                v{latestVersion}
+              </Typography>
+            </Stack>
+          </MenuItem>
         )}
 
         {(isDesktop || loginStatus === "alreadyLogin") && (

@@ -172,3 +172,24 @@ export async function downloadLatestStudio(): Promise<void> {
     window.open(latestVersion);
   }
 }
+
+export async function getCoStudioVersion(): Promise<string> {
+  try {
+    const response = await fetch(
+      "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/latest.yml",
+    );
+    const text = await response.text();
+
+    // 使用正则表达式匹配 version 行
+    const versionMatch = text.match(/^version:\s*(.+)$/m);
+
+    if (versionMatch?.[1]) {
+      return versionMatch[1].trim();
+    } else {
+      throw new Error("未找到版本信息");
+    }
+  } catch (error) {
+    console.error("获取版本信息失败:", error);
+    throw error;
+  }
+}
