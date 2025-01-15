@@ -13,8 +13,8 @@ import {
   SlideAdd24Regular,
   QuestionCircle24Regular,
   ChevronDown12Regular,
+  Desktop24Regular,
 } from "@fluentui/react-icons";
-import ComputerIcon from "@mui/icons-material/Computer";
 import PersonIcon from "@mui/icons-material/Person";
 import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography } from "@mui/material";
 import { useCallback, useState } from "react";
@@ -332,7 +332,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                     }}
                     data-tourid="open-in-coStudio"
                   >
-                    <ComputerIcon />
+                    <Desktop24Regular color={theme.palette.appBar.icon} />
                   </AppBarIconButton>
                 )}
                 <AppBarIconButton
