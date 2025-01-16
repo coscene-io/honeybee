@@ -213,7 +213,10 @@ export async function* streamMessages({
     if (response.status === 404) {
       return;
     } else if (response.status !== 200) {
-      log.error(`${response.status} response for`, response);
+      const errorBody = (await response.json()) as { message?: string };
+      if (errorBody.message) {
+        throw new Error(errorBody.message);
+      }
       throw new Error(`Unexpected response status ${response.status}`);
     }
     if (!response.body) {
