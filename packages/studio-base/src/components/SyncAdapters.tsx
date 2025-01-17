@@ -15,8 +15,9 @@ import { ProjectsSyncAdapter } from "@foxglove/studio-base/components/CoScenePro
 import { URLStateSyncAdapter } from "@foxglove/studio-base/components/URLStateSyncAdapter";
 // import { UpdateChecker } from "@foxglove/studio-base/components/UpdateChecker";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 
-export function SyncAdapters(): React.JSX.Element {
+export function SyncAdapters({ currentUserInfo }: { currentUserInfo?: User }): React.JSX.Element {
   // Sync adapters from app context override any local sync adapters
   const { syncAdapters } = useAppContext();
 
@@ -27,7 +28,7 @@ export function SyncAdapters(): React.JSX.Element {
 
     return (
       <>
-        <CoSceneCurrentUserSyncAdapter />
+        <CoSceneCurrentUserSyncAdapter currentUserInfo={currentUserInfo} />
         <CoSceneEventsSyncAdapter />
         <PlaylistSyncAdapter />
         <ProjectsSyncAdapter />
@@ -36,5 +37,5 @@ export function SyncAdapters(): React.JSX.Element {
         {/* <UpdateChecker /> */}
       </>
     );
-  }, [syncAdapters]);
+  }, [syncAdapters, currentUserInfo]);
 }

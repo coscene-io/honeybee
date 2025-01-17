@@ -163,6 +163,8 @@ export default function Root(props: {
     return hasActiveURLState ? [window.location.href] : desktopBridge.getDeepLinks();
   });
 
+  const syncUserInfo = desktopBridge.getSyncUserInfo();
+
   const [isFullScreen, setFullScreen] = useState(false);
   const [isMaximized, setMaximized] = useState(nativeWindow.isMaximized());
 
@@ -237,6 +239,7 @@ export default function Root(props: {
           onCloseWindow,
         }}
         extensionLoaders={extensionLoaders}
+        syncUserInfo={syncUserInfo}
       >
         <StudioApp />
       </SharedRoot>

@@ -41,6 +41,7 @@ function contextMenuHandler(event: MouseEvent) {
 export function StudioApp(): React.JSX.Element {
   const {
     dataSources,
+    syncUserInfo,
     extensionLoaders,
     deepLinks,
     enableLaunchPreferenceScreen,
@@ -96,6 +97,7 @@ export function StudioApp(): React.JSX.Element {
                 appBarLeftInset={appBarLeftInset}
                 onAppBarDoubleClick={onAppBarDoubleClick}
                 showCustomWindowControls={customWindowControlProps?.showCustomWindowControls}
+                syncUserInfo={syncUserInfo}
                 isMaximized={customWindowControlProps?.isMaximized}
                 initialZoomFactor={customWindowControlProps?.initialZoomFactor}
                 onMinimizeWindow={customWindowControlProps?.onMinimizeWindow}

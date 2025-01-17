@@ -19,6 +19,7 @@ import {
   User,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 const log = Logger.getLogger(__filename);
 
@@ -30,7 +31,13 @@ const selectSetUser = (store: UserStore) => store.setUser;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
-export function CoSceneCurrentUserSyncAdapter(): ReactNull {
+const authBridge = (global as { authBridge?: Auth }).authBridge;
+
+export function CoSceneCurrentUserSyncAdapter({
+  currentUserInfo,
+}: {
+  currentUserInfo?: User;
+}): ReactNull {
   const loginStatus = useCurrentUser(selectLoginStatus);
   const currentUser = useCurrentUser(selectCurrentUser);
 
@@ -87,7 +94,7 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
 
       const userId = userInfo.name.split("/").pop() ?? "";
 
-      setUser({
+      const user = {
         ...(currentUser ?? {}),
         avatarUrl: userInfo.avatar ?? "",
         email: userInfo.email,
@@ -98,7 +105,11 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         orgSlug: currentOrg.slug,
         targetSite: `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}`,
         userId,
-      } as User);
+      } as User;
+
+      authBridge?.setSyncUserInfo(user);
+
+      setUser(user);
     } else {
       setUser(undefined);
     }
@@ -114,10 +125,14 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
   }, [syncUserRole, baseInfo]);
 
   useEffect(() => {
-    syncUserInfo().catch((err: unknown) => {
-      log.error("syncUserInfo", err);
-    });
-  }, [loginStatus, syncUserInfo]);
+    if (currentUserInfo != undefined) {
+      setUser(currentUserInfo);
+    } else {
+      syncUserInfo().catch((err: unknown) => {
+        log.error("syncUserInfo", err);
+      });
+    }
+  }, [loginStatus, syncUserInfo, currentUserInfo, setUser]);
 
   return ReactNull;
 }

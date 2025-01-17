@@ -6,11 +6,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Logger from "@foxglove/log";
+import { User } from "@foxglove/studio-base/src/context/CoSceneCurrentUserContext";
 
 const log = Logger.getLogger(__filename);
 
 type RendererArgTypes = {
   deepLinks: string[];
+  syncUserInfo?: User;
 };
 
 /**
@@ -25,7 +27,7 @@ export function encodeRendererArg<K extends keyof RendererArgTypes>(
   argName: K,
   value: RendererArgTypes[K],
 ): string {
-  return `--${argName}=${btoa(JSON.stringify(value)!)}`;
+  return `--${argName}=${Buffer.from(JSON.stringify(value) ?? "").toString("base64")}`;
 }
 
 export function decodeRendererArg<K extends keyof RendererArgTypes>(
@@ -34,8 +36,12 @@ export function decodeRendererArg<K extends keyof RendererArgTypes>(
 ): RendererArgTypes[K] | undefined {
   const argPrefix = `--${argName}=`;
   const argValue = args.find((str) => str.startsWith(argPrefix))?.substring(argPrefix.length);
+  if (!argValue) {
+    return undefined;
+  }
+
   try {
-    return argValue ? JSON.parse(atob(argValue)) : undefined;
+    return JSON.parse(Buffer.from(argValue, "base64").toString());
   } catch (error) {
     log.error(error);
     return undefined;

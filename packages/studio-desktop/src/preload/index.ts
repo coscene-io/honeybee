@@ -12,6 +12,7 @@ import { join as pathJoin } from "path";
 import { PreloaderSockets } from "@foxglove/electron-socket/preloader";
 import Logger from "@foxglove/log";
 import { NetworkInterface, OsContext } from "@foxglove/studio-base/src/OsContext";
+import { User } from "@foxglove/studio-base/src/context/CoSceneCurrentUserContext";
 
 import LocalFileStorage from "./LocalFileStorage";
 import { getExtensions, installExtension, loadExtension, uninstallExtension } from "./extensions";
@@ -34,6 +35,7 @@ const ignoreDeepLinks = document.cookie.includes("fox.ignoreDeepLinks=true");
 document.cookie = "fox.ignoreDeepLinks=;max-age=0;";
 
 const deepLinks = ignoreDeepLinks ? [] : decodeRendererArg("deepLinks", window.process.argv) ?? [];
+const syncUserInfo = decodeRendererArg("syncUserInfo", window.process.argv);
 
 export function main(): void {
   const log = Logger.getLogger(__filename);
@@ -120,6 +122,9 @@ export function main(): void {
     },
     getDeepLinks(): string[] {
       return deepLinks;
+    },
+    getSyncUserInfo(): User | undefined {
+      return syncUserInfo;
     },
     resetDeepLinks(): void {
       // See `ignoreDeepLinks` comment above for why we do this hack to reset deep links
@@ -214,6 +219,9 @@ export function main(): void {
       return () => {
         ipcRenderer.removeListener("auth-token", subscription);
       };
+    },
+    setSyncUserInfo: (userInfo: User) => {
+      ipcRenderer.send("sync-global-user-info", userInfo);
     },
     onLogout: (callback: () => void) => {
       const subscription = (_event: IpcRendererEvent) => {

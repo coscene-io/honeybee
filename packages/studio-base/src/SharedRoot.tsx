@@ -49,6 +49,7 @@ export function SharedRoot(
     enableLaunchPreferenceScreen,
     extraProviders,
     extensionLoaders,
+    syncUserInfo,
   } = props;
 
   return (
@@ -70,6 +71,7 @@ export function SharedRoot(
                   extensionLoaders,
                   extraProviders,
                   onAppBarDoubleClick,
+                  syncUserInfo,
                 }}
               >
                 {children}

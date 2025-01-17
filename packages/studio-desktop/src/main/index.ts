@@ -11,6 +11,7 @@ import i18n from "i18next";
 
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/src/AppSetting";
+import { User } from "@foxglove/studio-base/src/context/CoSceneCurrentUserContext";
 import { initI18n } from "@foxglove/studio-base/src/i18n";
 
 import StudioAppUpdater from "./StudioAppUpdater";
@@ -176,6 +177,10 @@ export async function main(): Promise<void> {
   ipcMain.handle("setRepresentedFilename", (ev, path: string | undefined) => {
     const browserWindow = BrowserWindow.fromId(ev.sender.id);
     browserWindow?.setRepresentedFilename(path ?? "");
+  });
+
+  ipcMain.on("sync-global-user-info", (_ev, userInfo?: User) => {
+    StudioWindow.setSyncUserInfo(userInfo);
   });
 
   const openUrls: string[] = [];

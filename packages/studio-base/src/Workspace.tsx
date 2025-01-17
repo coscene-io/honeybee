@@ -54,7 +54,11 @@ import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
+  useCurrentUser,
+  User,
+  UserStore,
+} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
   DataSourceArgs,
   usePlayerSelection,
@@ -96,6 +100,8 @@ const useStyles = makeStyles()({
 });
 
 type WorkspaceProps = CustomWindowControlsProps & {
+  // from other studio window, for sync user info
+  syncUserInfo?: User;
   deepLinks?: readonly string[];
   appBarLeftInset?: number;
   onAppBarDoubleClick?: () => void;
@@ -531,7 +537,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     <PanelStateContextProvider>
       {dataSourceDialog.open && <DataSourceDialog />}
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
-      <SyncAdapters />
+      <SyncAdapters currentUserInfo={props.syncUserInfo} />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
         {appBar}

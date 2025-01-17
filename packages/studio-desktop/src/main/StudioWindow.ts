@@ -24,6 +24,7 @@ import path from "path";
 
 import Logger from "@foxglove/log";
 import { APP_BAR_HEIGHT } from "@foxglove/studio-base/src/components/AppBar/constants";
+import { User } from "@foxglove/studio-base/src/context/CoSceneCurrentUserContext";
 import { NativeAppMenuEvent } from "@foxglove/studio-base/src/context/NativeAppMenuContext";
 import { palette } from "@foxglove/theme";
 
@@ -62,12 +63,26 @@ function getTitleBarOverlayOptions(): TitleBarOverlayOptions {
   return {};
 }
 
-function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void): BrowserWindow {
+function newStudioWindow(
+  deepLinks: string[] = [],
+  reloadMainWindow: () => void,
+  syncUserInfo?: User,
+): BrowserWindow {
   const { crashReportingEnabled, telemetryEnabled } = getTelemetrySettings();
   const preloadPath = path.join(app.getAppPath(), "main", "preload.js");
 
   const macTrafficLightInset =
     Math.floor((APP_BAR_HEIGHT - /*button size*/ 12) / 2) - /*for good measure*/ 1;
+
+  const additionalArguments = [
+    `--allowCrashReporting=${crashReportingEnabled ? "1" : "0"}`,
+    `--allowTelemetry=${telemetryEnabled ? "1" : "0"}`,
+    encodeRendererArg("deepLinks", deepLinks),
+  ];
+
+  if (syncUserInfo) {
+    additionalArguments.push(encodeRendererArg("syncUserInfo", syncUserInfo));
+  }
 
   const windowOptions: BrowserWindowConstructorOptions = {
     backgroundColor: getWindowBackgroundColor(),
@@ -87,11 +102,7 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
       sandbox: false, // Allow preload script to access Node builtins
       preload: preloadPath,
       nodeIntegration: false,
-      additionalArguments: [
-        `--allowCrashReporting=${crashReportingEnabled ? "1" : "0"}`,
-        `--allowTelemetry=${telemetryEnabled ? "1" : "0"}`,
-        encodeRendererArg("deepLinks", deepLinks),
-      ],
+      additionalArguments,
       // Disable webSecurity in development so we can make XML-RPC calls, load
       // remote data, etc. In production, the app is served from file:// URLs so
       // the Origin header is not sent, disabling the CORS
@@ -385,6 +396,10 @@ class StudioWindow {
   // The web contents id is most broadly available across IPC events and app handlers
   // BrowserWindow.id is not as available
   static #windowsByContentId = new Map<number, StudioWindow>();
+
+  // global user info
+  static #syncUserInfo?: User;
+
   readonly #deepLinks: string[];
 
   #browserWindow: BrowserWindow;
@@ -404,6 +419,10 @@ class StudioWindow {
         Menu.setApplicationMenu(this.#menu);
       }
     });
+  }
+
+  public static setSyncUserInfo(userInfo?: User): void {
+    StudioWindow.#syncUserInfo = userInfo;
   }
 
   public load(): void {
@@ -447,9 +466,13 @@ class StudioWindow {
   }
 
   #buildBrowserWindow(): [BrowserWindow, Menu] {
-    const browserWindow = newStudioWindow(this.#deepLinks, () => {
-      this.#reloadMainWindow();
-    });
+    const browserWindow = newStudioWindow(
+      this.#deepLinks,
+      () => {
+        this.#reloadMainWindow();
+      },
+      StudioWindow.#syncUserInfo,
+    );
     const newMenu = buildMenu(browserWindow);
     const id = browserWindow.webContents.id;
 

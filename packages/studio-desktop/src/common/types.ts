@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { User } from "@foxglove/studio-base/src/context/CoSceneCurrentUserContext";
+
 // Events that are forwarded from the main process
 export type ForwardedMenuEvent =
   | "open"
@@ -121,12 +123,15 @@ interface Desktop {
 
   /** Notify the app that the language setting has been changed */
   updateLanguage(): void;
+
+  getSyncUserInfo(): User | undefined;
 }
 
 interface Auth {
   onAuthToken: (callback: (token: string) => void) => UnregisterFn;
   onLogout: (callback: () => void) => UnregisterFn;
   logout: () => void;
+  setSyncUserInfo: (userInfo: User) => void;
 }
 
 export type {
