@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Alert, Tab, Tabs, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, Link, Tab, Tabs, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useState, useMemo, useCallback, useLayoutEffect, FormEvent } from "react";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -293,20 +293,21 @@ export default function Connection(): React.JSX.Element {
                   </Stack>
                 </Stack>
               )}
-              {/* TODO: wait for docs */}
-              {/* <Stack direction="row" gap={1}>
-                {(selectedSource?.docsLinks ?? []).map((item) => (
-                  <Link
-                    key={item.url}
-                    color="primary"
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {item.label ? `View docs for ${item.label}` : "View docs"}
-                  </Link>
-                ))}
-              </Stack> */}
+              {selectedSource?.showDocs === true && (
+                <Stack direction="row" gap={1}>
+                  {(selectedSource.docsLinks ?? []).map((item) => (
+                    <Link
+                      key={item.url}
+                      color="primary"
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {item.label ? item.label : "View docs"}
+                    </Link>
+                  ))}
+                </Stack>
+              )}
             </Stack>
           </form>
         </Stack>

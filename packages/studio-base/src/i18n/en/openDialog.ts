@@ -66,7 +66,7 @@ export const openDialog = {
   loadingLargeFilesOverHttpCanBeSlow:
     "Loading large files over HTTP can be slow. For better performance, we recommend",
   urlMustEndWithAFileExtension: "URL must end with a filename and extension",
-  remoteDataSourceDesc: "Open pre-recorded .bag or .mcap files from a remote location.",
+  remoteDataSourceDesc: "Open .bag or .mcap files from a remote location.",
   unsupportedExtension: "Unsupported extension: {{extension}}",
   onlySupportedExtensions: "Only {{extensions}} files are supported.",
   enterAValidUrl: "Enter a valid url",
@@ -75,7 +75,7 @@ export const openDialog = {
   cancel: "Cancel",
   back: "Back",
   coSceneDataPlatform: "coScene Data Platform",
-  coSceneDataPlatformDesc: "Paste the web link to use coStudio to visualize online data.",
+  coSceneDataPlatformDesc: "Paste the platform visualization page link to play data in coStudio",
   onlySupportDomain: "Only support {{domain}} domain now",
   urlPathnameMustBeViz: "url pathname must be /viz",
   dataSourceMustBeCosSceneDataPlatform: "data source must be coScene Data Platform",
@@ -83,4 +83,7 @@ export const openDialog = {
   pleaseLoginFirst: "Please login first",
   dataPlatformUrl: "Data Platform URL",
   remoteFile: "Remote File",
+  downloadCoBridge: "Download coBridge",
+  remoteFileUrl: "Remote File URL",
+  webSocketUrl: "WebSocket URL",
 };

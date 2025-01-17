@@ -19,23 +19,31 @@ import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-websocket";
   public type: IDataSourceFactory["type"] = "connection";
-  public displayName = "coScene WebSocket";
+  public displayName = "coBridge";
   public iconName: IDataSourceFactory["iconName"] = "Flow";
   public description = t("openDialog:webSocketDataSourceDesc");
   public docsLinks = [
     {
-      label: "ROS 1",
-      url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros1#foxglove-websocket",
-    },
-    {
-      label: "ROS 2",
-      url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros2#foxglove-websocket",
-    },
-    {
-      label: "custom data",
-      url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/custom#foxglove-websocket",
+      label: t("openDialog:downloadCoBridge"),
+      url: "https://github.com/coscene-io/coBridge",
     },
   ];
+  public showDocs = true;
+
+  // public docsLinks = [
+  //   {
+  //     label: "ROS 1",
+  //     url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros1#foxglove-websocket",
+  //   },
+  //   {
+  //     label: "ROS 2",
+  //     url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros2#foxglove-websocket",
+  //   },
+  //   {
+  //     label: "custom data",
+  //     url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/custom#foxglove-websocket",
+  //   },
+  // ];
 
   #confirm: confirmTypes;
   #userId: string;
@@ -59,8 +67,8 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
     fields: [
       {
         id: "url",
-        label: "WebSocket URL",
-        defaultValue: "ws://localhost:8765",
+        label: t("openDialog:webSocketUrl"),
+        defaultValue: "ws://localhost:21274",
         validate: (newValue: string): Error | undefined => {
           try {
             const url = new URL(newValue);

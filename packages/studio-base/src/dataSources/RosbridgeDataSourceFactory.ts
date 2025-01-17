@@ -28,7 +28,7 @@ class RosbridgeDataSourceFactory implements IDataSourceFactory {
     fields: [
       {
         id: "url",
-        label: "WebSocket URL",
+        label: t("openDialog:webSocketUrl"),
         defaultValue: "ws://localhost:9090",
         validate: (newValue: string): Error | undefined => {
           try {
