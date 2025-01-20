@@ -18,6 +18,8 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   CoScenePlaylistStore,
   usePlaylist,
@@ -26,6 +28,7 @@ import {
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const useStyles = makeStyles()((theme) => ({
   mediaGenerationStatusBar: {
@@ -50,6 +53,8 @@ const useStyles = makeStyles()((theme) => ({
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 
+const selectUser = (store: UserStore) => store.user;
+
 export function AppStateBar(): React.JSX.Element {
   const bagFiles = usePlaylist(selectBagFiles);
   const { classes, theme } = useStyles();
@@ -66,10 +71,15 @@ export function AppStateBar(): React.JSX.Element {
   );
   const [fileLoadingToastId, setFileLoadingToastId] = useState<string | undefined>(undefined);
 
+  const { selectSource } = usePlayerSelection();
+  const currentUser = useCurrentUser(selectUser);
+
   const [initializingTime, setInitializingTime] = useState(0);
   const [bufferingTime, setBufferingTime] = useState(0);
 
   const analytics = useAnalytics();
+
+  const key = windowAppURLState()?.dsParams?.key;
 
   const bagFileCount = bagFiles.value?.length ?? 0;
 
@@ -245,7 +255,11 @@ export function AppStateBar(): React.JSX.Element {
             <Button
               variant="text"
               onClick={() => {
-                window.location.reload();
+                selectSource("coscene-data-platform", {
+                  type: "connection",
+                  params: { ...currentUser, key },
+                });
+                toast.remove(toastMessage.id);
               }}
               style={{
                 color: theme.palette.success.contrastText,
@@ -276,6 +290,9 @@ export function AppStateBar(): React.JSX.Element {
     t,
     theme.palette.success.contrastText,
     isToastMounted,
+    currentUser,
+    key,
+    selectSource,
   ]);
 
   useEffect(() => {

@@ -4,7 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-//
+
 // This file incorporates work covered by the following copyright and
 // permission notice:
 //
@@ -82,6 +82,56 @@ const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
 const selectSetDataSource = (state: CoSceneBaseStore) => state.setDataSource;
 const selectBaseInfo = (state: CoSceneBaseStore) => state.baseInfo;
 
+function useBeforeConnectionSource(): (
+  sourceId: string,
+  params: Record<string, string | undefined>,
+) => Promise<void> {
+  const consoleApi = useConsoleApi();
+  const setBaseInfo = useBaseInfo(selectSetBaseInfo);
+
+  const syncBaseInfo = useCallback(
+    async (baseInfoKey: string) => {
+      consoleApi.setType("playback");
+      try {
+        setBaseInfo({ loading: true, value: {} });
+        const baseInfoRes = await consoleApi.getBaseInfo(baseInfoKey);
+
+        setBaseInfo({ loading: false, value: baseInfoRes });
+        consoleApi.setApiBaseInfo(baseInfoRes);
+      } catch (error) {
+        setBaseInfo({ loading: false, error });
+      }
+    },
+    [consoleApi, setBaseInfo],
+  );
+
+  const beforeConnectionSource = useCallback(
+    async (sourceId: string, params: Record<string, string | undefined>) => {
+      switch (sourceId) {
+        case "coscene-data-platform":
+          consoleApi.setType("playback");
+          if (!params.key) {
+            throw new Error("coscene-data-platform params.key is required");
+          }
+          // sync base info from bff to state manager
+          await syncBaseInfo(params.key);
+          // notify honeybeeServer to sync media
+          await consoleApi.syncMedia({ key: params.key });
+          break;
+        case "coscene-websocket":
+          consoleApi.setType("realtime");
+          break;
+        default:
+          consoleApi.setType(undefined);
+          break;
+      }
+    },
+    [syncBaseInfo, consoleApi],
+  );
+
+  return beforeConnectionSource;
+}
+
 export default function PlayerManager(
   props: PropsWithChildren<PlayerManagerProps>,
 ): React.JSX.Element {
@@ -93,6 +143,8 @@ export default function PlayerManager(
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+
+  const beforeConnectionSource = useBeforeConnectionSource();
 
   const { t } = useTranslation("general");
 
@@ -205,24 +257,7 @@ export default function PlayerManager(
 
   const [selectedSource, setSelectedSource] = useState<IDataSourceFactory | undefined>();
 
-  const setBaseInfo = useBaseInfo(selectSetBaseInfo);
   const setDataSource = useBaseInfo(selectSetDataSource);
-
-  const syncBaseInfo = useCallback(
-    async (baseInfoKey: string) => {
-      consoleApi.setType("playback");
-      try {
-        setBaseInfo({ loading: true, value: {} });
-        const baseInfoRes = await consoleApi.getBaseInfo(baseInfoKey);
-
-        setBaseInfo({ loading: false, value: baseInfoRes });
-        consoleApi.setApiBaseInfo(baseInfoRes);
-      } catch (error) {
-        setBaseInfo({ loading: false, error });
-      }
-    },
-    [consoleApi, setBaseInfo],
-  );
 
   const addTopicPrefix = useTopicPrefixConfigurationValue();
 
@@ -274,12 +309,7 @@ export default function PlayerManager(
           case "connection": {
             setDataSource({ id: sourceId, type: "connection" });
 
-            if (args.params?.key != undefined) {
-              await syncBaseInfo(args.params.key);
-              consoleApi.setType("playback");
-            } else {
-              consoleApi.setType("realtime");
-            }
+            await beforeConnectionSource(sourceId, args.params ?? {});
 
             const newPlayer = foundSource.initialize({
               metricsCollector,
@@ -375,17 +405,17 @@ export default function PlayerManager(
     },
     [
       playerSources,
+      metricsCollector,
       enqueueSnackbar,
       setDataSource,
-      metricsCollector,
       constructPlayers,
-      consoleApi,
-      syncBaseInfo,
-      addRecent,
-      isMounted,
+      beforeConnectionSource,
       addTopicPrefix,
       timeMode,
       playbackQualityLevel,
+      consoleApi,
+      addRecent,
+      isMounted,
     ],
   );
 
