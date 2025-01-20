@@ -216,6 +216,9 @@ function makeElectronBuilderConfig(params) {
         url: "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages",
       },
     ],
+    publishConfig: {
+      prerelease: true,
+    },
     nsis: {
       license: path.join(__dirname, "../resources/license_zh_CN.txt"),
       oneClick: false,
