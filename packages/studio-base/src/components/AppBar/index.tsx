@@ -332,7 +332,10 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                     }}
                     data-tourid="open-in-coStudio"
                   >
-                    <Desktop24Regular color={theme.palette.appBar.icon} />
+                    <Desktop24Regular
+                      color={theme.palette.appBar.icon}
+                      style={{ marginLeft: "2px" }}
+                    />
                   </AppBarIconButton>
                 )}
                 <AppBarIconButton
