@@ -26,7 +26,7 @@ import {
   RosbridgeDataSourceFactory,
   SampleNuscenesDataSourceFactory,
   UlogLocalDataSourceFactory,
-  VelodyneDataSourceFactory,
+  // VelodyneDataSourceFactory,
   ConsoleApi,
   CoSceneDataPlatformDataSourceFactory,
   SharedProviders,
@@ -136,17 +136,17 @@ export default function Root(props: {
     }
 
     const sources = [
-      new CoSceneDataPlatformDataSourceFactory(),
       new FoxgloveWebSocketDataSourceFactory({ confirm }),
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
+      new CoSceneDataPlatformDataSourceFactory(),
+      new RemoteDataSourceFactory(),
       new Ros1LocalBagDataSourceFactory(),
       new Ros2LocalBagDataSourceFactory(),
       new UlogLocalDataSourceFactory(),
-      new VelodyneDataSourceFactory(),
+      // new VelodyneDataSourceFactory(),
       new SampleNuscenesDataSourceFactory(),
       new McapLocalDataSourceFactory(),
-      new RemoteDataSourceFactory(),
     ];
 
     return sources;

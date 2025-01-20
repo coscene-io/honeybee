@@ -69,7 +69,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
     fields: [
       {
         id: "url",
-        label: "Remote file URL",
+        label: t("openDialog:remoteFileUrl"),
         placeholder: "https://example.com/file.bag",
         validate: (newValue: string): Error | undefined => {
           return this.#validateUrl(newValue);
@@ -82,7 +82,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
     <>
       {t("openDialog:loadingLargeFilesOverHttpCanBeSlow")}
       <Link href="https://coscene.cn/" target="_blank">
-        coScene Data Platform
+        {t("openDialog:coSceneDataPlatform")}
       </Link>
       .
     </>
