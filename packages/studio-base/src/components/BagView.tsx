@@ -350,7 +350,8 @@ function BagViewComponent(params: {
                 );
                 const hours = Math.floor(timeDuration.asHours());
                 const minutes = timeDuration.minutes();
-                return `${hours}h:${minutes}m`;
+                const seconds = timeDuration.seconds();
+                return hours > 0 ? `${hours}h:${minutes}m:${seconds}s` : `${minutes}m:${seconds}s`;
               })()}
               highlight={filter}
             />
