@@ -51,6 +51,7 @@ export interface IDataSourceFactory {
   iconName?: RegisteredIconNames;
   description?: string;
   docsLinks?: { label?: string; url: string }[];
+  showDocs?: boolean;
   disabledReason?: string | React.JSX.Element;
   badgeText?: string;
   hidden?: boolean;
