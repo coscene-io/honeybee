@@ -140,13 +140,13 @@ export default function Root(props: {
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
       new CoSceneDataPlatformDataSourceFactory(),
-      new RemoteDataSourceFactory(),
       new Ros1LocalBagDataSourceFactory(),
       new Ros2LocalBagDataSourceFactory(),
       new UlogLocalDataSourceFactory(),
       // new VelodyneDataSourceFactory(),
       new SampleNuscenesDataSourceFactory(),
       new McapLocalDataSourceFactory(),
+      new RemoteDataSourceFactory(),
     ];
 
     return sources;
