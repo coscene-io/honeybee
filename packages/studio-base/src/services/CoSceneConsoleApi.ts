@@ -308,7 +308,7 @@ class CoSceneConsoleApi {
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
   #baseInfo: BaseInfo = {};
-  #type: "realtime" | "playback" = "playback";
+  #type?: "realtime" | "playback" | "other";
   #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
 
   public constructor(
@@ -340,11 +340,11 @@ class CoSceneConsoleApi {
     return this.#baseInfo;
   }
 
-  public setType(type: "realtime" | "playback"): void {
+  public setType(type?: "realtime" | "playback" | "other"): void {
     this.#type = type;
   }
 
-  public getType(): "realtime" | "playback" {
+  public getType(): "realtime" | "playback" | "other" | undefined {
     return this.#type;
   }
 
@@ -1210,6 +1210,10 @@ class CoSceneConsoleApi {
     });
 
     return await getPromiseClient(DiagnosisService).getDiagnosisRule(req);
+  }
+
+  public async syncMedia({ key }: { key: string }): Promise<void> {
+    await this.#patch("/v1/data/sync", { id: key });
   }
 }
 

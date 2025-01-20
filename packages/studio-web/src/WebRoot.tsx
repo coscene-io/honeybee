@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { CircularProgress } from "@mui/material";
 import { useMemo, useState } from "react";
 import { Toaster } from "react-hot-toast";
 
@@ -21,7 +20,6 @@ import {
   SharedProviders,
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
-import Stack from "@foxglove/studio-base/components/Stack";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
@@ -38,7 +36,7 @@ export function WebRoot(props: {
   const baseUrl = APP_CONFIG.CS_HONEYBEE_BASE_URL;
   const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
 
-  const isLoading = useCoSceneInit({ baseUrl, jwt });
+  useCoSceneInit();
 
   // if has many sources need to set confirm
   // recommand set confirm to message pipeline
@@ -82,14 +80,6 @@ export function WebRoot(props: {
     }
     return providers;
   }, [coSceneProviders, props.extraProviders]);
-
-  if (isLoading) {
-    return (
-      <Stack flex={1} fullHeight fullWidth justifyContent="center" alignItems="center">
-        <CircularProgress />
-      </Stack>
-    );
-  }
 
   return (
     <>
