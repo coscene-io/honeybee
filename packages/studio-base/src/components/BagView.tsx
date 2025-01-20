@@ -358,26 +358,24 @@ function BagViewComponent(params: {
           </Stack>
         )}
 
-        <Stack>
-          <span
-            className={cx(classes.bagStartTime, {
-              [classes.isCurrentBag]: isCurrent || isHovered,
-            })}
-          >
-            {!isLogFile && (
-              <HighlightedText
-                text={
-                  bag.startTime
-                    ? `${dayjs(toDate(bag.startTime)).format("YYYY-MM-DD")} ${formatTime(
-                        bag.startTime,
-                      )}`
-                    : "-"
-                }
-                highlight={filter}
-              />
-            )}
-          </span>
-        </Stack>
+        {bag.startTime && bag.endTime && bag.mediaStatues === "OK" && (
+          <Stack>
+            <span
+              className={cx(classes.bagStartTime, {
+                [classes.isCurrentBag]: isCurrent || isHovered,
+              })}
+            >
+              {!isLogFile && (
+                <HighlightedText
+                  text={`${dayjs(toDate(bag.startTime)).format("YYYY-MM-DD")} ${formatTime(
+                    bag.startTime,
+                  )}`}
+                  highlight={filter}
+                />
+              )}
+            </span>
+          </Stack>
+        )}
 
         {bag.fileType === "GHOST_RESULT_FILE" && (
           <Tooltip title={t("shadowMode")} placement="top" className={classes.tooltip}>
