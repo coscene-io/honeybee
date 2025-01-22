@@ -4,6 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { DataSourceArgs } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 
 enum AppEvent {
   APP_INIT = "app_initialized",
@@ -89,7 +90,7 @@ enum AppEvent {
 interface IAnalytics {
   logEvent(event: AppEvent, data?: { [key: string]: unknown }): void | Promise<void>;
   setSpeed(speed: number): void;
-  initPlayer(sourceId: string): void;
+  initPlayer(sourceId: string, args?: DataSourceArgs): void;
 }
 
 export { AppEvent };
