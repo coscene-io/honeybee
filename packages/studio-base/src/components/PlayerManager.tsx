@@ -282,7 +282,7 @@ export default function PlayerManager(
         return;
       }
 
-      metricsCollector.setProperty("player", sourceId);
+      metricsCollector.setProperty("player", sourceId, args);
       setSelectedSource(foundSource);
 
       // Sample sources don't need args or prompts to initialize
