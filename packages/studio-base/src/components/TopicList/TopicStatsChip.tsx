@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Divider, Paper } from "@mui/material";
+import { isNumber } from "mathjs";
 import { makeStyles } from "tss-react/mui";
 
 const useStyles = makeStyles<void, "selected">()((theme, _props, classes) => ({
@@ -75,7 +76,7 @@ export function TopicStatsChip({
   return (
     <Paper variant="outlined" className={cx(classes.root, { [classes.selected]: selected })}>
       <div className={classes.stat} data-topic={topicName} data-topic-stat="frequency">
-        {messageFrequency}
+        {isNumber(messageFrequency) ? messageFrequency : "-"}
       </div>
       <Divider className={classes.divider} orientation="vertical" flexItem />
       <div className={classes.stat} data-topic={topicName} data-topic-stat="count">
