@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -222,7 +225,7 @@ export const UtilsUsageInNode: StoryObj = {
 
 export const EditorShowsNewCodeWhenUserNodesChange: StoryObj = {
   render: function Story() {
-    const ChangeUserNodeOnMount = useCallback(function ChangeUserNodeOnMount(): JSX.Element {
+    const ChangeUserNodeOnMount = useCallback(function ChangeUserNodeOnMount(): React.JSX.Element {
       const actions = useCurrentLayoutActions();
       useEffect(() => {
         actions.setUserScripts({
@@ -385,7 +388,7 @@ export const SidebarOpenTemplatesExplorer: StoryObj = {
 };
 
 const NeverLoad = () => {
-  // eslint-disable-next-line @typescript-eslint/no-throw-literal
+  // eslint-disable-next-line @typescript-eslint/only-throw-error
   throw new Promise(() => {
     // no-op
   });

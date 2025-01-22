@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -7,7 +10,10 @@ import * as THREE from "three";
 // Same as MeshStandardMaterial, but supporting a per-instance alpha using an `instanceOpacity` attribute.
 // Based on https://github.com/pailhead/three-instanced-mesh/pull/35
 export class MeshStandardMaterialWithInstanceOpacity extends THREE.MeshStandardMaterial {
-  public override onBeforeCompile(shader: THREE.Shader, renderer: THREE.WebGLRenderer): void {
+  public override onBeforeCompile(
+    shader: THREE.WebGLProgramParametersWithUniforms,
+    renderer: THREE.WebGLRenderer,
+  ): void {
     super.onBeforeCompile(shader, renderer);
     shader.vertexShader = shader.vertexShader
       .replace(

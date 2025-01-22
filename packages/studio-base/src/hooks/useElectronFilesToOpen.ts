@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -5,12 +8,17 @@
 import { useEffect, useState } from "react";
 
 import Logger from "@foxglove/log";
+import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 
 const log = Logger.getLogger(__filename);
+
+const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
 
 // Hook to get any files the main thread has told us to open
 // See the comments in main thread implementation on how the files are injected into this input
 export default function useElectronFilesToOpen(): FileList | undefined {
+  const setCurrentFile = useUploadFiles(selectSetCurrentFile);
+
   const [input] = useState(() =>
     document.querySelector<HTMLInputElement>("#electron-open-file-input"),
   );
@@ -27,6 +35,7 @@ export default function useElectronFilesToOpen(): FileList | undefined {
 
     const update = () => {
       setFileList(input.files ?? undefined);
+      setCurrentFile(input.files?.[0]);
     };
 
     // handle any new file open requests
@@ -34,7 +43,7 @@ export default function useElectronFilesToOpen(): FileList | undefined {
     return () => {
       input.removeEventListener("change", update);
     };
-  }, [input]);
+  }, [input, setCurrentFile]);
 
   return fileList;
 }

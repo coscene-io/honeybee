@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -46,9 +49,9 @@ import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { useTopicPrefixConfigurationValue } from "@foxglove/studio-base/hooks";
 import { OnClickArg as OnChartClickArgs } from "@foxglove/studio-base/src/components/Chart";
 import { OpenSiblingPanel, PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
 
 import MomentsList from "./MomentsList";
@@ -105,11 +108,13 @@ const ZERO_TIME = Object.freeze({ sec: 0, nsec: 0 });
 const selectEvents = (store: EventsStore) => store.events;
 const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hoveredEvent;
 const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
+const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
 
 function Plot(props: Props) {
   const { saveConfig, config } = props;
   const { t } = useTranslation("cosAnnotatedPlot");
   const {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
     title: legacyTitle,
     followingViewWidth,
     paths: originalPaths,
@@ -132,6 +137,7 @@ function Plot(props: Props) {
     y1MultiplicationFactor,
     y2MultiplicationFactor,
   } = config;
+  const addTopicPrefix = useTopicPrefixConfigurationValue();
 
   const yAxesInfo: YAxesInfo = {
     yAxis: {
@@ -189,19 +195,15 @@ function Plot(props: Props) {
   const events = useEvents(selectEvents);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
+  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
 
   const { setMessagePathDropConfig } = usePanelContext();
 
   useEffect(() => {
-    const addPrefix =
-      localStorage.getItem("CoScene_addTopicPrefix") ??
-      APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
-      "false";
-
-    if (addPrefix !== "true") {
+    if (addTopicPrefix !== "true") {
       toast.error(t("prefixTip"));
     }
-  }, [t]);
+  }, [addTopicPrefix, t]);
 
   useEffect(() => {
     setMessagePathDropConfig({
@@ -264,13 +266,15 @@ function Plot(props: Props) {
   }, [events, momentsFilter, showMoments, selectRecords]);
 
   const eventsTimeSinceStart = filteredEvents.map((event) => {
+    const isHovered =
+      (hoveredEvent != undefined && event.event.name === hoveredEvent.event.name) ||
+      eventsAtHoverValue[event.event.name] != undefined ||
+      loopedEvent?.event.name === event.event.name;
+
     return {
       time: timeSincePreloadedStart(event.startTime) ?? 0,
       color: event.color,
-      // isHovered: hoveredEvent != undefined && event.event.name === hoveredEvent.event.name,
-      isHovered: hoveredEvent
-        ? event.event.name === hoveredEvent.event.name
-        : eventsAtHoverValue[event.event.name] != undefined,
+      isHovered,
     };
   });
 

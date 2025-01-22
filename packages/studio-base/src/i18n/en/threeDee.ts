@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -15,6 +18,12 @@ export const threeDee = {
   gradient: "Gradient",
   type: "Type",
   topic: "Topic",
+  calibration: "Calibration",
+  syncAnnotations: "Sync annotations",
+  flipHorizontal: "Flip horizontal",
+  flipVertical: "Flip vertical",
+  syncAnnotationsHelp:
+    "Display annotations only when the message timestamp matches (this message type does not support this)",
 
   // Frame
   age: "Age",
@@ -103,6 +112,7 @@ export const threeDee = {
   maxColor: "Max color",
   minColor: "Min color",
   unknownColor: "Unknown color",
+  modifyHeight: "Modify height",
 
   // Point Extension Utils
   decayTime: "Decay time",

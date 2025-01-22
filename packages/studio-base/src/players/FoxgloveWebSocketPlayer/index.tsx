@@ -1,6 +1,11 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+/* eslint-disable @typescript-eslint/no-deprecated */
 
 import { Button } from "@mui/material";
 import * as base64 from "@protobufjs/base64";
@@ -19,6 +24,7 @@ import { MessageWriter as Ros2MessageWriter } from "@foxglove/rosmsg2-serializat
 import { fromMillis, fromNanoSec, isGreaterThan, isLessThan, Time } from "@foxglove/rostime";
 import { ParameterValue } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { estimateObjectSize } from "@foxglove/studio-base/players/messageMemoryEstimation";
 import {
@@ -166,15 +172,33 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #messageSizeEstimateByTopic: Record<string, number> = {};
   // #INATIVE_TIMEOUT
   #inactiveTimeout = INATIVE_TIMEOUT;
+  #confirm: confirmTypes;
+
+  #userId: string;
+  #username: string;
+  #deviceName: string;
+  #isReconnect: boolean = false;
+
+  // #isOldBridge = false;
 
   public constructor({
     url,
     metricsCollector,
     sourceId,
+    params,
+    confirm,
+    userId,
+    username,
+    deviceName,
   }: {
     url: string;
     metricsCollector: PlayerMetricsCollectorInterface;
     sourceId: string;
+    params: Record<string, string | undefined>;
+    confirm: confirmTypes;
+    userId: string;
+    username: string;
+    deviceName: string;
   }) {
     this.#metricsCollector = metricsCollector;
     this.#url = url;
@@ -183,8 +207,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#sourceId = sourceId;
     this.#urlState = {
       sourceId: this.#sourceId,
-      parameters: { url: this.#url },
+      parameters: { ...params, url: this.#url },
     };
+    this.#confirm = confirm;
+    this.#userId = userId;
+    this.#username = username;
+    this.#deviceName = deviceName;
     this.#open();
   }
 
@@ -212,7 +240,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     });
 
     this.#client.on("open", () => {
-      if (this.#closed) {
+      if (this.#closed || !this.#client) {
         return;
       }
       if (this.#connectionAttemptTimeout != undefined) {
@@ -242,6 +270,76 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#parameters = new Map();
     });
 
+    this.#client.on("login", (message) => {
+      if (this.#isReconnect) {
+        this.#isReconnect = false;
+        this.#client?.login(this.#userId, this.#username);
+        return;
+      }
+      if (message.userId) {
+        void this.#confirm({
+          title: t("cosWebsocket:note"),
+          prompt: (
+            <Trans
+              t={t}
+              i18nKey="cosWebsocket:connectionOccupied"
+              values={{
+                deviceName: this.#deviceName,
+                username: message.username,
+              }}
+              components={{
+                strong: <strong />,
+              }}
+            />
+          ),
+          ok: t("cosWebsocket:confirm"),
+          cancel: t("cosWebsocket:cancel"),
+          variant: "danger",
+        }).then((result) => {
+          if (result === "ok") {
+            this.#client?.login(this.#userId, this.#username);
+          }
+          if (result === "cancel") {
+            window.close();
+          }
+        });
+      } else {
+        this.#client?.login(this.#userId, this.#username);
+      }
+    });
+
+    this.#client.on("kicked", (message) => {
+      this.close();
+      void this.#confirm({
+        title: t("cosWebsocket:notification"),
+        prompt: (
+          <Trans
+            t={t}
+            i18nKey="cosWebsocket:vizIsTkenNow"
+            values={{
+              deviceName: this.#deviceName,
+              username: message.username,
+            }}
+            components={{
+              strong: <strong />,
+            }}
+          />
+        ),
+        ok: t("cosWebsocket:reconnect"),
+        cancel: t("cosWebsocket:cancel"),
+        variant: "danger",
+      }).then((result) => {
+        if (result === "ok") {
+          this.#closed = false;
+          this.#isReconnect = true;
+          this.#open();
+        }
+        if (result === "cancel") {
+          window.close();
+        }
+      });
+    });
+
     this.#client.on("error", (err) => {
       log.error(err);
 
@@ -254,7 +352,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           message: "Insecure WebSocket connection",
           tip: `Check that the WebSocket server at ${
             this.#url
-          } is reachable and supports protocol version ${FoxgloveClient.SUPPORTED_SUBPROTOCOL}.`,
+          } is reachable and supports protocol version coscene.websocket.protocol.`,
         });
         this.#emitState();
       }
@@ -302,10 +400,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
           message: t("cosError:connectionFailed"),
           tip: (
             <span>
-              {`${t("cosError:insecureWebSocketConnectionMessage", {
+              {t("cosError:insecureWebSocketConnectionMessage", {
                 url: this.#url,
-                version: FoxgloveClient.SUPPORTED_SUBPROTOCOL,
-              })}`}
+                version: "coscene.websocket.protocol",
+              })}
               <br />
               1. {t("cosError:checkNetworkConnection")}
               <br />
@@ -318,7 +416,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
                     <a
                       style={{ color: "#2563eb" }}
                       target="_blank"
-                      href="https://docs.coscene.cn/docs/recipes/device/device-remote-control/#%E5%AE%9E%E6%97%B6%E5%8F%AF%E8%A7%86%E5%8C%96"
+                      href="https://github.com/coscene-io/coBridge"
                       rel="noopener"
                     />
                   ),
@@ -968,7 +1066,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       window.removeEventListener("keypress", resetTimer);
       window.removeEventListener("touchmove", resetTimer);
 
-      window.addEventListener("visibilitychange", resetInactiveTimeout);
+      window.removeEventListener("visibilitychange", resetInactiveTimeout);
     };
 
     if (this.#closed) {
@@ -1172,7 +1270,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       throw new Error(`Attempted to set parameters without a valid coScene WebSocket connection`);
     }
 
-    log.debug(`FoxgloveWebSocketPlayer.setParameter(key=${key}, value=${value})`);
+    log.debug(`FoxgloveWebSocketPlayer.setParameter(key=${key}, value=${JSON.stringify(value)})`);
     const isByteArray = value instanceof Uint8Array;
     const paramValueToSent = isByteArray ? btoa(textDecoder.decode(value)) : value;
     this.#client.setParameters(
@@ -1256,8 +1354,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         try {
           const data = parsedResponse.deserialize(response.data);
           resolve(data as Record<string, unknown>);
-        } catch (error) {
-          reject(error);
+        } catch (error: unknown) {
+          reject(error as Error);
         }
       });
     });

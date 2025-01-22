@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -32,7 +35,7 @@ const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeD
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 
-export default function PlaybackTimeDisplay(props: Props): JSX.Element {
+function PlaybackTimeDisplay(props: Props): React.JSX.Element {
   const [timezone] = useAppConfigurationValue<string>(AppSetting.TIMEZONE);
 
   const isPlaying = useMessagePipeline(selectIsPlaying);
@@ -54,3 +57,5 @@ export default function PlaybackTimeDisplay(props: Props): JSX.Element {
     />
   );
 }
+
+export default React.memo(PlaybackTimeDisplay);

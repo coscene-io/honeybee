@@ -1,8 +1,11 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Toaster } from "react-hot-toast";
 
 import {
@@ -12,22 +15,32 @@ import {
   SharedRoot,
   AppBarProps,
   AppSetting,
+  IdbExtensionLoader,
+  ConsoleApi,
+  SharedProviders,
 } from "@foxglove/studio-base";
+import { StudioApp } from "@foxglove/studio-base/StudioApp";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { useCoSceneInit } from "./CoSceneInit";
-import { CoSceneProviders } from "./CoSceneProviders";
-import { JoyrideWrapper } from "./Joyride";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
 export function WebRoot(props: {
-  extraProviders: JSX.Element[] | undefined;
+  extraProviders: React.JSX.Element[] | undefined;
   dataSources: CoSceneIDataSourceFactory[] | undefined;
-  AppBarComponent?: (props: AppBarProps) => JSX.Element;
-  children: JSX.Element;
-}): JSX.Element {
+  AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
+}): React.JSX.Element {
+  const baseUrl = APP_CONFIG.CS_HONEYBEE_BASE_URL;
+  const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
+
   useCoSceneInit();
+
+  // if has many sources need to set confirm
+  // recommand set confirm to message pipeline
+  const [confirm, confirmModal] = useConfirm();
 
   const appConfiguration = useMemo(
     () =>
@@ -39,16 +52,26 @@ export function WebRoot(props: {
     [],
   );
 
+  const [extensionLoaders] = useState(() => [
+    new IdbExtensionLoader("org"),
+    new IdbExtensionLoader("local"),
+  ]);
+
   const dataSources = useMemo(() => {
     const sources = [
-      new FoxgloveWebSocketDataSourceFactory(),
       new CoSceneDataPlatformDataSourceFactory(),
+      new FoxgloveWebSocketDataSourceFactory({ confirm }),
     ];
 
     return props.dataSources ?? sources;
-  }, [props.dataSources]);
+  }, [props.dataSources, confirm]);
 
-  const coSceneProviders = CoSceneProviders();
+  const consoleApi = useMemo(
+    () => new ConsoleApi(baseUrl, APP_CONFIG.VITE_APP_BFF_URL, jwt),
+    [baseUrl, jwt],
+  );
+
+  const coSceneProviders = SharedProviders({ consoleApi });
 
   const extraProviders = useMemo(() => {
     const providers = coSceneProviders;
@@ -65,14 +88,15 @@ export function WebRoot(props: {
         deepLinks={[window.location.href]}
         dataSources={dataSources}
         appConfiguration={appConfiguration}
+        extensionLoaders={extensionLoaders}
         enableGlobalCss
         extraProviders={extraProviders}
         AppBarComponent={props.AppBarComponent}
       >
-        {props.children}
+        <StudioApp />
       </SharedRoot>
-      <JoyrideWrapper />
       <Toaster />
+      {confirmModal}
     </>
   );
 }

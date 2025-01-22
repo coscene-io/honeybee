@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -25,7 +28,6 @@ import {
   Typography,
   IconButton,
   ListItemText,
-  CircularProgress,
   TablePagination,
   Breadcrumbs,
   Link,
@@ -37,7 +39,9 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
+import { useDebounce } from "use-debounce";
 
+import { CreateRecordForm } from "@foxglove/studio-base/components/CoSceneChooser/CreateRecordForm";
 import Snow from "@foxglove/studio-base/components/DataSourceDialog/Snow";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -93,8 +97,8 @@ const useStyles = makeStyles()((theme) => ({
     marginTop: theme.spacing(2),
     height: theme.spacing(65),
   },
-  chooserContainer: {
-    borderRight: `1px solid ${theme.palette.divider}`,
+  filesListContainer: {
+    borderLeft: `1px solid ${theme.palette.divider}`,
   },
 }));
 
@@ -104,11 +108,12 @@ function FilesList({
 }: {
   files: SelectedFile[];
   setFiles: (files: SelectedFile[]) => void;
-}): JSX.Element {
+}): React.JSX.Element {
   const { t } = useTranslation("cosPlaylist");
+  const { classes } = useStyles();
 
   return (
-    <Stack flex={1} padding={2}>
+    <Stack flex={1} padding={2} className={classes.filesListContainer}>
       <Stack paddingBottom={1}>
         <Typography gutterBottom>
           {t("selectedFilesCount", {
@@ -155,19 +160,29 @@ function FilesList({
   );
 }
 
+const selectUser = (store: UserStore) => store.user;
+
 const CustomBreadcrumbs = ({
   project,
   clearProject,
   record,
   clearRecord,
+  type,
+  recordType,
+  setRecordType,
 }: {
   project?: Project;
   clearProject: () => void;
   record?: Record;
   clearRecord: () => void;
+  type: "record" | "files";
+  recordType: "create" | "select";
+  setRecordType: (recordType: "create" | "select") => void;
 }) => {
   const { t } = useTranslation("cosGeneral");
-  let breadcrumbs: JSX.Element[] = [];
+  const currentUser = useCurrentUser(selectUser);
+
+  let breadcrumbs: React.JSX.Element[] = [];
 
   if (!project && !record) {
     breadcrumbs = [
@@ -225,31 +240,70 @@ const CustomBreadcrumbs = ({
   }
 
   return (
-    <Stack>
+    <Stack direction="row" alignItems="center" justifyContent="space-between">
       <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
         {breadcrumbs}
       </Breadcrumbs>
+
+      {type === "record" && !project && !record && (
+        <Button
+          variant="text"
+          onClick={() => {
+            window.open(currentUser?.targetSite, "_blank");
+          }}
+        >
+          {t("toCreateProject", { ns: "appBar" })}
+        </Button>
+      )}
+
+      {type === "record" &&
+        project &&
+        !record &&
+        (recordType === "create" ? (
+          <Button
+            variant="text"
+            onClick={() => {
+              setRecordType("select");
+            }}
+          >
+            {t("selectRecord", { ns: "appBar" })}
+          </Button>
+        ) : (
+          <Button
+            variant="text"
+            onClick={() => {
+              setRecordType("create");
+            }}
+          >
+            {t("createRecord", { ns: "appBar" })}
+          </Button>
+        ))}
     </Stack>
   );
 };
 
-const selectUser = (store: UserStore) => store.user;
-
-function ChooserComponent({
+export function ChooserComponent({
   setTargetRecordName,
   type,
   files,
   setFiles,
   checkFileSupportedFunc,
+  defaultRecordType = "select",
+  defaultRecordName,
+  createRecordConfirmText,
 }: {
-  setTargetRecordName: (recordName?: Record) => void;
+  setTargetRecordName: (recordName?: Record, recordType?: "create" | "select") => void;
   files: SelectedFile[];
   setFiles: (files: SelectedFile[]) => void;
   type: "record" | "files";
   checkFileSupportedFunc: (file: File) => boolean;
-}) {
-  const { classes } = useStyles();
+  defaultRecordType?: "create" | "select";
+  defaultRecordName?: string;
+  createRecordConfirmText?: string;
+}): React.JSX.Element {
   const { t } = useTranslation("cosGeneral");
+
+  const [recordType, setRecordType] = useState<"create" | "select">(defaultRecordType);
 
   const userInfo = useCurrentUser(selectUser);
   const consoleApi = useConsoleApi();
@@ -261,16 +315,20 @@ function ChooserComponent({
   const [projectsPage, setProjectsPage] = useState(0);
   const [projectsFilter, setProjectsFilter] = useState("");
 
+  const [debounceProjectsFilter] = useDebounce(projectsFilter, 500);
+
   const [recordsPageSize, setRecordsPageSize] = useState(20);
   const [recordsPage, setRecordsPage] = useState(0);
   const [recordsFilter, setRecordsFilter] = useState("");
+  const [debounceRecordsFilter] = useDebounce(recordsFilter, 500);
 
   const [filesPageSize, setFilesPageSize] = useState(20);
   const [filesPage, setFilesPage] = useState(0);
   const [filesFilter, setFilesFilter] = useState("");
+  const [debounceFilesFilter] = useDebounce(filesFilter, 500);
 
   useEffect(() => {
-    setTargetRecordName(record);
+    setTargetRecordName(record, "select");
   }, [record, setTargetRecordName]);
 
   const resetState = () => {
@@ -297,7 +355,7 @@ function ChooserComponent({
     if (type === "files") {
       return "files";
     }
-    return "";
+    return "records";
   }, [project, record, type]);
 
   const [filterText, setFilterText] = useMemo(() => {
@@ -307,10 +365,7 @@ function ChooserComponent({
     if (listType === "records") {
       return [recordsFilter, setRecordsFilter];
     }
-    if (listType === "files") {
-      return [filesFilter, setFilesFilter];
-    }
-    return ["", () => {}];
+    return [filesFilter, setFilesFilter];
   }, [filesFilter, listType, projectsFilter, recordsFilter]);
 
   const [page, setPage] = useMemo(() => {
@@ -320,10 +375,7 @@ function ChooserComponent({
     if (listType === "records") {
       return [recordsPage, setRecordsPage];
     }
-    if (listType === "files") {
-      return [filesPage, setFilesPage];
-    }
-    return [1, () => {}];
+    return [filesPage, setFilesPage];
   }, [filesPage, listType, projectsPage, recordsPage]);
 
   const [pageSize, setPageSize] = useMemo(() => {
@@ -333,17 +385,14 @@ function ChooserComponent({
     if (listType === "records") {
       return [recordsPageSize, setRecordsPageSize];
     }
-    if (listType === "files") {
-      return [filesPageSize, setFilesPageSize];
-    }
-    return [10, () => {}];
+    return [filesPageSize, setFilesPageSize];
   }, [filesPageSize, listType, projectsPageSize, recordsPageSize]);
 
   const [projects, syncProjects] = useAsyncFn(async () => {
     const userId = userInfo?.userId;
     const filter = CosQuery.Companion.empty();
 
-    filter.setField(QueryFields.DISPLAY_NAME, [BinaryOperator.HAS], [projectsFilter]);
+    filter.setField(QueryFields.DISPLAY_NAME, [BinaryOperator.HAS], [debounceProjectsFilter]);
 
     if (userId && listType === "projects") {
       try {
@@ -359,12 +408,19 @@ function ChooserComponent({
     }
 
     return new ListUserProjectsResponse();
-  }, [consoleApi, listType, projectsFilter, projectsPage, projectsPageSize, userInfo?.userId]);
+  }, [
+    consoleApi,
+    listType,
+    debounceProjectsFilter,
+    projectsPage,
+    projectsPageSize,
+    userInfo?.userId,
+  ]);
 
   const [records, syncRecords] = useAsyncFn(async () => {
     const filter = CosQuery.Companion.empty();
 
-    filter.setField(QueryFields.TITLE, [BinaryOperator.HAS], [recordsFilter]);
+    filter.setField(QueryFields.TITLE, [BinaryOperator.HAS], [debounceRecordsFilter]);
 
     if (project && listType === "records") {
       return await consoleApi.listRecord({
@@ -376,12 +432,13 @@ function ChooserComponent({
     }
 
     return new ListRecordsResponse();
-  }, [consoleApi, listType, project, recordsFilter, recordsPage, recordsPageSize]);
+  }, [consoleApi, listType, project, debounceRecordsFilter, recordsPage, recordsPageSize]);
 
   const [filesList, syncFilesList] = useAsyncFn(async () => {
     const filter = CosQuery.Companion.empty();
 
-    filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesFilter]);
+    filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [debounceFilesFilter]);
+    filter.setField("recursive", [BinaryOperator.EQ], ["true"]);
 
     if (record && listType === "files") {
       return await consoleApi.listFiles({
@@ -393,7 +450,7 @@ function ChooserComponent({
     }
 
     return new ListFilesResponse();
-  }, [consoleApi, filesFilter, filesPage, filesPageSize, listType, record]);
+  }, [consoleApi, debounceFilesFilter, filesPage, filesPageSize, listType, record]);
 
   useEffect(() => {
     if (listType === "projects") {
@@ -412,15 +469,13 @@ function ChooserComponent({
     if (listType === "records") {
       return Number(records.value?.totalSize ?? 0);
     }
-    if (listType === "files") {
-      return Number(filesList.value?.totalSize ?? 0);
-    }
-    return 0;
+    return Number(filesList.value?.totalSize ?? 0);
   }, [filesList.value?.totalSize, listType, projects.value?.totalSize, records.value?.totalSize]);
 
   return (
-    <Stack flex={1} gap={1} padding={2} className={classes.chooserContainer}>
+    <Stack flex={1} gap={1} padding={2}>
       <CustomBreadcrumbs
+        type={type}
         project={project}
         record={record}
         clearProject={() => {
@@ -429,37 +484,38 @@ function ChooserComponent({
         clearRecord={() => {
           setRecord(undefined);
         }}
-      />
-      <TextField
-        variant="filled"
-        value={filterText}
-        onChange={(event) => {
-          setFilterText(event.currentTarget.value);
-        }}
-        size="small"
-        placeholder={t("search")}
-        InputProps={{
-          startAdornment: <SearchIcon fontSize="small" />,
-          endAdornment: filterText !== "" && (
-            <IconButton
-              edge="end"
-              onClick={() => {
-                setFilterText("");
-              }}
-              size="small"
-            >
-              <ClearIcon fontSize="small" />
-            </IconButton>
-          ),
-        }}
+        recordType={recordType}
+        setRecordType={setRecordType}
       />
 
-      {projects.loading || records.loading || filesList.loading ? (
-        <Stack flex={1} fullHeight fullWidth justifyContent="center" alignItems="center">
-          <CircularProgress />
-        </Stack>
-      ) : (
-        <Stack flex={1} overflowY="scroll" fullWidth>
+      {(listType !== "records" || recordType !== "create") && (
+        <TextField
+          variant="filled"
+          value={filterText}
+          onChange={(event) => {
+            setFilterText(event.currentTarget.value);
+          }}
+          size="small"
+          placeholder={t("search")}
+          InputProps={{
+            startAdornment: <SearchIcon fontSize="small" />,
+            endAdornment: filterText !== "" && (
+              <IconButton
+                edge="end"
+                onClick={() => {
+                  setFilterText("");
+                }}
+                size="small"
+              >
+                <ClearIcon fontSize="small" />
+              </IconButton>
+            ),
+          }}
+        />
+      )}
+
+      <Stack flex={1} fullWidth overflow="hidden">
+        <Stack fullHeight overflowY="scroll" overflow="hidden">
           {listType === "projects" && (
             <List>
               {projects.value?.userProjects.map((value) => {
@@ -480,113 +536,132 @@ function ChooserComponent({
               })}
             </List>
           )}
-          {listType === "records" && (
-            <List>
-              {records.value?.records.map((value) => {
-                return (
-                  <ListItem key={value.name} disablePadding>
-                    <ListItemButton
-                      role={undefined}
-                      onClick={() => {
-                        resetState();
-                        setRecord(value);
-                      }}
-                      dense
-                    >
-                      <ListItemText id={value.name} primary={value.title} />
-                    </ListItemButton>
-                  </ListItem>
-                );
-              })}
-            </List>
-          )}
+          {listType === "records" &&
+            (recordType === "select" ? (
+              <List>
+                {records.value?.records.map((value) => {
+                  return (
+                    <ListItem key={value.name} disablePadding>
+                      <ListItemButton
+                        selected={record?.name === value.name}
+                        role={undefined}
+                        onClick={() => {
+                          resetState();
+                          setRecord(value);
+                        }}
+                        dense
+                      >
+                        <ListItemText id={value.name} primary={value.title} />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            ) : (
+              <CreateRecordForm
+                parent={project?.name ?? ""}
+                onCreated={(targetRecord: Record) => {
+                  setTargetRecordName(targetRecord, "create");
+                }}
+                defaultRecordName={defaultRecordName}
+                createRecordConfirmText={createRecordConfirmText}
+              />
+            ))}
+
           {listType === "files" && (
             <List>
-              {filesList.value?.files.map((value) => {
-                const supportedImport = checkFileSupportedFunc(value);
+              {/* if filename end with '/' then it's a directory */}
+              {filesList.value?.files
+                .filter((ele) => !ele.name.endsWith("/"))
+                .map((value) => {
+                  const supportedImport = checkFileSupportedFunc(value);
 
-                const repeatFile = files.find(
-                  (file) => file.file.sha256 === value.sha256 && file.file.name !== value.name,
-                );
+                  const repeatFile = files.find(
+                    (file) => file.file.sha256 === value.sha256 && file.file.name !== value.name,
+                  );
 
-                return (
-                  <ListItem key={value.name} disablePadding>
-                    <ListItemButton
-                      disabled={!supportedImport || repeatFile != undefined}
-                      role={undefined}
-                      onClick={() => {
-                        const fileInfo = {
-                          file: value,
-                          projectDisplayName: project?.displayName ?? "",
-                          recordDisplayName: record?.title ?? "",
-                        };
-                        const newFiles = new Set(files);
-                        let fileExist = false;
-                        newFiles.forEach((file) => {
-                          if (file.file.name === fileInfo.file.name) {
-                            newFiles.delete(file);
-                            fileExist = true;
+                  return (
+                    <ListItem key={value.name} disablePadding>
+                      <ListItemButton
+                        disabled={!supportedImport || repeatFile != undefined}
+                        role={undefined}
+                        onClick={() => {
+                          const fileInfo = {
+                            file: value,
+                            projectDisplayName: project?.displayName ?? "",
+                            recordDisplayName: record?.title ?? "",
+                          };
+                          const newFiles = new Set(files);
+                          let fileExist = false;
+                          newFiles.forEach((file) => {
+                            if (file.file.name === fileInfo.file.name) {
+                              newFiles.delete(file);
+                              fileExist = true;
+                            }
+                          });
+
+                          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+                          if (!fileExist) {
+                            newFiles.add(fileInfo);
                           }
-                        });
-
-                        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-                        if (!fileExist) {
-                          newFiles.add(fileInfo);
-                        }
-                        setFiles(Array.from(newFiles));
-                      }}
-                      dense
-                    >
-                      <ListItemIcon>
-                        <Checkbox
-                          edge="start"
-                          checked={files.some((file) => file.file.name === value.name)}
-                          disabled={!supportedImport}
-                          tabIndex={-1}
-                          disableRipple
-                          inputProps={{ "aria-labelledby": value.filename }}
-                        />
-                      </ListItemIcon>
-                      <ListItemText id={value.name} primary={value.filename.split("/").pop()} />
-                    </ListItemButton>
-                    {repeatFile != undefined && (
-                      <Typography color="error">
-                        <Tooltip
-                          title={t("duplicateFile", {
-                            ns: "cosPlaylist",
-                            filename: repeatFile.file.filename,
-                          })}
-                        >
-                          <HelpOutlineIcon fontSize="small" />
-                        </Tooltip>
-                      </Typography>
-                    )}
-                  </ListItem>
-                );
-              })}
+                          setFiles(Array.from(newFiles));
+                        }}
+                        dense
+                      >
+                        <ListItemIcon>
+                          <Checkbox
+                            edge="start"
+                            checked={files.some((file) => file.file.name === value.name)}
+                            disabled={!supportedImport}
+                            tabIndex={-1}
+                            disableRipple
+                            inputProps={{ "aria-labelledby": value.filename }}
+                          />
+                        </ListItemIcon>
+                        <ListItemText id={value.name} primary={value.filename.split("/").pop()} />
+                      </ListItemButton>
+                      {repeatFile != undefined && (
+                        <Typography color="error">
+                          <Tooltip
+                            title={t("duplicateFile", {
+                              ns: "cosPlaylist",
+                              filename: repeatFile.file.filename,
+                            })}
+                          >
+                            <HelpOutlineIcon fontSize="small" />
+                          </Tooltip>
+                        </Typography>
+                      )}
+                    </ListItem>
+                  );
+                })}
             </List>
           )}
         </Stack>
-      )}
 
-      <TablePagination
-        component="div"
-        count={count}
-        page={page}
-        onPageChange={(_e, selectedPage) => {
-          setPage(selectedPage);
-        }}
-        rowsPerPageOptions={[20, 50, 100]}
-        rowsPerPage={pageSize}
-        onRowsPerPageChange={(e) => {
-          setPageSize(+e.target.value);
-        }}
-      />
+        {!(listType === "records" && recordType === "create") && (
+          <Stack>
+            <TablePagination
+              component="div"
+              count={count}
+              page={page}
+              onPageChange={(_e, selectedPage) => {
+                setPage(selectedPage);
+              }}
+              rowsPerPageOptions={[20, 50, 100]}
+              rowsPerPage={pageSize}
+              onRowsPerPageChange={(e) => {
+                setPageSize(+e.target.value);
+              }}
+            />
+          </Stack>
+        )}
+      </Stack>
     </Stack>
   );
 }
 
-function CoSceneChooser(props: ChooserDialogProps): JSX.Element {
+function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
   const {
     backdropAnimation,
     open,
@@ -632,7 +707,9 @@ function CoSceneChooser(props: ChooserDialogProps): JSX.Element {
       onClose={onModalClose}
       fullWidth
       maxWidth="lg"
-      BackdropProps={{ children: backdrop }}
+      slotProps={{
+        backdrop: { children: backdrop },
+      }}
       PaperProps={{
         square: false,
         elevation: 4,

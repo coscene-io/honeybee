@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -6,22 +9,24 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CheckIcon from "@mui/icons-material/Check";
 import { Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
-import { useEffect, useState } from "react";
+import i18n from "i18next";
+import { useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { subtract } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 
 const ORIGINAL = "original";
 const HIGH = "high";
 const MEDIUM = "mid";
 const LOW = "low";
-const PLAYBACK_QUALITY_LEVEL = "playbackQualityLevel";
 
 const SPEED_OPTIONS = [ORIGINAL, HIGH, MEDIUM, LOW];
 const useStyles = makeStyles()((theme) => ({
@@ -37,9 +42,13 @@ const useStyles = makeStyles()((theme) => ({
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 
-export default function PlaybackQualityControls(): JSX.Element {
+function PlaybackQualityControls(): React.JSX.Element {
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
-  const [playbackQuality, setPlaybackQuality] = useState<string>(ORIGINAL);
+
+  const [playbackQuality, setPlaybackQuality] = useAppConfigurationValue<string>(
+    AppSetting.PLAYBACK_QUALITY_LEVEL,
+  );
+
   const { t } = useTranslation("cosSettings");
   const open = Boolean(anchorEl);
   const { classes, cx } = useStyles();
@@ -54,18 +63,7 @@ export default function PlaybackQualityControls(): JSX.Element {
     setAnchorEl(undefined);
   };
 
-  useEffect(() => {
-    const playbackQualityLevel = localStorage.getItem(PLAYBACK_QUALITY_LEVEL);
-    if (playbackQualityLevel) {
-      setPlaybackQuality(playbackQualityLevel.toLowerCase());
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(PLAYBACK_QUALITY_LEVEL, playbackQuality.toUpperCase());
-  }, [playbackQuality]);
-
-  const getPlaybackQualityTranslation = (quality: string) => {
+  const getPlaybackQualityTranslation = (quality?: string) => {
     switch (quality) {
       case HIGH:
         return t(HIGH);
@@ -119,8 +117,9 @@ export default function PlaybackQualityControls(): JSX.Element {
           <MenuItem
             selected={playbackQuality === option}
             key={option}
-            onClick={() => {
-              setPlaybackQuality(option);
+            onClick={async () => {
+              await setPlaybackQuality(option);
+
               toast.success(t("willTakeEffectOnTheNextStartup"));
               handleClose();
               if (seek && currentTime) {
@@ -140,7 +139,22 @@ export default function PlaybackQualityControls(): JSX.Element {
             />
           </MenuItem>
         ))}
+        <Button
+          variant="text"
+          fullWidth
+          onClick={() => {
+            if (i18n.language === "zh") {
+              window.open("https://docs.coscene.cn/docs/recipes/viz/frame-rate-optimization/");
+            } else {
+              window.open("https://docs.coscene.cn/en/docs/recipes/viz/frame-rate-optimization/");
+            }
+          }}
+        >
+          {t("understandFrameRateOptimization")}
+        </Button>
       </Menu>
     </>
   );
 }
+
+export default React.memo(PlaybackQualityControls);

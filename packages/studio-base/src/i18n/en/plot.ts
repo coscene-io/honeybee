@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -37,4 +40,9 @@ export const plot = {
   xAxis: "X Axis",
   yAxis: "Y Axis",
   resetView: "Reset view",
+  fullTimestamp: "Timestamp (full)",
+  partialTimestamp: "Timestamp (current)",
+  tooManyMessages:
+    "The current number of messages on the panel is too large, which may lead to unexpected crashes. It is recommended to switch to playback by the current timestamp in 'Panel Settings - X Axis - Value'.",
+  switchImmediately: "Switch immediately",
 };

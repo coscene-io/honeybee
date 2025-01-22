@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -127,6 +130,8 @@ const DEFAULT_CONFIG = {
   ...IMAGE_DEFAULT_COLOR_MODE_SETTINGS,
 };
 
+const NOT_SUPPORT_SYNC_ANNOTATIONS_SCHEMAS = new Set([...COMPRESSED_VIDEO_DATATYPES]);
+
 type ConfigWithDefaults = ImageModeConfig & typeof DEFAULT_CONFIG;
 export class ImageMode
   extends SceneExtension<ImageRenderable, ImageModeEventMap>
@@ -153,6 +158,8 @@ export class ImageMode
   #dragStartPanOffset = new THREE.Vector2();
   #dragStartMouseCoords = new THREE.Vector2();
   #hasModifiedView = false;
+
+  #isSupportSyncAnnotations: boolean = true;
 
   public constructor(renderer: IRenderer, name: string = ImageMode.extensionId) {
     super(name, renderer);
@@ -293,13 +300,22 @@ export class ImageMode
           filterQueue: this.#filterMessageQueue.bind(this),
         },
       },
+      {
+        type: "schema",
+        schemaNames: COMPRESSED_VIDEO_DATATYPES,
+        subscription: {
+          handler: this.messageHandler.handleCompressedImage,
+          shouldSubscribe: this.imageShouldSubscribe,
+          filterQueue: this.#filterMessageQueue.bind(this),
+        },
+      },
     ];
     return subscriptions.concat(this.#annotations.getSubscriptions());
   }
 
   #filterMessageQueue<T>(msgs: MessageEvent<T>[]): MessageEvent<T>[] {
     // only take multiple images in if synchronization is enabled
-    if (!this.getImageModeSettings().synchronize) {
+    if (!this.getImageModeSettings().synchronize && this.#isSupportSyncAnnotations) {
       return msgs.slice(msgs.length - 1);
     }
     return msgs;
@@ -418,6 +434,14 @@ export class ImageMode
       return { label: topic.name, value: topic.name };
     });
 
+    const targetTopic = this.renderer.topics?.find((topic) => topic.name === imageTopicName);
+    const isSupportSyncAnnotations: boolean =
+      targetTopic && NOT_SUPPORT_SYNC_ANNOTATIONS_SCHEMAS.has(targetTopic.schemaName)
+        ? false
+        : true;
+
+    this.#isSupportSyncAnnotations = isSupportSyncAnnotations;
+
     const calibrationTopics: { label: string; value: string | undefined }[] = filterMap(
       this.renderer.topics ?? [],
       (topic) => {
@@ -491,7 +515,7 @@ export class ImageMode
       error: imageTopicError,
     };
     fields.calibrationTopic = {
-      label: "Calibration",
+      label: t3D("calibration"),
       input: "select",
       value: calibrationTopic,
       options: calibrationTopics,
@@ -499,22 +523,24 @@ export class ImageMode
     };
     fields.synchronize = {
       input: "boolean",
-      label: "Sync annotations",
-      value: synchronize,
+      label: t3D("syncAnnotations"),
+      value: this.#isSupportSyncAnnotations ? synchronize : undefined,
+      disabled: !this.#isSupportSyncAnnotations,
+      help: t3D("syncAnnotationsHelp"),
     };
     fields.flipHorizontal = {
       input: "boolean",
-      label: "Flip horizontal",
+      label: t3D("flipHorizontal"),
       value: flipHorizontal,
     };
     fields.flipVertical = {
       input: "boolean",
-      label: "Flip vertical",
+      label: t3D("flipVertical"),
       value: flipVertical,
     };
     fields.rotation = {
       input: "toggle",
-      label: "Rotation",
+      label: t3D("rotation"),
       value: rotation,
       options: [
         { label: "0°", value: 0 },
@@ -726,17 +752,19 @@ export class ImageMode
   };
 
   /** Creates a fallback camera model based off of the renderable with a decoded image and updates the camera.
-   * Will no-op if there is not a decodedImage on the renderable.
+   * Will no-op if there is not a decodedFrame on the renderable.
    * Be sure to call `#updateViewAndRenderables` after calling this method to update the camera and renderable.
    */
   #updateFallbackCameraModel(renderable: ImageRenderable) {
-    const decodedImage = renderable.getDecodedImage();
+    const decodedFrame = renderable.getDecodedFrame();
     const lastImageMessage = renderable.userData.image;
     // if we've already received an image, use it to create a fallback camera model
     // otherwise we would need to wait for the next image
-    if (decodedImage && lastImageMessage) {
+    if (decodedFrame && lastImageMessage) {
       const frameId = getFrameIdFromImage(lastImageMessage);
-      const { width, height } = decodedImage;
+      const width = decodedFrame.getWidth();
+      const height = decodedFrame.getHeight();
+
       const cameraInfo = createFallbackCameraInfoForImage({
         frameId,
         height,
@@ -956,8 +984,10 @@ export class ImageMode
       if (!this.imageRenderable) {
         return;
       }
-      const currentImage = this.imageRenderable.getDecodedImage();
+      const currentImage = await this.imageRenderable.getDecodedFrame()?.getImage();
+
       if (!currentImage) {
+        log.error("No image to download");
         return;
       }
 
@@ -999,7 +1029,7 @@ export class ImageMode
             if (result) {
               resolve(result);
             } else {
-              reject(`Failed to create an image from ${width}x${height} canvas`);
+              reject(new Error(`Failed to create an image from ${width}x${height} canvas`));
             }
           }, "image/png");
         });
@@ -1029,7 +1059,7 @@ export class ImageMode
         type: "item",
         label: "Download image",
         onclick: this.#getDownloadImageCallback(),
-        disabled: this.imageRenderable?.getDecodedImage() == undefined,
+        disabled: this.imageRenderable?.getDecodedFrame() == undefined,
       },
     ];
   }

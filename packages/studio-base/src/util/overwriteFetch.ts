@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -24,8 +27,8 @@ export default function overwriteFetch(): void {
     const replacementError = new TypeError(`Failed to fetch: ${input}`);
     // Since both node types and dom types are in scope here, the input types for `fetch` conflict.
     return await originalFetch(input as Parameters<typeof originalFetch>[0], init).catch(
-      (error) => {
-        if (error.message === "Failed to fetch") {
+      (error: unknown) => {
+        if (error instanceof Error && error.message === "Failed to fetch") {
           throw replacementError;
         }
         throw error;

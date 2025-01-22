@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -11,4 +14,10 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   on: "开",
   off: "关",
   auto: "自动",
+  from: "来自",
+  project: "项目",
+  viz: "可视化",
+  shadowMode: "影子模式",
+  realtimeViz: "实时可视化",
+  testing: "批量测试",
 };

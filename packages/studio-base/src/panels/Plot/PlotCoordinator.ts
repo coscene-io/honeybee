@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -14,6 +17,7 @@ import { stringifyMessagePath } from "@foxglove/studio-base/components/MessagePa
 import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
+import { TimestampDatasetsBuilder } from "@foxglove/studio-base/panels/Plot/builders/TimestampDatasetsBuilder";
 import { MessageBlock, PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds } from "@foxglove/studio-base/types/Bounds";
 import delay from "@foxglove/studio-base/util/delay";
@@ -28,7 +32,7 @@ import {
   SeriesItem,
   Viewport,
 } from "./builders/IDatasetsBuilder";
-import { isReferenceLinePlotPathType, PlotConfig } from "./config";
+import { isReferenceLinePlotPathType, PlotConfig, PlotXAxisVal } from "./config";
 
 type EventTypes = {
   timeseriesBounds(bounds: Immutable<Bounds1D>): void;
@@ -95,6 +99,8 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
   #destroyed = false;
 
   #latestBlocks?: Immutable<(MessageBlock | undefined)[]>;
+
+  #xAxisVal: PlotXAxisVal = "timestamp";
 
   public constructor(renderer: OffscreenCanvasRenderer, builder: IDatasetsBuilder) {
     super();
@@ -171,7 +177,9 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (this.#isDestroyed()) {
       return;
     }
-    this.#isTimeseriesPlot = config.xAxisVal === "timestamp";
+    this.#xAxisVal = config.xAxisVal;
+    this.#isTimeseriesPlot =
+      config.xAxisVal === "timestamp" || config.xAxisVal === "partialTimestamp";
     if (!this.#isTimeseriesPlot) {
       this.#currentSeconds = undefined;
     }
@@ -348,13 +356,13 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
   /**
    * Return true if the plot viewport has deviated from the config or dataset bounds and can reset
    */
-  #canReset(): boolean {
+  async #canReset(): Promise<boolean> {
     if (this.#interactionBounds) {
       return true;
     }
 
     if (this.#globalBounds) {
-      const resetBounds = this.#getXResetBounds();
+      const resetBounds = await this.#getXResetBounds();
       return (
         this.#globalBounds.min !== resetBounds.min || this.#globalBounds.max !== resetBounds.max
       );
@@ -367,7 +375,27 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
    * Get the xBounds if we cleared the interaction and global bounds (i.e) reset
    * back to the config or dataset bounds
    */
-  #getXResetBounds(): Partial<Bounds1D> {
+  async #getXResetBounds(): Promise<Partial<Bounds1D>> {
+    if (
+      this.#datasetsBuilder instanceof TimestampDatasetsBuilder &&
+      this.#xAxisVal === "partialTimestamp"
+    ) {
+      const fullRange = await this.#datasetsBuilder.getXRange();
+      if (fullRange) {
+        const { min, max } = fullRange;
+
+        return {
+          min:
+            this.#followRange != undefined &&
+            this.#followRange > 0 &&
+            this.#currentSeconds != undefined
+              ? this.#currentSeconds - this.#followRange
+              : min,
+          max: this.#currentSeconds ?? max,
+        };
+      }
+    }
+
     const currentSecondsIfFollowMode =
       this.#isTimeseriesPlot && this.#followRange != undefined && this.#currentSeconds != undefined
         ? this.#currentSeconds
@@ -383,12 +411,12 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     return { min: xMin, max: xMax };
   }
 
-  #getXBounds(): Partial<Bounds1D> {
+  async #getXBounds(): Promise<Partial<Bounds1D>> {
     // Interaction, synced global bounds override the config and data source bounds in precedence
     const resetBounds = this.#getXResetBounds();
     return {
-      min: this.#interactionBounds?.x.min ?? this.#globalBounds?.min ?? resetBounds.min,
-      max: this.#interactionBounds?.x.max ?? this.#globalBounds?.max ?? resetBounds.max,
+      min: this.#interactionBounds?.x.min ?? this.#globalBounds?.min ?? (await resetBounds).min,
+      max: this.#interactionBounds?.x.max ?? this.#globalBounds?.max ?? (await resetBounds).max,
     };
   }
 
@@ -400,7 +428,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (this.#isDestroyed()) {
       return;
     }
-    this.#updateAction.xBounds = this.#getXBounds();
+    this.#updateAction.xBounds = await this.#getXBounds();
 
     if (this.#shouldResetY) {
       const yMin = this.#interactionBounds?.y.min ?? this.#configBounds.y.min;
@@ -428,7 +456,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (haveInteractionEvents && bounds) {
       this.emit("timeseriesBounds", bounds.x);
     }
-    this.emit("viewportChange", this.#canReset());
+    this.emit("viewportChange", await this.#canReset());
     this.#queueDispatchDatasets();
   }
 
@@ -436,7 +464,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (this.#isDestroyed()) {
       return;
     }
-    this.#viewport.bounds.x = this.#getXBounds();
+    this.#viewport.bounds.x = await this.#getXBounds();
     this.#viewport.bounds.y = this.#interactionBounds?.y ?? this.#configBounds.y;
 
     const result = await this.#datasetsBuilder.getViewportDatasets(this.#viewport);

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -8,6 +11,8 @@
 // - jfaust https://github.com/jfaust
 
 import * as THREE from "three";
+import { WebGLProgram } from "three/src/renderers/webgl/WebGLProgram";
+import { RenderItem } from "three/src/renderers/webgl/WebGLRenderLists";
 import { assert } from "ts-essentials";
 
 import type { Renderable } from "./Renderable";
@@ -252,13 +257,13 @@ export class Picker {
     renderable.traverseVisible((object) => {
       const maybeRender = object as Partial<THREE.Mesh>;
       if (maybeRender.id != undefined && maybeRender.geometry && maybeRender.material) {
-        const renderItem: THREE.RenderItem = {
+        const renderItem: RenderItem = {
           id: maybeRender.id,
           object,
           geometry: maybeRender.geometry,
           material: maybeRender.material as THREE.Material,
           // `program` is not used by WebGLRenderer even though it is defined in RenderItem
-          program: undefined as unknown as THREE.WebGLProgram,
+          program: undefined as unknown as WebGLProgram,
           groupOrder: 0,
           renderOrder: 0,
           z: 0,
@@ -269,7 +274,7 @@ export class Picker {
     });
   }
 
-  #renderItemForPicking = (renderItem: THREE.RenderItem): void => {
+  #renderItemForPicking = (renderItem: RenderItem): void => {
     if (!this.#camera) {
       return;
     }
@@ -322,7 +327,7 @@ export class Picker {
     );
   };
 
-  #renderInstancedItemForPicking = (renderItem: THREE.RenderItem): void => {
+  #renderInstancedItemForPicking = (renderItem: RenderItem): void => {
     if (!this.#camera) {
       return;
     }

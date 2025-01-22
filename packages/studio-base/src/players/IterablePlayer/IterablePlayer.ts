@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -19,8 +22,9 @@ import {
   toRFC3339String,
   toString,
 } from "@foxglove/rostime";
-import { Immutable, MessageEvent, ParameterValue } from "@foxglove/studio";
+import { Immutable, MessageEvent, Metadata, ParameterValue } from "@foxglove/studio";
 import { DeserializedSourceWrapper } from "@foxglove/studio-base/players/IterablePlayer/DeserializedSourceWrapper";
+import { freezeMetadata } from "@foxglove/studio-base/players/IterablePlayer/freezeMetadata";
 import NoopMetricsCollector from "@foxglove/studio-base/players/NoopMetricsCollector";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import {
@@ -40,7 +44,6 @@ import {
   TopicStats,
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
-import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 import delay from "@foxglove/studio-base/util/delay";
 
 import { BlockLoader } from "./BlockLoader";
@@ -192,6 +195,8 @@ export class IterablePlayer implements Player {
 
   readonly #sourceId: string;
 
+  #metadata: readonly Metadata[] = Object.freeze([]);
+
   #untilTime?: Time;
 
   /** Promise that resolves when the player is closed. Only used for testing currently */
@@ -266,6 +271,8 @@ export class IterablePlayer implements Player {
       }
       this.#untilTime = clampTime(opt.untilTime, this.#start, this.#end);
     }
+
+    this.#metricsCollector.play(this.#speed);
     this.#isPlaying = true;
 
     // If we are idling we can start playing, if we have a next state queued we let that state
@@ -281,6 +288,7 @@ export class IterablePlayer implements Player {
     if (!this.#isPlaying) {
       return;
     }
+    this.#metricsCollector.pause();
     // clear out last tick millis so we don't read a huge chunk when we unpause
     this.#lastTickMillis = undefined;
     this.#isPlaying = false;
@@ -296,6 +304,7 @@ export class IterablePlayer implements Player {
   public setPlaybackSpeed(speed: PlaybackSpeed): void {
     this.#lastRangeMillis = undefined;
     this.#speed = speed;
+    this.#metricsCollector.setSpeed(speed);
 
     // Queue event state update to update speed in player state to UI
     this.#queueEmitState();
@@ -335,6 +344,7 @@ export class IterablePlayer implements Player {
       return;
     }
 
+    this.#metricsCollector.seek(targetTime);
     this.#seekTarget = targetTime;
     this.#untilTime = undefined;
     this.#lastTickMillis = undefined;
@@ -408,6 +418,10 @@ export class IterablePlayer implements Player {
 
   public setGlobalVariables(): void {
     // no-op
+  }
+
+  public getMetadata(): ReadonlyArray<Readonly<Metadata>> {
+    return this.#metadata;
   }
 
   /** Request the state to switch to newState */
@@ -511,6 +525,7 @@ export class IterablePlayer implements Player {
         profile,
         topicStats,
         problems,
+        metadata,
         publishersByTopic,
         datatypes,
         name,
@@ -521,6 +536,13 @@ export class IterablePlayer implements Player {
       if (this.#seekTarget) {
         this.#seekTarget = clampTime(this.#seekTarget, start, end);
       }
+
+      this.#metadata = metadata ?? [];
+
+      // This freezing has to be done here, in the main thread.
+      // If it is done inside the web worker, it will be serialized and deserialized
+      // and will lose the frozen attributes.
+      freezeMetadata(this.#metadata);
 
       this.#profile = profile;
       this.#start = start;
@@ -606,7 +628,7 @@ export class IterablePlayer implements Player {
       this.#blockLoader?.setTopics(this.#preloadTopics);
 
       // Block loadings is constantly running and tries to keep the preloaded messages in memory
-      this.#blockLoadingProcess = this.#startBlockLoading().catch((err) => {
+      this.#blockLoadingProcess = this.#startBlockLoading().catch((err: unknown) => {
         this.#setError((err as Error).message, err as Error);
       });
 
@@ -772,13 +794,10 @@ export class IterablePlayer implements Player {
 
     try {
       this.#abort = new AbortController();
-      const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
-        getPlaybackQualityLevelByLocalStorage();
       const messages = await this.#bufferedSource.getBackfillMessages({
         topics: this.#allTopics,
         time: targetTime,
         abortSignal: this.#abort.signal,
-        playbackQualityLevel,
       });
 
       // We've successfully loaded the messages and will emit those, no longer need the ackTimeout
@@ -945,9 +964,9 @@ export class IterablePlayer implements Player {
 
     // When ending the previous tick, we might have already read a message from the iterator which
     // belongs to our tick. This logic brings that message into our current batch of message events.
-    if (this.#lastMessageEvent) {
+    if (this.#lastMessageEvent != undefined) {
       // If the last message we saw is still ahead of the tick end time, we don't emit anything
-      if (compare(this.#lastMessageEvent.receiveTime, end) > 0) {
+      if (compare(this.#lastMessageEvent.receiveTime as Time, end) > 0) {
         // Wait for the previous render frame to finish
         await this.#queueEmitState.currentPromise;
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -21,13 +24,17 @@ import {
   useState,
   useContext,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 
 import { useWarnImmediateReRender } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { Immutable } from "@foxglove/studio";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 // import {
 //   LayoutState,
@@ -45,8 +52,12 @@ import { ExtensionCatalogContext } from "@foxglove/studio-base/context/Extension
 //   useUserScriptState,
 // } from "@foxglove/studio-base/context/UserScriptStateContext";
 // import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
+import {
+  useAppConfigurationValue,
+  useTopicPrefixConfigurationValue,
+} from "@foxglove/studio-base/hooks";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
-import CoSceneAnalyticsMetricsCollector from "@foxglove/studio-base/players/CoSceneAnalyticsMetricsCollector";
+import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import {
   TopicAliasFunctions,
   TopicAliasingPlayer,
@@ -67,10 +78,75 @@ type PlayerManagerProps = {
 //   state.selectedLayout?.data?.userNodes ?? EMPTY_USER_NODES;
 
 // const selectUserScriptActions = (store: UserScriptStore) => store.actions;
+const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
+const selectSetDataSource = (state: CoSceneBaseStore) => state.setDataSource;
+const selectBaseInfo = (state: CoSceneBaseStore) => state.baseInfo;
 
-export default function PlayerManager(props: PropsWithChildren<PlayerManagerProps>): JSX.Element {
+function useBeforeConnectionSource(): (
+  sourceId: string,
+  params: Record<string, string | undefined>,
+) => Promise<void> {
+  const consoleApi = useConsoleApi();
+  const setBaseInfo = useBaseInfo(selectSetBaseInfo);
+
+  const syncBaseInfo = useCallback(
+    async (baseInfoKey: string) => {
+      consoleApi.setType("playback");
+      try {
+        setBaseInfo({ loading: true, value: {} });
+        const baseInfoRes = await consoleApi.getBaseInfo(baseInfoKey);
+
+        setBaseInfo({ loading: false, value: baseInfoRes });
+        consoleApi.setApiBaseInfo(baseInfoRes);
+      } catch (error) {
+        setBaseInfo({ loading: false, error });
+      }
+    },
+    [consoleApi, setBaseInfo],
+  );
+
+  const beforeConnectionSource = useCallback(
+    async (sourceId: string, params: Record<string, string | undefined>) => {
+      switch (sourceId) {
+        case "coscene-data-platform":
+          consoleApi.setType("playback");
+          if (!params.key) {
+            throw new Error("coscene-data-platform params.key is required");
+          }
+          // sync base info from bff to state manager
+          await syncBaseInfo(params.key);
+          // notify honeybeeServer to sync media
+          await consoleApi.syncMedia({ key: params.key });
+          break;
+        case "coscene-websocket":
+          consoleApi.setType("realtime");
+          break;
+        default:
+          consoleApi.setType(undefined);
+          break;
+      }
+    },
+    [syncBaseInfo, consoleApi],
+  );
+
+  return beforeConnectionSource;
+}
+
+export default function PlayerManager(
+  props: PropsWithChildren<PlayerManagerProps>,
+): React.JSX.Element {
   const { children, playerSources } = props;
   // const perfRegistry = usePerformance();
+  const [currentSourceArgs, setCurrentSourceArgs] = useState<DataSourceArgs | undefined>();
+  const [currentSourceId, setCurrentSourceId] = useState<string | undefined>();
+  const analytics = useAnalytics();
+
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+
+  const beforeConnectionSource = useBeforeConnectionSource();
+
+  const { t } = useTranslation("general");
 
   useWarnImmediateReRender();
 
@@ -83,8 +159,11 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
   const consoleApi = useConsoleApi();
 
   const metricsCollector = useMemo(
-    () => new CoSceneAnalyticsMetricsCollector(consoleApi),
-    [consoleApi],
+    () =>
+      new AnalyticsMetricsCollector({
+        analytics,
+      }),
+    [analytics],
   );
 
   const [playerInstances, setPlayerInstances] = useState<
@@ -123,16 +202,40 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
 
     // We only want to set alias functions on the player when the functions have changed
     let topicAliasFunctions =
-      extensionCatalogContext.getState().installedTopicAliasFunctions ?? emptyAliasFunctions;
+      extensionCatalogContext?.getState().installedTopicAliasFunctions ?? emptyAliasFunctions;
     playerInstances?.topicAliasPlayer.setAliasFunctions(topicAliasFunctions);
 
-    return extensionCatalogContext.subscribe((state) => {
+    return extensionCatalogContext?.subscribe((state) => {
       if (topicAliasFunctions !== state.installedTopicAliasFunctions) {
         topicAliasFunctions = state.installedTopicAliasFunctions ?? emptyAliasFunctions;
         playerInstances?.topicAliasPlayer.setAliasFunctions(topicAliasFunctions);
       }
     });
   }, [extensionCatalogContext, playerInstances?.topicAliasPlayer]);
+
+  // handle page title
+  useEffect(() => {
+    if (currentSourceArgs?.type === "connection" && currentSourceId) {
+      let title = "coScene";
+      if (currentSourceId === "coscene-websocket") {
+        const deviceName = currentSourceArgs.params?.hostName;
+        title = `${t("realtimeViz")} - ${deviceName}`;
+      } else if (currentSourceId === "coscene-data-platform") {
+        const recordDisplayName = baseInfo.recordDisplayName;
+        const projectDisplayName = baseInfo.projectDisplayName;
+        const jobRunsSerialNumber = baseInfo.jobRunsSerialNumber;
+
+        if (jobRunsSerialNumber) {
+          title = `${t("shadowMode")} - #${jobRunsSerialNumber} - ${t("testing")}`;
+        } else {
+          title = `${t("viz")} - ${recordDisplayName} - ${projectDisplayName}`;
+        }
+      }
+      if (document.title !== title) {
+        document.title = title;
+      }
+    }
+  }, [currentSourceArgs, currentSourceId, t, baseInfo]);
 
   // const player = useMemo(() => {
   //   if (!playerInstances?.topicAliasPlayer) {
@@ -154,9 +257,21 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
 
   const [selectedSource, setSelectedSource] = useState<IDataSourceFactory | undefined>();
 
+  const setDataSource = useBaseInfo(selectSetDataSource);
+
+  const addTopicPrefix = useTopicPrefixConfigurationValue();
+
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
+
+  const [playbackQualityLevel] = useAppConfigurationValue<string>(
+    AppSetting.PLAYBACK_QUALITY_LEVEL,
+  );
+
   const selectSource = useCallback(
     async (sourceId: string, args?: DataSourceArgs) => {
       log.debug(`Select Source: ${sourceId}`);
+      setCurrentSourceId(sourceId);
 
       const foundSource = playerSources.find(
         (source) => source.id === sourceId || source.legacyIds?.includes(sourceId),
@@ -167,18 +282,13 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
         return;
       }
 
-      // metricsCollector.setProperty("player", sourceId);
-
-      setSelectedSource(foundSource);
-
-      setSelectedSource(foundSource);
-
-      setSelectedSource(foundSource);
-
+      metricsCollector.setProperty("player", sourceId, args);
       setSelectedSource(foundSource);
 
       // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {
+        setDataSource({ id: sourceId, type: "sample" });
+
         const newPlayer = foundSource.initialize({
           metricsCollector,
         });
@@ -193,12 +303,22 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
         return;
       }
 
+      setCurrentSourceArgs(args);
       try {
         switch (args.type) {
           case "connection": {
+            setDataSource({ id: sourceId, type: "connection" });
+
+            await beforeConnectionSource(sourceId, args.params ?? {});
+
             const newPlayer = foundSource.initialize({
               metricsCollector,
-              params: args.params,
+              params: {
+                addTopicPrefix,
+                timeMode,
+                playbackQualityLevel,
+                ...args.params,
+              },
               consoleApi,
             });
             constructPlayers(newPlayer);
@@ -216,6 +336,8 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
             return;
           }
           case "file": {
+            setDataSource({ id: sourceId, type: "file" });
+
             const handle = args.handle;
             const files = args.files;
 
@@ -283,9 +405,14 @@ export default function PlayerManager(props: PropsWithChildren<PlayerManagerProp
     },
     [
       playerSources,
-      enqueueSnackbar,
       metricsCollector,
+      enqueueSnackbar,
+      setDataSource,
       constructPlayers,
+      beforeConnectionSource,
+      addTopicPrefix,
+      timeMode,
+      playbackQualityLevel,
       consoleApi,
       addRecent,
       isMounted,

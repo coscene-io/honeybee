@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -105,7 +108,7 @@ export default function Variable(props: {
   name: string;
   selected?: ListItemButtonProps["selected"];
   index: number;
-}): JSX.Element {
+}): React.JSX.Element {
   const { name, selected = false, index } = props;
 
   const { classes } = useStyles();

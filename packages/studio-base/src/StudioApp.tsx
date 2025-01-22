@@ -1,8 +1,10 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { CsWebClient } from "@coscene-io/coscene/queries";
 import { Fragment, Suspense, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -12,23 +14,19 @@ import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import UploadFilesProvider from "@foxglove/studio-base/providers/UploadFilesProvider";
 
 import Workspace from "./Workspace";
-import DocumentTitleAdapter from "./components/DocumentTitleAdapter";
 import MultiProvider from "./components/MultiProvider";
 import PlayerManager from "./components/PlayerManager";
 import SendNotificationToastAdapter from "./components/SendNotificationToastAdapter";
 import StudioToastProvider from "./components/StudioToastProvider";
 import { UserScriptStateProvider } from "./context/UserScriptStateContext";
 import CurrentLayoutProvider from "./providers/CurrentLayoutProvider";
+import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
+import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
 import { LaunchPreference } from "./screens/LaunchPreference";
-
-CsWebClient.init({
-  hostname: APP_CONFIG.VITE_APP_BASE_API_URL,
-  port: APP_CONFIG.VITE_APP_BASE_API_PORT,
-});
 
 // Suppress context menu for the entire app except on inputs & textareas.
 function contextMenuHandler(event: MouseEvent) {
@@ -40,9 +38,10 @@ function contextMenuHandler(event: MouseEvent) {
   return false;
 }
 
-export function StudioApp(): JSX.Element {
+export function StudioApp(): React.JSX.Element {
   const {
     dataSources,
+    extensionLoaders,
     deepLinks,
     enableLaunchPreferenceScreen,
     extraProviders,
@@ -57,8 +56,11 @@ export function StudioApp(): JSX.Element {
     <TimelineInteractionStateProvider />,
     <CurrentLayoutProvider />,
     <UserScriptStateProvider />,
+    <ExtensionMarketplaceProvider />,
+    <ExtensionCatalogProvider loaders={extensionLoaders} />,
     <PlayerManager playerSources={dataSources} />,
     <EventsProvider />,
+    <UploadFilesProvider />,
     /* eslint-enable react/jsx-key */
   ];
 
@@ -85,7 +87,6 @@ export function StudioApp(): JSX.Element {
   return (
     <MaybeLaunchPreference>
       <MultiProvider providers={providers}>
-        <DocumentTitleAdapter />
         <SendNotificationToastAdapter />
         <DndProvider backend={HTML5Backend}>
           <Suspense fallback={<></>}>

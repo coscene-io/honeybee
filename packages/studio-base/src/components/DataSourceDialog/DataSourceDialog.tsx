@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -5,6 +8,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import { Dialog, IconButton } from "@mui/material";
 import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
@@ -22,8 +26,8 @@ import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import Connection from "./Connection";
 import Start from "./Start";
 
-const DataSourceDialogItems = ["start", "file", "demo", "remote", "connection"] as const;
-export type DataSourceDialogItem = (typeof DataSourceDialogItems)[number];
+type DataSourceDialogItems = ["start", "file", "demo", "remote", "connection"];
+export type DataSourceDialogItem = DataSourceDialogItems[number];
 
 type DataSourceDialogProps = {
   backdropAnimation?: boolean;
@@ -43,12 +47,13 @@ const useStyles = makeStyles()((theme) => ({
 
 const selectDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
 
-export function DataSourceDialog(props: DataSourceDialogProps): JSX.Element {
+export function DataSourceDialog(props: DataSourceDialogProps): React.JSX.Element {
   const { backdropAnimation } = props;
   const { classes } = useStyles();
   const { availableSources, selectSource } = usePlayerSelection();
   const { dialogActions } = useWorkspaceActions();
   const { activeDataSource, item: activeView } = useWorkspaceStore(selectDataSourceDialog);
+  const { t } = useTranslation("openDialog");
 
   const isMounted = useMountedState();
 
@@ -73,7 +78,7 @@ export function DataSourceDialog(props: DataSourceDialogProps): JSX.Element {
     if (activeView === "file") {
       dialogActions.openFile
         .open()
-        .catch((err) => {
+        .catch((err: unknown) => {
           console.error(err);
         })
         .finally(() => {
@@ -109,16 +114,16 @@ export function DataSourceDialog(props: DataSourceDialogProps): JSX.Element {
       }
       case "connection":
         return {
-          title: "Open new connection",
+          title: t("openNewConnection"),
           component: <Connection />,
         };
       default:
         return {
-          title: "Get started",
+          title: t("getStarted"),
           component: <Start />,
         };
     }
-  }, [activeView]);
+  }, [activeView, t]);
 
   return (
     <Dialog
@@ -127,7 +132,9 @@ export function DataSourceDialog(props: DataSourceDialogProps): JSX.Element {
       onClose={onModalClose}
       fullWidth
       maxWidth="lg"
-      BackdropProps={{ children: backdrop }}
+      slotProps={{
+        backdrop: { children: backdrop },
+      }}
       PaperProps={{
         square: false,
         elevation: 4,

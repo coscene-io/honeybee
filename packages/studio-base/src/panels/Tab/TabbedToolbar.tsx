@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -51,7 +54,7 @@ type Props = {
   setDraggingTabState: (arg0: { isOver: boolean; item?: DraggingTabItem }) => void;
 };
 
-export function TabbedToolbar(props: Props): JSX.Element {
+export function TabbedToolbar(props: Props): React.JSX.Element {
   const { panelId, actions, tabs, activeTabIdx, setDraggingTabState } = props;
   const { classes, theme } = useStyles();
 

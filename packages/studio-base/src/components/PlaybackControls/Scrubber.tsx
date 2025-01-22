@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -21,6 +24,7 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useBaseInfo, CoSceneBaseStore } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import {
   useClearHoverValue,
   useSetHoverValue,
@@ -61,12 +65,13 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
 const selectRanges = (ctx: MessagePipelineContext) =>
   ctx.playerState.progress.fullyLoadedFractionRanges;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
+const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 
 type Props = {
   onSeek: (seekTo: Time) => void;
 };
 
-export default function Scrubber(props: Props): JSX.Element {
+export default function Scrubber(props: Props): React.JSX.Element {
   const { onSeek } = props;
   const { classes, cx } = useStyles();
 
@@ -79,6 +84,8 @@ export default function Scrubber(props: Props): JSX.Element {
   const endTime = useMessagePipeline(selectEndTime);
   const presence = useMessagePipeline(selectPresence);
   const ranges = useMessagePipeline(selectRanges);
+
+  const enableList = useBaseInfo(selectEnableList);
 
   const setHoverValue = useSetHoverValue();
 
@@ -241,11 +248,13 @@ export default function Scrubber(props: Props): JSX.Element {
           />
         </Stack>
         <BagsOverlay />
-        <EventsOverlay
-          componentId={hoverComponentId}
-          isDragging={isDragging}
-          setCursor={setCursor}
-        />
+        {enableList.event === "ENABLE" && (
+          <EventsOverlay
+            componentId={hoverComponentId}
+            isDragging={isDragging}
+            setCursor={setCursor}
+          />
+        )}
         <PlaybackBarHoverTicks componentId={hoverComponentId} />
       </Stack>
     </Tooltip>

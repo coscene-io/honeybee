@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -20,7 +23,7 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import {
-  ducationToNanoSeconds,
+  durationToNanoSeconds,
   formateTimeToReadableFormat,
 } from "@foxglove/studio-base/util/time";
 
@@ -58,7 +61,9 @@ const selectHoveredEvents = (store: TimelineInteractionStateStore) => store.even
 const selectHoveredBags = (store: TimelineInteractionStateStore) => store.bagsAtHoverValue;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 
-export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNull | JSX.Element {
+export function PlaybackControlsTooltipContent(params: {
+  stamp: Time;
+}): ReactNull | React.JSX.Element {
   const { stamp } = params;
   const { timeFormat, formatTime, formatDate } = useAppTimeFormat();
   const hoveredEvents = useTimelineInteractionState(selectHoveredEvents);
@@ -80,7 +85,7 @@ export function PlaybackControlsTooltipContent(params: { stamp: Time }): ReactNu
       const eventStartTime = fromNanoSec(
         event.triggerTime!.seconds * BigInt(1e9) + BigInt(event.triggerTime!.nanos),
       );
-      const eventEndTime = add(startTime, fromNanoSec(ducationToNanoSeconds(event.duration)));
+      const eventEndTime = add(eventStartTime, fromNanoSec(durationToNanoSeconds(event.duration)));
 
       tooltipItems.push({
         type: "item",

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -70,7 +73,25 @@ export type UpdateDataAction =
 // we do not grow the memory for accumulated current data indefinitely
 const MAX_CURRENT_DATUMS_PER_SERIES = 50_000;
 
+const EPSILON = 1e-5;
+
 const compareDatum = (a: Datum, b: Datum) => a.x - b.x;
+
+function binarySearch(arr: FullDatum[], x: number): number {
+  let low = 0;
+  let high = arr.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (arr[mid]!.x < x) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
+}
 
 export class TimestampDatasetsBuilderImpl {
   #seriesByKey = new Map<SeriesConfigKey, Series>();
@@ -259,6 +280,25 @@ export class TimestampDatasetsBuilderImpl {
     return datasets;
   }
 
+  public getXRange(): Bounds1D | undefined {
+    let min = undefined;
+    let max = undefined;
+
+    for (const series of this.#seriesByKey.values()) {
+      const partialTimestampMin = series.current[0]?.x;
+      const partialTimestampMax = series.current[series.current.length - 1]?.x;
+
+      const fullTimestampMin = series.full[0]?.x;
+      const fullTimestampMax = series.full[series.full.length - 1]?.x;
+
+      min = Math.min(partialTimestampMin ?? Number.MAX_VALUE, fullTimestampMin ?? Number.MAX_VALUE);
+
+      max = Math.max(partialTimestampMax ?? Number.MIN_VALUE, fullTimestampMax ?? Number.MIN_VALUE);
+    }
+
+    return { min: min ?? 0, max: max ?? 100 };
+  }
+
   public applyActions(actions: Immutable<UpdateDataAction[]>): void {
     for (const action of actions) {
       this.applyAction(action);
@@ -317,7 +357,21 @@ export class TimestampDatasetsBuilderImpl {
           }
 
           const idx = series.current.length;
-          series.current.push({
+
+          const insertIndex = binarySearch(series.current, item.x);
+
+          // check if the item already exists in the current array
+          if (
+            insertIndex + 1 < series.current.length &&
+            ((Math.abs(series.current[insertIndex]!.x - item.x) < EPSILON &&
+              Math.abs(series.current[insertIndex]!.y - item.y) < EPSILON) ||
+              (Math.abs(series.current[insertIndex + 1]!.x - item.x) < EPSILON &&
+                Math.abs(series.current[insertIndex + 1]!.y - item.y) < EPSILON))
+          ) {
+            continue; // skip duplicate
+          }
+
+          series.current.splice(insertIndex, 0, {
             index: idx,
             x: item.x,
             y: item.y,

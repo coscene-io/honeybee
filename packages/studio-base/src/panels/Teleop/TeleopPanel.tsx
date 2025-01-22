@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -109,7 +112,7 @@ function buildSettingsTree(config: Config, topics: readonly Topic[]): SettingsTr
   return { general };
 }
 
-function TeleopPanel(props: TeleopPanelProps): JSX.Element {
+function TeleopPanel(props: TeleopPanelProps): React.JSX.Element {
   const { context } = props;
   const { saveState } = context;
 
@@ -145,7 +148,7 @@ function TeleopPanel(props: TeleopPanelProps): JSX.Element {
     }
 
     setConfig((previous) => {
-      const newConfig = { ...previous };
+      const newConfig = _.cloneDeep(previous);
       _.set(newConfig, action.payload.path.slice(1), action.payload.value);
       return newConfig;
     });

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -148,11 +151,15 @@ function MockExtensionCatalogProvider(props: PropsWithChildren<ExtensionCatalogP
     return createStore(
       () =>
         ({
-          installExtension: async () => await Promise.reject("unsupported"),
+          downloadExtension: async () => new Uint8Array(),
+          installExtension: async () => await Promise.reject(new Error("unsupported")),
+          refreshExtensions: async () => {},
+          uninstallExtension: async () => {},
           installedExtensions: [],
           installedMessageConverters: props.messageConverters ?? [],
           installedPanels: {},
           installedTopicAliasFunctions: [],
+          panelSettings: undefined,
         }) satisfies ExtensionCatalog,
     );
   }, [props.messageConverters]);
@@ -169,7 +176,7 @@ export function triggerWheel(target: HTMLElement, deltaX: number): void {
   target.dispatchEvent(event);
 }
 
-const MosaicWrapper = ({ children }: { children: React.ReactNode }): JSX.Element => {
+const MosaicWrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => {
   return (
     <DndProvider backend={HTML5Backend}>
       <Mosaic
@@ -200,7 +207,7 @@ function PanelWrapper({
   children?: ReactNode;
   includeSettings?: boolean;
   settingsWidth?: number;
-}): JSX.Element {
+}): React.JSX.Element {
   const settings = usePanelStateStore((store) => {
     const trees = Object.values(store.settingsTrees);
     if (trees.length > 1) {
@@ -237,7 +244,7 @@ const defaultFetchAsset: ComponentProps<typeof MockMessagePipelineProvider>["fet
 
 const selectUserScriptActions = (store: UserScriptStore) => store.actions;
 
-function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull {
+function UnconnectedPanelSetup(props: UnconnectedProps): React.JSX.Element | ReactNull {
   const { t } = useTranslation("panels");
   const mockPanelCatalog = useMemo(
     () => props.panelCatalog ?? makeMockPanelCatalog(t),
@@ -386,7 +393,7 @@ type Props = UnconnectedProps & {
   onLayoutAction?: (action: PanelsActions) => void;
 };
 
-export default function PanelSetup(props: Props): JSX.Element {
+export default function PanelSetup(props: Props): React.JSX.Element {
   const theme = useTheme();
   return (
     <WorkspaceContextProvider disablePersistenceForStorybook>

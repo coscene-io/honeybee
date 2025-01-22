@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -32,7 +35,7 @@ function makeGridData({ width, height }: { width: number; height: number }) {
   return grid;
 }
 
-function BaseStory({ includeSettings = false }: { includeSettings?: boolean }): JSX.Element {
+function BaseStory({ includeSettings = false }: { includeSettings?: boolean }): React.JSX.Element {
   const topics: Topic[] = [
     { name: "/grid", schemaName: "nav_msgs/OccupancyGrid" },
     { name: "/tf", schemaName: "geometry_msgs/TransformStamped" },

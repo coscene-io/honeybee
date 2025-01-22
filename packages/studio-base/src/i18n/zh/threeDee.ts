@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -17,6 +20,11 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   gradient: "渐变",
   type: "类型",
   topic: "话题",
+  calibration: "校准",
+  syncAnnotations: "同步标注",
+  flipHorizontal: "水平翻转",
+  flipVertical: "垂直翻转",
+  syncAnnotationsHelp: "仅当消息的时间戳匹配时才显示注释（此消息类型不支持）",
 
   // Frame
   age: "陈旧度",
@@ -102,6 +110,7 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   maxColor: "最大值颜色",
   minColor: "最小值颜色",
   unknownColor: "未知值颜色",
+  modifyHeight: "修改高度",
 
   // Point Extension Utils
   decayTime: "衰减时间",

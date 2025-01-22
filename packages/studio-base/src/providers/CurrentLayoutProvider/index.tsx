@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -46,7 +49,9 @@ export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
  * Concrete implementation of CurrentLayoutContext.Provider which handles
  * automatically restoring the current layout from LayoutStorage.
  */
-export default function CurrentLayoutProvider({ children }: React.PropsWithChildren): JSX.Element {
+export default function CurrentLayoutProvider({
+  children,
+}: React.PropsWithChildren): React.JSX.Element {
   const analytics = useAnalytics();
 
   const [mosaicId] = useState(() => uuidv4());

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -20,7 +23,6 @@ import { Label } from "@foxglove/three-text";
 
 import { Axis, AXIS_LENGTH } from "./Axis";
 import { DEFAULT_LABEL_SCALE_FACTOR } from "./SceneSettings";
-import { makeLinePickingMaterial } from "./markers/materials";
 import type { IRenderer, RendererConfig } from "../IRenderer";
 import { BaseUserData, Renderable } from "../Renderable";
 import { SceneExtension } from "../SceneExtension";
@@ -28,6 +30,7 @@ import { SettingsTreeEntry } from "../SettingsManager";
 import { getLuminance, stringToRgb } from "../color";
 import { BaseSettings, fieldSize, PRECISION_DEGREES, PRECISION_DISTANCE } from "../settings";
 import { CoordinateFrame, Duration, makePose, MAX_DURATION, Transform } from "../transforms";
+import { makeLinePickingMaterial } from "./markers/materials";
 
 export type LayerSettingsTransform = BaseSettings & {
   xyzOffset: Readonly<[number | undefined, number | undefined, number | undefined]>;

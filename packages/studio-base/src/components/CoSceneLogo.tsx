@@ -1,32 +1,37 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { SvgIcon, SvgIconProps } from "@mui/material";
 
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
-export function CoSceneLogo(): JSX.Element {
-  if (APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor") {
+export function CoSceneLogo(): React.JSX.Element {
+  const logo = getDomainConfig().logo;
+  if (logo === "supor") {
     return <SuporLogo fontSize="inherit" color="inherit" />;
-  } else if (APP_CONFIG.VITE_APP_BASE_API_PORT === "keenon") {
+  } else if (logo === "keenon") {
     return <KeenonLogo fontSize="inherit" color="inherit" />;
   } else {
     return <DefaultLogo fontSize="inherit" color="inherit" />;
   }
 }
 
-export function CoSceneTextLogo(): JSX.Element {
-  if (APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor") {
+export function CoSceneTextLogo(): React.JSX.Element {
+  const logo = getDomainConfig().logo;
+  if (logo === "supor") {
     return <SuporLogo fontSize="inherit" color="inherit" />;
-  } else if (APP_CONFIG.VITE_APP_BASE_API_PORT === "keenon") {
+  } else if (logo === "keenon") {
     return <KeenonTextLogo fontSize="inherit" color="inherit" />;
   } else {
     return <DefaultTextLogo fontSize="inherit" color="inherit" />;
   }
 }
 
-export function DefaultLogo(props: SvgIconProps): JSX.Element {
+export function DefaultLogo(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon
       viewBox="0 0 400 400"
@@ -51,7 +56,7 @@ export function DefaultLogo(props: SvgIconProps): JSX.Element {
   );
 }
 
-export function DefaultTextLogo(props: SvgIconProps): JSX.Element {
+export function DefaultTextLogo(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon
       viewBox="0 0 400 400"
@@ -76,7 +81,7 @@ export function DefaultTextLogo(props: SvgIconProps): JSX.Element {
   );
 }
 
-export function SuporLogo(props: SvgIconProps): JSX.Element {
+export function SuporLogo(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon
       viewBox="0 0 400 400"
@@ -99,7 +104,7 @@ export function SuporLogo(props: SvgIconProps): JSX.Element {
   );
 }
 
-export function KeenonLogo(props: SvgIconProps): JSX.Element {
+export function KeenonLogo(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon
       viewBox="0 0 400 400"
@@ -129,7 +134,7 @@ export function KeenonLogo(props: SvgIconProps): JSX.Element {
   );
 }
 
-export function KeenonTextLogo(props: SvgIconProps): JSX.Element {
+export function KeenonTextLogo(props: SvgIconProps): React.JSX.Element {
   return (
     <SvgIcon
       viewBox="0 0 400 400"

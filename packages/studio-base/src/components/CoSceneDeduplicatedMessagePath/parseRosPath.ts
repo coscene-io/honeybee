@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -37,14 +40,16 @@ export function quoteFieldNameIfNeeded(name: string): string {
   return `"${name.replace(/[\\"]/g, (char) => `\\${char}`)}"`;
 }
 
-const parseRosPath = _.memoize((path: string): RosPath | undefined => {
-  // Need to create a new Parser object for every new string to parse (should be cheap).
-  const parser = new Parser(grammarObj);
-  try {
-    return parser.feed(path).results[0];
-  } catch (_err) {
-    return undefined;
-  }
-});
+const parseRosPath: (path: string) => RosPath | undefined = _.memoize(
+  (path: string): RosPath | undefined => {
+    // Need to create a new Parser object for every new string to parse (should be cheap).
+    const parser = new Parser(grammarObj);
+    try {
+      return parser.feed(path).results[0];
+    } catch {
+      return undefined;
+    }
+  },
+);
 
 export default parseRosPath;

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -99,7 +102,7 @@ export function estimateMessageObjectSize(
         continue;
       }
 
-      if (checkedTypes != undefined && checkedTypes.includes(field.type)) {
+      if (checkedTypes?.includes(field.type) ?? false) {
         // E.g. protobuf allows types to reference itself.
         // For that reason we bail out here to avoid an infinite loop.
         continue;
@@ -223,7 +226,7 @@ export function estimateObjectSize(obj: unknown): number {
         return (
           COMPRESSED_POINTER_SIZE +
           ARRAY_BASE_SIZE +
-          Object.values(obj).reduce((acc, val) => acc + estimateObjectSize(val), 0)
+          Object.values(obj).reduce((acc: number, val: unknown) => acc + estimateObjectSize(val), 0)
         );
       } else if (ArrayBuffer.isView(obj)) {
         return TYPED_ARRAY_BASE_SIZE + obj.byteLength;
@@ -231,7 +234,10 @@ export function estimateObjectSize(obj: unknown): number {
         return (
           COMPRESSED_POINTER_SIZE +
           OBJECT_BASE_SIZE +
-          Array.from(obj.values()).reduce((acc, val) => acc + estimateObjectSize(val), 0)
+          Array.from(obj.values()).reduce(
+            (acc: number, val: unknown) => acc + estimateObjectSize(val),
+            0,
+          )
         );
       } else if (obj instanceof Map) {
         return (
@@ -258,7 +264,10 @@ export function estimateObjectSize(obj: unknown): number {
         propertiesSize = propertiesDictSize - numProps * COMPRESSED_POINTER_SIZE;
       }
 
-      const valuesSize = Object.values(obj).reduce((acc, val) => acc + estimateObjectSize(val), 0);
+      const valuesSize = Object.values(obj).reduce(
+        (acc: number, val: unknown) => acc + estimateObjectSize(val),
+        0,
+      );
       return OBJECT_BASE_SIZE + propertiesSize + valuesSize;
     }
     case "symbol":

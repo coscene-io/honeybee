@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -24,7 +27,7 @@ type AddPanelProps = {
   open: boolean;
 };
 
-export function AddPanelMenu(props: AddPanelProps): JSX.Element {
+export function AddPanelMenu(props: AddPanelProps): React.JSX.Element {
   const { classes } = useStyles();
   const { anchorEl, anchorPosition, anchorReference, disablePortal, handleClose, open } = props;
   const addPanel = useAddPanel();
@@ -52,11 +55,11 @@ export function AddPanelMenu(props: AddPanelProps): JSX.Element {
         vertical: "top",
         horizontal: "left",
       }}
-      PaperProps={
-        {
+      slotProps={{
+        paper: {
           "data-tourid": "add-panel-menu",
-        } as Partial<PaperProps & { "data-tourid"?: string }>
-      }
+        } as Partial<PaperProps & { "data-tourid"?: string }>,
+      }}
     >
       <PanelCatalog
         isMenu

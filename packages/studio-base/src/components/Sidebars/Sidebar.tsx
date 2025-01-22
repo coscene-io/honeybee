@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -74,6 +77,7 @@ const useStyles = makeStyles()((theme) => ({
 export type SidebarItem = {
   title: string;
   component: React.ComponentType;
+  hidden?: boolean;
   badge?: {
     color: BadgeProps["color"];
     count: number;
@@ -96,7 +100,7 @@ export function Sidebar<K extends string>({
   onClose: () => void;
   activeTab: K | undefined;
   setActiveTab: (newValue: K) => void;
-}): JSX.Element {
+}): React.JSX.Element {
   const { classes, cx } = useStyles();
 
   const SelectedComponent = (activeTab && items.get(activeTab)?.component) ?? Noop;

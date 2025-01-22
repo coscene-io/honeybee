@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -34,7 +37,7 @@ function Foxglove_LaserScan({
   rangeMin?: number;
   rangeMax?: number;
   settings: Record<string, unknown>;
-}): JSX.Element {
+}): React.JSX.Element {
   const topics: Topic[] = [
     { name: "/scan", schemaName: "foxglove.LaserScan" },
     { name: "/tf", schemaName: "foxglove.FrameTransform" },
@@ -360,7 +363,7 @@ export const ComparisonWithPointCloudColors: StoryObj = {
   },
 };
 
-function HistoryPickingStory(): JSX.Element {
+function HistoryPickingStory(): React.JSX.Element {
   const topics: Topic[] = [{ name: "/scan", schemaName: "foxglove.LaserScan" }];
 
   const laserScan1: MessageEvent<LaserScan> = {

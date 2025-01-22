@@ -1,0 +1,220 @@
+name: Publish Studio
+
+permissions:
+  contents: write
+  attestations: write
+  pull-requests: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: "Version to publish (e.g., v1.0.0)"
+        required: true
+      environment:
+        type: choice
+        description: "publish studio to"
+        required: true
+        default: "saas"
+        options:
+          - dev
+          - saas
+
+jobs:
+  build:
+    environment: ${{ github.event.inputs.environment }}
+
+    runs-on: macos-latest
+
+    env:
+      BUF_BUILD_TOKEN: ${{ secrets.BUF_BUILD_TOKEN }}
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+    strategy:
+      matrix:
+        os: [win, linux, darwin]
+      fail-fast: true
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Set cos config file
+        id: set_cos_config_file
+        run: |
+          echo '${{ vars.APP_CONFIG }}' > packages/studio-desktop/src/public/cos-config.js
+          cat packages/studio-desktop/src/public/cos-config.js
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Enable corepack
+        run: corepack enable yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: \[bot\] Update version in package.json
+        run: yarn run version:all ${{ github.event.inputs.version }}
+
+      - name: Build prod files
+        run: |
+          yarn run desktop:build:prod
+
+      - name: Build ${{ matrix.os }} version
+        run: yarn run package:${{ matrix.os }}
+
+      - name: Upload to OSS
+        if: matrix.os == 'darwin'
+        uses: tvrcgo/oss-action@master
+        with:
+          key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
+          region: oss-cn-hangzhou
+          bucket: coscene-download
+          assets: |
+            dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
+            dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg.blockmap
+            dist/latest-mac.yml:/coStudio/packages/latest-mac.yml
+
+      - name: Upload to OSS (Windows)
+        if: matrix.os == 'win'
+        uses: tvrcgo/oss-action@master
+        with:
+          key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
+          region: oss-cn-hangzhou
+          bucket: coscene-download
+          assets: |
+            dist/coStudio-${{ github.event.inputs.version }}-win.exe:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win.exe
+            dist/coStudio-${{ github.event.inputs.version }}-win.exe.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win.exe.blockmap
+            dist/coStudio-${{ github.event.inputs.version }}-win-arm64.exe:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
+            dist/coStudio-${{ github.event.inputs.version }}-win-arm64.exe.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe.blockmap
+            dist/coStudio-${{ github.event.inputs.version }}-win-x64.exe:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
+            dist/coStudio-${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe.blockmap
+            dist/latest.yml:/coStudio/packages/latest.yml
+
+      - name: Upload to OSS (Linux)
+        if: matrix.os == 'linux'
+        uses: tvrcgo/oss-action@master
+        with:
+          key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
+          region: oss-cn-hangzhou
+          bucket: coscene-download
+          assets: |
+            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb.blockmap
+            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb.blockmap
+            dist/latest-linux.yml:/coStudio/packages/latest-linux.yml
+            dist/latest-linux-arm64.yml:/coStudio/packages/latest-linux-arm64.yml
+
+      - name: Upload deb files to artifacts
+        if: matrix.os == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-packages
+          path: |
+            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+
+  update-apt-server:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use apt tools
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: |
+            dpkg-dev
+            apt-utils
+            gpg
+          version: 1.0
+
+      - name: Import gpg key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 -d | gpg --batch --import
+
+      - name: Download deb packages
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-packages
+          path: dist
+
+      - name: Create release file
+        run: |
+          # 创建标准目录结构
+          mkdir -p dists/stable/main/binary-amd64
+          mkdir -p dists/stable/main/binary-arm64
+
+          # 移动 deb 包到对应架构目录
+          mv dist/*amd64.deb dists/stable/main/binary-amd64/
+          mv dist/*arm64.deb dists/stable/main/binary-arm64/
+
+          # 为每个架构生成 Packages 文件
+          dpkg-scanpackages dists/stable/main/binary-amd64 /dev/null > dists/stable/main/binary-amd64/Packages
+          dpkg-scanpackages dists/stable/main/binary-arm64 /dev/null > dists/stable/main/binary-arm64/Packages
+
+          # 压缩 Packages 文件
+          gzip -k -f dists/stable/main/binary-amd64/Packages
+          gzip -k -f dists/stable/main/binary-arm64/Packages
+
+          # 生成 Release 文件
+          apt-ftparchive release dists/stable > dists/stable/Release
+
+          # 签名 Release 文件
+          gpg --clearsign -o dists/stable/InRelease dists/stable/Release
+          gpg -abs -o dists/stable/Release.gpg dists/stable/Release
+
+      - name: Upload to OSS
+        uses: tvrcgo/oss-action@master
+        with:
+          key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
+          region: oss-cn-hangzhou
+          bucket: coscene-download
+          assets: |
+            dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio/apt/studio/dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+            dists/stable/main/binary-amd64/Packages:/coStudio/apt/studio/dists/stable/main/binary-amd64/Packages
+            dists/stable/main/binary-amd64/Packages.gz:/coStudio/apt/studio/dists/stable/main/binary-amd64/Packages.gz
+            dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio/apt/studio/dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+            dists/stable/main/binary-arm64/Packages:/coStudio/apt/studio/dists/stable/main/binary-arm64/Packages
+            dists/stable/main/binary-arm64/Packages.gz:/coStudio/apt/studio/dists/stable/main/binary-arm64/Packages.gz
+            dists/stable/Release:/coStudio/apt/studio/dists/stable/Release
+            dists/stable/InRelease:/coStudio/apt/studio/dists/stable/InRelease
+            dists/stable/Release.gpg:/coStudio/apt/studio/dists/stable/Release.gpg
+
+  notification:
+    needs: update-apt-server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notification to Feishu
+        id: feishu
+        uses: foxundermoon/feishu-action@v2
+        with:
+          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
+          msg_type: text
+          content: |
+            text: |
+              A new version of coScene Studio has been published.
+              Version: ${{ github.event.inputs.version }}
+              Download:
+                mac:
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
+                win:
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win.exe
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
+                linux:
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+              Release notes: https://github.com/coscene-io/honeybee/releases

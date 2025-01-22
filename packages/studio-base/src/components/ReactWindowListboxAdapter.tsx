@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -42,13 +45,15 @@ export const ReactWindowListboxAdapter = React.forwardRef<
   React.HTMLAttributes<HTMLElement>
 >(function ListboxComponent(props, ref) {
   const { children, ...other } = props;
-  const itemData: React.ReactChild[] = [];
-  (children as React.ReactChild[]).forEach(
-    (item: React.ReactChild & { children?: React.ReactChild[] }) => {
+  const itemData: React.ReactNode[] = [];
+  (children as React.ReactNode[]).forEach((item) => {
+    if (item != undefined && typeof item === "object" && "children" in item) {
       itemData.push(item);
-      itemData.push(...(item.children ?? []));
-    },
-  );
+      itemData.push(...((item as { children?: React.ReactNode[] }).children ?? []));
+    } else {
+      itemData.push(item);
+    }
+  });
 
   const totalHeight =
     2 * Constants.LISTBOX_PADDING + Constants.ROW_HEIGHT * _.clamp(itemData.length, 16);

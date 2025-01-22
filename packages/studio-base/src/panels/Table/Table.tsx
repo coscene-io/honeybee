@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -205,7 +208,7 @@ function getColumnsFromObject(val: CellValue, accessorPath: string) {
   return columns;
 }
 
-function TextCellContent(props: { value: string }): JSX.Element {
+function TextCellContent(props: { value: string }): React.JSX.Element {
   const { classes } = useStyles();
 
   return <div className={classes.textContent}>{props.value}</div>;
@@ -217,7 +220,7 @@ export default function Table({
 }: {
   value: unknown;
   accessorPath: string;
-}): JSX.Element {
+}): React.JSX.Element {
   const isNested = accessorPath.length > 0;
   const { classes, cx } = useStyles();
 

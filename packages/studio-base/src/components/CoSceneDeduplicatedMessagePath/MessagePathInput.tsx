@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -147,7 +150,7 @@ export function getFirstInvalidVariableFromRosPath(
       }
     }
     return messagePathParts;
-  }).filter(({ variableName }) => !tryToSetDefaultGlobalVar(variableName, setGlobalVariables))[0];
+  }).find(({ variableName }) => !tryToSetDefaultGlobalVar(variableName, setGlobalVariables));
 }
 
 function getExamplePrimitive(primitiveType: RosPrimitive) {
@@ -364,7 +367,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
         // CoScene Drop down box options
         autocompleteItems: Array.from(
           new Set(
-            items.map((item) => (item.split("@").pop() ? '"' + item.split("@").pop() : "unknow")),
+            items.map((item) => (item.split("@").pop() ? '"' + item.split("@").pop()! : "unknow")),
           ),
         ).sort(),
         autocompleteFilterText: path,
@@ -503,7 +506,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
       !path.endsWith(orderedAutocompleteItems[0]) &&
       !path.slice(0, -1).endsWith(orderedAutocompleteItems[0])
     ) {
-      onChangeProp(path.slice(0, -1) + autocompleteItems[0], props.index);
+      onChangeProp(path.slice(0, -1) + (autocompleteItems[0] ?? ""), props.index);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(orderedAutocompleteItems)]);

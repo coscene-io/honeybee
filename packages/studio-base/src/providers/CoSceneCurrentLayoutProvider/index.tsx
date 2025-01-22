@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -33,18 +36,13 @@ import {
   StartDragPayload,
   SwapPanelPayload,
 } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useUserProfileStorage } from "@foxglove/studio-base/context/CoSceneUserProfileStorageContext";
-import {
-  gs75Layout,
-  gs50Layout,
-} from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/defaultLayoutGaussian";
-import { keenonDefaultLayout } from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/defaultLayoutKeenon";
 import panelsReducer from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider/reducers";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
@@ -54,18 +52,21 @@ const log = Logger.getLogger(__filename);
 
 export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
 
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
+
 /**
  * Concrete implementation of CurrentLayoutContext.Provider which handles
  * automatically restoring the current layout from LayoutStorage.
  */
 export default function CoSceneCurrentLayoutProvider({
   children,
-}: React.PropsWithChildren): JSX.Element {
+}: React.PropsWithChildren): React.JSX.Element {
   const { enqueueSnackbar } = useSnackbar();
   const { getUserProfile, setUserProfile } = useUserProfileStorage();
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
   const isMounted = useMountedState();
+  const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
 
   const [mosaicId] = useState(() => uuidv4());
 
@@ -150,11 +151,16 @@ export default function CoSceneCurrentLayoutProvider({
             },
           });
           if (saveToProfile) {
-            setUserProfile({ currentLayoutId: id }).catch((error) => {
+            setUserProfile({ currentLayoutId: id }).catch((error: unknown) => {
               console.error(error);
-              enqueueSnackbar(`The current layout could not be saved. ${error.toString()}`, {
-                variant: "error",
-              });
+              enqueueSnackbar(
+                `The current layout could not be saved. ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+                {
+                  variant: "error",
+                },
+              );
             });
           }
         }
@@ -264,7 +270,7 @@ export default function CoSceneCurrentLayoutProvider({
   // Load initial state by re-selecting the last selected layout from the UserProfile.
   useAsync(async () => {
     // Don't restore the layout if there's one specified in the app state url.
-    if (windowAppURLState()?.layoutId != undefined) {
+    if (windowAppURLState()?.layoutId != undefined || currentUserLoginStatus !== "alreadyLogin") {
       return;
     }
 
@@ -274,33 +280,8 @@ export default function CoSceneCurrentLayoutProvider({
     const layout = currentLayoutId ? await layoutManager.getLayout(currentLayoutId) : undefined;
     if (layout) {
       await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
-    } else {
-      if (APP_CONFIG.VITE_APP_PROJECT_ENV === "keenon") {
-        const defaultLayout = await layoutManager.saveNewLayout({
-          name: "default",
-          data: keenonDefaultLayout,
-          permission: "CREATOR_WRITE",
-        });
-
-        await setSelectedLayoutId(defaultLayout.id);
-      } else if (APP_CONFIG.VITE_APP_PROJECT_ENV === "gaussian") {
-        const newGs50Layout = await layoutManager.saveNewLayout({
-          name: `50 layout`,
-          data: gs50Layout,
-          permission: "CREATOR_WRITE",
-        });
-
-        const newGs75Layout = await layoutManager.saveNewLayout({
-          name: `75 layout`,
-          data: gs75Layout,
-          permission: "CREATOR_WRITE",
-        });
-
-        await setSelectedLayoutId(newGs50Layout.id);
-        await setSelectedLayoutId(newGs75Layout.id);
-      }
     }
-  }, [getUserProfile, layoutManager, setSelectedLayoutId]);
+  }, [getUserProfile, layoutManager, setSelectedLayoutId, currentUserLoginStatus]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({

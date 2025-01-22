@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -118,15 +121,15 @@ export default class Rpc {
         };
         this.#channel.postMessage(message, transferables);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         const message = {
           topic: RESPONSE,
           id,
           data: {
             [ERROR]: true,
-            name: err.name,
-            message: err.message,
-            stack: err.stack,
+            name: err instanceof Error ? err.name : "Error",
+            message: err instanceof Error ? err.message : err,
+            stack: err instanceof Error ? err.stack : new Error().stack,
           },
         };
         this.#channel.postMessage(message);

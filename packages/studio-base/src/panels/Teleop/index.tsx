@@ -1,9 +1,12 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { StrictMode, useMemo } from "react";
-import { createRoot } from "react-dom/client";
+import ReactDOM from "react-dom";
 
 import { useCrash } from "@foxglove/hooks";
 import { PanelExtensionContext } from "@foxglove/studio";
@@ -15,17 +18,18 @@ import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import TeleopPanel from "./TeleopPanel";
 
 function initPanel(crash: ReturnType<typeof useCrash>, context: PanelExtensionContext) {
-  const root = createRoot(context.panelElement);
-  root.render(
+  // eslint-disable-next-line react/no-deprecated
+  ReactDOM.render(
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
         <TeleopPanel context={context} />
       </CaptureErrorBoundary>
     </StrictMode>,
+    context.panelElement,
   );
-
   return () => {
-    root.unmount();
+    // eslint-disable-next-line react/no-deprecated
+    ReactDOM.unmountComponentAtNode(context.panelElement);
   };
 }
 

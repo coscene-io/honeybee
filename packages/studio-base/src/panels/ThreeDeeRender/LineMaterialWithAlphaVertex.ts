@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -42,6 +45,7 @@ import {
 };
 
 ShaderLib["foxglove.line"] = {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   uniforms: UniformsUtils.merge([UniformsLib.common, UniformsLib.fog, (UniformsLib as any).line]),
 
   vertexShader: /* glsl */ `
@@ -573,11 +577,11 @@ export class LineMaterialWithAlphaVertex extends ShaderMaterial {
     this.uniforms.opacity!.value = value;
   }
 
-  public get resolution(): THREE.Vector2 {
+  public get resolution(): Vector2 {
     return this.uniforms.resolution!.value;
   }
 
-  public set resolution(value: THREE.Vector2) {
+  public set resolution(value: Vector2) {
     this.uniforms.resolution!.value.copy(value);
   }
 }

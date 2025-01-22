@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -15,9 +18,7 @@ import {
   MessageEvent,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
-import CoSceneConsoleApi, {
-  CoverageResponse,
-} from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";
@@ -38,20 +39,29 @@ const log = Logger.getLogger(__filename);
  * This scopes the required interface to a small subset of ConsoleApi to make it easier to mock/stub
  * for tests.
  */
-export type DataPlatformInterableSourceConsoleApi = Pick<
-  CoSceneConsoleApi,
-  "topics" | "getDevice" | "getAuthHeader" | "getStreamUrl" | "getAddTopicPrefix" | "getTimeMode"
->;
+export type DataPlatformInterableSourceConsoleApi = Pick<ConsoleApi, "topics" | "getStreams">;
 
 type DataPlatformSourceParameters = {
   projectName?: string;
   key: string;
-  singleRequestTime: number;
 };
 
 type DataPlatformIterableSourceOptions = {
   api: DataPlatformInterableSourceConsoleApi;
   params: DataPlatformSourceParameters;
+};
+
+const getPlaybackQualityTranslation = (quality?: string) => {
+  switch (quality) {
+    case "high":
+      return "HIGH";
+    case "low":
+      return "LOW";
+    case "mid":
+      return "MID";
+    default:
+      return "ORIGINAL";
+  }
 };
 
 export class DataPlatformIterableSource implements IIterableSource {
@@ -224,11 +234,9 @@ export class DataPlatformIterableSource implements IIterableSource {
       const streamByParams: StreamParams = {
         start: streamStart,
         end: streamEnd,
-        authHeader: this.#consoleApi.getAuthHeader(),
         id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
-        playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
       const stream = streamMessages({
@@ -247,21 +255,15 @@ export class DataPlatformIterableSource implements IIterableSource {
     }
 
     let localStart = streamStart;
-    let localEnd = clampTime(
-      addTime(localStart, { sec: this.#params.singleRequestTime, nsec: 0 }),
-      streamStart,
-      streamEnd,
-    );
+    let localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
 
     for (;;) {
       const streamByParams: StreamParams = {
         start: localStart,
         end: localEnd,
-        authHeader: this.#consoleApi.getAuthHeader(),
         id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
-        playbackQualityLevel: args.playbackQualityLevel ?? "ORIGINAL",
       };
 
       const stream = streamMessages({
@@ -308,11 +310,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       }
 
       localStart = clampTime(localStart, streamStart, streamEnd);
-      localEnd = clampTime(
-        addTime(localStart, { sec: this.#params.singleRequestTime, nsec: 0 }),
-        streamStart,
-        streamEnd,
-      );
+      localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
     }
   }
 
@@ -320,7 +318,6 @@ export class DataPlatformIterableSource implements IIterableSource {
     topics,
     time,
     abortSignal,
-    playbackQualityLevel,
   }: GetBackfillMessagesArgs): Promise<MessageEvent[]> {
     // Data platform treats topic array length 0 as "all topics". Until that is changed, we filter out
     // empty topic requests
@@ -331,10 +328,8 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamByParams: StreamParams = {
       start: time,
       end: time,
-      authHeader: this.#consoleApi.getAuthHeader(),
       id: this.#params.key,
       projectName: this.#params.projectName,
-      playbackQualityLevel,
       topics: Array.from(topics.keys()),
     };
 
@@ -355,7 +350,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 }
 
 export function initialize(args: IterableSourceInitializeArgs): DataPlatformIterableSource {
-  const { api, params, singleRequestTime } = args;
+  const { api, params } = args;
   if (!params) {
     throw new Error("params is required for data platform source");
   }
@@ -370,6 +365,10 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   const warehouseSlug = params.warehouseSlug;
   const userId = params.userId;
   const key = params.key;
+
+  const addTopicPrefix = params.addTopicPrefix;
+  const timeMode = params.timeMode;
+  const playbackQualityLevel = params.playbackQualityLevel;
 
   if (!projectId) {
     throw new Error("projectId is required for data platform source");
@@ -412,19 +411,16 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   const dpSourceParams: DataPlatformSourceParameters = {
     key,
     projectName: `warehouses/${warehouseId}/projects/${projectId}`,
-    singleRequestTime: singleRequestTime ?? 5,
   };
 
-  const consoleApi = new CoSceneConsoleApi(
+  const consoleApi = new ConsoleApi(
     api.baseUrl,
     api.bffUrl,
-    api.addTopicPrefix,
-    api.timeMode,
+    api.auth ?? "",
+    addTopicPrefix === "true" ? "true" : "false",
+    timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime",
+    getPlaybackQualityTranslation(playbackQualityLevel),
   );
-
-  if (api.auth) {
-    consoleApi.setAuthHeader(api.auth);
-  }
 
   return new DataPlatformIterableSource({
     api: consoleApi,

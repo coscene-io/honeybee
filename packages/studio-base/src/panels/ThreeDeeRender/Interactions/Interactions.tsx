@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -101,6 +104,6 @@ const InteractionsBaseComponent = React.memo<Props>(function InteractionsBaseCom
 
 // Wrap the Interactions so that we don't rerender every time any part of the PanelContext config changes, but just the
 // one value that we care about.
-export default function Interactions(props: Props): JSX.Element {
+export default function Interactions(props: Props): React.JSX.Element {
   return <InteractionsBaseComponent {...props} />;
 }

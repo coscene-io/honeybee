@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -6,11 +9,7 @@
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
 import { ServiceType, Timestamp, Value, JsonObject } from "@bufbuild/protobuf";
-import {
-  ACCESS_TOKEN_NAME,
-  SUPER_TOKEN_ACCESS_TOKEN_NAME,
-  uuidv4,
-} from "@coscene-io/coscene/queries";
+import { ACCESS_TOKEN_NAME } from "@coscene-io/coscene/queries";
 import {
   Layout,
   LayoutDetail,
@@ -18,34 +17,15 @@ import {
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
+import { v4 as uuidv4 } from "uuid";
 
 import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 export * from "./cosel";
 
-export function getPlaybackQualityLevelByLocalStorage(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
-  const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
-  let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
-
-  switch (localPlaybackQualityLevel) {
-    case "ORIGINAL":
-      playbackQualityLevel = "ORIGINAL";
-      break;
-    case "HIGH":
-      playbackQualityLevel = "HIGH";
-      break;
-    case "MID":
-      playbackQualityLevel = "MID";
-      break;
-    case "LOW":
-      playbackQualityLevel = "LOW";
-      break;
-    default:
-      playbackQualityLevel = "ORIGINAL";
-  }
-
-  return playbackQualityLevel;
-}
+const authBridge = (global as { authBridge?: Auth }).authBridge;
 
 // window.navigator.platform is not reliable, use this function to check os
 export function getOS(): string | undefined {
@@ -72,8 +52,7 @@ export function getOS(): string | undefined {
 }
 
 const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
-  const jwt =
-    localStorage.getItem(ACCESS_TOKEN_NAME) ?? localStorage.getItem(SUPER_TOKEN_ACCESS_TOKEN_NAME);
+  const jwt = localStorage.getItem(ACCESS_TOKEN_NAME);
   if (jwt) {
     req.header.set("Authorization", jwt);
     req.header.set("x-cos-request-id", uuidv4());
@@ -89,13 +68,14 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     // grpc error code-16 === http status code 401
     // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
     if (error.code === StatusCode.UNAUTHENTICATED) {
-      localStorage.removeItem("demoSite");
-      localStorage.removeItem("joyrideInfoList");
-      localStorage.removeItem("honeybeeDemoStatus");
       if (window.location.pathname !== "/login") {
-        window.location.href = `/login?redirectToPath=${encodeURIComponent(
-          window.location.pathname + window.location.search,
-        )}`;
+        if (isDesktopApp()) {
+          authBridge?.logout();
+        } else {
+          window.location.href = `/login?redirectToPath=${encodeURIComponent(
+            window.location.pathname + window.location.search,
+          )}`;
+        }
       }
     }
 
@@ -123,7 +103,7 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
   return createPromiseClient(
     service,
     createGrpcWebTransport({
-      baseUrl: window.cosConfig.VITE_APP_BASE_API_URL ?? "",
+      baseUrl: window.cosConfig.VITE_APP_BASE_API_URL ?? "https://api.coscene.cn",
       interceptors: [setAuthorizationUnaryInterceptor, setLocaleInfoUnaryInterceptor],
     }),
   );
@@ -153,7 +133,7 @@ export const getCoSceneLayout = (layout: {
   newLayout.name =
     layout.permission === "CREATOR_WRITE"
       ? `users/${layout.userId}/layouts/${layout.id}`
-      : "layouts/" + layout.id;
+      : "layouts/" + (layout.id ?? "");
   const layoutDetail = new LayoutDetail();
 
   layoutDetail.name = layout.name ?? "";
@@ -180,7 +160,7 @@ export function stringToColor(str: string): string {
   for (let i = 0; i < 3; i++) {
     let value = (hash >> (i * 8)) & 0xff;
     value = Math.floor(value * 0.3 + 0.5 * 0xff); // adjust value to get a brightness between 30% and 50%
-    color += ("00" + value.toString(16)).substr(-2);
+    color += ("00" + value.toString(16)).slice(-2);
   }
   return color;
 }

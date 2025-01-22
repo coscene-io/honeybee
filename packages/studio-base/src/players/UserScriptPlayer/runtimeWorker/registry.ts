@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -103,9 +106,9 @@ export const registerScript = ({
     if (containsFuncDeclaration(args)) {
       const argsToPrint = getArgsToPrint(args);
       throw new Error(
-        `Cannot invoke log() with a function argument (registerScript) - log(${argsToPrint.join(
-          ", ",
-        )})`,
+        `Cannot invoke log() with a function argument (registerScript) - log(${argsToPrint
+          .map((arg) => JSON.stringify(arg))
+          .join(", ")})`,
       );
     }
     userScriptLogs.push(...args.map((value) => ({ source: "registerScript" as const, value })));
@@ -148,9 +151,9 @@ export const processMessage = ({
     if (containsFuncDeclaration(args)) {
       const argsToPrint = getArgsToPrint(args);
       throw new Error(
-        `Cannot invoke log() with a function argument (processMessage) - log(${argsToPrint.join(
-          ", ",
-        )})`,
+        `Cannot invoke log() with a function argument (processMessage) - log(${argsToPrint
+          .map((arg) => JSON.stringify(arg))
+          .join(", ")})`,
       );
     }
     userScriptLogs.push(...args.map((value) => ({ source: "processMessage" as const, value })));

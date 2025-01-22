@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -97,7 +100,7 @@ const selectPlayerProblems = ({ playerState }: MessagePipelineContext) =>
   playerState.problems ?? EMPTY_PLAYER_PROBLEMS;
 const selectProblems = (store: ProblemsContextStore) => store.problems;
 
-function ProblemIcon({ severity }: { severity: NotificationSeverity }): JSX.Element {
+function ProblemIcon({ severity }: { severity: NotificationSeverity }): React.JSX.Element {
   const { palette } = useTheme();
   const { classes } = useStyles();
 
@@ -113,7 +116,7 @@ function ProblemIcon({ severity }: { severity: NotificationSeverity }): JSX.Elem
   }
 }
 
-function ProblemDetails(props: { details: DetailsType; tip?: React.ReactNode }): JSX.Element {
+function ProblemDetails(props: { details: DetailsType; tip?: React.ReactNode }): React.JSX.Element {
   const { t } = useTranslation("problemsList");
   const { details, tip } = props;
   const { classes } = useStyles();
@@ -142,7 +145,7 @@ function ProblemDetails(props: { details: DetailsType; tip?: React.ReactNode }):
   );
 }
 
-export function ProblemsList(): JSX.Element {
+export function ProblemsList(): React.JSX.Element {
   const { t } = useTranslation("problemsList");
   const { classes } = useStyles();
   const playerProblems = useMessagePipeline(selectPlayerProblems);
@@ -162,7 +165,9 @@ export function ProblemsList(): JSX.Element {
         <Accordion
           className={classes.acccordion}
           key={`${idx}.${problem.severity}.${problem.message}`}
-          TransitionProps={{ unmountOnExit: true }}
+          slotProps={{
+            transition: { unmountOnExit: true },
+          }}
           defaultExpanded
         >
           <AccordionSummary

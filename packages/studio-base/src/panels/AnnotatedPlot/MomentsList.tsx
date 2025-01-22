@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -27,6 +30,7 @@ const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store
 const selectSetHoveredEvent = (store: TimelineInteractionStateStore) => store.setHoveredEvent;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
+const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
 
 const useStyles = makeStyles()((theme, _params) => ({
   momentMain: {
@@ -72,7 +76,7 @@ const SingleMomentView: ({
   onClick: (event: TimelinePositionedEvent) => void;
   onHoverStart: (event: TimelinePositionedEvent) => void;
   onHoverEnd: (event: TimelinePositionedEvent) => void;
-}) => JSX.Element = ({ event, isHovered, isSelected, onClick, onHoverStart, onHoverEnd }) => {
+}) => React.JSX.Element = ({ event, isHovered, isSelected, onClick, onHoverStart, onHoverEnd }) => {
   const { classes, cx } = useStyles();
   const scrollRef = useRef<HTMLDivElement>(ReactNull);
 
@@ -146,10 +150,11 @@ export default function MomentsList({
   events,
 }: {
   events: TimelinePositionedEvent[];
-}): JSX.Element {
+}): React.JSX.Element {
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
   const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
+  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const selectedEventId = useEvents(selectSelectedEventId);
   const seek = useMessagePipeline(selectSeek);
   const selectEvent = useEvents(selectSelectEvent);
@@ -192,21 +197,24 @@ export default function MomentsList({
       overflow="auto"
       className={classes.container}
     >
-      {events.map((event) => (
-        <SingleMomentView
-          event={event}
-          key={event.event.name}
-          isHovered={
-            hoveredEvent
-              ? event.event.name === hoveredEvent.event.name
-              : eventsAtHoverValue[event.event.name] != undefined
-          }
-          isSelected={event.event.name === selectedEventId}
-          onClick={onClick}
-          onHoverStart={onHoverStart}
-          onHoverEnd={onHoverEnd}
-        />
-      ))}
+      {events.map((event) => {
+        const isHovered =
+          (hoveredEvent != undefined && event.event.name === hoveredEvent.event.name) ||
+          eventsAtHoverValue[event.event.name] != undefined ||
+          loopedEvent?.event.name === event.event.name;
+
+        return (
+          <SingleMomentView
+            event={event}
+            key={event.event.name}
+            isHovered={isHovered}
+            isSelected={event.event.name === selectedEventId}
+            onClick={onClick}
+            onHoverStart={onHoverStart}
+            onHoverEnd={onHoverEnd}
+          />
+        );
+      })}
     </Stack>
   ) : (
     <></>

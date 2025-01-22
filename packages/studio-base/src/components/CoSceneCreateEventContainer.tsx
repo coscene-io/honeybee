@@ -1,15 +1,21 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Event } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { Timestamp, FieldMask } from "@bufbuild/protobuf";
+import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import EastIcon from "@mui/icons-material/East";
 import HelpIcon from "@mui/icons-material/Help";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Alert,
+  Box,
   Button,
   Checkbox,
   CircularProgress,
@@ -23,15 +29,16 @@ import {
   Select,
   MenuItem,
   Tooltip,
+  Autocomplete,
+  Link,
 } from "@mui/material";
-import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
-import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
+import PinyinMatch from "pinyin-match";
 import { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { useAsyncFn } from "react-use";
+import { useAsyncFn, useAsync, useDeepCompareEffect } from "react-use";
 import { keyframes } from "tss-react";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
@@ -47,8 +54,9 @@ import {
   fromSec,
   fromDate,
 } from "@foxglove/rostime";
-import { CreateTaskDialog } from "@foxglove/studio-base/components/CreateTaskDialog";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   BagFileInfo,
@@ -56,8 +64,8 @@ import {
   usePlaylist,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents, KeyValue } from "@foxglove/studio-base/context/EventsContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { useAppConfigurationValue, useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
 const fadeInAnimation = keyframes`
@@ -97,6 +105,12 @@ const useStyles = makeStyles()((theme, _params) => ({
     gap: "8px",
     padding: "24px",
   },
+  avatar: {
+    width: 18,
+    height: 18,
+    borderRadius: "50%",
+    marginRight: 5,
+  },
 }));
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
@@ -104,12 +118,33 @@ const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectEventMarks = (store: EventsStore) => store.eventMarks;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+
 const PIVOT_METRIC = "pivotMetric";
 const temperature = [...new Array(9).keys()].map((i) => `温度0${i + 1}`);
 const pivotMetricValues = ["General", "功率", "压力", "转速", "风速", ...temperature, "温度10"];
 
-export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX.Element {
+function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.ReactNode {
+  const { t } = useTranslation("cosEvent");
+
+  return (
+    <Stack direction="row" alignItems="center" gap={1}>
+      <Typography>{t("createTaskSuccess")}</Typography>
+      <Link href={targetUrl} target="_blank" underline="hover" color="inherit">
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("toView")}
+          <EastIcon />
+        </Stack>
+      </Link>
+    </Stack>
+  );
+}
+
+export function CoSceneCreateEventContainer(props: { onClose: () => void }): React.JSX.Element {
   const { onClose } = props;
+
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
   const refreshEvents = useEvents(selectRefreshEvents);
   const toModifyEvent = useEvents(selectToModifyEvent);
@@ -126,11 +161,9 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
   const { t } = useTranslation("cosEvent");
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
   const bagFiles = usePlaylist(selectBagFiles);
-  const timeMode = useMemo(() => {
-    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
-      ? "relativeTime"
-      : "absoluteTime";
-  }, []);
+
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const passingFile = bagFiles.value?.filter((bag) => {
     if (bag.startTime == undefined || bag.endTime == undefined) {
@@ -172,6 +205,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     description: undefined | string;
     metadataEntries: KeyValue[];
     enabledCreateNewTask: boolean;
+    // if is create new momnet, fileName is the target bag file name
+    // if is edit moment, fileName is the target record name
     fileName: string;
     imageFile?: File;
     imgUrl?: string;
@@ -188,6 +223,20 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     record: "",
   });
 
+  const [task, setTask] = useImmer<{
+    title: string;
+    description: string;
+    assignee: string;
+    assigner: string;
+    needSyncTask: boolean;
+  }>({
+    title: "",
+    description: "",
+    assignee: "",
+    assigner: "",
+    needSyncTask: false,
+  });
+
   useEffect(() => {
     if (toModifyEvent != undefined) {
       setEvent((old) => ({
@@ -202,7 +251,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
             ? toModifyEvent.metadataEntries
             : [{ key: "", value: "" }],
         enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
-        fileName: toModifyEvent.fileName,
+        fileName: toModifyEvent.record,
         imgUrl: toModifyEvent.imgUrl,
         record: toModifyEvent.record,
       }));
@@ -228,7 +277,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
     });
   }, [currentFile?.startTime, markEndTime, setEvent, timeMode, markStartTime, isEditing]);
 
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if ((passingFile == undefined || passingFile.length === 0) && !isEditing) {
       onClose();
       toast.error(t("creationUnavailableInCurrentPeriod"));
@@ -252,20 +301,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
       });
     };
   }, []);
-
-  const [task, setTask] = useImmer<{
-    enabled: boolean;
-    eventName: string;
-    title: string;
-    description: string;
-  }>({
-    enabled: false,
-    eventName: "",
-    title: "",
-    description: "",
-  });
-
-  const [targetEvent, setTargetEvent] = useState<Event | undefined>(undefined);
 
   const updateMetadata = useCallback(
     (index: number, updateType: keyof KeyValue, value: string) => {
@@ -296,197 +331,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
   );
   const canSubmit = event.startTime != undefined && event.duration != undefined && !duplicateKey;
   const { enqueueSnackbar } = useSnackbar();
-
-  const [createdEvent, createEvent] = useAsyncFn(async () => {
-    if (event.startTime == undefined || event.duration == undefined) {
-      return;
-    }
-
-    const filteredMeta = event.metadataEntries.filter(
-      (entry) => entry.key.length > 0 && entry.value.length > 0,
-    );
-    const keyedMetadata = Object.fromEntries(
-      filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
-    );
-
-    const fileName = event.fileName;
-    const projectName = fileName.split("/records/")[0];
-    const recordName = fileName.split("/files/")[0];
-
-    const newEvent = new Event();
-
-    newEvent.setDisplayName(event.eventName);
-    const timestamp = new Timestamp();
-
-    timestamp.fromDate(event.startTime);
-
-    newEvent.setTriggerTime(timestamp);
-
-    if (event.durationUnit === "sec") {
-      newEvent.setDuration(secondsToDuration(event.duration));
-    } else {
-      newEvent.setDuration(secondsToDuration(event.duration / 1e9));
-    }
-
-    if (event.description) {
-      newEvent.setDescription(event.description);
-    }
-
-    Object.keys(keyedMetadata).forEach((key) => {
-      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
-    });
-
-    if (projectName == undefined || recordName == undefined) {
-      toast.error(t("createMomentFailed"));
-      return;
-    }
-
-    try {
-      if (event.imageFile) {
-        const imgId = uuidv4();
-
-        const imgFileDisplayName = `${imgId}.${
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
-          ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
-        }`;
-
-        await consoleApi.uploadEventPicture({
-          recordName,
-          file: event.imageFile,
-          filename: imgFileDisplayName,
-        });
-
-        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
-      }
-
-      const result = await consoleApi.createEvent({
-        event: newEvent,
-        parent: projectName,
-        recordName,
-      });
-
-      const eventName = result.getName();
-
-      setTargetEvent(result);
-      if (event.enabledCreateNewTask) {
-        setTask({
-          enabled: true,
-          eventName,
-          title: event.eventName,
-          description: event.description ?? "",
-        });
-      } else {
-        onClose();
-      }
-
-      refreshEvents();
-      enqueueSnackbar(t("createMomentSuccess"), { variant: "success" });
-    } catch (e) {
-      enqueueSnackbar(t("createMomentFailed"), { variant: "error" });
-    }
-  }, [consoleApi, event, onClose, refreshEvents, setTask, enqueueSnackbar, t]);
-
-  const [editedEvent, editEvent] = useAsyncFn(async () => {
-    if (event.startTime == undefined || event.duration == undefined) {
-      return;
-    }
-
-    const filteredMeta = event.metadataEntries.filter(
-      (entry) => entry.key.length > 0 && entry.value.length > 0,
-    );
-    const keyedMetadata = Object.fromEntries(
-      filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
-    );
-
-    const newEvent = new Event();
-
-    newEvent.setName(toModifyEvent?.name ?? "");
-
-    newEvent.setDisplayName(event.eventName);
-    const timestamp = new Timestamp();
-
-    timestamp.fromDate(event.startTime);
-
-    newEvent.setTriggerTime(timestamp);
-
-    if (event.durationUnit === "sec") {
-      newEvent.setDuration(secondsToDuration(event.duration));
-    } else {
-      newEvent.setDuration(secondsToDuration(event.duration / 1e9));
-    }
-
-    if (event.description) {
-      newEvent.setDescription(event.description);
-    }
-
-    const maskArray = [
-      "displayName",
-      "duration_nanos",
-      "description",
-      "duration",
-      "customizedFields",
-    ];
-
-    if (!event.imgUrl && !event.imageFile) {
-      newEvent.setFilesList([]);
-      maskArray.push("files");
-    }
-
-    Object.keys(keyedMetadata).forEach((key) => {
-      newEvent.getCustomizedFieldsMap().set(key, keyedMetadata[key] ?? "");
-    });
-
-    try {
-      const imgId = uuidv4();
-      const recordName = event.record;
-
-      if (event.imageFile && recordName) {
-        const imgFileDisplayName = `${imgId}.${
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
-          ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
-        }`;
-
-        await consoleApi.uploadEventPicture({
-          recordName,
-          file: event.imageFile,
-          filename: imgFileDisplayName,
-        });
-
-        newEvent.setFilesList([`${recordName}/files/.cos/moments/${imgFileDisplayName}`]);
-        maskArray.push("files");
-      }
-
-      const fieldMask = new FieldMask();
-      fieldMask.setPathsList(maskArray);
-
-      await consoleApi.updateEvent({
-        event: newEvent,
-        updateMask: fieldMask,
-      });
-      onClose();
-
-      refreshEvents();
-      enqueueSnackbar(t("editMomentSuccess"), { variant: "success" });
-    } catch (e) {
-      enqueueSnackbar(t("editMomentFailed"), { variant: "error" });
-    }
-  }, [
-    consoleApi,
-    enqueueSnackbar,
-    event.description,
-    event.duration,
-    event.durationUnit,
-    event.eventName,
-    event.imageFile,
-    event.imgUrl,
-    event.metadataEntries,
-    event.record,
-    event.startTime,
-    onClose,
-    refreshEvents,
-    t,
-    toModifyEvent?.name,
-  ]);
 
   const onMetaDataKeyDown = useCallback(
     (keyboardEvent: React.KeyboardEvent) => {
@@ -546,7 +390,315 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
 
   const inputRef = useRef<HTMLInputElement>(ReactNull);
 
-  const isSupor = APP_CONFIG.LOGO_CONFIG[window.location.hostname]?.logo === "supor";
+  const isSupor = getDomainConfig().logo === "supor";
+
+  // about task ---------------------
+  const projectName = event.fileName.split("/records/")[0];
+  const recordName = event.fileName.split("/files/")[0];
+
+  const { value: users } = useAsync(async () => {
+    return await consoleApi.listOrganizationUsers();
+  });
+
+  const { value: syncedTask } = useAsync(async () => {
+    const parent = `${projectName}/ticketSystem`;
+    return await consoleApi.getTicketSystemMetadata({ parent });
+  });
+
+  const activatedUsers = users?.filter((user) => user.active);
+
+  const jiraEnabled = syncedTask?.jiraEnabled;
+  const onesEnabled = syncedTask?.onesEnabled;
+
+  const [, syncTask] = useAsyncFn(async (name: string) => {
+    try {
+      await consoleApi.syncTask({ name });
+      enqueueSnackbar(t("syncTaskSuccess"), { variant: "success" });
+    } catch {
+      enqueueSnackbar(t("syncTaskFailed"), { variant: "error" });
+    }
+  });
+
+  const [createdTask, createTask] = useAsyncFn(
+    async ({ targetEvent }: { targetEvent: Event }) => {
+      const parent = projectName;
+
+      if (parent == undefined) {
+        toast.error("createTaskFailed");
+        return;
+      }
+
+      const description =
+        JSON.stringify({
+          root: {
+            children: [
+              {
+                children: [
+                  {
+                    sourceName: targetEvent.name,
+                    sourceType: "moment",
+                    type: "source",
+                    version: 1,
+                  },
+                ],
+                direction: "ltr",
+                format: "",
+                indent: 0,
+                type: "paragraph",
+                version: 1,
+              },
+              ...task.description.split("\n").map((text) => ({
+                children: [
+                  {
+                    detail: 0,
+                    format: 0,
+                    mode: "normal",
+                    style: "",
+                    text,
+                    type: "text",
+                    version: 1,
+                  },
+                ],
+                direction: "ltr",
+                format: "",
+                indent: 0,
+                type: "paragraph",
+                version: 1,
+              })),
+            ],
+            direction: "ltr",
+            format: "",
+            indent: 0,
+            type: "root",
+            version: 1,
+          },
+        }) ?? task.description;
+      try {
+        const newTask = await consoleApi.createTask({
+          parent,
+          task: { ...task, description },
+          event: targetEvent,
+        });
+        const targetUrl = `${window.location.origin}/${baseInfo.organizationSlug}/${
+          baseInfo.projectSlug
+        }/tasks/general-tasks/${newTask.name.split("/").pop()}`;
+
+        enqueueSnackbar(<CreateTaskSuccessToast targetUrl={targetUrl} />, {
+          variant: "success",
+        });
+        if (task.needSyncTask) {
+          await syncTask(newTask.name);
+        }
+        onClose();
+      } catch {
+        enqueueSnackbar(t("createTaskFailed"), { variant: "error" });
+      }
+    },
+    [
+      baseInfo.organizationSlug,
+      baseInfo.projectSlug,
+      consoleApi,
+      enqueueSnackbar,
+      onClose,
+      projectName,
+      syncTask,
+      t,
+      task,
+    ],
+  );
+
+  // create moment ---------------------
+  const [createdEvent, createEvent] = useAsyncFn(async () => {
+    if (event.startTime == undefined || event.duration == undefined) {
+      return;
+    }
+
+    const filteredMeta = event.metadataEntries.filter(
+      (entry) => entry.key.length > 0 && entry.value.length > 0,
+    );
+    const keyedMetadata = Object.fromEntries(
+      filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
+    );
+
+    const newEvent = new Event();
+
+    newEvent.displayName = event.eventName;
+    const timestamp = Timestamp.fromDate(event.startTime);
+
+    newEvent.triggerTime = timestamp;
+
+    if (event.durationUnit === "sec") {
+      newEvent.duration = secondsToDuration(event.duration);
+    } else {
+      newEvent.duration = secondsToDuration(event.duration / 1e9);
+    }
+
+    if (event.description) {
+      newEvent.description = event.description;
+    }
+
+    Object.keys(keyedMetadata).forEach((key) => {
+      newEvent.customizedFields[key] = keyedMetadata[key] ?? "";
+    });
+
+    if (projectName == undefined || recordName == undefined) {
+      toast.error(t("createMomentFailed"));
+      return;
+    }
+
+    try {
+      if (event.imageFile) {
+        const imgId = uuidv4();
+
+        const imgFileDisplayName = `${imgId}.${
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
+          ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
+        }`;
+
+        await consoleApi.uploadEventPicture({
+          recordName,
+          file: event.imageFile,
+          filename: imgFileDisplayName,
+        });
+
+        newEvent.files = [`${recordName}/files/.cos/moments/${imgFileDisplayName}`];
+      }
+
+      const result = await consoleApi.createEvent({
+        event: newEvent,
+        parent: projectName,
+        recordName,
+      });
+
+      if (event.enabledCreateNewTask) {
+        await createTask({ targetEvent: result });
+      } else {
+        onClose();
+      }
+
+      refreshEvents();
+      enqueueSnackbar(t("createMomentSuccess"), { variant: "success" });
+    } catch {
+      enqueueSnackbar(t("createMomentFailed"), { variant: "error" });
+    }
+  }, [
+    event.startTime,
+    event.duration,
+    event.metadataEntries,
+    event.eventName,
+    event.durationUnit,
+    event.description,
+    event.imageFile,
+    event.enabledCreateNewTask,
+    projectName,
+    recordName,
+    t,
+    consoleApi,
+    refreshEvents,
+    enqueueSnackbar,
+    createTask,
+    onClose,
+  ]);
+
+  // edit moment ---------------------
+  const [editedEvent, editEvent] = useAsyncFn(async () => {
+    if (event.startTime == undefined || event.duration == undefined) {
+      return;
+    }
+
+    const filteredMeta = event.metadataEntries.filter(
+      (entry) => entry.key.length > 0 && entry.value.length > 0,
+    );
+    const keyedMetadata = Object.fromEntries(
+      filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
+    );
+
+    const newEvent = new Event();
+
+    newEvent.name = toModifyEvent?.name ?? "";
+
+    newEvent.displayName = event.eventName;
+    const timestamp = Timestamp.fromDate(event.startTime);
+
+    newEvent.triggerTime = timestamp;
+
+    if (event.durationUnit === "sec") {
+      newEvent.duration = secondsToDuration(event.duration);
+    } else {
+      newEvent.duration = secondsToDuration(event.duration / 1e9);
+    }
+
+    if (event.description) {
+      newEvent.description = event.description;
+    }
+
+    const maskArray = [
+      "displayName",
+      "duration_nanos",
+      "description",
+      "duration",
+      "customizedFields",
+    ];
+
+    if (!event.imgUrl && !event.imageFile) {
+      newEvent.files = [];
+      maskArray.push("files");
+    }
+
+    Object.keys(keyedMetadata).forEach((key) => {
+      newEvent.customizedFields[key] = keyedMetadata[key] ?? "";
+    });
+
+    try {
+      const imgId = uuidv4();
+
+      if (event.imageFile && recordName) {
+        const imgFileDisplayName = `${imgId}.${
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
+          ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
+        }`;
+
+        await consoleApi.uploadEventPicture({
+          recordName,
+          file: event.imageFile,
+          filename: imgFileDisplayName,
+        });
+
+        newEvent.files = [`${recordName}/files/.cos/moments/${imgFileDisplayName}`];
+        maskArray.push("files");
+      }
+
+      const fieldMask = new FieldMask();
+      fieldMask.paths = maskArray;
+
+      await consoleApi.updateEvent({
+        event: newEvent,
+        updateMask: fieldMask,
+      });
+      onClose();
+
+      refreshEvents();
+      enqueueSnackbar(t("editMomentSuccess"), { variant: "success" });
+    } catch {
+      enqueueSnackbar(t("editMomentFailed"), { variant: "error" });
+    }
+  }, [
+    consoleApi,
+    enqueueSnackbar,
+    event.description,
+    event.duration,
+    event.durationUnit,
+    event.eventName,
+    event.imageFile,
+    event.imgUrl,
+    event.metadataEntries,
+    event.startTime,
+    onClose,
+    recordName,
+    refreshEvents,
+    t,
+    toModifyEvent?.name,
+  ]);
 
   return (
     <>
@@ -782,6 +934,24 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
         </Stack>
         {!isEditing && (
           <Stack paddingX={3} paddingTop={2}>
+            <FormLabel>{t("record")}</FormLabel>
+            <Select
+              value={recordItems[0]?.name ?? ""}
+              disabled={recordItems.length <= 1}
+              onChange={(e) => {
+                setEvent((old) => ({ ...old, fileName: e.target.value }));
+              }}
+            >
+              {recordItems.map((bag) => (
+                <MenuItem key={bag.name} value={bag.name}>
+                  {bag.recordDisplayName}
+                </MenuItem>
+              ))}
+            </Select>
+          </Stack>
+        )}
+        {!isEditing && (
+          <Stack paddingX={3} paddingTop={2}>
             <FormControlLabel
               disableTypography
               checked={event.enabledCreateNewTask}
@@ -801,23 +971,109 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
             />
           </Stack>
         )}
-        {!isEditing && (
-          <Stack paddingX={3} paddingTop={2}>
-            <FormLabel>{t("record")}</FormLabel>
-            <Select
-              value={recordItems[0]?.name ?? ""}
-              disabled={recordItems.length <= 1}
-              onChange={(e) => {
-                setEvent((old) => ({ ...old, fileName: e.target.value }));
-              }}
-            >
-              {recordItems.map((bag) => (
-                <MenuItem key={bag.name} value={bag.name}>
-                  {bag.recordDisplayName}
-                </MenuItem>
-              ))}
-            </Select>
-          </Stack>
+        {event.enabledCreateNewTask && (
+          <>
+            <Stack paddingX={3} paddingTop={2}>
+              <TextField
+                fullWidth
+                variant="outlined"
+                label={
+                  <>
+                    <span className={classes.requiredFlags}>*</span>
+                    {t("taskName")}
+                  </>
+                }
+                maxRows={1}
+                value={task.title}
+                onChange={(val) => {
+                  setTask((state) => ({ ...state, title: val.target.value }));
+                }}
+                onKeyDown={onMetaDataKeyDown}
+              />
+            </Stack>
+            <Stack paddingX={3} paddingTop={2}>
+              <TextField
+                id="description"
+                label={t("taskDescription")}
+                rows={3}
+                value={task.description}
+                onChange={(val) => {
+                  setTask((state) => ({ ...state, description: val.target.value }));
+                }}
+                fullWidth
+                variant="outlined"
+                onKeyDown={onMetaDataKeyDown}
+              />
+            </Stack>
+            <Stack paddingX={3} paddingTop={2}>
+              <FormControl>
+                <FormLabel>{t("taskAssignee")}</FormLabel>
+                <Autocomplete
+                  disableClearable
+                  options={activatedUsers ?? []}
+                  getOptionLabel={(option) => option.nickname ?? ""}
+                  renderInput={(params) => <TextField {...params} autoFocus variant="outlined" />}
+                  renderOption={(optionProps, option) => (
+                    <Box component="li" {...optionProps} key={option.name}>
+                      <img className={classes.avatar} src={option.avatar} />
+                      {option.nickname}
+                    </Box>
+                  )}
+                  value={activatedUsers?.find((user) => user.name === task.assignee)}
+                  isOptionEqualToValue={(option, value) => option.name === value.name}
+                  onChange={(_event, option) => {
+                    setTask((s) => ({ ...s, assignee: option.name }));
+                  }}
+                  filterOptions={(options, { inputValue }) => {
+                    if (!inputValue) {
+                      return options;
+                    }
+                    return options.filter((option) => {
+                      const pinyinMatch = PinyinMatch.match(option.nickname ?? "", inputValue);
+                      return (option.nickname ?? "").includes(inputValue) || pinyinMatch !== false;
+                    });
+                  }}
+                  onKeyDown={onMetaDataKeyDown}
+                />
+              </FormControl>
+            </Stack>
+            <Stack paddingX={3} paddingTop={2}>
+              {!(jiraEnabled ?? false) && !(onesEnabled ?? false) ? (
+                <Tooltip title={t("syncTaskTooltip")} placement="top-start">
+                  <FormControlLabel
+                    disableTypography
+                    checked={task.needSyncTask}
+                    control={
+                      <Checkbox
+                        size="medium"
+                        checked={task.needSyncTask}
+                        onChange={(e) => {
+                          setTask((state) => ({ ...state, needSyncTask: e.target.checked }));
+                        }}
+                        disabled={true}
+                      />
+                    }
+                    label={t("syncTask")}
+                  />
+                </Tooltip>
+              ) : (
+                <FormControlLabel
+                  disableTypography
+                  checked={task.needSyncTask}
+                  control={
+                    <Checkbox
+                      size="medium"
+                      checked={task.needSyncTask}
+                      onChange={(e) => {
+                        setTask((state) => ({ ...state, needSyncTask: e.target.checked }));
+                      }}
+                    />
+                  }
+                  label={t("syncTask")}
+                />
+              )}
+            </Stack>
+          </>
         )}
         <div className={classes.containerFooter}>
           <Button variant="outlined" size="large" onClick={onClose}>
@@ -834,10 +1090,16 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
                 await createEvent();
               }
             }}
-            disabled={!canSubmit || createdEvent.loading || editedEvent.loading || !event.eventName}
+            disabled={
+              !canSubmit ||
+              createdEvent.loading ||
+              editedEvent.loading ||
+              !event.eventName ||
+              (event.enabledCreateNewTask && task.title === "")
+            }
             ref={createMomentBtnRef}
           >
-            {(createdEvent.loading || editedEvent.loading) && (
+            {(createdEvent.loading || editedEvent.loading || createdTask.loading) && (
               <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
             )}
             {isEditing ? t("edit") : t("createMoment")}
@@ -852,21 +1114,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): JSX
           <Alert severity="error">{createdEvent.error.message}</Alert>
         )}
       </Stack>
-      {task.enabled && targetEvent && (
-        <CreateTaskDialog
-          initialTask={{
-            title: task.title,
-            eventName: task.eventName,
-            description: task.description,
-          }}
-          onClose={() => {
-            setTask({ enabled: false, eventName: "", title: "", description: "" });
-            onClose();
-          }}
-          event={targetEvent}
-          fileName={event.fileName}
-        />
-      )}
     </>
   );
 }

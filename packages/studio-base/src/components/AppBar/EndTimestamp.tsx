@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -16,7 +19,7 @@ import { formatTimeRaw, isAbsoluteTime } from "@foxglove/studio-base/util/time";
 
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 
-export function EndTimestamp(): JSX.Element | ReactNull {
+export function EndTimestamp(): React.JSX.Element | ReactNull {
   const endTime = useMessagePipeline(selectEndTime);
   const [timezone] = useAppConfigurationValue<string>(AppSetting.TIMEZONE);
   const { timeFormat } = useAppTimeFormat();

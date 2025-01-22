@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -18,7 +21,7 @@ const useStyles = makeStyles()({
   },
 });
 
-const LogsSection = ({ logs }: { logs: readonly UserScriptLog[] }): JSX.Element => {
+const LogsSection = ({ logs }: { logs: readonly UserScriptLog[] }): React.JSX.Element => {
   // Manage auto-scroll behavior when user is also manually scrolling the list.
   const [autoScroll, setAutoScroll] = useState(true);
 

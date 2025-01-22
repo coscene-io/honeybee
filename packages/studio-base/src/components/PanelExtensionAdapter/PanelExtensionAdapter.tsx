@@ -1,13 +1,17 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useTheme } from "@mui/material";
+import { produce } from "immer";
 import { CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLatest } from "react-use";
 import { v4 as uuid } from "uuid";
 
-import { useValueChangedDebugLog, useSynchronousMountedState } from "@foxglove/hooks";
+import { useSynchronousMountedState, useValueChangedDebugLog } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { fromSec, toSec } from "@foxglove/rostime";
 import {
@@ -17,6 +21,7 @@ import {
   ParameterValue,
   RenderState,
   SettingsTree,
+  SettingsTreeAction,
   Subscription,
   Time,
   VariableValue,
@@ -31,6 +36,7 @@ import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import { useAppConfiguration } from "@foxglove/studio-base/context/AppConfigurationContext";
 import {
   ExtensionCatalog,
+  getExtensionPanelSettings,
   useExtensionCatalog,
 } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import {
@@ -46,14 +52,15 @@ import {
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
 import {
-  usePanelSettingsTreeUpdate,
   useDefaultPanelTitle,
+  usePanelSettingsTreeUpdate,
 } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
 import { assertNever } from "@foxglove/studio-base/util/assertNever";
+import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
 
 import { PanelConfigVersionError } from "./PanelConfigVersionError";
-import { initRenderStateBuilder } from "./renderState";
+import { RenderStateConfig, initRenderStateBuilder } from "./renderState";
 import { BuiltinPanelExtensionContext } from "./types";
 import { useSharedPanelState } from "./useSharedPanelState";
 
@@ -104,7 +111,7 @@ type RenderFn = NonNullable<PanelExtensionContext["onRender"]>;
  */
 function PanelExtensionAdapter(
   props: React.PropsWithChildren<PanelExtensionAdapterProps>,
-): JSX.Element {
+): React.JSX.Element {
   const { initPanel, config, saveConfig, highestSupportedConfigVersion } = props;
 
   // Unlike the react data flow, the config is only provided to the panel once on setup.
@@ -112,16 +119,16 @@ function PanelExtensionAdapter(
   //
   // We store the config in a ref to avoid re-initializing the panel when the react config
   // changes.
-  const initialState = useLatest(config);
+  const initialState = useLatest(maybeCast<RenderStateConfig>(config));
 
   const messagePipelineContext = useMessagePipeline(selectContext);
 
-  const { playerState, pauseFrame, setSubscriptions, seekPlayback, sortedTopics } =
+  const { playerState, pauseFrame, setSubscriptions, seekPlayback, getMetadata, sortedTopics } =
     messagePipelineContext;
 
   const { capabilities, profile: dataSourceProfile, presence: playerPresence } = playerState;
 
-  const { openSiblingPanel, setMessagePathDropConfig } = usePanelContext();
+  const { openSiblingPanel, setMessagePathDropConfig, type: panelName } = usePanelContext();
 
   const [panelId] = useState(() => uuid());
   const isMounted = useSynchronousMountedState();
@@ -237,6 +244,7 @@ function PanelExtensionAdapter(
       sortedTopics,
       subscriptions: localSubscriptions,
       watchedFields,
+      config: undefined,
     });
 
     if (!renderState) {
@@ -285,18 +293,24 @@ function PanelExtensionAdapter(
     sharedPanelState,
     sortedTopics,
     watchedFields,
+    initialState,
   ]);
 
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
 
+  const extensionsSettings = useExtensionCatalog(getExtensionPanelSettings);
+
   type PartialPanelExtensionContext = Omit<BuiltinPanelExtensionContext, "panelElement">;
+
   const partialExtensionContext = useMemo<PartialPanelExtensionContext>(() => {
     const layout: PanelExtensionContext["layout"] = {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       addPanel({ position, type, updateIfExists, getState }) {
         if (!isMounted()) {
           return;
         }
         switch (position) {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           case "sibling":
             openSiblingPanel({
               panelType: type,
@@ -310,6 +324,21 @@ function PanelExtensionAdapter(
       },
     };
 
+    const extensionSettingsActionHandler = (action: SettingsTreeAction) => {
+      const {
+        payload: { path },
+      } = action;
+
+      saveConfig(
+        produce<{ topics: Record<string, unknown> }>((draft) => {
+          const [category, topicName] = path;
+          if (category === "topics" && topicName != undefined) {
+            extensionsSettings[panelName]?.[topicName]?.handler(action, draft.topics[topicName]);
+          }
+        }),
+      );
+    };
+
     return {
       initialState: initialState.current,
 
@@ -321,6 +350,8 @@ function PanelExtensionAdapter(
       },
 
       layout,
+
+      metadata: getMetadata(),
 
       seekPlayback: seekPlayback
         ? (stamp: number | Time) => {
@@ -499,7 +530,11 @@ function PanelExtensionAdapter(
         if (!isMounted()) {
           return;
         }
-        updatePanelSettingsTree(settings);
+        const actionHandler: typeof settings.actionHandler = (action) => {
+          settings.actionHandler(action);
+          extensionSettingsActionHandler(action);
+        };
+        updatePanelSettingsTree({ ...settings, actionHandler });
       },
 
       setDefaultPanelTitle: (title: string) => {
@@ -513,23 +548,27 @@ function PanelExtensionAdapter(
         setMessagePathDropConfig(dropConfig);
       },
     };
+    // Disable this rule because the metadata function. If used, it will break.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    capabilities,
-    clearHoverValue,
-    dataSourceProfile,
-    getMessagePipelineContext,
     initialState,
+    seekPlayback,
+    dataSourceProfile,
+    setSharedPanelState,
+    capabilities,
     isMounted,
     openSiblingPanel,
-    panelId,
     saveConfig,
-    seekPlayback,
-    setDefaultPanelTitle,
+    extensionsSettings,
+    panelName,
+    getMessagePipelineContext,
     setGlobalVariables,
+    clearHoverValue,
     setHoverValue,
-    setSharedPanelState,
     setSubscriptions,
+    panelId,
     updatePanelSettingsTree,
+    setDefaultPanelTitle,
     setMessagePathDropConfig,
   ]);
 
@@ -559,8 +598,6 @@ function PanelExtensionAdapter(
       throw new Error("Expected panel container to be mounted");
     }
 
-    // If the config is too new for this panel to support we bail and don't do any panel initialization
-    // We will instead show a warning message to the user
     // Also don't show panel when the player is initializing. The initializing state is temporary for
     // players to go through to load their sources. Once a player has completed initialization `initPanel` is called again (or even a few times),
     // because parts of the player context have changed. This cleans up the old panel that was present

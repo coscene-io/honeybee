@@ -1,8 +1,12 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Link } from "@mui/material";
+import { t } from "i18next";
 import path from "path";
 
 import {
@@ -46,10 +50,10 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
   public legacyIds = ["mcap-remote-file", "ros1-remote-bagfile"];
 
   public type: IDataSourceFactory["type"] = "connection";
-  public displayName = "Remote file";
+  public displayName = t("openDialog:remoteFile");
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public supportedFileTypes = [".bag", ".mcap"];
-  public description = "Open pre-recorded .bag or .mcap files from a remote location.";
+  public description = t("openDialog:remoteDataSourceDesc");
   public docsLinks = [
     {
       label: "ROS 1",
@@ -65,7 +69,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
     fields: [
       {
         id: "url",
-        label: "Remote file URL",
+        label: t("openDialog:remoteFileUrl"),
         placeholder: "https://example.com/file.bag",
         validate: (newValue: string): Error | undefined => {
           return this.#validateUrl(newValue);
@@ -76,9 +80,9 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
 
   public warning = (
     <>
-      Loading large files over HTTP can be slow. For better performance, we recommend{" "}
-      <Link href="https://foxglove.dev/data-platform" target="_blank">
-        coScene Data Platform
+      {t("openDialog:loadingLargeFilesOverHttpCanBeSlow")}
+      <Link href="https://coscene.cn/" target="_blank">
+        {t("openDialog:coSceneDataPlatform")}
       </Link>
       .
     </>
@@ -93,7 +97,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
     const extension = path.extname(new URL(url).pathname);
     const initWorker = initWorkers[extension];
     if (!initWorker) {
-      throw new Error(`Unsupported extension: ${extension}`);
+      throw new Error(t("openDialog:unsupportedExtension", { extension }));
     }
 
     const source = new WorkerSerializedIterableSource({ initWorker, initArgs: { url } });
@@ -114,19 +118,21 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
       const extension = path.extname(url.pathname);
 
       if (extension.length === 0) {
-        return new Error("URL must end with a filename and extension");
+        return new Error(t("openDialog:urlMustEndWithAFileExtension"));
       }
 
       if (!this.supportedFileTypes.includes(extension)) {
         const supportedExtensions = new Intl.ListFormat("en-US", { style: "long" }).format(
           this.supportedFileTypes,
         );
-        return new Error(`Only ${supportedExtensions} files are supported.`);
+        return new Error(
+          t("openDialog:onlySupportedExtensions", { extensions: supportedExtensions }),
+        );
       }
 
       return undefined;
-    } catch (err) {
-      return new Error("Enter a valid url");
+    } catch {
+      return new Error(t("openDialog:enterAValidUrl"));
     }
   }
 }

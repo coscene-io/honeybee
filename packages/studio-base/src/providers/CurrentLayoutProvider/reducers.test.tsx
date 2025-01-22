@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -794,7 +797,7 @@ describe("layout reducers", () => {
       });
       const { layout, configById } = panels;
       expect(layout).toEqual("Tab!a");
-      const tabLayout = (configById["Tab!a"] as TabPanelConfig)!.tabs[0]!.layout!;
+      const tabLayout = (configById["Tab!a"] as TabPanelConfig).tabs[0]!.layout!;
       expect(getPanelTypeFromId(tabLayout as string)).toEqual("RawMessages");
       expect(configById[tabLayout as string]).toEqual(rawMessagesConfig);
     });

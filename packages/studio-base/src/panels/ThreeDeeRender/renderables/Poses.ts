@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -12,8 +15,6 @@ import { SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
 import type { RosValue } from "@foxglove/studio-base/players/types";
 
 import { Axis, AXIS_LENGTH } from "./Axis";
-import { RenderableArrow } from "./markers/RenderableArrow";
-import { RenderableSphere } from "./markers/RenderableSphere";
 import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
 import { BaseUserData, Renderable } from "../Renderable";
 import {
@@ -46,6 +47,8 @@ import {
 import { BaseSettings, PRECISION_DISTANCE } from "../settings";
 import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
 import { makePose } from "../transforms";
+import { RenderableArrow } from "./markers/RenderableArrow";
+import { RenderableSphere } from "./markers/RenderableSphere";
 
 type DisplayType = "axis" | "arrow";
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -6,7 +9,7 @@ import { ScatterDataPoint, ChartData as ChartJsChartData } from "chart.js";
 
 // Chartjs typings use _null_ to indicate _gaps_ in the dataset
 // eslint-disable-next-line no-restricted-syntax
-const ChartNull = null;
+type ChartNull = null;
 type Datum = ScatterDataPoint & {
   // chart.js supported properties to show a label above the datapoint
   // used by the state transition panel to show a label above the transition datum
@@ -23,7 +26,7 @@ type Datum = ScatterDataPoint & {
   // state transition data.
   states?: string[];
 };
-export type ObjectData = (Datum | typeof ChartNull)[];
+export type ObjectData = (Datum | ChartNull)[];
 export type ChartData = ChartJsChartData<"scatter", ObjectData>;
 
 export type TypedData = {

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -58,7 +61,18 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
 
   #series: Immutable<TimestampSeriesItem[]> = [];
 
-  public constructor({ handleWorkerError }: { handleWorkerError?: (event: Event) => void } = {}) {
+  #xAxisMode: "timestamp" | "partialTimestamp";
+
+  public constructor(
+    {
+      handleWorkerError,
+      xAxisMode,
+    }: {
+      handleWorkerError?: (event: Event) => void;
+      xAxisMode: "timestamp" | "partialTimestamp";
+    } = { xAxisMode: "timestamp" },
+  ) {
+    this.#xAxisMode = xAxisMode;
     const worker = new Worker(
       // foxglove-depcheck-used: babel-plugin-transform-import-meta
       new URL("./TimestampDatasetsBuilderImpl.worker", import.meta.url),
@@ -93,6 +107,9 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
           : undefined;
 
         if (didSeek) {
+          if (this.#xAxisMode === "partialTimestamp") {
+            return;
+          }
           this.#pendingDispatch.push({
             type: "reset-current",
             series: series.config.key,
@@ -209,6 +226,10 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
 
   public async getCsvData(): Promise<CsvDataset[]> {
     return await this.#datasetsBuilderRemote.getCsvData();
+  }
+
+  public async getXRange(): Promise<Bounds1D | undefined> {
+    return await this.#datasetsBuilderRemote.getXRange();
   }
 }
 

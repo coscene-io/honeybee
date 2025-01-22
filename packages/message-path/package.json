@@ -4,13 +4,13 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/foxglove/studio.git"
+    "url": "https://github.com/coscene-io/honeybee.git"
   },
   "author": {
-    "name": "Foxglove Technologies",
-    "email": "support@foxglove.dev"
+    "name": "coScene Technologies",
+    "email": "contact@coscene.io"
   },
-  "homepage": "https://foxglove.dev/",
+  "homepage": "https://www.coscene.cn/",
   "main": "./src/index.ts",
   "files": [
     "dist",

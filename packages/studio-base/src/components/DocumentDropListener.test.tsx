@@ -1,4 +1,7 @@
 /** @jest-environment jsdom */
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -13,7 +16,7 @@
 //   You may not use this file except in compliance with the License.
 
 import { SnackbarProvider } from "notistack";
-import { createRoot } from "react-dom/client";
+import ReactDOM from "react-dom";
 import { act } from "react-dom/test-utils";
 
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
@@ -30,19 +33,17 @@ describe("<DocumentDropListener>", () => {
     wrapper = document.createElement("div");
     document.body.appendChild(wrapper);
 
-    const root = createRoot(wrapper);
-
-    root.render(
+    // eslint-disable-next-line react/no-deprecated
+    ReactDOM.render(
       <div>
         <SnackbarProvider>
           <ThemeProvider isDark={false}>
             <DocumentDropListener allowedExtensions={[]} />
           </ThemeProvider>
         </SnackbarProvider>
-        ,
       </div>,
+      wrapper,
     );
-
     (console.error as jest.Mock).mockClear();
   });
 

@@ -1,22 +1,24 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import * as Sentry from "@sentry/browser";
 import { StrictMode, useEffect } from "react";
-import { createRoot } from "react-dom/client";
+import ReactDOM from "react-dom";
 
 import Logger from "@foxglove/log";
 import type { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
 import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-import { bcInstance, LOGOUT_MESSAGE } from "@foxglove/studio-base/util/broadcastChannel";
 
-import { CompatibilityBanner } from "./CompatibilityBanner";
+import VersionBanner from "./VersionBanner";
 import { canRenderApp } from "./canRenderApp";
 
 const log = Logger.getLogger(__filename);
 
-function LogAfterRender(props: React.PropsWithChildren): JSX.Element {
+function LogAfterRender(props: React.PropsWithChildren): React.JSX.Element {
   useEffect(() => {
     // Integration tests look for this console log to indicate the app has rendered once
     // We use console.debug to bypass our logging library which hides some log levels in prod builds
@@ -27,18 +29,12 @@ function LogAfterRender(props: React.PropsWithChildren): JSX.Element {
 
 export type MainParams = {
   dataSources?: CoSceneIDataSourceFactory[];
-  extraProviders?: JSX.Element[];
-  rootElement?: JSX.Element;
+  extraProviders?: React.JSX.Element[];
+  rootElement?: React.JSX.Element;
 };
 
 export async function main(getParams: () => Promise<MainParams> = async () => ({})): Promise<void> {
   log.debug("initializing");
-
-  bcInstance.listenBroadcastMessage((msg) => {
-    if (msg === LOGOUT_MESSAGE) {
-      window.location.href = "/login";
-    }
-  });
 
   window.onerror = (...args) => {
     console.error(...args);
@@ -80,30 +76,27 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
 
   const canRender = canRenderApp();
   const banner = (
-    <CompatibilityBanner
-      isChrome={isChrome}
-      currentVersion={chromeVersion}
-      isDismissable={canRender}
-    />
+    <VersionBanner isChrome={isChrome} currentVersion={chromeVersion} isDismissable={canRender} />
   );
 
-  const root = createRoot(rootEl);
-
   if (!canRender) {
-    root.render(
+    // eslint-disable-next-line react/no-deprecated
+    ReactDOM.render(
       <StrictMode>
         <LogAfterRender>
           <CssBaseline>{banner}</CssBaseline>
         </LogAfterRender>
       </StrictMode>,
+      rootEl,
     );
     return;
   }
 
   // Use an async import to delay loading the majority of studio-base code until the CompatibilityBanner
   // can be displayed.
-  const { installDevtoolsFormatters, overwriteFetch, waitForFonts, initI18n, StudioApp } =
-    await import("@foxglove/studio-base");
+  const { installDevtoolsFormatters, overwriteFetch, waitForFonts, initI18n } = await import(
+    "@foxglove/studio-base"
+  );
   installDevtoolsFormatters();
   overwriteFetch();
   // consider moving waitForFonts into App to display an app loading screen
@@ -113,17 +106,17 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
   const { WebRoot } = await import("./WebRoot");
   const params = await getParams();
   const rootElement = params.rootElement ?? (
-    <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources}>
-      <StudioApp />
-    </WebRoot>
+    <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources} />
   );
 
-  root.render(
+  // eslint-disable-next-line react/no-deprecated
+  ReactDOM.render(
     <StrictMode>
       <LogAfterRender>
         {banner}
         {rootElement}
       </LogAfterRender>
     </StrictMode>,
+    rootEl,
   );
 }

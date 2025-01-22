@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -149,7 +152,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-function ExpansionArrow({ expanded }: { expanded: boolean }): JSX.Element {
+function ExpansionArrow({ expanded }: { expanded: boolean }): React.JSX.Element {
   const { classes } = useStyles();
 
   const Component = expanded ? ArrowDownIcon : ArrowRightIcon;
@@ -194,7 +197,7 @@ type State = {
   visibilityFilter: SelectVisibilityFilterValue;
 };
 
-function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
+function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
   const { actionHandler, defaultOpen = true, filter, focusedPath, settings = {} } = props;
   const [state, setState] = useImmer<State>({
     editing: false,

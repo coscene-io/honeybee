@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -33,6 +36,8 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   CoScenePlaylistStore,
   usePlaylist,
@@ -56,6 +61,7 @@ const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHov
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectUser = (store: UserStore) => store.user;
 
 const useStyles = makeStyles()((theme) => ({
   appBar: {
@@ -135,7 +141,7 @@ function updateUrl(newState: AppURLState) {
   window.history.replaceState(undefined, "", newStateUrl.href);
 }
 
-export function Playlist(): JSX.Element {
+export function Playlist(): React.JSX.Element {
   const [filterText, setFilterText] = useState<string>("");
   const bagFiles = usePlaylist(selectBagFiles);
   const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);
@@ -151,6 +157,9 @@ export function Playlist(): JSX.Element {
   const setHoveredBag = useTimelineInteractionState(selectSetHoverBag);
   const urlState = useMessagePipeline(selectUrlState);
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+
+  const currentUser = useCurrentUser(selectUser);
+  const { selectSource } = usePlayerSelection();
 
   const bags = useMemo(() => {
     const serialisationBags: Record<
@@ -229,6 +238,7 @@ export function Playlist(): JSX.Element {
       if ("jobRunsName" in bag) {
         newFiles.push({
           jobRunsName: bag.jobRunsName,
+          recordName: bag.recordName,
         });
       }
       if ("recordName" in bag) {
@@ -250,12 +260,16 @@ export function Playlist(): JSX.Element {
               key,
             },
           });
-          location.reload();
+
+          selectSource("coscene-data-platform", {
+            type: "connection",
+            params: { ...currentUser, key },
+          });
         } else {
           toast.error(t("addFilesFailed"));
         }
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         toast.error(t("addFilesFailed"));
         console.error("Failed to set base info", error);
       });

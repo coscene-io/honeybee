@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -23,7 +26,7 @@ const useStyles = makeStyles()({
  * Optionally, an offset can be provided to account for the fact that the search
  * string may be a substring of the original string.
  */
-export function HighlightChars(props: Props): JSX.Element {
+export function HighlightChars(props: Props): React.JSX.Element {
   const { str, indices, offset = 0 } = props;
   const { classes } = useStyles();
 

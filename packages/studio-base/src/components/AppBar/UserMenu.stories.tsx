@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -29,7 +32,7 @@ function MenuStory({ top, left }: { top: number; left: number }) {
   );
 }
 
-function SignInStates(): JSX.Element {
+function SignInStates(): React.JSX.Element {
   const currentUser: User = {
     id: "user-1",
     email: "user@example.com",

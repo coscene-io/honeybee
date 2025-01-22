@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -137,7 +140,7 @@ export type Props = {
 // start of the bag, and which is kept in sync with other instances of this
 // component. Uses chart.js internally, with a zoom/pan plugin, and with our
 // standard tooltips.
-export default function TimeBasedChart(props: Props): JSX.Element {
+export default function TimeBasedChart(props: Props): React.JSX.Element {
   const requestID = useRef<number>(0);
   const {
     currentTime,
@@ -715,6 +718,7 @@ export default function TimeBasedChart(props: Props): JSX.Element {
     }
 
     return Object.fromEntries(
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
       datasets.map((dataset, index) => [index, dataset.borderColor?.toString()]),
     );
   }, [datasets]);

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -6,7 +9,7 @@ import { TypeOptions } from "i18next";
 
 export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   canBeShared: "与队友分享数据文件、可视化布局和自定义扩展程序",
-  collaborateTitle: "使用 CoScene 数据平台加速开发",
+  collaborateTitle: "使用刻行时空数据平台加速开发",
   convenientWebInterface: "使用一个方便的网络界面，以闪电般的速度标记、搜索和检索数据",
   createAFreeAccount: "创建免费帐户",
   exploreSampleData: "探索样本数据",
@@ -15,8 +18,8 @@ export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   joinOurSlack: "加入我们的 Slack",
   learnMore: "了解更多",
   needHelp: "需要帮助？",
-  needHelpDescription: "查看我们的文档，或查看 CoScene 博客上的教程。",
-  newToFoxgloveStudio: "第一次使用 CoScene？",
+  needHelpDescription: "查看我们的文档，或查看刻行时空博客上的教程。",
+  newToFoxgloveStudio: "第一次使用刻行时空？",
   newToFoxgloveStudioDescription: "从探索一个样本数据集开始，或查看我们的文档。",
   openAGitHubIssue: "打开 GitHub issue",
   openConnection: "打开连接",
@@ -25,15 +28,53 @@ export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   openLocalFile: "打开本地文件",
   openLocalFileDescription: "直接从本地文件系统可视化数据。",
   openUrl: "上传和共享数据",
-  openUrlDescription: "使用 CoScene 数据平台与您的团队共享数据。",
+  openUrlDescription: "使用刻行时空数据平台与您的团队共享数据。",
   recentDataSources: "最近使用的数据源",
   secureStorageOfData: "安全地存储 PB 级的 ROS 或自定义数据",
   seeTutorials: "查看教程",
   shareLayouts: "分享布局",
   signIn: "登录",
-  startCollaborating: "与您的 CoScene 组织开始合作",
+  startCollaborating: "与您的刻行时空组织开始合作",
   startCollaboratingDescription:
-    "充分利用你的 CoScene 账户——无论你想深入研究你的数据还是与你的团队成员分享工具。",
+    "充分利用你的刻行时空账户——无论你想深入研究你的数据还是与你的团队成员分享工具。",
   uploadToDataPlatform: "上传到数据平台",
   viewOurDocs: "查看我们的文档",
+  newToCoSceneStudio: "欢迎来到刻行时空数据平台",
+  newToCoSceneStudioDescription: "不知道从哪里开始？查看帮助文档了解加速理解并优化你的使用实践",
+  helpDocs: "帮助文档",
+  monitoringEquipment: "持续监控设备数据，及时发现并处理潜在问题",
+  storedData: "安全地存储 PB 级多模态数据",
+  automaticData: "高效的自动化流程，自动采集、自动预处理、自动诊断关键片段",
+  coordination: "与研发、运维、测试人员便捷数据协作，以数据驱动通用人工智能发展",
+  openNewConnection: "打开一个新的连接",
+  webSocketDataSourceDesc:
+    "使用刻行时空 WebSocket 协议连接到 ROS 1、ROS 2 或自定义系统。对于 ROS 系统，请确认已安装 coBridge ROS 包。",
+  rosbridgeDataSourceDesc: "使用 Rosbridge WebSocket 协议连接到 ROS 1 或 ROS 2 系统。",
+  ros1SocketDataSourceDesc:
+    "通过原生 TCP 连接直接访问 ROS 1 系统中的 ROS 主控和节点，从而连接到正在运行的 ROS 1 系统。",
+  rosMasterUriDesc: "告诉 ROS 节点它们可以定位主节点",
+  rosHostnameDesc: "作为 ROS 节点或工具的声明网络地址",
+  velodyneDataSourceDesc: "直接连接到 Velodyne Lidar 硬件以检查传入的传感器数据。",
+  loadingLargeFilesOverHttpCanBeSlow: "加载大文件可能会很慢。为了更好的性能，我们推荐",
+  urlMustEndWithAFileExtension: "URL 必须以文件名和扩展名结尾",
+  remoteDataSourceDesc: "从远程位置打开 .bag 或 .mcap 文件。",
+  unsupportedExtension: "不支持的扩展名: {k{extension}}",
+  onlySupportedExtensions: "仅支持 {{extensions}} 文件。",
+  enterAValidUrl: "请输入一个有效的 URL",
+  getStarted: "开始使用",
+  open: "打开",
+  cancel: "取消",
+  back: "返回",
+  coSceneDataPlatform: "刻行时空数据平台",
+  coSceneDataPlatformDesc: "粘贴平台可视化页面中的网页链接，在 coStudio 中进行播放。",
+  onlySupportDomain: "仅支持 {{domain}} 域名",
+  urlPathnameMustBeViz: "url pathname 必须为 /viz",
+  dataSourceMustBeCosSceneDataPlatform: "数据源必须为 coScene 数据平台",
+  dataSourceParamsKeyIsRequired: "url 中必须包含 key 参数",
+  pleaseLoginFirst: "请先登录",
+  dataPlatformUrl: "数据平台链接",
+  remoteFile: "远程文件",
+  downloadCoBridge: "下载 coBridge",
+  remoteFileUrl: "远程文件地址",
+  webSocketUrl: "WebSocket 链接",
 };

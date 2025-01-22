@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -26,9 +29,17 @@ export type CustomWindowControlsProps = {
 
 const useStyles = makeStyles()((theme) => ({
   closeButton: {
+    color: theme.palette.secondary.main,
     ":hover": {
       backgroundColor: theme.palette.error.main,
+      color: theme.palette.error.contrastText,
     },
+  },
+  minimizeIcon: {
+    color: theme.palette.secondary.main,
+  },
+  maximizeIcon: {
+    color: theme.palette.secondary.main,
   },
 }));
 
@@ -38,7 +49,7 @@ export function CustomWindowControls({
   onMaximizeWindow,
   onUnmaximizeWindow,
   onCloseWindow,
-}: Omit<CustomWindowControlsProps, "showCustomWindowControls">): JSX.Element {
+}: Omit<CustomWindowControlsProps, "showCustomWindowControls">): React.JSX.Element {
   const { classes } = useStyles();
   return (
     <Stack direction="row" gap={1} paddingX={1}>
@@ -47,6 +58,7 @@ export function CustomWindowControls({
         color="inherit"
         onClick={onMinimizeWindow}
         data-testid="win-minimize"
+        className={classes.minimizeIcon}
       >
         <MinimizeIcon fontSize="inherit" color="inherit" />
       </IconButton>
@@ -56,6 +68,7 @@ export function CustomWindowControls({
         color="inherit"
         onClick={isMaximized ? onUnmaximizeWindow : onMaximizeWindow}
         data-testid="win-maximize"
+        className={classes.maximizeIcon}
       >
         {isMaximized ? (
           <FilterNoneIcon fontSize="inherit" color="inherit" />
