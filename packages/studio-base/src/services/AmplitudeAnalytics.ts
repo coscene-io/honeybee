@@ -10,6 +10,7 @@ import { posthog } from "posthog-js";
 import Logger from "@foxglove/log";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { DataSourceArgs } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import CoSceneConsoleApi, { MetricType } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
@@ -41,11 +42,11 @@ export class AmplitudeAnalytics implements IAnalytics {
     });
   }
 
-  public async initPlayer(sourceId: string): Promise<void> {
+  public async initPlayer(sourceId: string, args?: DataSourceArgs): Promise<void> {
     posthog.register({
       source_id: sourceId,
     });
-    posthog.capture(AppEvent.PLAYER_INIT, { source_id: sourceId });
+    posthog.capture(AppEvent.PLAYER_INIT, { source_id: sourceId, args });
   }
 
   public setSpeed(speed: number): void {

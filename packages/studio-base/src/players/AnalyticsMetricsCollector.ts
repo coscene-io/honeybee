@@ -7,6 +7,7 @@
 
 import Log from "@foxglove/log";
 import { Time } from "@foxglove/rostime";
+import { DataSourceArgs } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   PlayerMetricsCollectorInterface,
   SubscribePayload,
@@ -54,12 +55,12 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
   }
 
   // sets sourceId in every time  opening a file or connecting to server
-  public setProperty(key: string, value: string | number | boolean): void {
+  public setProperty(key: string, value: string | number | boolean, args?: DataSourceArgs): void {
     this.#metadata[key] = value;
     console.debug(`coScene setProperty: ${key}=${value}`);
     if (key === "player") {
       this.#sourceId = value as string;
-      this.#analytics.initPlayer(this.#sourceId);
+      this.#analytics.initPlayer(this.#sourceId, args);
     }
   }
 
