@@ -16,10 +16,29 @@ import {
 } from "@foxglove/studio-base/context/CoSceneBaseContext";
 
 function CreateBaseStore() {
-  return createStore<CoSceneBaseStore>((set) => ({
+  return createStore<CoSceneBaseStore>((set, get) => ({
+    dataSource: undefined,
     baseInfo: { loading: false, value: {} },
     setBaseInfo: (baseInfo: AsyncState<BaseInfo>) => {
       set({ baseInfo });
+    },
+    setDataSource: (dataSource: { id: string; type: "connection" | "file" | "sample" }) => {
+      set({ dataSource });
+    },
+    getEnableList: () => {
+      const { dataSource } = get();
+
+      return {
+        event:
+          dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
+            ? "ENABLE"
+            : "DISABLE",
+        playlist:
+          dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
+            ? "ENABLE"
+            : "DISABLE",
+        uploadLocalFile: dataSource?.type === "file" ? "ENABLE" : "DISABLE",
+      };
     },
   }));
 }

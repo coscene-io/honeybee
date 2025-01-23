@@ -90,6 +90,20 @@ export const webpackDevServerConfig =
         //  "[WDS] Disconnected!"
         // Since we are only connecting to localhost, DNS rebinding attacks are not a concern during dev
         allowedHosts: "all",
+        proxy: [
+          {
+            context: ["/v1/data"],
+            target: "https://viz.dev.coscene.cn",
+            secure: false,
+            changeOrigin: true,
+          },
+          {
+            context: ["/bff"],
+            target: "https://bff.dev.coscene.cn",
+            secure: false,
+            changeOrigin: true,
+          },
+        ],
       },
       plugins: [
         new CleanWebpackPlugin(),

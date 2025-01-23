@@ -13,7 +13,7 @@ import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/src/AppSetting";
 import { initI18n } from "@foxglove/studio-base/src/i18n";
 
-// import StudioAppUpdater from "./StudioAppUpdater";
+import StudioAppUpdater from "./StudioAppUpdater";
 import StudioWindow from "./StudioWindow";
 import getDevModeIcon from "./getDevModeIcon";
 import injectFilesToOpen from "./injectFilesToOpen";
@@ -207,9 +207,9 @@ export async function main(): Promise<void> {
       // When completing sign in from Console, the browser can launch this URL to re-focus the app.
       app.focus({ steal: true });
     } else if (app.isReady()) {
-      // new StudioWindow([url]).load();
+      new StudioWindow([url]).load();
     } else {
-      // openUrls.push(url);
+      openUrls.push(url);
     }
   });
 
@@ -259,7 +259,7 @@ export async function main(): Promise<void> {
     }
 
     // check upload
-    // StudioAppUpdater.Instance().start();
+    StudioAppUpdater.Instance().start();
 
     app.setAboutPanelOptions({
       applicationName: COSCENE_PRODUCT_NAME,
@@ -287,6 +287,7 @@ export async function main(): Promise<void> {
       "img-src": "'self' data: https: package: x-foxglove-converted-tiff: http:",
       "media-src": "'self' data: https: http: blob: file:",
     };
+
     const cspHeader = Object.entries(contentSecurityPolicy)
       .map(([key, val]) => `${key} ${val}`)
       .join("; ");

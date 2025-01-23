@@ -41,6 +41,8 @@ export const appBar = {
     "media File generation in progress, refresh page to play when finished ({{successfulCount}}/{{totalCount}})",
   mediaSuccessfulGeneration:
     "All media files have been generated, refresh page to play all files ({{count}}/{{count}})",
+  mediaGenerationError:
+    "There are media files that failed to generate, please delete the corresponding files and try again",
   loadingTips: "Loading playback data at full speed, please wait...",
   layoutGuideliens:
     "Create a new 'layout' to customize your visualization view, or use the organization's shared layout directly",
@@ -63,4 +65,9 @@ export const appBar = {
   openInBrowser: "Open in browser",
   reUpload: "Re-upload",
   createRecordAndUpload: "Create record and upload",
+  openInCoStudio: "Open in coStudio",
+  openInCoStudioPrompt:
+    "This page will be opened in coStudio, please confirm that coStudio has been installed, or click here <download>download</download> to download and allow external links to be opened",
+  openByCoStudio: "Open by coStudio",
+  doNotShowAgain: "Do not show again",
 };

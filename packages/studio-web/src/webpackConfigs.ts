@@ -66,18 +66,9 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
     proxy: [
       {
         context: ["/v1/data"],
-        target: "https://honeybee.dev.coscene.cn",
-        secure: false,
-        changeOrigin: true,
-      },
-      {
-        context: ["/honeybee-v2/v1/data"],
         target: "https://viz.dev.coscene.cn",
         secure: false,
         changeOrigin: true,
-        pathRewrite: {
-          "^/honeybee-v2": "",
-        },
       },
       {
         context: ["/bff"],

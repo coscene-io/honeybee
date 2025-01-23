@@ -63,6 +63,7 @@ export type ParamsFile =
     }
   | {
       jobRunsName: string;
+      recordName: string;
     }
   | {
       recordName: string;

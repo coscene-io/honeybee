@@ -18,4 +18,7 @@ export const desktopWindow: Partial<TypeOptions["resources"]["desktopWindow"]> =
   settings: "设置……",
   view: "视图",
   windows: "窗口",
+  updatesNotEnabled: "更新未启用。",
+  updatesNotAvailable: "coStudio 已是最新版本 (版本 {{version}})。",
+  checkForUpdatesError: "检查更新时发生错误。",
 };

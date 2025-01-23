@@ -15,6 +15,7 @@ import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext
 export type BaseInfo = {
   projectId?: string;
   projectSlug?: string;
+  projectDisplayName?: string;
   recordDisplayName?: string;
   recordId?: string;
   warehouseId?: string;
@@ -25,11 +26,22 @@ export type BaseInfo = {
   files?: Array<ParamsFile>;
   organizationId?: string;
   organizationSlug?: string;
+  jobRunsSerialNumber?: string;
 };
 
 export type CoSceneBaseStore = DeepReadonly<{
+  dataSource?: {
+    id: string;
+    type: "connection" | "file" | "sample";
+  };
   baseInfo: AsyncState<BaseInfo>;
   setBaseInfo: (baseInfo: AsyncState<BaseInfo>) => void;
+  setDataSource: (dataSource: { id: string; type: "connection" | "file" | "sample" }) => void;
+  getEnableList: () => {
+    event: "ENABLE" | "DISABLE";
+    playlist: "ENABLE" | "DISABLE";
+    uploadLocalFile: "ENABLE" | "DISABLE";
+  };
 }>;
 
 export const CoSceneBaseContext = createContext<undefined | StoreApi<CoSceneBaseStore>>(undefined);

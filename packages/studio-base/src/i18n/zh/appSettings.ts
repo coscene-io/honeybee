@@ -13,7 +13,7 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   askEachTime: "每次询问",
   colorScheme: "配色方案",
   dark: "暗色",
-  debugModeDescription: "启用调试 CoScene 的面板和功能",
+  debugModeDescription: "启用调试 coScene 的面板和功能",
   desktopApp: "桌面应用",
   displayTimestampsIn: "显示时间戳在",
   experimentalFeatures: "实验性功能",
@@ -38,4 +38,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   privacyPolicy: "隐私政策",
   termsOfService: "服务条款",
   security: "安全",
+  updates: "自动更新",
+  automaticallyInstallUpdates: "自动安装更新",
 };

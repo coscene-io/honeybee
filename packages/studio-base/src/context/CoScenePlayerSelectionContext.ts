@@ -8,13 +8,13 @@
 import { createContext, useContext } from "react";
 
 import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
-import CoSceneAnalyticsMetricsCollector from "@foxglove/studio-base/players/CoSceneAnalyticsMetricsCollector";
+import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import { Player } from "@foxglove/studio-base/players/types";
 import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
 
 export type DataSourceFactoryInitializeArgs = {
-  metricsCollector: CoSceneAnalyticsMetricsCollector;
+  metricsCollector: AnalyticsMetricsCollector;
   file?: File;
   files?: File[];
   params?: Record<string, string | undefined>;
@@ -51,10 +51,12 @@ export interface IDataSourceFactory {
   iconName?: RegisteredIconNames;
   description?: string;
   docsLinks?: { label?: string; url: string }[];
+  showDocs?: boolean;
   disabledReason?: string | React.JSX.Element;
   badgeText?: string;
   hidden?: boolean;
   warning?: string | React.JSX.Element;
+  needLogin?: boolean;
 
   sampleLayout?: LayoutData;
 

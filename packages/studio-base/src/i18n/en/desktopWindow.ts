@@ -16,4 +16,7 @@ export const desktopWindow = {
   settings: "Settings…",
   view: "View",
   windows: "Windows",
+  updatesNotEnabled: "Updates are not enabled.",
+  updatesNotAvailable: "coStudio is up to date (version {{version}}).",
+  checkForUpdatesError: "An error occurred while checking for updates.",
 };

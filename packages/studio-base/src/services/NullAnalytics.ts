@@ -9,4 +9,6 @@ import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 
 export default class NullAnalytics implements IAnalytics {
   public logEvent(): void | Promise<void> {}
+  public setSpeed(_speed: number): void {}
+  public initPlayer(_sourceId: string): void {}
 }

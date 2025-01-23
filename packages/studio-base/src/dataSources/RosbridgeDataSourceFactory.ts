@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { t } from "i18next";
+
 import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
@@ -20,13 +22,13 @@ class RosbridgeDataSourceFactory implements IDataSourceFactory {
   public docsLinks = [
     { url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros1#rosbridge" },
   ];
-  public description = "Connect to a ROS 1 or ROS 2 system using the Rosbridge WebSocket protocol.";
+  public description = t("openDialog:rosbridgeDataSourceDesc");
 
   public formConfig = {
     fields: [
       {
         id: "url",
-        label: "WebSocket URL",
+        label: t("openDialog:webSocketUrl"),
         defaultValue: "ws://localhost:9090",
         validate: (newValue: string): Error | undefined => {
           try {

@@ -36,6 +36,8 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   CoScenePlaylistStore,
   usePlaylist,
@@ -47,11 +49,7 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import {
-  AppURLState,
-  updateAppURLState,
-  windowAppURLState,
-} from "@foxglove/studio-base/util/appURLState";
+import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { BagView } from "./BagView";
 
@@ -63,6 +61,7 @@ const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHov
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectUser = (store: UserStore) => store.user;
 
 const useStyles = makeStyles()((theme) => ({
   appBar: {
@@ -159,7 +158,8 @@ export function Playlist(): React.JSX.Element {
   const urlState = useMessagePipeline(selectUrlState);
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
 
-  const windowUrlState = windowAppURLState();
+  const currentUser = useCurrentUser(selectUser);
+  const { selectSource } = usePlayerSelection();
 
   const bags = useMemo(() => {
     const serialisationBags: Record<
@@ -238,6 +238,7 @@ export function Playlist(): React.JSX.Element {
       if ("jobRunsName" in bag) {
         newFiles.push({
           jobRunsName: bag.jobRunsName,
+          recordName: bag.recordName,
         });
       }
       if ("recordName" in bag) {
@@ -259,7 +260,11 @@ export function Playlist(): React.JSX.Element {
               key,
             },
           });
-          location.reload();
+
+          selectSource("coscene-data-platform", {
+            type: "connection",
+            params: { ...currentUser, key },
+          });
         } else {
           toast.error(t("addFilesFailed"));
         }
@@ -291,7 +296,7 @@ export function Playlist(): React.JSX.Element {
             ),
           }}
         />
-        {urlState != undefined && !(windowUrlState?.isStandalonePlayback ?? false) && (
+        {urlState != undefined && (
           <Button
             className={classes.addFileButton}
             onClick={() => {

@@ -40,13 +40,17 @@ declare global {
       VITE_APP_BFF_URL?: string;
       DEFAULT_TOPIC_PREFIX_OPEN?: { [domain: string]: string };
       DOMAIN_CONFIG?: { [domain: string]: DomainConfig };
-      CS_HONEYBEE_BASE_URL_V2?: string;
+      POSTHOG?: {
+        api_host: string;
+        token: string;
+      };
     };
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-const cosConfig = window.cosConfig ?? {};
+const cosConfig = typeof window !== "undefined" ? window?.cosConfig ?? {} : {};
+
 export const APP_CONFIG = {
   VITE_APP_BASE_API_PORT:
     cosConfig.VITE_APP_BASE_API_PORT ?? process.env.VITE_APP_BASE_API_PORT ?? "443",
@@ -58,10 +62,6 @@ export const APP_CONFIG = {
     cosConfig.VITE_APP_PROJECT_ENV ?? process.env.VITE_APP_PROJECT_ENV ?? "local",
   CS_HONEYBEE_BASE_URL:
     cosConfig.CS_HONEYBEE_BASE_URL ?? process.env.CS_HONEYBEE_BASE_URL ?? "http://localhost:8080",
-  CS_HONEYBEE_BASE_URL_V2:
-    cosConfig.CS_HONEYBEE_BASE_URL_V2 ??
-    process.env.CS_HONEYBEE_BASE_URL_V2 ??
-    "http://localhost:8080/honeybee-v2",
   VITE_APP_BFF_URL:
     cosConfig.VITE_APP_BFF_URL ?? process.env.VITE_APP_BFF_URL ?? "https://bff.dev.coscene.cn",
   IMAGE_TAG: process.env.IMAGE_TAG,
@@ -80,6 +80,10 @@ export const APP_CONFIG = {
   SENTRY_ENABLED: cosConfig.SENTRY_ENABLED ?? false,
   DEFAULT_TOPIC_PREFIX_OPEN: cosConfig.DEFAULT_TOPIC_PREFIX_OPEN ?? {},
   DOMAIN_CONFIG: cosConfig.DOMAIN_CONFIG ?? DEFAULT_DOMAN_CONFIG,
+  POSTHOG: cosConfig.POSTHOG ?? {
+    api_host: "",
+    token: "",
+  },
 };
 
 export function getDomainConfig(): DomainConfig {
@@ -94,4 +98,6 @@ export function getAuthStatusCookieName(): string {
   return getDomainConfig().authStatusCookieName;
 }
 
-window.cosConfig = APP_CONFIG;
+if (typeof window !== "undefined") {
+  window.cosConfig = APP_CONFIG;
+}

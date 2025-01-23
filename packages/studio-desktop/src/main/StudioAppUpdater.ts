@@ -8,6 +8,7 @@
 import { dialog } from "electron";
 import { autoUpdater, UpdateInfo } from "electron-updater";
 import { EventEmitter } from "eventemitter3";
+import { t } from "i18next";
 
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/src/AppSetting";
@@ -67,16 +68,16 @@ class StudioAppUpdater extends EventEmitter<EventTypes> {
 
   public async checkNow(): Promise<void> {
     const onDisabled = () => {
-      void dialog.showMessageBox({ message: `Updates are not enabled.` });
+      void dialog.showMessageBox({ message: t("desktopWindow:updatesNotEnabled") });
     };
     const onNotAvailable = (info: UpdateInfo) => {
       void dialog.showMessageBox({
-        message: `coStudio is up to date (version ${info.version}).`,
+        message: t("desktopWindow:updatesNotAvailable", { version: info.version }),
       });
     };
     const onError = (error: Error) => {
       log.error(error);
-      dialog.showErrorBox("An error occurred while checking for updates.", error.message);
+      dialog.showErrorBox(t("desktopWindow:checkForUpdatesError"), error.message);
     };
 
     if (!autoUpdater.isUpdaterActive()) {

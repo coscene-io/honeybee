@@ -192,6 +192,7 @@ module.exports = tslintPlugin.config(
           argsIgnorePattern: "^_.",
         },
       ],
+      "no-warning-comments": "off",
     },
   },
   {

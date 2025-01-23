@@ -37,13 +37,15 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
+import {
+  useAppConfigurationValue,
+  useTopicPrefixConfigurationValue,
+} from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
 import { UserPersonalInfo } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { PrefixDisplayMedia, TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
@@ -320,6 +322,7 @@ export function MessageFramerate(): React.ReactElement {
 }
 
 export function AutoUpdate(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
   const [updatesEnabled = true, setUpdatedEnabled] = useAppConfigurationValue<boolean>(
     AppSetting.UPDATES_ENABLED,
   );
@@ -328,7 +331,7 @@ export function AutoUpdate(): React.ReactElement {
 
   return (
     <>
-      <FormLabel>Updates:</FormLabel>
+      <FormLabel>{t("updates")}:</FormLabel>
       <FormControlLabel
         className={classes.formControlLabel}
         control={
@@ -338,7 +341,7 @@ export function AutoUpdate(): React.ReactElement {
             onChange={(_event, checked) => void setUpdatedEnabled(checked)}
           />
         }
-        label="Automatically install updates"
+        label={t("automaticallyInstallUpdates")}
       />
     </>
   );
@@ -440,11 +443,11 @@ export function AddTopicPrefix({
 }: {
   setConfirmFunctions: Dispatch<SetStateAction<Record<string, () => void>>>;
 }): React.ReactElement {
-  const addPrefix =
-    localStorage.getItem("CoScene_addTopicPrefix") ??
-    APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
-    "false";
-  const [tempVal, setTempVal] = useState<PrefixDisplayMedia>(addPrefix as PrefixDisplayMedia);
+  const [, setAddTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
+  const addTopicPrefix = useTopicPrefixConfigurationValue();
+  const [tempVal, setTempVal] = useState<PrefixDisplayMedia>(
+    addTopicPrefix === "true" ? "true" : "false",
+  );
 
   const { t } = useTranslation("appSettings");
 
@@ -460,12 +463,12 @@ export function AddTopicPrefix({
         onChange={(_, value?: PrefixDisplayMedia) => {
           if (value != undefined) {
             setTempVal(value);
-            if (addPrefix !== value) {
+            if (addTopicPrefix !== value) {
               setConfirmFunctions((prev) => {
                 return {
                   ...prev,
                   addPrefix: () => {
-                    localStorage.setItem("CoScene_addTopicPrefix", value);
+                    void setAddTopicPrefix(value);
                     window.location.reload();
                   },
                 };

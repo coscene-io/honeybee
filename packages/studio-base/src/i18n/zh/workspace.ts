@@ -16,4 +16,5 @@ export const workspace: Partial<TypeOptions["resources"]["workspace"]> = {
   topics: "话题",
   variables: "变量",
   extensions: "插件",
+  invalidDomain: "仅支持播放{{domain}}的数据",
 };

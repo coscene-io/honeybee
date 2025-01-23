@@ -233,25 +233,35 @@ function FieldInput({
       );
     case "boolean":
       return (
-        <ToggleButtonGroup
-          className={classes.styledToggleButtonGroup}
-          fullWidth
-          value={field.value ?? false}
-          exclusive
-          disabled={field.disabled}
-          size="small"
-          onChange={(_event, value) => {
-            if (value != undefined && field.readonly !== true) {
-              actionHandler({
-                action: "update",
-                payload: { path, input: "boolean", value },
-              });
-            }
-          }}
+        <Tooltip
+          arrow
+          placement="right"
+          title={<Typography variant="subtitle2">{field.help}</Typography>}
         >
-          <ToggleButton value={false}>{t("off")}</ToggleButton>
-          <ToggleButton value={true}>{t("on")}</ToggleButton>
-        </ToggleButtonGroup>
+          <ToggleButtonGroup
+            className={classes.styledToggleButtonGroup}
+            fullWidth
+            value={field.disabled === true ? UNDEFINED_SENTINEL_VALUE : field.value}
+            exclusive
+            disabled={field.disabled}
+            size="small"
+            onChange={(_event, value) => {
+              if (value != undefined && field.readonly !== true) {
+                actionHandler({
+                  action: "update",
+                  payload: { path, input: "boolean", value },
+                });
+              }
+            }}
+          >
+            <ToggleButton value={field.disabled === true ? UNDEFINED_SENTINEL_VALUE : false}>
+              {t("off")}
+            </ToggleButton>
+            <ToggleButton value={field.disabled === true ? UNDEFINED_SENTINEL_VALUE : true}>
+              {t("on")}
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Tooltip>
       );
     case "rgb":
       return (

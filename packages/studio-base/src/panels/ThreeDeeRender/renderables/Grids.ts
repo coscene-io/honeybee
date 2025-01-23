@@ -196,19 +196,20 @@ export class Grids extends SceneExtension<GridRenderable> {
   };
 
   #handleAddGrid = (instanceId: string): void => {
-    log.info(`Creating ${LAYER_ID} layer ${instanceId}`);
+    const customInstanceId = `Grid-${instanceId}`;
+    log.info(`Creating ${LAYER_ID} layer ${customInstanceId}`);
 
-    const config: LayerSettingsGrid = { ...DEFAULT_SETTINGS, instanceId };
+    const config: LayerSettingsGrid = { ...DEFAULT_SETTINGS, instanceId: customInstanceId };
 
     // Add this instance to the config
     this.renderer.updateConfig((draft) => {
       const maxOrderLayer = _.maxBy(Object.values(draft.layers), (layer) => layer?.order);
       const order = 1 + (maxOrderLayer?.order ?? 0);
-      draft.layers[instanceId] = { ...config, order };
+      draft.layers[customInstanceId] = { ...config, order };
     });
 
     // Add a renderable
-    this.#updateGrid(instanceId, config);
+    this.#updateGrid(customInstanceId, config);
 
     // Update the settings tree
     this.updateSettingsTree();

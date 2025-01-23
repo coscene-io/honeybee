@@ -152,7 +152,7 @@ export default class VelodynePlayer implements Player {
     this.#clearProblem(PROBLEM_SOCKET_ERROR, { skipEmit: true });
 
     if (this.#seq === 0) {
-      // this.#metricsCollector.recordTimeToFirstMsgs();
+      this.#metricsCollector.recordTimeToFirstMsgs();
     }
 
     const rawPacket = new RawPacket(data);
@@ -284,7 +284,7 @@ export default class VelodynePlayer implements Player {
       clearTimeout(this.#emitTimer);
       this.#emitTimer = undefined;
     }
-    // this.#metricsCollector.close();
+    this.#metricsCollector.close();
     this.#totalBytesReceived = 0;
     this.#seq = 0;
     this.#packets = [];

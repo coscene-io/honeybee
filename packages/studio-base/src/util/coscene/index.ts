@@ -27,30 +27,6 @@ export * from "./cosel";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 
-export function getPlaybackQualityLevelByLocalStorage(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
-  const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
-  let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
-
-  switch (localPlaybackQualityLevel) {
-    case "ORIGINAL":
-      playbackQualityLevel = "ORIGINAL";
-      break;
-    case "HIGH":
-      playbackQualityLevel = "HIGH";
-      break;
-    case "MID":
-      playbackQualityLevel = "MID";
-      break;
-    case "LOW":
-      playbackQualityLevel = "LOW";
-      break;
-    default:
-      playbackQualityLevel = "ORIGINAL";
-  }
-
-  return playbackQualityLevel;
-}
-
 // window.navigator.platform is not reliable, use this function to check os
 export function getOS(): string | undefined {
   const userAgent = window.navigator.userAgent.toLowerCase(),
@@ -92,8 +68,6 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     // grpc error code-16 === http status code 401
     // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
     if (error.code === StatusCode.UNAUTHENTICATED) {
-      localStorage.removeItem("demoSite");
-      localStorage.removeItem("honeybeeDemoStatus");
       if (window.location.pathname !== "/login") {
         if (isDesktopApp()) {
           authBridge?.logout();

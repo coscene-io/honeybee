@@ -18,6 +18,7 @@ export interface IAppConfiguration {
   get(key: string): AppConfigurationValue;
   // set key to value - This returns a promise to track the progress for setting the value
   set(key: string, value: AppConfigurationValue): Promise<void>;
+  // TODO: 确认不是这里listener异常增加
   // register a change handler for a particular key
   addChangeListener(key: string, cb: ChangeHandler): void;
   // remove a change handler on a given key

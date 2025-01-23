@@ -94,8 +94,9 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
 
   // Use an async import to delay loading the majority of studio-base code until the CompatibilityBanner
   // can be displayed.
-  const { installDevtoolsFormatters, overwriteFetch, waitForFonts, initI18n, StudioApp } =
-    await import("@foxglove/studio-base");
+  const { installDevtoolsFormatters, overwriteFetch, waitForFonts, initI18n } = await import(
+    "@foxglove/studio-base"
+  );
   installDevtoolsFormatters();
   overwriteFetch();
   // consider moving waitForFonts into App to display an app loading screen
@@ -105,9 +106,7 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
   const { WebRoot } = await import("./WebRoot");
   const params = await getParams();
   const rootElement = params.rootElement ?? (
-    <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources}>
-      <StudioApp />
-    </WebRoot>
+    <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources} />
   );
 
   // eslint-disable-next-line react/no-deprecated

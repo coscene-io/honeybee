@@ -42,6 +42,7 @@ export type LayerSettingsOccupancyGrid = BaseSettings & {
   invalidColor: string;
   colorMode: ColorModes;
   alpha: number;
+  modifyHeight: number;
 };
 
 const INVALID_OCCUPANCY_GRID = "INVALID_OCCUPANCY_GRID";
@@ -51,6 +52,8 @@ const DEFAULT_MAX_COLOR = { r: 0, g: 0, b: 0, a: 1 }; // black
 const DEFAULT_UNKNOWN_COLOR = { r: 0.5, g: 0.5, b: 0.5, a: 1 }; // gray
 const DEFAULT_INVALID_COLOR = { r: 1, g: 0, b: 1, a: 1 }; // magenta
 const DEFAULT_ALPHA = 1.0;
+
+const DEFAULT_MODIFY_HEIGHT = 0;
 
 const DEFAULT_MIN_COLOR_STR = rgbaToCssString(DEFAULT_MIN_COLOR);
 const DEFAULT_MAX_COLOR_STR = rgbaToCssString(DEFAULT_MAX_COLOR);
@@ -66,6 +69,7 @@ const DEFAULT_SETTINGS: LayerSettingsOccupancyGrid = {
   unknownColor: DEFAULT_UNKNOWN_COLOR_STR,
   invalidColor: DEFAULT_INVALID_COLOR_STR,
   alpha: DEFAULT_ALPHA,
+  modifyHeight: DEFAULT_MODIFY_HEIGHT,
 };
 
 export type OccupancyGridUserData = BaseUserData & {
@@ -182,6 +186,15 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
         value: configWithDefaults.frameLocked,
       };
 
+      fields.modifyHeight = {
+        label: t("threeDee:modifyHeight"),
+        input: "number",
+        value: configWithDefaults.modifyHeight,
+        min: -1,
+        max: 1,
+        step: 0.01,
+      };
+
       entries.push({
         path: ["topics", topic.name],
         node: {
@@ -237,13 +250,13 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
     const receiveTime = toNanoSec(messageEvent.receiveTime);
 
     let renderable = this.renderables.get(topic);
-    if (!renderable) {
-      // Set the initial settings from default values merged with any user settings
-      const userSettings = this.renderer.config.topics[topic] as
-        | Partial<LayerSettingsOccupancyGrid>
-        | undefined;
-      const settings = { ...DEFAULT_SETTINGS, ...userSettings };
 
+    const userSettings = this.renderer.config.topics[topic] as
+      | Partial<LayerSettingsOccupancyGrid>
+      | undefined;
+    const settings = { ...DEFAULT_SETTINGS, ...userSettings };
+
+    if (!renderable) {
       const texture = createTexture(occupancyGrid);
       const geometry = this.renderer.sharedGeometry.getGeometry(
         this.constructor.name,
@@ -274,7 +287,17 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
       this.renderables.set(topic, renderable);
     }
 
-    this.#updateOccupancyGridRenderable(renderable, occupancyGrid, receiveTime);
+    if (settings.modifyHeight !== 0) {
+      const pose = { ...occupancyGrid.info.origin };
+      pose.position.z += settings.modifyHeight;
+      this.#updateOccupancyGridRenderable(
+        renderable,
+        { ...occupancyGrid, info: { ...occupancyGrid.info, origin: pose } },
+        receiveTime,
+      );
+    } else {
+      this.#updateOccupancyGridRenderable(renderable, occupancyGrid, receiveTime);
+    }
   };
 
   #updateOccupancyGridRenderable(
@@ -287,6 +310,9 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
     renderable.userData.receiveTime = receiveTime;
     renderable.userData.messageTime = toNanoSec(occupancyGrid.header.stamp);
     renderable.userData.frameId = this.renderer.normalizeFrameId(occupancyGrid.header.frame_id);
+
+    const modifyHeight = renderable.userData.settings.modifyHeight;
+    renderable.userData.pose.position.z = modifyHeight;
 
     const size = occupancyGrid.info.width * occupancyGrid.info.height;
     if (occupancyGrid.data.length !== size) {

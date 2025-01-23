@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { CircularProgress } from "@mui/material";
 import { useMemo, useState } from "react";
 import { Toaster } from "react-hot-toast";
 
@@ -20,10 +19,9 @@ import {
   ConsoleApi,
   SharedProviders,
 } from "@foxglove/studio-base";
-import Stack from "@foxglove/studio-base/components/Stack";
+import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { useCoSceneInit } from "./CoSceneInit";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
@@ -34,19 +32,11 @@ export function WebRoot(props: {
   extraProviders: React.JSX.Element[] | undefined;
   dataSources: CoSceneIDataSourceFactory[] | undefined;
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
-  children: React.JSX.Element;
 }): React.JSX.Element {
-  const urlState = windowAppURLState();
-
-  const baseUrl = useMemo(() => {
-    return urlState?.isStandalonePlayback === true
-      ? APP_CONFIG.CS_HONEYBEE_BASE_URL_V2
-      : APP_CONFIG.CS_HONEYBEE_BASE_URL;
-  }, [urlState?.isStandalonePlayback]);
-
+  const baseUrl = APP_CONFIG.CS_HONEYBEE_BASE_URL;
   const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
 
-  const isLoading = useCoSceneInit({ baseUrl, jwt });
+  useCoSceneInit();
 
   // if has many sources need to set confirm
   // recommand set confirm to message pipeline
@@ -69,29 +59,17 @@ export function WebRoot(props: {
 
   const dataSources = useMemo(() => {
     const sources = [
-      new CoSceneDataPlatformDataSourceFactory({ baseUrl }),
+      new CoSceneDataPlatformDataSourceFactory(),
       new FoxgloveWebSocketDataSourceFactory({ confirm }),
     ];
 
     return props.dataSources ?? sources;
-  }, [props.dataSources, confirm, baseUrl]);
+  }, [props.dataSources, confirm]);
 
   const consoleApi = useMemo(
-    () =>
-      new ConsoleApi(
-        baseUrl,
-        APP_CONFIG.VITE_APP_BFF_URL,
-        localStorage.getItem("CoScene_addTopicPrefix") ??
-          APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
-          "false",
-        localStorage.getItem("CoScene_timeMode") === "relativeTime"
-          ? "relativeTime"
-          : "absoluteTime",
-      ),
-    [baseUrl],
+    () => new ConsoleApi(baseUrl, APP_CONFIG.VITE_APP_BFF_URL, jwt),
+    [baseUrl, jwt],
   );
-
-  consoleApi.setAuthHeader(jwt);
 
   const coSceneProviders = SharedProviders({ consoleApi });
 
@@ -102,14 +80,6 @@ export function WebRoot(props: {
     }
     return providers;
   }, [coSceneProviders, props.extraProviders]);
-
-  if (isLoading) {
-    return (
-      <Stack flex={1} fullHeight fullWidth justifyContent="center" alignItems="center">
-        <CircularProgress />
-      </Stack>
-    );
-  }
 
   return (
     <>
@@ -123,7 +93,7 @@ export function WebRoot(props: {
         extraProviders={extraProviders}
         AppBarComponent={props.AppBarComponent}
       >
-        {props.children}
+        <StudioApp />
       </SharedRoot>
       <Toaster />
       {confirmModal}

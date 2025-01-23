@@ -14,4 +14,5 @@ export const workspace = {
   topics: "Topics",
   variables: "Variables",
   extensions: "Extensions",
+  invalidDomain: "Only support playback of {{domain}} data",
 };

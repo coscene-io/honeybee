@@ -15,4 +15,5 @@ export const cosAppBar = {
   signOutConfirmCancel: "No",
   menu: "Menu",
   signoutSuccess: "Sign out success",
+  downloadLatestStudio: "Download coStudio",
 };

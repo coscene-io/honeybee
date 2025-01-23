@@ -89,7 +89,7 @@ export function LaunchingInDesktopScreen(): ReactElement {
             <Link
               color="primary"
               underline="hover"
-              href="https://foxglove.dev/download"
+              href="https://www.coscene.cn/download"
               target="_blank"
             >
               Download coScene Studio
