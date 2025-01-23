@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -17,13 +20,13 @@ import { DiffSpan } from "./DiffSpan";
 import MaybeCollapsedValue from "./MaybeCollapsedValue";
 
 type Props = {
-  itemLabel: string;
+  itemLabel: string | number;
 };
 
 export default function HighlightedValue({ itemLabel }: Props): React.JSX.Element {
   const diffArrowStr = ` ${diffArrow} `;
   // react-json-tree's valueRenderer only gets called for primitives, so diff before/after values must be at same level by the time it gets to the tree
-  const splitItemLabel = itemLabel.split(diffArrowStr);
+  const splitItemLabel = `${itemLabel}`.split(diffArrowStr);
   const itemLabelContainsChange = splitItemLabel.length === 2;
   if (itemLabelContainsChange) {
     const [before, after] = splitItemLabel;
@@ -40,7 +43,7 @@ export default function HighlightedValue({ itemLabel }: Props): React.JSX.Elemen
 
   return (
     <DiffSpan>
-      <MaybeCollapsedValue itemLabel={itemLabel} />
+      <MaybeCollapsedValue itemLabel={`${itemLabel}`} />
     </DiffSpan>
   );
 }

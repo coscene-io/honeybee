@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -23,7 +26,6 @@ import {
 } from "@foxglove/studio-base/context/CoSceneProjectContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { EndTimestamp } from "./EndTimestamp";
 
@@ -94,7 +96,9 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 // CoScene
 const selectProject = (store: CoSceneProjectStore) => store.project;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 
 export function DataSource(): React.JSX.Element {
   const { t } = useTranslation("appBar");
@@ -107,7 +111,9 @@ export function DataSource(): React.JSX.Element {
   // CoScene
   const project = useProject(selectProject);
   const urlState = useMessagePipeline(selectUrlState);
+
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const enableList = useBaseInfo(selectEnableList);
 
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
@@ -173,29 +179,31 @@ export function DataSource(): React.JSX.Element {
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
           <div className={classes.textTruncate}>
-            {isDesktopApp() ? (
+            {enableList.uploadLocalFile === "ENABLE" ? (
               <Stack direction="row" alignItems="center" gap={1}>
                 {playerDisplayName} <UploadFile />
               </Stack>
             ) : (
-              <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" />}
-                aria-label="breadcrumb"
-              >
-                {baseInfo.projectSlug && baseInfo.warehouseSlug ? breadcrumbs : ""}
-                {isLiveConnection && (
-                  <Link
-                    href={deviceLink || "#"}
-                    target="_blank"
-                    underline="hover"
-                    key="1"
-                    color="inherit"
-                    className={classes.breadcrumbs}
-                  >
-                    {hostName ?? playerDisplayName ?? t("unknown")}
-                  </Link>
-                )}
-              </Breadcrumbs>
+              <Stack direction="row" alignItems="center" gap={2}>
+                <Breadcrumbs
+                  separator={<NavigateNextIcon fontSize="small" />}
+                  aria-label="breadcrumb"
+                >
+                  {baseInfo.projectSlug && baseInfo.warehouseSlug ? breadcrumbs : ""}
+                  {isLiveConnection && (
+                    <Link
+                      href={deviceLink || "#"}
+                      target="_blank"
+                      underline="hover"
+                      key="1"
+                      color="inherit"
+                      className={classes.breadcrumbs}
+                    >
+                      {hostName ?? playerDisplayName ?? t("unknown")}
+                    </Link>
+                  )}
+                </Breadcrumbs>
+              </Stack>
             )}
           </div>
           {isLiveConnection && (

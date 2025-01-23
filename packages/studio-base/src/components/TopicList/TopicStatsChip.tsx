@@ -1,8 +1,12 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Divider, Paper } from "@mui/material";
+import { isNumber } from "mathjs";
 import { makeStyles } from "tss-react/mui";
 
 const useStyles = makeStyles<void, "selected">()((theme, _props, classes) => ({
@@ -72,7 +76,7 @@ export function TopicStatsChip({
   return (
     <Paper variant="outlined" className={cx(classes.root, { [classes.selected]: selected })}>
       <div className={classes.stat} data-topic={topicName} data-topic-stat="frequency">
-        {messageFrequency}
+        {isNumber(messageFrequency) ? messageFrequency : "-"}
       </div>
       <Divider className={classes.divider} orientation="vertical" flexItem />
       <div className={classes.stat} data-topic={topicName} data-topic-stat="count">

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -41,7 +44,6 @@ import {
   TopicStats,
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
-import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 import delay from "@foxglove/studio-base/util/delay";
 
 import { BlockLoader } from "./BlockLoader";
@@ -269,6 +271,8 @@ export class IterablePlayer implements Player {
       }
       this.#untilTime = clampTime(opt.untilTime, this.#start, this.#end);
     }
+
+    this.#metricsCollector.play(this.#speed);
     this.#isPlaying = true;
 
     // If we are idling we can start playing, if we have a next state queued we let that state
@@ -284,6 +288,7 @@ export class IterablePlayer implements Player {
     if (!this.#isPlaying) {
       return;
     }
+    this.#metricsCollector.pause();
     // clear out last tick millis so we don't read a huge chunk when we unpause
     this.#lastTickMillis = undefined;
     this.#isPlaying = false;
@@ -299,6 +304,7 @@ export class IterablePlayer implements Player {
   public setPlaybackSpeed(speed: PlaybackSpeed): void {
     this.#lastRangeMillis = undefined;
     this.#speed = speed;
+    this.#metricsCollector.setSpeed(speed);
 
     // Queue event state update to update speed in player state to UI
     this.#queueEmitState();
@@ -338,6 +344,7 @@ export class IterablePlayer implements Player {
       return;
     }
 
+    this.#metricsCollector.seek(targetTime);
     this.#seekTarget = targetTime;
     this.#untilTime = undefined;
     this.#lastTickMillis = undefined;
@@ -787,13 +794,10 @@ export class IterablePlayer implements Player {
 
     try {
       this.#abort = new AbortController();
-      const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
-        getPlaybackQualityLevelByLocalStorage();
       const messages = await this.#bufferedSource.getBackfillMessages({
         topics: this.#allTopics,
         time: targetTime,
         abortSignal: this.#abort.signal,
-        playbackQualityLevel,
       });
 
       // We've successfully loaded the messages and will emit those, no longer need the ackTimeout
@@ -960,9 +964,9 @@ export class IterablePlayer implements Player {
 
     // When ending the previous tick, we might have already read a message from the iterator which
     // belongs to our tick. This logic brings that message into our current batch of message events.
-    if (this.#lastMessageEvent) {
+    if (this.#lastMessageEvent != undefined) {
       // If the last message we saw is still ahead of the tick end time, we don't emit anything
-      if (compare(this.#lastMessageEvent.receiveTime, end) > 0) {
+      if (compare(this.#lastMessageEvent.receiveTime as Time, end) > 0) {
         // Wait for the previous render frame to finish
         await this.#queueEmitState.currentPromise;
 

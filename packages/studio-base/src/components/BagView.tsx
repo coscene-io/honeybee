@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -7,12 +10,13 @@ import Clear from "@mui/icons-material/Clear";
 import { Stack, alpha } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
+import duration from "dayjs/plugin/duration";
 import { useCallback, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { subtract, toDate } from "@foxglove/rostime";
+import { subtract, toNanoSec, toDate } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import {
   MessagePipelineContext,
@@ -20,15 +24,18 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   usePlaylist,
   CoScenePlaylistStore,
-  ParamsFile,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppURLState } from "@foxglove/studio-base/util/appURLState";
+
+dayjs.extend(duration);
 
 const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) => ({
   lineBox: {
@@ -162,6 +169,7 @@ const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const checkIsLogFile = (bag: BagFileInfo) => bag.displayName.endsWith(".log");
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
+const selectUser = (store: UserStore) => store.user;
 
 function BagViewComponent(params: {
   bag: BagFileInfo;
@@ -194,11 +202,16 @@ function BagViewComponent(params: {
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
+  const currentUser = useCurrentUser(selectUser);
+  const { selectSource } = usePlayerSelection();
+
   const bagFiles = usePlaylist(selectBagFiles);
 
   const isLogFile = checkIsLogFile(bag);
 
-  const files: ParamsFile[] = JSON.parse(urlState?.parameters?.files ?? "{}");
+  const files = useMemo(() => {
+    return baseInfo.files ?? [];
+  }, [baseInfo.files]);
 
   /**
    *  - cannot delete shadow mode files
@@ -243,14 +256,29 @@ function BagViewComponent(params: {
               key,
             },
           });
-          location.reload();
+
+          selectSource("coscene-data-platform", {
+            type: "connection",
+            params: { ...currentUser, key },
+          });
         })
         .catch((error: unknown) => {
           toast.error(t("addFilesFailed"));
           console.error("Failed to set base info", error);
         });
     }
-  }, [bag.name, bagFiles.value, baseInfo, consoleApi, files, t, updateUrl, urlState]);
+  }, [
+    bag.name,
+    bagFiles.value,
+    baseInfo,
+    consoleApi,
+    files,
+    t,
+    updateUrl,
+    urlState,
+    currentUser,
+    selectSource,
+  ]);
 
   const onDeleteBag = useCallback(async () => {
     const response = await confirm({
@@ -308,39 +336,46 @@ function BagViewComponent(params: {
             <HighlightedText text={bag.displayName} highlight={filter} />
           )}
         </Stack>
-        {bag.startTime && bag.endTime && (
+        {bag.startTime && bag.endTime && bag.mediaStatues === "OK" && (
           <Stack
             className={cx(classes.bagLength, {
               [classes.isCurrentBag]: isCurrent || isHovered,
             })}
           >
             <HighlightedText
-              text={dayjs(toDate(subtract(bag.endTime, bag.startTime))).format("mm[min]ss[s]")}
+              text={(() => {
+                const timeDuration = dayjs.duration(
+                  Number(toNanoSec(subtract(bag.endTime, bag.startTime))) / 1e9,
+                  "seconds",
+                );
+                const hours = Math.floor(timeDuration.asHours());
+                const minutes = timeDuration.minutes();
+                const seconds = timeDuration.seconds();
+                return hours > 0 ? `${hours}h:${minutes}m:${seconds}s` : `${minutes}m:${seconds}s`;
+              })()}
               highlight={filter}
             />
           </Stack>
         )}
 
-        <Stack>
-          <span
-            className={cx(classes.bagStartTime, {
-              [classes.isCurrentBag]: isCurrent || isHovered,
-            })}
-          >
-            {!isLogFile && (
-              <HighlightedText
-                text={
-                  bag.startTime
-                    ? `${dayjs(toDate(bag.startTime)).format("YYYY-MM-DD")} ${formatTime(
-                        bag.startTime,
-                      )}`
-                    : "-"
-                }
-                highlight={filter}
-              />
-            )}
-          </span>
-        </Stack>
+        {bag.startTime && bag.endTime && bag.mediaStatues === "OK" && (
+          <Stack>
+            <span
+              className={cx(classes.bagStartTime, {
+                [classes.isCurrentBag]: isCurrent || isHovered,
+              })}
+            >
+              {!isLogFile && (
+                <HighlightedText
+                  text={`${dayjs(toDate(bag.startTime)).format("YYYY-MM-DD")} ${formatTime(
+                    bag.startTime,
+                  )}`}
+                  highlight={filter}
+                />
+              )}
+            </span>
+          </Stack>
+        )}
 
         {bag.fileType === "GHOST_RESULT_FILE" && (
           <Tooltip title={t("shadowMode")} placement="top" className={classes.tooltip}>

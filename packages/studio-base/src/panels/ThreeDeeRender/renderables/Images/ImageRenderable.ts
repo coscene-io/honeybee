@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -232,8 +235,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.userData.settings = newSettings;
   }
 
+  #lastRenderImage = Date.now();
   public setImage(image: AnyImage, resizeWidth?: number, onDecoded?: () => void): void {
     this.userData.image = image;
+    const timestamp = "timestamp" in image ? image.timestamp : undefined;
 
     const seq = ++this.#receivedImageSequenceNumber;
 
@@ -244,7 +249,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         this.decoder = new WorkerImageDecoder();
       }
 
-      decodePromise = this.decoder.decodeH264Frame(image);
+      if (timestamp == undefined) {
+        throw new Error("timestamp is undefined");
+      }
+
+      decodePromise = this.decoder.decodeH264Frame(image, timestamp);
     } else {
       decodePromise = this.decodeImage(image, resizeWidth);
     }
@@ -258,9 +267,18 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         if (this.#displayedImageSequenceNumber > seq) {
           return;
         }
+        // cap at 60 fps
+        if (this.#lastRenderImage > Date.now() - 16) {
+          if (result instanceof VideoFrame) {
+            result.close();
+          }
+          return;
+        }
+        this.#lastRenderImage = Date.now();
         if (this.#decodedFrame?.getType() === "video") {
           this.#decodedFrame.close();
         }
+
         this.#displayedImageSequenceNumber = seq;
         this.#decodedFrame = new DecodedFrame(result);
         this.#textureNeedsUpdate = true;
@@ -508,6 +526,12 @@ function createCanvasTexture(bitmap: ImageBitmap | VideoFrame): THREE.CanvasText
   );
   texture.generateMipmaps = false;
   texture.colorSpace = THREE.SRGBColorSpace;
+
+  // 如果是 VideoFrame，翻转 Y 轴
+  if (bitmap instanceof VideoFrame) {
+    texture.flipY = false; // 防止 Three.js 默认的翻转
+  }
+
   return texture;
 }
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -35,7 +38,7 @@ import PinyinMatch from "pinyin-match";
 import { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { useAsyncFn, useAsync } from "react-use";
+import { useAsyncFn, useAsync, useDeepCompareEffect } from "react-use";
 import { keyframes } from "tss-react";
 import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
@@ -51,6 +54,7 @@ import {
   fromSec,
   fromDate,
 } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -60,7 +64,7 @@ import {
   usePlaylist,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents, KeyValue } from "@foxglove/studio-base/context/EventsContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { useAppConfigurationValue, useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
@@ -139,6 +143,9 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
 export function CoSceneCreateEventContainer(props: { onClose: () => void }): React.JSX.Element {
   const { onClose } = props;
 
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
+
   const refreshEvents = useEvents(selectRefreshEvents);
   const toModifyEvent = useEvents(selectToModifyEvent);
 
@@ -157,12 +164,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
-
-  const timeMode = useMemo(() => {
-    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
-      ? "relativeTime"
-      : "absoluteTime";
-  }, []);
 
   const passingFile = bagFiles.value?.filter((bag) => {
     if (bag.startTime == undefined || bag.endTime == undefined) {
@@ -276,7 +277,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     });
   }, [currentFile?.startTime, markEndTime, setEvent, timeMode, markStartTime, isEditing]);
 
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if ((passingFile == undefined || passingFile.length === 0) && !isEditing) {
       onClose();
       toast.error(t("creationUnavailableInCurrentPeriod"));

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -21,12 +24,12 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useBaseInfo, CoSceneBaseStore } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import {
   useClearHoverValue,
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
@@ -62,6 +65,7 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
 const selectRanges = (ctx: MessagePipelineContext) =>
   ctx.playerState.progress.fullyLoadedFractionRanges;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
+const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 
 type Props = {
   onSeek: (seekTo: Time) => void;
@@ -80,6 +84,8 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const endTime = useMessagePipeline(selectEndTime);
   const presence = useMessagePipeline(selectPresence);
   const ranges = useMessagePipeline(selectRanges);
+
+  const enableList = useBaseInfo(selectEnableList);
 
   const setHoverValue = useSetHoverValue();
 
@@ -242,7 +248,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
           />
         </Stack>
         <BagsOverlay />
-        {!isDesktopApp() && (
+        {enableList.event === "ENABLE" && (
           <EventsOverlay
             componentId={hoverComponentId}
             isDragging={isDragging}

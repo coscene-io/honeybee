@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -12,7 +15,7 @@ import {
   AppSetting,
   FoxgloveWebSocketDataSourceFactory,
   IAppConfiguration,
-  IDataSourceFactory,
+  CoSceneIDataSourceFactory,
   IdbExtensionLoader,
   McapLocalDataSourceFactory,
   OsContext,
@@ -23,9 +26,10 @@ import {
   RosbridgeDataSourceFactory,
   SampleNuscenesDataSourceFactory,
   UlogLocalDataSourceFactory,
-  VelodyneDataSourceFactory,
-  SharedProviders,
+  // VelodyneDataSourceFactory,
   ConsoleApi,
+  CoSceneDataPlatformDataSourceFactory,
+  SharedProviders,
 } from "@foxglove/studio-base";
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
@@ -46,7 +50,7 @@ const authBridge = (global as { authBridge?: Auth }).authBridge;
 export default function Root(props: {
   appConfiguration: IAppConfiguration;
   extraProviders: React.JSX.Element[] | undefined;
-  dataSources: IDataSourceFactory[] | undefined;
+  dataSources: CoSceneIDataSourceFactory[] | undefined;
 }): React.JSX.Element {
   if (!storageBridge) {
     throw new Error("storageBridge is missing");
@@ -62,18 +66,12 @@ export default function Root(props: {
   // notify user login status change
   const [loginStatusKey, setLoginStatusKey] = useState(0);
 
+  const authToken = localStorage.getItem("coScene_org_jwt");
+
   const consoleApi = useMemo(
     () =>
-      new ConsoleApi(
-        APP_CONFIG.CS_HONEYBEE_BASE_URL,
-        APP_CONFIG.VITE_APP_BFF_URL,
-        localStorage.getItem("CoScene_addTopicPrefix") ??
-          APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
-          "false",
-        localStorage.getItem("CoScene_timeMode") === "relativeTime"
-          ? "relativeTime"
-          : "absoluteTime",
-      ),
+      new ConsoleApi(APP_CONFIG.CS_HONEYBEE_BASE_URL, APP_CONFIG.VITE_APP_BFF_URL, authToken ?? ""),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -99,7 +97,6 @@ export default function Root(props: {
   }, [appConfiguration]);
 
   useEffect(() => {
-    const authToken = localStorage.getItem("coScene_org_jwt");
     if (authToken) {
       consoleApi.setAuthHeader(authToken);
     }
@@ -112,7 +109,7 @@ export default function Root(props: {
     });
 
     return cleanup;
-  }, [consoleApi, t]);
+  }, [consoleApi, t, authToken]);
 
   useEffect(() => {
     // Passive logout, token expired
@@ -133,7 +130,7 @@ export default function Root(props: {
   const nativeAppMenu = useMemo(() => new NativeAppMenu(menuBridge), []);
   const nativeWindow = useMemo(() => new NativeWindow(desktopBridge), []);
 
-  const dataSources: IDataSourceFactory[] = useMemo(() => {
+  const dataSources: CoSceneIDataSourceFactory[] = useMemo(() => {
     if (props.dataSources) {
       return props.dataSources;
     }
@@ -142,10 +139,11 @@ export default function Root(props: {
       new FoxgloveWebSocketDataSourceFactory({ confirm }),
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
+      new CoSceneDataPlatformDataSourceFactory(),
       new Ros1LocalBagDataSourceFactory(),
       new Ros2LocalBagDataSourceFactory(),
       new UlogLocalDataSourceFactory(),
-      new VelodyneDataSourceFactory(),
+      // new VelodyneDataSourceFactory(),
       new SampleNuscenesDataSourceFactory(),
       new McapLocalDataSourceFactory(),
       new RemoteDataSourceFactory(),

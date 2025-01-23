@@ -1,7 +1,11 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { t } from "i18next";
 import * as _ from "lodash-es";
 
 import { RosNode } from "@foxglove/ros1";
@@ -18,8 +22,7 @@ class Ros1SocketDataSourceFactory implements IDataSourceFactory {
   public type: IDataSourceFactory["type"] = "connection";
   public displayName = "ROS 1";
   public iconName: IDataSourceFactory["iconName"] = "ROS";
-  public description =
-    "Connect to a running ROS 1 system via a native TCP connection that accesses your ROS master and nodes directly.";
+  public description = t("openDialog:ros1SocketDataSourceDesc");
   public docsLinks = [{ url: "https://foxglove.dev/docs/studio/connection/native" }];
 
   public formConfig = {
@@ -28,7 +31,7 @@ class Ros1SocketDataSourceFactory implements IDataSourceFactory {
         id: "url",
         label: "ROS_MASTER_URI",
         defaultValue: OsContextSingleton?.getEnvVar("ROS_MASTER_URI") ?? "http://localhost:11311",
-        description: "Tells ROS nodes where they can locate the master",
+        description: t("openDialog:rosMasterUriDesc"),
       },
       {
         id: "hostname",
@@ -40,7 +43,7 @@ class Ros1SocketDataSourceFactory implements IDataSourceFactory {
               OsContextSingleton.getNetworkInterfaces,
             )
           : "localhost",
-        description: "Acts as the declared network address of a ROS node or tool",
+        description: t("openDialog:rosHostnameDesc"),
       },
     ],
   };

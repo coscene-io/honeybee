@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -362,16 +365,18 @@ export const PlayerCapabilities = {
 // events happen, so we can track those events in some metrics system.
 export interface PlayerMetricsCollectorInterface {
   setProperty(key: string, value: string | number | boolean): void;
-  playerConstructed(): void;
-}
-
-export interface CoScenePlayerMetricsCollectorInterface {
   // Statistics on the number of visits
   playerConstructed(): void;
-
   // Statistical playback time
-  play(): void;
-
+  play(speed: number): void;
+  seek(time: Time): void;
+  setSpeed(speed: number): void;
   // Statistical playback time
   pause(): void;
+  close(): void;
+  setSubscriptions(subscriptions: SubscribePayload[]): void;
+  recordBytesReceived(bytes: number): void;
+  recordPlaybackTime(time: Time, params: { stillLoadingData: boolean }): void;
+  recordUncachedRangeRequest(): void;
+  recordTimeToFirstMsgs(): void;
 }

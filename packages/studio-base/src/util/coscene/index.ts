@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -23,30 +26,6 @@ import { Auth } from "@foxglove/studio-desktop/src/common/types";
 export * from "./cosel";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
-
-export function getPlaybackQualityLevelByLocalStorage(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
-  const localPlaybackQualityLevel = localStorage.getItem("playbackQualityLevel");
-  let playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
-
-  switch (localPlaybackQualityLevel) {
-    case "ORIGINAL":
-      playbackQualityLevel = "ORIGINAL";
-      break;
-    case "HIGH":
-      playbackQualityLevel = "HIGH";
-      break;
-    case "MID":
-      playbackQualityLevel = "MID";
-      break;
-    case "LOW":
-      playbackQualityLevel = "LOW";
-      break;
-    default:
-      playbackQualityLevel = "ORIGINAL";
-  }
-
-  return playbackQualityLevel;
-}
 
 // window.navigator.platform is not reliable, use this function to check os
 export function getOS(): string | undefined {
@@ -89,8 +68,6 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     // grpc error code-16 === http status code 401
     // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
     if (error.code === StatusCode.UNAUTHENTICATED) {
-      localStorage.removeItem("demoSite");
-      localStorage.removeItem("honeybeeDemoStatus");
       if (window.location.pathname !== "/login") {
         if (isDesktopApp()) {
           authBridge?.logout();

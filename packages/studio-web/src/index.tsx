@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -91,8 +94,9 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
 
   // Use an async import to delay loading the majority of studio-base code until the CompatibilityBanner
   // can be displayed.
-  const { installDevtoolsFormatters, overwriteFetch, waitForFonts, initI18n, StudioApp } =
-    await import("@foxglove/studio-base");
+  const { installDevtoolsFormatters, overwriteFetch, waitForFonts, initI18n } = await import(
+    "@foxglove/studio-base"
+  );
   installDevtoolsFormatters();
   overwriteFetch();
   // consider moving waitForFonts into App to display an app loading screen
@@ -102,9 +106,7 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
   const { WebRoot } = await import("./WebRoot");
   const params = await getParams();
   const rootElement = params.rootElement ?? (
-    <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources}>
-      <StudioApp />
-    </WebRoot>
+    <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources} />
   );
 
   // eslint-disable-next-line react/no-deprecated

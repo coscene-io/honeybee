@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -5,6 +8,7 @@
 import * as Comlink from "comlink";
 
 import Logger from "@foxglove/log";
+import { isLessThan, Time, toMicroSec } from "@foxglove/rostime";
 import type { RawImage } from "@foxglove/schemas";
 
 import { decodeRawImage, RawImageOptions } from "./decodeImage";
@@ -140,24 +144,36 @@ function getH264Decoder(): VideoDecoder {
     });
 
     h264Decoder.configure({
-      codec: "avc1.42001E",
+      codec: "avc1.640028",
       optimizeForLatency: true,
     });
   }
   return h264Decoder;
 }
 
-function decodeH264Frame(data: Uint8Array | Int8Array): void {
+let lastDecodeTime = { sec: 0, nsec: 0 };
+
+function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void {
+  // prevent disordered frames
+  if (isLessThan(receiveTime, lastDecodeTime)) {
+    log.info("received image disordered", receiveTime, lastDecodeTime);
+    h264Decoder?.close();
+    h264Decoder = undefined;
+    foundKeyFrame = false;
+  }
+
+  lastDecodeTime = receiveTime;
+
   let type: "delta" | "key" | "unknow frame" | "b frame" = "delta";
   if (data.length > 4) {
     type = isKeyFrame(data as Uint8Array);
   }
 
   if (type === "b frame") {
-    log.error("b frame is not supported");
+    type = "delta";
   }
 
-  if (type === "unknow frame" || type === "b frame") {
+  if (type === "unknow frame") {
     return;
   }
 
@@ -169,33 +185,28 @@ function decodeH264Frame(data: Uint8Array | Int8Array): void {
     return;
   }
 
-  const now = performance.now();
   const decoder = getH264Decoder();
 
   const chunk = new EncodedVideoChunk({
-    timestamp: now,
+    timestamp: toMicroSec(receiveTime),
     type,
     data,
   });
   try {
     decoder.decode(chunk);
   } catch (error) {
-    log.error(error);
+    log.error("Decode error:", error);
   }
 }
 
 function getH264Frames(): VideoFrame | undefined {
   const frame = H264Frames.pop();
   if (frame) {
-    return Comlink.transfer(frame, [frame]);
-  }
-
-  // we need latest frames only, drop frames if too many
-  if (H264Frames.length >= 5) {
     H264Frames.forEach((uselessFrame) => {
       uselessFrame.close();
     });
     H264Frames = [];
+    return Comlink.transfer(frame, [frame]);
   }
 
   return undefined;

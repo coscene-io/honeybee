@@ -1,8 +1,12 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { useMemo } from "react";
 
+import AnalyticsProvider from "@foxglove/studio-base/context/AnalyticsProvider";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutStorageContext from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
 import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext";
@@ -35,6 +39,8 @@ export function SharedProviders({
       <CoSceneBaseProvider key="CoSceneBaseProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
       <CoSceneUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
+      // dependent - CoSceneUserProvider
+      <AnalyticsProvider key="AnalyticsProvider" />,
       <CoSceneConsoleApiRemoteLayoutStorageProvider key="CoSceneConsoleApiRemoteLayoutStorageProvider" />,
       <CoSceneLayoutStorageContext.Provider
         value={layoutStorage}

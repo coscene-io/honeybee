@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -9,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, toSec, Time, fromNanoSec, compare } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -25,6 +29,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { MediaStatus, FileList } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
@@ -92,7 +97,7 @@ function positionBag({
 
   let colorCertificate: string | undefined = undefined;
 
-  if (ghostModeFileType === "NORMAL_FILE" || ghostModeFileType === "GHOST_SOURCE_FILE") {
+  if (ghostModeFileType !== "GHOST_RESULT_FILE") {
     colorCertificate = source.split("/files/")[0];
   }
 
@@ -139,11 +144,8 @@ export function PlaylistSyncAdapter(): ReactNull {
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
 
-  const timeMode = useMemo(() => {
-    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
-      ? "relativeTime"
-      : "absoluteTime";
-  }, []);
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -182,11 +184,11 @@ export function PlaylistSyncAdapter(): ReactNull {
           endTime,
           currentFileStartTime: ele.startTime,
           currentFileEndTime: ele.endTime,
-          timeMode,
+          timeMode: timeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
           mediaStatus:
             ele.mediaStatus === "GENERATING" && currentStatus === "NORMAL"
               ? "GENERATED_SUCCESS"
-              : ele.mediaStatus,
+              : currentStatus ?? "GENERATE_INCAPABLE",
         });
       });
 
@@ -222,7 +224,7 @@ export function PlaylistSyncAdapter(): ReactNull {
               endTime,
               currentFileStartTime: ele.startTime,
               currentFileEndTime: ele.endTime,
-              timeMode,
+              timeMode: timeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
             }),
           );
         });

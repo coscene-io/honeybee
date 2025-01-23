@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -17,6 +20,7 @@ import { AppURLState, parseAppURLState } from "@foxglove/studio-base/util/appURL
 
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 const log = Log.getLogger(__filename);
@@ -54,24 +58,27 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
 function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
   const seekPlayback = useMessagePipeline(selectSeek);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
-  const [unappliedTime, setUnappliedTime] = useState(
-    targetUrlState ? { time: targetUrlState.time } : undefined,
-  );
+  const startTime = useMessagePipeline(selectStartTime);
+  const [isAppliedTime, setIsAppliedTime] = useState(false);
+
+  const time = targetUrlState?.time ?? startTime;
+
+  // Wait until player is ready before we try to seek.
   // Seek to time in URL.
   useEffect(() => {
-    if (unappliedTime?.time == undefined || !seekPlayback) {
+    if (
+      playerPresence !== PlayerPresence.PRESENT ||
+      !seekPlayback ||
+      isAppliedTime ||
+      time == undefined
+    ) {
       return;
     }
 
-    // Wait until player is ready before we try to seek.
-    if (playerPresence !== PlayerPresence.PRESENT) {
-      return;
-    }
-
-    log.debug(`Seeking to url time:`, unappliedTime.time);
-    seekPlayback(unappliedTime.time);
-    setUnappliedTime({ time: undefined });
-  }, [playerPresence, seekPlayback, unappliedTime]);
+    log.debug(`Seeking to url time:`, time);
+    seekPlayback(time);
+    setIsAppliedTime(true);
+  }, [playerPresence, seekPlayback, isAppliedTime, time]);
 }
 
 /**

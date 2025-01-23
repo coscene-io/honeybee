@@ -1,7 +1,11 @@
-/* eslint-disable @typescript-eslint/no-deprecated */
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+/* eslint-disable @typescript-eslint/no-deprecated */
 
 import { Button } from "@mui/material";
 import * as base64 from "@protobufjs/base64";
@@ -1062,7 +1066,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       window.removeEventListener("keypress", resetTimer);
       window.removeEventListener("touchmove", resetTimer);
 
-      window.addEventListener("visibilitychange", resetInactiveTimeout);
+      window.removeEventListener("visibilitychange", resetInactiveTimeout);
     };
 
     if (this.#closed) {

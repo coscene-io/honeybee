@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -5,6 +8,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import { Dialog, IconButton } from "@mui/material";
 import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
@@ -49,6 +53,7 @@ export function DataSourceDialog(props: DataSourceDialogProps): React.JSX.Elemen
   const { availableSources, selectSource } = usePlayerSelection();
   const { dialogActions } = useWorkspaceActions();
   const { activeDataSource, item: activeView } = useWorkspaceStore(selectDataSourceDialog);
+  const { t } = useTranslation("openDialog");
 
   const isMounted = useMountedState();
 
@@ -109,16 +114,16 @@ export function DataSourceDialog(props: DataSourceDialogProps): React.JSX.Elemen
       }
       case "connection":
         return {
-          title: "Open new connection",
+          title: t("openNewConnection"),
           component: <Connection />,
         };
       default:
         return {
-          title: "Get started",
+          title: t("getStarted"),
           component: <Start />,
         };
     }
-  }, [activeView]);
+  }, [activeView, t]);
 
   return (
     <Dialog

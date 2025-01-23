@@ -1,16 +1,16 @@
 {
   "name": "@foxglove/studio",
-  "version": "24.44.0",
+  "version": "0.1.2",
   "license": "MPL-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/foxglove/studio/tree/main/packages/studio"
+    "url": "https://github.com/coscene-io/honeybee/tree/main/packages/studio"
   },
   "author": {
-    "name": "Foxglove Technologies",
-    "email": "support@foxglove.dev"
+    "name": "coScene Technologies",
+    "email": "contact@coscene.io"
   },
-  "homepage": "https://foxglove.dev/",
+  "homepage": "https://www.coscene.cn/",
   "main": "./src/index.ts",
   "files": [
     "src"

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -48,24 +51,6 @@ const packValue = (value: unknown, map: Mapping): unknown => {
       }
       // point all instances of the same string to the same reference
       return map[value];
-    case "number": {
-      throw new Error('Not implemented yet: "number" case');
-    }
-    case "bigint": {
-      throw new Error('Not implemented yet: "bigint" case');
-    }
-    case "boolean": {
-      throw new Error('Not implemented yet: "boolean" case');
-    }
-    case "symbol": {
-      throw new Error('Not implemented yet: "symbol" case');
-    }
-    case "undefined": {
-      throw new Error('Not implemented yet: "undefined" case');
-    }
-    case "function": {
-      throw new Error('Not implemented yet: "function" case');
-    }
     default:
       return value;
   }

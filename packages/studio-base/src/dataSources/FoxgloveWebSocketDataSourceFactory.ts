@@ -1,6 +1,11 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import { t } from "i18next";
 
 import {
   IDataSourceFactory,
@@ -14,24 +19,31 @@ import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-websocket";
   public type: IDataSourceFactory["type"] = "connection";
-  public displayName = "coScene WebSocket";
+  public displayName = "coBridge";
   public iconName: IDataSourceFactory["iconName"] = "Flow";
-  public description =
-    "Connect to a ROS 1, ROS 2, or custom system using the coScene WebSocket protocol. For ROS systems, be sure to first install the coBridge ROS package.";
+  public description = t("openDialog:webSocketDataSourceDesc");
   public docsLinks = [
     {
-      label: "ROS 1",
-      url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros1#foxglove-websocket",
-    },
-    {
-      label: "ROS 2",
-      url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros2#foxglove-websocket",
-    },
-    {
-      label: "custom data",
-      url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/custom#foxglove-websocket",
+      label: t("openDialog:downloadCoBridge"),
+      url: "https://github.com/coscene-io/coBridge",
     },
   ];
+  public showDocs = true;
+
+  // public docsLinks = [
+  //   {
+  //     label: "ROS 1",
+  //     url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros1#foxglove-websocket",
+  //   },
+  //   {
+  //     label: "ROS 2",
+  //     url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros2#foxglove-websocket",
+  //   },
+  //   {
+  //     label: "custom data",
+  //     url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/custom#foxglove-websocket",
+  //   },
+  // ];
 
   #confirm: confirmTypes;
   #userId: string;
@@ -55,8 +67,8 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
     fields: [
       {
         id: "url",
-        label: "WebSocket URL",
-        defaultValue: "ws://localhost:8765",
+        label: t("openDialog:webSocketUrl"),
+        defaultValue: "ws://localhost:21274",
         validate: (newValue: string): Error | undefined => {
           try {
             const url = new URL(newValue);

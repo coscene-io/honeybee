@@ -1,17 +1,17 @@
 {
   "name": "@foxglove/studio-base",
-  "description": "Core components of Foxglove Studio",
+  "description": "Core components of coScene Studio",
   "private": true,
   "license": "MPL-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/foxglove/studio/tree/main/packages/studio-base"
+    "url": "https://github.com/coscene-io/honeybee/tree/main/packages/studio-base"
   },
   "author": {
-    "name": "Foxglove Technologies",
-    "email": "support@foxglove.dev"
+    "name": "coScene Technologies",
+    "email": "contact@coscene.io"
   },
-  "homepage": "https://foxglove.dev/",
+  "homepage": "https://www.coscene.cn/",
   "main": "src/index",
   "devDependencies": {
     "@bufbuild/connect": "0.13.0",
@@ -20,9 +20,9 @@
     "@coscene-io/coscene": "0.3.137",
     "@coscene-io/cosceneapis-es": "0.0.290",
     "@coscene-io/cosel": "23.49.2",
-    "@emotion/cache": "11.13.1",
-    "@emotion/react": "11.13.0",
-    "@emotion/styled": "11.13.0",
+    "@emotion/cache": "11.14.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
     "@fluentui/react-icons": "2.0.227",
     "@foxglove/avl": "1.0.0",
     "@foxglove/chartjs-plugin-zoom": "2.0.4",
@@ -85,7 +85,7 @@
     "@types/react-hover-observer": "workspace:*",
     "@types/react-transition-group": "^4.4.8",
     "@types/react-virtualized": "9.21.29",
-    "@types/react-window": "^1.8.5",
+    "@types/react-window": "^1.8.8",
     "@types/sanitize-html": "2.9.3",
     "@types/seedrandom": "3.0.8",
     "@types/shallowequal": "1.1.5",
@@ -96,6 +96,7 @@
     "@types/uuid": "9.0.7",
     "@types/wicg-file-system-access": "2020.9.6",
     "@uiw/react-textarea-code-editor": "3.0.2",
+    "arch": "3.0.0",
     "babel-jest": "29.7.0",
     "babel-plugin-transform-import-meta": "2.2.1",
     "browserify-zlib": "0.2.0",
@@ -148,6 +149,7 @@
     "notistack": "3.0.1",
     "path-browserify": "1.0.1",
     "pinyin-match": "1.2.4",
+    "posthog-js": "1.205.0",
     "ramda": "0.29.1",
     "react": "^18.3.1",
     "react-colorful": "5.6.1",
@@ -168,7 +170,7 @@
     "react-transition-group": "4.4.5",
     "react-use": "17.4.2",
     "react-virtualized": "9.22.5",
-    "react-window": "1.8.9",
+    "react-window": "1.8.10",
     "readable-stream": "4.5.2",
     "recoil": "0.7.6",
     "rehype-raw": "6.1.1",

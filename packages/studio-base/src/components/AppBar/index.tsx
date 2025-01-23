@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -10,11 +13,12 @@ import {
   SlideAdd24Regular,
   QuestionCircle24Regular,
   ChevronDown12Regular,
+  Desktop24Regular,
 } from "@fluentui/react-icons";
 import PersonIcon from "@mui/icons-material/Person";
-import { Avatar, IconButton, Tooltip } from "@mui/material";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography } from "@mui/material";
+import { useCallback, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
@@ -36,6 +40,8 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { downloadLatestStudio } from "@foxglove/studio-base/util/download";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { AddPanelMenu } from "./AddPanelMenu";
@@ -202,6 +208,56 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
   const userMenuOpen = Boolean(userAnchorEl);
   const panelMenuOpen = Boolean(panelAnchorEl);
   const userInfo = useCoSceneCurrentUser(selectUser);
+  const [confirm, confirmModal] = useConfirm();
+
+  const handleOpenInCoStudio = useCallback(async () => {
+    const skipConfirm = localStorage.getItem("openInCoStudioDoNotShowAgain") === "true";
+    if (skipConfirm) {
+      const url = window.location.href;
+      const studioUrl = url.replace(/^https?:\/\//i, "coscene://");
+      window.open(studioUrl, "_self");
+      return;
+    }
+
+    let doNotShowAgain = false;
+    const response = await confirm({
+      title: t("openInCoStudio"),
+      prompt: (
+        <>
+          <Trans
+            t={t}
+            ns="appBar"
+            i18nKey="openInCoStudioPrompt"
+            components={{
+              download: <Link href="#" onClick={downloadLatestStudio} />,
+            }}
+          />
+
+          <Stack direction="row" alignItems="center">
+            <Checkbox
+              onChange={(e) => {
+                doNotShowAgain = e.target.checked;
+              }}
+            />
+            <Typography>{t("doNotShowAgain")}</Typography>
+          </Stack>
+        </>
+      ),
+      ok: t("openByCoStudio"),
+      cancel: t("cancel", { ns: "cosGeneral" }),
+    });
+    if (response !== "ok") {
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (doNotShowAgain) {
+      localStorage.setItem("openInCoStudioDoNotShowAgain", "true");
+    }
+    const url = window.location.href;
+    const studioUrl = url.replace(/^https?:\/\//i, "coscene://");
+    window.open(studioUrl, "_self");
+  }, [confirm, t]);
 
   return (
     <>
@@ -223,6 +279,8 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                 onClick={(event) => {
                   if (isDesktopApp()) {
                     setAppMenuEl(event.currentTarget);
+                  } else {
+                    window.open(window.location.origin, "_blank");
                   }
                 }}
               >
@@ -265,6 +323,21 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
               {appBarLayoutButton}
               <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
+                {!isDesktopApp() && (
+                  <AppBarIconButton
+                    title={t("openInCoStudio")}
+                    aria-label={t("openInCoStudio")}
+                    onClick={() => {
+                      void handleOpenInCoStudio();
+                    }}
+                    data-tourid="open-in-coStudio"
+                  >
+                    <Desktop24Regular
+                      color={theme.palette.appBar.icon}
+                      style={{ marginLeft: "2px" }}
+                    />
+                  </AppBarIconButton>
+                )}
                 <AppBarIconButton
                   title={
                     <>
@@ -372,6 +445,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
           setUserAnchorEl(undefined);
         }}
       />
+      {confirmModal}
     </>
   );
 }

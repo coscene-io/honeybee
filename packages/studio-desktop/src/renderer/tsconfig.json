@@ -6,7 +6,6 @@
     "../../package.json"
   ],
   "compilerOptions": {
-    "rootDir": "../../",
     "noEmit": true,
     "jsx": "react-jsx",
     "experimentalDecorators": true,
@@ -15,7 +14,8 @@
       "dom",
       "dom.iterable",
       "es2022",
-      "webworker"
+      "webworker",
+      "ESNext.Disposable"
     ],
     "paths": {
       "@foxglove/studio-base/*": [

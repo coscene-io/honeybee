@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -9,7 +12,7 @@ import EditIcon from "@mui/icons-material/EditOutlined";
 import RepeatOneOutlinedIcon from "@mui/icons-material/RepeatOneOutlined";
 import ShareIcon from "@mui/icons-material/ShareOutlined";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
-import { alpha, Stack, IconButton, Link } from "@mui/material";
+import { alpha, Stack, IconButton, Link, Typography } from "@mui/material";
 import { useCallback, useEffect, useRef, useState, Fragment, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -47,6 +50,7 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
     "&:hover": {
       backgroundColor: alpha(theme.palette.info.main, theme.palette.action.hoverOpacity),
     },
+    gap: "4px",
   },
   eventSelected: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.activatedOpacity),
@@ -259,11 +263,15 @@ function EventViewComponent(params: {
     }
   };
 
-  const ruleNavAddress: React.JSX.Element = useMemo(() => {
+  const ruleNavAddress: React.JSX.Element | undefined = useMemo(() => {
     const rule = event.event.rule;
 
+    if (event.event.rule?.name == undefined || event.event.rule.name === "") {
+      return undefined;
+    }
+
     if (diagnosisRuleData == undefined || rule == undefined) {
-      return <Stack>{event.event.rule?.name}</Stack>;
+      return <Typography noWrap>{event.event.rule.name}</Typography>;
     }
 
     const ruleIndex = diagnosisRuleData.rules.findIndex((diagnosisRule) =>
@@ -274,7 +282,7 @@ function EventViewComponent(params: {
 
     return (
       <Link href={address} target="_blank">
-        <Stack>{event.event.rule?.name}</Stack>
+        <Typography noWrap>{event.event.rule.name}</Typography>
       </Link>
     );
   }, [diagnosisRuleData, event.event.rule, baseInfo]);
@@ -287,7 +295,7 @@ function EventViewComponent(params: {
 
       return (
         <Link href={deviceNavAddress} target="_blank">
-          <Stack>{event.event.device.displayName}</Stack>
+          <Typography noWrap>{event.event.device.displayName}</Typography>
         </Link>
       );
     }
@@ -295,8 +303,9 @@ function EventViewComponent(params: {
   }, [baseInfo.organizationSlug, baseInfo.projectSlug, event.event.device]);
 
   const [humanCreator, getHumanCreator] = useAsyncFn(async () => {
-    const user = await consoleApi.getUser(event.event.creator);
-    return user.nickname;
+    const users = await consoleApi.batchGetUsers([event.event.creator]);
+    const user = users.users[0];
+    return user?.nickname ?? "";
   }, [consoleApi, event.event.creator]);
 
   useEffect(() => {
@@ -318,7 +327,7 @@ function EventViewComponent(params: {
         <Stack width="1px" flex="1" className={classes.line} />
       </Stack>
 
-      <Stack flex={1} gap={1}>
+      <Stack flex={1} gap={1} width="0">
         <div className={classes.eventTitle}>
           <div>
             <HighlightedText text={triggerTime} highlight={filter} />
@@ -387,7 +396,7 @@ function EventViewComponent(params: {
               gap={1}
               fontSize="12px"
               color={theme.palette.text.secondary}
-              marginTop={description || imgUrl || metadataMap.length > 0 ? "12px" : undefined}
+              marginTop={description || imgUrl || metadataMap.length > 0 ? "8px" : undefined}
             >
               {description && (
                 <Stack lineHeight="1.5">
@@ -424,19 +433,35 @@ function EventViewComponent(params: {
               </Stack>
             </Stack>
           )}
-        </div>
 
-        {event.event.rule != undefined && (
-          <Stack flexDirection="row" gap={1}>
-            <Stack>{t("rule")}:</Stack>
-            {ruleNavAddress}
+          {ruleNavAddress != undefined && (
+            <Stack flexDirection="row" gap={1} fontSize="12px" color={theme.palette.text.secondary}>
+              <Stack justifyContent="center">{t("rule")}:</Stack>
+              <Stack
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                {ruleNavAddress}
+              </Stack>
+            </Stack>
+          )}
+
+          <Stack
+            alignItems="center"
+            flexDirection="row"
+            fontSize="12px"
+            color={theme.palette.text.secondary}
+          >
+            <Stack flexDirection="row" alignItems="center" gap={0.5}>
+              <Stack justifyContent="center">{t("creater")}</Stack>
+            </Stack>
+            <Stack marginRight={1}>:</Stack>
+            <Stack>
+              <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
+            </Stack>
           </Stack>
-        )}
-
-        <Stack flexDirection="row" gap={1}>
-          <Stack>{t("creater")}:</Stack>
-          <Stack>{deviceCreator ?? humanCreator.value}</Stack>
-        </Stack>
+        </div>
       </Stack>
     </Stack>
   ) : (

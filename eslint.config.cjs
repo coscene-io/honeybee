@@ -1,8 +1,10 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-const fileProgress = require("eslint-plugin-file-progress");
 const tssUnusedClasses = require("eslint-plugin-tss-unused-classes");
 const globals = require("globals");
 const tslintPlugin = require("typescript-eslint");
@@ -23,9 +25,7 @@ module.exports = tslintPlugin.config(
       "**/.yarn/**",
     ],
   },
-
   ...foxgloveEslintPlugin.configs.base,
-
   {
     languageOptions: {
       globals: {
@@ -88,7 +88,6 @@ module.exports = tslintPlugin.config(
 
   {
     plugins: {
-      "file-progress": fileProgress,
       "tss-unused-classes": tssUnusedClasses,
       "@foxglove/studio": foxgloveEslintPluginStudio,
     },
@@ -98,14 +97,13 @@ module.exports = tslintPlugin.config(
     },
 
     rules: {
-      // "@foxglove/license-header": "error",
       "tss-unused-classes/unused-classes": "error",
-      "file-progress/activate": "warn",
       "prettier/prettier": "off",
       "import/no-self-import": "off",
       "import/no-duplicates": "off",
       "id-denylist": ["error", "useEffectOnce", "window"],
       "no-console": "off",
+      "@foxglove/studio/license-header": "error",
 
       "no-restricted-syntax": [
         "error",
@@ -147,9 +145,6 @@ module.exports = tslintPlugin.config(
     files: ["**/*.ts", "**/*.tsx"],
 
     languageOptions: {
-      ecmaVersion: 5,
-      sourceType: "script",
-
       parserOptions: {
         project: "tsconfig.eslint.json",
         tsconfigRootDir: __dirname,
@@ -197,6 +192,7 @@ module.exports = tslintPlugin.config(
           argsIgnorePattern: "^_.",
         },
       ],
+      "no-warning-comments": "off",
     },
   },
   {

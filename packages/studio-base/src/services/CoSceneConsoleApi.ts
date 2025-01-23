@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -26,6 +29,8 @@ import {
 import { UserService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_connect";
 import {
   GetUserRequest,
+  BatchGetUsersRequest,
+  BatchGetUsersResponse,
   ListOrganizationUsersRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
@@ -239,11 +244,6 @@ type CoverageResponse = {
   end: string;
 };
 
-type DeviceResponse = {
-  id: string;
-  name: string;
-};
-
 export type LayoutID = string & { __brand: "LayoutID" };
 export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
 export type Permission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
@@ -304,22 +304,32 @@ class CoSceneConsoleApi {
   #bffUrl: string;
   #authHeader?: string;
   #responseObserver: undefined | ((response: Response) => void);
-  #addTopicPrefix: string;
+  #addTopicPrefix: "false" | "true" = "false";
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
   #baseInfo: BaseInfo = {};
-  #type: "realtime" | "playback" = "playback";
+  #type?: "realtime" | "playback" | "other";
+  #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
 
   public constructor(
     baseUrl: string,
     bffUrl: string,
-    addTopicPrefix: string,
-    timeMode: "absoluteTime" | "relativeTime",
+    jwt: string,
+    // The following three parameters are only used in data sources
+    addTopicPrefix?: "true" | "false",
+    timeMode?: "absoluteTime" | "relativeTime",
+    playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW",
   ) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
+    this.#authHeader = jwt;
     this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
-    this.#timeMode = timeMode;
+    this.#timeMode = timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime";
+    this.#playbackQualityLevel = playbackQualityLevel ?? "ORIGINAL";
+  }
+
+  public getPlaybackQualityLevel(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
+    return this.#playbackQualityLevel;
   }
 
   public setApiBaseInfo(baseInfo: BaseInfo): void {
@@ -330,11 +340,11 @@ class CoSceneConsoleApi {
     return this.#baseInfo;
   }
 
-  public setType(type: "realtime" | "playback"): void {
+  public setType(type?: "realtime" | "playback" | "other"): void {
     this.#type = type;
   }
 
-  public getType(): "realtime" | "playback" {
+  public getType(): "realtime" | "playback" | "other" | undefined {
     return this.#type;
   }
 
@@ -354,6 +364,10 @@ class CoSceneConsoleApi {
     return this.#baseUrl;
   }
 
+  public getBffUrl(): string {
+    return this.#bffUrl;
+  }
+
   public setAuthHeader(header: string): void {
     this.#authHeader = header;
   }
@@ -366,7 +380,7 @@ class CoSceneConsoleApi {
     return this.#addTopicPrefix;
   }
 
-  public setAddTopicPrefix(prefix: string): void {
+  public setAddTopicPrefix(prefix: "true" | "false"): void {
     this.#addTopicPrefix = prefix;
   }
 
@@ -439,10 +453,6 @@ class CoSceneConsoleApi {
 
   public async getExtension(id: string): Promise<ExtensionResponse> {
     return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
-  }
-
-  public async getDevice(id: string): Promise<DeviceResponse> {
-    return await this.#get<DeviceResponse>(`/v1/devices/${id}`);
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
@@ -523,16 +533,11 @@ class CoSceneConsoleApi {
         ? `${this.#bffUrl}${url}`
         : `${this.#baseUrl}${url}`;
 
-    const headers: Record<string, string> = {
-      Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
-    };
     const fullConfig: RequestInit = {
       ...config,
       headers: {
-        ...headers,
+        Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
         ...config?.headers,
-        "Topic-Prefix": this.#addTopicPrefix,
-        "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
       },
     };
 
@@ -598,15 +603,21 @@ class CoSceneConsoleApi {
     }
   }
 
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
-  async #post<T>(apiPath: string, body?: unknown, customHost?: boolean): Promise<T> {
+  async #post<T>(
+    apiPath: string,
+    body?: unknown,
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    customHost?: boolean,
+    config?: RequestInit,
+  ): Promise<T> {
     return (
       await this.#request<T>(
         apiPath,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
+          ...(config ?? {}),
+          headers: { "Content-Type": "application/json", ...(config?.headers ?? {}) },
         },
         {},
         customHost,
@@ -643,6 +654,13 @@ class CoSceneConsoleApi {
         id: key,
       },
       undefined,
+      {
+        headers: {
+          "Topic-Prefix": this.#addTopicPrefix,
+          "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
+          "Playback-Quality-Level": this.#playbackQualityLevel,
+        },
+      },
     );
 
     const metaData = topics.topics.map((topic) => {
@@ -662,8 +680,43 @@ class CoSceneConsoleApi {
     };
   }
 
-  public getStreamUrl(): string {
-    return `${this.#baseUrl}/v1/data/getStreams`;
+  public async getStreams({
+    start,
+    end,
+    topics,
+    id,
+    signal,
+    projectName,
+  }: {
+    start: number;
+    end: number;
+    topics: string[];
+    id: string;
+    signal: AbortSignal;
+    projectName: string;
+  }): Promise<Response> {
+    const { fullUrl, fullConfig } = this.getRequectConfig("/v1/data/getStreams", {
+      method: "POST",
+      signal,
+      cache: "no-cache",
+      headers: {
+        // Include the version of studio in the request Useful when scraping logs to determine what
+        // versions of the app are making requests.
+        "Content-Type": "application/json",
+        "Topic-Prefix": this.#addTopicPrefix,
+        "Playback-Quality-Level": this.#playbackQualityLevel,
+        "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
+        ProjectName: projectName,
+      },
+      body: JSON.stringify({
+        start,
+        end,
+        topics,
+        id,
+      }),
+    });
+
+    return await fetch(fullUrl, fullConfig);
   }
 
   public async getPlaylist(key: string): Promise<getPlaylistResponse> {
@@ -747,6 +800,13 @@ class CoSceneConsoleApi {
     });
     const result = await getPromiseClient(UserService).getUser(request);
     return result;
+  }
+
+  public async batchGetUsers(userNames: string[]): Promise<BatchGetUsersResponse> {
+    const request = new BatchGetUsersRequest({
+      names: userNames,
+    });
+    return await getPromiseClient(UserService).batchGetUsers(request);
   }
 
   public async getOrg(orgName: string): Promise<Organization> {
@@ -1150,6 +1210,10 @@ class CoSceneConsoleApi {
     });
 
     return await getPromiseClient(DiagnosisService).getDiagnosisRule(req);
+  }
+
+  public async syncMedia({ key }: { key: string }): Promise<void> {
+    await this.#patch("/v1/data/sync", { id: key });
   }
 }
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -37,12 +40,17 @@ declare global {
       VITE_APP_BFF_URL?: string;
       DEFAULT_TOPIC_PREFIX_OPEN?: { [domain: string]: string };
       DOMAIN_CONFIG?: { [domain: string]: DomainConfig };
+      POSTHOG?: {
+        api_host: string;
+        token: string;
+      };
     };
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-const cosConfig = window.cosConfig ?? {};
+const cosConfig = typeof window !== "undefined" ? window?.cosConfig ?? {} : {};
+
 export const APP_CONFIG = {
   VITE_APP_BASE_API_PORT:
     cosConfig.VITE_APP_BASE_API_PORT ?? process.env.VITE_APP_BASE_API_PORT ?? "443",
@@ -72,6 +80,10 @@ export const APP_CONFIG = {
   SENTRY_ENABLED: cosConfig.SENTRY_ENABLED ?? false,
   DEFAULT_TOPIC_PREFIX_OPEN: cosConfig.DEFAULT_TOPIC_PREFIX_OPEN ?? {},
   DOMAIN_CONFIG: cosConfig.DOMAIN_CONFIG ?? DEFAULT_DOMAN_CONFIG,
+  POSTHOG: cosConfig.POSTHOG ?? {
+    api_host: "",
+    token: "",
+  },
 };
 
 export function getDomainConfig(): DomainConfig {
@@ -86,4 +98,6 @@ export function getAuthStatusCookieName(): string {
   return getDomainConfig().authStatusCookieName;
 }
 
-window.cosConfig = APP_CONFIG;
+if (typeof window !== "undefined") {
+  window.cosConfig = APP_CONFIG;
+}

@@ -1,8 +1,10 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { CircularProgress } from "@mui/material";
 import { useMemo, useState } from "react";
 import { Toaster } from "react-hot-toast";
 
@@ -17,7 +19,7 @@ import {
   ConsoleApi,
   SharedProviders,
 } from "@foxglove/studio-base";
-import Stack from "@foxglove/studio-base/components/Stack";
+import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
@@ -30,12 +32,11 @@ export function WebRoot(props: {
   extraProviders: React.JSX.Element[] | undefined;
   dataSources: CoSceneIDataSourceFactory[] | undefined;
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
-  children: React.JSX.Element;
 }): React.JSX.Element {
   const baseUrl = APP_CONFIG.CS_HONEYBEE_BASE_URL;
   const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
 
-  const isLoading = useCoSceneInit({ baseUrl, jwt });
+  useCoSceneInit();
 
   // if has many sources need to set confirm
   // recommand set confirm to message pipeline
@@ -66,21 +67,9 @@ export function WebRoot(props: {
   }, [props.dataSources, confirm]);
 
   const consoleApi = useMemo(
-    () =>
-      new ConsoleApi(
-        baseUrl,
-        APP_CONFIG.VITE_APP_BFF_URL,
-        localStorage.getItem("CoScene_addTopicPrefix") ??
-          APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ??
-          "false",
-        localStorage.getItem("CoScene_timeMode") === "relativeTime"
-          ? "relativeTime"
-          : "absoluteTime",
-      ),
-    [baseUrl],
+    () => new ConsoleApi(baseUrl, APP_CONFIG.VITE_APP_BFF_URL, jwt),
+    [baseUrl, jwt],
   );
-
-  consoleApi.setAuthHeader(jwt);
 
   const coSceneProviders = SharedProviders({ consoleApi });
 
@@ -91,14 +80,6 @@ export function WebRoot(props: {
     }
     return providers;
   }, [coSceneProviders, props.extraProviders]);
-
-  if (isLoading) {
-    return (
-      <Stack flex={1} fullHeight fullWidth justifyContent="center" alignItems="center">
-        <CircularProgress />
-      </Stack>
-    );
-  }
 
   return (
     <>
@@ -112,7 +93,7 @@ export function WebRoot(props: {
         extraProviders={extraProviders}
         AppBarComponent={props.AppBarComponent}
       >
-        {props.children}
+        <StudioApp />
       </SharedRoot>
       <Toaster />
       {confirmModal}

@@ -1,9 +1,21 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Menu, MenuItem, PaperProps, PopoverPosition, PopoverReference } from "@mui/material";
-import { useCallback } from "react";
+import {
+  Menu,
+  MenuItem,
+  PaperProps,
+  PopoverPosition,
+  PopoverReference,
+  Stack,
+  Typography,
+} from "@mui/material";
+import { usePostHog } from "posthog-js/react";
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -19,13 +31,14 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { downloadLatestStudio, getCoStudioVersion } from "@foxglove/studio-base/util/download";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()(() => ({
   menuList: {
     minWidth: 200,
   },
-});
+}));
 
 type UserMenuProps = {
   handleClose: () => void;
@@ -53,6 +66,13 @@ export function UserMenu({
   const analytics = useAnalytics();
   const [confirm, confirmModal] = useConfirm();
   const { t } = useTranslation("cosAppBar");
+  const [latestVersion, setLatestVersion] = useState("");
+
+  useEffect(() => {
+    void getCoStudioVersion().then((version) => {
+      setLatestVersion(version);
+    });
+  }, []);
 
   const { dialogActions } = useWorkspaceActions();
 
@@ -61,6 +81,8 @@ export function UserMenu({
   const userInfo = useCoSceneCurrentUser(selectUser);
   const loginStatus = useCoSceneCurrentUser(selectLoginStatus);
   const setLoginStatus = useCoSceneCurrentUser(selectSetLoginStatus);
+
+  const posthog = usePostHog();
 
   const beginSignOut = useCallback(async () => {
     if (isDesktop) {
@@ -80,9 +102,10 @@ export function UserMenu({
     }).then((response) => {
       if (response === "ok") {
         void beginSignOut();
+        posthog.reset();
       }
     });
-  }, [beginSignOut, confirm, t]);
+  }, [beginSignOut, confirm, t, posthog]);
 
   const onSettingsClick = useCallback(
     (tab?: AppSettingsTab) => {
@@ -132,6 +155,23 @@ export function UserMenu({
           {t("settings")}
         </MenuItem>
         <MenuItem onClick={onDocsClick}>{t("documentation")}</MenuItem>
+
+        {!isDesktop && (
+          <MenuItem onClick={downloadLatestStudio} className="test">
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              width="100%"
+              gap={1}
+            >
+              <span>{t("downloadLatestStudio")}</span>
+              <Typography variant="caption" color="text.secondary">
+                v{latestVersion}
+              </Typography>
+            </Stack>
+          </MenuItem>
+        )}
 
         {(isDesktop || loginStatus === "alreadyLogin") && (
           <MenuItem

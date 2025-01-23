@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -20,8 +23,6 @@ import { Immutable, MessageEvent } from "@foxglove/studio";
 import { IteratorCursor } from "@foxglove/studio-base/players/IterablePlayer/IteratorCursor";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { MessageBlock, Progress, TopicSelection } from "@foxglove/studio-base/players/types";
-// CoScene
-import { getPlaybackQualityLevelByLocalStorage } from "@foxglove/studio-base/util/coscene";
 
 import { IDeserializedIterableSource, MessageIteratorArgs } from "./IIterableSource";
 
@@ -238,8 +239,6 @@ export class BlockLoader {
         endBlockId = endIdx;
       }
 
-      const playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" =
-        getPlaybackQualityLevelByLocalStorage();
       // Compute the cursor start/end time from the range of blocks we need to load
       const cursorStartTime = this.#blockIdToStartTime(blockId);
       const cursorEndTime = clampTime(this.#blockIdToEndTime(endBlockId), this.#start, this.#end);
@@ -249,7 +248,6 @@ export class BlockLoader {
         start: cursorStartTime,
         end: cursorEndTime,
         consumptionType: "full",
-        playbackQualityLevel,
       };
 
       // If the source provides a message cursor we use its message cursor, otherwise we make one

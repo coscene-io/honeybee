@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -64,7 +67,7 @@ export default class LocalFileStorage implements Storage {
   ): Promise<StorageContent | undefined> {
     const filePath = await this.#makeFilePath(datastore, key);
     return await fs.readFile(filePath, options).catch((err: unknown) => {
-      if (err.code !== "ENOENT") {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
         throw err;
       }
       return undefined;

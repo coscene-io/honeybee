@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -188,6 +191,7 @@ function makeElectronBuilderConfig(params) {
       ],
     },
     deb: {
+      packageName: "costudio",
       depends: [
         "libgtk-3-0",
         "libnotify4",
@@ -199,13 +203,25 @@ function makeElectronBuilderConfig(params) {
         "libgbm1",
         "libxcb-dri3-0",
       ],
-      // after install script
       afterInstall: path.join(__dirname, "../resources/linux/deb/postinst"),
     },
     snap: {
       confinement: "strict",
       grade: "stable",
       summary: "Integrated visualization and diagnosis tool for robotics",
+    },
+    publish: [
+      {
+        provider: "generic",
+        url: "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages",
+      },
+    ],
+    nsis: {
+      license: path.join(__dirname, "../resources/license_zh_CN.txt"),
+      oneClick: false,
+      allowToChangeInstallationDirectory: true,
+      createDesktopShortcut: true,
+      createStartMenuShortcut: true,
     },
   };
 }
