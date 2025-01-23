@@ -117,7 +117,7 @@ const SECURITY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnxpT8beRnb3JMLYxRM
 const CONTACT_EMAIL = "contact@coscene.io";
 const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
 
-type SectionKey = "resources" | "products" | "contact" | "legal";
+type SectionKey = "contact" | "legal";
 
 export type AppSettingsTab =
   | "general"
@@ -301,12 +301,7 @@ export function AppSettingsDialog(
                   getText={() => FOXGLOVE_STUDIO_VERSION?.toString() ?? ""}
                 />
               </Stack>
-              {[
-                aboutItems.get("resources"),
-                aboutItems.get("products"),
-                aboutItems.get("contact"),
-                aboutItems.get("legal"),
-              ].map((item) => {
+              {[aboutItems.get("contact"), aboutItems.get("legal")].map((item) => {
                 return (
                   <Stack key={item?.subheader} gap={1}>
                     {item?.subheader && <Typography>{item.subheader}</Typography>}
