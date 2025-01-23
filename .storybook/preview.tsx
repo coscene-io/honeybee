@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -55,7 +58,7 @@ function useCombinedReadySignal(
 function StudioContextProviders({
   children,
   ctx,
-}: React.PropsWithChildren<{ ctx: StoryContext }>): JSX.Element {
+}: React.PropsWithChildren<{ ctx: StoryContext }>): React.JSX.Element {
   if (ctx.parameters.useReadySignal === true) {
     const condvar = new Condvar();
     ctx.parameters.storyReady = condvar.wait();
@@ -163,7 +166,7 @@ function StudioContextProviders({
   );
 }
 
-function WithContextProviders(Child: Story, ctx: StoryContext): JSX.Element {
+function WithContextProviders(Child: Story, ctx: StoryContext): React.JSX.Element {
   if (
     (ctx.parameters.fileName as string).includes("/packages/studio-base/") ||
     (ctx.parameters.fileName as string).includes("/packages/theme/")
@@ -177,7 +180,10 @@ function WithContextProviders(Child: Story, ctx: StoryContext): JSX.Element {
   return <Child />;
 }
 
-function WithI18n({ ctx, children }: React.PropsWithChildren<{ ctx: StoryContext }>): JSX.Element {
+function WithI18n({
+  ctx,
+  children,
+}: React.PropsWithChildren<{ ctx: StoryContext }>): React.JSX.Element {
   const lang = ctx.parameters.forceLanguage ?? "en";
   const { i18n } = useTranslation();
   useEffect(() => {
@@ -186,7 +192,7 @@ function WithI18n({ ctx, children }: React.PropsWithChildren<{ ctx: StoryContext
   return <>{children}</>;
 }
 
-function WithI18nUnlessDisabled(Child: Story, ctx: StoryContext): JSX.Element {
+function WithI18nUnlessDisabled(Child: Story, ctx: StoryContext): React.JSX.Element {
   const { disableI18n = false }: { disableI18n?: boolean } = ctx.parameters;
   if (disableI18n) {
     return <Child />;

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -21,9 +24,19 @@ export type User = {
   phoneNumber: string;
   agreedAgreement: string;
   role: string;
+  email: string;
+  orgDisplayName: string;
+  orgId: string;
+  orgSlug: string;
+  // for studio login from this site
+  targetSite: string;
 };
 
+export type LoginStatus = "alreadyLogin" | "notLogin";
+
 export type UserStore = {
+  loginStatus: LoginStatus;
+
   user: User | undefined;
 
   role: {
@@ -35,6 +48,8 @@ export type UserStore = {
   setUser: (user: User | undefined) => void;
 
   setRole: (organizationRole?: OrganizationRoleCode, projectRole?: ProjectRoleCode) => void;
+
+  setLoginStatus: (loginStatus: LoginStatus) => void;
 };
 export const CoSceneCurrentUserContext = createContext<StoreApi<UserStore> | undefined>(undefined);
 

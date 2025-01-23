@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -34,7 +37,52 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     type: "3D",
     description: t("3DPanelDescription"),
     thumbnail: threeDeeRenderThumbnail,
+    order: 0,
     module: async () => await import("./ThreeDeeRender"),
+  },
+  {
+    title: t("plot"),
+    order: 1,
+    type: "Plot",
+    description: t("plotDescription"),
+    thumbnail: plotThumbnail,
+    module: async () => await import("./Plot"),
+  },
+  {
+    title: t("log"),
+    type: "RosOut",
+    order: 2,
+    description: t("logDescription"),
+    thumbnail: logThumbnail,
+    module: async () => await import("./Log"),
+    hasCustomToolbar: true,
+  },
+  {
+    title: t("rawMessages"),
+    type: "RawMessages",
+    order: 3,
+    description: t("rawMessagesDescription"),
+    thumbnail: rawMessagesThumbnail,
+    module: async () => await import("./RawMessages"),
+    hasCustomToolbar: true,
+  },
+  {
+    title: t("dataSourceInfo"),
+    type: "SourceInfo",
+    order: 4,
+    description: t("dataSourceInfoDescription"),
+    thumbnail: dataSourceInfoThumbnail,
+    module: async () => await import("./DataSourceInfo"),
+  },
+  {
+    title: t("moments", {
+      ns: "cosEvent",
+    }),
+    type: "MomentsBar",
+    order: 5,
+    description: t("momentsBarDesc"),
+    thumbnail: momentsBarThumbnail,
+    module: async () => await import("./MomentsBar"),
   },
   {
     title: t("ROSDiagnosticsDetail"),
@@ -95,16 +143,10 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     module: async () => await import("./Parameters"),
   },
   {
-    title: t("plot"),
-    type: "Plot",
-    description: t("plotDescription"),
-    thumbnail: plotThumbnail,
-    module: async () => await import("./Plot"),
-  },
-  {
     title: t("annotatedPlot", {
       ns: "cosAnnotatedPlot",
     }),
+    whitelisting: ["supor"],
     type: "AnnotatedPlot",
     description: t("plotDescription"),
     thumbnail: plotThumbnail,
@@ -123,22 +165,6 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     description: t("callServiceDescription"),
     thumbnail: publishThumbnail,
     module: async () => await import("./CallService"),
-  },
-  {
-    title: t("rawMessages"),
-    type: "RawMessages",
-    description: t("rawMessagesDescription"),
-    thumbnail: rawMessagesThumbnail,
-    module: async () => await import("./RawMessages"),
-    hasCustomToolbar: true,
-  },
-  {
-    title: t("log"),
-    type: "RosOut",
-    description: t("logDescription"),
-    thumbnail: logThumbnail,
-    module: async () => await import("./Log"),
-    hasCustomToolbar: true,
   },
   {
     title: t("stateTransitions"),
@@ -163,13 +189,6 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     module: async () => await import("./TopicGraph"),
   },
   {
-    title: t("dataSourceInfo"),
-    type: "SourceInfo",
-    description: t("dataSourceInfoDescription"),
-    thumbnail: dataSourceInfoThumbnail,
-    module: async () => await import("./DataSourceInfo"),
-  },
-  {
     title: t("variableSlider"),
     type: "GlobalVariableSliderPanel",
     description: t("variableSliderDescription"),
@@ -190,14 +209,5 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     thumbnail: tabThumbnail,
     module: async () => await import("./Tab"),
     hasCustomToolbar: true,
-  },
-  {
-    title: t("moments", {
-      ns: "cosEvent",
-    }),
-    type: "MomentsBar",
-    description: t("momentsBarDesc"),
-    thumbnail: momentsBarThumbnail,
-    module: async () => await import("./MomentsBar"),
   },
 ];

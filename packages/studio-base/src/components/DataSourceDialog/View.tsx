@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -5,6 +8,7 @@
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import { Button } from "@mui/material";
 import { PropsWithChildren } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -26,10 +30,11 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export default function View(props: PropsWithChildren<ViewProps>): JSX.Element {
+export default function View(props: PropsWithChildren<ViewProps>): React.JSX.Element {
   const { onOpen } = props;
   const { classes } = useStyles();
   const { dialogActions } = useWorkspaceActions();
+  const { t } = useTranslation("openDialog");
 
   return (
     <>
@@ -48,7 +53,7 @@ export default function View(props: PropsWithChildren<ViewProps>): JSX.Element {
             dialogActions.dataSource.open("start");
           }}
         >
-          Back
+          {t("back")}
         </Button>
 
         <Stack direction="row" gap={2}>
@@ -59,10 +64,10 @@ export default function View(props: PropsWithChildren<ViewProps>): JSX.Element {
               dialogActions.dataSource.close();
             }}
           >
-            Cancel
+            {t("cancel")}
           </Button>
           <Button variant="contained" onClick={onOpen} disabled={onOpen == undefined}>
-            Open
+            {t("open")}
           </Button>
         </Stack>
       </Stack>

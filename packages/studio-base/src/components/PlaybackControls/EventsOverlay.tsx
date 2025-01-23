@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -92,25 +95,31 @@ const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hover
 const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 const selectSetToModifyEvent = (store: EventsStore) => store.setToModifyEvent;
+const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
 
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 
-function EventTick({ event }: { event: TimelinePositionedEvent }): JSX.Element {
+function EventTick({ event }: { event: TimelinePositionedEvent }): React.JSX.Element {
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
   const selectedEventId = useEvents(selectSelectedEventId);
+  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
+
   const { classes, cx } = useStyles();
 
   const left = `calc(${_.clamp(event.startPosition, 0, 1) * 100}% - 1px)`;
   const right = `calc(100% - ${_.clamp(event.endPosition, 0, 1) * 100}% - 1px)`;
 
+  const isHovered =
+    (hoveredEvent != undefined && event.event.name === hoveredEvent.event.name) ||
+    eventsAtHoverValue[event.event.name] != undefined ||
+    loopedEvent?.event.name === event.event.name;
+
   return (
     <div
       className={cx(classes.tick, {
-        [classes.tickHovered]: hoveredEvent
-          ? event.event.name === hoveredEvent.event.name
-          : eventsAtHoverValue[event.event.name] != undefined,
+        [classes.tickHovered]: isHovered,
         [classes.tickSelected]: selectedEventId === event.event.name,
       })}
       style={{ left, right }}
@@ -126,7 +135,7 @@ function EventMark({
 }: {
   marks: TimelinePositionedEventMark[];
   isHiddenCreateMomentPopper: boolean;
-}): JSX.Element {
+}): React.JSX.Element {
   const leftMarkRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
   const { position: leftMarkPosition } = marks[0] ?? {};
   const { position: rightMarkPosition } = marks[1] ?? {};
@@ -218,7 +227,7 @@ function EventMark({
         transition
         id="event-mark-popper"
         style={{
-          opacity: isHiddenCreateMomentPopper ? 0.5 : 1,
+          opacity: isHiddenCreateMomentPopper ? 0 : 1,
         }}
       >
         {({ TransitionProps }) => (
@@ -249,7 +258,7 @@ type Props = {
   setCursor: (cursor: string) => void;
 };
 
-export function EventsOverlay(props: Props): JSX.Element | ReactNull {
+export function EventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const { componentId, isDragging, setCursor } = props;
 
   const events = useEvents(selectEvents);

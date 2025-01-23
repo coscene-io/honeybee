@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -53,6 +56,9 @@ export type TimelineInteractionStateStore = Immutable<{
   /** The point in time hovered over by the user. */
   hoverValue: undefined | HoverValue;
 
+  /** The event that is currently being looped over. */
+  loopedEvent: undefined | TimelinePositionedEvent;
+
   /** Clears the current hover value. */
   clearHoverValue: (componentId: string) => void;
 
@@ -77,6 +83,9 @@ export type TimelineInteractionStateStore = Immutable<{
 
   /** Sets the new hover value. */
   setHoverValue: (value: HoverValue) => void;
+
+  /** Sets the event that is currently being looped over. */
+  setLoopedEvent: (loopEvent: undefined | TimelinePositionedEvent) => void;
 }>;
 
 export const TimelineInteractionStateContext = createContext<

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -8,7 +11,7 @@ import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
-export function ColorSchemeThemeProvider({ children }: React.PropsWithChildren): JSX.Element {
+export function ColorSchemeThemeProvider({ children }: React.PropsWithChildren): React.JSX.Element {
   const [colorScheme = "system"] = useAppConfigurationValue<string>(AppSetting.COLOR_SCHEME);
   const systemSetting = useMedia("(prefers-color-scheme: dark)");
   const isDark = colorScheme === "dark" || (colorScheme === "system" && systemSetting);

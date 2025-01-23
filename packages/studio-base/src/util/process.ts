@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -7,7 +10,7 @@
 // and uses setTimeout(..., 0). Instead we use queueMicrotask which is much faster.
 const process = {
   // We want to be able to use Function type for _fn_ param
-  // eslint-disable-next-line @typescript-eslint/ban-types
+  // eslint-disable-next-line
   nextTick: (fn: Function, ...args: unknown[]): void => {
     queueMicrotask(() => {
       fn(...args);

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -28,15 +31,19 @@ export type { ExtensionInfo, ExtensionNamespace } from "./types/Extensions";
 export { AppSetting } from "./AppSetting";
 export { default as FoxgloveWebSocketDataSourceFactory } from "./dataSources/FoxgloveWebSocketDataSourceFactory";
 export { default as Ros1LocalBagDataSourceFactory } from "./dataSources/Ros1LocalBagDataSourceFactory";
+export { default as Ros1SocketDataSourceFactory } from "./dataSources/Ros1SocketDataSourceFactory";
 export { default as Ros2LocalBagDataSourceFactory } from "./dataSources/Ros2LocalBagDataSourceFactory";
 export { default as RosbridgeDataSourceFactory } from "./dataSources/RosbridgeDataSourceFactory";
 export { default as UlogLocalDataSourceFactory } from "./dataSources/UlogLocalDataSourceFactory";
+export { default as VelodyneDataSourceFactory } from "./dataSources/VelodyneDataSourceFactory";
 export { default as RemoteDataSourceFactory } from "./dataSources/RemoteDataSourceFactory";
 export { default as McapLocalDataSourceFactory } from "./dataSources/McapLocalDataSourceFactory";
 export { default as SampleNuscenesDataSourceFactory } from "./dataSources/SampleNuscenesDataSourceFactory";
 export { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 export { reportError, setReportErrorHandler } from "./reportError";
 export { makeWorkspaceContextInitialState } from "./providers/WorkspaceContextProvider";
+export { default as ExtensionCatalogProvider } from "./providers/ExtensionCatalogProvider";
+export { SharedProviders } from "./providers/SharedProviders";
 
 // CoScene
 export { migratePanelsState, migrateLayout } from "./services/migrateLayout";
@@ -46,5 +53,10 @@ export { default as CoSceneDataPlatformDataSourceFactory } from "./dataSources/C
 export { default as ConsoleApi } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 export type { LayoutID } from "./context/CoSceneCurrentLayoutContext";
 export { IdbExtensionLoader } from "./services/IdbExtensionLoader";
+export type { IUrdfStorage } from "./services/UrdfStorage";
 
 export type { AppBarProps } from "./components/AppBar";
+
+// desktop
+export type { INativeWindow, NativeWindowEvent } from "./context/NativeWindowContext";
+export type { INativeAppMenu, NativeAppMenuEvent } from "./context/NativeAppMenuContext";

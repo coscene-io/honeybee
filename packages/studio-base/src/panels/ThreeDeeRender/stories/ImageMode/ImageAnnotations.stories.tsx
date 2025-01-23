@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -27,7 +30,7 @@ export default {
 
 const AnnotationsStory = (
   args: { debugPicking?: boolean; imageModeConfigOverride?: Partial<ImageModeConfig> } = {},
-): JSX.Element => {
+): React.JSX.Element => {
   const { debugPicking, imageModeConfigOverride } = args;
   const width = 60;
   const height = 45;
@@ -472,7 +475,7 @@ export const MessageConverterSupport: StoryObj = {
 
 const AnnotationsUpdateStory = (
   imageModeConfigOverride: Partial<ImageModeConfig> = {},
-): JSX.Element => {
+): React.JSX.Element => {
   const readySignal = useReadySignal();
   const width = 60;
   const height = 45;
@@ -822,7 +825,7 @@ type UpdateLineArgs = {
   messages: readonly Partial<ImageAnnotations>[];
 };
 
-function UpdateLineStory({ messages }: UpdateLineArgs): JSX.Element {
+function UpdateLineStory({ messages }: UpdateLineArgs): React.JSX.Element {
   const readySignal = useReadySignal();
   const width = 60;
   const height = 45;
@@ -1210,7 +1213,7 @@ type SyncAnnotationsStoryArgs = {
   hasCalibrationTopic: boolean;
 };
 
-const SyncAnnotationsStory = (args: SyncAnnotationsStoryArgs): JSX.Element => {
+const SyncAnnotationsStory = (args: SyncAnnotationsStoryArgs): React.JSX.Element => {
   const { status, hasCalibrationTopic } = args;
   const width = 60;
   const height = 45;

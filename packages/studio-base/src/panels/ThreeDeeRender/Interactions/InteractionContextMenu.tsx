@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -41,7 +44,7 @@ function InteractionContextMenuItem({
 }: {
   selectObject: (arg0?: SelectedObject) => void;
   interactiveObject?: MouseEventObject;
-}): JSX.Element {
+}): React.JSX.Element {
   const object = getObject(interactiveObject) as Partial<Interactive<BaseMarker>>;
 
   const selectItemObject = useCallback(() => {
@@ -60,7 +63,7 @@ export function InteractionContextMenu({
   clickedPosition = { clientX: 0, clientY: 0 },
   onClose,
   selectObject,
-}: Props): JSX.Element {
+}: Props): React.JSX.Element {
   return (
     <Menu
       open

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -138,7 +141,7 @@ function itemToFzfResult<T>(item: T): FzfResultItem<T> {
 export default React.forwardRef(function Autocomplete<T = unknown>(
   props: AutocompleteProps<T>,
   ref: React.ForwardedRef<IAutocomplete>,
-): JSX.Element {
+): React.JSX.Element {
   const inputRef = useRef<HTMLInputElement>(ReactNull);
 
   const { classes, cx } = useStyles();
@@ -316,4 +319,4 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
       value={value ?? ReactNull}
     />
   );
-}) as <T>(props: AutocompleteProps<T> & React.RefAttributes<IAutocomplete>) => JSX.Element; // https://stackoverflow.com/a/58473012/23649
+}) as <T>(props: AutocompleteProps<T> & React.RefAttributes<IAutocomplete>) => React.JSX.Element; // https://stackoverflow.com/a/58473012/23649

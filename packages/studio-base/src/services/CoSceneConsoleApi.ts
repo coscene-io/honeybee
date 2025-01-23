@@ -1,38 +1,21 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { Value, PartialMessage } from "@bufbuild/protobuf";
-import { CsWebClient } from "@coscene-io/coscene/queries";
-import { Metric } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/common/metric_pb";
-import { TaskCategoryEnum } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/enums/task_category_pb";
-import { TaskStateEnum } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/enums/task_state_pb";
-import { Project } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { User as CoUser } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/resources/user_pb";
-import { IncCounterRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/services/metric_pb";
-import { GetProjectRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/services/project_pb";
-import {
-  GetUserRequest,
-  ListOrganizationUsersRequest,
-} from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha1/services/user_pb";
-import { Event } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/event_pb";
-import { Record as CoSceneRecord } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { Task } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/resources/task_pb";
-import {
-  CreateEventRequest,
-  DeleteEventRequest,
-  UpdateEventRequest,
-} from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/event_pb";
-import { GetRecordRequest } from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/record_pb";
-import {
-  UpsertTaskRequest,
-  SyncTaskRequest,
-} from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/task_pb";
-import {
-  GetTicketSystemMetadataRequest,
-  TicketSystemMetadata,
-} from "@coscene-io/cosceneapis/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
+import { Value, PartialMessage, Empty, FieldMask } from "@bufbuild/protobuf";
+import { Metric } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/common/metric_pb";
+import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
+import { MetricService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/metric_connect";
+import { IncCounterRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/metric_pb";
+import { OrganizationService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_connect";
+import { GetOrganizationRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_pb";
 import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
 import {
+  GetProjectRequest,
   ListUserProjectsRequest,
   ListUserProjectsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
@@ -43,19 +26,46 @@ import {
   BatchGetUserRolesRequest,
   BatchGetUserRolesResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_pb";
+import { UserService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_connect";
+import {
+  GetUserRequest,
+  BatchGetUsersRequest,
+  BatchGetUsersResponse,
+  ListOrganizationUsersRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
 import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
-import { Event as Event_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
+import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
 import {
   UpsertConfigMapRequest,
   GetConfigMapRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
+import { DiagnosisService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_connect";
+import { GetDiagnosisRuleRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_pb";
+import { EventService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_connect";
+import {
+  CreateEventRequest,
+  DeleteEventRequest,
+  UpdateEventRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
+  GetRecordRequest,
   ListRecordsRequest,
   ListRecordsResponse,
+  CreateRecordRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
+import { TicketSystemService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/ticket_system_connect";
+import {
+  GetTicketSystemMetadataRequest,
+  TicketSystemMetadata,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
+import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
+import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_connect";
 import {
   ListFilesRequest,
@@ -66,12 +76,15 @@ import {
   GenerateFileUploadUrlsRequest,
   GenerateFileUploadUrlsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
+import { TaskService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_connect";
+import {
+  UpsertTaskRequest,
+  SyncTaskRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
 import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resources/job_run_pb";
 import { JobRunService } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_connect";
 import { GetJobRunRequest } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_pb";
 import * as base64 from "@protobufjs/base64";
-import * as google_protobuf_empty_pb from "google-protobuf/google/protobuf/empty_pb";
-import { FieldMask } from "google-protobuf/google/protobuf/field_mask_pb";
 import { StatusCode } from "grpc-web";
 import { t } from "i18next";
 import toast from "react-hot-toast";
@@ -83,7 +96,11 @@ import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutCo
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
+import { Auth } from "@foxglove/studio-desktop/src/common/types";
+
+const authBridge = (global as { authBridge?: Auth }).authBridge;
 
 export type User = {
   id: string;
@@ -205,29 +222,26 @@ export type MediaStatus =
   | "PERMISSION"
   | "GENERATED_SUCCESS";
 
+export type FileList = {
+  source: string;
+  displayName: string;
+  startTime: number;
+  endTime: number;
+  projectName: string;
+  recordName: string;
+  ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
+  mediaStatus: MediaStatus;
+  sha256: string;
+};
+
 export type getPlaylistResponse = {
-  fileList: {
-    source: string;
-    displayName: string;
-    startTime: number;
-    endTime: number;
-    projectName: string;
-    recordName: string;
-    ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
-    mediaStatus: MediaStatus;
-    sha256: string;
-  }[];
+  fileList: FileList[];
 };
 
 type CoverageResponse = {
   deviceId: string;
   start: string;
   end: string;
-};
-
-type DeviceResponse = {
-  id: string;
-  name: string;
 };
 
 export type LayoutID = string & { __brand: "LayoutID" };
@@ -270,7 +284,7 @@ export type SingleFileGetEventsRequest = {
 };
 
 export type EventList = {
-  event: Event_es;
+  event: Event;
   projectDisplayName: string;
   recordDisplayName: string;
 }[];
@@ -290,21 +304,32 @@ class CoSceneConsoleApi {
   #bffUrl: string;
   #authHeader?: string;
   #responseObserver: undefined | ((response: Response) => void);
-  #addTopicPrefix: string;
+  #addTopicPrefix: "false" | "true" = "false";
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
   #baseInfo: BaseInfo = {};
+  #type?: "realtime" | "playback" | "other";
+  #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
 
   public constructor(
     baseUrl: string,
     bffUrl: string,
-    addTopicPrefix: string,
-    timeMode: "absoluteTime" | "relativeTime",
+    jwt: string,
+    // The following three parameters are only used in data sources
+    addTopicPrefix?: "true" | "false",
+    timeMode?: "absoluteTime" | "relativeTime",
+    playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW",
   ) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
+    this.#authHeader = jwt;
     this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
-    this.#timeMode = timeMode;
+    this.#timeMode = timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime";
+    this.#playbackQualityLevel = playbackQualityLevel ?? "ORIGINAL";
+  }
+
+  public getPlaybackQualityLevel(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
+    return this.#playbackQualityLevel;
   }
 
   public setApiBaseInfo(baseInfo: BaseInfo): void {
@@ -313,6 +338,14 @@ class CoSceneConsoleApi {
 
   public getApiBaseInfo(): BaseInfo {
     return this.#baseInfo;
+  }
+
+  public setType(type?: "realtime" | "playback" | "other"): void {
+    this.#type = type;
+  }
+
+  public getType(): "realtime" | "playback" | "other" | undefined {
+    return this.#type;
   }
 
   public getProblemManager(): PlayerProblemManager {
@@ -331,6 +364,10 @@ class CoSceneConsoleApi {
     return this.#baseUrl;
   }
 
+  public getBffUrl(): string {
+    return this.#bffUrl;
+  }
+
   public setAuthHeader(header: string): void {
     this.#authHeader = header;
   }
@@ -343,7 +380,7 @@ class CoSceneConsoleApi {
     return this.#addTopicPrefix;
   }
 
-  public setAddTopicPrefix(prefix: string): void {
+  public setAddTopicPrefix(prefix: "true" | "false"): void {
     this.#addTopicPrefix = prefix;
   }
 
@@ -416,10 +453,6 @@ class CoSceneConsoleApi {
 
   public async getExtension(id: string): Promise<ExtensionResponse> {
     return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
-  }
-
-  public async getDevice(id: string): Promise<DeviceResponse> {
-    return await this.#get<DeviceResponse>(`/v1/devices/${id}`);
   }
 
   public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
@@ -500,16 +533,11 @@ class CoSceneConsoleApi {
         ? `${this.#bffUrl}${url}`
         : `${this.#baseUrl}${url}`;
 
-    const headers: Record<string, string> = {
-      Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
-    };
     const fullConfig: RequestInit = {
       ...config,
       headers: {
-        ...headers,
+        Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
         ...config?.headers,
-        "Topic-Prefix": this.#addTopicPrefix,
-        "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
       },
     };
 
@@ -538,14 +566,20 @@ class CoSceneConsoleApi {
     this.#responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
-        window.location.href = "/login";
+        if (!isDesktopApp()) {
+          window.location.href = "/login";
+        } else {
+          authBridge?.logout();
+        }
       } else if (res.status === 403) {
         throw new Error(
           "Unauthorized. Please check if you are logged in and have permission to access.",
         );
       }
-      const json = (await res.json().catch((err) => {
-        throw new Error(`Status ${res.status}: ${err.message}`);
+      const json = (await res.json().catch((err: unknown) => {
+        throw new Error(
+          `Status ${res.status}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       })) as { message?: string; error?: string; errorCode?: number };
       const message = json.message ?? json.error;
       if (json.errorCode != undefined) {
@@ -564,20 +598,26 @@ class CoSceneConsoleApi {
 
     try {
       return { status: res.status, json: (await res.json()) as T };
-    } catch (err) {
+    } catch {
       throw new Error("Request Failed.");
     }
   }
 
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
-  async #post<T>(apiPath: string, body?: unknown, customHost?: boolean): Promise<T> {
+  async #post<T>(
+    apiPath: string,
+    body?: unknown,
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    customHost?: boolean,
+    config?: RequestInit,
+  ): Promise<T> {
     return (
       await this.#request<T>(
         apiPath,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
+          ...(config ?? {}),
+          headers: { "Content-Type": "application/json", ...(config?.headers ?? {}) },
         },
         {},
         customHost,
@@ -614,6 +654,13 @@ class CoSceneConsoleApi {
         id: key,
       },
       undefined,
+      {
+        headers: {
+          "Topic-Prefix": this.#addTopicPrefix,
+          "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
+          "Playback-Quality-Level": this.#playbackQualityLevel,
+        },
+      },
     );
 
     const metaData = topics.topics.map((topic) => {
@@ -633,8 +680,43 @@ class CoSceneConsoleApi {
     };
   }
 
-  public getStreamUrl(): string {
-    return `${this.#baseUrl}/v1/data/getStreams`;
+  public async getStreams({
+    start,
+    end,
+    topics,
+    id,
+    signal,
+    projectName,
+  }: {
+    start: number;
+    end: number;
+    topics: string[];
+    id: string;
+    signal: AbortSignal;
+    projectName: string;
+  }): Promise<Response> {
+    const { fullUrl, fullConfig } = this.getRequectConfig("/v1/data/getStreams", {
+      method: "POST",
+      signal,
+      cache: "no-cache",
+      headers: {
+        // Include the version of studio in the request Useful when scraping logs to determine what
+        // versions of the app are making requests.
+        "Content-Type": "application/json",
+        "Topic-Prefix": this.#addTopicPrefix,
+        "Playback-Quality-Level": this.#playbackQualityLevel,
+        "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
+        ProjectName: projectName,
+      },
+      body: JSON.stringify({
+        start,
+        end,
+        topics,
+        id,
+      }),
+    });
+
+    return await fetch(fullUrl, fullConfig);
   }
 
   public async getPlaylist(key: string): Promise<getPlaylistResponse> {
@@ -657,12 +739,13 @@ class CoSceneConsoleApi {
     parent: string;
     recordName: string;
   }): Promise<Event> {
-    const createEventRequest = new CreateEventRequest();
-    createEventRequest.setParent(parent);
-    createEventRequest.setEvent(event);
-    createEventRequest.setRecord(recordName);
+    const createEventRequest = new CreateEventRequest({
+      parent,
+      event,
+      record: recordName,
+    });
 
-    const newEvent = await CsWebClient.getEventClient().createEvent(createEventRequest);
+    const newEvent = await getPromiseClient(EventService).createEvent(createEventRequest);
 
     return newEvent;
   }
@@ -681,21 +764,19 @@ class CoSceneConsoleApi {
         uint8Array[i] = binaryString.charCodeAt(i);
       }
       return {
-        event: Event_es.fromBinary(uint8Array),
+        event: Event.fromBinary(uint8Array),
         projectDisplayName: event.projectDisplayName,
         recordDisplayName: event.recordDisplayName,
       };
     });
   }
 
-  public async deleteEvent({
-    eventName,
-  }: {
-    eventName: string;
-  }): Promise<google_protobuf_empty_pb.Empty> {
-    const deleteEventRequest = new DeleteEventRequest().setName(eventName);
+  public async deleteEvent({ eventName }: { eventName: string }): Promise<Empty> {
+    const deleteEventRequest = new DeleteEventRequest({
+      name: eventName,
+    });
 
-    return await CsWebClient.getEventClient().deleteEvent(deleteEventRequest);
+    return await getPromiseClient(EventService).deleteEvent(deleteEventRequest);
   }
 
   public async updateEvent({
@@ -705,27 +786,40 @@ class CoSceneConsoleApi {
     event: Event;
     updateMask: FieldMask;
   }): Promise<void> {
-    const req = new UpdateEventRequest();
-    req.setEvent(event);
-    req.setUpdateMask(updateMask);
+    const req = new UpdateEventRequest({
+      event,
+      updateMask,
+    });
 
-    await CsWebClient.getEventClient().updateEvent(req);
+    await getPromiseClient(EventService).updateEvent(req);
   }
 
   public async getUser(userName: string): Promise<CoUser> {
-    const request = new GetUserRequest().setName(userName);
-    const result = await CsWebClient.getUserClient().getUser(request);
+    const request = new GetUserRequest({
+      name: userName,
+    });
+    const result = await getPromiseClient(UserService).getUser(request);
     return result;
+  }
+
+  public async batchGetUsers(userNames: string[]): Promise<BatchGetUsersResponse> {
+    const request = new BatchGetUsersRequest({
+      names: userNames,
+    });
+    return await getPromiseClient(UserService).batchGetUsers(request);
+  }
+
+  public async getOrg(orgName: string): Promise<Organization> {
+    const request = new GetOrganizationRequest({ name: orgName });
+    return await getPromiseClient(OrganizationService).getOrganization(request);
   }
 
   public async createTask({
     parent,
-    record,
     task,
     event,
   }: {
     parent: string;
-    record: string;
     task: {
       title: string;
       description: string;
@@ -735,19 +829,30 @@ class CoSceneConsoleApi {
     event: Event;
   }): Promise<Task> {
     const currentUser = await this.getUser("users/current");
-    const newTask = new Task()
-      .setCategory(TaskCategoryEnum.TaskCategory.RECORD)
-      .setRecord(record)
-      .setDescription(task.title)
-      .setTitle(task.title)
-      .setDescription(task.description)
-      .setState(TaskStateEnum.TaskState.PENDING)
-      .setAssignee(task.assignee)
-      .setAssigner(currentUser.getName());
+    const newTask = new Task({
+      category: TaskCategoryEnum_TaskCategory.COMMON,
+      title: task.title,
+      description: task.description,
+      state: TaskStateEnum_TaskState.PENDING,
+      assignee: task.assignee,
+      assigner: currentUser.name,
+      detail: {
+        case: "commonTaskDetail",
+        value: {
+          related: {
+            case: "event",
+            value: event.name,
+          },
+        },
+      },
+    });
 
-    const request = new UpsertTaskRequest().setParent(parent).setTask(newTask).setEvent(event);
-    const result = await CsWebClient.getTaskClient().upsertTask(request);
-    return result;
+    const request = new UpsertTaskRequest({
+      parent,
+      task: newTask,
+    });
+    // create task does not have remove dumplicates logic, so we use upsert task to create task
+    return await getPromiseClient(TaskService).upsertTask(request);
   }
 
   public async getTicketSystemMetadata({
@@ -755,23 +860,28 @@ class CoSceneConsoleApi {
   }: {
     parent: string;
   }): Promise<TicketSystemMetadata> {
-    const request = new GetTicketSystemMetadataRequest().setName(parent);
-    const result = await CsWebClient.getTicketSystemClient().getTicketSystemMetadata(request);
+    const request = new GetTicketSystemMetadataRequest({
+      name: parent,
+    });
+    const result = await getPromiseClient(TicketSystemService).getTicketSystemMetadata(request);
     return result;
   }
 
   public async syncTask({ name }: { name: string }): Promise<void> {
-    const req = new SyncTaskRequest().setName(name);
+    const req = new SyncTaskRequest({
+      name,
+    });
 
-    await CsWebClient.getTaskClient().syncTask(req);
+    await getPromiseClient(TaskService).syncTask(req);
   }
 
   public async listOrganizationUsers(): Promise<CoUser[]> {
-    const request = new ListOrganizationUsersRequest()
-      .setParent("organizations/current")
-      .setPageSize(100);
-    const result = await CsWebClient.getUserClient().listOrganizationUsers(request);
-    return result.getOrganizationUsersList();
+    const request = new ListOrganizationUsersRequest({
+      parent: "organizations/current",
+      pageSize: 100,
+    });
+    const result = await getPromiseClient(UserService).listOrganizationUsers(request);
+    return result.organizationUsers;
   }
 
   public async sendIncCounter({
@@ -784,27 +894,29 @@ class CoSceneConsoleApi {
     tag?: Map<string, string>;
   }): Promise<void> {
     const req = new IncCounterRequest();
-    const metric = new Metric();
-    metric.setName(name);
-    metric.setDescription(desc);
+    const metric = new Metric({
+      name,
+      description: desc,
+    });
     for (const [key, value] of tag.entries()) {
-      metric.getLabelsMap().set(key, value);
+      metric.labels[key] = value;
     }
 
     if (this.#baseInfo.organizationId) {
       const orgId = this.#baseInfo.organizationId.split("/").pop();
-      metric.getLabelsMap().set("org_id", orgId ? orgId : "");
+      metric.labels["org_id"] = orgId ?? "";
     }
 
-    req.setCounter(metric);
-    await CsWebClient.getMetricClient().incCounter(req);
+    req.counter = metric;
+    await getPromiseClient(MetricService).incCounter(req);
   }
 
   public async getRecord({ recordName }: { recordName: string }): Promise<CoSceneRecord> {
-    const req = new GetRecordRequest();
-    req.setName(recordName);
+    const req = new GetRecordRequest({
+      name: recordName,
+    });
 
-    return await CsWebClient.getRecordClient().getRecord(req);
+    return await getPromiseClient(RecordService).getRecord(req);
   }
 
   public async upsertUserConfig({
@@ -836,16 +948,18 @@ class CoSceneConsoleApi {
     const configName = `users/${userId}/configMaps/${configId}`;
     const req = new GetConfigMapRequest({ name: configName });
     const configMapClient = getPromiseClient(ConfigMapService);
-    return await configMapClient.getConfigMap(req).catch((err) => {
-      if (err.code === StatusCode.NOT_FOUND) {
+    return await configMapClient.getConfigMap(req).catch((err: unknown) => {
+      if (err instanceof Error && (err.message as unknown as StatusCode) === StatusCode.NOT_FOUND) {
         return undefined;
       }
     });
   }
 
   public async getProject({ projectName }: { projectName: string }): Promise<Project> {
-    const req = new GetProjectRequest().setName(projectName);
-    return await CsWebClient.getProjectClient().getProject(req);
+    const req = new GetProjectRequest({
+      name: projectName,
+    });
+    return await getPromiseClient(ProjectService).getProject(req);
   }
 
   public async getLayoutTemplatesIndex(layoutTemplatesUrl: string): Promise<LayoutTemplatesIndex> {
@@ -934,9 +1048,8 @@ class CoSceneConsoleApi {
     const req = new GenerateFileUploadUrlsRequest(payload);
     return await getPromiseClient(FileService)
       .generateFileUploadUrls(req)
-      .catch((err) => {
-        console.error("error code", err.code);
-        console.error("error message", err.message);
+      .catch((err: unknown) => {
+        console.error("generateFileUploadUrls", err);
         throw err;
       });
   }
@@ -985,7 +1098,7 @@ class CoSceneConsoleApi {
     const req = new GenerateFileDownloadUrlRequest(payload);
     return await getPromiseClient(FileService)
       .generateFileDownloadUrl(req)
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error("error", err);
         throw err;
       });
@@ -1071,7 +1184,7 @@ class CoSceneConsoleApi {
     const req = new DeleteFileRequest(payload);
     await getPromiseClient(FileService)
       .deleteFile(req)
-      .catch((err) => {
+      .catch((err: unknown) => {
         throw err;
       });
   }
@@ -1079,6 +1192,28 @@ class CoSceneConsoleApi {
   public async getFilesStatus(key: string): Promise<Response> {
     const { fullConfig, fullUrl } = this.getRequectConfig(`/v1/data/getFilesStatus/${key}`);
     return await fetch(fullUrl, fullConfig);
+  }
+
+  public async createRecord(payload: PartialMessage<CreateRecordRequest>): Promise<CoSceneRecord> {
+    const req = new CreateRecordRequest(payload);
+    return await getPromiseClient(RecordService).createRecord(req);
+  }
+
+  public async getDiagnosisRule(): Promise<DiagnosisRule> {
+    const projectId = this.#baseInfo.projectId;
+    const warehouseId = this.#baseInfo.warehouseId;
+
+    const name = `warehouses/${warehouseId}/projects/${projectId}/diagnosisRule`;
+
+    const req = new GetDiagnosisRuleRequest({
+      name,
+    });
+
+    return await getPromiseClient(DiagnosisService).getDiagnosisRule(req);
+  }
+
+  public async syncMedia({ key }: { key: string }): Promise<void> {
+    await this.#patch("/v1/data/sync", { id: key });
   }
 }
 

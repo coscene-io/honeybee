@@ -1,0 +1,55 @@
+{
+  "name": "@foxglove/ws-protocol",
+  "version": "0.1.2",
+  "description": "coScene WebSocket protocol",
+  "keywords": [
+    "foxglove",
+    "websocket",
+    "robotics",
+    "ros",
+    "ros2"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coscene-io/honeybee.git"
+  },
+  "author": {
+    "name": "coScene Technologies",
+    "email": "contact@coscene.io"
+  },
+  "homepage": "https://www.coscene.cn/",
+  "main": "./src/index.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "prepack": "yarn build",
+    "build": "tsc -b tsconfig.json tsconfig.cjs.json",
+    "lint": "eslint --report-unused-disable-directives --fix .",
+    "lint:ci": "eslint --report-unused-disable-directives .",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@foxglove/eslint-plugin": "2.0.0",
+    "@foxglove/tsconfig": "2.0.0",
+    "@types/debug": "^4.1.9",
+    "@types/jest": "^29.5.11",
+    "@types/lodash": "4.14.202",
+    "@types/node": "^20.11.10",
+    "commander": "11.1.0",
+    "consumer-queue": "1.1.0",
+    "eslint": "9.16.0",
+    "jest": "29.7.0",
+    "prettier": "2.8.8",
+    "ts-jest": "29.1.2",
+    "ts-node": "10.9.2",
+    "typescript": "5.6.2"
+  },
+  "dependencies": {
+    "debug": "^4",
+    "eventemitter3": "^5.0.1",
+    "tslib": "^2.6.3"
+  }
+}

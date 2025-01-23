@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -9,10 +12,13 @@ import {
   PanelRight24Regular,
   SlideAdd24Regular,
   QuestionCircle24Regular,
+  ChevronDown12Regular,
+  Desktop24Regular,
 } from "@fluentui/react-icons";
-import { Avatar, IconButton, Tooltip } from "@mui/material";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import PersonIcon from "@mui/icons-material/Person";
+import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography } from "@mui/material";
+import { useCallback, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
@@ -34,6 +40,9 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { downloadLatestStudio } from "@foxglove/studio-base/util/download";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { AddPanelMenu } from "./AddPanelMenu";
 import { AppBarContainer } from "./AppBarContainer";
@@ -74,13 +83,16 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
         backgroundColor: theme.palette.background.hover,
       },
       "&.Mui-selected": {
-        backgroundColor: theme.palette.appBar.primary,
+        backgroundColor: theme.palette.background.hover,
         color: theme.palette.common.white,
       },
       "&.Mui-disabled": {
         color: "currentColor",
         opacity: theme.palette.action.disabledOpacity,
       },
+    },
+    dropDownIcon: {
+      fontSize: "12px !important",
     },
     start: {
       gridArea: "start",
@@ -124,7 +136,6 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     },
     avatar: {
       color: theme.palette.common.white,
-      backgroundColor: tc(theme.palette.appBar.main).lighten().toString(),
       height: theme.spacing(3.5),
       width: theme.spacing(3.5),
     },
@@ -164,7 +175,7 @@ const selectRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.
 
 const selectUser = (store: UserStore) => store.user;
 
-export function AppBar(props: AppBarProps): JSX.Element {
+export function AppBar(props: AppBarProps): React.JSX.Element {
   const {
     debugDragRegion,
     isMaximized,
@@ -197,6 +208,56 @@ export function AppBar(props: AppBarProps): JSX.Element {
   const userMenuOpen = Boolean(userAnchorEl);
   const panelMenuOpen = Boolean(panelAnchorEl);
   const userInfo = useCoSceneCurrentUser(selectUser);
+  const [confirm, confirmModal] = useConfirm();
+
+  const handleOpenInCoStudio = useCallback(async () => {
+    const skipConfirm = localStorage.getItem("openInCoStudioDoNotShowAgain") === "true";
+    if (skipConfirm) {
+      const url = window.location.href;
+      const studioUrl = url.replace(/^https?:\/\//i, "coscene://");
+      window.open(studioUrl, "_self");
+      return;
+    }
+
+    let doNotShowAgain = false;
+    const response = await confirm({
+      title: t("openInCoStudio"),
+      prompt: (
+        <>
+          <Trans
+            t={t}
+            ns="appBar"
+            i18nKey="openInCoStudioPrompt"
+            components={{
+              download: <Link href="#" onClick={downloadLatestStudio} />,
+            }}
+          />
+
+          <Stack direction="row" alignItems="center">
+            <Checkbox
+              onChange={(e) => {
+                doNotShowAgain = e.target.checked;
+              }}
+            />
+            <Typography>{t("doNotShowAgain")}</Typography>
+          </Stack>
+        </>
+      ),
+      ok: t("openByCoStudio"),
+      cancel: t("cancel", { ns: "cosGeneral" }),
+    });
+    if (response !== "ok") {
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (doNotShowAgain) {
+      localStorage.setItem("openInCoStudioDoNotShowAgain", "true");
+    }
+    const url = window.location.href;
+    const studioUrl = url.replace(/^https?:\/\//i, "coscene://");
+    window.open(studioUrl, "_self");
+  }, [confirm, t]);
 
   return (
     <>
@@ -215,11 +276,16 @@ export function AppBar(props: AppBarProps): JSX.Element {
                 aria-haspopup="true"
                 aria-expanded={appMenuOpen ? "true" : undefined}
                 data-tourid="app-menu-button"
-                onClick={() => {
-                  window.location.href = window.location.origin;
+                onClick={(event) => {
+                  if (isDesktopApp()) {
+                    setAppMenuEl(event.currentTarget);
+                  } else {
+                    window.open(window.location.origin, "_blank");
+                  }
                 }}
               >
                 <CoSceneLogo />
+                {isDesktopApp() && <ChevronDown12Regular className={classes.dropDownIcon} />}
               </IconButton>
               <AppMenu
                 open={appMenuOpen}
@@ -257,6 +323,21 @@ export function AppBar(props: AppBarProps): JSX.Element {
               {appBarLayoutButton}
               <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
+                {!isDesktopApp() && (
+                  <AppBarIconButton
+                    title={t("openInCoStudio")}
+                    aria-label={t("openInCoStudio")}
+                    onClick={() => {
+                      void handleOpenInCoStudio();
+                    }}
+                    data-tourid="open-in-coStudio"
+                  >
+                    <Desktop24Regular
+                      color={theme.palette.appBar.icon}
+                      style={{ marginLeft: "2px" }}
+                    />
+                  </AppBarIconButton>
+                )}
                 <AppBarIconButton
                   title={
                     <>
@@ -264,7 +345,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
                       <kbd className={classes.keyEquivalent}>[</kbd>
                     </>
                   }
-                  aria-label={`${leftSidebarOpen ? t("hideLeftSidebar") : t("showLeftSidebar")}`}
+                  aria-label={leftSidebarOpen ? t("hideLeftSidebar") : t("showLeftSidebar")}
                   onClick={() => {
                     sidebarActions.left.setOpen(!leftSidebarOpen);
                   }}
@@ -283,7 +364,7 @@ export function AppBar(props: AppBarProps): JSX.Element {
                       <kbd className={classes.keyEquivalent}>]</kbd>
                     </>
                   }
-                  aria-label={`${rightSidebarOpen ? t("hideRightSidebar") : t("showRightSidebar")}`}
+                  aria-label={rightSidebarOpen ? t("hideRightSidebar") : t("showRightSidebar")}
                   onClick={() => {
                     sidebarActions.right.setOpen(!rightSidebarOpen);
                   }}
@@ -329,7 +410,9 @@ export function AppBar(props: AppBarProps): JSX.Element {
                     src={userInfo?.avatarUrl ?? undefined}
                     className={classes.avatar}
                     variant="rounded"
-                  />
+                  >
+                    {userInfo?.avatarUrl == undefined && <PersonIcon color="secondary" />}
+                  </Avatar>
                 </IconButton>
               </Tooltip>
               {showCustomWindowControls && (
@@ -361,8 +444,8 @@ export function AppBar(props: AppBarProps): JSX.Element {
         handleClose={() => {
           setUserAnchorEl(undefined);
         }}
-        userInfo={userInfo}
       />
+      {confirmModal}
     </>
   );
 }

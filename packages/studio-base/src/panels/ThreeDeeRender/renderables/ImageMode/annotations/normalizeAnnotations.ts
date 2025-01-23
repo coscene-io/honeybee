@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -20,7 +23,7 @@ const DEFAULT_FONT_SIZE = 12;
 const DEFAULT_PADDING = 4;
 
 // Supported annotation schema names
-const ANNOTATION_DATATYPES = [
+type ANNOTATION_DATATYPES = [
   // Single marker
   "visualization_msgs/ImageMarker",
   "visualization_msgs/msg/ImageMarker",
@@ -40,7 +43,7 @@ const ANNOTATION_DATATYPES = [
   "foxglove_msgs/msg/ImageAnnotations",
   "foxglove.ImageAnnotations",
   "foxglove::ImageAnnotations",
-] as const;
+];
 
 function foxglovePointTypeToStyle(
   type: PointsAnnotationType,
@@ -204,7 +207,7 @@ function normalizeRosImageMarker(
 
 function normalizeAnnotations(message: unknown, datatype: string): Annotation[] {
   // Cast to the union of all supported datatypes to ensure we handle all cases
-  switch (datatype as (typeof ANNOTATION_DATATYPES)[number]) {
+  switch (datatype as ANNOTATION_DATATYPES[number]) {
     // single marker
     case "visualization_msgs/ImageMarker":
     case "visualization_msgs/msg/ImageMarker":

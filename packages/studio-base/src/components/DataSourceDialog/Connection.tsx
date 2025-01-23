@@ -1,14 +1,20 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Alert, Link, Tab, Tabs, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useState, useMemo, useCallback, useLayoutEffect, FormEvent } from "react";
+import { toast } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { BuiltinIcon } from "@foxglove/studio-base/components/BuiltinIcon";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   WorkspaceContextStore,
@@ -16,6 +22,7 @@ import {
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { FormField } from "./FormField";
 import View from "./View";
@@ -84,11 +91,18 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const selectDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
+const selectUser = (store: UserStore) => store.user;
+const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 
-export default function Connection(): JSX.Element {
+export default function Connection(): React.JSX.Element {
   const { classes } = useStyles();
   const theme = useTheme();
   const mdUp = useMediaQuery(theme.breakpoints.up("md"));
+
+  const { t } = useTranslation("openDialog");
+
+  const currentUser = useCurrentUser(selectUser);
+  const loginStatus = useCurrentUser(selectUserLoginStatus);
 
   const { activeDataSource } = useWorkspaceStore(selectDataSourceDialog);
   const { dialogActions } = useWorkspaceActions();
@@ -150,19 +164,40 @@ export default function Connection(): JSX.Element {
     if (!selectedSource) {
       return;
     }
-    selectSource(selectedSource.id, { type: "connection", params: fieldValues });
+
+    if (selectedSource.id === "coscene-data-platform") {
+      const parsedUrl = parseAppURLState(new URL(fieldValues.url ?? ""));
+      if (parsedUrl?.dsParams?.key) {
+        selectSource(selectedSource.id, {
+          type: "connection",
+          params: { ...currentUser, key: parsedUrl.dsParams.key },
+        });
+      } else {
+        toast.error("baseInfoKey is required");
+      }
+    } else {
+      selectSource(selectedSource.id, {
+        type: "connection",
+        params: { ...currentUser, ...fieldValues },
+      });
+    }
+
     void analytics.logEvent(AppEvent.DIALOG_CLOSE, { activeDataSource });
     dialogActions.dataSource.close();
   }, [
     selectedSource,
-    selectSource,
-    fieldValues,
     analytics,
     activeDataSource,
     dialogActions.dataSource,
+    fieldValues,
+    selectSource,
+    currentUser,
   ]);
 
-  const disableOpen = selectedSource?.disabledReason != undefined || fieldErrors.size > 0;
+  const disableOpen =
+    selectedSource?.disabledReason != undefined ||
+    fieldErrors.size > 0 ||
+    (selectedSource?.needLogin != undefined && loginStatus === "notLogin");
 
   const onSubmit = useCallback(
     (event: FormEvent) => {
@@ -179,7 +214,7 @@ export default function Connection(): JSX.Element {
       <Stack className={classes.grid} data-testid="OpenConnection">
         <header className={classes.header}>
           <Typography variant="h3" fontWeight={600} gutterBottom>
-            Open a new connection
+            {t("openNewConnection")}
           </Typography>
         </header>
         <div className={classes.sidebar}>
@@ -222,6 +257,9 @@ export default function Connection(): JSX.Element {
               {selectedSource?.disabledReason != undefined && (
                 <Alert severity="warning">{selectedSource.disabledReason}</Alert>
               )}
+              {selectedSource?.needLogin != undefined && loginStatus === "notLogin" && (
+                <Alert severity="warning">{t("pleaseLoginFirst")}</Alert>
+              )}
 
               {selectedSource?.description && <Typography>{selectedSource.description}</Typography>}
               {selectedSource?.formConfig != undefined && (
@@ -255,19 +293,21 @@ export default function Connection(): JSX.Element {
                   </Stack>
                 </Stack>
               )}
-              <Stack direction="row" gap={1}>
-                {(selectedSource?.docsLinks ?? []).map((item) => (
-                  <Link
-                    key={item.url}
-                    color="primary"
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {item.label ? `View docs for ${item.label}` : "View docs"}
-                  </Link>
-                ))}
-              </Stack>
+              {selectedSource?.showDocs === true && (
+                <Stack direction="row" gap={1}>
+                  {(selectedSource.docsLinks ?? []).map((item) => (
+                    <Link
+                      key={item.url}
+                      color="primary"
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {item.label ? item.label : "View docs"}
+                    </Link>
+                  ))}
+                </Stack>
+              )}
             </Stack>
           </form>
         </Stack>

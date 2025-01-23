@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -45,7 +48,7 @@ export const CustomWindowControlsDragRegion: Story = {
   args: { showCustomWindowControls: true, debugDragRegion: true },
 };
 
-const Grid = (Story: StoryFn): JSX.Element => (
+const Grid = (Story: StoryFn): React.JSX.Element => (
   <Stack overflowY="auto">
     <div style={{ display: "grid", gridTemplateColumns: "max-content auto", alignItems: "center" }}>
       <Story />
@@ -60,7 +63,7 @@ const problems: MockMessagePipelineProps["problems"] = [
 
 export const PlayerStates: Story = {
   decorators: [
-    (Story: StoryFn): JSX.Element => {
+    (Story: StoryFn): React.JSX.Element => {
       const playerStates: (MockMessagePipelineProps & { label?: string })[] = [
         ...[
           PlayerPresence.NOT_PRESENT,
@@ -146,7 +149,7 @@ const remoteSources: MockMessagePipelineProps[] = [
 
 export const DataSources: Story = {
   decorators: [
-    (Story: StoryFn): JSX.Element => {
+    (Story: StoryFn): React.JSX.Element => {
       const playerStates: (MockMessagePipelineProps & { label?: string })[] = [
         {
           name: "Adapted from nuScenes dataset. Copyright © 2020 nuScenes. https://www.nuscenes.org/terms-of-use",

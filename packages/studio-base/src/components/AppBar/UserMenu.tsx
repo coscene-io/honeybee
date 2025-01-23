@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -50,7 +53,7 @@ export function UserMenu({
   disablePortal,
   handleClose,
   open,
-}: UserMenuProps): JSX.Element {
+}: UserMenuProps): React.JSX.Element {
   const { classes } = useStyles();
   const { currentUser, signIn, signOut } = useCurrentUser();
   const currentUserType = useCurrentUserType();
@@ -136,11 +139,11 @@ export function UserMenu({
         onClose={handleClose}
         onClick={handleClose}
         MenuListProps={{ className: classes.menuList, dense: true }}
-        PaperProps={
-          {
+        slotProps={{
+          paper: {
             "data-tourid": "user-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>
-        }
+          } as Partial<PaperProps & { "data-tourid"?: string }>,
+        }}
       >
         {currentUser && <MenuItem disabled>{currentUser.email}</MenuItem>}
         <MenuItem

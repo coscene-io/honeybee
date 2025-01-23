@@ -1,0 +1,17 @@
+{
+  "name": "desktop",
+  "private": true,
+  "devDependencies": {
+    "@foxglove/den": "workspace:*",
+    "@foxglove/log": "workspace:*",
+    "@foxglove/studio-base": "workspace:*",
+    "@foxglove/studio-desktop": "workspace:*",
+    "@foxglove/tsconfig": "2.0.0",
+    "@foxglove/ws-protocol": "0.1.2",
+    "@types/ws": "^8",
+    "electron": "33.3.0",
+    "playwright": "1.37.1",
+    "webpack": "5.93.0",
+    "ws": "8.18.0"
+  }
+}

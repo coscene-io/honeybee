@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -252,6 +255,7 @@ const createTabPanelWithSingleTab = (
   { idToReplace, layout, idsToRemove }: CreateTabPanelPayload,
 ): LayoutData => {
   const newId = getPanelIdForType(TAB_PANEL_TYPE);
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   const { configById: savedProps } = panelsState;
   // Build the layout for the new tab
   const layoutWithInlinedTabs = inlineTabPanelLayouts(layout, savedProps, idsToRemove);
@@ -289,6 +293,7 @@ const createTabPanelWithMultipleTabs = (
   panelsState: LayoutData,
   { idToReplace, layout, idsToRemove }: CreateTabPanelPayload,
 ): LayoutData => {
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   const { configById: savedProps } = panelsState;
   const newId = getPanelIdForType(TAB_PANEL_TYPE);
   const newLayout = replaceAndRemovePanels({ originalId: idToReplace, newId, idsToRemove }, layout);
@@ -830,6 +835,4 @@ export default function (panelsState: Readonly<LayoutData>, action: PanelsAction
     default:
       throw new Error("This reducer should only be used for panel actions");
   }
-
-  return panelsState;
 }

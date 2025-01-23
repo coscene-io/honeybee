@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -133,7 +136,7 @@ export function UnconnectedPanelLayout(props: Props): React.ReactElement {
       }
       const type = getPanelTypeFromId(id);
 
-      let panel: JSX.Element;
+      let panel: React.JSX.Element;
       const PanelComponent = panelComponents.get(type);
       if (PanelComponent) {
         panel = <PanelComponent childId={id} tabId={tabId} />;
@@ -148,7 +151,7 @@ export function UnconnectedPanelLayout(props: Props): React.ReactElement {
           key={id}
           path={path}
           createNode={createTile}
-          renderPreview={() => undefined as unknown as JSX.Element}
+          renderPreview={() => undefined as unknown as React.JSX.Element}
         >
           <Suspense
             fallback={
@@ -195,7 +198,7 @@ export function UnconnectedPanelLayout(props: Props): React.ReactElement {
   return <ErrorBoundary>{bodyToRender}</ErrorBoundary>;
 }
 
-function ExtensionsLoadingState(): JSX.Element {
+function ExtensionsLoadingState(): React.JSX.Element {
   return (
     <EmptyState>
       <Stack gap={1} alignItems="center">
@@ -210,14 +213,14 @@ const selectedLayoutExistsSelector = (state: LayoutState) =>
   state.selectedLayout?.data != undefined;
 const selectedLayoutMosaicSelector = (state: LayoutState) => state.selectedLayout?.data?.layout;
 
-export default function PanelLayout(): JSX.Element {
+export default function PanelLayout(): React.JSX.Element {
   const { layoutEmptyState } = useAppContext();
   const { changePanelLayout, setSelectedLayoutId } = useCurrentLayoutActions();
   const layoutManager = useLayoutManager();
   const layoutExists = useCurrentLayoutSelector(selectedLayoutExistsSelector);
   const mosaicLayout = useCurrentLayoutSelector(selectedLayoutMosaicSelector);
   const registeredExtensions = useExtensionCatalog((state) => state.installedExtensions);
-  const { t } = useTranslation("cosLayout");
+  const { t, i18n } = useTranslation("cosLayout");
 
   const createNewLayout = async () => {
     const layoutData: Omit<LayoutData, "name" | "id"> = {
@@ -269,7 +272,11 @@ export default function PanelLayout(): JSX.Element {
           target="_blank"
           underline="hover"
           variant="body1"
-          href="https://docs.coscene.cn/docs/recipes/viz/set-layout/"
+          href={
+            i18n.language === "zh"
+              ? "https://docs.coscene.cn/docs/recipes/viz/layout/"
+              : "https://docs.coscene.cn/en/docs/recipes/viz/layout/"
+          }
         >
           {t("userGuide", { ns: "cosGeneral" })}
         </Link>

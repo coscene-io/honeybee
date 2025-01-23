@@ -1,14 +1,18 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, toSec, Time, fromNanoSec, compare } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -25,7 +29,8 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { MediaStatus } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
+import { MediaStatus, FileList } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
 const HOVER_TOLERANCE = 0.01;
@@ -92,7 +97,7 @@ function positionBag({
 
   let colorCertificate: string | undefined = undefined;
 
-  if (ghostModeFileType === "NORMAL_FILE" || ghostModeFileType === "GHOST_SOURCE_FILE") {
+  if (ghostModeFileType !== "GHOST_RESULT_FILE") {
     colorCertificate = source.split("/files/")[0];
   }
 
@@ -139,11 +144,8 @@ export function PlaylistSyncAdapter(): ReactNull {
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
 
-  const timeMode = useMemo(() => {
-    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
-      ? "relativeTime"
-      : "absoluteTime";
-  }, []);
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -166,6 +168,38 @@ export function PlaylistSyncAdapter(): ReactNull {
     }
     return false;
   }, [baseInfoKey, startTime, endTime, consoleApi, setBagFiles]);
+
+  const updateBagFiles = useCallback(
+    (playListFiles: FileList[], mediaStatusList: { filename: string; status: MediaStatus }[]) => {
+      if (startTime == undefined || endTime == undefined) {
+        return;
+      }
+
+      const newStateRecordBagFiles = playListFiles.map((ele) => {
+        const currentStatus = mediaStatusList.find((media) => media.filename === ele.source)
+          ?.status;
+        return positionBag({
+          ...ele,
+          startTime,
+          endTime,
+          currentFileStartTime: ele.startTime,
+          currentFileEndTime: ele.endTime,
+          timeMode: timeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
+          mediaStatus:
+            ele.mediaStatus === "GENERATING" && currentStatus === "NORMAL"
+              ? "GENERATED_SUCCESS"
+              : currentStatus ?? "GENERATE_INCAPABLE",
+        });
+      });
+
+      newStateRecordBagFiles.sort((a, b) =>
+        a.startTime && b.startTime ? compare(a.startTime, b.startTime) : a.startTime ? -1 : 1,
+      );
+
+      setBagFiles({ loading: false, value: newStateRecordBagFiles });
+    },
+    [startTime, endTime, timeMode, setBagFiles],
+  );
 
   const [_records, syncRecords] = useAsyncFn(async () => {
     if (
@@ -190,7 +224,7 @@ export function PlaylistSyncAdapter(): ReactNull {
               endTime,
               currentFileStartTime: ele.startTime,
               currentFileEndTime: ele.endTime,
-              timeMode,
+              timeMode: timeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
             }),
           );
         });
@@ -209,6 +243,8 @@ export function PlaylistSyncAdapter(): ReactNull {
               // const stream = response.getReader();
               // Get the reader from the stream
               const reader = response.body?.getReader();
+              let buffer = "";
+
               // Define a function to read each chunk
               const readChunk = () => {
                 // Read a chunk from the reader
@@ -219,94 +255,44 @@ export function PlaylistSyncAdapter(): ReactNull {
                 reader
                   .read()
                   .then(({ value, done }) => {
-                    // Check if the stream is done
-                    if (done) {
-                      const newStateRecordBagFiles: BagFileInfo[] = [];
-                      playListFiles.forEach((ele) => {
-                        newStateRecordBagFiles.push(
-                          positionBag({
-                            ...ele,
-                            startTime,
-                            endTime,
-                            currentFileStartTime: ele.startTime,
-                            currentFileEndTime: ele.endTime,
-                            timeMode,
-                            mediaStatus:
-                              ele.mediaStatus === "GENERATING"
-                                ? "GENERATED_SUCCESS"
-                                : ele.mediaStatus,
-                          }),
-                        );
-                      });
+                    const chunk = new TextDecoder().decode(value);
 
-                      newStateRecordBagFiles.sort((a, b) =>
-                        a.startTime && b.startTime
-                          ? compare(a.startTime, b.startTime)
-                          : a.startTime
-                          ? -1
-                          : 1,
-                      );
+                    buffer += chunk;
 
-                      setBagFiles({ loading: false, value: newStateRecordBagFiles });
+                    const messages = buffer.split("\n");
+                    buffer = messages.pop() ?? ""; // 保留最后一个可能不完整的消息
 
-                      return;
+                    for (const message of messages) {
+                      if (message.trim()) {
+                        try {
+                          const cleanMessage = message.replace(/^data:/, "").trim();
+                          const mediaStatusList: { filename: string; status: MediaStatus }[] =
+                            JSON.parse(cleanMessage);
+                          updateBagFiles(playListFiles, mediaStatusList);
+                        } catch (error) {
+                          log.error("decode last chunk error", error, message);
+                        }
+                      }
                     }
 
-                    // Convert the chunk value to a string
-                    const chunkString = new TextDecoder().decode(value);
-
-                    const playlistString = chunkString.split("data:").pop();
-
-                    const mediaStatusList: { filename: string; status: MediaStatus }[] = JSON.parse(
-                      playlistString ?? "",
-                    );
-
-                    const newStateRecordBagFiles: BagFileInfo[] = [];
-                    playListFiles.forEach((ele) => {
-                      const currentStatus = mediaStatusList.find(
-                        (media) => media.filename === ele.source,
-                      )?.status;
-
-                      newStateRecordBagFiles.push(
-                        positionBag({
-                          ...ele,
-                          startTime,
-                          endTime,
-                          currentFileStartTime: ele.startTime,
-                          currentFileEndTime: ele.endTime,
-                          timeMode,
-                          mediaStatus:
-                            ele.mediaStatus === "GENERATING" &&
-                            currentStatus != undefined &&
-                            currentStatus === "NORMAL"
-                              ? "GENERATED_SUCCESS"
-                              : ele.mediaStatus,
-                        }),
-                      );
-                    });
-
-                    newStateRecordBagFiles.sort((a, b) =>
-                      a.startTime && b.startTime
-                        ? compare(a.startTime, b.startTime)
-                        : a.startTime
-                        ? -1
-                        : 1,
-                    );
-
-                    setBagFiles({ loading: false, value: newStateRecordBagFiles });
-
-                    // Read the next chunk
-                    readChunk();
+                    if (done) {
+                      return;
+                    }
+                    readChunk(); // 继续读取下一个 chunk
                   })
-                  .catch((error) => {
-                    // Log the error
-                    console.error(error);
+                  .catch((error: unknown) => {
+                    log.error("read chunk error", error);
+                    setTimeout(() => {
+                      syncRecords().catch((err: unknown) => {
+                        log.error("retry syncRecords", err);
+                      });
+                    }, 3000);
                   });
               };
               // Start reading the first chunk
               readChunk();
             })
-            .catch((error) => {
+            .catch((error: unknown) => {
               console.error(error);
             });
         }
@@ -323,17 +309,18 @@ export function PlaylistSyncAdapter(): ReactNull {
     baseInfoKey,
     timeMode,
     consoleApi,
+    updateBagFiles,
   ]);
 
   useEffect(() => {
-    syncPlaylist().catch((error) => {
+    syncPlaylist().catch((error: unknown) => {
       log.error(error);
-      setBagFiles({ loading: false, error });
+      setBagFiles({ loading: false, error: error as Error });
     });
   }, [setBagFiles, syncPlaylist]);
 
   useEffect(() => {
-    syncRecords().catch((error) => {
+    syncRecords().catch((error: unknown) => {
       log.error(error);
     });
   }, [syncRecords]);

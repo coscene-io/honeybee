@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -53,7 +56,7 @@ function ModalPrompt({
   const onConfirmAction = () => {
     try {
       onComplete(transformer ? transformer(value) : value);
-    } catch (err) {
+    } catch {
       onComplete(undefined);
     }
   };
@@ -150,9 +153,9 @@ function ModalPrompt({
 // backed by a React element rather than a native modal, and asynchronous.
 export function usePrompt(): [
   prompt: (options: PromptOptions) => Promise<string | undefined>,
-  promptModal: JSX.Element | undefined,
+  promptModal: React.JSX.Element | undefined,
 ] {
-  const [modal, setModal] = useState<JSX.Element | undefined>();
+  const [modal, setModal] = useState<React.JSX.Element | undefined>();
 
   const runPrompt = useCallback(async (options: PromptOptions) => {
     return await new Promise<string | undefined>((resolve) => {

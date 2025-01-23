@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -44,11 +47,16 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export function ToolGroup<T>({ children }: { name: T; children: React.ReactElement }): JSX.Element {
+export function ToolGroup<T>({
+  children,
+}: {
+  name: T;
+  children: React.ReactElement;
+}): React.JSX.Element {
   return children;
 }
 
-export function ToolGroupFixedSizePane({ children }: { children: ReactNode }): JSX.Element {
+export function ToolGroupFixedSizePane({ children }: { children: ReactNode }): React.JSX.Element {
   return (
     <Stack padding={1} overflowX="hidden" overflowY="auto" style={{ maxHeight: PANE_HEIGHT }}>
       {children}
@@ -74,7 +82,7 @@ export default function ExpandingToolbar<T extends string>({
   selectedTab,
   tooltip,
   dataTest,
-}: Props<T>): JSX.Element {
+}: Props<T>): React.JSX.Element {
   const { classes } = useStyles();
   const expanded = selectedTab != undefined;
 

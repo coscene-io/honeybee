@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -111,7 +114,7 @@ async function getAllWorkspacePackages(roots: string[]) {
   const results: { name: string; path: string }[] = [];
   const workspacePackages: string[] = [];
   for (const workspaceRoot of roots) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const workspaceInfo = require(path.resolve(process.cwd(), workspaceRoot, "package.json"));
     const patterns: string[] = Array.isArray(workspaceInfo.workspaces)
       ? workspaceInfo.workspaces
@@ -126,7 +129,7 @@ async function getAllWorkspacePackages(roots: string[]) {
   }
   for (const packagePath of workspacePackages) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const packageInfo = require(path.join(packagePath, "package.json"));
       const name = packageInfo.name;
       if (typeof name !== "string") {
@@ -138,7 +141,7 @@ async function getAllWorkspacePackages(roots: string[]) {
         continue;
       }
       results.push({ path: packagePath, name });
-    } catch (err) {
+    } catch {
       // skip directories without package.json
     }
   }

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -11,7 +14,8 @@ import { v4 as uuidv4 } from "uuid";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
-import { subtract, Time, toSec, fromNanoSec, add } from "@foxglove/rostime";
+import { subtract, Time, toSec, fromNanoSec, add, isTimeInRangeInclusive } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -34,12 +38,13 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
-import { ducationToNanoSeconds } from "@foxglove/studio-base/util/time";
+import { durationToNanoSeconds } from "@foxglove/studio-base/util/time";
 
 const HOVER_TOLERANCE = 0.01;
 
@@ -76,7 +81,8 @@ async function positionEvents(
       let eventStartTime = fromNanoSec(
         event.triggerTime.seconds * BigInt(1e9) + BigInt(event.triggerTime.nanos),
       );
-      let eventEndTime = add(eventStartTime, fromNanoSec(ducationToNanoSeconds(event.duration)));
+
+      let eventEndTime = add(eventStartTime, fromNanoSec(durationToNanoSeconds(event.duration)));
 
       if (timeMode === "relativeTime" && bagFile?.startTime != undefined) {
         eventStartTime = subtract(eventStartTime, bagFile.startTime);
@@ -158,11 +164,14 @@ const selectEventMarks = (store: EventsStore) => store.eventMarks;
 const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectPause = (ctx: MessagePipelineContext) => ctx.pausePlayback;
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
+const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
 
 /**
  * Syncs events from server and syncs hovered event with hovered time.
  */
-export function CoSceneEventsSyncAdapter(): JSX.Element {
+export function CoSceneEventsSyncAdapter(): React.JSX.Element {
   const consoleApi = useConsoleApi();
   const setEvents = useEvents(selectSetEvents);
   const setEventsAtHoverValue = useTimelineInteractionState(selectSetEventsAtHoverValue);
@@ -177,6 +186,27 @@ export function CoSceneEventsSyncAdapter(): JSX.Element {
   const bagFiles = usePlaylist(selectBagFiles);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const pause = useMessagePipeline(selectPause);
+  const seek = useMessagePipeline(selectSeek);
+  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
+  const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
+
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
+
+  useEffect(() => {
+    if (loopedEvent != undefined && currentTime != undefined && seek != undefined) {
+      if (
+        toSec(subtract(currentTime, loopedEvent.endTime)) > 0.1 ||
+        toSec(subtract(loopedEvent.startTime, currentTime)) > 0.1
+      ) {
+        setLoopedEvent(undefined);
+      } else {
+        if (!isTimeInRangeInclusive(currentTime, loopedEvent.startTime, loopedEvent.endTime)) {
+          seek(loopedEvent.startTime);
+        }
+      }
+    }
+  }, [currentTime, loopedEvent, seek, setLoopedEvent]);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -185,12 +215,6 @@ export function CoSceneEventsSyncAdapter(): JSX.Element {
 
     return toSec(subtract(endTime, startTime));
   }, [endTime, startTime]);
-
-  const timeMode = useMemo(() => {
-    return localStorage.getItem("CoScene_timeMode") === "relativeTime"
-      ? "relativeTime"
-      : "absoluteTime";
-  }, []);
 
   // Sync events with console API.
   const [_events, syncEvents] = useAsyncFn(async () => {
@@ -273,10 +297,12 @@ export function CoSceneEventsSyncAdapter(): JSX.Element {
         }
       }
     }
-  }, [bagFiles.loading, bagFiles.value, startTime, endTime, consoleApi, timeMode, setEvents]);
+    // Don't listen to bagFiles.value, because if generating media, it will cause infinite re-render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bagFiles.loading, startTime, endTime, consoleApi, timeMode, setEvents]);
 
   useEffect(() => {
-    syncEvents().catch((error) => {
+    syncEvents().catch((error: unknown) => {
       log.error(error);
     });
   }, [syncEvents, eventFetchCount]);

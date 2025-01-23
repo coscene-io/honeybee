@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -12,7 +15,7 @@ export const cosError: Partial<TypeOptions["resources"]["cosError"]> = {
   insecureWebSocketConnectionMessage:
     "请检查 WebSocket 服务器 {{url}} 是否可访问，并且支持协议版本 {{version}}。",
   checkNetworkConnection: "请检查您正在使用的设备或机器人的网络状态。",
-  checkFoxgloveBridge: "请检查您的机器人是否已安装了 <docLink>foxglove_bridge</docLink>",
+  checkFoxgloveBridge: "请检查您的机器人是否已安装了 <docLink>coBridge</docLink>",
   contactUs: "如果以上方法都无法解决问题，请联系我们。",
   connectionFailed: "连接失败",
   inactivePage: "页面不活跃",

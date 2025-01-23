@@ -1,4 +1,7 @@
 /** @jest-environment jsdom */
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -17,7 +20,7 @@ import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockApp
 
 import { AppBar } from ".";
 
-function Wrapper({ children }: React.PropsWithChildren): JSX.Element {
+function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
   const appConfiguration = makeMockAppConfiguration();
   const providers = [
     /* eslint-disable react/jsx-key */

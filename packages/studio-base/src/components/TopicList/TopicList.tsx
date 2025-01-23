@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -34,6 +37,7 @@ import { DraggedMessagePath } from "@foxglove/studio-base/components/PanelExtens
 import { ContextMenu } from "@foxglove/studio-base/components/TopicList/ContextMenu";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { MessagePathSelectionProvider } from "@foxglove/studio-base/services/messagePathDragging/MessagePathSelectionProvider";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { MessagePathRow } from "./MessagePathRow";
 import { TopicRow } from "./TopicRow";
@@ -89,7 +93,7 @@ function getDraggedMessagePath(treeItem: TopicListItem): DraggedMessagePath {
   }
 }
 
-export function TopicList(): JSX.Element {
+export function TopicList(): React.JSX.Element {
   const { t } = useTranslation("topicList");
   const { classes } = useStyles();
   const [undebouncedFilterText, setFilterText] = useState<string>("");
@@ -297,8 +301,10 @@ export function TopicList(): JSX.Element {
             {playerPresence === PlayerPresence.RECONNECTING && t("waitingForConnection")}
           </EmptyState>
         )}
-        {/* coScene 仅在实时可视化时启用，防止频率数值覆盖 */}
-        {sourceId === "coscene-websocket" && <DirectTopicStatsUpdater interval={6} />}
+        {/* 连接 honeybee server 的情况下，从 metadata 中获取消息频率 */}
+        {(sourceId === "coscene-websocket" || isDesktopApp()) && (
+          <DirectTopicStatsUpdater interval={6} />
+        )}
       </div>
       {contextMenuState && (
         <ContextMenu

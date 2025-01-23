@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -10,11 +13,15 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppURLState, parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 const log = Log.getLogger(__filename);
 
@@ -24,38 +31,54 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   const [unappliedLayoutArgs, setUnappliedLayoutArgs] = useState(
     targetUrlState ? { layoutId: targetUrlState.layoutId } : undefined,
   );
+  const loginStatus = useCurrentUser(selectLoginStatus);
+  const remoteLayoutStorage = useRemoteLayoutStorage();
+
   // Select layout from URL.
+  // if loginStatus is alreadyLogin, we need to check if remoteLayoutStorage is rady
   useEffect(() => {
-    if (!unappliedLayoutArgs?.layoutId) {
+    if (
+      !unappliedLayoutArgs?.layoutId ||
+      (loginStatus === "alreadyLogin" && remoteLayoutStorage == undefined)
+    ) {
       return;
     }
     log.debug(`Initializing layout from url: ${unappliedLayoutArgs.layoutId}`);
     setSelectedLayoutId(unappliedLayoutArgs.layoutId);
     setUnappliedLayoutArgs({ layoutId: undefined });
-  }, [playerPresence, setSelectedLayoutId, unappliedLayoutArgs?.layoutId]);
+  }, [
+    playerPresence,
+    setSelectedLayoutId,
+    unappliedLayoutArgs?.layoutId,
+    loginStatus,
+    remoteLayoutStorage,
+  ]);
 }
 
 function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
   const seekPlayback = useMessagePipeline(selectSeek);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
-  const [unappliedTime, setUnappliedTime] = useState(
-    targetUrlState ? { time: targetUrlState.time } : undefined,
-  );
+  const startTime = useMessagePipeline(selectStartTime);
+  const [isAppliedTime, setIsAppliedTime] = useState(false);
+
+  const time = targetUrlState?.time ?? startTime;
+
+  // Wait until player is ready before we try to seek.
   // Seek to time in URL.
   useEffect(() => {
-    if (unappliedTime?.time == undefined || !seekPlayback) {
+    if (
+      playerPresence !== PlayerPresence.PRESENT ||
+      !seekPlayback ||
+      isAppliedTime ||
+      time == undefined
+    ) {
       return;
     }
 
-    // Wait until player is ready before we try to seek.
-    if (playerPresence !== PlayerPresence.PRESENT) {
-      return;
-    }
-
-    log.debug(`Seeking to url time:`, unappliedTime.time);
-    seekPlayback(unappliedTime.time);
-    setUnappliedTime({ time: undefined });
-  }, [playerPresence, seekPlayback, unappliedTime]);
+    log.debug(`Seeking to url time:`, time);
+    seekPlayback(time);
+    setIsAppliedTime(true);
+  }, [playerPresence, seekPlayback, isAppliedTime, time]);
 }
 
 /**

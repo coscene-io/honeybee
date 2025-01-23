@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -6,7 +9,7 @@ import { Divider, Typography } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 
 import CopyButton from "@foxglove/studio-base/components/CopyButton";
-// import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
+import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import {
   MessagePipelineContext,
@@ -16,6 +19,7 @@ import Panel from "@foxglove/studio-base/components/Panel";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { Topic } from "@foxglove/studio-base/src/players/types";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const useStyles = makeStyles<void, "copyIcon">()((theme, _params, classes) => ({
   copyIcon: {
@@ -63,7 +67,7 @@ const useStyles = makeStyles<void, "copyIcon">()((theme, _params, classes) => ({
   },
 }));
 
-function TopicRow({ topic }: { topic: Topic }): JSX.Element {
+function TopicRow({ topic }: { topic: Topic }): React.JSX.Element {
   const { classes } = useStyles();
 
   return (
@@ -115,7 +119,7 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
 
 const MemoTopicRow = React.memo(TopicRow);
 
-function SourceInfo(): JSX.Element {
+function SourceInfo(): React.JSX.Element {
   const { classes } = useStyles();
 
   const topics = useMessagePipeline(selectSortedTopics);
@@ -151,8 +155,8 @@ function SourceInfo(): JSX.Element {
             ))}
           </tbody>
         </table>
-        {/* coScene 防止频率数值覆盖 */}
-        {/* <DirectTopicStatsUpdater interval={6} /> */}
+        {/* 连接 honeybee server 的情况下，从 metadata 中获取消息频率 */}
+        {isDesktopApp() && <DirectTopicStatsUpdater interval={6} />}
       </Stack>
     </>
   );

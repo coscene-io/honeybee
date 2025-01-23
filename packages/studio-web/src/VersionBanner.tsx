@@ -1,18 +1,14 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import CloseIcon from "@mui/icons-material/Close";
-import {
-  IconButton,
-  Typography,
-  Button,
-  ThemeProvider as MuiThemeProvider,
-  useTheme,
-} from "@mui/material";
-import { useState, useMemo, ReactElement, PropsWithChildren, CSSProperties } from "react";
+import WarningIcon from "@mui/icons-material/Warning";
+import { Typography, Button, ThemeProvider as MuiThemeProvider } from "@mui/material";
+import { useMemo, ReactElement, PropsWithChildren, CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { withStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { createMuiTheme } from "@foxglove/theme";
@@ -22,15 +18,12 @@ const MINIMUM_CHROME_VERSION = 104;
 const BannerContainer = (props: PropsWithChildren<{ isDismissable: boolean }>) => {
   const { isDismissable, children } = props;
 
-  const theme = useTheme();
   const style: CSSProperties = {
     display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
     width: "100%",
-    backgroundColor: "#2563EB",
-    color: theme.palette.primary.contrastText,
+    height: "40px",
+    alignItems: "center",
+    backgroundColor: "#fff7ed",
     zIndex: 100,
     ...(!isDismissable && {
       position: "fixed",
@@ -45,14 +38,48 @@ const BannerContainer = (props: PropsWithChildren<{ isDismissable: boolean }>) =
   return <div style={style}>{children}</div>;
 };
 
-const DismissButton = withStyles(IconButton, (theme) => ({
-  root: {
+// if chrome version is too low, in this case, i18next cannot be init, so we hard code the text
+const FullSizeStack = () => {
+  const style: CSSProperties = {
     position: "absolute",
-    margin: theme.spacing(1),
-    right: 0,
     top: 0,
-  },
-}));
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "#fff7ed",
+  };
+
+  const browserLang =
+    navigator.language || (navigator as unknown as { userLanguage: string }).userLanguage;
+
+  return (
+    <div style={style}>
+      <Stack alignItems="center" fullHeight fullWidth justifyContent="center" gap={3}>
+        <img src="/viz/logo-with-text.svg" alt="logo" />
+        <Typography align="center" color="#111827" variant="body1">
+          {browserLang === "zh-CN"
+            ? "当前使用的 Chrome 版本过低，建议升级至最新版本以获得最佳体验"
+            : "You’re using an outdated version of Chrome. Please upgrade to the latest version for the best experience."}
+        </Typography>
+
+        <Button
+          href="https://www.google.cn/chrome/"
+          target="_blank"
+          rel="noreferrer"
+          variant="contained"
+          style={{
+            textTransform: "none",
+          }}
+        >
+          {browserLang === "zh-CN" ? "下载Chrome" : "Download Chrome"}
+        </Button>
+      </Stack>
+    </div>
+  );
+};
 
 const VersionBanner = function ({
   isChrome,
@@ -63,45 +90,48 @@ const VersionBanner = function ({
   currentVersion: number;
   isDismissable: boolean;
 }): ReactElement | ReactNull {
-  const [showBanner, setShowBanner] = useState(true);
   const { i18n, t } = useTranslation("cosVersionBanner");
+
   const muiTheme = useMemo(() => createMuiTheme("dark", i18n.language), [i18n.language]);
-  if (!showBanner || currentVersion >= MINIMUM_CHROME_VERSION) {
+  // high version chrome
+  if (isChrome && currentVersion >= MINIMUM_CHROME_VERSION) {
     return ReactNull;
   }
 
-  const prompt = isChrome ? t("outdatedVersion") : t("unsupportedBrowser");
+  // low version chrome
+  if (isChrome) {
+    return <FullSizeStack />;
+  }
 
+  // other browser
   return (
     <MuiThemeProvider theme={muiTheme}>
       <BannerContainer isDismissable={isDismissable}>
-        <Stack padding={2} gap={1.5} alignItems="center">
-          {isDismissable && (
-            <DismissButton
-              color="inherit"
-              onClick={() => {
-                setShowBanner(false);
-              }}
-            >
-              <CloseIcon />
-            </DismissButton>
-          )}
-
-          <div>
-            <Typography align="center" variant="h6">
-              {prompt + ", "} {t("requireChrome")}
+        <Stack
+          paddingX={2}
+          gap={1.5}
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          fullWidth
+        >
+          <Stack direction="row" alignItems="center" gap={1}>
+            <WarningIcon color="warning" />
+            <Typography align="center" color="#111827" variant="body1">
+              {t("browserVersionError")}
             </Typography>
-          </div>
+          </Stack>
 
-          <Button
-            href="https://www.google.cn/chrome/"
-            target="_blank"
-            rel="noreferrer"
-            color="inherit"
-            variant="outlined"
-          >
-            {t("download")} Chrome
-          </Button>
+          <Typography align="center" variant="body1">
+            <Button
+              href="https://www.google.cn/chrome/"
+              target="_blank"
+              rel="noreferrer"
+              variant="text"
+            >
+              {t("download")} Chrome
+            </Button>
+          </Typography>
         </Stack>
       </BannerContainer>
     </MuiThemeProvider>

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -6,6 +9,7 @@ import Cytoscape from "cytoscape";
 import CytoscapeDagre from "cytoscape-dagre";
 import { MutableRefObject, useEffect, useRef } from "react";
 
+// eslint-disable-next-line react-hooks/rules-of-hooks
 Cytoscape.use(CytoscapeDagre);
 Cytoscape.warnings(false);
 
@@ -29,7 +33,7 @@ type Props = {
   graphRef: MutableRefObject<GraphMutation | undefined>;
 };
 
-export default function Graph(props: Props): JSX.Element {
+export default function Graph(props: Props): React.JSX.Element {
   const cy = useRef<Cytoscape.Core>();
   const graphRef = useRef<HTMLDivElement>(ReactNull);
 

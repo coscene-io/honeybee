@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -14,6 +17,7 @@ import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
 import { extname } from "path";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -23,10 +27,11 @@ import { AppBarProps, AppBar } from "@foxglove/studio-base/components/AppBar";
 import { CustomWindowControlsProps } from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
 import { EventsList } from "@foxglove/studio-base/components/CoSceneEventsList";
 import {
-  // DataSourceDialog,
+  DataSourceDialog,
   DataSourceDialogItem,
 } from "@foxglove/studio-base/components/DataSourceDialog";
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
+import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -39,6 +44,7 @@ import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls"
 import { Playlist } from "@foxglove/studio-base/components/Playlist";
 import { ProblemsList } from "@foxglove/studio-base/components/ProblemsList";
 import RemountOnValueChange from "@foxglove/studio-base/components/RemountOnValueChange";
+import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import { Sidebars, SidebarItem } from "@foxglove/studio-base/components/Sidebars";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { StudioLogsSettings } from "@foxglove/studio-base/components/StudioLogsSettings";
@@ -46,13 +52,13 @@ import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
 import { TopicList } from "@foxglove/studio-base/components/TopicList";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
-import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import {
+  DataSourceArgs,
+  usePlayerSelection,
+} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import {
@@ -66,11 +72,11 @@ import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useCoSceneI
 import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDefaultWebLaunchPreference";
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { sampleLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayoutCoScene";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
-import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 
@@ -95,7 +101,7 @@ type WorkspaceProps = CustomWindowControlsProps & {
   onAppBarDoubleClick?: () => void;
   // eslint-disable-next-line react/no-unused-prop-types
   disablePersistenceForStorybook?: boolean;
-  AppBarComponent?: (props: AppBarProps) => JSX.Element;
+  AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
 };
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
@@ -117,7 +123,7 @@ const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId
 const selectEventsSupported = (store: EventsStore) => store.eventsSupported;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 
-// const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
+const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
 const selectWorkspaceLeftSidebarItem = (store: WorkspaceContextStore) => store.sidebars.left.item;
 const selectWorkspaceLeftSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.left.open;
 const selectWorkspaceLeftSidebarSize = (store: WorkspaceContextStore) => store.sidebars.left.size;
@@ -125,10 +131,12 @@ const selectWorkspaceRightSidebarItem = (store: WorkspaceContextStore) => store.
 const selectWorkspaceRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.right.open;
 const selectWorkspaceRightSidebarSize = (store: WorkspaceContextStore) => store.sidebars.right.size;
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectUser = (store: UserStore) => store.user;
+const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 
-function WorkspaceContent(props: WorkspaceProps): JSX.Element {
+const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
+
+function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
   const { classes } = useStyles();
   const containerRef = useRef<HTMLDivElement>(ReactNull);
@@ -136,46 +144,17 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems);
 
-  // const dataSourceDialog = useWorkspaceStore(selectWorkspaceDataSourceDialog);
+  const dataSourceDialog = useWorkspaceStore(selectWorkspaceDataSourceDialog);
   const leftSidebarItem = useWorkspaceStore(selectWorkspaceLeftSidebarItem);
   const leftSidebarOpen = useWorkspaceStore(selectWorkspaceLeftSidebarOpen);
   const leftSidebarSize = useWorkspaceStore(selectWorkspaceLeftSidebarSize);
   const rightSidebarItem = useWorkspaceStore(selectWorkspaceRightSidebarItem);
   const rightSidebarOpen = useWorkspaceStore(selectWorkspaceRightSidebarOpen);
   const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
-  const layoutManager = useLayoutManager();
-  const analytics = useAnalytics();
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const enableList = useBaseInfo(selectEnableList);
 
   // coScene set demo layout in demo mode
-  const { setSelectedLayoutId } = useCurrentLayoutActions();
-
-  const loadDemoLayout = useCallback(async () => {
-    const newLayout = await layoutManager.saveNewLayout({
-      name: "Demo Layout",
-      data: sampleLayout,
-      permission: "CREATOR_WRITE",
-    });
-    setTimeout(() => {
-      setSelectedLayoutId(newLayout.id);
-    }, 0);
-
-    void analytics.logEvent(AppEvent.LAYOUT_CREATE);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const isDemoSite =
-      localStorage.getItem("demoSite") === "true" &&
-      localStorage.getItem("honeybeeDemoStatus") === "start";
-
-    if (isDemoSite) {
-      void loadDemoLayout();
-    }
-  }, [loadDemoLayout]);
 
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
@@ -199,6 +178,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const playerId = useMessagePipeline(selectPlayerId);
 
   const currentUser = useCurrentUser(selectUser);
+  const loginStatus = useCurrentUser(selectUserLoginStatus);
 
   useDefaultWebLaunchPreference();
 
@@ -329,18 +309,32 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const showEventsTab = currentUser != undefined && eventsSupported;
 
   const leftSidebarItems = useMemo(() => {
-    const items = new Map<LeftSidebarItemKey, SidebarItem>([
-      ["playlist", { title: t("playlist", { ns: "cosWorkspace" }), component: Playlist }],
+    const items: [LeftSidebarItemKey, SidebarItem][] = [
+      [
+        "playlist",
+        {
+          title: t("playlist", { ns: "cosWorkspace" }),
+          component: Playlist,
+          hidden: enableList.playlist === "DISABLE",
+        },
+      ],
       ["panel-settings", { title: t("panel", { ns: "cosWorkspace" }), component: PanelSettings }],
       ["topics", { title: t("topics", { ns: "cosWorkspace" }), component: TopicList }],
-      ["moment", { title: t("moment", { ns: "cosWorkspace" }), component: EventsList }],
+      [
+        "moment",
+        {
+          title: t("moment", { ns: "cosWorkspace" }),
+          component: EventsList,
+          hidden: enableList.event === "DISABLE",
+        },
+      ],
       [
         "problems",
         {
           title: t("problems"),
           component: ProblemsList,
           badge:
-            playerProblems && playerProblems.length > 0
+            playerProblems != undefined && playerProblems.length > 0
               ? {
                   count: playerProblems.length,
                   color: "error",
@@ -348,12 +342,16 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
               : undefined,
         },
       ],
-    ]);
-    return items;
-  }, [playerProblems, t]);
+    ];
+
+    const cleanItems = new Map<LeftSidebarItemKey, SidebarItem>(
+      items.filter(([, item]) => item.hidden == undefined || !item.hidden),
+    );
+    return cleanItems;
+  }, [enableList.event, enableList.playlist, playerProblems, t]);
 
   useEffect(() => {
-    if (playerProblems && playerProblems.length > 0) {
+    if (playerProblems != undefined && playerProblems.length > 0) {
       sidebarActions.left.setOpen(true);
       sidebarActions.left.selectItem("problems");
     }
@@ -362,6 +360,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
       ["variables", { title: t("variables"), component: VariablesList }],
+      ["extensions", { title: t("extensions"), component: ExtensionsSidebar }],
     ]);
     if (enableDebugMode) {
       if (PerformanceSidebarComponent) {
@@ -380,6 +379,14 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   const keyboardEventHasModifier = (event: KeyboardEvent) =>
     navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;
+
+  function ExtensionsSidebar() {
+    return (
+      <SidebarContent title="Extensions" disablePadding>
+        <ExtensionsSettings />
+      </SidebarContent>
+    );
+  }
 
   const keyDownHandlers = useMemo(() => {
     return {
@@ -418,45 +425,78 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   const targetUrlState = useMemo(() => {
     const deepLinks = props.deepLinks ?? [];
-    return deepLinks[0] ? parseAppURLState(new URL(deepLinks[0])) : undefined;
-  }, [props.deepLinks]);
+
+    if (deepLinks[0] == undefined) {
+      return undefined;
+    }
+
+    const url = new URL(deepLinks[0]);
+    const parsedUrl = parseAppURLState(url);
+
+    if (
+      isDesktopApp() &&
+      parsedUrl?.ds === "coscene-data-platform" &&
+      url.hostname !== APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
+    ) {
+      dialogActions.dataSource.close();
+      setTimeout(() => {
+        toast.error(t("invalidDomain", { domain: APP_CONFIG.DOMAIN_CONFIG.default?.webDomain }));
+      }, 1000);
+      return undefined;
+    }
+
+    return parsedUrl;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.deepLinks, t]);
 
   const [unappliedSourceArgs, setUnappliedSourceArgs] = useState(
     targetUrlState ? { ds: targetUrlState.ds, dsParams: targetUrlState.dsParams } : undefined,
   );
 
+  // Ensure that the data source is initialised only once
+  const currentSource = useRef<(DataSourceArgs & { id: string }) | undefined>(undefined);
+
   const selectEvent = useEvents(selectSelectEvent);
   // Load data source from URL.
   useEffect(() => {
-    if (
-      !unappliedSourceArgs ||
-      (unappliedSourceArgs.ds !== "coscene-websocket" && _.isEmpty(baseInfo))
-    ) {
+    if (unappliedSourceArgs?.ds == undefined || currentUser?.userId == undefined) {
+      return;
+    }
+
+    if (loginStatus === "notLogin" && unappliedSourceArgs.ds === "coscene-data-platform") {
+      toast.error(t("pleaseLoginFirst", { ns: "openDialog" }));
       return;
     }
 
     // Apply any available data source args
-    if (unappliedSourceArgs.ds) {
-      log.debug("Initialising source from url", unappliedSourceArgs);
-      selectSource(unappliedSourceArgs.ds, {
-        type: "connection",
-        params: {
-          ...unappliedSourceArgs.dsParams,
-          ...baseInfo,
-          files: JSON.stringify(baseInfo.files),
-          userId: currentUser?.userId,
-        },
-      });
-      selectEvent(unappliedSourceArgs.dsParams?.eventId);
-      setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
+    log.debug("Initialising source from url", unappliedSourceArgs);
+    const sourceParams: DataSourceArgs = {
+      type: "connection",
+      params: {
+        ...currentUser,
+        ...unappliedSourceArgs.dsParams,
+      },
+    };
+
+    if (_.isEqual({ id: unappliedSourceArgs.ds, ...sourceParams }, currentSource.current)) {
+      return;
     }
+
+    currentSource.current = { id: unappliedSourceArgs.ds, ...sourceParams };
+
+    selectSource(unappliedSourceArgs.ds, sourceParams);
+
+    selectEvent(unappliedSourceArgs.dsParams?.eventId);
+    setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
   }, [
     currentUser,
     selectEvent,
     selectSource,
     unappliedSourceArgs,
     setUnappliedSourceArgs,
-    baseInfo,
+    currentSource,
+    loginStatus,
+    t,
   ]);
 
   const appBar = useMemo(
@@ -489,7 +529,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
   return (
     <PanelStateContextProvider>
-      {/* {dataSourceDialog.open && <DataSourceDialog />} */}
+      {dataSourceDialog.open && <DataSourceDialog />}
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
@@ -514,20 +554,23 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
             </Stack>
           </RemountOnValueChange>
         </Sidebars>
-        {play && pause && seek && enableRepeat && (
-          <div style={{ flexShrink: 0 }}>
-            <PlaybackControls
-              play={play}
-              pause={pause}
-              seek={seek}
-              playUntil={playUntil}
-              isPlaying={isPlaying}
-              repeatEnabled={repeatEnabled}
-              enableRepeatPlayback={enableRepeat}
-              getTimeInfo={getTimeInfo}
-            />
-          </div>
-        )}
+        {play != undefined &&
+          pause != undefined &&
+          seek != undefined &&
+          enableRepeat != undefined && (
+            <div style={{ flexShrink: 0 }}>
+              <PlaybackControls
+                play={play}
+                pause={pause}
+                seek={seek}
+                playUntil={playUntil}
+                isPlaying={isPlaying}
+                repeatEnabled={repeatEnabled}
+                enableRepeatPlayback={enableRepeat}
+                getTimeInfo={getTimeInfo}
+              />
+            </div>
+          )}
       </div>
       {/* Splat to avoid requiring unique a `key` on each item in workspaceExtensions */}
       {...workspaceExtensions}
@@ -536,7 +579,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   );
 }
 
-export default function Workspace(props: WorkspaceProps): JSX.Element {
+export default function Workspace(props: WorkspaceProps): React.JSX.Element {
   const [showOpenDialogOnStartup = true] = useAppConfigurationValue<boolean>(
     AppSetting.SHOW_OPEN_DIALOG_ON_STARTUP,
   );
@@ -554,7 +597,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     dialogs: {
       dataSource: {
         activeDataSource: undefined,
-        open: initialItem != undefined,
+        open: initialItem != undefined && isDesktopApp(),
         item: initialItem,
       },
       preferences: {

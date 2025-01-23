@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -37,7 +40,7 @@ const useStyles = makeStyles()((theme) => ({
     backgroundSize: `${STRIPE_WIDTH * 2}px 100%`,
     backgroundImage: `repeating-linear-gradient(${[
       "90deg",
-      `${theme.palette.background.paper}`,
+      theme.palette.background.paper,
       `${theme.palette.background.paper} ${STRIPE_WIDTH / 2}px`,
       `transparent ${STRIPE_WIDTH / 2}px`,
       `transparent ${STRIPE_WIDTH}px`,
@@ -54,7 +57,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export function ProgressPlot(props: ProgressProps): JSX.Element {
+export function ProgressPlot(props: ProgressProps): React.JSX.Element {
   const { availableRanges, loading } = props;
   const { classes } = useStyles();
 

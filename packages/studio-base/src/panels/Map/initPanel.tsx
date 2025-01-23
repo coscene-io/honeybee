@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -7,7 +10,7 @@ import LeafletRetinaIconUrl from "leaflet/dist/images/marker-icon-2x.png";
 import LeafletIconUrl from "leaflet/dist/images/marker-icon.png";
 import LeafletShadowIconUrl from "leaflet/dist/images/marker-shadow.png";
 import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+import ReactDOM from "react-dom";
 
 import { useCrash } from "@foxglove/hooks";
 import { PanelExtensionContext } from "@foxglove/studio";
@@ -34,17 +37,17 @@ export function initPanel(
   crash: ReturnType<typeof useCrash>,
   context: PanelExtensionContext,
 ): () => void {
-  const root = createRoot(context.panelElement);
-
-  root.render(
+  // eslint-disable-next-line react/no-deprecated
+  ReactDOM.render(
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
         <MapPanel context={context} />
       </CaptureErrorBoundary>
     </StrictMode>,
+    context.panelElement,
   );
-
   return () => {
-    root.unmount();
+    // eslint-disable-next-line react/no-deprecated
+    ReactDOM.unmountComponentAtNode(context.panelElement);
   };
 }

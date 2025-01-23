@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -38,7 +41,9 @@ export type PlotXAxisVal =
   // Similar to "index" mode except the x-axis the message path item values and the y-axis are the
   // correspondible series message path value at the same array index. Only the latest message is used
   // for x-axis and each series
-  | "currentCustom";
+  | "currentCustom"
+  // like "timestamp" but only accumulated the current timestamp is shown
+  | "partialTimestamp";
 
 export type PlotDataItem = {
   queriedData: MessagePathDataItem[];

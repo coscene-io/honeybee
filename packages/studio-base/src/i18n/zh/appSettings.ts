@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -10,7 +13,7 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   askEachTime: "每次询问",
   colorScheme: "配色方案",
   dark: "暗色",
-  debugModeDescription: "启用调试 CoScene 的面板和功能",
+  debugModeDescription: "启用调试 coScene 的面板和功能",
   desktopApp: "桌面应用",
   displayTimestampsIn: "显示时间戳在",
   experimentalFeatures: "实验性功能",
@@ -29,4 +32,12 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   settings: "设置",
   timestampFormat: "时间戳格式",
   webApp: "网页应用",
+  contact: "联系我们",
+  legal: "法律",
+  licenseTerms: "许可证条款",
+  privacyPolicy: "隐私政策",
+  termsOfService: "服务条款",
+  security: "安全",
+  updates: "自动更新",
+  automaticallyInstallUpdates: "自动安装更新",
 };

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -44,6 +47,7 @@ import CoScenePlabackTimeMode from "@foxglove/studio-base/components/PlaybackCon
 import PlaybackQualityControls from "@foxglove/studio-base/components/PlaybackControls/PlaybackQualityControls";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
@@ -82,8 +86,9 @@ const useStyles = makeStyles()((theme) => ({
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 
-function MomentButton({ disableControls }: { disableControls: boolean }): JSX.Element {
+function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
 
   return (
@@ -108,7 +113,7 @@ function MomentButton({ disableControls }: { disableControls: boolean }): JSX.El
     >
       <Typography variant="body2" marginLeft="4px">
         {t("createMomentButtonText", {
-          option: navigator.platform.toUpperCase().includes("MAC") ? "⌥" : "Alt",
+          option: /Mac/i.test(navigator.userAgent) ? "⌥" : "Alt",
         })}
       </Typography>
     </HoverableIconButton>
@@ -126,11 +131,7 @@ export default function PlaybackControls(props: {
   isPlaying: boolean;
   repeatEnabled: boolean;
   getTimeInfo: () => { startTime?: Time; endTime?: Time; currentTime?: Time };
-}): JSX.Element {
-  const isDemoSite =
-    localStorage.getItem("demoSite") === "true" &&
-    localStorage.getItem("honeybeeDemoStatus") === "start";
-
+}): React.JSX.Element {
   const {
     play,
     pause,
@@ -143,6 +144,7 @@ export default function PlaybackControls(props: {
   } = props;
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
+  const enableList = useBaseInfo(selectEnableList);
   const { t } = useTranslation("cosEvent");
 
   const { classes, cx } = useStyles();
@@ -165,9 +167,6 @@ export default function PlaybackControls(props: {
   }, [repeat, repeatEnabled, enableRepeatPlayback]);
 
   const togglePlayPause = useCallback(() => {
-    if (isDemoSite) {
-      window.nextStep();
-    }
     if (isPlaying) {
       pause();
     } else {
@@ -178,7 +177,7 @@ export default function PlaybackControls(props: {
       }
       play();
     }
-  }, [isPlaying, pause, getTimeInfo, play, seek, isDemoSite]);
+  }, [isPlaying, pause, getTimeInfo, play, seek]);
 
   const seekForwardAction = useCallback(
     (ev?: KeyboardEvent) => {
@@ -240,7 +239,9 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            <MemoedMomentButton disableControls={disableControls} />
+            {enableList.event === "ENABLE" && (
+              <MemoedMomentButton disableControls={disableControls} />
+            )}
             <Tooltip
               // A desired workflow is the ability to copy data source info text (start, end, duration)
               // from the tooltip. However, there's a UX quirk where the tooltip will close if the user
@@ -311,7 +312,7 @@ export default function PlaybackControls(props: {
           </Stack>
 
           <Stack direction="row" flex={1} alignItems="center" justifyContent="flex-end" gap={0.5}>
-            {urlState?.parameters?.jobRunsId && (
+            {urlState?.parameters?.jobRunsId != undefined && (
               <>
                 <ImageShadow20Filled />
                 <div>{t("shadowMode", { ns: "cosPlaylist" })}</div>

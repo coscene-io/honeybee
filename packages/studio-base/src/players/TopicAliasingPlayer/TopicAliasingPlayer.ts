@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -6,7 +9,7 @@ import * as _ from "lodash-es";
 
 import { MutexLocked } from "@foxglove/den/async";
 import { Time } from "@foxglove/rostime";
-import { Immutable, ParameterValue } from "@foxglove/studio";
+import { Immutable, Metadata, ParameterValue } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import {
@@ -65,6 +68,10 @@ export class TopicAliasingPlayer implements Player {
       topics: undefined,
       variables: {},
     };
+  }
+
+  public getMetadata(): ReadonlyArray<Readonly<Metadata>> {
+    return this.#player.getMetadata?.() ?? Object.freeze([]);
   }
 
   public setListener(listener: (playerState: PlayerState) => Promise<void>): void {

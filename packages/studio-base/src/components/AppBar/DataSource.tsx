@@ -1,14 +1,18 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ErrorCircle16Filled } from "@fluentui/react-icons";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import { CircularProgress, IconButton, Link, Breadcrumbs, Typography } from "@mui/material";
+import { CircularProgress, IconButton, Link, Breadcrumbs } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { UploadFile } from "@foxglove/studio-base/components/AppBar/UploadFile";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -39,6 +43,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     whiteSpace: "nowrap",
     maxHeight: "44px",
     minWidth: 0,
+    color: theme.palette.appBar.text,
   },
   adornment: {
     display: "flex",
@@ -75,9 +80,6 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
       fontSize: "1rem",
     },
   },
-  numericValue: {
-    fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
-  },
   breadcrumbs: {
     display: "flex",
     overflow: "hidden",
@@ -94,9 +96,11 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 // CoScene
 const selectProject = (store: CoSceneProjectStore) => store.project;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
-export function DataSource(): JSX.Element {
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
+
+export function DataSource(): React.JSX.Element {
   const { t } = useTranslation("appBar");
   const { classes, cx } = useStyles();
 
@@ -107,7 +111,9 @@ export function DataSource(): JSX.Element {
   // CoScene
   const project = useProject(selectProject);
   const urlState = useMessagePipeline(selectUrlState);
+
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const enableList = useBaseInfo(selectEnableList);
 
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
@@ -127,6 +133,7 @@ export function DataSource(): JSX.Element {
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
   const hostName = urlState?.parameters?.hostName;
+  const deviceLink = urlState?.parameters?.deviceLink ?? "";
 
   if (playerPresence === PlayerPresence.NOT_PRESENT) {
     return <div className={classes.sourceName}>{t("noDataSource")}</div>;
@@ -135,7 +142,7 @@ export function DataSource(): JSX.Element {
   // CoScene
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://home.coscene.dev/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
+      ? `https://dev.coscene.cn/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
       : `/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
 
   const recordHref = `${projectHref}/records/${baseInfo.recordId}`;
@@ -152,7 +159,7 @@ export function DataSource(): JSX.Element {
       color="inherit"
       className={classes.breadcrumbs}
     >
-      {project.value?.getDisplayName()}
+      {project.value?.displayName}
     </Link>,
     <Link
       href={secondaryHref}
@@ -172,17 +179,31 @@ export function DataSource(): JSX.Element {
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
           <div className={classes.textTruncate}>
-            {baseInfo.projectSlug && baseInfo.warehouseSlug ? (
-              <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" />}
-                aria-label="breadcrumb"
-              >
-                {breadcrumbs}
-              </Breadcrumbs>
+            {enableList.uploadLocalFile === "ENABLE" ? (
+              <Stack direction="row" alignItems="center" gap={1}>
+                {playerDisplayName} <UploadFile />
+              </Stack>
             ) : (
-              <Typography className={classes.numericValue} variant="inherit">
-                {isLiveConnection ? `${hostName ?? playerDisplayName}` : `<${t("unknown")}>`}
-              </Typography>
+              <Stack direction="row" alignItems="center" gap={2}>
+                <Breadcrumbs
+                  separator={<NavigateNextIcon fontSize="small" />}
+                  aria-label="breadcrumb"
+                >
+                  {baseInfo.projectSlug && baseInfo.warehouseSlug ? breadcrumbs : ""}
+                  {isLiveConnection && (
+                    <Link
+                      href={deviceLink || "#"}
+                      target="_blank"
+                      underline="hover"
+                      key="1"
+                      color="inherit"
+                      className={classes.breadcrumbs}
+                    >
+                      {hostName ?? playerDisplayName ?? t("unknown")}
+                    </Link>
+                  )}
+                </Breadcrumbs>
+              </Stack>
             )}
           </div>
           {isLiveConnection && (

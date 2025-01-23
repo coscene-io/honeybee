@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -8,6 +11,7 @@ import { fromRFC3339String, toRFC3339String, Time } from "@foxglove/rostime";
 import { LayoutID } from "@foxglove/studio-base/index";
 
 export type AppURLState = {
+  isStandalonePlayback?: boolean;
   ds?: string;
   dsParams?: Record<string, string>;
   layoutId?: LayoutID;
@@ -78,6 +82,7 @@ export function parseAppURLState(url: URL): AppURLState | undefined {
   const timeString = url.searchParams.get("time");
   const time = timeString == undefined ? undefined : fromRFC3339String(timeString);
   const dsParams: Record<string, string> = {};
+
   url.searchParams.forEach((v, k) => {
     if (k && v && k.startsWith("ds.")) {
       const cleanKey = k.replace(/^ds./, "");

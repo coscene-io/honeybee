@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -27,7 +30,7 @@ export default {
     onSelect: () => {},
   },
   decorators: [
-    (Story: StoryFn): JSX.Element => (
+    (Story: StoryFn): React.JSX.Element => (
       <Stack padding={2.5}>
         <Story />
       </Stack>
@@ -94,7 +97,7 @@ export const ManyItems: Story = {
 };
 
 export const LongPathInPopup: Story = {
-  render: (args): JSX.Element => (
+  render: (args): React.JSX.Element => (
     <div style={{ width: 200 }}>
       <Autocomplete {...args} />
     </div>

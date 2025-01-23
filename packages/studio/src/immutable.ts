@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -33,7 +36,7 @@ export type Primitive = string | number | boolean | bigint | symbol | undefined 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyArray<Type = any> = Array<Type> | ReadonlyArray<Type>;
 
-// eslint-disable-next-line @typescript-eslint/ban-types
+// eslint-disable-next-line
 export type Builtin = Primitive | Function | Date | Error | RegExp;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,7 +76,7 @@ export type Immutable<Type> = Type extends Exclude<Builtin, Error>
   ? Type extends IsTuple<Type>
     ? { readonly [Key in keyof Type]: Immutable<Type[Key]> }
     : ReadonlyArray<Immutable<Values>>
-  : // eslint-disable-next-line @typescript-eslint/ban-types
+  : // eslint-disable-next-line
   Type extends {}
   ? { readonly [Key in keyof Type]: Immutable<Type[Key]> }
   : IsUnknown<Type> extends true

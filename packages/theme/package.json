@@ -1,20 +1,20 @@
 {
   "name": "@foxglove/theme",
-  "description": "Foxglove @mui/material theme",
+  "description": "coScene @mui/material theme",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/foxglove/studio.git"
+    "url": "https://github.com/coscene-io/honeybee.git"
   },
   "author": {
-    "name": "Foxglove Technologies",
-    "email": "support@foxglove.dev"
+    "name": "coScene Technologies",
+    "email": "contact@coscene.io"
   },
-  "homepage": "https://foxglove.dev/",
+  "homepage": "https://www.coscene.cn/",
   "main": "./src/index",
   "devDependencies": {
-    "@emotion/react": "11.13.0",
-    "@emotion/styled": "11.13.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
     "@fluentui/react-icons": "2.0.227",
     "@foxglove/tsconfig": "2.0.0",
     "@mui/icons-material": "5.15.5",

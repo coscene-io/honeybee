@@ -16,7 +16,7 @@ build:
           gitCommit:
             ignoreChanges: true
   artifacts:
-    - image: coseus.azurecr.io/honeybee
+    - image: registry.cn-hangzhou.aliyuncs.com/coscene/honeybee
       context: .
       docker:
         dockerfile: Dockerfile

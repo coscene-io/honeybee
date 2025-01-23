@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -70,7 +73,7 @@ export class ModelCache {
 
     promise = this.#loadModel(url, opts, reportError)
       .then((model) => addEdges(model, this.#edgeMaterial))
-      .catch(async (err) => {
+      .catch(async (err: unknown) => {
         reportError(err as Error);
         return undefined;
       });
@@ -208,6 +211,7 @@ export class ModelCache {
     // Preload textures. We do this here since we can't pass in an async function in LoadingManager.setURLModifier
     // which is supposed to be used for overriding loading behavior. See also
     // https://threejs.org/docs/index.html#api/en/loaders/managers/LoadingManager.setURLModifier
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     for await (const node of xml.querySelectorAll("init_from")) {
       if (!node.textContent) {
         continue;

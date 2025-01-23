@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -8,7 +11,6 @@ import * as _ from "lodash-es";
 import Logger from "@foxglove/log";
 import { SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
 
-import { RenderableLineList } from "./markers/RenderableLineList";
 import type { IRenderer } from "../IRenderer";
 import { BaseUserData, Renderable } from "../Renderable";
 import { SceneExtension } from "../SceneExtension";
@@ -18,6 +20,7 @@ import { vec3TupleApproxEquals } from "../math";
 import { Marker, MarkerAction, MarkerType, TIME_ZERO, Vector3 } from "../ros";
 import { CustomLayerSettings, PRECISION_DEGREES, PRECISION_DISTANCE } from "../settings";
 import { makePose, xyzrpyToPose } from "../transforms";
+import { RenderableLineList } from "./markers/RenderableLineList";
 
 const log = Logger.getLogger(__filename);
 
@@ -193,19 +196,20 @@ export class Grids extends SceneExtension<GridRenderable> {
   };
 
   #handleAddGrid = (instanceId: string): void => {
-    log.info(`Creating ${LAYER_ID} layer ${instanceId}`);
+    const customInstanceId = `Grid-${instanceId}`;
+    log.info(`Creating ${LAYER_ID} layer ${customInstanceId}`);
 
-    const config: LayerSettingsGrid = { ...DEFAULT_SETTINGS, instanceId };
+    const config: LayerSettingsGrid = { ...DEFAULT_SETTINGS, instanceId: customInstanceId };
 
     // Add this instance to the config
     this.renderer.updateConfig((draft) => {
       const maxOrderLayer = _.maxBy(Object.values(draft.layers), (layer) => layer?.order);
       const order = 1 + (maxOrderLayer?.order ?? 0);
-      draft.layers[instanceId] = { ...config, order };
+      draft.layers[customInstanceId] = { ...config, order };
     });
 
     // Add a renderable
-    this.#updateGrid(instanceId, config);
+    this.#updateGrid(customInstanceId, config);
 
     // Update the settings tree
     this.updateSettingsTree();

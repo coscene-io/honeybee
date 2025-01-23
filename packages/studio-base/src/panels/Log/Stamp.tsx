@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -28,7 +31,7 @@ type Props = {
   timeZone: string | undefined;
 };
 
-function Stamp(props: Props): JSX.Element {
+function Stamp(props: Props): React.JSX.Element {
   if (props.timestampFormat === "TOD") {
     const formattedTime = formatTime(props.stamp, props.timeZone);
     return <span>{formattedTime}</span>;

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -43,7 +46,7 @@ function DataSourceInfoContent(props: {
   playerPresence: PlayerPresence;
   startTime?: Time;
   isLiveConnection: boolean;
-}): JSX.Element {
+}): React.JSX.Element {
   const urlState = useMessagePipeline(selectUrlState);
 
   const {
@@ -121,7 +124,11 @@ const MemoDataSourceInfoContent = React.memo(DataSourceInfoContent);
 
 const EmDash = "\u2014";
 
-export function DataSourceInfoView({ disableSource }: { disableSource?: boolean }): JSX.Element {
+export function DataSourceInfoView({
+  disableSource,
+}: {
+  disableSource?: boolean;
+}): React.JSX.Element {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
@@ -146,7 +153,7 @@ export function DataSourceInfoView({ disableSource }: { disableSource?: boolean 
       if (endTime) {
         const date = formatDate(endTime);
         endTimeRef.current.innerText = !isAbsoluteTime(endTime)
-          ? `${formatTimeRaw(endTime)}`
+          ? formatTimeRaw(endTime)
           : `${date} ${formatTime(endTime)}`;
       } else {
         endTimeRef.current.innerHTML = EmDash;

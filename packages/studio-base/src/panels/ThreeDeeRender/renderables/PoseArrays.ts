@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -13,8 +16,6 @@ import type { RosValue } from "@foxglove/studio-base/players/types";
 
 import { Axis, AXIS_LENGTH } from "./Axis";
 import { createArrowMarker } from "./Poses";
-import { RenderableArrow } from "./markers/RenderableArrow";
-import { RenderableLineStrip } from "./markers/RenderableLineStrip";
 import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
 import { BaseUserData, Renderable } from "../Renderable";
 import {
@@ -46,6 +47,8 @@ import {
 } from "../settings";
 import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
 import { makePose, Pose } from "../transforms";
+import { RenderableArrow } from "./markers/RenderableArrow";
+import { RenderableLineStrip } from "./markers/RenderableLineStrip";
 
 type GradientRgba = [ColorRGBA, ColorRGBA];
 type Gradient = [string, string];
@@ -74,8 +77,8 @@ const TIME_ZERO = { sec: 0, nsec: 0 };
 const COLOR_WHITE = { r: 1, g: 1, b: 1, a: 1 };
 
 const DEFAULT_GRADIENT_STR: Gradient = [
-  rgbaToCssString(DEFAULT_GRADIENT[0]!),
-  rgbaToCssString(DEFAULT_GRADIENT[1]!),
+  rgbaToCssString(DEFAULT_GRADIENT[0]),
+  rgbaToCssString(DEFAULT_GRADIENT[1]),
 ];
 
 const DEFAULT_SETTINGS: LayerSettingsPoseArray = {

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -85,7 +88,7 @@ function parseInput(value: string): { error?: string; parsedObject?: unknown } {
 }
 
 // Wrapper component with ThemeProvider so useStyles in the panel receives the right theme.
-export function CallService({ context }: Props): JSX.Element {
+export function CallService({ context }: Props): React.JSX.Element {
   const [colorScheme, setColorScheme] = useState<Palette["mode"]>("light");
 
   return (
@@ -97,7 +100,7 @@ export function CallService({ context }: Props): JSX.Element {
 
 function CallServiceContent(
   props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
-): JSX.Element {
+): React.JSX.Element {
   const { context, setColorScheme } = props;
 
   // panel extensions must notify when they've completed rendering

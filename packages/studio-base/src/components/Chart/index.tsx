@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -97,7 +100,7 @@ type RpcSend = <T>(
 const supportsOffscreenCanvas =
   typeof HTMLCanvasElement.prototype.transferControlToOffscreen === "function";
 
-function Chart(props: Props): JSX.Element {
+function Chart(props: Props): React.JSX.Element {
   const [id] = useState(() => uuidv4());
 
   const initialized = useRef(false);
@@ -351,9 +354,9 @@ function Chart(props: Props): JSX.Element {
       return;
     }
 
-    updateChart(newUpdate).catch((err: Error) => {
+    updateChart(newUpdate).catch((err: unknown) => {
       if (isMounted()) {
-        setUpdateError(err);
+        setUpdateError(err as Error);
       }
     });
   }, [getNewUpdateMessage, isMounted, updateChart]);

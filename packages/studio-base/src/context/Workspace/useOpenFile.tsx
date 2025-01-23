@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -9,19 +12,24 @@ import {
   IDataSourceFactory,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
+
+const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
 
 export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promise<void> {
   const { selectSource } = usePlayerSelection();
 
+  const setCurrentFile = useUploadFiles(selectSetCurrentFile);
+
   const allExtensions = useMemo(() => {
-    return sources.reduce<string[]>((all, source) => {
+    const extensions = sources.reduce<string[]>((all, source) => {
       if (!source.supportedFileTypes) {
         return all;
       }
-
       return [...all, ...source.supportedFileTypes];
     }, []);
+    return [...new Set(extensions)];
   }, [sources]);
 
   return useCallback(async () => {
@@ -58,6 +66,8 @@ export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promi
       throw new Error(`Cannot find source to handle ${file.name}`);
     }
 
+    setCurrentFile(file);
+
     selectSource(foundSource.id, { type: "file", handle: fileHandle });
-  }, [allExtensions, selectSource, sources]);
+  }, [allExtensions, selectSource, sources, setCurrentFile]);
 }

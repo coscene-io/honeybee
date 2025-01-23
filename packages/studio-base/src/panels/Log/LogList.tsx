@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -45,7 +48,11 @@ type ListItemData = {
   setRowHeight: (index: number, height: number) => void;
 };
 
-function Row(props: { data: ListItemData; index: number; style: CSSProperties }): JSX.Element {
+function Row(props: {
+  data: ListItemData;
+  index: number;
+  style: CSSProperties;
+}): React.JSX.Element {
   const { timeFormat, timeZone } = useAppTimeFormat();
   const ref = useRef<HTMLDivElement>(ReactNull);
 
@@ -68,7 +75,7 @@ function Row(props: { data: ListItemData; index: number; style: CSSProperties })
  * List for showing large number of items, which are expected to be appended to the end regularly.
  * Automatically scrolls to the bottom unless you explicitly scroll up.
  */
-function LogList({ items, reverseOrder }: Props): JSX.Element {
+function LogList({ items, reverseOrder }: Props): React.JSX.Element {
   const { classes } = useStyles();
 
   // Reference to the list item itself.

@@ -1,10 +1,12 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export const cosEvent = {
   addPhoto: "Add Photo",
-  assignee: "Assignee",
   cancel: "Cancel",
   copiedMomentToClipboard: "Copied moment to clipboard",
   createMoment: "Create Moment",
@@ -70,4 +72,14 @@ export const cosEvent = {
   createMomentButtonText: "Create moment（{{option}} + 1）",
   date: "Date",
   startPoint: "Start Point",
+  taskName: "Task Name",
+  taskDescription: "Task Description",
+  taskAssignee: "Task Assignee",
+  nameOnly: "Name Only",
+  showDetail: "Show Detail",
+  toView: "to view",
+  rule: "Rule",
+  creater: "Creater",
+  share: "Share",
+  loopPlay: "Loop Play",
 };

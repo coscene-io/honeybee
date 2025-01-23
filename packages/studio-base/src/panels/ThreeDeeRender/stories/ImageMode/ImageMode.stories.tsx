@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -36,7 +39,7 @@ export default {
   parameters: { colorScheme: "light" },
 } as Meta;
 
-const ImageModeRosImage = ({ imageType }: { imageType: "raw" | "png" }): JSX.Element => {
+const ImageModeRosImage = ({ imageType }: { imageType: "raw" | "png" }): React.JSX.Element => {
   const topics: Topic[] = [
     { name: "/cam1/info", schemaName: "foxglove.CameraCalibration" },
     { name: "/cam2/info", schemaName: "foxglove.CameraCalibration" },
@@ -204,7 +207,7 @@ const ImageModeFoxgloveImage = ({
   minValue?: number;
   maxValue?: number;
   onDownloadImage?: (blob: Blob, fileName: string) => void;
-}): JSX.Element => {
+}): React.JSX.Element => {
   const topics: Topic[] = [
     { name: "/cam1/info", schemaName: "foxglove.CameraCalibration" },
     { name: "/cam2/info", schemaName: "foxglove.CameraCalibration" },
@@ -546,7 +549,7 @@ export const ImageModePick: StoryObj<typeof ImageModeFoxgloveImage> = {
   },
 };
 
-const InvalidPinholeCamera = (): JSX.Element => {
+const InvalidPinholeCamera = (): React.JSX.Element => {
   const width = 60;
   const height = 45;
   const { calibrationMessage, cameraMessage } = makeRawImageAndCalibration({
@@ -912,6 +915,7 @@ export const RationalPolynomialDistortion: StoryObj = {
     const imageTopic = "camera";
     const calibrationTopic = "calibration";
     const annotationsTopic = "annotations";
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const topics: Topic[] = useMemo(
       () => [
         { name: imageTopic, schemaName: "foxglove.RawImage" },
@@ -1090,7 +1094,7 @@ const ImageModeEmptyLayout = ({
   type,
 }: {
   type: "no-topics" | "no-image-topics" | "no-messages" | "image-topic-DNE";
-}): JSX.Element => {
+}): React.JSX.Element => {
   let fixture: Fixture | undefined;
   let calibrationTopic: string | undefined = "calibration";
   switch (type) {

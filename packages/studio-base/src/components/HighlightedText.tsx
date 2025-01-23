@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
@@ -14,14 +17,14 @@ export function HighlightedText({
 }: {
   text: string;
   highlight?: string;
-}): JSX.Element {
+}): React.JSX.Element {
   if (!highlight?.trim()) {
-    return <span>{text}</span>;
+    return <span style={{ wordBreak: "break-word" }}>{text}</span>;
   }
   const regex = new RegExp(`(${_.escapeRegExp(highlight)})`, "gi");
   const parts = text.split(regex);
   return (
-    <span>
+    <span style={{ wordBreak: "break-word" }}>
       {parts
         .filter((part) => part)
         .map((part, i) =>
