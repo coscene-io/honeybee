@@ -20,7 +20,6 @@ import {
   fromMillis,
   fromNanoSec,
   toRFC3339String,
-  toString,
 } from "@foxglove/rostime";
 import { Immutable, MessageEvent, Metadata, ParameterValue } from "@foxglove/studio";
 import { DeserializedSourceWrapper } from "@foxglove/studio-base/players/IterablePlayer/DeserializedSourceWrapper";
@@ -678,90 +677,19 @@ export class IterablePlayer implements Player {
   // Read a small amount of data from the data source with the hope of producing a message or two.
   // Without an initial read, the user would be looking at a blank layout since no messages have yet
   // been delivered.
+  // in initial state, we need a snapshot request to get tf message and map
   async #stateStartPlay() {
     if (!this.#start || !this.#end) {
       throw new Error("Invariant: start and end must be set");
     }
 
-    // If we have a target seek time, the seekPlayback function will take care of backfilling messages.
-    if (this.#seekTarget) {
-      this.#setState("seek-backfill");
-      return;
+    // if this.#seekTarget !== start time && this.#seekTarget !== undefined, the seekPlayback function will take care of backfilling messages.
+    if (this.#seekTarget == undefined) {
+      this.#seekTarget = add(this.#start, fromNanoSec(SEEK_ON_START_NS));
     }
 
-    const stopTime = clampTime(
-      add(this.#start, fromNanoSec(SEEK_ON_START_NS)),
-      this.#start,
-      this.#end,
-    );
-
-    log.debug(`Playing from ${toString(this.#start)} to ${toString(stopTime)}`);
-
-    if (this.#playbackIterator) {
-      throw new Error("Invariant. playbackIterator was already set");
-    }
-
-    log.debug("Initializing forward iterator from", this.#start);
-    this.#playbackIterator = this.#bufferedSource.messageIterator({
-      topics: this.#allTopics,
-      start: this.#start,
-      consumptionType: "partial",
-    });
-
-    this.#lastMessageEvent = undefined;
-    this.#messages = [];
-
-    const messageEvents: MessageEvent[] = [];
-
-    // If we take too long to read the data, we set the player into a BUFFERING presence. This
-    // indicates that the player is waiting to load more data.
-    const tickTimeout = setTimeout(() => {
-      this.#presence = PlayerPresence.BUFFERING;
-      this.#queueEmitState();
-    }, 100);
-
-    try {
-      for (;;) {
-        const result = await this.#playbackIterator.next();
-        if (result.done === true) {
-          break;
-        }
-        const iterResult = result.value;
-        // Bail if a new state is requested while we are loading messages
-        // This usually happens when seeking before the initial load is complete
-        if (this.#nextState) {
-          return;
-        }
-
-        if (iterResult.type === "problem") {
-          this.#problemManager.addProblem(`connid-${iterResult.connectionId}`, iterResult.problem);
-          continue;
-        }
-
-        if (iterResult.type === "stamp" && compare(iterResult.stamp, stopTime) >= 0) {
-          this.#lastStamp = iterResult.stamp;
-          break;
-        }
-
-        if (iterResult.type === "message-event") {
-          // The message is past the tick end time, we need to save it for next tick
-          if (compare(iterResult.msgEvent.receiveTime, stopTime) > 0) {
-            this.#lastMessageEvent = iterResult.msgEvent;
-            break;
-          }
-
-          messageEvents.push(iterResult.msgEvent);
-        }
-      }
-    } finally {
-      clearTimeout(tickTimeout);
-    }
-
-    this.#currentTime = stopTime;
-    this.#messages = messageEvents;
-    this.#presence = PlayerPresence.PRESENT;
-    this.#queueEmitState();
-    this.#setState("idle");
+    this.#setState("seek-backfill");
+    return;
   }
 
   // Process a seek request. The seek is performed by requesting a getBackfillMessages from the source.
