@@ -695,12 +695,6 @@ class CoSceneConsoleApi {
     signal: AbortSignal;
     projectName: string;
   }): Promise<Response> {
-    // if (topics.length === 1) {
-    //   const topic = topics[0];
-    //   if (topic === "/tf") {
-    //     debugger;
-    //   }
-    // }
     const { fullUrl, fullConfig } = this.getRequectConfig("/v1/data/getStreams", {
       method: "POST",
       signal,
