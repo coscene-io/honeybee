@@ -1338,7 +1338,10 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     for (const tf of tfMessage.transforms) {
       // tf2 message cannot have frame_id or child_frame_id starting with "/"
       // details: http://wiki.ros.org/tf2/Migration#tf_prefix_backwards_compatibility
-      if (tf.child_frame_id.startsWith("/") || tf.header.frame_id.startsWith("/")) {
+      if (
+        (tf.child_frame_id.startsWith("/") || tf.header.frame_id.startsWith("/")) &&
+        !this.compatibilityMode
+      ) {
         this.settings.errors.add(["transforms"], TF_NAME_ERROR, i18next.t("threeDee:tfNameError"));
       }
       this.#addTransformMessage(tf);
