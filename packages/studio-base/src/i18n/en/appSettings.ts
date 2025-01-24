@@ -44,4 +44,10 @@ export const appSettings = {
   security: "Security",
   updates: "Updates",
   automaticallyInstallUpdates: "Automatically install updates",
+  addTopicPrefix: "Add topic prefix",
+  tfCompatibilityMode: "TF compatibility mode",
+  on: "On",
+  off: "Off",
+  tfCompatibilityModeHelp:
+    "Once this mode is enabled, the coordinate system names will have the '/' prefix removed for compatibility with tf2's coordinate system names. <Link>More details</Link>",
 };

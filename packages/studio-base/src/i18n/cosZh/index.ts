@@ -20,4 +20,3 @@ export * from "./appBar";
 export * from "./guide";
 export * from "./websocket";
 export * from "./annotatedPlot";
-export * from "./appSettings";

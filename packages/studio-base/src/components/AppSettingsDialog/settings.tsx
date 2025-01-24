@@ -8,6 +8,7 @@
 import Brightness5Icon from "@mui/icons-material/Brightness5";
 import ComputerIcon from "@mui/icons-material/Computer";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
+import HelpIcon from "@mui/icons-material/HelpOutlined";
 import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlined";
 import WebIcon from "@mui/icons-material/Web";
 import {
@@ -17,6 +18,7 @@ import {
   FormControl,
   FormControlLabel,
   FormLabel,
+  Link,
   MenuItem,
   Select,
   SelectChangeEvent,
@@ -24,10 +26,11 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   ToggleButtonGroupProps,
+  Tooltip,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { Dispatch, MouseEvent, SetStateAction, useCallback, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { MouseEvent, useCallback, useMemo } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { filterMap } from "@foxglove/den/collection";
@@ -36,6 +39,7 @@ import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import {
   useAppConfigurationValue,
@@ -45,7 +49,7 @@ import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
 import { UserPersonalInfo } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
-import { PrefixDisplayMedia, TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
+import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
@@ -438,57 +442,96 @@ export function LanguageSettings(): React.ReactElement {
   );
 }
 
-export function AddTopicPrefix({
-  setConfirmFunctions,
-}: {
-  setConfirmFunctions: Dispatch<SetStateAction<Record<string, () => void>>>;
-}): React.ReactElement {
+export function AddTopicPrefix(): React.ReactElement {
   const [, setAddTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
   const addTopicPrefix = useTopicPrefixConfigurationValue();
-  const [tempVal, setTempVal] = useState<PrefixDisplayMedia>(
-    addTopicPrefix === "true" ? "true" : "false",
-  );
+  const { reloadCurrentSource } = usePlayerSelection();
+  const consoleApi = useConsoleApi();
 
   const { t } = useTranslation("appSettings");
 
   return (
     <Stack>
-      <FormLabel>{t("addTopicPrefix", { ns: "cosAppSettings" })}:</FormLabel>
+      <FormLabel>{t("addTopicPrefix")}:</FormLabel>
       <ToggleButtonGroup
         color="primary"
         size="small"
         fullWidth
         exclusive
-        value={tempVal}
-        onChange={(_, value?: PrefixDisplayMedia) => {
+        value={addTopicPrefix}
+        onChange={async (_, value?: string) => {
           if (value != undefined) {
-            setTempVal(value);
-            if (addTopicPrefix !== value) {
-              setConfirmFunctions((prev) => {
-                return {
-                  ...prev,
-                  addPrefix: () => {
-                    void setAddTopicPrefix(value);
-                    window.location.reload();
-                  },
-                };
-              });
-            } else {
-              setConfirmFunctions((prev) => {
-                return {
-                  ...prev,
-                  addPrefix: () => {},
-                };
-              });
-            }
+            await setAddTopicPrefix(value);
+            consoleApi.setAddTopicPrefix(value === "true" ? "true" : "false");
+            await reloadCurrentSource({ addTopicPrefix: value === "true" ? "true" : "false" });
           }
         }}
       >
         <ToggleButton value="false" data-testid="timeformat-seconds">
-          {t("off", { ns: "cosAppSettings" })}
+          {t("off")}
         </ToggleButton>
         <ToggleButton value="true" data-testid="timeformat-local">
-          {t("on", { ns: "cosAppSettings" })}
+          {t("on")}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}
+
+export function CompatibilityMode(): React.ReactElement {
+  const [tfCompatibilityMode, setTfCompatibilityMode] = useAppConfigurationValue<string>(
+    AppSetting.TF_COMPATIBILITY_MODE,
+  );
+  const { t, i18n } = useTranslation("appSettings");
+  const { reloadCurrentSource } = usePlayerSelection();
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("tfCompatibilityMode")} :
+          <Tooltip
+            title={
+              <Trans
+                t={t}
+                i18nKey="tfCompatibilityModeHelp"
+                components={{
+                  Link: (
+                    <Link
+                      href={
+                        i18n.language === "zh"
+                          ? "https://docs.coscene.cn/docs/recipes/viz/options"
+                          : "https://docs.coscene.cn/en/docs/recipes/viz/options"
+                      }
+                    />
+                  ),
+                }}
+              />
+            }
+          >
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={tfCompatibilityMode === "true" ? "true" : "false"}
+        onChange={(_, value?: string) => {
+          if (value != undefined) {
+            void setTfCompatibilityMode(value);
+
+            void reloadCurrentSource();
+          }
+        }}
+      >
+        <ToggleButton value="false" data-testid="timeformat-seconds">
+          {t("off")}
+        </ToggleButton>
+        <ToggleButton value="true" data-testid="timeformat-local">
+          {t("on")}
         </ToggleButton>
       </ToggleButtonGroup>
     </Stack>

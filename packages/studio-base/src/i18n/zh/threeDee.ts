@@ -51,6 +51,8 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   transforms: "变换",
   translation: "平移",
   translationOffset: "平移偏移",
+  tfNameError:
+    "检测到 tf2 坐标系以 '/' 开头，建议调整为标准坐标系名称或在 「个人信息 - 设置」 中启用 「TF 兼容模式」 以临时修复此问题。",
 
   // Scene
   background: "背景",

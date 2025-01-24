@@ -294,9 +294,11 @@ export const TIME_ZERO = { sec: 0, nsec: 0 };
 export const TRANSFORM_STAMPED_DATATYPES = new Set<string>();
 addRosDataType(TRANSFORM_STAMPED_DATATYPES, "geometry_msgs/TransformStamped");
 
-export const TF_DATATYPES = new Set<string>();
-addRosDataType(TF_DATATYPES, "tf/tfMessage");
-addRosDataType(TF_DATATYPES, "tf2_msgs/TFMessage");
+export const TF1_DATATYPES = new Set<string>();
+addRosDataType(TF1_DATATYPES, "tf/tfMessage");
+
+export const TF2_DATATYPES = new Set<string>();
+addRosDataType(TF2_DATATYPES, "tf2_msgs/TFMessage");
 
 export const MARKER_DATATYPES = new Set<string>();
 addRosDataType(MARKER_DATATYPES, "visualization_msgs/Marker");

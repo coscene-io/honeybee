@@ -197,6 +197,7 @@ export function ThreeDeeRender(props: {
 
   const [colorScheme, setColorScheme] = useState<"dark" | "light" | undefined>();
   const [timezone, setTimezone] = useState<string | undefined>();
+  const [tfCompatibilityMode, setTfCompatibilityMode] = useState<string | undefined>();
   const [topics, setTopics] = useState<ReadonlyArray<Topic> | undefined>();
   const [parameters, setParameters] = useState<
     Immutable<Map<string, ParameterValue>> | undefined
@@ -340,9 +341,9 @@ export function ThreeDeeRender(props: {
   // Tell the renderer if we are connected to a ROS data source
   useEffect(() => {
     if (renderer) {
-      renderer.ros = context.dataSourceProfile === "ros1" || context.dataSourceProfile === "ros2";
+      renderer.compatibilityMode = tfCompatibilityMode === "true" ? true : false;
     }
-  }, [context.dataSourceProfile, renderer]);
+  }, [renderer, tfCompatibilityMode]);
 
   // Save panel settings whenever they change
   const throttledSave = useDebouncedCallback(
@@ -383,6 +384,9 @@ export function ThreeDeeRender(props: {
         if (renderState.appSettings) {
           const tz = renderState.appSettings.get(AppSetting.TIMEZONE);
           setTimezone(typeof tz === "string" ? tz : undefined);
+
+          const compatibilityMode = renderState.appSettings.get(AppSetting.TF_COMPATIBILITY_MODE);
+          setTfCompatibilityMode(compatibilityMode === "true" ? "true" : "false");
         }
 
         // We may have new topics - since we are also watching for messages in
@@ -409,9 +413,10 @@ export function ThreeDeeRender(props: {
     context.watch("didSeek");
     context.watch("parameters");
     context.watch("sharedPanelState");
+    // TODO: topics 的订阅会导致非常频繁的渲染，确实是否是正常现象
     context.watch("topics");
     context.watch("appSettings");
-    context.subscribeAppSettings([AppSetting.TIMEZONE]);
+    context.subscribeAppSettings([AppSetting.TIMEZONE, AppSetting.TF_COMPATIBILITY_MODE]);
   }, [context, renderer]);
 
   // Build a list of topics to subscribe to
