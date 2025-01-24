@@ -9,9 +9,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import {
   Alert,
-  Button,
   Dialog,
-  DialogActions,
   DialogProps,
   DialogTitle,
   IconButton,
@@ -45,6 +43,7 @@ import {
   TimeFormat,
   TimezoneSettings,
   AddTopicPrefix,
+  CompatibilityMode,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -66,13 +65,6 @@ const useStyles = makeStyles()((theme) => ({
   },
   tabPanelActive: {
     display: "block",
-  },
-  dialogActions: {
-    position: "sticky",
-    backgroundColor: theme.palette.background.paper,
-    borderTop: `${theme.palette.divider} 1px solid`,
-    padding: theme.spacing(1),
-    bottom: 0,
   },
   tab: {
     svg: {
@@ -138,7 +130,6 @@ export function AppSettingsDialog(
   const [activeTab, setActiveTab] = useState<AppSettingsTab>(
     _activeTab ?? initialActiveTab ?? "general",
   );
-  const [confirmFunctions, setConfirmFunctions] = useState<Record<string, () => void>>({});
 
   const aboutItems = new Map<
     SectionKey,
@@ -234,7 +225,8 @@ export function AppSettingsDialog(
               <ColorSchemeSettings />
               <TimezoneSettings />
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
-              <AddTopicPrefix setConfirmFunctions={setConfirmFunctions} />
+              <AddTopicPrefix />
+              <CompatibilityMode />
               <MessageFramerate />
               <LanguageSettings />
               {supportsAppUpdates && <AutoUpdate />}
@@ -324,20 +316,6 @@ export function AppSettingsDialog(
           </section>
         </Stack>
       </div>
-      <DialogActions className={classes.dialogActions}>
-        <Button
-          onClick={(e) => {
-            Object.values(confirmFunctions).forEach((fn) => {
-              fn();
-            });
-            handleClose(e);
-          }}
-        >
-          {t("done", {
-            ns: "cosGeneral",
-          })}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

@@ -247,9 +247,9 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   /** only public for testing - prefer to use `getCameraState` instead */
   cameraHandler: ICameraHandler;
 
-  // Are we connected to a ROS data source? Normalize coordinate frames if so by
+  // Normalize coordinate frames if so by
   // stripping any leading "/" prefix. See `normalizeFrameId()` for details.
-  ros: boolean;
+  compatibilityMode: boolean;
 
   colorScheme: "dark" | "light";
   modelCache: ModelCache;

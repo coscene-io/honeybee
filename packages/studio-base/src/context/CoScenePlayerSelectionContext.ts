@@ -106,6 +106,7 @@ export type DataSourceArgs = FileDataSourceArgs | ConnectionDataSourceArgs;
 export interface PlayerSelection {
   selectSource: (sourceId: string, args?: DataSourceArgs) => void;
   selectRecent: (recentId: string) => void;
+  reloadCurrentSource: (params?: Record<string, string | undefined>) => Promise<void>;
 
   /** Currently selected data source */
   selectedSource?: IDataSourceFactory;
@@ -120,6 +121,7 @@ export interface PlayerSelection {
 const PlayerSelectionContext = createContext<PlayerSelection>({
   selectSource: () => {},
   selectRecent: () => {},
+  reloadCurrentSource: async () => {},
   availableSources: [],
   recentSources: [],
 });
