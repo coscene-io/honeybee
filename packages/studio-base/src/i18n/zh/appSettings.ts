@@ -40,4 +40,10 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   security: "安全",
   updates: "自动更新",
   automaticallyInstallUpdates: "自动安装更新",
+  addTopicPrefix: "添加主题前缀",
+  tfCompatibilityMode: "TF 兼容模式",
+  on: "开",
+  off: "关",
+  tfCompatibilityModeHelp:
+    "启用此模式后，坐标系名称将删除 '/' 前缀，以兼容 tf2 的坐标系名称。 <Link>详细信息</Link>",
 };

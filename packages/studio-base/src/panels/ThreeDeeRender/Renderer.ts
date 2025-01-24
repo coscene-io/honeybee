@@ -80,7 +80,8 @@ import {
   MarkerArray,
   Quaternion,
   TFMessage,
-  TF_DATATYPES,
+  TF1_DATATYPES,
+  TF2_DATATYPES,
   TRANSFORM_STAMPED_DATATYPES,
   TransformStamped,
   Vector3,
@@ -121,6 +122,13 @@ const TF_OVERFLOW = "TF_OVERFLOW";
 const CYCLE_DETECTED = "CYCLE_DETECTED";
 const FOLLOW_FRAME_NOT_FOUND = "FOLLOW_FRAME_NOT_FOUND";
 const ADD_TRANSFORM_ERROR = "ADD_TRANSFORM_ERROR";
+
+/**
+ * in tf2, frameid can not start with "/", but in tf1, it can
+ * if frameId start with "/tf2_msgs" we will show this error
+ * and we recommend to use tf compatibility mode
+ */
+const TF_NAME_ERROR = "TF_NAME_ERROR";
 
 // An extensionId for creating the top-level settings nodes such as "Topics" and
 // "Custom Layers"
@@ -204,7 +212,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
 
   // Are we connected to a ROS data source? Normalize coordinate frames if so by
   // stripping any leading "/" prefix. See `normalizeFrameId()` for details.
-  public ros = false;
+  public compatibilityMode = false;
 
   #picker: Picker;
   #selectionBackdropScene: THREE.Scene;
@@ -653,8 +661,15 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       shouldSubscribe: () => true,
       preload: preloadTransforms,
     });
-    this.#addSchemaSubscriptions(TF_DATATYPES, {
-      handler: this.#handleTFMessage,
+    // handle tf1 message
+    this.#addSchemaSubscriptions(TF1_DATATYPES, {
+      handler: this.#handleTF1Message,
+      shouldSubscribe: () => true,
+      preload: preloadTransforms,
+    });
+    // handle tf2 message
+    this.#addSchemaSubscriptions(TF2_DATATYPES, {
+      handler: this.#handleTF2Message,
       shouldSubscribe: () => true,
       preload: preloadTransforms,
     });
@@ -1006,7 +1021,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
    * Source: <http://wiki.ros.org/tf2/Migration#tf_prefix_backwards_compatibility>
    */
   public normalizeFrameId(frameId: string): string {
-    if (!this.ros || !frameId.startsWith("/")) {
+    if (!this.compatibilityMode || !frameId.startsWith("/")) {
       return frameId;
     }
     return frameId.slice(1);
@@ -1309,10 +1324,23 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     }
   };
 
-  #handleTFMessage = ({ message }: MessageEvent<DeepPartial<TFMessage>>): void => {
+  #handleTF1Message = ({ message }: MessageEvent<DeepPartial<TFMessage>>): void => {
+    // tf/TFMessage - Ingest the list of transforms into our TF tree
+    const tfMessage = normalizeTFMessage(message);
+    for (const tf of tfMessage.transforms) {
+      this.#addTransformMessage(tf);
+    }
+  };
+
+  #handleTF2Message = ({ message }: MessageEvent<DeepPartial<TFMessage>>): void => {
     // tf2_msgs/TFMessage - Ingest the list of transforms into our TF tree
     const tfMessage = normalizeTFMessage(message);
     for (const tf of tfMessage.transforms) {
+      // tf2 message cannot have frame_id or child_frame_id starting with "/"
+      // details: http://wiki.ros.org/tf2/Migration#tf_prefix_backwards_compatibility
+      if (tf.child_frame_id.startsWith("/") || tf.header.frame_id.startsWith("/")) {
+        this.settings.errors.add(["transforms"], TF_NAME_ERROR, i18next.t("threeDee:tfNameError"));
+      }
       this.#addTransformMessage(tf);
     }
   };

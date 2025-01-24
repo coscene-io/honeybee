@@ -268,9 +268,14 @@ export default function PlayerManager(
     AppSetting.PLAYBACK_QUALITY_LEVEL,
   );
 
+  const [currentSourceParams, setCurrentSourceParams] = useState<
+    { sourceId: string; args?: DataSourceArgs } | undefined
+  >();
+
   const selectSource = useCallback(
     async (sourceId: string, args?: DataSourceArgs) => {
       log.debug(`Select Source: ${sourceId}`);
+
       setCurrentSourceId(sourceId);
 
       const foundSource = playerSources.find(
@@ -288,6 +293,7 @@ export default function PlayerManager(
       // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {
         setDataSource({ id: sourceId, type: "sample" });
+        setCurrentSourceParams({ sourceId, args });
 
         const newPlayer = foundSource.initialize({
           metricsCollector,
@@ -308,6 +314,14 @@ export default function PlayerManager(
         switch (args.type) {
           case "connection": {
             setDataSource({ id: sourceId, type: "connection" });
+            const params: Record<string, string | undefined> = {
+              addTopicPrefix,
+              timeMode,
+              playbackQualityLevel,
+              ...args.params,
+            };
+
+            setCurrentSourceParams({ sourceId, args: { type: "connection", params } });
 
             await beforeConnectionSource(sourceId, args.params ?? {});
 
@@ -323,11 +337,11 @@ export default function PlayerManager(
             });
             constructPlayers(newPlayer);
 
-            if (args.params?.url) {
+            if (args.params?.url || args.params?.key) {
               addRecent({
                 type: "connection",
                 sourceId: foundSource.id,
-                title: args.params.url,
+                title: args.params.url ?? "online data",
                 label: foundSource.displayName,
                 extra: args.params,
               });
@@ -337,6 +351,7 @@ export default function PlayerManager(
           }
           case "file": {
             setDataSource({ id: sourceId, type: "file" });
+            setCurrentSourceParams({ sourceId, args });
 
             const handle = args.handle;
             const files = args.files;
@@ -434,12 +449,42 @@ export default function PlayerManager(
     });
   }, [recents]);
 
+  /**
+   *  in data platform, some value change need to reload current source
+   *  like addTopicPrefix, timeMode, playbackQualityLevel, tfCompatibilityMode
+   *  or add remove file
+   *  And due to the storage mechanism of appconfig, it will not be updated immediately after modification.
+   *  You need to manually call reloadCurrentSource and pass in the corresponding value.
+   */
+  const reloadCurrentSource = useCallback(
+    async (params?: Record<string, string | undefined>) => {
+      if (currentSourceParams?.args?.type) {
+        const args: DataSourceArgs = {
+          ...currentSourceParams.args,
+          type: currentSourceParams.args.type,
+          params:
+            currentSourceParams.args.type === "connection"
+              ? {
+                  ...currentSourceParams.args.params,
+                  ...params,
+                }
+              : params,
+        };
+        await selectSource(currentSourceParams.sourceId, args);
+      } else {
+        console.error("currentSourceParams is undefined");
+      }
+    },
+    [currentSourceParams, selectSource],
+  );
+
   const value: PlayerSelection = {
     selectSource,
     selectRecent,
     selectedSource,
     availableSources: playerSources,
     recentSources,
+    reloadCurrentSource,
   };
 
   return (

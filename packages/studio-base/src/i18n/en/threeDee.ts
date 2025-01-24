@@ -51,6 +51,8 @@ export const threeDee = {
   transforms: "Transforms",
   translation: "Translation",
   translationOffset: "Translation offset",
+  tfNameError:
+    "Detected tf2 frames beginning with '/', it is recommended to adjust to standard frame names or enable 'TF compatibility mode' in 'My Profile - Settings' to temporarily fix this issue.",
 
   // Scene
   background: "Background",

@@ -43,4 +43,7 @@ export enum AppSetting {
 
   // Playback Quality
   PLAYBACK_QUALITY_LEVEL = "playbackQualityLevel",
+
+  // TF Compatibility Mode
+  TF_COMPATIBILITY_MODE = "tfCompatibilityMode",
 }
