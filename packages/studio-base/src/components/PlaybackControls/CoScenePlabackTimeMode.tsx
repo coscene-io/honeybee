@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 
 const RELATATIVE_TIME = "relativeTime";
@@ -33,6 +34,7 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const open = Boolean(anchorEl);
   const { classes, cx } = useStyles();
+  const { reloadCurrentSource } = usePlayerSelection();
 
   const [timeModeSetting, setTimeMode] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
@@ -42,9 +44,12 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
   const handleSetTimeMode = useCallback(
     async (changedTimeMode: string) => {
       await setTimeMode(changedTimeMode);
-      location.reload();
+
+      await reloadCurrentSource({
+        timeMode: changedTimeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
+      });
     },
-    [setTimeMode],
+    [setTimeMode, reloadCurrentSource],
   );
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
