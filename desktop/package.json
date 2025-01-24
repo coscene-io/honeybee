@@ -11,7 +11,7 @@
     "@types/ws": "^8",
     "electron": "33.3.0",
     "playwright": "1.37.1",
-    "webpack": "5.93.0",
+    "webpack": "5.97.1",
     "ws": "8.18.0"
   }
 }
