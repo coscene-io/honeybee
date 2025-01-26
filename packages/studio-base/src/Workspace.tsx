@@ -459,7 +459,15 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const selectEvent = useEvents(selectSelectEvent);
   // Load data source from URL.
   useEffect(() => {
-    if (unappliedSourceArgs?.ds == undefined || currentUser?.userId == undefined) {
+    if (unappliedSourceArgs?.ds == undefined) {
+      return;
+    }
+
+    if (dataSourceDialog.open) {
+      dialogActions.dataSource.close();
+    }
+
+    if (currentUser?.userId == undefined) {
       return;
     }
 
@@ -497,6 +505,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     currentSource,
     loginStatus,
     t,
+    dialogActions.dataSource,
+    dataSourceDialog.open,
   ]);
 
   const appBar = useMemo(
