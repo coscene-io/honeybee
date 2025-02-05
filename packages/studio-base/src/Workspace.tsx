@@ -457,6 +457,13 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const currentSource = useRef<(DataSourceArgs & { id: string }) | undefined>(undefined);
 
   const selectEvent = useEvents(selectSelectEvent);
+
+  const debouncedPleaseLoginFirstToast = React.useMemo(() => {
+    return _.debounce(() => {
+      toast.error(t("pleaseLoginFirst", { ns: "openDialog" }));
+    }, 1000);
+  }, [t]);
+
   // Load data source from URL.
   useEffect(() => {
     if (unappliedSourceArgs?.ds == undefined) {
@@ -467,12 +474,11 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       dialogActions.dataSource.close();
     }
 
-    if (currentUser?.userId == undefined) {
-      return;
-    }
-
-    if (loginStatus === "notLogin" && unappliedSourceArgs.ds === "coscene-data-platform") {
-      toast.error(t("pleaseLoginFirst", { ns: "openDialog" }));
+    if (
+      (loginStatus === "notLogin" && unappliedSourceArgs.ds === "coscene-data-platform") ||
+      currentUser?.userId == undefined
+    ) {
+      debouncedPleaseLoginFirstToast();
       return;
     }
 
@@ -507,6 +513,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     t,
     dialogActions.dataSource,
     dataSourceDialog.open,
+    debouncedPleaseLoginFirstToast,
   ]);
 
   const appBar = useMemo(
