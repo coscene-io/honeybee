@@ -32,6 +32,7 @@ import {
   Autocomplete,
   Link,
 } from "@mui/material";
+import { useTrackedEffect } from "ahooks";
 import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
 import PinyinMatch from "pinyin-match";
@@ -277,12 +278,13 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     });
   }, [currentFile?.startTime, markEndTime, setEvent, timeMode, markStartTime, isEditing]);
 
-  useDeepCompareEffect(() => {
+  useEffect(() => {
     if ((passingFile == undefined || passingFile.length === 0) && !isEditing) {
       onClose();
       toast.error(t("creationUnavailableInCurrentPeriod"));
     }
-  }, [isEditing, onClose, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     document.addEventListener("compositionstart", () => {
