@@ -20,7 +20,6 @@ import { AppURLState, parseAppURLState } from "@foxglove/studio-base/util/appURL
 
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
-const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 const log = Log.getLogger(__filename);
@@ -58,10 +57,9 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
 function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
   const seekPlayback = useMessagePipeline(selectSeek);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
-  const startTime = useMessagePipeline(selectStartTime);
   const [isAppliedTime, setIsAppliedTime] = useState(false);
 
-  const time = targetUrlState?.time ?? startTime;
+  const time = targetUrlState?.time;
 
   // Wait until player is ready before we try to seek.
   // Seek to time in URL.
