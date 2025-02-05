@@ -11,16 +11,11 @@ import { Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/materia
 import Tooltip from "@mui/material/Tooltip";
 import i18n from "i18next";
 import { useState } from "react";
-import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { subtract } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
-import {
-  MessagePipelineContext,
-  useMessagePipeline,
-} from "@foxglove/studio-base/components/MessagePipeline";
+import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 
 const ORIGINAL = "original";
@@ -39,21 +34,17 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
-const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
-
 function PlaybackQualityControls(): React.JSX.Element {
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
 
   const [playbackQuality, setPlaybackQuality] = useAppConfigurationValue<string>(
     AppSetting.PLAYBACK_QUALITY_LEVEL,
   );
+  const { reloadCurrentSource } = usePlayerSelection();
 
   const { t } = useTranslation("cosSettings");
   const open = Boolean(anchorEl);
   const { classes, cx } = useStyles();
-  const seek = useMessagePipeline(selectSeek);
-  const currentTime = useMessagePipeline(selectCurrentTime);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -119,12 +110,10 @@ function PlaybackQualityControls(): React.JSX.Element {
             key={option}
             onClick={async () => {
               await setPlaybackQuality(option);
-
-              toast.success(t("willTakeEffectOnTheNextStartup"));
+              await reloadCurrentSource({
+                playbackQualityLevel: option,
+              });
               handleClose();
-              if (seek && currentTime) {
-                seek(subtract(currentTime, { sec: 0, nsec: 1 }));
-              }
             }}
           >
             {playbackQuality === option && (
