@@ -282,7 +282,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
       onClose();
       toast.error(t("creationUnavailableInCurrentPeriod"));
     }
-  }, [passingFile, isEditing, onClose, t]);
+  }, [isEditing, onClose, t]);
 
   useEffect(() => {
     document.addEventListener("compositionstart", () => {
