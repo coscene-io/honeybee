@@ -4839,7 +4839,7 @@ __metadata:
     electron: 33.3.0
     electron-builder: 25.1.8
     electron-devtools-installer: 4.0.0
-    electron-squirrel-startup: 1.0.0
+    electron-squirrel-startup: 1.0.1
     electron-updater: 6.3.9
     esbuild-loader: 2.21.0
     eventemitter3: 5.0.1
@@ -13359,12 +13359,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"electron-squirrel-startup@npm:1.0.0":
-  version: 1.0.0
-  resolution: "electron-squirrel-startup@npm:1.0.0"
+"electron-squirrel-startup@npm:1.0.1":
+  version: 1.0.1
+  resolution: "electron-squirrel-startup@npm:1.0.1"
   dependencies:
     debug: ^2.2.0
-  checksum: a1f658e326bd0f5c24aec95fd9a94a2e2b8b645adbd421465829f32719d15e85d6469d9369914c3b766d61e71eebb9f6725057b7fafa78adbcc5d6d3ce5d7a22
+  checksum: fabdca2f5badc5bb63e59d226fd23db749f15a9450d138dca21bbca9583fbd7086215d6f9a94b86f5ca0edeb97087b5d6e6aebfe292a0d2203e51b8f765b8f57
   languageName: node
   linkType: hard
 

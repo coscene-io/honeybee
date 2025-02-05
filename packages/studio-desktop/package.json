@@ -32,7 +32,7 @@
     "electron": "33.3.0",
     "electron-builder": "25.1.8",
     "electron-devtools-installer": "4.0.0",
-    "electron-squirrel-startup": "1.0.0",
+    "electron-squirrel-startup": "1.0.1",
     "electron-updater": "6.3.9",
     "esbuild-loader": "2.21.0",
     "eventemitter3": "5.0.1",
