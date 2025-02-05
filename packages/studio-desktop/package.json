@@ -16,7 +16,7 @@
     "@foxglove/theme": "workspace:*",
     "@foxglove/tsconfig": "2.0.0",
     "@mcap/core": "2.1.2",
-    "@pmmmwh/react-refresh-webpack-plugin": "0.5.11",
+    "@pmmmwh/react-refresh-webpack-plugin": "0.5.15",
     "@storybook/react": "7.6.10",
     "@types/electron-devtools-installer": "2.2.3",
     "@types/plist": "^3.0.3",
