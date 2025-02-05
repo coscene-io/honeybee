@@ -5,15 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Checkbox } from "@mui/material";
-
 import { OverrideComponentReturn } from "../types";
 
 export const MuiDataGrid: OverrideComponentReturn<"MuiDataGrid"> = {
   defaultProps: {
-    slots: {
-      baseSwitch: Checkbox,
-    },
     slotProps: {
       panel: {
         popperOptions: {
@@ -24,12 +19,6 @@ export const MuiDataGrid: OverrideComponentReturn<"MuiDataGrid"> = {
         variant: "outlined",
         size: "small",
         label: undefined,
-      },
-      baseSwitch: {
-        size: "medium",
-        sx: {
-          padding: 0.5,
-        },
       },
     },
   },
@@ -42,7 +31,7 @@ export const MuiDataGrid: OverrideComponentReturn<"MuiDataGrid"> = {
         outline: "none",
       },
     },
-    columnsPanel: {
+    columnsManagement: {
       padding: 0,
     },
     columnHeader: {
