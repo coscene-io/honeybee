@@ -567,6 +567,7 @@ class CoSceneConsoleApi {
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
         if (!isDesktopApp()) {
+          console.log("signOut 2");
           window.location.href = `/login?redirectToPath=${encodeURIComponent(
             window.location.pathname + window.location.search,
           )}`;
