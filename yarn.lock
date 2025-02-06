@@ -5159,17 +5159,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@foxglove/cdr@npm:3.3.0":
+  version: 3.3.0
+  resolution: "@foxglove/cdr@npm:3.3.0"
+  checksum: f1c5479474bbd94a9992f788b52092d9938095014df4983eb6099741dc390c2168ff77c5e8431a8fa3bbf437b34cb74f2c73a0a97331166c837788711f5d501d
+  languageName: node
+  linkType: hard
+
 "@foxglove/cdr@npm:^3.0.0":
   version: 3.2.0
   resolution: "@foxglove/cdr@npm:3.2.0"
   checksum: 1c8497debd32714bbe26724df1dbde783fddd6e8ef2e126df87f10221691419c1d8f1fdfb6dd9fd066408638aaa325d41aa6ccc9d1291c3d3774f2b844c9e546
-  languageName: node
-  linkType: hard
-
-"@foxglove/cdr@npm:^3.2.1":
-  version: 3.3.0
-  resolution: "@foxglove/cdr@npm:3.3.0"
-  checksum: f1c5479474bbd94a9992f788b52092d9938095014df4983eb6099741dc390c2168ff77c5e8431a8fa3bbf437b34cb74f2c73a0a97331166c837788711f5d501d
   languageName: node
   linkType: hard
 
@@ -5305,7 +5305,7 @@ __metadata:
   dependencies:
     "@foxglove/message-definition": 0.3.1
     "@foxglove/omgidl-parser": 1.0.3
-    "@foxglove/omgidl-serialization": 1.0.4
+    "@foxglove/omgidl-serialization": 1.1.5
     "@foxglove/ros2idl-parser": 0.3.2
     "@foxglove/rosmsg": 4.2.2
     "@foxglove/rosmsg-serialization": 2.0.3
@@ -5339,6 +5339,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@foxglove/message-definition@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "@foxglove/message-definition@npm:0.4.0"
+  checksum: b29511e4e5171110fcb67af1e46e5bfebafc5cd381340cc777186e54517ed20500426f818d22f68a4b912034338ab93d0f0a688e4589a2c58cd022007376b2e6
+  languageName: node
+  linkType: hard
+
 "@foxglove/message-path@workspace:*, @foxglove/message-path@workspace:packages/message-path":
   version: 0.0.0-use.local
   resolution: "@foxglove/message-path@workspace:packages/message-path"
@@ -5359,13 +5366,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@foxglove/omgidl-serialization@npm:1.0.4":
-  version: 1.0.4
-  resolution: "@foxglove/omgidl-serialization@npm:1.0.4"
+"@foxglove/omgidl-serialization@npm:1.1.5":
+  version: 1.1.5
+  resolution: "@foxglove/omgidl-serialization@npm:1.1.5"
   dependencies:
-    "@foxglove/cdr": ^3.2.1
-    "@foxglove/message-definition": ^0.3.1
-  checksum: 869a60bd287ba0ef25ceca6975a3a21658033d1f3378a57d8112905dc68a520fe5829767021e116a484f99d08f9f446edc15287685c1d2f627345ee9701dcbb3
+    "@foxglove/cdr": 3.3.0
+    "@foxglove/message-definition": ^0.4.0
+  checksum: 2dddd0a6146e388c03ab46acd4352e2f40cf07b8fa1325a0d7b838353227d62f04f57cf0c034d8df1ee18b08a57311547718d650273599319ee0cbab7f65af6a
   languageName: node
   linkType: hard
 
