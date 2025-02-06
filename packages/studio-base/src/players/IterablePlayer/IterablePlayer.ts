@@ -348,6 +348,7 @@ export class IterablePlayer implements Player {
     this.#untilTime = undefined;
     this.#lastTickMillis = undefined;
     this.#lastRangeMillis = undefined;
+    this.#lastStamp = undefined;
 
     this.#setState("seek-backfill");
   }
@@ -870,6 +871,13 @@ export class IterablePlayer implements Player {
     //
     // If we have a lastStamp but it isn't after the tick end, then we clear it and proceed with the
     // tick logic.
+
+    // ps:
+    // The optimization here is to avoid parsing new data when
+    // the data returned by the two getStreams requests overlap.
+    // Instead, it reads already parsed data from the cache.
+    // 这里的优化是为了两次的 getStreams 的请求返回的数据有重叠的情况下，
+    // 不需要去解析新的数据，而是从已经解析好的缓存中读取已经解析的数据
     if (this.#lastStamp) {
       if (compare(this.#lastStamp, end) >= 0) {
         // Wait for the previous render frame to finish
