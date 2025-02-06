@@ -19,8 +19,10 @@ function AuthSignOutListener(): React.JSX.Element {
   const signOut = cookies[authStatusCookieName]?.status === AuthStatus.SIGN_OUT;
 
   useEffect(() => {
-    if (signOut && process.env.NODE_ENV !== "development" && !isDesktopApp()) {
-      window.location.href = "/login";
+    if (signOut && !isDesktopApp()) {
+      window.location.href = `/login?redirectToPath=${encodeURIComponent(
+        window.location.pathname + window.location.search,
+      )}`;
     }
   }, [signOut]);
 
