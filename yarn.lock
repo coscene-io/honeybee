@@ -5602,7 +5602,7 @@ __metadata:
     "@types/react-dom": 18.2.7
     "@types/react-hover-observer": "workspace:*"
     "@types/react-transition-group": ^4.4.8
-    "@types/react-virtualized": 9.21.29
+    "@types/react-virtualized": 9.22.0
     "@types/react-window": ^1.8.8
     "@types/sanitize-html": 2.9.3
     "@types/seedrandom": 3.0.8
@@ -5687,7 +5687,7 @@ __metadata:
     react-resize-detector: 12.0.2
     react-transition-group: 4.4.5
     react-use: 17.4.2
-    react-virtualized: 9.22.5
+    react-virtualized: 9.22.6
     react-window: 1.8.10
     readable-stream: 4.5.2
     recoil: 0.7.6
@@ -9416,13 +9416,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react-virtualized@npm:9.21.29":
-  version: 9.21.29
-  resolution: "@types/react-virtualized@npm:9.21.29"
+"@types/react-virtualized@npm:9.22.0":
+  version: 9.22.0
+  resolution: "@types/react-virtualized@npm:9.22.0"
   dependencies:
     "@types/prop-types": "*"
     "@types/react": "*"
-  checksum: df10e8847e20ac2b4bac647a9bfc027edbc73ff41e298024de7b8588e0d8e9b220ba7d65231fced9ca9eb5284a1d6a478ec934f950f33795baed586bd0e30ea0
+  checksum: 9bd95fd98403f478d5a0c6d3a36058eabaffeb4e00d140aa529868e1a07e2bbc6f24ebcc8cbb446f811a738747604621a243f4de84ca9a97e30c889269ecef25
   languageName: node
   linkType: hard
 
@@ -23042,9 +23042,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-virtualized@npm:9.22.5":
-  version: 9.22.5
-  resolution: "react-virtualized@npm:9.22.5"
+"react-virtualized@npm:9.22.6":
+  version: 9.22.6
+  resolution: "react-virtualized@npm:9.22.6"
   dependencies:
     "@babel/runtime": ^7.7.2
     clsx: ^1.0.4
@@ -23053,9 +23053,9 @@ __metadata:
     prop-types: ^15.7.2
     react-lifecycles-compat: ^3.0.4
   peerDependencies:
-    react: ^15.3.0 || ^16.0.0-alpha || ^17.0.0 || ^18.0.0
-    react-dom: ^15.3.0 || ^16.0.0-alpha || ^17.0.0 || ^18.0.0
-  checksum: 01f5ed8d8db7c831d592172946c2b61fcb409bf6cbc84500468f12d6cf9b7e60453e332fac02dd608480d23cb14421f7f17716393e623e83bb10a7763fad9e2c
+    react: ^16.3.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    react-dom: ^16.3.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 04e5547c289d4a5fa55ea45c5afe3a85c318855c1846efc61cdb736e08f270aea805af53f62e84d3566135f0b4546caede6c49c3162dce7eeec03d77096c6fe6
   languageName: node
   linkType: hard
 
