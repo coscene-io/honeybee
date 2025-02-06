@@ -474,11 +474,13 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       dialogActions.dataSource.close();
     }
 
-    if (
-      (loginStatus === "notLogin" && unappliedSourceArgs.ds === "coscene-data-platform") ||
-      currentUser?.userId == undefined
-    ) {
+    if (loginStatus === "notLogin" && unappliedSourceArgs.ds === "coscene-data-platform") {
       debouncedPleaseLoginFirstToast();
+      return;
+    }
+
+    // sync user info need time, so in some case, loginStatus is alreadyLogin but currentUser is undefined
+    if (currentUser?.userId == undefined) {
       return;
     }
 
