@@ -329,11 +329,16 @@ const Editor = ({
     [latestSetScriptCode],
   );
 
-  const onResize = useCallback((width?: number, height?: number) => {
-    if (width != undefined && height != undefined) {
-      editorRef.current?.layout({ width, height });
-    }
-  }, []);
+  const onResize = useCallback(
+    // eslint-disable-next-line no-restricted-syntax
+    ({ width, height }: { width: number | null; height: number | null }) => {
+      // eslint-disable-next-line no-restricted-syntax
+      if (width != null && height != null) {
+        editorRef.current?.layout({ width, height });
+      }
+    },
+    [],
+  );
 
   // monaco editor builtin auto layout uses an interval to adjust size to the parent component
   // instead we use a resize observer and tell the editor to update the layout
