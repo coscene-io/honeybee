@@ -134,10 +134,10 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
     };
   }, [debouncedPlayerSetSubscriptions]);
 
-  useEffect(
-    () => debouncedPlayerSetSubscriptions(subscriptions),
-    [debouncedPlayerSetSubscriptions, subscriptions],
-  );
+  useEffect(() => {
+    console.debug("woodiiTest useEffect subscriptions", subscriptions);
+    debouncedPlayerSetSubscriptions(subscriptions);
+  }, [debouncedPlayerSetSubscriptions, subscriptions]);
 
   // Slow down the message pipeline framerate to the given FPS if it is set to less than 60
   const [messageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
