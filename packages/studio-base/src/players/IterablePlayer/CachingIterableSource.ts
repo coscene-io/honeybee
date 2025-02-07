@@ -253,6 +253,7 @@ class CachingIterableSource<MessageType = unknown>
         start: sourceReadStart,
         end: sourceReadEnd,
         consumptionType: args.consumptionType,
+        fetchCompleteTopicState: args.fetchCompleteTopicState,
       });
 
       // The cache is indexed on time, but iterator results that are problems might not have a time.
