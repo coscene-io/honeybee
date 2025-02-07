@@ -135,7 +135,6 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
   }, [debouncedPlayerSetSubscriptions]);
 
   useEffect(() => {
-    console.debug("woodiiTest useEffect subscriptions", subscriptions);
     debouncedPlayerSetSubscriptions(subscriptions);
   }, [debouncedPlayerSetSubscriptions, subscriptions]);
 
