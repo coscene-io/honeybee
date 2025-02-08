@@ -163,15 +163,14 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
   // file types we support for drag/drop
   const allowedDropExtensions = useMemo(() => {
-    // const extensions = [".foxe"];
-    // for (const source of availableSources) {
-    //   if (source.type === "file" && source.supportedFileTypes) {
-    //     extensions.push(...source.supportedFileTypes);
-    //   }
-    // }
-    // return extensions;
-    return [];
-  }, []);
+    const extensions = [".foxe"];
+    for (const source of availableSources) {
+      if (source.type === "file" && source.supportedFileTypes) {
+        extensions.push(...source.supportedFileTypes);
+      }
+    }
+    return extensions;
+  }, [availableSources]);
 
   // We use playerId to detect when a player changes for RemountOnValueChange below
   // see comment below above the RemountOnValueChange component
@@ -207,39 +206,39 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
   const installExtension = useExtensionCatalog((state) => state.installExtension);
 
-  // const openHandle = useCallback(
-  //   async (
-  //     handle: FileSystemFileHandle /* foxglove-depcheck-used: @types/wicg-file-system-access */,
-  //   ) => {
-  //     log.debug("open handle", handle);
-  //     const file = await handle.getFile();
+  const openHandle = useCallback(
+    async (
+      handle: FileSystemFileHandle /* foxglove-depcheck-used: @types/wicg-file-system-access */,
+    ) => {
+      log.debug("open handle", handle);
+      const file = await handle.getFile();
 
-  //     if (file.name.endsWith(".foxe")) {
-  //       // Extension installation
-  //       try {
-  //         const arrayBuffer = await file.arrayBuffer();
-  //         const data = new Uint8Array(arrayBuffer);
-  //         const extension = await installExtension("local", data);
-  //         enqueueSnackbar(`Installed extension ${extension.id}`, { variant: "success" });
-  //       } catch (err) {
-  //         log.error(err);
-  //         enqueueSnackbar(`Failed to install extension ${file.name}: ${err.message}`, {
-  //           variant: "error",
-  //         });
-  //       }
-  //     }
+      if (file.name.endsWith(".foxe")) {
+        // Extension installation
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const data = new Uint8Array(arrayBuffer);
+          const extension = await installExtension("local", data);
+          enqueueSnackbar(`Installed extension ${extension.id}`, { variant: "success" });
+        } catch (err) {
+          log.error(err);
+          enqueueSnackbar(`Failed to install extension ${file.name}: ${err.message}`, {
+            variant: "error",
+          });
+        }
+      }
 
-  //     // Look for a source that supports the file extensions
-  //     const matchedSource = availableSources.find((source) => {
-  //       const ext = extname(file.name);
-  //       return source.supportedFileTypes?.includes(ext);
-  //     });
-  //     if (matchedSource) {
-  //       selectSource(matchedSource.id, { type: "file", handle });
-  //     }
-  //   },
-  //   [availableSources, enqueueSnackbar, installExtension, selectSource],
-  // );
+      // Look for a source that supports the file extensions
+      const matchedSource = availableSources.find((source) => {
+        const ext = extname(file.name);
+        return source.supportedFileTypes?.includes(ext);
+      });
+      if (matchedSource) {
+        selectSource(matchedSource.id, { type: "file", handle });
+      }
+    },
+    [availableSources, enqueueSnackbar, installExtension, selectSource],
+  );
 
   const openFiles = useCallback(
     async (files: File[]) => {
@@ -292,18 +291,21 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     }
   }, [filesToOpen, openFiles]);
 
-  const dropHandler = useCallback((event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
-    log.debug("drop event", event);
-    // const handle = event.handles?.[0];
-    // // When selecting sources with handles we can only select with a single handle since we haven't
-    // // written the code to store multiple handles for recents. When there are multiple handles, we
-    // // fall back to opening regular files.
-    // if (handle && event.handles?.length === 1) {
-    //   void openHandle(handle);
-    // } else if (event.files) {
-    //   void openFiles(event.files);
-    // }
-  }, []);
+  const dropHandler = useCallback(
+    (event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
+      log.debug("drop event", event);
+      const handle = event.handles?.[0];
+      // // When selecting sources with handles we can only select with a single handle since we haven't
+      // // written the code to store multiple handles for recents. When there are multiple handles, we
+      // // fall back to opening regular files.
+      if (handle && event.handles?.length === 1) {
+        void openHandle(handle);
+      } else if (event.files) {
+        void openFiles(event.files);
+      }
+    },
+    [openFiles, openHandle],
+  );
 
   const eventsSupported = useEvents(selectEventsSupported);
   const showEventsTab = currentUser != undefined && eventsSupported;
@@ -549,7 +551,9 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   return (
     <PanelStateContextProvider>
       {dataSourceDialog.open && <DataSourceDialog />}
-      <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
+      {isDesktopApp() && (
+        <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
+      )}
       <SyncAdapters />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
