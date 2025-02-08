@@ -246,15 +246,16 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
 
   #handleOccupancyGrid = (messageEvent: PartialMessageEvent<OccupancyGrid>): void => {
     const topic = messageEvent.topic;
-    const occupancyGrid = normalizeOccupancyGrid(messageEvent.message);
-    const receiveTime = toNanoSec(messageEvent.receiveTime);
-
-    let renderable = this.renderables.get(topic);
 
     const userSettings = this.renderer.config.topics[topic] as
       | Partial<LayerSettingsOccupancyGrid>
       | undefined;
     const settings = { ...DEFAULT_SETTINGS, ...userSettings };
+
+    const occupancyGrid = normalizeOccupancyGrid(messageEvent.message, settings.modifyHeight);
+    const receiveTime = toNanoSec(messageEvent.receiveTime);
+
+    let renderable = this.renderables.get(topic);
 
     if (!renderable) {
       const texture = createTexture(occupancyGrid);
@@ -287,17 +288,7 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
       this.renderables.set(topic, renderable);
     }
 
-    if (settings.modifyHeight !== 0) {
-      const pose = { ...occupancyGrid.info.origin };
-      pose.position.z += settings.modifyHeight;
-      this.#updateOccupancyGridRenderable(
-        renderable,
-        { ...occupancyGrid, info: { ...occupancyGrid.info, origin: pose } },
-        receiveTime,
-      );
-    } else {
-      this.#updateOccupancyGridRenderable(renderable, occupancyGrid, receiveTime);
-    }
+    this.#updateOccupancyGridRenderable(renderable, occupancyGrid, receiveTime);
   };
 
   #updateOccupancyGridRenderable(
@@ -520,8 +511,13 @@ function srgbToLinearUint8(color: ColorRGBA): void {
   color.a = Math.trunc(color.a * 255);
 }
 
-function normalizeOccupancyGrid(message: PartialMessage<OccupancyGrid>): OccupancyGrid {
+function normalizeOccupancyGrid(
+  message: PartialMessage<OccupancyGrid>,
+  modifyHeight: number,
+): OccupancyGrid {
   const info = message.info ?? {};
+
+  const origin = normalizePose(info.origin);
 
   return {
     header: normalizeHeader(message.header),
@@ -530,7 +526,10 @@ function normalizeOccupancyGrid(message: PartialMessage<OccupancyGrid>): Occupan
       resolution: info.resolution ?? 0,
       width: info.width ?? 0,
       height: info.height ?? 0,
-      origin: normalizePose(info.origin),
+      origin: {
+        ...origin,
+        position: { ...origin.position, z: origin.position.z + modifyHeight },
+      },
     },
     data: normalizeInt8Array(message.data),
   };
