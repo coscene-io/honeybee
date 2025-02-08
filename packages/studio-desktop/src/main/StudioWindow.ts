@@ -42,7 +42,10 @@ const isWindows = process.platform === "win32";
 const isProduction = process.env.NODE_ENV === "production";
 const rendererPath = MAIN_WINDOW_WEBPACK_ENTRY;
 
-const closeMenuItem: MenuItemConstructorOptions = isMac ? { role: "close" } : { role: "quit" };
+const closeMenuItem: MenuItemConstructorOptions = isMac
+  ? { role: "close", label: t("desktopWindow:closeWindow") }
+  : { role: "quit", label: t("desktopWindow:closeWindow") };
+
 const log = Logger.getLogger(__filename);
 
 function getWindowBackgroundColor(): string | undefined {
@@ -220,9 +223,11 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
       role: "appMenu",
       label: app.name,
       submenu: [
-        { role: "about" },
+        { role: "about", label: t("desktopWindow:about") },
         // checkForUpdatesItem,
+
         { type: "separator" },
+
         {
           label: t("desktopWindow:settings"),
           accelerator: "CommandOrControl+,",
@@ -230,15 +235,14 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
             sendNativeAppMenuEvent("open-help-general", browserWindow);
           },
         },
-        { role: "services" },
-        { type: "separator" },
+        { role: "services", label: t("desktopWindow:services") },
 
         { type: "separator" },
 
-        { role: "hide" },
-        { role: "hideOthers" },
-        { role: "unhide" },
-        { role: "quit" },
+        { role: "hide", label: t("desktopWindow:hide") },
+        { role: "hideOthers", label: t("desktopWindow:hideOthers") },
+        { role: "unhide", label: t("desktopWindow:unhide") },
+        { role: "quit", label: t("desktopWindow:quit") },
       ],
     });
   }
@@ -288,23 +292,23 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
     role: "editMenu",
     label: t("desktopWindow:edit"),
     submenu: [
-      { role: "undo" },
-      { role: "redo" },
+      { role: "undo", label: t("desktopWindow:undo") },
+      { role: "redo", label: t("desktopWindow:redo") },
       { type: "separator" },
 
-      { role: "cut" },
-      { role: "copy" },
-      { role: "paste" },
+      { role: "cut", label: t("desktopWindow:cut") },
+      { role: "copy", label: t("desktopWindow:copy") },
+      { role: "paste", label: t("desktopWindow:paste") },
       ...(isMac
         ? [
-            { role: "pasteAndMatchStyle" } as const,
-            { role: "delete" } as const,
-            { role: "selectAll" } as const,
+            { role: "pasteAndMatchStyle", label: t("desktopWindow:pasteAndMatchStyle") } as const,
+            { role: "delete", label: t("desktopWindow:delete") } as const,
+            { role: "selectAll", label: t("desktopWindow:selectAll") } as const,
           ]
         : [
-            { role: "delete" } as const,
+            { role: "delete", label: t("desktopWindow:delete") } as const,
             { type: "separator" } as const,
-            { role: "selectAll" } as const,
+            { role: "selectAll", label: t("desktopWindow:selectAll") } as const,
           ]),
     ],
   });
@@ -334,18 +338,22 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
     role: "viewMenu",
     label: t("desktopWindow:view"),
     submenu: [
-      { role: "resetZoom" },
-      { role: "zoomIn" },
-      { role: "zoomOut" },
+      { role: "resetZoom", label: t("desktopWindow:resetZoom") },
+      { role: "zoomIn", label: t("desktopWindow:zoomIn") },
+      { role: "zoomOut", label: t("desktopWindow:zoomOut") },
+
       { type: "separator" },
-      { role: "togglefullscreen" },
+
+      { role: "togglefullscreen", label: t("desktopWindow:toggleFullScreen") },
+
       { type: "separator" },
+
       {
         label: t("desktopWindow:advanced"),
         submenu: [
-          { role: "reload" },
-          { role: "forceReload" },
-          { role: "toggleDevTools" },
+          { role: "reload", label: t("desktopWindow:reload") },
+          { role: "forceReload", label: t("desktopWindow:forceReload") },
+          { role: "toggleDevTools", label: t("desktopWindow:toggleDevTools") },
           {
             label: t("desktopWindow:inspectSharedWorker"),
             click() {
