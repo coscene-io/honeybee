@@ -376,7 +376,7 @@ export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
   const consoleApi = useConsoleApi();
 
-  const [selectedLanguage = "en", setSelectedLanguage] = useAppConfigurationValue<Language>(
+  const [selectedLanguage = "zh", setSelectedLanguage] = useAppConfigurationValue<Language>(
     AppSetting.LANGUAGE,
   );
   const userInfo = useCurrentUser(selectUser);
