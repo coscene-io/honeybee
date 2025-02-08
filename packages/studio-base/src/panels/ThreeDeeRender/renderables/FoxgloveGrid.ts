@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { t } from "i18next";
 import * as THREE from "three";
 
 import { toNanoSec } from "@foxglove/rostime";
@@ -44,6 +45,7 @@ type GridColorModeSettings = ColorModeSettings & {
 export type LayerSettingsFoxgloveGrid = BaseSettings &
   GridColorModeSettings & {
     frameLocked: boolean;
+    modifyHeight: number;
   };
 function zeroReader(): number {
   return 0;
@@ -57,6 +59,7 @@ const DEFAULT_COLOR_MAP = "turbo";
 const DEFAULT_FLAT_COLOR = { r: 1, g: 1, b: 1, a: 1 };
 const DEFAULT_MIN_COLOR = { r: 100 / 255, g: 47 / 255, b: 105 / 255, a: 1 };
 const DEFAULT_MAX_COLOR = { r: 227 / 255, g: 177 / 255, b: 135 / 255, a: 1 };
+const DEFAULT_MODIFY_HEIGHT = 0;
 
 const COLOR_MODE_TO_GLSL: {
   [K in GridColorModeSettings["colorMode"] as `COLOR_MODE_${K extends "rgba-fields"
@@ -87,6 +90,7 @@ const DEFAULT_SETTINGS: LayerSettingsFoxgloveGrid = {
   gradient: [rgbaToCssString(DEFAULT_MIN_COLOR), rgbaToCssString(DEFAULT_MAX_COLOR)],
   colorMap: DEFAULT_COLOR_MAP,
   explicitAlpha: 1,
+  modifyHeight: DEFAULT_MODIFY_HEIGHT,
 };
 
 interface GridShaderMaterial extends THREE.ShaderMaterial {
@@ -437,6 +441,14 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
             input: "boolean",
             value: config.frameLocked ?? DEFAULT_SETTINGS.frameLocked,
           },
+          modifyHeight: {
+            label: t("threeDee:modifyHeight"),
+            input: "number",
+            value: config.modifyHeight ?? DEFAULT_SETTINGS.modifyHeight,
+            min: -1,
+            max: 1,
+            step: 0.01,
+          },
         },
         handler,
       };
@@ -451,6 +463,7 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
 
   public override handleSettingsAction = (action: SettingsTreeAction): void => {
     const path = action.payload.path;
+
     if (action.action !== "update" || path.length !== 3) {
       return;
     }
@@ -466,12 +479,16 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
         | undefined;
       renderable.userData.settings = { ...DEFAULT_SETTINGS, ...settings };
 
+      renderable.userData.pose.position.z = renderable.userData.settings.modifyHeight;
+
       renderable.updateMaterial(renderable.userData.settings);
       renderable.updateUniforms(renderable.userData.foxgloveGrid, renderable.userData.settings);
+
       if (
         action.payload.path[2] === "colorMode" ||
         action.payload.path[2] === "colorField" ||
-        action.payload.path[2] === "flatColor"
+        action.payload.path[2] === "flatColor" ||
+        action.payload.path[2] === "modifyHeight"
       ) {
         // needs to recalculate texture when colorMode or colorField changes
         // technically it doesn't if it's going between gradient and colorMap, but since it's an infrequent user-action it's not a big hit
@@ -483,7 +500,14 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
 
   #handleFoxgloveGrid = (messageEvent: PartialMessageEvent<Grid>): void => {
     const topic = messageEvent.topic;
-    const foxgloveGrid = normalizeFoxgloveGrid(messageEvent.message);
+
+    // Set the initial settings from default values merged with any user settings
+    const userSettings = this.renderer.config.topics[topic] as
+      | Partial<LayerSettingsFoxgloveGrid>
+      | undefined;
+    const settings = { ...DEFAULT_SETTINGS, ...userSettings };
+
+    const foxgloveGrid = normalizeFoxgloveGrid(messageEvent.message, settings.modifyHeight);
     const receiveTime = toNanoSec(messageEvent.receiveTime);
 
     let renderable = this.renderables.get(topic);
@@ -507,11 +531,6 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
     if (renderable) {
       renderable.visible = true;
     } else {
-      // Set the initial settings from default values merged with any user settings
-      const userSettings = this.renderer.config.topics[topic] as
-        | Partial<LayerSettingsFoxgloveGrid>
-        | undefined;
-      const settings = { ...DEFAULT_SETTINGS, ...userSettings };
       // only want to autoselect if it's in flatcolor mode (without colorfield) and previously didn't have fields
       if (settings.colorField == undefined && fieldsUpdated) {
         autoSelectColorSettings(settings, fields, {
@@ -634,6 +653,9 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
     renderable.userData.frameId = this.renderer.normalizeFrameId(foxgloveGrid.frame_id);
     const { row_stride, column_count: cols } = foxgloveGrid;
     const rows = foxgloveGrid.data.byteLength / row_stride;
+
+    const modifyHeight = renderable.userData.settings.modifyHeight;
+    renderable.userData.pose.position.z = modifyHeight;
 
     renderable.updateMaterial(settings);
     renderable.updateUniforms(foxgloveGrid, settings);
@@ -887,10 +909,12 @@ function normalizePackedElementField(
   };
 }
 
-function normalizeFoxgloveGrid(message: PartialMessage<Grid>): Grid {
+function normalizeFoxgloveGrid(message: PartialMessage<Grid>, modifyHeight: number): Grid {
+  const pose = normalizePose(message.pose);
+
   return {
     timestamp: normalizeTime(message.timestamp),
-    pose: normalizePose(message.pose),
+    pose: { ...pose, position: { ...pose.position, z: pose.position.z + modifyHeight } },
     frame_id: message.frame_id ?? "",
     row_stride: message.row_stride ?? 0,
     cell_stride: message.cell_stride ?? 0,
