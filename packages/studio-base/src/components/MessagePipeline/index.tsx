@@ -22,7 +22,7 @@ import { Immutable } from "@foxglove/studio";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import CurrentLayoutContext, {
   LayoutState,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useUrdfStorage } from "@foxglove/studio-base/context/UrdfStorageContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";

@@ -44,7 +44,7 @@ import TimeBasedChartTooltipContent, {
   TimeBasedChartTooltipData,
 } from "@foxglove/studio-base/components/TimeBasedChart/TimeBasedChartTooltipContent";
 import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
-import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   TimelineInteractionStateStore,
   useClearHoverValue,

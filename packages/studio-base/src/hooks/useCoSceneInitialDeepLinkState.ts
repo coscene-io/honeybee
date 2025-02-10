@@ -12,7 +12,7 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";

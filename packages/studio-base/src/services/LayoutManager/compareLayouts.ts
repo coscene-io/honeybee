@@ -7,7 +7,7 @@
 
 import { diff } from "just-diff";
 
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
 /**
  * isLayoutEqual compares two LayoutData instances for "equality". If the two instances are

@@ -43,8 +43,8 @@ import {
   useCurrentLayoutSelector,
   LayoutID,
   useCurrentLayoutActions,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
   useWorkspaceStore,

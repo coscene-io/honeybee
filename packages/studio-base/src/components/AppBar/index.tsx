@@ -29,7 +29,7 @@ import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   useCurrentUser as useCoSceneCurrentUser,
   UserStore,

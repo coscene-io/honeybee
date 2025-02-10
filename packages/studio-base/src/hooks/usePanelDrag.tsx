@@ -22,7 +22,7 @@ import { MosaicDragType, MosaicNode, MosaicWindowContext } from "react-mosaic-co
 import {
   useCurrentLayoutActions,
   usePanelMosaicId,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { MosaicDropResult, SavedProps } from "@foxglove/studio-base/types/panels";
 
 type PanelDragObject = {

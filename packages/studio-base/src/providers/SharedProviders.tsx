@@ -13,7 +13,7 @@ import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext
 import CoSceneBaseProvider from "@foxglove/studio-base/providers/CoSceneBaseProvider";
 import CoSceneConsoleApiRemoteLayoutStorageProvider from "@foxglove/studio-base/providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
 import CoSceneCookiesProvider from "@foxglove/studio-base/providers/CoSceneCookiesProvider";
-import CoSceneCurrentLayoutProvider from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider";
+import CoSceneCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
 import CoSceneLayoutManagerProvider from "@foxglove/studio-base/providers/CoSceneLayoutManagerProvider";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";

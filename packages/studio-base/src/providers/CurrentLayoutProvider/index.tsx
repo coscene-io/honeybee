@@ -6,8 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useSnackbar } from "notistack";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getNodeAtPath } from "react-mosaic-component";
+import { useAsync, useAsyncFn, useMountedState } from "react-use";
 import shallowequal from "shallowequal";
 import { v4 as uuidv4 } from "uuid";
 
@@ -15,10 +17,13 @@ import { useShallowMemo } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { VariableValue } from "@foxglove/studio";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import CurrentLayoutContext, {
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { useUserProfileStorage } from "@foxglove/studio-base/context/CoSceneUserProfileStorageContext";
+import CoSceneCurrentLayoutContext, {
   ICurrentLayout,
+  LayoutID,
   LayoutState,
-  SelectedLayout,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   AddPanelPayload,
@@ -35,8 +40,10 @@ import {
   SwapPanelPayload,
 } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
+import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
+import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
 import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert";
@@ -45,14 +52,21 @@ const log = Logger.getLogger(__filename);
 
 export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
 
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
+
 /**
  * Concrete implementation of CurrentLayoutContext.Provider which handles
  * automatically restoring the current layout from LayoutStorage.
  */
-export default function CurrentLayoutProvider({
+export default function CoSceneCurrentLayoutProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
+  const { enqueueSnackbar } = useSnackbar();
+  const { getUserProfile, setUserProfile } = useUserProfileStorage();
+  const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
+  const isMounted = useMountedState();
+  const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
 
   const [mosaicId] = useState(() => uuidv4());
 
@@ -70,13 +84,6 @@ export default function CurrentLayoutProvider({
   const layoutStateRef = useRef(layoutState);
   const [incompatibleLayoutVersionError, setIncompatibleLayoutVersionError] = useState(false);
   const setLayoutState = useCallback((newState: LayoutState) => {
-    const layoutVersion = newState.selectedLayout?.data?.version;
-    if (layoutVersion != undefined && layoutVersion > MAX_SUPPORTED_LAYOUT_VERSION) {
-      setIncompatibleLayoutVersionError(true);
-      setLayoutStateInternal({ selectedLayout: undefined });
-      return;
-    }
-
     setLayoutStateInternal(newState);
 
     // listeners rely on being able to getCurrentLayoutState() inside effects that may run before we re-render
@@ -110,9 +117,71 @@ export default function CurrentLayoutProvider({
     [],
   );
 
+  const [, setSelectedLayoutId] = useAsyncFn(
+    async (
+      id: LayoutID | undefined,
+      { saveToProfile = true }: { saveToProfile?: boolean } = {},
+    ) => {
+      if (id == undefined) {
+        setLayoutState({ selectedLayout: undefined });
+        return;
+      }
+      try {
+        setLayoutState({ selectedLayout: { id, loading: true, data: undefined } });
+        const layout = await layoutManager.getLayout(id);
+        const layoutVersion = layout?.baseline.data.version;
+        if (layoutVersion != undefined && layoutVersion > MAX_SUPPORTED_LAYOUT_VERSION) {
+          setIncompatibleLayoutVersionError(true);
+          setLayoutState({ selectedLayout: undefined });
+          return;
+        }
+        if (!isMounted()) {
+          return;
+        }
+        setIncompatibleLayoutVersionError(false);
+        if (layout == undefined) {
+          setLayoutState({ selectedLayout: undefined });
+        } else {
+          setLayoutState({
+            selectedLayout: {
+              loading: false,
+              id: layout.id,
+              data: layout.working?.data ?? layout.baseline.data,
+              name: layout.name,
+            },
+          });
+          if (saveToProfile) {
+            setUserProfile({ currentLayoutId: id }).catch((error: unknown) => {
+              console.error(error);
+              enqueueSnackbar(
+                `The current layout could not be saved. ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+                {
+                  variant: "error",
+                },
+              );
+            });
+          }
+        }
+      } catch (error) {
+        console.error(error);
+        enqueueSnackbar(`The layout could not be loaded. ${error.toString()}`, {
+          variant: "error",
+        });
+        setIncompatibleLayoutVersionError(false);
+        setLayoutState({ selectedLayout: undefined });
+      }
+    },
+    [enqueueSnackbar, isMounted, layoutManager, setLayoutState, setUserProfile],
+  );
+
   const performAction = useCallback(
     (action: PanelsActions) => {
-      if (layoutStateRef.current.selectedLayout?.data == undefined) {
+      if (
+        layoutStateRef.current.selectedLayout?.data == undefined ||
+        layoutStateRef.current.selectedLayout.loading === true
+      ) {
         return;
       }
       const oldData = layoutStateRef.current.selectedLayout.data;
@@ -125,27 +194,14 @@ export default function CurrentLayoutProvider({
         return;
       }
 
-      // Get all the panel types that exist in the new config
-      const panelTypesInUse = _.uniq(Object.keys(newData.configById).map(getPanelTypeFromId));
-
       setLayoutState({
-        // discared shared panel state for panel types that are no longer in the layout
-        sharedPanelState: _.pick(layoutStateRef.current.sharedPanelState, panelTypesInUse),
         selectedLayout: {
+          id: layoutStateRef.current.selectedLayout.id,
           data: newData,
+          loading: false,
           name: layoutStateRef.current.selectedLayout.name,
           edited: true,
         },
-      });
-    },
-    [setLayoutState],
-  );
-
-  const setCurrentLayout = useCallback(
-    (newLayout: SelectedLayout | undefined) => {
-      setLayoutState({
-        sharedPanelState: {},
-        selectedLayout: newLayout,
       });
     },
     [setLayoutState],
@@ -165,12 +221,74 @@ export default function CurrentLayoutProvider({
     [setLayoutState],
   );
 
+  // Changes to the layout storage from external user actions (such as resetting a layout to a
+  // previous saved state) need to trigger setLayoutState.
+  useEffect(() => {
+    const listener: LayoutManagerEventTypes["change"] = ({ updatedLayout }) => {
+      if (
+        updatedLayout &&
+        layoutStateRef.current.selectedLayout &&
+        updatedLayout.id === layoutStateRef.current.selectedLayout.id
+      ) {
+        setLayoutState({
+          selectedLayout: {
+            loading: false,
+            id: updatedLayout.id,
+            data: updatedLayout.working?.data ?? updatedLayout.baseline.data,
+            name: updatedLayout.name,
+          },
+        });
+      }
+    };
+    layoutManager.on("change", listener);
+    return () => {
+      layoutManager.off("change", listener);
+    };
+  }, [layoutManager, setLayoutState]);
+
+  // Make sure our layout still exists after changes. If not deselect it.
+  useEffect(() => {
+    const listener: LayoutManagerEventTypes["change"] = async (event) => {
+      if (event.type !== "delete" || !layoutStateRef.current.selectedLayout?.id) {
+        return;
+      }
+
+      if (event.layoutId === layoutStateRef.current.selectedLayout.id) {
+        // 删除后选择拥有的第一个layout
+        const layouts = await layoutManager.getLayouts();
+        const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
+        await setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
+      }
+    };
+
+    layoutManager.on("change", listener);
+    return () => {
+      layoutManager.off("change", listener);
+    };
+  }, [enqueueSnackbar, layoutManager, setSelectedLayoutId]);
+
+  // Load initial state by re-selecting the last selected layout from the UserProfile.
+  useAsync(async () => {
+    // Don't restore the layout if there's one specified in the app state url.
+    if (windowAppURLState()?.layoutId != undefined || currentUserLoginStatus !== "alreadyLogin") {
+      return;
+    }
+
+    // Retreive the selected layout id from the user's profile. If there's no layout specified
+    // or we can't load it then save and select a default layout.
+    const { currentLayoutId } = await getUserProfile();
+    const layout = currentLayoutId ? await layoutManager.getLayout(currentLayoutId) : undefined;
+    if (layout) {
+      await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
+    }
+  }, [getUserProfile, layoutManager, setSelectedLayoutId, currentUserLoginStatus]);
+
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({
-      getCurrentLayoutState: () => layoutStateRef.current,
-      setCurrentLayout,
-
       updateSharedPanelState,
+      setCurrentLayout: () => {},
+      setSelectedLayoutId,
+      getCurrentLayoutState: () => layoutStateRef.current,
 
       savePanelConfigs: (payload: SaveConfigsPayload) => {
         performAction({ type: "SAVE_PANEL_CONFIGS", payload });
@@ -255,7 +373,7 @@ export default function CurrentLayoutProvider({
         performAction({ type: "END_DRAG", payload });
       },
     }),
-    [analytics, performAction, setCurrentLayout, setSelectedPanelIds, updateSharedPanelState],
+    [analytics, performAction, setSelectedLayoutId, setSelectedPanelIds, updateSharedPanelState],
   );
 
   const value: ICurrentLayout = useShallowMemo({
@@ -270,7 +388,7 @@ export default function CurrentLayoutProvider({
   });
 
   return (
-    <CurrentLayoutContext.Provider value={value}>
+    <CoSceneCurrentLayoutContext.Provider value={value}>
       {children}
       {incompatibleLayoutVersionError && (
         <IncompatibleLayoutVersionAlert
@@ -279,6 +397,6 @@ export default function CurrentLayoutProvider({
           }}
         />
       )}
-    </CurrentLayoutContext.Provider>
+    </CoSceneCurrentLayoutContext.Provider>
   );
 }

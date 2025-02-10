@@ -36,8 +36,8 @@ import {
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
   usePanelMosaicId,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
