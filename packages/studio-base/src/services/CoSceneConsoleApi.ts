@@ -689,6 +689,7 @@ class CoSceneConsoleApi {
     id,
     signal,
     projectName,
+    fetchCompleteTopicState,
   }: {
     start: number;
     end: number;
@@ -696,6 +697,7 @@ class CoSceneConsoleApi {
     id: string;
     signal: AbortSignal;
     projectName: string;
+    fetchCompleteTopicState?: "complete" | "incremental";
   }): Promise<Response> {
     const { fullUrl, fullConfig } = this.getRequectConfig("/v1/data/getStreams", {
       method: "POST",
@@ -715,6 +717,7 @@ class CoSceneConsoleApi {
         end,
         topics,
         id,
+        fetchCompleteTopicState: fetchCompleteTopicState ?? "incremental",
       }),
     });
 

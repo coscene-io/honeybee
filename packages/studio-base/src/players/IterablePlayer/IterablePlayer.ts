@@ -636,7 +636,9 @@ export class IterablePlayer implements Player {
     }
   }
 
-  async #resetPlaybackIterator() {
+  // in general, getStreams req will not return not in target time`s topic, (like map, map only in first frame)
+  // so we need need full param to notify the backend help us find last message in target time`s topic
+  async #resetPlaybackIterator(fetchCompleteTopicState?: "complete" | "incremental") {
     if (!this.#currentTime) {
       throw new Error("Invariant: Tried to reset playback iterator with no current time.");
     }
@@ -663,6 +665,7 @@ export class IterablePlayer implements Player {
       topics: this.#allTopics,
       start: next,
       consumptionType: "partial",
+      fetchCompleteTopicState,
     });
   }
 
@@ -671,7 +674,11 @@ export class IterablePlayer implements Player {
       throw new Error("Invariant: Tried to reset playback iterator with no current time.");
     }
 
-    await this.#resetPlaybackIterator();
+    if (!this.#start) {
+      throw new Error("Invariant: Tried to reset playback iterator with no start time.");
+    }
+
+    await this.#resetPlaybackIterator("complete");
     this.#setState(this.#isPlaying ? "play" : "idle");
   }
 

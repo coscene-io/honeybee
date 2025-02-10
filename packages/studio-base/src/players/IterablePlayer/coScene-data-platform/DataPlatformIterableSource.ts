@@ -205,6 +205,9 @@ export class DataPlatformIterableSource implements IIterableSource {
     const topics = args.topics;
     const topicNames = Array.from(topics.keys());
 
+    // only firest req need fetch complete topic state
+    let fetchCompleteTopicState = args.fetchCompleteTopicState;
+
     if (!this.#start || !this.#end) {
       throw new Error("DataPlatformIterableSource not initialized");
     }
@@ -237,6 +240,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
+        fetchCompleteTopicState,
       };
 
       const stream = streamMessages({
@@ -249,6 +253,10 @@ export class DataPlatformIterableSource implements IIterableSource {
         for (const message of messages) {
           yield { type: "message-event", msgEvent: message };
         }
+      }
+
+      if (fetchCompleteTopicState === "complete") {
+        fetchCompleteTopicState = "incremental";
       }
 
       return;
@@ -264,6 +272,7 @@ export class DataPlatformIterableSource implements IIterableSource {
         id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
+        fetchCompleteTopicState,
       };
 
       const stream = streamMessages({
@@ -280,6 +289,10 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       if (compare(localEnd, streamEnd) >= 0) {
         return;
+      }
+
+      if (fetchCompleteTopicState === "complete") {
+        fetchCompleteTopicState = "incremental";
       }
 
       yield { type: "stamp", stamp: localEnd };
@@ -331,6 +344,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       id: this.#params.key,
       projectName: this.#params.projectName,
       topics: Array.from(topics.keys()),
+      fetchCompleteTopicState: "complete",
     };
 
     streamByParams.replayPolicy = "lastPerChannel";

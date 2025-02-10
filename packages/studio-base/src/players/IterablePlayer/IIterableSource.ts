@@ -67,6 +67,17 @@ export type MessageIteratorArgs = {
    * `partial` indicates that the caller plans to read the iterator but may not read all the messages
    */
   consumptionType?: "full" | "partial";
+
+  /**
+   * Indicate whether to fetch the complete topic state.
+   *
+   * Some topic in some time range may not have any messages, so we need to fetch the complete topic state
+   * to know the last message in this topic.
+   *
+   * like map topic, this topic only in first frame, and this message is so big, network req will not
+   * return map message in every time, we need this param to notify the backend help us find last message in target time`s topic
+   */
+  fetchCompleteTopicState?: "complete" | "incremental";
 };
 
 /**
