@@ -7,7 +7,7 @@
 
 import { MosaicNode } from "react-mosaic-component";
 
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { isTabPanel, isTabPanelConfig } from "@foxglove/studio-base/util/layout";
 
 function replacePanelInLayout(

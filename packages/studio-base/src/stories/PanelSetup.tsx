@@ -42,8 +42,8 @@ import MockMessagePipelineProvider from "@foxglove/studio-base/components/Messag
 import SettingsTreeEditor from "@foxglove/studio-base/components/SettingsTreeEditor";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 // CoScene
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { PanelsActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { PanelsActions } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
   ExtensionCatalog,
   ExtensionCatalogContext,

@@ -12,7 +12,7 @@ import {
   LayoutState,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
 

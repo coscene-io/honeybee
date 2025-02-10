@@ -27,13 +27,13 @@ import { CoSceneLogo } from "@foxglove/studio-base/components/CoSceneLogo";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import {
-  LayoutState,
-  useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import {
   useCurrentUser as useCoSceneCurrentUser,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
+  LayoutState,
+  useCurrentLayoutSelector,
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   WorkspaceContextStore,

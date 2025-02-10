@@ -23,7 +23,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { PanelCatalog, PanelSelection } from "@foxglove/studio-base/components/PanelCatalog";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { MosaicDropResult } from "@foxglove/studio-base/types/panels";
 import { getPanelIdForType } from "@foxglove/studio-base/util/layout";
 

@@ -10,12 +10,13 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useShallowMemo } from "@foxglove/hooks";
 import CurrentLayoutContext, {
   ICurrentLayout,
+  LayoutID,
   LayoutState,
   SelectedLayout,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
-  PanelsActions,
   LayoutData,
+  PanelsActions,
 } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
 import panelsReducer from "./reducers";
@@ -42,6 +43,7 @@ export default function MockCurrentLayoutProvider({
 
   const [layoutState, setLayoutStateInternal] = useState<LayoutState>({
     selectedLayout: {
+      id: "mock-layout" as LayoutID,
       data: {
         configById: {},
         globalVariables: {},
@@ -65,7 +67,12 @@ export default function MockCurrentLayoutProvider({
   const setCurrentLayout = useCallback(
     (newLayout: SelectedLayout | undefined) => {
       setLayoutState({
-        selectedLayout: newLayout,
+        selectedLayout: {
+          data: newLayout?.data,
+          id: "mock-id" as LayoutID,
+          edited: newLayout?.edited,
+          name: newLayout?.name,
+        },
       });
     },
     [setLayoutState],
@@ -88,6 +95,7 @@ export default function MockCurrentLayoutProvider({
         ...layoutStateRef.current,
         selectedLayout: {
           ...layoutStateRef.current.selectedLayout,
+          id: layoutStateRef.current.selectedLayout?.id ?? ("mock-id" as LayoutID),
           data: layoutStateRef.current.selectedLayout?.data
             ? panelsReducer(layoutStateRef.current.selectedLayout.data, action)
             : undefined,
@@ -99,6 +107,9 @@ export default function MockCurrentLayoutProvider({
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({
+      setSelectedLayoutId: () => {
+        throw new Error("Not implemented in MockCurrentLayoutProvider");
+      },
       getCurrentLayoutState: () => layoutStateRef.current,
 
       setCurrentLayout,
