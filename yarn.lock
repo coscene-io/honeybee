@@ -5718,7 +5718,7 @@ __metadata:
     text-metrics: 3.0.0
     three: "patch:three@0.166.1#../../patches/three.patch"
     tinycolor2: 1.6.0
-    ts-essentials: 9.4.1
+    ts-essentials: 10.0.4
     ts-key-enum: 2.0.12
     ts-loader: 9.5.1
     tss-react: 4.9.3
@@ -25637,15 +25637,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-essentials@npm:9.4.1":
-  version: 9.4.1
-  resolution: "ts-essentials@npm:9.4.1"
+"ts-essentials@npm:10.0.4":
+  version: 10.0.4
+  resolution: "ts-essentials@npm:10.0.4"
   peerDependencies:
-    typescript: ">=4.1.0"
+    typescript: ">=4.5.0"
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 3a7404b88549a005eb19881348905bc76faec2438f1997a9cccb8ecdaaef481b88896fea91353c14435f6d4354259a1c527c438b353353c9de526a9c593ab7d0
+  checksum: 623bed6950d07b2ca2366e12bc6c0542431a398f052da7b5c78d626267c752312c7fc1c2bc969bd66f157dd68dcb8d9864e7fd59bccd0132c6a29a3a22e9327e
   languageName: node
   linkType: hard
 
