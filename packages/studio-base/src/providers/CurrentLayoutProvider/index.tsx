@@ -58,7 +58,7 @@ const selectLoginStatus = (store: UserStore) => store.loginStatus;
  * Concrete implementation of CurrentLayoutContext.Provider which handles
  * automatically restoring the current layout from LayoutStorage.
  */
-export default function CoSceneCurrentLayoutProvider({
+export default function CurrentLayoutProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const { enqueueSnackbar } = useSnackbar();

@@ -12,12 +12,12 @@ import { useDebounce } from "use-debounce";
 
 import Logger from "@foxglove/log";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
   LayoutID,
   LayoutState,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 type UpdatedLayout = NonNullable<LayoutState["selectedLayout"]>;

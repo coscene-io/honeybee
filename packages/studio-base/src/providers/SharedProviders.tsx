@@ -13,12 +13,12 @@ import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext
 import CoSceneBaseProvider from "@foxglove/studio-base/providers/CoSceneBaseProvider";
 import CoSceneConsoleApiRemoteLayoutStorageProvider from "@foxglove/studio-base/providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
 import CoSceneCookiesProvider from "@foxglove/studio-base/providers/CoSceneCookiesProvider";
-import CoSceneCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
 import CoSceneLayoutManagerProvider from "@foxglove/studio-base/providers/CoSceneLayoutManagerProvider";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
 import CoSceneUserProfileLocalStorageProvider from "@foxglove/studio-base/providers/CoSceneUserProfileLocalStorageProvider";
 import CoSceneUserProvider from "@foxglove/studio-base/providers/CoSceneUserProvider";
+import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
 import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
@@ -48,7 +48,7 @@ export function SharedProviders({
       />,
       <UrdfStorageContext.Provider value={urdfStorage} key="UrdfStorageContext" />,
       <CoSceneLayoutManagerProvider key="CoSceneLayoutManagerProvider" />,
-      <CoSceneCurrentLayoutProvider key="CoSceneCurrentLayoutProvider" />,
+      <CurrentLayoutProvider key="CurrentLayoutProvider" />,
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
       <CoSceneProjectProvider key="CoSceneProjectProvider" />,
       <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
