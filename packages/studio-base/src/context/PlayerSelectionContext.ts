@@ -7,7 +7,7 @@
 
 import { createContext, useContext } from "react";
 
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { Player, PlayerMetricsCollectorInterface } from "@foxglove/studio-base/players/types";
 import { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
 

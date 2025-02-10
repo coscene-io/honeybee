@@ -12,7 +12,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { PanelCatalog, PanelSelection } from "@foxglove/studio-base/components/PanelCatalog";
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 
 const useStyles = makeStyles()((theme) => ({
   paper: {

@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Logger from "@foxglove/log";
-import { LayoutID } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { ILayoutStorage, Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);

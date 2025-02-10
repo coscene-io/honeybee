@@ -51,7 +51,7 @@ export type { Layout, ISO8601Timestamp, ILayoutStorage } from "./services/CoScen
 export type { IDataSourceFactory as CoSceneIDataSourceFactory } from "./context/CoScenePlayerSelectionContext";
 export { default as CoSceneDataPlatformDataSourceFactory } from "./dataSources/CoSceneDataPlatformDataSourceFactory";
 export { default as ConsoleApi } from "@foxglove/studio-base/services/CoSceneConsoleApi";
-export type { LayoutID } from "./context/CoSceneCurrentLayoutContext";
+export type { LayoutID } from "./context/CurrentLayoutContext";
 export { IdbExtensionLoader } from "./services/IdbExtensionLoader";
 export type { IUrdfStorage } from "./services/UrdfStorage";
 

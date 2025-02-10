@@ -31,14 +31,14 @@ import { EmptyPanelLayout } from "@foxglove/studio-base/components/EmptyPanelLay
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
   LayoutState,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
   usePanelMosaicId,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
 import { MosaicDropResult, PanelConfig } from "@foxglove/studio-base/types/panels";

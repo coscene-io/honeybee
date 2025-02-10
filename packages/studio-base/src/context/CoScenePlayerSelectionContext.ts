@@ -7,7 +7,7 @@
 /* eslint-disable filenames/match-exported */
 import { createContext, useContext } from "react";
 
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import { Player } from "@foxglove/studio-base/players/types";
 import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";

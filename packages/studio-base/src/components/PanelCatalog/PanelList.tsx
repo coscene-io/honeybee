@@ -11,7 +11,7 @@ import { useCallback, useMemo } from "react";
 import {
   useCurrentLayoutActions,
   usePanelMosaicId,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { PanelInfo } from "@foxglove/studio-base/context/PanelCatalogContext";
 
 import { PanelListItem, DropDescription } from "./PanelListItem";

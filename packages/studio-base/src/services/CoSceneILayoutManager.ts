@@ -7,8 +7,8 @@
 
 import EventEmitter from "eventemitter3";
 
-import { LayoutID } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { Layout, LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 export type LayoutManagerChangeEvent =
