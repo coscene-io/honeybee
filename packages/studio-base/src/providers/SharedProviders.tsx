@@ -37,6 +37,7 @@ export function SharedProviders({
     () => [
       <CoSceneConsoleApiContext.Provider value={consoleApi} key="CoSceneConsoleApiContext" />,
       <CoSceneBaseProvider key="CoSceneBaseProvider" />,
+      <CoSceneProjectProvider key="CoSceneProjectProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
       <CoSceneUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
       // dependent - CoSceneUserProvider
@@ -50,7 +51,6 @@ export function SharedProviders({
       <CoSceneLayoutManagerProvider key="CoSceneLayoutManagerProvider" />,
       <CurrentLayoutProvider key="CurrentLayoutProvider" />,
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
-      <CoSceneProjectProvider key="CoSceneProjectProvider" />,
       <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
     ],
     [consoleApi, loginStatusKey, layoutStorage, urdfStorage],
