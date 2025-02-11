@@ -180,7 +180,21 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
 
     if (existingLocal) {
-      return layoutAppearsDeleted(existingLocal) ? undefined : existingLocal;
+      if (layoutAppearsDeleted(existingLocal)) {
+        return undefined;
+      }
+      // record recommended layout only show on single record page
+      // so we need to check this record is in this record
+      if (existingLocal.isRecordRecommended) {
+        const remoteLayout = await this.#remote?.getLayout(id);
+
+        if (remoteLayout) {
+          return existingLocal;
+        }
+
+        return undefined;
+      }
+      return existingLocal;
     }
 
     log.debug(`No local layout id:${id}.`);
