@@ -527,7 +527,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
    */
   @CoSceneLayoutManager.#withBusyStatus
   public async syncWithRemote(abortSignal: AbortSignal): Promise<void> {
-    log.debug("Initializing layout start sync");
     if (this.#currentSync) {
       log.debug("Layout sync is already in progress");
       await this.#currentSync;
