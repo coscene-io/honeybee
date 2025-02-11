@@ -467,10 +467,18 @@ class CoSceneConsoleApi {
     id: LayoutID,
     options: { includeData: boolean },
   ): Promise<ConsoleApiLayout | undefined> {
-    return await this.#get<ConsoleApiLayout>(`/bff/honeybee/layout/v2/layouts/${id}`, {
+    // if layout not found, return empty object
+    const res = await this.#get<ConsoleApiLayout>(`/bff/honeybee/layout/v2/layouts/${id}`, {
       includeData: options.includeData ? "true" : "false",
       projectId: this.#baseInfo.projectId,
+      recordId: this.#baseInfo.recordId,
     });
+
+    if (Object.keys(res).length === 0) {
+      return undefined;
+    }
+
+    return res;
   }
 
   public async createLayout(layout: {
