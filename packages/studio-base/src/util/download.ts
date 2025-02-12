@@ -17,6 +17,8 @@
 // extra boundary added for jest testing, since jsdom's Blob doesn't support .text()
 import getArch from "arch";
 
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+
 export function downloadTextFile(text: string, fileName: string): void {
   downloadFiles([{ blob: new Blob([text]), fileName }]);
 }
@@ -46,7 +48,7 @@ export function downloadFiles(files: { blob: Blob; fileName: string }[]): void {
 }
 
 async function getLatestVersion(system: string, arch: string) {
-  const baseUrl = process.env.COSTUDIO_DOWNLOAD_URL;
+  const baseUrl = APP_CONFIG.COSTUDIO_DOWNLOAD_URL;
 
   // 根据系统和架构确定 yml 文件路径
   const ymlPath = getYmlPath(system, arch);

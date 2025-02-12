@@ -9,6 +9,7 @@ import { Fragment, Suspense, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
+import Log from "@foxglove/log";
 import { useSharedRootContext } from "@foxglove/studio-base/context/SharedRootContext";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
@@ -27,6 +28,7 @@ import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvid
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
 import { LaunchPreference } from "./screens/LaunchPreference";
 
+const log = Log.getLogger(__filename);
 // Suppress context menu for the entire app except on inputs & textareas.
 function contextMenuHandler(event: MouseEvent) {
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
@@ -80,6 +82,11 @@ export function StudioApp(): React.JSX.Element {
     return () => {
       document.removeEventListener("contextmenu", contextMenuHandler);
     };
+  }, []);
+
+  useEffect(() => {
+    log.info("COSTUDIO_APT_SOURCE", process.env.COSTUDIO_APT_SOURCE);
+    log.info("COSTUDIO_DOWNLOAD_URL", process.env.COSTUDIO_DOWNLOAD_URL);
   }, []);
 
   return (
