@@ -20,7 +20,7 @@ on:
         options:
           - dev
           - saas
-          - intl
+          - portal
 
 env:
   ENV_PREFIX: ${{ github.event.inputs.environment == 'saas' && '' || format('/{0}', github.event.inputs.environment) }}
@@ -35,8 +35,6 @@ jobs:
       BUF_BUILD_TOKEN: ${{ secrets.BUF_BUILD_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-      COSTUDIO_DOWNLOAD_URL: "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ github.event.inputs.environment == 'saas' && '' || format('/{0}', github.event.inputs.environment) }}/packages"
-      COSTUDIO_APT_SOURCE: "deb [arch=amd64,arm64] https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ github.event.inputs.environment == 'saas' && '' || format('/{0}', github.event.inputs.environment) }}/apt/studio stable main"
 
     strategy:
       matrix:
@@ -213,6 +211,7 @@ jobs:
             text: |
               A new version of coScene Studio has been published.
               Version: ${{ github.event.inputs.version }}
+              Environment: ${{ github.event.inputs.environment }}
               Download:
                 mac:
                   https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
