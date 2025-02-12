@@ -85,8 +85,8 @@ export function StudioApp(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
-    log.info("COSTUDIO_APT_SOURCE", process.env.COSTUDIO_APT_SOURCE);
-    log.info("COSTUDIO_DOWNLOAD_URL", process.env.COSTUDIO_DOWNLOAD_URL);
+    log.debug("COSTUDIO_APT_SOURCE", process.env.COSTUDIO_APT_SOURCE);
+    log.debug("COSTUDIO_DOWNLOAD_URL", process.env.COSTUDIO_DOWNLOAD_URL);
   }, []);
 
   return (
