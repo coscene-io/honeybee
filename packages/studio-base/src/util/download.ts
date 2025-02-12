@@ -18,6 +18,7 @@
 import getArch from "arch";
 
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 export function downloadTextFile(text: string, fileName: string): void {
   downloadFiles([{ blob: new Blob([text]), fileName }]);
@@ -194,4 +195,9 @@ export async function getCoStudioVersion(): Promise<string> {
     console.error("获取版本信息失败:", error);
     throw error;
   }
+}
+
+// first check current platform is not desktop, then check APP_CONFIG.COSTUDIO_DOWNLOAD_URL is not empty
+export function checkSupportCoStudioDownload(): boolean {
+  return !isDesktopApp() && !!APP_CONFIG.COSTUDIO_DOWNLOAD_URL;
 }
