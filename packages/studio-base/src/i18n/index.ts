@@ -9,6 +9,8 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+
 import * as cosEn from "./cosEn";
 import * as cosZh from "./cosZh";
 import * as en from "./en";
@@ -44,10 +46,10 @@ export async function initI18n(options?: { context?: "browser" | "electron-main"
   await i18n.init({
     resources: translations,
     detection:
-      context === "browser"
+      context === "browser" && APP_CONFIG.LANGUAGE.options.length > 1
         ? { order: ["localStorage", "navigator"], caches: ["localStorage"] }
         : undefined,
-    fallbackLng: "zh",
+    fallbackLng: APP_CONFIG.LANGUAGE.default,
     defaultNS,
     interpolation: {
       escapeValue: false, // not needed for react as it escapes by default

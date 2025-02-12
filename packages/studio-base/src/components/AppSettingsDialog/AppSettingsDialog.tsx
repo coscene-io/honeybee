@@ -33,6 +33,7 @@ import {
   useWorkspaceStore,
   WorkspaceContextStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import {
@@ -108,6 +109,8 @@ const PRIVACY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnzZNZ5kAuIw0stvaXxq
 const SECURITY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnxpT8beRnb3JMLYxRMcBnq0";
 const CONTACT_EMAIL = "contact@coscene.io";
 const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
+
+const showLanguageOptions = APP_CONFIG.LANGUAGE.options.length > 1;
 
 type SectionKey = "contact" | "legal";
 
@@ -228,7 +231,7 @@ export function AppSettingsDialog(
               <AddTopicPrefix />
               <CompatibilityMode />
               <MessageFramerate />
-              <LanguageSettings />
+              {showLanguageOptions && <LanguageSettings />}
               {supportsAppUpdates && <AutoUpdate />}
               {/* CoScene */}
               {/* {!isDesktopApp() && <LaunchDefault />} */}
