@@ -31,7 +31,11 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-import { downloadLatestStudio, getCoStudioVersion } from "@foxglove/studio-base/util/download";
+import {
+  downloadLatestStudio,
+  getCoStudioVersion,
+  checkSupportCoStudioDownload,
+} from "@foxglove/studio-base/util/download";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const useStyles = makeStyles()(() => ({
@@ -156,7 +160,7 @@ export function UserMenu({
         </MenuItem>
         <MenuItem onClick={onDocsClick}>{t("documentation")}</MenuItem>
 
-        {!isDesktop && (
+        {checkSupportCoStudioDownload() && (
           <MenuItem onClick={downloadLatestStudio} className="test">
             <Stack
               direction="row"
@@ -167,7 +171,7 @@ export function UserMenu({
             >
               <span>{t("downloadLatestStudio")}</span>
               <Typography variant="caption" color="text.secondary">
-                v{latestVersion}
+                {latestVersion ? `v${latestVersion}` : "latest"}
               </Typography>
             </Stack>
           </MenuItem>
