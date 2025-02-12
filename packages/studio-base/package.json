@@ -59,7 +59,7 @@
     "@mui/material": "5.15.6",
     "@popperjs/core": "^2.11.8",
     "@protobufjs/base64": "1.1.2",
-    "@sentry/core": "8.24.0",
+    "@sentry/core": "9.0.1",
     "@sentry/types": "8.24.0",
     "@storybook/addon-actions": "8.2.8",
     "@storybook/jest": "0.2.3",
