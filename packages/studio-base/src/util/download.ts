@@ -46,7 +46,7 @@ export function downloadFiles(files: { blob: Blob; fileName: string }[]): void {
 }
 
 async function getLatestVersion(system: string, arch: string) {
-  const baseUrl = "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages";
+  const baseUrl = process.env.COSTUDIO_DOWNLOAD_URL;
 
   // 根据系统和架构确定 yml 文件路径
   const ymlPath = getYmlPath(system, arch);
