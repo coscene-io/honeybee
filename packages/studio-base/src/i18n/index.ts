@@ -9,13 +9,12 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-
 import * as cosEn from "./cosEn";
 import * as cosZh from "./cosZh";
 import * as en from "./en";
 import * as ja from "./ja";
 import * as zh from "./zh";
+import { APP_CONFIG } from "../util/appConfig";
 
 export const translations: {
   en: typeof en & typeof cosEn;
