@@ -20,6 +20,10 @@ on:
         options:
           - dev
           - saas
+          - portal
+
+env:
+  ENV_PREFIX: ${{ github.event.inputs.environment == 'saas' && '' || format('/{0}', github.event.inputs.environment) }}
 
 jobs:
   build:
@@ -31,6 +35,7 @@ jobs:
       BUF_BUILD_TOKEN: ${{ secrets.BUF_BUILD_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      COSTUDIO_DOWNLOAD_URL: ${{ vars.COSTUDIO_DOWNLOAD_URL }}
 
     strategy:
       matrix:
@@ -49,6 +54,13 @@ jobs:
         run: |
           echo '${{ vars.APP_CONFIG }}' > packages/studio-desktop/src/public/cos-config.js
           cat packages/studio-desktop/src/public/cos-config.js
+
+      - name: Prepare postinst script
+        if: matrix.os == 'linux'
+        run: |
+          sed "s|%%APT_SOURCE%%|${{ vars.COSTUDIO_APT_SOURCE }}|g" \
+            packages/studio-desktop/resources/linux/deb/postinst.template > \
+            packages/studio-desktop/resources/linux/deb/postinst
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -80,9 +92,9 @@ jobs:
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
-            dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
-            dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg.blockmap
-            dist/latest-mac.yml:/coStudio/packages/latest-mac.yml
+            dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
+            dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg.blockmap
+            dist/latest-mac.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-mac.yml
 
       - name: Upload to OSS (Windows)
         if: matrix.os == 'win'
@@ -93,13 +105,13 @@ jobs:
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
-            dist/coStudio-${{ github.event.inputs.version }}-win.exe:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win.exe
-            dist/coStudio-${{ github.event.inputs.version }}-win.exe.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win.exe.blockmap
-            dist/coStudio-${{ github.event.inputs.version }}-win-arm64.exe:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
-            dist/coStudio-${{ github.event.inputs.version }}-win-arm64.exe.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe.blockmap
-            dist/coStudio-${{ github.event.inputs.version }}-win-x64.exe:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
-            dist/coStudio-${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe.blockmap
-            dist/latest.yml:/coStudio/packages/latest.yml
+            dist/coStudio-${{ github.event.inputs.version }}-win.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win.exe
+            dist/coStudio-${{ github.event.inputs.version }}-win.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win.exe.blockmap
+            dist/coStudio-${{ github.event.inputs.version }}-win-arm64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
+            dist/coStudio-${{ github.event.inputs.version }}-win-arm64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe.blockmap
+            dist/coStudio-${{ github.event.inputs.version }}-win-x64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
+            dist/coStudio-${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe.blockmap
+            dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest.yml
 
       - name: Upload to OSS (Linux)
         if: matrix.os == 'linux'
@@ -110,12 +122,12 @@ jobs:
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
-            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
-            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb.blockmap
-            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
-            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb.blockmap:/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb.blockmap
-            dist/latest-linux.yml:/coStudio/packages/latest-linux.yml
-            dist/latest-linux-arm64.yml:/coStudio/packages/latest-linux-arm64.yml
+            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb.blockmap
+            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb.blockmap
+            dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-linux.yml
+            dist/latest-linux-arm64.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-linux-arm64.yml
 
       - name: Upload deb files to artifacts
         if: matrix.os == 'linux'
@@ -182,15 +194,15 @@ jobs:
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
-            dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio/apt/studio/dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
-            dists/stable/main/binary-amd64/Packages:/coStudio/apt/studio/dists/stable/main/binary-amd64/Packages
-            dists/stable/main/binary-amd64/Packages.gz:/coStudio/apt/studio/dists/stable/main/binary-amd64/Packages.gz
-            dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio/apt/studio/dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
-            dists/stable/main/binary-arm64/Packages:/coStudio/apt/studio/dists/stable/main/binary-arm64/Packages
-            dists/stable/main/binary-arm64/Packages.gz:/coStudio/apt/studio/dists/stable/main/binary-arm64/Packages.gz
-            dists/stable/Release:/coStudio/apt/studio/dists/stable/Release
-            dists/stable/InRelease:/coStudio/apt/studio/dists/stable/InRelease
-            dists/stable/Release.gpg:/coStudio/apt/studio/dists/stable/Release.gpg
+            dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+            dists/stable/main/binary-amd64/Packages:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-amd64/Packages
+            dists/stable/main/binary-amd64/Packages.gz:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-amd64/Packages.gz
+            dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+            dists/stable/main/binary-arm64/Packages:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-arm64/Packages
+            dists/stable/main/binary-arm64/Packages.gz:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-arm64/Packages.gz
+            dists/stable/Release:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/Release
+            dists/stable/InRelease:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/InRelease
+            dists/stable/Release.gpg:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/Release.gpg
 
   notification:
     needs: update-apt-server
@@ -207,14 +219,15 @@ jobs:
             text: |
               A new version of coScene Studio has been published.
               Version: ${{ github.event.inputs.version }}
+              Environment: ${{ github.event.inputs.environment }}
               Download:
                 mac:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
                 win:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win.exe
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win.exe
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
                 linux:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
               Release notes: https://github.com/coscene-io/honeybee/releases

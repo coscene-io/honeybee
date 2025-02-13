@@ -14,6 +14,7 @@ import * as cosZh from "./cosZh";
 import * as en from "./en";
 import * as ja from "./ja";
 import * as zh from "./zh";
+import { APP_CONFIG } from "../util/appConfig";
 
 export const translations: {
   en: typeof en & typeof cosEn;
@@ -44,10 +45,10 @@ export async function initI18n(options?: { context?: "browser" | "electron-main"
   await i18n.init({
     resources: translations,
     detection:
-      context === "browser"
+      context === "browser" && APP_CONFIG.LANGUAGE.options.length > 1
         ? { order: ["localStorage", "navigator"], caches: ["localStorage"] }
         : undefined,
-    fallbackLng: "zh",
+    fallbackLng: APP_CONFIG.LANGUAGE.default,
     defaultNS,
     interpolation: {
       escapeValue: false, // not needed for react as it escapes by default

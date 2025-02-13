@@ -50,16 +50,21 @@ import { reportError } from "@foxglove/studio-base/reportError";
 import { UserPersonalInfo } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
-const LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
+let LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
   { key: "en", value: "English" },
   { key: "zh", value: "中文" },
   { key: "ja", value: "日本語" },
 ];
+
+LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter((language) =>
+  APP_CONFIG.LANGUAGE.options.includes(language.key),
+);
 
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
@@ -423,10 +428,6 @@ export function LanguageSettings(): React.ReactElement {
       })),
     [],
   );
-
-  // <div className={classes.versionText}>
-  //   {t("lastUpdated")}: {dayjs(APP_CONFIG.LAST_BUILD_TIME).format("YYYY-MM-DD HH:mm:ss")}
-  // </div>;
 
   return (
     <Stack>

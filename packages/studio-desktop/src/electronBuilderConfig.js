@@ -213,7 +213,7 @@ function makeElectronBuilderConfig(params) {
     publish: [
       {
         provider: "generic",
-        url: "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages",
+        url: process.env.COSTUDIO_DOWNLOAD_URL,
       },
     ],
     nsis: {

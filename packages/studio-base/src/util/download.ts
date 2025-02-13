@@ -17,6 +17,9 @@
 // extra boundary added for jest testing, since jsdom's Blob doesn't support .text()
 import getArch from "arch";
 
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+
 export function downloadTextFile(text: string, fileName: string): void {
   downloadFiles([{ blob: new Blob([text]), fileName }]);
 }
@@ -46,7 +49,7 @@ export function downloadFiles(files: { blob: Blob; fileName: string }[]): void {
 }
 
 async function getLatestVersion(system: string, arch: string) {
-  const baseUrl = "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages";
+  const baseUrl = APP_CONFIG.COSTUDIO_DOWNLOAD_URL;
 
   // 根据系统和架构确定 yml 文件路径
   const ymlPath = getYmlPath(system, arch);
@@ -192,4 +195,9 @@ export async function getCoStudioVersion(): Promise<string> {
     console.error("获取版本信息失败:", error);
     throw error;
   }
+}
+
+// first check current platform is not desktop, then check APP_CONFIG.COSTUDIO_DOWNLOAD_URL is not empty
+export function checkSupportCoStudioDownload(): boolean {
+  return !isDesktopApp() && !!APP_CONFIG.COSTUDIO_DOWNLOAD_URL;
 }
