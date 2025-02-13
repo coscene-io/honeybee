@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Language } from "../i18n";
-
 interface DomainConfig {
   env: string;
   logo: string;
@@ -47,8 +45,8 @@ declare global {
         token: string;
       };
       LANGUAGE?: {
-        default: Language;
-        options: Language[];
+        default: string;
+        options: string[];
       };
       COSTUDIO_DOWNLOAD_URL?: string;
     };
