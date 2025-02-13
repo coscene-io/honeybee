@@ -41,7 +41,10 @@ import {
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { downloadLatestStudio } from "@foxglove/studio-base/util/download";
+import {
+  checkSupportCoStudioDownload,
+  downloadLatestStudio,
+} from "@foxglove/studio-base/util/download";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { AddPanelMenu } from "./AddPanelMenu";
@@ -323,7 +326,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
               {appBarLayoutButton}
               <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
-                {!isDesktopApp() && (
+                {checkSupportCoStudioDownload() && (
                   <AppBarIconButton
                     title={t("openInCoStudio")}
                     aria-label={t("openInCoStudio")}

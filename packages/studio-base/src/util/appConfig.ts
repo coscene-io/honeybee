@@ -44,6 +44,11 @@ declare global {
         api_host: string;
         token: string;
       };
+      LANGUAGE?: {
+        default: string;
+        options: string[];
+      };
+      COSTUDIO_DOWNLOAD_URL?: string;
     };
   }
 }
@@ -84,6 +89,12 @@ export const APP_CONFIG = {
     api_host: "",
     token: "",
   },
+  LANGUAGE: cosConfig.LANGUAGE ?? {
+    default: "en",
+    options: ["en", "zh"],
+  },
+  COSTUDIO_DOWNLOAD_URL:
+    cosConfig.COSTUDIO_DOWNLOAD_URL ?? process.env.COSTUDIO_DOWNLOAD_URL ?? undefined,
 };
 
 export function getDomainConfig(): DomainConfig {
