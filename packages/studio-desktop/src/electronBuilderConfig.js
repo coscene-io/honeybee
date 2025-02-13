@@ -13,8 +13,6 @@ const path = require("path");
  * @returns {import("electron-builder").Configuration}
  */
 function makeElectronBuilderConfig(params) {
-  // eslint-disable-next-line no-restricted-syntax
-  console.log("process.env.COSTUDIO_DOWNLOAD_URL", process.env.COSTUDIO_DOWNLOAD_URL);
   return {
     electronVersion,
     appId: "dev.coStudio",
