@@ -77,9 +77,6 @@ export function StudioApp(): React.JSX.Element {
 
   useEffect(() => {
     document.addEventListener("contextmenu", contextMenuHandler);
-    // test temp
-    // eslint-disable-next-line no-restricted-syntax
-    console.log("COSTUDIO_DOWNLOAD_URL", process.env.COSTUDIO_DOWNLOAD_URL);
     return () => {
       document.removeEventListener("contextmenu", contextMenuHandler);
     };
