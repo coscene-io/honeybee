@@ -36,7 +36,6 @@ jobs:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       COSTUDIO_DOWNLOAD_URL: ${{ vars.COSTUDIO_DOWNLOAD_URL }}
-      COSTUDIO_APT_SOURCE: ${{ vars.COSTUDIO_APT_SOURCE }}
 
     strategy:
       matrix:
@@ -55,6 +54,17 @@ jobs:
         run: |
           echo '${{ vars.APP_CONFIG }}' > packages/studio-desktop/src/public/cos-config.js
           cat packages/studio-desktop/src/public/cos-config.js
+
+      - name: Prepare postinst script
+        if: matrix.os == 'linux'
+        run: |
+          sed "s|%%APT_SOURCE%%|${{ vars.COSTUDIO_APT_SOURCE }}|g" \
+            packages/studio-desktop/resources/linux/deb/postinst.template > \
+            packages/studio-desktop/resources/linux/deb/postinst
+
+      # test
+      - name: echo postinst
+        run: cat packages/studio-desktop/resources/linux/deb/postinst
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
