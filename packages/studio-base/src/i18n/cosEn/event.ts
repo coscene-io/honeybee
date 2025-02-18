@@ -56,7 +56,7 @@ export const cosEvent = {
   start: "Start",
   startTime: "Start Time",
   string: "String",
-  syncTask: "Sync task",
+  syncTask: "Sync task to ticket system",
   syncTaskFailed: "Sync task failed",
   syncTaskSuccess: "Sync task success",
   syncTaskTooltip:
