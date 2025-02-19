@@ -403,13 +403,13 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
 
   const { value: syncedTask } = useAsync(async () => {
     const parent = `${projectName}/ticketSystem`;
-    return await consoleApi.getTicketSystemMetadata({ parent });
+    return await consoleApi.getTicketSystemMetadata({ parent }).then((result) => ({
+      ...result,
+      enabled: result.jiraEnabled || result.onesEnabled || result.teambitionEnabled,
+    }));
   });
 
   const activatedUsers = users?.filter((user) => user.active);
-
-  const jiraEnabled = syncedTask?.jiraEnabled;
-  const onesEnabled = syncedTask?.onesEnabled;
 
   const [, syncTask] = useAsyncFn(async (name: string) => {
     try {
@@ -1039,7 +1039,22 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
               </FormControl>
             </Stack>
             <Stack paddingX={3} paddingTop={2}>
-              {!(jiraEnabled ?? false) && !(onesEnabled ?? false) ? (
+              {syncedTask?.enabled ?? false ? (
+                <FormControlLabel
+                  disableTypography
+                  checked={task.needSyncTask}
+                  control={
+                    <Checkbox
+                      size="medium"
+                      checked={task.needSyncTask}
+                      onChange={(e) => {
+                        setTask((state) => ({ ...state, needSyncTask: e.target.checked }));
+                      }}
+                    />
+                  }
+                  label={t("syncTask")}
+                />
+              ) : (
                 <Tooltip title={t("syncTaskTooltip")} placement="top-start">
                   <FormControlLabel
                     disableTypography
@@ -1057,21 +1072,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
                     label={t("syncTask")}
                   />
                 </Tooltip>
-              ) : (
-                <FormControlLabel
-                  disableTypography
-                  checked={task.needSyncTask}
-                  control={
-                    <Checkbox
-                      size="medium"
-                      checked={task.needSyncTask}
-                      onChange={(e) => {
-                        setTask((state) => ({ ...state, needSyncTask: e.target.checked }));
-                      }}
-                    />
-                  }
-                  label={t("syncTask")}
-                />
               )}
             </Stack>
           </>
