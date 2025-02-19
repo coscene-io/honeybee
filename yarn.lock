@@ -5614,7 +5614,7 @@ __metadata:
     "@types/moment-duration-format": 2.2.6
     "@types/nearley": 2.11.5
     "@types/ramda": 0.29.10
-    "@types/react": 18.2.23
+    "@types/react": 19.0.8
     "@types/react-dom": 18.2.7
     "@types/react-hover-observer": "workspace:*"
     "@types/react-transition-group": ^4.4.8
@@ -5685,7 +5685,7 @@ __metadata:
     pinyin-match: 1.2.4
     posthog-js: 1.205.0
     ramda: 0.29.1
-    react: ^18.3.1
+    react: ^19.0.0
     react-colorful: 5.6.1
     react-cookie: 7.2.0
     react-dnd: 16.0.1
@@ -5774,7 +5774,7 @@ __metadata:
     plist: 3.1.0
     pngjs: 7.0.0
     quicklookjs: 0.0.3
-    react: 18.3.1
+    react: 19.0.0
     react-dom: 18.3.1
     react-refresh-typescript: 2.0.9
     react-use: 17.5.1
@@ -5804,7 +5804,7 @@ __metadata:
     clean-webpack-plugin: 4.0.0
     copy-webpack-plugin: 12.0.2
     html-webpack-plugin: 5.6.0
-    react: 18.3.1
+    react: 19.0.0
     react-dom: 18.3.1
     react-i18next: 14.0.5
     react-refresh: 0.16.0
@@ -5836,9 +5836,9 @@ __metadata:
     "@mui/material": 5.15.6
     "@mui/x-data-grid": 7.25.0
     "@storybook/react": 8.2.8
-    "@types/react": 18.2.23
+    "@types/react": 19.0.8
     lodash-es: 4.17.21
-    react: 18.3.1
+    react: 19.0.0
   languageName: unknown
   linkType: soft
 
@@ -9451,7 +9451,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:*, @types/react@npm:18.2.23":
+"@types/react@npm:*":
   version: 18.2.23
   resolution: "@types/react@npm:18.2.23"
   dependencies:
@@ -9459,6 +9459,15 @@ __metadata:
     "@types/scheduler": "*"
     csstype: ^3.0.2
   checksum: efb9d1ed1940c0e7ba08a21ffba5e266d8dbbb8fe618cfb97bc902dfc96385fdd8189e3f7f64b4aa13134f8e61947d60560deb23be151253c3a97b0d070897ca
+  languageName: node
+  linkType: hard
+
+"@types/react@npm:19.0.8":
+  version: 19.0.8
+  resolution: "@types/react@npm:19.0.8"
+  dependencies:
+    csstype: ^3.0.2
+  checksum: 80dd2e7fa4b3e0ea2d883c21317563f4af1c4d90a6250c8bcbc052079304dc3335369267026004ed5d7cac09c7b0026e02e71ae5cca3150643507e353219fe47
   languageName: node
   linkType: hard
 
@@ -11579,12 +11588,12 @@ __metadata:
     "@foxglove/studio-base": "workspace:*"
     "@foxglove/tsconfig": 2.0.0
     "@pmmmwh/react-refresh-webpack-plugin": 0.5.15
-    "@types/react": 18.2.23
+    "@types/react": 19.0.8
     "@types/react-dom": 18.2.7
     clean-webpack-plugin: 4.0.0
     html-webpack-plugin: 5.6.0
     mathjs: 11.11.1
-    react: 18.3.1
+    react: 19.0.0
     react-dom: 18.3.1
     react-refresh: 0.16.0
     webpack: 5.97.1
@@ -23088,7 +23097,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:18.3.1, react@npm:^16.8.0 || ^17.0.0 || ^18.0.0, react@npm:^18.3.1":
+"react@npm:19.0.0, react@npm:^19.0.0":
+  version: 19.0.0
+  resolution: "react@npm:19.0.0"
+  checksum: 86de15d85b2465feb40297a90319c325cb07cf27191a361d47bcfe8c6126c973d660125aa67b8f4cbbe39f15a2f32efd0c814e98196d8e5b68c567ba40a399c6
+  languageName: node
+  linkType: hard
+
+"react@npm:^16.8.0 || ^17.0.0 || ^18.0.0":
   version: 18.3.1
   resolution: "react@npm:18.3.1"
   dependencies:
