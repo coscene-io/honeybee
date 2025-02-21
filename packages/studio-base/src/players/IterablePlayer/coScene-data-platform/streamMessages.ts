@@ -39,6 +39,7 @@ export type StreamParams = {
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
   topics: string[];
+  fetchCompleteTopicState?: "complete" | "incremental";
 };
 
 /**
@@ -203,6 +204,7 @@ export async function* streamMessages({
       id: params.id,
       signal: controller.signal,
       projectName: params.projectName ?? "",
+      fetchCompleteTopicState: params.fetchCompleteTopicState,
     });
 
     fetchEndTime = performance.now();
