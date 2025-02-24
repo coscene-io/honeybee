@@ -42,11 +42,12 @@ export async function initI18n(options?: { context?: "browser" | "electron-main"
     i18n.use(initReactI18next);
     i18n.use(LanguageDetector);
   }
+
   await i18n.init({
     resources: translations,
     detection:
       context === "browser" && APP_CONFIG.LANGUAGE.options.length > 1
-        ? { order: ["localStorage", "navigator"], caches: ["localStorage"] }
+        ? { order: ["localStorage"], caches: ["localStorage"] }
         : undefined,
     fallbackLng: APP_CONFIG.LANGUAGE.default,
     defaultNS,
