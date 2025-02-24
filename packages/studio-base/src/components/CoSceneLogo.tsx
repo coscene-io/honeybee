@@ -120,7 +120,6 @@ export function AgibotLogo(props: SvgIconProps): React.JSX.Element {
           viewBox="0 0 40 40"
           version="1.1"
           xmlns="http://www.w3.org/2000/svg"
-          xmlns:xlink="http://www.w3.org/1999/xlink"
         >
           <title>编组 2Icon-App-40x40@2x</title>
           <defs>
@@ -198,7 +197,6 @@ export function AgibotTextLogo(props: SvgIconProps): React.JSX.Element {
           <g clipPath="url(#clip0_1948_4873)">
             <mask
               id="mask0_1948_4873"
-              style="mask-type:luminance"
               maskUnits="userSpaceOnUse"
               x="0"
               y="7"
@@ -215,15 +213,7 @@ export function AgibotTextLogo(props: SvgIconProps): React.JSX.Element {
                 fill="url(#paint0_linear_1948_4873)"
               />
             </g>
-            <mask
-              id="mask1_1948_4873"
-              style="mask-type:luminance"
-              maskUnits="userSpaceOnUse"
-              x="23"
-              y="0"
-              width="8"
-              height="8"
-            >
+            <mask id="mask1_1948_4873" maskUnits="userSpaceOnUse" x="23" y="0" width="8" height="8">
               <path d="M23.6719 0H30.7754V7.10355H23.6719V0Z" fill="white" />
             </mask>
             <g mask="url(#mask1_1948_4873)">
