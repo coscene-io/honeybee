@@ -38,7 +38,6 @@ import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import {
@@ -47,12 +46,10 @@ import {
 } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
-import { UserPersonalInfo } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
-import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
@@ -88,14 +85,7 @@ const useStyles = makeStyles()((theme) => ({
     gap: theme.spacing(0.75),
     lineHeight: "1 !important",
   },
-  // versionText: {
-  //   color: theme.palette.text.secondary,
-  //   fontSize: theme.typography.caption.fontSize,
-  //   marginBottom: theme.spacing(1),
-  // },
 }));
-
-const selectUser = (store: UserStore) => store.user;
 
 function formatTimezone(name: string) {
   const tz = moment.tz(name);
@@ -379,35 +369,13 @@ export function RosPackagePath(): React.ReactElement {
 
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
-  const consoleApi = useConsoleApi();
 
-  const [selectedLanguage = "zh", setSelectedLanguage] = useAppConfigurationValue<Language>(
-    AppSetting.LANGUAGE,
-  );
-  const userInfo = useCurrentUser(selectUser);
+  const [selectedLanguage = APP_CONFIG.LANGUAGE.default as Language, setSelectedLanguage] =
+    useAppConfigurationValue<Language>(AppSetting.LANGUAGE);
 
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {
       const lang = event.target.value as Language;
-
-      if (!isDesktopApp()) {
-        const userConfigMap = await consoleApi.getUserConfigMap({
-          userId: userInfo?.userId ?? "",
-          configId: "personalInfo",
-        });
-
-        const userConfig = userConfigMap?.value?.toJson() as UserPersonalInfo | undefined;
-        if ((lang === "zh" || lang === "en") && userConfig != undefined) {
-          await consoleApi.upsertUserConfig({
-            userId: userInfo?.userId ?? "",
-            configId: "personalInfo",
-            obj: {
-              ...userConfig,
-              settings: { ...userConfig.settings, language: lang },
-            },
-          });
-        }
-      }
 
       void setSelectedLanguage(lang);
       await i18n.changeLanguage(lang).catch((error: unknown) => {
@@ -415,7 +383,7 @@ export function LanguageSettings(): React.ReactElement {
         reportError(error as Error);
       });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
     [i18n, setSelectedLanguage],
   );
 
