@@ -121,7 +121,6 @@ export function AgibotLogo(props: SvgIconProps): React.JSX.Element {
           version="1.1"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <title>编组 2Icon-App-40x40@2x</title>
           <defs>
             <polygon
               id="path-1"
