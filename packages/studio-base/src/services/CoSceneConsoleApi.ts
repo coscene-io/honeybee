@@ -4,7 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { Value, PartialMessage, Empty, FieldMask } from "@bufbuild/protobuf";
+import { PartialMessage, Empty, FieldMask } from "@bufbuild/protobuf";
 import { Metric } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/common/metric_pb";
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
@@ -33,15 +33,9 @@ import {
   BatchGetUsersResponse,
   ListOrganizationUsersRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
-import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
-import {
-  UpsertConfigMapRequest,
-  GetConfigMapRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
 import { DiagnosisService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_connect";
 import { GetDiagnosisRuleRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_pb";
 import { EventService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_connect";
@@ -85,7 +79,6 @@ import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resou
 import { JobRunService } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_connect";
 import { GetJobRunRequest } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_pb";
 import * as base64 from "@protobufjs/base64";
-import { StatusCode } from "grpc-web";
 import { t } from "i18next";
 import toast from "react-hot-toast";
 
@@ -930,42 +923,6 @@ class CoSceneConsoleApi {
     });
 
     return await getPromiseClient(RecordService).getRecord(req);
-  }
-
-  public async upsertUserConfig({
-    userId,
-    configId,
-    obj,
-  }: {
-    userId: string;
-    configId: string;
-    obj: UserPersonalInfo;
-  }): Promise<ConfigMap> {
-    const req = new UpsertConfigMapRequest({
-      configMap: {
-        name: `users/${userId}/configMaps/${configId}`,
-        value: Object.keys(obj).length > 0 ? Value.fromJson(obj) : undefined,
-      },
-    });
-    const configMapClient = getPromiseClient(ConfigMapService);
-    return await configMapClient.upsertConfigMap(req);
-  }
-
-  public async getUserConfigMap({
-    userId,
-    configId,
-  }: {
-    userId: string;
-    configId: string;
-  }): Promise<ConfigMap | undefined> {
-    const configName = `users/${userId}/configMaps/${configId}`;
-    const req = new GetConfigMapRequest({ name: configName });
-    const configMapClient = getPromiseClient(ConfigMapService);
-    return await configMapClient.getConfigMap(req).catch((err: unknown) => {
-      if (err instanceof Error && (err.message as unknown as StatusCode) === StatusCode.NOT_FOUND) {
-        return undefined;
-      }
-    });
   }
 
   public async getProject({ projectName }: { projectName: string }): Promise<Project> {
