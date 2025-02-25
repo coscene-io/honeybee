@@ -27,6 +27,8 @@ export function useCoSceneInit(): void {
     const logo = getDomainConfig().logo;
     if (logo === "supor") {
       return "/viz/supor.ico";
+    } else if (logo === "agibot") {
+      return "/viz/agibot_favicon.svg";
     } else {
       switch (APP_CONFIG.VITE_APP_PROJECT_ENV) {
         case "local":
