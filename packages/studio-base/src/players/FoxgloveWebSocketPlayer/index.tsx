@@ -7,7 +7,6 @@
 
 /* eslint-disable @typescript-eslint/no-deprecated */
 
-import { Button } from "@mui/material";
 import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import * as _ from "lodash-es";
