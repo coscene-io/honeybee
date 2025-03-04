@@ -7,7 +7,6 @@
 
 /* eslint-disable @typescript-eslint/no-deprecated */
 
-import { Button } from "@mui/material";
 import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import * as _ from "lodash-es";
@@ -1013,30 +1012,18 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
 
       timeoutId = setTimeout(() => {
-        this.#problems.addProblem("inactive", {
-          severity: "error",
-          message: t("cosError:inactivePage"),
-          tip: (
-            <Trans
-              t={t}
-              i18nKey="cosError:inactivePageDescription"
-              components={{
-                btn: (
-                  <Button
-                    variant="outlined"
-                    onClick={() => {
-                      this.#closed = false;
-                      this.#open();
-                    }}
-                  />
-                ),
-              }}
-            />
-          ),
+        this.close();
+        void this.#confirm({
+          title: t("cosWebsocket:note"),
+          prompt: t("cosWebsocket:inactivePageDescription"),
+          ok: t("cosWebsocket:reconnect"),
+          cancel: t("cosWebsocket:cancel"),
+        }).then((result) => {
+          if (result === "ok") {
+            this.#closed = false;
+            this.#open();
+          }
         });
-        setTimeout(() => {
-          this.close();
-        }, 1000);
       }, this.#inactiveTimeout);
     };
 
