@@ -5593,7 +5593,7 @@ __metadata:
     "@mui/material": 5.15.6
     "@popperjs/core": ^2.11.8
     "@protobufjs/base64": 1.1.2
-    "@sentry/core": 8.24.0
+    "@sentry/core": 9.4.0
     "@sentry/types": 8.24.0
     "@storybook/addon-actions": 8.2.8
     "@storybook/jest": 0.2.3
@@ -7381,6 +7381,13 @@ __metadata:
     "@sentry/types": 8.24.0
     "@sentry/utils": 8.24.0
   checksum: 0220e45209272f2063c39d7afeb0073712548ca3cce38e46b9f874d6155fc385e709ac19f04c965498fbf79394073a0988d9c548a2830df1151a208da375f550
+  languageName: node
+  linkType: hard
+
+"@sentry/core@npm:9.4.0":
+  version: 9.4.0
+  resolution: "@sentry/core@npm:9.4.0"
+  checksum: 30fe75c206d832b9892bf79efe12dc98da7f48f5cc9d7ebe722a7e6685cd54d2c5cb0bb33e870b13a25b2cbdff78a3f3d216f72d9da42c93a002a77ff447746a
   languageName: node
   linkType: hard
 
