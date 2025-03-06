@@ -266,13 +266,9 @@ function createPlayerListener(args: {
   let prevPlayerId: string | undefined;
   let resolveFn: undefined | (() => void);
   const listener = async (listenerPlayerState: PlayerState) => {
-    // console.log("create listener");
-
     if (closed) {
       return;
     }
-
-    // console.log("create listener 2");
 
     if (resolveFn) {
       throw new Error("New playerState was emitted before last playerState was rendered.");
