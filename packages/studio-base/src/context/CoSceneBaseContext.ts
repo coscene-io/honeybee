@@ -19,7 +19,6 @@ export type BaseInfo = {
   recordDisplayName?: string;
   recordId?: string;
   warehouseId?: string;
-  warehouseSlug?: string;
   jobRunsDisplayName?: string;
   jobRunsId?: string;
   workflowRunsId?: string;
