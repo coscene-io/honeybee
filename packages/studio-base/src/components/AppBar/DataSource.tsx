@@ -189,7 +189,7 @@ export function DataSource(): React.JSX.Element {
                   separator={<NavigateNextIcon fontSize="small" />}
                   aria-label="breadcrumb"
                 >
-                  {baseInfo.projectSlug && baseInfo.warehouseSlug ? breadcrumbs : ""}
+                  {baseInfo.projectSlug ? breadcrumbs : ""}
                   {isLiveConnection && (
                     <Link
                       href={deviceLink || "#"}

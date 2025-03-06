@@ -376,7 +376,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   const projectId = params.projectId;
   const projectSlug = params.projectSlug;
   const warehouseId = params.warehouseId;
-  const warehouseSlug = params.warehouseSlug;
   const userId = params.userId;
   const key = params.key;
 
@@ -394,10 +393,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
 
   if (!warehouseId) {
     throw new Error("warehouseId is required for data platform source");
-  }
-
-  if (!warehouseSlug) {
-    throw new Error("warehouseSlug is required for data platform source");
   }
 
   if (!userId) {
