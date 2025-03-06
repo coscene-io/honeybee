@@ -182,6 +182,7 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
   }, [currentLayoutContext, player]);
 
   useEffect(() => {
+    // console.log("use effect");
     const dispatch = store.getState().dispatch;
     if (!player) {
       // When there is no player, set the player state to the default to go back to a state where we
@@ -257,6 +258,7 @@ function createPlayerListener(args: {
   listener: (state: PlayerState) => Promise<void>;
   cleanupListener: () => void;
 } {
+  // console.log("create player listener");
   const { msPerFrameRef, promisesToWaitForRef, store } = args;
   const updateState = store.getState().dispatch;
   const messageOrderTracker = new MessageOrderTracker();
@@ -264,9 +266,13 @@ function createPlayerListener(args: {
   let prevPlayerId: string | undefined;
   let resolveFn: undefined | (() => void);
   const listener = async (listenerPlayerState: PlayerState) => {
+    // console.log("create listener");
+
     if (closed) {
       return;
     }
+
+    // console.log("create listener 2");
 
     if (resolveFn) {
       throw new Error("New playerState was emitted before last playerState was rendered.");
