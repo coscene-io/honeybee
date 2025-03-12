@@ -11,18 +11,13 @@ import Logger from "@foxglove/log";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { DataSourceArgs } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import CoSceneConsoleApi, { MetricType } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger("Analytics");
 
 export class AmplitudeAnalytics implements IAnalytics {
-  #consoleApi: CoSceneConsoleApi | undefined;
-
-  // need console api
-  public constructor({ consoleApi }: { consoleApi: CoSceneConsoleApi }) {
-    this.#consoleApi = consoleApi;
+  public constructor() {
     const platform = getPlatformName();
     const appVersion = OsContextSingleton?.getAppVersion();
     const { glVendor, glRenderer } = getWebGLInfo() ?? {
@@ -58,9 +53,6 @@ export class AmplitudeAnalytics implements IAnalytics {
   public async logEvent(event: AppEvent, data?: { [key: string]: unknown }): Promise<void> {
     switch (event) {
       case AppEvent.PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL:
-        await this.#consoleApi?.sendIncCounter({
-          name: MetricType.RecordPlaysEveryFiveSecondsTotal,
-        });
         posthog.capture(event, data);
         break;
       case AppEvent.FILE_UPLOAD:

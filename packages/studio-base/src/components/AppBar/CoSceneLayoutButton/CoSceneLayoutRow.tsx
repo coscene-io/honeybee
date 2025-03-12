@@ -38,7 +38,14 @@ import { useMountedState } from "react-use";
 // import { withStyles } from "tss-react/mui";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
+  OrganizationRoleEnum,
+  OrganizationRoleWeight,
+  ProjectRoleEnum,
+  ProjectRoleWeight,
+  UserStore,
+  useCurrentUser,
+} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
@@ -357,8 +364,9 @@ export default React.memo(function LayoutRow({
     layoutIsShared(layout) &&
       onRecommendedToProjectLayout != undefined &&
       !layout.isRecordRecommended &&
-      (currentUserRole.organizationRole === "ORGANIZATION_ADMIN" ||
-        currentUserRole.projectRole === "PROJECT_ADMIN") && {
+      (currentUserRole.organizationRole >=
+        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_ADMIN] ||
+        currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN]) && {
         type: "item",
         key: "recommendedToProjectLayout",
         text: layout.isProjectRecommended
@@ -369,8 +377,9 @@ export default React.memo(function LayoutRow({
       },
     onCopyToRecordDefaultLayout != undefined &&
       !layout.isRecordRecommended &&
-      (currentUserRole.organizationRole !== "ORGANIZATION_READER" ||
-        currentUserRole.projectRole !== "PROJECT_READER") &&
+      (currentUserRole.organizationRole >=
+        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_READER] ||
+        currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER]) &&
       baseInfo.recordId != undefined && {
         type: "item",
         key: "copyToRecordDefaultLayout",

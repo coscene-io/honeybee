@@ -67,4 +67,6 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   updateRemoteLayoutConfirm: "此操作将会覆盖远程布局，是否继续？",
   notLayoutDesc: "您当前没有选择布局",
   createNewLayout: "创建新布局",
+  publicLayouts: "公开布局",
+  noPublicLayouts: "没有公开布局",
 };
