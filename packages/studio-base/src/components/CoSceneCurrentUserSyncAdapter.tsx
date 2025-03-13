@@ -52,10 +52,10 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
 
         const projectRoles = await consoleApi.getProjectUserRoles(
           `warehouses/${warehouseId}/projects/${projectId}`,
-          `users/${currentUser.userId}`,
+          `users/current`,
         );
 
-        const orgRoles = await consoleApi.getOrgUserRoles(`users/${currentUser.userId}`);
+        const orgRoles = await consoleApi.getOrgUserRoles(`users/current`);
 
         const projectRoleCode = projectRoles.role;
 
