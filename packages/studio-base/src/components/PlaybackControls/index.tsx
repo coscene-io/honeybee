@@ -251,7 +251,7 @@ export default function PlaybackControls(props: {
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
             {enableList.event === "ENABLE" &&
-              currentUserRole.projectRole >=
+              currentUserRole.projectRole >
                 ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
                 <MemoedMomentButton disableControls={disableControls} />
               )}

@@ -356,7 +356,7 @@ function EventViewComponent(params: {
               <RepeatOneOutlinedIcon fontSize="small" />
             </IconButton>
 
-            {currentUserRole.projectRole >=
+            {currentUserRole.projectRole >
               ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
               <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
                 <EditIcon fontSize="small" />
@@ -367,7 +367,7 @@ function EventViewComponent(params: {
               <ShareIcon fontSize="small" />
             </IconButton>
 
-            {currentUserRole.projectRole >=
+            {currentUserRole.projectRole >
               ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
               <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
                 <DeleteIcon fontSize="small" />
