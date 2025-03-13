@@ -257,7 +257,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
         </Stack>
         <BagsOverlay />
         {enableList.event === "ENABLE" &&
-          currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
+          currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
             <EventsOverlay
               componentId={hoverComponentId}
               isDragging={isDragging}

@@ -380,8 +380,9 @@ export default React.memo(function LayoutRow({
     layoutIsShared(layout) &&
       onRecommendedToProjectLayout != undefined &&
       !layout.isRecordRecommended &&
-      (currentUserRole.organizationRole >=
-        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_ADMIN] ||
+      ((currentUserRole.organizationRole >=
+        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_ADMIN] &&
+        currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) ||
         currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN]) && {
         type: "item",
         key: "recommendedToProjectLayout",
@@ -393,8 +394,9 @@ export default React.memo(function LayoutRow({
       },
     onCopyToRecordDefaultLayout != undefined &&
       !layout.isRecordRecommended &&
-      (currentUserRole.organizationRole >=
-        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_READER] ||
+      ((currentUserRole.organizationRole >=
+        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_READER] &&
+        currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) ||
         currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER]) &&
       baseInfo.recordId != undefined && {
         type: "item",
