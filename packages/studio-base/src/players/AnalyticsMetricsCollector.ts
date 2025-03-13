@@ -12,7 +12,6 @@ import {
   PlayerMetricsCollectorInterface,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
-import CoSceneConsoleApi, { MetricType } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 const log = Log.getLogger(__filename);
@@ -22,7 +21,6 @@ type EventData = { [key: string]: string | number | boolean };
 export default class AnalyticsMetricsCollector implements PlayerMetricsCollectorInterface {
   #timeStatistics: number = 0;
   #playing: boolean = false;
-  #consoleApi: CoSceneConsoleApi | undefined;
   #analytics: IAnalytics;
   #sourceId: string | undefined;
   #metadata: EventData = {};
@@ -92,13 +90,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     console.debug(`coScene recordTimeToFirstMsgs`);
   }
 
-  public async playerConstructed(): Promise<void> {
-    if (this.#consoleApi) {
-      await this.#consoleApi.sendIncCounter({
-        name: MetricType.RecordPlaysTotal,
-      });
-    }
-  }
+  public async playerConstructed(): Promise<void> {}
 
   public play(speed?: number): void {
     console.debug(`coScene play: ${speed}`);

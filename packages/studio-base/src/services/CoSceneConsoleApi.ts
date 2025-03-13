@@ -5,12 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { PartialMessage, Empty, FieldMask } from "@bufbuild/protobuf";
-import { Metric } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/common/metric_pb";
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
-import { MetricService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/metric_connect";
-import { IncCounterRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/metric_pb";
 import { OrganizationService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_connect";
 import { GetOrganizationRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_pb";
 import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
@@ -23,8 +20,8 @@ import { RoleService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1a
 import {
   ListRolesRequest,
   ListRolesResponse,
-  BatchGetUserRolesRequest,
-  BatchGetUserRolesResponse,
+  GetUserRoleRequest,
+  UserRole,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_pb";
 import { UserService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_connect";
 import {
@@ -890,33 +887,6 @@ class CoSceneConsoleApi {
     return result.organizationUsers;
   }
 
-  public async sendIncCounter({
-    name,
-    desc = "",
-    tag = new Map(),
-  }: {
-    name: MetricType;
-    desc?: string;
-    tag?: Map<string, string>;
-  }): Promise<void> {
-    const req = new IncCounterRequest();
-    const metric = new Metric({
-      name,
-      description: desc,
-    });
-    for (const [key, value] of tag.entries()) {
-      metric.labels[key] = value;
-    }
-
-    if (this.#baseInfo.organizationId) {
-      const orgId = this.#baseInfo.organizationId.split("/").pop();
-      metric.labels["org_id"] = orgId ?? "";
-    }
-
-    req.counter = metric;
-    await getPromiseClient(MetricService).incCounter(req);
-  }
-
   public async getRecord({ recordName }: { recordName: string }): Promise<CoSceneRecord> {
     const req = new GetRecordRequest({
       name: recordName,
@@ -1126,28 +1096,25 @@ class CoSceneConsoleApi {
     return await roleClient.listRoles(req);
   }
 
-  public async batchGetProjectUserRoles(
-    projectName: string,
-    userIds: string[],
-  ): Promise<BatchGetUserRolesResponse> {
-    const req = new BatchGetUserRolesRequest({
+  public async getProjectUserRoles(projectName: string, userIds: string): Promise<UserRole> {
+    const req = new GetUserRoleRequest({
       parent: projectName,
-      names: userIds,
+      name: userIds,
     });
 
     const roleClient = getPromiseClient(RoleService);
 
-    return await roleClient.batchGetUserRoles(req);
+    return await roleClient.getUserRole(req);
   }
 
-  public async batchGetOrgUserRoles(userIds: string[]): Promise<BatchGetUserRolesResponse> {
-    const req = new BatchGetUserRolesRequest({
-      names: userIds,
+  public async getOrgUserRoles(userIds: string): Promise<UserRole> {
+    const req = new GetUserRoleRequest({
+      name: userIds,
     });
 
     const roleClient = getPromiseClient(RoleService);
 
-    return await roleClient.batchGetUserRoles(req);
+    return await roleClient.getUserRole(req);
   }
 
   public async deleteFile(payload: PartialMessage<DeleteFileRequest>): Promise<void> {

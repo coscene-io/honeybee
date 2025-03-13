@@ -8,7 +8,6 @@
 import { PropsWithChildren, useEffect, useMemo } from "react";
 
 import AnalyticsContext from "@foxglove/studio-base/context/AnalyticsContext";
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { AmplitudeAnalytics } from "@foxglove/studio-base/services/AmplitudeAnalytics";
 
@@ -19,11 +18,9 @@ export default function AnalyticsProvider(props: PropsWithChildren): React.React
   const currentUser = useCurrentUser(selectUser);
   const loginStatus = useCurrentUser(selectUserLoginStatus);
 
-  const consoleApi = useConsoleApi();
-
   const analytics = useMemo(() => {
-    return new AmplitudeAnalytics({ consoleApi });
-  }, [consoleApi]);
+    return new AmplitudeAnalytics();
+  }, []);
 
   useEffect(() => {
     if (currentUser && loginStatus === "alreadyLogin") {
