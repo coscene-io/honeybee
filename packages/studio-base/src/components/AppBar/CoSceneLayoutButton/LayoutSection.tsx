@@ -40,13 +40,13 @@ export default function LayoutSection({
   multiSelectedIds: readonly string[];
   selectedId?: string;
   onSelect: (item: Layout, params?: { selectedViaClick?: boolean; event?: MouseEvent }) => void;
-  onRename: (item: Layout, newName: string) => void;
+  onRename?: (item: Layout, newName: string) => void;
   onDuplicate: (item: Layout) => void;
-  onDelete: (item: Layout) => void;
+  onDelete?: (item: Layout) => void;
   onShare: (item: Layout) => void;
   onExport: (item: Layout) => void;
-  onOverwrite: (item: Layout) => void;
-  onRevert: (item: Layout) => void;
+  onOverwrite?: (item: Layout) => void;
+  onRevert?: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
   onRecommendedToProjectLayout?: (item: Layout) => void;
   onCopyToRecordDefaultLayout?: (item: Layout) => void;

@@ -26,6 +26,12 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useBaseInfo, CoSceneBaseStore } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import {
+  ProjectRoleEnum,
+  ProjectRoleWeight,
+  useCurrentUser,
+  UserStore,
+} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
   useClearHoverValue,
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
@@ -66,6 +72,7 @@ const selectRanges = (ctx: MessagePipelineContext) =>
   ctx.playerState.progress.fullyLoadedFractionRanges;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
+const selectUserRole = (store: UserStore) => store.role;
 
 type Props = {
   onSeek: (seekTo: Time) => void;
@@ -75,6 +82,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const { onSeek } = props;
   const { classes, cx } = useStyles();
 
+  const currentUserRole = useCurrentUser(selectUserRole);
   const [hoverComponentId] = useState<string>(() => uuidv4());
 
   const [cursor, setCursor] = useState("pointer");
@@ -248,13 +256,14 @@ export default function Scrubber(props: Props): React.JSX.Element {
           />
         </Stack>
         <BagsOverlay />
-        {enableList.event === "ENABLE" && (
-          <EventsOverlay
-            componentId={hoverComponentId}
-            isDragging={isDragging}
-            setCursor={setCursor}
-          />
-        )}
+        {enableList.event === "ENABLE" &&
+          currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
+            <EventsOverlay
+              componentId={hoverComponentId}
+              isDragging={isDragging}
+              setCursor={setCursor}
+            />
+          )}
         <PlaybackBarHoverTicks componentId={hoverComponentId} />
       </Stack>
     </Tooltip>

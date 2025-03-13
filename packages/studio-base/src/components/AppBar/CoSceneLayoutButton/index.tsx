@@ -610,26 +610,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     void analytics.logEvent(AppEvent.LAYOUT_CREATE);
   };
 
-  // if current user project role is AUTHENTICATED_USER, all record and project recommended layouts is from public org
-  const orgLayouts = useMemo(() => {
-    if (currentUserRole.projectRole !== ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) {
-      return layouts.value?.shared;
-    }
-
-    return layouts.value?.shared.filter(
-      (layout) => !layout.isProjectRecommended && !layout.isRecordRecommended,
-    );
-  }, [currentUserRole.projectRole, layouts.value?.shared]);
-
-  const publicLayouts = useMemo(() => {
-    if (currentUserRole.projectRole === ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) {
-      return [];
-    }
-    return layouts.value?.shared.filter(
-      (layout) => layout.isProjectRecommended || layout.isRecordRecommended,
-    );
-  }, [currentUserRole.projectRole, layouts.value?.shared]);
-
   const sortedRemoteLayouts = useMemo(() => {
     return layouts.value?.shared.sort((a, b) => {
       // 计算优先级分数：isRecordRecommended 权重为 2，isProjectRecommended 权重为 1
@@ -640,6 +620,26 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       return priorityB - priorityA;
     });
   }, [layouts.value?.shared]);
+
+  // if current user project role is AUTHENTICATED_USER, all record and project recommended layouts is from public org
+  const orgLayouts = useMemo(() => {
+    if (currentUserRole.projectRole !== ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) {
+      return sortedRemoteLayouts;
+    }
+
+    return sortedRemoteLayouts?.filter(
+      (layout) => !layout.isProjectRecommended && !layout.isRecordRecommended,
+    );
+  }, [currentUserRole.projectRole, sortedRemoteLayouts]);
+
+  const publicLayouts = useMemo(() => {
+    if (currentUserRole.projectRole !== ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) {
+      return [];
+    }
+    return sortedRemoteLayouts?.filter(
+      (layout) => layout.isProjectRecommended || layout.isRecordRecommended,
+    );
+  }, [currentUserRole.projectRole, sortedRemoteLayouts]);
 
   return (
     <>
@@ -745,7 +745,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               title={t("organization")}
               emptyText={t("noOrgnizationLayouts")}
               // Layout of top recommendations
-              items={sortedRemoteLayouts}
+              items={orgLayouts}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}
               selectedId={currentLayoutId}
@@ -769,23 +769,16 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               <LayoutSection
                 title={t("publicLayouts")}
                 emptyText={t("noPublicLayouts")}
-                // Layout of top recommendations
-                items={sortedRemoteLayouts}
+                items={publicLayouts}
                 anySelectedModifiedLayouts={anySelectedModifiedLayouts}
                 multiSelectedIds={state.selectedIds}
                 selectedId={currentLayoutId}
                 onSelect={onSelectLayout}
-                onRename={onRenameLayout}
                 onDuplicate={onDuplicateLayout}
-                onDelete={onDeleteLayout}
                 onShare={onShareLayout}
                 onExport={onExportLayout}
-                onOverwrite={onOverwriteLayout}
-                onRevert={onRevertLayout}
                 onMakePersonalCopy={onMakePersonalCopy}
                 searchQuery={searchQuery}
-                onRecommendedToProjectLayout={onRecommendedToProjectLayout}
-                onCopyToRecordDefaultLayout={onCopyToRecordDefaultLayout}
               />
             )}
           <Stack flexGrow={1} />
