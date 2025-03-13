@@ -14,8 +14,10 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import {
   useCurrentUser,
   UserStore,
-  OrganizationRoleCode,
-  ProjectRoleCode,
+  OrganizationRoleEnum,
+  ProjectRoleEnum,
+  OrganizationRoleWeight,
+  ProjectRoleWeight,
   User,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
@@ -48,31 +50,24 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         const res = await consoleApi.getRoleLists();
         const roles = res.roles;
 
-        const projectRoles = await consoleApi.batchGetProjectUserRoles(
+        const projectRoles = await consoleApi.getProjectUserRoles(
           `warehouses/${warehouseId}/projects/${projectId}`,
-          [`users/${currentUser.userId}`],
+          `users/current`,
         );
 
-        const orgRoles = await consoleApi.batchGetOrgUserRoles([`users/${currentUser.userId}`]);
+        const orgRoles = await consoleApi.getOrgUserRoles(`users/current`);
 
-        let projectRoleCode = "";
+        const projectRoleCode = projectRoles.role;
 
-        if (projectRoles.userRoles.length > 0) {
-          projectRoleCode = projectRoles.userRoles[0]?.role ?? "";
-        }
-
-        let orgRolesCode = "";
-        if (orgRoles.userRoles.length > 0) {
-          orgRolesCode = orgRoles.userRoles[0]?.role ?? "";
-        }
+        const orgRolesCode = orgRoles.role;
 
         const organizationRole = roles.find((role) => role.name === orgRolesCode);
 
         const projectRole = roles.find((role) => role.name === projectRoleCode);
 
         setUserRole(
-          organizationRole?.code ? (organizationRole.code as OrganizationRoleCode) : undefined,
-          projectRole?.code ? (projectRole.code as ProjectRoleCode) : undefined,
+          OrganizationRoleWeight[organizationRole?.code as OrganizationRoleEnum],
+          ProjectRoleWeight[projectRole?.code as ProjectRoleEnum],
         );
       }
     },

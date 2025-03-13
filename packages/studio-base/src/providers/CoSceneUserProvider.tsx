@@ -10,6 +10,10 @@ import { createStore } from "zustand";
 
 import {
   CoSceneCurrentUserContext,
+  OrganizationRoleEnum,
+  OrganizationRoleWeight,
+  ProjectRoleEnum,
+  ProjectRoleWeight,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 
@@ -19,8 +23,8 @@ function createCurrentUserStore() {
   return createStore<UserStore>((set) => ({
     user: undefined,
     role: {
-      organizationRole: "ORGANIZATION_READER",
-      projectRole: "PROJECT_READER",
+      organizationRole: OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_READER],
+      projectRole: ProjectRoleWeight[ProjectRoleEnum.ANONYMOUS_USER],
     },
     loginStatus: authToken != undefined ? "alreadyLogin" : "notLogin",
     setUser: (user) => {
@@ -29,8 +33,9 @@ function createCurrentUserStore() {
     setRole: (organizationRole, projectRole) => {
       set({
         role: {
-          organizationRole: organizationRole ?? "ORGANIZATION_WRITER",
-          projectRole: projectRole ?? "PROJECT_WRITER",
+          organizationRole:
+            organizationRole ?? OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_READER],
+          projectRole: projectRole ?? ProjectRoleWeight[ProjectRoleEnum.ANONYMOUS_USER],
         },
       });
     },

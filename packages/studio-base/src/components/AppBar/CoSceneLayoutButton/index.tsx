@@ -38,6 +38,12 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import {
+  ProjectRoleEnum,
+  ProjectRoleWeight,
+  useCurrentUser,
+  UserStore,
+} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
   LayoutState,
@@ -64,6 +70,7 @@ import SelectLayoutTemplateModal from "./SelectLayoutTemplateModal";
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectUserRole = (store: UserStore) => store.role;
 
 const useStyles = makeStyles()((theme) => {
   const { spacing, palette } = theme;
@@ -119,6 +126,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const currentUserRole = useCurrentUser(selectUserRole);
 
   const [layouts, reloadLayouts] = useAsyncFn(
     async () => {
@@ -446,7 +454,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
       if (layoutIsShared(item)) {
         const response = await confirm({
-          title: `${t("update")} “${item.name}”?`,
+          title: `${t("update")} " ${item.name}"?`,
           prompt: t("updateRemoteLayoutConfirm"),
           ok: t("save", {
             ns: "cosGeneral",
@@ -604,19 +612,34 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const sortedRemoteLayouts = useMemo(() => {
     return layouts.value?.shared.sort((a, b) => {
-      if (a.isRecordRecommended && !b.isRecordRecommended) {
-        return -1;
-      } else if (!a.isRecordRecommended && b.isRecordRecommended) {
-        return 1;
-      } else if (a.isProjectRecommended && !b.isProjectRecommended) {
-        return -1;
-      } else if (!a.isProjectRecommended && b.isProjectRecommended) {
-        return 1;
-      } else {
-        return 0;
-      }
+      // 计算优先级分数：isRecordRecommended 权重为 2，isProjectRecommended 权重为 1
+      const priorityA = (a.isRecordRecommended ? 2 : 0) + (a.isProjectRecommended ? 1 : 0);
+      const priorityB = (b.isRecordRecommended ? 2 : 0) + (b.isProjectRecommended ? 1 : 0);
+
+      // 优先级高的排在前面
+      return priorityB - priorityA;
     });
   }, [layouts.value?.shared]);
+
+  // if current user project role is AUTHENTICATED_USER, all record and project recommended layouts is from public org
+  const orgLayouts = useMemo(() => {
+    if (currentUserRole.projectRole !== ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) {
+      return sortedRemoteLayouts;
+    }
+
+    return sortedRemoteLayouts?.filter(
+      (layout) => !layout.isProjectRecommended && !layout.isRecordRecommended,
+    );
+  }, [currentUserRole.projectRole, sortedRemoteLayouts]);
+
+  const publicLayouts = useMemo(() => {
+    if (currentUserRole.projectRole !== ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) {
+      return [];
+    }
+    return sortedRemoteLayouts?.filter(
+      (layout) => layout.isProjectRecommended || layout.isRecordRecommended,
+    );
+  }, [currentUserRole.projectRole, sortedRemoteLayouts]);
 
   return (
     <>
@@ -717,12 +740,12 @@ export function CoSceneLayoutButton(): React.JSX.Element {
             searchQuery={searchQuery}
             onCopyToRecordDefaultLayout={onCopyToRecordDefaultLayout}
           />
-          {layoutManager.supportsSharing && (
+          {layoutManager.supportsSharing && orgLayouts != undefined && orgLayouts.length > 0 && (
             <LayoutSection
               title={t("organization")}
               emptyText={t("noOrgnizationLayouts")}
               // Layout of top recommendations
-              items={sortedRemoteLayouts}
+              items={orgLayouts}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}
               selectedId={currentLayoutId}
@@ -740,6 +763,24 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               onCopyToRecordDefaultLayout={onCopyToRecordDefaultLayout}
             />
           )}
+          {layoutManager.supportsSharing &&
+            publicLayouts != undefined &&
+            publicLayouts.length > 0 && (
+              <LayoutSection
+                title={t("publicLayouts")}
+                emptyText={t("noPublicLayouts")}
+                items={publicLayouts}
+                anySelectedModifiedLayouts={anySelectedModifiedLayouts}
+                multiSelectedIds={state.selectedIds}
+                selectedId={currentLayoutId}
+                onSelect={onSelectLayout}
+                onDuplicate={onDuplicateLayout}
+                onShare={onShareLayout}
+                onExport={onExportLayout}
+                onMakePersonalCopy={onMakePersonalCopy}
+                searchQuery={searchQuery}
+              />
+            )}
           <Stack flexGrow={1} />
         </Stack>
       </Menu>

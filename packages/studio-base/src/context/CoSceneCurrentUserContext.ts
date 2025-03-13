@@ -10,12 +10,37 @@ import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 
-export type OrganizationRoleCode =
-  | "ORGANIZATION_WRITER"
-  | "ORGANIZATION_READER"
-  | "ORGANIZATION_ADMIN";
+export enum OrganizationRoleEnum {
+  ORGANIZATION_WRITER = "ORGANIZATION_WRITER",
+  ORGANIZATION_READER = "ORGANIZATION_READER",
+  ORGANIZATION_ADMIN = "ORGANIZATION_ADMIN",
+  ORGANIZATION_DEVICE = "ORGANIZATION_DEVICE",
+}
 
-export type ProjectRoleCode = "PROJECT_WRITER" | "PROJECT_READER" | "PROJECT_ADMIN";
+export enum ProjectRoleEnum {
+  PROJECT_WRITER = "PROJECT_WRITER",
+  PROJECT_READER = "PROJECT_READER",
+  PROJECT_ADMIN = "PROJECT_ADMIN",
+  PROJECT_DEVICE = "PROJECT_DEVICE",
+  ANONYMOUS_USER = "ANONYMOUS_USER",
+  AUTHENTICATED_USER = "AUTHENTICATED_USER",
+}
+
+export const OrganizationRoleWeight = {
+  [OrganizationRoleEnum.ORGANIZATION_DEVICE]: 0,
+  [OrganizationRoleEnum.ORGANIZATION_WRITER]: 1,
+  [OrganizationRoleEnum.ORGANIZATION_READER]: 2,
+  [OrganizationRoleEnum.ORGANIZATION_ADMIN]: 3,
+};
+
+export const ProjectRoleWeight = {
+  [ProjectRoleEnum.ANONYMOUS_USER]: 0,
+  [ProjectRoleEnum.PROJECT_DEVICE]: 0,
+  [ProjectRoleEnum.AUTHENTICATED_USER]: 1,
+  [ProjectRoleEnum.PROJECT_WRITER]: 2,
+  [ProjectRoleEnum.PROJECT_READER]: 3,
+  [ProjectRoleEnum.PROJECT_ADMIN]: 4,
+};
 
 export type User = {
   userId: string;
@@ -40,14 +65,14 @@ export type UserStore = {
   user: User | undefined;
 
   role: {
-    organizationRole: OrganizationRoleCode;
+    organizationRole: number;
 
-    projectRole: ProjectRoleCode;
+    projectRole: number;
   };
 
   setUser: (user: User | undefined) => void;
 
-  setRole: (organizationRole?: OrganizationRoleCode, projectRole?: ProjectRoleCode) => void;
+  setRole: (organizationRole?: number, projectRole?: number) => void;
 
   setLoginStatus: (loginStatus: LoginStatus) => void;
 };

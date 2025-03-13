@@ -68,4 +68,6 @@ export const cosLayout = {
     "Your changes will overwrite this layout for all organization members. This cannot be undone.",
   notLayoutDesc: "You don't currently have a layout selected.",
   createNewLayout: "Create a new layout",
+  publicLayouts: "Public layouts",
+  noPublicLayouts: "No public layouts",
 };
