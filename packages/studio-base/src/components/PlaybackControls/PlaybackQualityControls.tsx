@@ -133,9 +133,9 @@ function PlaybackQualityControls(): React.JSX.Element {
           fullWidth
           onClick={() => {
             if (i18n.language === "zh") {
-              window.open("https://docs.coscene.cn/docs/recipes/viz/frame-rate-optimization/");
+              window.open("https://docs.coscene.cn/docs/viz/frame-rate-optimization");
             } else {
-              window.open("https://docs.coscene.cn/en/docs/recipes/viz/frame-rate-optimization/");
+              window.open("https://docs.coscene.cn/en/docs/viz/frame-rate-optimization/");
             }
           }}
         >
