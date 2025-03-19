@@ -24,6 +24,7 @@ on:
 
 env:
   ENV_PREFIX: ${{ github.event.inputs.environment == 'saas' && '' || format('/{0}', github.event.inputs.environment) }}
+  CONFIG_FILE_URL: ${{ github.event.inputs.environment == 'saas' && 'https://coscene.cn/cos-config.js' || github.event.inputs.environment == 'potal' && 'https://portal.coscene.io/cos-config.js' || 'https://dev.coscene.cn/cos-config.js' }}
 
 jobs:
   build:
@@ -52,7 +53,7 @@ jobs:
       - name: Set cos config file
         id: set_cos_config_file
         run: |
-          echo '${{ vars.APP_CONFIG }}' > packages/studio-desktop/src/public/cos-config.js
+          curl ${{ env.CONFIG_FILE_URL }} > packages/studio-desktop/src/public/cos-config.js
           cat packages/studio-desktop/src/public/cos-config.js
 
       - name: Prepare postinst script
@@ -113,99 +114,22 @@ jobs:
             dist/coStudio-${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe.blockmap
             dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest.yml
 
-      - name: Upload to OSS (Linux)
+      - name: Update APT Source
         if: matrix.os == 'linux'
-        uses: tvrcgo/oss-action@master
+        uses: coscene-io/update-apt-source@test
         with:
-          key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
-          key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
-          region: oss-cn-hangzhou
-          bucket: coscene-download
-          assets: |
-            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
-            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb.blockmap
-            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
-            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb.blockmap
-            dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-linux.yml
-            dist/latest-linux-arm64.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-linux-arm64.yml
-
-      - name: Upload deb files to artifacts
-        if: matrix.os == 'linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: deb-packages
-          path: |
+          ubuntu_distro: "all"
+          deb_paths: |
             dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
             dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
-
-  update-apt-server:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Use apt tools
-        uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: |
-            dpkg-dev
-            apt-utils
-            gpg
-          version: 1.0
-
-      - name: Import gpg key
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 -d | gpg --batch --import
-
-      - name: Download deb packages
-        uses: actions/download-artifact@v4
-        with:
-          name: deb-packages
-          path: dist
-
-      - name: Create release file
-        run: |
-          # 创建标准目录结构
-          mkdir -p dists/stable/main/binary-amd64
-          mkdir -p dists/stable/main/binary-arm64
-
-          # 移动 deb 包到对应架构目录
-          mv dist/*amd64.deb dists/stable/main/binary-amd64/
-          mv dist/*arm64.deb dists/stable/main/binary-arm64/
-
-          # 为每个架构生成 Packages 文件
-          dpkg-scanpackages dists/stable/main/binary-amd64 /dev/null > dists/stable/main/binary-amd64/Packages
-          dpkg-scanpackages dists/stable/main/binary-arm64 /dev/null > dists/stable/main/binary-arm64/Packages
-
-          # 压缩 Packages 文件
-          gzip -k -f dists/stable/main/binary-amd64/Packages
-          gzip -k -f dists/stable/main/binary-arm64/Packages
-
-          # 生成 Release 文件
-          apt-ftparchive release dists/stable > dists/stable/Release
-
-          # 签名 Release 文件
-          gpg --clearsign -o dists/stable/InRelease dists/stable/Release
-          gpg -abs -o dists/stable/Release.gpg dists/stable/Release
-
-      - name: Upload to OSS
-        uses: tvrcgo/oss-action@master
-        with:
-          key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
-          key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
-          region: oss-cn-hangzhou
-          bucket: coscene-download
-          assets: |
-            dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-amd64/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
-            dists/stable/main/binary-amd64/Packages:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-amd64/Packages
-            dists/stable/main/binary-amd64/Packages.gz:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-amd64/Packages.gz
-            dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-arm64/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
-            dists/stable/main/binary-arm64/Packages:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-arm64/Packages
-            dists/stable/main/binary-arm64/Packages.gz:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/main/binary-arm64/Packages.gz
-            dists/stable/Release:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/Release
-            dists/stable/InRelease:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/InRelease
-            dists/stable/Release.gpg:/coStudio${{ env.ENV_PREFIX }}/apt/studio/dists/stable/Release.gpg
+          architectures: |
+            amd64
+            arm64
+          access_key_id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
+          access_key_secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
 
   notification:
-    needs: update-apt-server
     runs-on: ubuntu-latest
 
     steps:
