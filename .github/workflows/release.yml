@@ -40,8 +40,14 @@ jobs:
 
     strategy:
       matrix:
-        os: [win, linux, darwin]
-      fail-fast: true
+        include:
+          - os: win
+            runs-on: windows-latest
+          - os: darwin
+            runs-on: macos-latest
+          - os: linux
+            runs-on: ubuntu-latest
+      # fail-fast: true
 
     steps:
       - name: Checkout Repository
