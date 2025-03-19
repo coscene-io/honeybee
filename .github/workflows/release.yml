@@ -47,7 +47,7 @@ jobs:
             runs-on: macos-latest
           - os: linux
             runs-on: ubuntu-latest
-      # fail-fast: true
+      fail-fast: false
 
     steps:
       - name: Checkout Repository
