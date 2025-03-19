@@ -4,7 +4,7 @@
   "license": "MPL-2.0 AND Proprietary",
   "private": true,
   "productName": "coStudio",
-  "description": "Core components of coScene",
+  "description": "coScene's robot visualization platform",
   "productDescription": "coScene Studio",
   "packageManager": "yarn@3.6.3",
   "repository": {

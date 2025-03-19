@@ -22,7 +22,7 @@ function makeElectronBuilderConfig(params) {
       app: params.appPath,
       buildResources: path.join(__dirname, "../resources"),
     },
-    artifactName: "coStudio-v${version}-${os}-${arch}.${ext}",
+    artifactName: "coStudio_${version}-${os}_${arch}.${ext}",
     afterPack: path.resolve(__dirname, "afterPack.ts"),
     icon: path.join(__dirname, "../resources/icon/icon.icns"),
     protocols: [

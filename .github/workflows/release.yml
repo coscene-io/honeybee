@@ -30,7 +30,7 @@ jobs:
   build:
     environment: ${{ github.event.inputs.environment }}
 
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     env:
       BUF_BUILD_TOKEN: ${{ secrets.BUF_BUILD_TOKEN }}
@@ -129,29 +129,30 @@ jobs:
           access_key_secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
 
-  notification:
-    runs-on: ubuntu-latest
+  # notification:
+  #   needs: build
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: Notification to Feishu
-        id: feishu
-        uses: foxundermoon/feishu-action@v2
-        with:
-          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
-          msg_type: text
-          content: |
-            text: |
-              A new version of coScene Studio has been published.
-              Version: ${{ github.event.inputs.version }}
-              Environment: ${{ github.event.inputs.environment }}
-              Download:
-                mac:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
-                win:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win.exe
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
-                linux:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
-              Release notes: https://github.com/coscene-io/honeybee/releases
+  #   steps:
+  #     - name: Notification to Feishu
+  #       id: feishu
+  #       uses: foxundermoon/feishu-action@v2
+  #       with:
+  #         url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
+  #         msg_type: text
+  #         content: |
+  #           text: |
+  #             A new version of coScene Studio has been published.
+  #             Version: ${{ github.event.inputs.version }}
+  #             Environment: ${{ github.event.inputs.environment }}
+  #             Download:
+  #               mac:
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
+  #               win:
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win.exe
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
+  #               linux:
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
+  #                 https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+  #             Release notes: https://github.com/coscene-io/honeybee/releases
