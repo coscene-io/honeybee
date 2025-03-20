@@ -30,7 +30,7 @@ jobs:
   build:
     environment: ${{ github.event.inputs.environment }}
 
-    runs-on: ubuntu-latest
+    runs-on: ${{matrix.runs-on}}
 
     env:
       BUF_BUILD_TOKEN: ${{ secrets.BUF_BUILD_TOKEN }}
