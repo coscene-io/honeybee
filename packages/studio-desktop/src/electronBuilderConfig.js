@@ -210,12 +210,14 @@ function makeElectronBuilderConfig(params) {
       grade: "stable",
       summary: "Integrated visualization and diagnosis tool for robotics",
     },
-    publish: [
-      {
-        provider: "generic",
-        url: process.env.COSTUDIO_DOWNLOAD_URL,
-      },
-    ],
+    publish: process.env.COSTUDIO_DOWNLOAD_URL
+      ? [
+          {
+            provider: "generic",
+            url: process.env.COSTUDIO_DOWNLOAD_URL,
+          },
+        ]
+      : undefined,
     nsis: {
       license: path.join(__dirname, "../resources/license_zh_CN.txt"),
       oneClick: false,

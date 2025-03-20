@@ -10,7 +10,7 @@ on:
     inputs:
       version:
         type: string
-        description: "Version to publish (e.g., v1.0.0)"
+        description: "Version to publish (e.g., 1.0.0, do not include v prefix)"
         required: true
       environment:
         type: choice
@@ -99,8 +99,8 @@ jobs:
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
-            dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg
-            dist/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-mac-universal.dmg.blockmap
+            dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
+            dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap
             dist/latest-mac.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-mac.yml
 
       - name: Upload to OSS (Windows)
@@ -112,12 +112,12 @@ jobs:
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
-            dist/coStudio-${{ github.event.inputs.version }}-win.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win.exe
-            dist/coStudio-${{ github.event.inputs.version }}-win.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win.exe.blockmap
-            dist/coStudio-${{ github.event.inputs.version }}-win-arm64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe
-            dist/coStudio-${{ github.event.inputs.version }}-win-arm64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-arm64.exe.blockmap
-            dist/coStudio-${{ github.event.inputs.version }}-win-x64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe
-            dist/coStudio-${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio-${{ github.event.inputs.version }}-win-x64.exe.blockmap
+            dist/coStudio_${{ github.event.inputs.version }}-win.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap
+            dist/coStudio_${{ github.event.inputs.version }}-win-arm64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win-arm64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe.blockmap
+            dist/coStudio_${{ github.event.inputs.version }}-win-x64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap
             dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest.yml
 
       - name: Update APT Source
@@ -126,8 +126,8 @@ jobs:
         with:
           ubuntu_distro: "all"
           deb_paths: |
-            dist/coStudio-${{ github.event.inputs.version }}-linux-amd64.deb
-            dist/coStudio-${{ github.event.inputs.version }}-linux-arm64.deb
+            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
           architectures: |
             amd64
             arm64
