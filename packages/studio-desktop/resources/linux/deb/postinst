@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+
+## This file is a template for the postinst script.
+## because is defined in the github actions workflow,
+## we need to use a template to generate the actual file.
+
+## Electron apps do not have auto-update for deb packages.
+## Instead we add our apt repo as a post-install step. The user can then get app updates
+## via their typical apt update workflow.
+
+# Link the binary into global /usr/bin
+ln -sf '/opt/${productFilename}/${executable}' '/usr/bin/${executable}'
+
+# SUID chrome-sandbox for Electron 5+
+chmod 4755 '/opt/${productFilename}/chrome-sandbox' || true
+
+update-mime-database /usr/share/mime || true
+update-desktop-database /usr/share/applications || true
+
+# APT_SOURCE_PARTS is where apt looks for source.list files (i.e. /etc/apt/sources.list.d/)
+eval $(apt-config shell APT_SOURCE_PARTS Dir::Etc::sourceparts/d)
+APT_SOURCE_PART=${APT_SOURCE_PARTS}coStudio.list
+
+# APT_TRUSTED_PARTS is where apt looks for gpg keys for repos (i.e. /etc/apt/trusted.gpg.d/)
+eval $(apt-config shell APT_TRUSTED_PARTS Dir::Etc::trustedparts/d)
+APT_TRUSTED_PART=${APT_TRUSTED_PARTS}coScene.gpg
+
+gpg --dearmor > $APT_TRUSTED_PART <<PUBKEY
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+=4S3k
+-----END PGP PUBLIC KEY BLOCK-----
+PUBKEY
+
+echo "### THIS FILE IS AUTOMATICALLY GENERATED ###
+deb [arch=amd64,arm64] https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/apt/studio stable main" > $APT_SOURCE_PART

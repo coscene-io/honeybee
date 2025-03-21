@@ -22,7 +22,7 @@ function makeElectronBuilderConfig(params) {
       app: params.appPath,
       buildResources: path.join(__dirname, "../resources"),
     },
-    artifactName: "coStudio-v${version}-${os}-${arch}.${ext}",
+    artifactName: "coStudio_${version}-${os}_${arch}.${ext}",
     afterPack: path.resolve(__dirname, "afterPack.ts"),
     icon: path.join(__dirname, "../resources/icon/icon.icns"),
     protocols: [
@@ -210,12 +210,14 @@ function makeElectronBuilderConfig(params) {
       grade: "stable",
       summary: "Integrated visualization and diagnosis tool for robotics",
     },
-    publish: [
-      {
-        provider: "generic",
-        url: process.env.COSTUDIO_DOWNLOAD_URL,
-      },
-    ],
+    publish: process.env.COSTUDIO_DOWNLOAD_URL
+      ? [
+          {
+            provider: "generic",
+            url: process.env.COSTUDIO_DOWNLOAD_URL,
+          },
+        ]
+      : undefined,
     nsis: {
       license: path.join(__dirname, "../resources/license_zh_CN.txt"),
       oneClick: false,
