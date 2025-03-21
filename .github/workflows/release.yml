@@ -121,24 +121,14 @@ jobs:
             dist/coStudio_${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap
             dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest.yml
 
-      - name: upload aritfact
-        if: matrix.os == 'linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coStudio-linux-packages
-          path: |
-            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
-          retention-days: 7
-
       - name: Update APT Source
         if: matrix.os == 'linux'
         uses: coscene-io/update-apt-source@test
         with:
           ubuntu_distro: "all"
           deb_paths: |
-            /home/runner/work/honeybee/honeybee/dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-            /home/runner/work/honeybee/honeybee/dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+            ${{ github.workspace }}/dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+            ${{ github.workspace }}/dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
           architectures: |
             amd64
             arm64
