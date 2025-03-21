@@ -127,8 +127,8 @@ jobs:
         with:
           ubuntu_distro: "all"
           deb_paths: |
-            ${{ github.workspace }}/dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-            ${{ github.workspace }}/dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
           architectures: |
             amd64
             arm64
