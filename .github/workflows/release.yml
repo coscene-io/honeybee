@@ -90,8 +90,6 @@ jobs:
       - name: Build ${{ matrix.os }} version
         run: |
           yarn run package:${{ matrix.os }}
-          pwd
-          ls ./dist
 
       - name: Upload to OSS
         if: matrix.os == 'darwin'
@@ -128,12 +126,8 @@ jobs:
         uses: coscene-io/update-apt-source@test
         with:
           ubuntu_distro: "all"
-          deb_paths: |
-            /home/runner/work/honeybee/honeybee/dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-            /home/runner/work/honeybee/honeybee/dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
-          architectures: |
-            amd64
-            arm64
+          deb_paths: /home/runner/work/honeybee/honeybee/dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb,/home/runner/work/honeybee/honeybee/dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+          architectures: amd64,arm64
           access_key_id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
           access_key_secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
