@@ -61,7 +61,6 @@ function TablePanel({ config, saveConfig }: Props) {
   const cachedGetMessagePathDataItems = useCachedGetMessagePathDataItems([topicPath]);
   const msg = msgs?.[0];
   const cachedMessages = msg ? cachedGetMessagePathDataItems(topicPath, msg) ?? [] : [];
-  const firstCachedMessage = cachedMessages[0];
 
   const { setMessagePathDropConfig } = usePanelContext();
 
@@ -91,9 +90,16 @@ function TablePanel({ config, saveConfig }: Props) {
       {topicPath.length !== 0 && cachedMessages.length === 0 && (
         <EmptyState>Waiting for next message…</EmptyState>
       )}
-      {topicPath.length !== 0 && firstCachedMessage && (
+      {topicPath.length !== 0 && cachedMessages.length > 0 && (
         <Stack overflow="auto" className={classes.monospace}>
-          <Table value={firstCachedMessage.value} accessorPath="" />
+          <Table
+            value={
+              cachedMessages.length > 1
+                ? cachedMessages.map((item) => item.value)
+                : cachedMessages[0]?.value
+            }
+            accessorPath=""
+          />
         </Stack>
       )}
     </Stack>
