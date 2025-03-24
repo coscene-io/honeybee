@@ -147,8 +147,6 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   const { globalVariables, setGlobalVariables } = useGlobalVariables();
   const { datatypes, topics } = PanelAPI.useDataSourceInfo();
 
-  // console.log("topics", topics);
-
   const {
     supportsMathModifiers,
     path,
@@ -464,8 +462,6 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   const hasError =
     usesUnsupportedMathModifier ||
     (autocompleteType != undefined && !disableAutocomplete && path.length > 0);
-
-  // console.log("orderedAutocompleteItems", orderedAutocompleteItems);
 
   return (
     <Autocomplete
