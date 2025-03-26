@@ -121,9 +121,9 @@ jobs:
             dist/coStudio_${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap
             dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest.yml
 
-      - name: Update APT Source
+      - name: Update APT Source (OSS)
         if: matrix.os == 'linux'
-        uses: coscene-io/update-apt-source@test
+        uses: coscene-io/update-apt-source@main
         with:
           ubuntu_distro: "all"
           deb_paths: |
@@ -132,8 +132,31 @@ jobs:
           architectures: |
             amd64
             arm64
+          storage_type: oss
+          endpoint: https://oss-cn-hangzhou.aliyuncs.com
+          region: cn-hangzhou
+          bucket_name: coscene-apt
           access_key_id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
           access_key_secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      - name: Update APT Source (AWS)
+        if: matrix.os == 'linux'
+        uses: coscene-io/update-apt-source@main
+        with:
+          ubuntu_distro: "all"
+          deb_paths: |
+            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+          architectures: |
+            amd64
+            arm64
+          storage_type: aws
+          endpoint: https://s3.us-east-1.amazonaws.com
+          region: us-east-1
+          bucket_name: coscene-apt
+          access_key_id: ${{ secrets.S3_ARTIFACTS_ACCESS_KEY }}
+          access_key_secret: ${{ secrets.S3_ARTIFACTS_ACCESS_SECRET }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
 
   # notification:
