@@ -65,17 +65,17 @@ jobs:
       - name: Set cos config file
         id: set_cos_config_file
         run: |
-          curl ${{ env.CONFIG_FILE_URL }} > packages/studio-desktop/src/public/cos-config.js
+          curl ${{ vars.CONFIG_FILE_URL }} > packages/studio-desktop/src/public/cos-config.js
           cat packages/studio-desktop/src/public/cos-config.js
 
       - name: Prepare postinst script
         if: matrix.os == 'linux'
         run: |
           # 先解码到临时变量
-          DECODED_KEY=$(echo "${{ env.APT_PUBLIC_KEY }}" | base64 -d)
+          DECODED_KEY=$(echo "${{ vars.APT_PUBLIC_KEY }}" | base64 -d)
 
           # 进行替换
-          sed -e "s|%%APT_SOURCE%%|${{ env.COSTUDIO_APT_SOURCE }}|g" \
+          sed -e "s|%%APT_SOURCE%%|${{ vars.COSTUDIO_APT_SOURCE }}|g" \
               -e "s|%%APT_PUBLIC_KEY%%|${DECODED_KEY}|g" \
               packages/studio-desktop/resources/linux/deb/postinst.template > \
               packages/studio-desktop/resources/linux/deb/postinst
