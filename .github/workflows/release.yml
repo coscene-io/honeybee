@@ -155,7 +155,7 @@ jobs:
             dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
             dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-linux.yml
 
-      - name: Upload to s3 (darwin)
+      - name: Upload to s3
         if: github.event.inputs.environment == 'portal'
         uses: jakejarvis/s3-sync-action@master
         with:

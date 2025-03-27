@@ -104,11 +104,26 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const TERMS_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnA1CuBWbcU6PH2aXYLGhjrb";
-const PRIVACY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnzZNZ5kAuIw0stvaXxqkFAV";
-const SECURITY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnxpT8beRnb3JMLYxRMcBnq0";
+// const TERMS_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnA1CuBWbcU6PH2aXYLGhjrb";
+// const PRIVACY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnzZNZ5kAuIw0stvaXxqkFAV";
+// const SECURITY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnxpT8beRnb3JMLYxRMcBnq0";
 const CONTACT_EMAIL = "contact@coscene.io";
 const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
+
+const TERMS_DOC_URL = {
+  en: "https://docs.coscene.cn/legal/terms/en/terms.html",
+  zh: "https://docs.coscene.cn/legal/terms/zh/terms.html",
+};
+
+const PRIVACY_DOC_URL = {
+  en: "https://docs.coscene.cn/legal/privacy/en/privacy.html",
+  zh: "https://docs.coscene.cn/legal/privacy/zh/privacy.html",
+};
+
+const SECURITY_DOC_URL = {
+  en: "https://docs.coscene.cn/security/security-white-paper/en/security-white-paper.html",
+  zh: "https://docs.coscene.cn/security/security-white-paper/zh/security-white-paper.html",
+};
 
 const showLanguageOptions = APP_CONFIG.LANGUAGE.options.length > 1;
 
@@ -127,7 +142,7 @@ const selectWorkspaceInitialActiveTab = (store: WorkspaceContextStore) =>
 export function AppSettingsDialog(
   props: DialogProps & { activeTab?: AppSettingsTab },
 ): React.JSX.Element {
-  const { t } = useTranslation("appSettings");
+  const { t, i18n } = useTranslation("appSettings");
   const { activeTab: _activeTab } = props;
   const initialActiveTab = useWorkspaceStore(selectWorkspaceInitialActiveTab);
   const [activeTab, setActiveTab] = useState<AppSettingsTab>(
@@ -157,9 +172,18 @@ export function AppSettingsDialog(
             title: t("licenseTerms"),
             url: LICENSE_URL,
           },
-          { title: t("privacyPolicy"), url: PRIVACY_DOC_URL },
-          { title: t("termsOfService"), url: TERMS_DOC_URL },
-          { title: t("security"), url: SECURITY_DOC_URL },
+          {
+            title: t("privacyPolicy"),
+            url: PRIVACY_DOC_URL[i18n.language as keyof typeof PRIVACY_DOC_URL],
+          },
+          {
+            title: t("termsOfService"),
+            url: TERMS_DOC_URL[i18n.language as keyof typeof TERMS_DOC_URL],
+          },
+          {
+            title: t("security"),
+            url: SECURITY_DOC_URL[i18n.language as keyof typeof SECURITY_DOC_URL],
+          },
         ],
       },
     ],
