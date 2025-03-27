@@ -161,9 +161,9 @@ jobs:
         with:
           args: --acl public-read
         env:
-          AWS_S3_BUCKET: ${{ env.S3_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ env.OSS_ARTIFACTS_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
           SOURCE_DIR: "dist"
           DEST_DIR: "coStudio/packages"
 
