@@ -70,15 +70,22 @@ jobs:
 
       - name: Prepare postinst script
         if: matrix.os == 'linux'
+        env:
+          ENCODED_KEY: ${{ vars.APT_PUBLIC_KEY }}
+          APT_SOURCE: ${{ vars.COSTUDIO_APT_SOURCE }}
         run: |
-          # 先解码到临时变量
-          DECODED_KEY=$(echo "${{ vars.APT_PUBLIC_KEY }}" | base64 -d)
+          # 先解码到临时文件
+          echo "$ENCODED_KEY" | base64 -d > decoded_key.tmp
 
-          # 进行替换
-          sed -e "s|%%APT_SOURCE%%|${{ vars.COSTUDIO_APT_SOURCE }}|g" \
-              -e "s|%%APT_PUBLIC_KEY%%|${DECODED_KEY}|g" \
+          # 使用文件内容进行替换
+          sed -e "s|%%APT_SOURCE%%|$APT_SOURCE|g" \
+              -e "/%%APT_PUBLIC_KEY%%/r decoded_key.tmp" \
+              -e "/%%APT_PUBLIC_KEY%%/d" \
               packages/studio-desktop/resources/linux/deb/postinst.template > \
               packages/studio-desktop/resources/linux/deb/postinst
+
+          # 清理临时文件
+          rm decoded_key.tmp
 
           # 检查生成的文件
           cat packages/studio-desktop/resources/linux/deb/postinst
