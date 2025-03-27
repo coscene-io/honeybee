@@ -155,6 +155,12 @@ jobs:
             dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
             dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-linux.yml
 
+      - name: Prepare files for upload
+        if: github.event.inputs.environment == 'portal'
+        run: |
+          mkdir -p dist_temp
+          find dist -maxdepth 1 -type f -exec cp {} dist_temp/ \;
+
       - name: Upload to s3
         if: github.event.inputs.environment == 'portal'
         uses: shallwefootball/s3-upload-action@master
@@ -162,7 +168,7 @@ jobs:
           aws_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
           aws_secret_access_key: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
           aws_bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
-          source_dir: "dist/*"
+          source_dir: "dist_temp"
           destination_dir: "coStudio/"
 
       - name: Update APT Source
