@@ -22,10 +22,6 @@ on:
           - saas
           - portal
 
-env:
-  ENV_PREFIX: ${{ github.event.inputs.environment == 'saas' && '' || format('/{0}', github.event.inputs.environment) }}
-  CONFIG_FILE_URL: ${{ github.event.inputs.environment == 'saas' && 'https://coscene.cn/cos-config.js' || github.event.inputs.environment == 'potal' && 'https://portal.coscene.io/cos-config.js' || 'https://dev.coscene.cn/cos-config.js' }}
-
 jobs:
   build:
     environment: ${{ github.event.inputs.environment }}
@@ -33,18 +29,28 @@ jobs:
     runs-on: ${{matrix.runs-on}}
 
     env:
+      ENV_PREFIX: ${{ github.event.inputs.environment == 'saas' && '' || format('/{0}', github.event.inputs.environment) }}
       BUF_BUILD_TOKEN: ${{ secrets.BUF_BUILD_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       COSTUDIO_DOWNLOAD_URL: ${{ vars.COSTUDIO_DOWNLOAD_URL }}
+      OSS_ARTIFACTS_ACCESS_KEY: ${{ github.event.inputs.environment == 'portal' && secrets.S3_ARTIFACTS_ACCESS_KEY || secrets.OSS_ARTIFACTS_ACCESS_KEY }}
+      OSS_ARTIFACTS_ACCESS_SECRET: ${{ github.event.inputs.environment == 'portal' && secrets.S3_ARTIFACTS_ACCESS_SECRET || secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
+      OSS_ARTIFACTS_REGION: ${{ github.event.inputs.environment == 'portal' && 'us-east-1' || 'oss-cn-hangzhou' }}
+      OSS_ARTIFACTS_ENDPOINT: ${{ github.event.inputs.environment == 'portal' && 'https://s3.us-east-1.amazonaws.com' || 'https://oss-cn-hangzhou.aliyuncs.com' }}
+      OSS_ARTIFACTS_BUCKET: "coscene-download"
+      APT_STORAGE_TYPE: ${{ github.event.inputs.environment == 'portal' && 'aws' || 'oss' }}
+      APT_ENDPOINT: ${{ github.event.inputs.environment == 'portal' && 'https://s3.us-east-1.amazonaws.com' || 'https://oss-cn-hangzhou.aliyuncs.com' }}
+      APT_BUCKET_NAME: "coscene-apt"
+      APT_GPG_PRIVATE_KEY: ${{ github.event.inputs.environment == 'portal' && secrets.AWS_GPG_PRIVATE_KEY || secrets.GPG_PRIVATE_KEY }}
 
     strategy:
       matrix:
         include:
-#          - os: win
-#            runs-on: windows-latest
-#          - os: darwin
-#            runs-on: macos-latest
+          - os: win
+            runs-on: windows-latest
+          - os: darwin
+            runs-on: macos-latest
           - os: linux
             runs-on: ubuntu-latest
       fail-fast: false
@@ -65,9 +71,17 @@ jobs:
       - name: Prepare postinst script
         if: matrix.os == 'linux'
         run: |
-          sed "s|%%APT_SOURCE%%|${{ vars.COSTUDIO_APT_SOURCE }}|g" \
-            packages/studio-desktop/resources/linux/deb/postinst.template > \
-            packages/studio-desktop/resources/linux/deb/postinst
+          # 先解码到临时变量
+          DECODED_KEY=$(echo "${{ env.APT_PUBLIC_KEY }}" | base64 -d)
+
+          # 进行替换
+          sed -e "s|%%APT_SOURCE%%|${{ env.COSTUDIO_APT_SOURCE }}|g" \
+              -e "s|%%APT_PUBLIC_KEY%%|${DECODED_KEY}|g" \
+              packages/studio-desktop/resources/linux/deb/postinst.template > \
+              packages/studio-desktop/resources/linux/deb/postinst
+
+          # 检查生成的文件
+          cat packages/studio-desktop/resources/linux/deb/postinst
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -91,14 +105,14 @@ jobs:
         run: |
           yarn run package:${{ matrix.os }}
 
-      - name: Upload to OSS
+      - name: Upload to OSS (darwin)
         if: matrix.os == 'darwin'
         uses: tvrcgo/oss-action@master
         with:
-          key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
-          key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
-          region: oss-cn-hangzhou
-          bucket: coscene-download
+          key-id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
+          endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
+          bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
           assets: |
             dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
             dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap
@@ -108,10 +122,10 @@ jobs:
         if: matrix.os == 'win'
         uses: tvrcgo/oss-action@master
         with:
-          key-id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
-          key-secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
-          region: oss-cn-hangzhou
-          bucket: coscene-download
+          key-id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
+          endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
+          bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
           assets: |
             dist/coStudio_${{ github.event.inputs.version }}-win.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe
             dist/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap
@@ -121,27 +135,21 @@ jobs:
             dist/coStudio_${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap
             dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest.yml
 
-      - name: Update APT Source (OSS)
+      - name: Upload to OSS (Linux)
         if: matrix.os == 'linux'
-        uses: coscene-io/update-apt-source@main
+        uses: tvrcgo/oss-action@master
         with:
-          ubuntu_distro: "all"
-          deb_paths: |
-            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
-          architectures: |
-            amd64
-            arm64
-          storage_type: oss
-          endpoint: https://oss-cn-hangzhou.aliyuncs.com
-          region: cn-hangzhou
-          bucket_name: coscene-apt
-          access_key_id: ${{ secrets.OSS_ARTIFACTS_ACCESS_KEY }}
-          access_key_secret: ${{ secrets.OSS_ARTIFACTS_ACCESS_SECRET }}
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          key-id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
+          endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
+          bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
+          assets: |
+            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+            dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-linux.yml
 
-      - name: Update APT Source (AWS)
-        if: matrix.os == 'linux'
+      - name: Update APT Source
+        if: matrix.os == 'linux' && (github.event.inputs.environment == 'saas' || github.event.inputs.environment == 'portal')
         uses: coscene-io/update-apt-source@main
         with:
           ubuntu_distro: "all"
@@ -151,13 +159,13 @@ jobs:
           architectures: |
             amd64
             arm64
-          storage_type: aws
-          endpoint: https://s3.us-east-1.amazonaws.com
-          region: us-east-1
-          bucket_name: coscene-apt
-          access_key_id: ${{ secrets.S3_ARTIFACTS_ACCESS_KEY }}
-          access_key_secret: ${{ secrets.S3_ARTIFACTS_ACCESS_SECRET }}
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          storage_type: ${{ env.APT_STORAGE_TYPE }}
+          region: ${{ env.OSS_ARTIFACTS_REGION }}
+          endpoint: ${{ env.APT_ENDPOINT }}
+          bucket_name: ${{ env.APT_BUCKET_NAME }}
+          access_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          access_key_secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
+          gpg_private_key: ${{ env.APT_GPG_PRIVATE_KEY }}
 
   # notification:
   #   needs: build
