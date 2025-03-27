@@ -162,7 +162,8 @@ jobs:
           aws_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
           aws_secret_access_key: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
           aws_bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
-          source_dir: "dist"
+          source_dir: "dist/*"
+          destination_dir: "coStudio/"
 
       - name: Update APT Source
         if: matrix.os == 'linux' && (github.event.inputs.environment == 'saas' || github.event.inputs.environment == 'portal')
