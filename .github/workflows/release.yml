@@ -157,15 +157,12 @@ jobs:
 
       - name: Upload to s3
         if: github.event.inputs.environment == 'portal'
-        uses: jakejarvis/s3-sync-action@master
+        uses: shallwefootball/s3-upload-action@master
         with:
-          args: --acl public-read --exclude "*/*"
-        env:
-          AWS_S3_BUCKET: ${{ env.OSS_ARTIFACTS_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
-          SOURCE_DIR: "dist"
-          DEST_DIR: "coStudio/packages"
+          aws_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          aws_secret_access_key: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
+          aws_bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
+          source_dir: "dist"
 
       - name: Update APT Source
         if: matrix.os == 'linux' && (github.event.inputs.environment == 'saas' || github.event.inputs.environment == 'portal')
