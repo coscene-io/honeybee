@@ -159,7 +159,7 @@ jobs:
         if: github.event.inputs.environment == 'portal'
         uses: jakejarvis/s3-sync-action@master
         with:
-          args: --acl public-read
+          args: --acl public-read --exclude "*/*"
         env:
           AWS_S3_BUCKET: ${{ env.OSS_ARTIFACTS_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
