@@ -69,8 +69,16 @@ jobs:
           aws_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
           aws_secret_access_key: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
           aws_bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
+          endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
           source_dir: "test"
           destination_dir: "coStudio/"
+
+          # - uses: shallwefootball/s3-upload-action@master
+          # with:
+          #   aws_key_id: ${{ secrets.AWS_KEY_ID }}
+          #   aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+          #   aws_bucket: ${{ secrets.AWS_BUCKET }}
+          #   source_dir: 'dirname'
 
       # - name: Set cos config file
       #   id: set_cos_config_file
