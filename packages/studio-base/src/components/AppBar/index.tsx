@@ -384,7 +384,8 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   title={t("help")}
                   aria-label={t("help")}
                   onClick={() => {
-                    window.open(getDocsLink(), "_blank");
+                    const safeUrl = new URL(getDocsLink()).toString();
+                    window.open(safeUrl, "_blank");
                   }}
                   data-tourid="help-button"
                 >

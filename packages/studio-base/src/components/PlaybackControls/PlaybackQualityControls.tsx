@@ -132,7 +132,8 @@ function PlaybackQualityControls(): React.JSX.Element {
           variant="text"
           fullWidth
           onClick={() => {
-            window.open(getDocsLink("/viz/frame-rate-optimization"), "_blank");
+            const safeUrl = new URL(getDocsLink("/viz/frame-rate-optimization")).toString();
+            window.open(safeUrl, "_blank");
           }}
         >
           {t("understandFrameRateOptimization")}

@@ -124,7 +124,8 @@ export function UserMenu({
   );
 
   const onDocsClick = useCallback(() => {
-    window.open(getDocsLink("/viz/about-viz"), "_blank");
+    const safeUrl = new URL(getDocsLink("/viz/about-viz")).toString();
+    window.open(safeUrl, "_blank");
   }, []);
 
   return (
