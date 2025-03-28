@@ -104,9 +104,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// const TERMS_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnA1CuBWbcU6PH2aXYLGhjrb";
-// const PRIVACY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnzZNZ5kAuIw0stvaXxqkFAV";
-// const SECURITY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnxpT8beRnb3JMLYxRMcBnq0";
 const CONTACT_EMAIL = "contact@coscene.io";
 const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
 
