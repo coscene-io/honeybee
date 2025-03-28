@@ -45,6 +45,7 @@ import {
   checkSupportCoStudioDownload,
   downloadLatestStudio,
 } from "@foxglove/studio-base/util/download";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { AddPanelMenu } from "./AddPanelMenu";
@@ -383,7 +384,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   title={t("help")}
                   aria-label={t("help")}
                   onClick={() => {
-                    window.open("https://docs.coscene.cn", "_blank");
+                    window.open(getDocsLink(), "_blank");
                   }}
                   data-tourid="help-button"
                 >

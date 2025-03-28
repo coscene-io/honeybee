@@ -9,7 +9,6 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CheckIcon from "@mui/icons-material/Check";
 import { Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
-import i18n from "i18next";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -17,6 +16,7 @@ import { makeStyles } from "tss-react/mui";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 
 const ORIGINAL = "original";
 const HIGH = "high";
@@ -132,11 +132,7 @@ function PlaybackQualityControls(): React.JSX.Element {
           variant="text"
           fullWidth
           onClick={() => {
-            if (i18n.language === "zh") {
-              window.open("https://docs.coscene.cn/docs/viz/frame-rate-optimization");
-            } else {
-              window.open("https://docs.coscene.cn/en/docs/viz/frame-rate-optimization/");
-            }
+            window.open(getDocsLink("/viz/frame-rate-optimization"), "_blank");
           }}
         >
           {t("understandFrameRateOptimization")}
