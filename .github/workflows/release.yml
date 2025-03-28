@@ -48,7 +48,7 @@ jobs:
       matrix:
         include:
           - os: win
-            runs-on: windows-latest
+            runs-on: macos-latest
           - os: darwin
             runs-on: macos-latest
           - os: linux
