@@ -39,6 +39,7 @@ declare global {
       VITE_APP_PROJECT_ENV?: string;
       VITE_APP_BFF_URL?: string;
       DEFAULT_TOPIC_PREFIX_OPEN?: { [domain: string]: string };
+      DOC_BASE_URL?: string;
       DOMAIN_CONFIG?: { [domain: string]: DomainConfig };
       POSTHOG?: {
         api_host: string;
@@ -84,6 +85,7 @@ export const APP_CONFIG = {
   SENTRY_HONEYBEE_DSN: cosConfig.SENTRY_HONEYBEE_DSN ?? "",
   SENTRY_ENABLED: cosConfig.SENTRY_ENABLED ?? false,
   DEFAULT_TOPIC_PREFIX_OPEN: cosConfig.DEFAULT_TOPIC_PREFIX_OPEN ?? {},
+  DOC_BASE_URL: cosConfig.DOC_BASE_URL ?? "https://dev.docs.coscene.cn",
   DOMAIN_CONFIG: cosConfig.DOMAIN_CONFIG ?? DEFAULT_DOMAN_CONFIG,
   POSTHOG: cosConfig.POSTHOG ?? {
     api_host: "",
