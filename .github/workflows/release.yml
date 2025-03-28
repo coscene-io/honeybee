@@ -220,7 +220,7 @@ jobs:
                   https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
               Release notes: https://github.com/coscene-io/honeybee/releases
 
-      - name: Notification to Feishu
+      - name: Notification to Feishu (Portal)
         id: feishu-portal
         uses: foxundermoon/feishu-action@v2
         if: github.event.inputs.environment == 'portal'
