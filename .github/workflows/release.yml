@@ -62,6 +62,105 @@ jobs:
           lfs: true
           fetch-depth: 0
 
+      - name: Set cos config file
+        id: set_cos_config_file
+        run: |
+          curl ${{ vars.CONFIG_FILE_URL }} > packages/studio-desktop/src/public/cos-config.js
+          cat packages/studio-desktop/src/public/cos-config.js
+
+      - name: Prepare postinst script
+        if: matrix.os == 'linux'
+        env:
+          ENCODED_KEY: ${{ vars.APT_PUBLIC_KEY }}
+          APT_SOURCE: ${{ vars.COSTUDIO_APT_SOURCE }}
+        run: |
+          # 先解码到临时文件
+          echo "$ENCODED_KEY" | base64 -d > decoded_key.tmp
+
+          # 使用文件内容进行替换
+          sed -e "s|%%APT_SOURCE%%|$APT_SOURCE|g" \
+              -e "/%%APT_PUBLIC_KEY%%/r decoded_key.tmp" \
+              -e "/%%APT_PUBLIC_KEY%%/d" \
+              packages/studio-desktop/resources/linux/deb/postinst.template > \
+              packages/studio-desktop/resources/linux/deb/postinst
+
+          # 清理临时文件
+          rm decoded_key.tmp
+
+          # 检查生成的文件
+          cat packages/studio-desktop/resources/linux/deb/postinst
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable corepack
+        run: corepack enable yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: \[bot\] Update version in package.json
+        run: yarn run version:all ${{ github.event.inputs.version }}
+
+      - name: Build prod files
+        run: |
+          yarn run desktop:build:prod
+
+      - name: Build ${{ matrix.os }} version
+        run: |
+          yarn run package:${{ matrix.os }}
+
+      - name: Upload to OSS (darwin)
+        if: matrix.os == 'darwin' && github.event.inputs.environment != 'portal'
+        uses: tvrcgo/oss-action@master
+        with:
+          key-id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
+          endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
+          bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
+          assets: |
+            dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
+            dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap
+            dist/latest-mac.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-mac.yml
+
+      - name: Upload to OSS (Windows)
+        if: matrix.os == 'win' && github.event.inputs.environment != 'portal'
+        uses: tvrcgo/oss-action@master
+        with:
+          key-id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
+          endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
+          bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
+          assets: |
+            dist/coStudio_${{ github.event.inputs.version }}-win.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap
+            dist/coStudio_${{ github.event.inputs.version }}-win-arm64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win-arm64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe.blockmap
+            dist/coStudio_${{ github.event.inputs.version }}-win-x64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap
+            dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest.yml
+
+      - name: Upload to OSS (Linux)
+        if: matrix.os == 'linux' && github.event.inputs.environment != 'portal'
+        uses: tvrcgo/oss-action@master
+        with:
+          key-id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          key-secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
+          endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
+          bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
+          assets: |
+            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+            dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-linux.yml
+
+      - name: Prepare files for upload
+        if: github.event.inputs.environment == 'portal'
+        run: |
+          mkdir -p dist_temp
+          find dist -maxdepth 1 -type f -exec cp {} dist_temp/ \;
+
       - name: Upload to s3
         if: github.event.inputs.environment == 'portal'
         uses: shallwefootball/s3-upload-action@master
@@ -69,144 +168,27 @@ jobs:
           aws_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
           aws_secret_access_key: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
           aws_bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
-          endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
-          source_dir: "test"
+          source_dir: "dist_temp"
           destination_dir: "coStudio/"
 
-          # - uses: shallwefootball/s3-upload-action@master
-          # with:
-          #   aws_key_id: ${{ secrets.AWS_KEY_ID }}
-          #   aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
-          #   aws_bucket: ${{ secrets.AWS_BUCKET }}
-          #   source_dir: 'dirname'
-
-      # - name: Set cos config file
-      #   id: set_cos_config_file
-      #   run: |
-      #     curl ${{ vars.CONFIG_FILE_URL }} > packages/studio-desktop/src/public/cos-config.js
-      #     cat packages/studio-desktop/src/public/cos-config.js
-
-      # - name: Prepare postinst script
-      #   if: matrix.os == 'linux'
-      #   env:
-      #     ENCODED_KEY: ${{ vars.APT_PUBLIC_KEY }}
-      #     APT_SOURCE: ${{ vars.COSTUDIO_APT_SOURCE }}
-      #   run: |
-      #     # 先解码到临时文件
-      #     echo "$ENCODED_KEY" | base64 -d > decoded_key.tmp
-
-      #     # 使用文件内容进行替换
-      #     sed -e "s|%%APT_SOURCE%%|$APT_SOURCE|g" \
-      #         -e "/%%APT_PUBLIC_KEY%%/r decoded_key.tmp" \
-      #         -e "/%%APT_PUBLIC_KEY%%/d" \
-      #         packages/studio-desktop/resources/linux/deb/postinst.template > \
-      #         packages/studio-desktop/resources/linux/deb/postinst
-
-      #     # 清理临时文件
-      #     rm decoded_key.tmp
-
-      #     # 检查生成的文件
-      #     cat packages/studio-desktop/resources/linux/deb/postinst
-
-      # - name: Set up Node.js
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: 22
-
-      # - name: Enable corepack
-      #   run: corepack enable yarn
-
-      # - name: Install dependencies
-      #   run: yarn install --immutable
-
-      # - name: \[bot\] Update version in package.json
-      #   run: yarn run version:all ${{ github.event.inputs.version }}
-
-      # - name: Build prod files
-      #   run: |
-      #     yarn run desktop:build:prod
-
-      # - name: Build ${{ matrix.os }} version
-      #   run: |
-      #     yarn run package:${{ matrix.os }}
-
-      # - name: Upload to OSS (darwin)
-      #   if: matrix.os == 'darwin' && github.event.inputs.environment != 'portal'
-      #   uses: tvrcgo/oss-action@master
-      #   with:
-      #     key-id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
-      #     key-secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
-      #     endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
-      #     bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
-      #     assets: |
-      #       dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
-      #       dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap
-      #       dist/latest-mac.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-mac.yml
-
-      # - name: Upload to OSS (Windows)
-      #   if: matrix.os == 'win' && github.event.inputs.environment != 'portal'
-      #   uses: tvrcgo/oss-action@master
-      #   with:
-      #     key-id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
-      #     key-secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
-      #     endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
-      #     bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
-      #     assets: |
-      #       dist/coStudio_${{ github.event.inputs.version }}-win.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe
-      #       dist/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap
-      #       dist/coStudio_${{ github.event.inputs.version }}-win-arm64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
-      #       dist/coStudio_${{ github.event.inputs.version }}-win-arm64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe.blockmap
-      #       dist/coStudio_${{ github.event.inputs.version }}-win-x64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
-      #       dist/coStudio_${{ github.event.inputs.version }}-win-x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap
-      #       dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest.yml
-
-      # - name: Upload to OSS (Linux)
-      #   if: matrix.os == 'linux' && github.event.inputs.environment != 'portal'
-      #   uses: tvrcgo/oss-action@master
-      #   with:
-      #     key-id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
-      #     key-secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
-      #     endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
-      #     bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
-      #     assets: |
-      #       dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-      #       dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
-      #       dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-linux.yml
-
-      # - name: Prepare files for upload
-      #   if: github.event.inputs.environment == 'portal'
-      #   run: |
-      #     mkdir -p dist_temp
-      #     find dist -maxdepth 1 -type f -exec cp {} dist_temp/ \;
-
-      # - name: Upload to s3
-      #   if: github.event.inputs.environment == 'portal'
-      #   uses: shallwefootball/s3-upload-action@master
-      #   with:
-      #     aws_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
-      #     aws_secret_access_key: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
-      #     aws_bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
-      #     source_dir: "dist_temp"
-      #     destination_dir: "coStudio/"
-
-      # - name: Update APT Source
-      #   if: matrix.os == 'linux' && (github.event.inputs.environment == 'saas' || github.event.inputs.environment == 'portal')
-      #   uses: coscene-io/update-apt-source@main
-      #   with:
-      #     ubuntu_distro: "all"
-      #     deb_paths: |
-      #       dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-      #       dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
-      #     architectures: |
-      #       amd64
-      #       arm64
-      #     storage_type: ${{ env.APT_STORAGE_TYPE }}
-      #     region: ${{ env.OSS_ARTIFACTS_REGION }}
-      #     endpoint: ${{ env.APT_ENDPOINT }}
-      #     bucket_name: ${{ env.APT_BUCKET_NAME }}
-      #     access_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
-      #     access_key_secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
-      #     gpg_private_key: ${{ env.APT_GPG_PRIVATE_KEY }}
+      - name: Update APT Source
+        if: matrix.os == 'linux' && (github.event.inputs.environment == 'saas' || github.event.inputs.environment == 'portal')
+        uses: coscene-io/update-apt-source@main
+        with:
+          ubuntu_distro: "all"
+          deb_paths: |
+            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+          architectures: |
+            amd64
+            arm64
+          storage_type: ${{ env.APT_STORAGE_TYPE }}
+          region: ${{ env.OSS_ARTIFACTS_REGION }}
+          endpoint: ${{ env.APT_ENDPOINT }}
+          bucket_name: ${{ env.APT_BUCKET_NAME }}
+          access_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          access_key_secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
+          gpg_private_key: ${{ env.APT_GPG_PRIVATE_KEY }}
 
   # notification:
   #   needs: build
