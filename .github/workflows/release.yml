@@ -70,6 +70,7 @@ jobs:
           curl ${{ vars.CONFIG_FILE_URL }} > packages/studio-desktop/src/public/cos-config.js
           cat packages/studio-desktop/src/public/cos-config.js
           echo "ENV_PREFIX: ${{ env.ENV_PREFIX }}"
+          echo "github.event.inputs.environment: ${{github.event.inputs.environment}}"
 
       # - name: Prepare postinst script
       #   if: matrix.os == 'linux'
