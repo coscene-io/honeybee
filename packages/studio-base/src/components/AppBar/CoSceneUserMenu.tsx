@@ -36,6 +36,7 @@ import {
   getCoStudioVersion,
   checkSupportCoStudioDownload,
 } from "@foxglove/studio-base/util/download";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const useStyles = makeStyles()(() => ({
@@ -123,10 +124,8 @@ export function UserMenu({
   );
 
   const onDocsClick = useCallback(() => {
-    window.open(
-      "https://docs.coscene.cn/docs/category/%E6%95%B0%E6%8D%AE%E5%8F%AF%E8%A7%86%E5%8C%96",
-      "_blank",
-    );
+    const safeUrl = new URL(getDocsLink("/viz/about-viz")).toString();
+    window.open(safeUrl, "_blank");
   }, []);
 
   return (

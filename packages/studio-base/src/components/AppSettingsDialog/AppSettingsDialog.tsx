@@ -34,6 +34,7 @@ import {
   WorkspaceContextStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getLegalDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import {
@@ -107,21 +108,6 @@ const useStyles = makeStyles()((theme) => ({
 const CONTACT_EMAIL = "contact@coscene.io";
 const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
 
-const TERMS_DOC_URL = {
-  en: "https://docs.coscene.cn/legal/terms/en/terms.html",
-  zh: "https://docs.coscene.cn/legal/terms/zh/terms.html",
-};
-
-const PRIVACY_DOC_URL = {
-  en: "https://docs.coscene.cn/legal/privacy/en/privacy.html",
-  zh: "https://docs.coscene.cn/legal/privacy/zh/privacy.html",
-};
-
-const SECURITY_DOC_URL = {
-  en: "https://docs.coscene.cn/security/security-white-paper/en/security-white-paper.html",
-  zh: "https://docs.coscene.cn/security/security-white-paper/zh/security-white-paper.html",
-};
-
 const showLanguageOptions = APP_CONFIG.LANGUAGE.options.length > 1;
 
 type SectionKey = "contact" | "legal";
@@ -139,7 +125,7 @@ const selectWorkspaceInitialActiveTab = (store: WorkspaceContextStore) =>
 export function AppSettingsDialog(
   props: DialogProps & { activeTab?: AppSettingsTab },
 ): React.JSX.Element {
-  const { t, i18n } = useTranslation("appSettings");
+  const { t } = useTranslation("appSettings");
   const { activeTab: _activeTab } = props;
   const initialActiveTab = useWorkspaceStore(selectWorkspaceInitialActiveTab);
   const [activeTab, setActiveTab] = useState<AppSettingsTab>(
@@ -171,15 +157,15 @@ export function AppSettingsDialog(
           },
           {
             title: t("privacyPolicy"),
-            url: PRIVACY_DOC_URL[i18n.language as keyof typeof PRIVACY_DOC_URL],
+            url: getLegalDocsLink("privacy"),
           },
           {
             title: t("termsOfService"),
-            url: TERMS_DOC_URL[i18n.language as keyof typeof TERMS_DOC_URL],
+            url: getLegalDocsLink("terms"),
           },
           {
             title: t("security"),
-            url: SECURITY_DOC_URL[i18n.language as keyof typeof SECURITY_DOC_URL],
+            url: getLegalDocsLink("security"),
           },
         ],
       },
