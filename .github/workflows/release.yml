@@ -23,7 +23,7 @@ on:
           - portal
 
 env:
-  ENV_PREFIX: ${{ github.event.inputs.environment == 'saas' && '' || format('/{0}', github.event.inputs.environment) }}
+  ENV_PREFIX: ${{ github.event.inputs.environment == 'saas' && '/' || format('/{0}', github.event.inputs.environment) }}
 
 jobs:
   build:
@@ -70,8 +70,6 @@ jobs:
           curl ${{ vars.CONFIG_FILE_URL }} > packages/studio-desktop/src/public/cos-config.js
           cat packages/studio-desktop/src/public/cos-config.js
           echo "ENV_PREFIX: ${{ env.ENV_PREFIX }}"
-          echo "github.event.inputs.environment: ${{github.event.inputs.environment}}"
-          echo "${{ github.event.inputs.environment == 'saas' && '111' || '222' }}"
 
       # - name: Prepare postinst script
       #   if: matrix.os == 'linux'
