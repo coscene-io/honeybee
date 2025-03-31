@@ -50,6 +50,7 @@ import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPrefere
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
@@ -451,7 +452,7 @@ export function CompatibilityMode(): React.ReactElement {
   const [tfCompatibilityMode, setTfCompatibilityMode] = useAppConfigurationValue<string>(
     AppSetting.TF_COMPATIBILITY_MODE,
   );
-  const { t, i18n } = useTranslation("appSettings");
+  const { t } = useTranslation("appSettings");
   const { reloadCurrentSource } = usePlayerSelection();
 
   return (
@@ -465,15 +466,7 @@ export function CompatibilityMode(): React.ReactElement {
                 t={t}
                 i18nKey="tfCompatibilityModeHelp"
                 components={{
-                  Link: (
-                    <Link
-                      href={
-                        i18n.language === "zh"
-                          ? "https://docs.coscene.cn/docs/recipes/viz/options"
-                          : "https://docs.coscene.cn/en/docs/recipes/viz/options"
-                      }
-                    />
-                  ),
+                  Link: <Link href={getDocsLink("/viz/options")} />,
                 }}
               />
             }

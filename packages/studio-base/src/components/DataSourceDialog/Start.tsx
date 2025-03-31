@@ -19,6 +19,7 @@ import { useCurrentUser } from "@foxglove/studio-base/context/BaseUserContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 
 const useStyles = makeStyles()((theme) => ({
   grid: {
@@ -188,7 +189,7 @@ function SidebarItems(): React.JSX.Element {
             {t("exploreSampleData")}
           </Button> */}
           <Button
-            href="https://docs.coscene.cn/docs/category/%E6%95%B0%E6%8D%AE%E5%8F%AF%E8%A7%86%E5%8C%96"
+            href={getDocsLink("/viz/about-viz")}
             target="_blank"
             className={classes.button}
             onClick={() => {
