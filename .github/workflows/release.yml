@@ -71,6 +71,7 @@ jobs:
           cat packages/studio-desktop/src/public/cos-config.js
           echo "ENV_PREFIX: ${{ env.ENV_PREFIX }}"
           echo "github.event.inputs.environment: ${{github.event.inputs.environment}}"
+          echo "${{ github.event.inputs.environment == 'saas' && '111' || '222' }}"
 
       # - name: Prepare postinst script
       #   if: matrix.os == 'linux'
