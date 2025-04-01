@@ -110,7 +110,12 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
   }
 
   const browserWindow = new BrowserWindow(windowOptions);
-  nativeTheme.on("updated", () => {
+
+  const themeUpdateHandler = () => {
+    if (browserWindow.isDestroyed()) {
+      return;
+    }
+
     if (isWindows) {
       // Although the TS types say this function is always available, it is undefined on non-Windows platforms
       browserWindow.setTitleBarOverlay(getTitleBarOverlayOptions());
@@ -119,7 +124,9 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
     if (bgColor != undefined) {
       browserWindow.setBackgroundColor(bgColor);
     }
-  });
+  };
+
+  nativeTheme.on("updated", themeUpdateHandler);
 
   // Forward full screen events to the renderer
   browserWindow.addListener("enter-full-screen", () => {
@@ -131,9 +138,11 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
   browserWindow.addListener("maximize", () => {
     browserWindow.webContents.send("maximize");
   });
-
   browserWindow.addListener("unmaximize", () => {
     browserWindow.webContents.send("unmaximize");
+  });
+  browserWindow.addListener("close", () => {
+    nativeTheme.removeListener("updated", themeUpdateHandler);
   });
 
   browserWindow.webContents.once("dom-ready", () => {
