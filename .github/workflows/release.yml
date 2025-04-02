@@ -22,6 +22,9 @@ on:
           - saas
           - portal
 
+env:
+  ENV_PREFIX: ${{ github.event.inputs.environment == 'saas' && '/' || format('/{0}/', github.event.inputs.environment) }}
+
 jobs:
   build:
     environment: ${{ github.event.inputs.environment }}
@@ -29,7 +32,6 @@ jobs:
     runs-on: ${{matrix.runs-on}}
 
     env:
-      ENV_PREFIX: ${{ github.event.inputs.environment == 'saas' && '' || format('/{0}', github.event.inputs.environment) }}
       BUF_BUILD_TOKEN: ${{ secrets.BUF_BUILD_TOKEN }}
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -121,9 +123,9 @@ jobs:
           endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
           bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
           assets: |
-            dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
-            dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap
-            dist/latest-mac.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-mac.yml
+            dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
+            dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap
+            dist/latest-mac.yml:/coStudio${{ env.ENV_PREFIX }}packages/latest-mac.yml
 
       - name: Upload to OSS (Windows)
         if: matrix.os == 'win' && github.event.inputs.environment != 'portal'
@@ -134,13 +136,13 @@ jobs:
           endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
           bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
           assets: |
-            dist/coStudio_${{ github.event.inputs.version }}-win.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe
-            dist/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap
-            dist/coStudio_${{ github.event.inputs.version }}-win_arm64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
-            dist/coStudio_${{ github.event.inputs.version }}-win_arm64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe.blockmap
-            dist/coStudio_${{ github.event.inputs.version }}-win_x64.exe:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
-            dist/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap
-            dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest.yml
+            dist/coStudio_${{ github.event.inputs.version }}-win.exe:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win.exe.blockmap
+            dist/coStudio_${{ github.event.inputs.version }}-win_arm64.exe:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win_arm64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe.blockmap
+            dist/coStudio_${{ github.event.inputs.version }}-win_x64.exe:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap
+            dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}packages/latest.yml
 
       - name: Upload to OSS (Linux)
         if: matrix.os == 'linux' && github.event.inputs.environment != 'portal'
@@ -151,9 +153,9 @@ jobs:
           endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
           bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
           assets: |
-            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb:/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
-            dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}/packages/latest-linux.yml
+            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+            dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}packages/latest-linux.yml
 
       - name: Prepare files for upload
         if: github.event.inputs.environment == 'portal'
@@ -210,14 +212,14 @@ jobs:
               Environment: ${{ github.event.inputs.environment }}
               Download:
                 mac:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
                 win:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win.exe
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win.exe
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
                 linux:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}/packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
               Release notes: https://github.com/coscene-io/honeybee/releases
 
       - name: Notification to Feishu (Portal)
