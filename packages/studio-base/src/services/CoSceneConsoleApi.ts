@@ -210,7 +210,8 @@ export type MediaStatus =
   | "GENERATE_INCAPABLE"
   | "MEDIA_ILLEGAL"
   | "PERMISSION"
-  | "GENERATED_SUCCESS";
+  | "GENERATED_SUCCESS"
+  | "PENDING";
 
 export type FileList = {
   source: string;
