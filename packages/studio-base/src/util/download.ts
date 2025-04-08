@@ -139,10 +139,10 @@ function findTargetFile(files: { url: string }[], system: string, arch: string) 
   return files.find((file) => {
     if (system === "windows") {
       return arch === "amd64"
-        ? file.url.includes("-win-x64.exe")
-        : file.url.includes("-win-arm64.exe");
+        ? file.url.includes("-win_x64.exe")
+        : file.url.includes("-win_arm64.exe");
     } else if (system === "mac") {
-      return file.url.includes("-mac-universal.dmg");
+      return file.url.includes("-mac_universal.dmg");
     }
     return false;
   });
@@ -178,9 +178,7 @@ export async function downloadLatestStudio(): Promise<void> {
 
 export async function getCoStudioVersion(): Promise<string> {
   try {
-    const response = await fetch(
-      "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages/latest.yml",
-    );
+    const response = await fetch(`${APP_CONFIG.COSTUDIO_DOWNLOAD_URL}/latest.yml`);
     const text = await response.text();
 
     // 使用正则表达式匹配 version 行
