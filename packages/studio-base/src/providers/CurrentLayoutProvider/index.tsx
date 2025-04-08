@@ -40,9 +40,11 @@ import {
   StartDragPayload,
   SwapPanelPayload,
 } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { loadDefaultLayouts } from "@foxglove/studio-base/providers/CurrentLayoutProvider/loadDefaultLayouts";
 import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { LayoutLoader } from "@foxglove/studio-base/services/ILayoutLoader";
 import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
 import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
@@ -62,7 +64,10 @@ const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
  */
 export default function CurrentLayoutProvider({
   children,
-}: React.PropsWithChildren): React.JSX.Element {
+  loaders = [],
+}: React.PropsWithChildren<{
+  loaders?: readonly LayoutLoader[];
+}>): React.JSX.Element {
   const { enqueueSnackbar } = useSnackbar();
   const { getUserProfile, setUserProfile } = useUserProfileStorage();
   const layoutManager = useLayoutManager();
@@ -197,7 +202,12 @@ export default function CurrentLayoutProvider({
         return;
       }
 
+      // Get all the panel types that exist in the new config
+      const panelTypesInUse = _.uniq(Object.keys(newData.configById).map(getPanelTypeFromId));
+
       setLayoutState({
+        // discared shared panel state for panel types that are no longer in the layout
+        sharedPanelState: _.pick(layoutStateRef.current.sharedPanelState, panelTypesInUse),
         selectedLayout: {
           id: layoutStateRef.current.selectedLayout.id,
           data: newData,
@@ -224,8 +234,11 @@ export default function CurrentLayoutProvider({
     [setLayoutState],
   );
 
-  // Changes to the layout storage from external user actions (such as resetting a layout to a
-  // previous saved state) need to trigger setLayoutState.
+  /**
+   * Changes to the layout storage from external user actions need to trigger setLayoutState.
+   * Before it was beeing trigged on every change. Now it is triggered only when the layout
+   * is reverted, otherize it has some toggling issues when resizing panels.
+   */
   useEffect(() => {
     const listener: LayoutManagerEventTypes["change"] = ({ updatedLayout }) => {
       if (
@@ -281,9 +294,14 @@ export default function CurrentLayoutProvider({
       return;
     }
 
-    // Retreive the selected layout id from the user's profile. If there's no layout specified
-    // or we can't load it then save and select a default layout.
+    // For some reason, this needs to go before the setSelectedLayoutId, probably some initialization
     const { currentLayoutId } = await getUserProfile();
+
+    // Try to load default layouts, before checking to add the fallback "Default".
+    await loadDefaultLayouts(layoutManager, loaders);
+
+    const layouts = await layoutManager.getLayouts();
+
     try {
       const lastLayout = currentLayoutId
         ? await layoutManager.getLayout(currentLayoutId)
@@ -292,14 +310,20 @@ export default function CurrentLayoutProvider({
         log.debug(`Initializing layout from profile: ${currentLayoutId}`);
         await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
       } else {
-        const layouts = await layoutManager.getLayouts();
         const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
         await setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
       }
     } catch (error) {
       console.error(error);
     }
-  }, [currentUserLoginStatus, baseInfo.value, getUserProfile, layoutManager, setSelectedLayoutId]);
+  }, [
+    currentUserLoginStatus,
+    baseInfo.value,
+    getUserProfile,
+    layoutManager,
+    setSelectedLayoutId,
+    loaders,
+  ]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({
