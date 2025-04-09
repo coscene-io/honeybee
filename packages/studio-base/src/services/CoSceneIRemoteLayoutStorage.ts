@@ -7,7 +7,6 @@
 
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { ConsoleApiLayout } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import {
   ISO8601Timestamp,
   LayoutPermission,
@@ -32,8 +31,6 @@ export interface IRemoteLayoutStorage {
    * layouts on disk.
    */
   readonly namespace: string;
-
-  getLayoutsWhenProjectInfoReady: () => Promise<readonly ConsoleApiLayout[]>;
 
   getLayouts: () => Promise<readonly RemoteLayout[]>;
 

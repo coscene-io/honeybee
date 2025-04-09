@@ -73,6 +73,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
    * interleaved.
    */
   #local: MutexLocked<NamespacedLayoutStorage>;
+
+  // backup remote layouts to local, when user is offline
+  #backupLocal: MutexLocked<NamespacedLayoutStorage> | undefined;
+
   #remote: IRemoteLayoutStorage | undefined;
 
   public readonly supportsSharing: boolean;
@@ -148,6 +152,21 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     );
     this.#remote = remote;
     this.supportsSharing = remote != undefined;
+
+    if (remote) {
+      this.#backupLocal = new MutexLocked(
+        new NamespacedLayoutStorage(
+          new WriteThroughLayoutCache(local),
+          CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE,
+          {
+            migrateUnnamespacedLayouts: true,
+
+            // Convert existing local layouts into cloud personal layouts
+            importFromNamespace: CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE,
+          },
+        ),
+      );
+    }
   }
 
   public on<E extends EventEmitter.EventNames<LayoutManagerEventTypes>>(
@@ -571,6 +590,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     await Promise.all([
       this.#performLocalSyncOperations(localOps, abortSignal),
       this.#performRemoteSyncOperations(remoteOps, abortSignal),
+      this.#performBackupLocalSyncOperations(localOps, abortSignal),
     ]);
   }
 
@@ -727,5 +747,103 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         }),
       );
     });
+  }
+
+  // sync remote layouts to local, then user can use layouts in offline status
+  async #performBackupLocalSyncOperations(
+    operations: readonly (SyncOperation & { local: true })[],
+    abortSignal: AbortSignal,
+  ): Promise<void> {
+    if (!this.#backupLocal) {
+      return;
+    }
+    await this.#backupLocal.runExclusive(async (local) => {
+      for (const operation of operations) {
+        if (abortSignal.aborted) {
+          return;
+        }
+
+        switch (operation.type) {
+          case "mark-deleted": {
+            const { localLayout } = operation;
+            if (localLayout.isRecordRecommended) {
+              await local.delete(localLayout.id);
+            } else {
+              log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
+              await local.put({
+                ...localLayout,
+                syncInfo: { status: "remotely-deleted", lastRemoteSavedAt: undefined },
+              });
+            }
+            break;
+          }
+
+          case "delete-local":
+            log.debug(
+              `Deleting local layout ${operation.localLayout.id}, whose sync status was ${operation.localLayout.syncInfo?.status}`,
+            );
+            await local.delete(operation.localLayout.id);
+            this.#notifyChangeListeners({ type: "delete", layoutId: operation.localLayout.id });
+            break;
+
+          case "add-to-cache": {
+            const { remoteLayout } = operation;
+            log.debug(`Adding layout to cache: ${remoteLayout.id}`);
+            await local.put({
+              id: remoteLayout.id,
+              name: remoteLayout.name,
+              permission: remoteLayout.permission,
+              baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+              working: undefined,
+              syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
+              isProjectRecommended: remoteLayout.isProjectRecommended,
+              isRecordRecommended: remoteLayout.isRecordRecommended,
+            });
+            break;
+          }
+
+          case "update-baseline": {
+            const { localLayout, remoteLayout } = operation;
+            log.debug(`Updating baseline for ${localLayout.id}`);
+            await local.put({
+              id: remoteLayout.id,
+              name: remoteLayout.name,
+              permission: remoteLayout.permission,
+              baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+              working: localLayout.working,
+              syncInfo: {
+                status: localLayout.syncInfo.status,
+                lastRemoteSavedAt: remoteLayout.savedAt,
+              },
+              isProjectRecommended: remoteLayout.isProjectRecommended,
+              isRecordRecommended: remoteLayout.isRecordRecommended,
+            });
+            break;
+          }
+        }
+      }
+    });
+
+    // try {
+    //   // store remote layouts to local
+    //   await this.#backupLocal.runExclusive(async (local) => {
+    //     for (const remoteLayout of remoteLayouts) {
+    //       await local.put({
+    //         id: remoteLayout.id,
+    //         name: remoteLayout.name,
+    //         permission: remoteLayout.permission,
+    //         baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+    //         working: undefined,
+    //         syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
+    //         isProjectRecommended: remoteLayout.isProjectRecommended,
+    //         isRecordRecommended: remoteLayout.isRecordRecommended,
+    //       });
+    //     }
+    //   });
+
+    //   log.debug(`Preloaded ${remoteLayouts.length} remote layouts`);
+    // } catch (error) {
+    //   log.error("Failed to preload remote layouts:", error);
+    // }
   }
 }
