@@ -823,27 +823,5 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         }
       }
     });
-
-    // try {
-    //   // store remote layouts to local
-    //   await this.#backupLocal.runExclusive(async (local) => {
-    //     for (const remoteLayout of remoteLayouts) {
-    //       await local.put({
-    //         id: remoteLayout.id,
-    //         name: remoteLayout.name,
-    //         permission: remoteLayout.permission,
-    //         baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
-    //         working: undefined,
-    //         syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
-    //         isProjectRecommended: remoteLayout.isProjectRecommended,
-    //         isRecordRecommended: remoteLayout.isRecordRecommended,
-    //       });
-    //     }
-    //   });
-
-    //   log.debug(`Preloaded ${remoteLayouts.length} remote layouts`);
-    // } catch (error) {
-    //   log.error("Failed to preload remote layouts:", error);
-    // }
   }
 }
