@@ -21,14 +21,17 @@ import CoSceneUserProvider from "@foxglove/studio-base/providers/CoSceneUserProv
 import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
 import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
+import { LayoutLoader } from "@foxglove/studio-base/services/ILayoutLoader";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
 
 export function SharedProviders({
   consoleApi,
   loginStatusKey,
+  loaders,
 }: {
   consoleApi: ConsoleApi;
   loginStatusKey?: number;
+  loaders?: readonly LayoutLoader[];
 }): React.JSX.Element[] {
   const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
   const urdfStorage = useMemo(() => new IdbUrdfStorage(), []);
@@ -49,11 +52,11 @@ export function SharedProviders({
       />,
       <UrdfStorageContext.Provider value={urdfStorage} key="UrdfStorageContext" />,
       <CoSceneLayoutManagerProvider key="CoSceneLayoutManagerProvider" />,
-      <CurrentLayoutProvider key="CurrentLayoutProvider" />,
+      <CurrentLayoutProvider key="CurrentLayoutProvider" loaders={loaders} />,
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
       <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
     ],
-    [consoleApi, loginStatusKey, layoutStorage, urdfStorage],
+    [consoleApi, loginStatusKey, layoutStorage, urdfStorage, loaders],
   );
 
   return providers;
