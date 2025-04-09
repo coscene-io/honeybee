@@ -13,11 +13,11 @@ import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext
 import CoSceneBaseProvider from "@foxglove/studio-base/providers/CoSceneBaseProvider";
 import CoSceneConsoleApiRemoteLayoutStorageProvider from "@foxglove/studio-base/providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
 import CoSceneCookiesProvider from "@foxglove/studio-base/providers/CoSceneCookiesProvider";
+import CoSceneCurrentUserProvider from "@foxglove/studio-base/providers/CoSceneCurrentUserProvider";
 import CoSceneLayoutManagerProvider from "@foxglove/studio-base/providers/CoSceneLayoutManagerProvider";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
 import CoSceneUserProfileLocalStorageProvider from "@foxglove/studio-base/providers/CoSceneUserProfileLocalStorageProvider";
-import CoSceneUserProvider from "@foxglove/studio-base/providers/CoSceneUserProvider";
 import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
 import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
@@ -39,7 +39,7 @@ export function SharedProviders({
       <CoSceneBaseProvider key="CoSceneBaseProvider" />,
       <CoSceneProjectProvider key="CoSceneProjectProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
-      <CoSceneUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
+      <CoSceneCurrentUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
       // dependent - CoSceneUserProvider
       <AnalyticsProvider key="AnalyticsProvider" />,
       <CoSceneConsoleApiRemoteLayoutStorageProvider key="CoSceneConsoleApiRemoteLayoutStorageProvider" />,
