@@ -10,6 +10,7 @@ import { useNetworkState } from "react-use";
 
 import { useVisibilityState } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import LayoutManagerContext from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useLayoutStorage } from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
 import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
@@ -21,11 +22,14 @@ const log = Logger.getLogger(__filename);
 const SYNC_INTERVAL_BASE_MS = 30_000;
 const SYNC_INTERVAL_MAX_MS = 3 * 60_000;
 
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+
 export default function CoSceneLayoutManagerProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const layoutStorage = useLayoutStorage();
   const remoteLayoutStorage = useRemoteLayoutStorage();
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
 
   const layoutManager = useMemo(
     () => new LayoutManager({ local: layoutStorage, remote: remoteLayoutStorage }),
@@ -34,6 +38,7 @@ export default function CoSceneLayoutManagerProvider({
 
   const { online = false } = useNetworkState();
   const visibilityState = useVisibilityState();
+
   useEffect(() => {
     layoutManager.setOnline(online);
   }, [layoutManager, online]);
@@ -41,7 +46,8 @@ export default function CoSceneLayoutManagerProvider({
   // Sync periodically when logged in, online, and the app is not hidden
   const enableSyncing = remoteLayoutStorage != undefined && online && visibilityState === "visible";
   useEffect(() => {
-    if (!enableSyncing) {
+    // if base info is loaded, resync layouts
+    if (!enableSyncing || asyncBaseInfo.loading) {
       return;
     }
     const controller = new AbortController();
@@ -67,7 +73,7 @@ export default function CoSceneLayoutManagerProvider({
       log.debug("Canceling layout sync due to effect cleanup callback");
       controller.abort();
     };
-  }, [enableSyncing, layoutManager]);
+  }, [enableSyncing, layoutManager, asyncBaseInfo.loading]);
 
   return (
     <LayoutManagerContext.Provider value={layoutManager}>{children}</LayoutManagerContext.Provider>
