@@ -77,11 +77,8 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
   const [_userInfo, syncUserInfo] = useAsyncFn(async () => {
     if (loginStatus === "alreadyLogin") {
       const userInfo = await consoleApi.getUser("users/current");
-
       const currentOrg = await consoleApi.getOrg("organizations/current");
-
       const userId = userInfo.name.split("/").pop() ?? "";
-
       setUser({
         ...(currentUser ?? {}),
         avatarUrl: userInfo.avatar ?? "",
@@ -94,8 +91,6 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         targetSite: `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}`,
         userId,
       } as User);
-    } else {
-      setUser(undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consoleApi, loginStatus, setUser]);
