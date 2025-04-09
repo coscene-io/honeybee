@@ -55,6 +55,7 @@ type UserMenuProps = {
 };
 
 const selectUser = (store: UserStore) => store.user;
+const selectSetUser = (store: UserStore) => store.setUser;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectSetLoginStatus = (store: UserStore) => store.setLoginStatus;
 
@@ -72,6 +73,7 @@ export function UserMenu({
   const [confirm, confirmModal] = useConfirm();
   const { t } = useTranslation("cosAppBar");
   const [latestVersion, setLatestVersion] = useState("");
+  const setUser = useCoSceneCurrentUser(selectSetUser);
 
   useEffect(() => {
     if (APP_CONFIG.COSTUDIO_DOWNLOAD_URL) {
@@ -95,11 +97,12 @@ export function UserMenu({
     if (isDesktop) {
       localStorage.removeItem("coScene_org_jwt");
       setLoginStatus("notLogin");
+      setUser(undefined);
       toast.success(t("signoutSuccess"));
     } else {
       window.location.href = "/login";
     }
-  }, [isDesktop, setLoginStatus, t]);
+  }, [isDesktop, setLoginStatus, t, setUser]);
 
   const onSignoutClick = useCallback(() => {
     void confirm({
