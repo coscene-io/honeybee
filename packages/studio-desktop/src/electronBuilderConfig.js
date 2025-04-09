@@ -55,6 +55,7 @@ function makeElectronBuilderConfig(params) {
           mimeType: "application/zip",
         },
       ],
+      icon: path.join(__dirname, "../resources/icon/icon.png"),
     },
     win: {
       target: [
