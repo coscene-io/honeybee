@@ -143,7 +143,12 @@ export function AppSettingsDialog(
       "contact",
       {
         subheader: t("contact"),
-        links: [{ title: t("contact"), url: `mailto:${CONTACT_EMAIL}` }],
+        links: [
+          {
+            title: CONTACT_EMAIL,
+            url: `mailto:${CONTACT_EMAIL}?subject=Support%20Request&body=Hello%20Support%20Team`,
+          },
+        ],
       },
     ],
     [
