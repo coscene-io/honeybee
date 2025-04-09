@@ -74,9 +74,11 @@ export function UserMenu({
   const [latestVersion, setLatestVersion] = useState("");
 
   useEffect(() => {
-    void getCoStudioVersion().then((version) => {
-      setLatestVersion(version);
-    });
+    if (APP_CONFIG.COSTUDIO_DOWNLOAD_URL) {
+      void getCoStudioVersion().then((version) => {
+        setLatestVersion(version);
+      });
+    }
   }, []);
 
   const { dialogActions } = useWorkspaceActions();
