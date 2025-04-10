@@ -371,8 +371,8 @@ export function RosPackagePath(): React.ReactElement {
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
 
-  const [selectedLanguage = APP_CONFIG.LANGUAGE.default as Language, setSelectedLanguage] =
-    useAppConfigurationValue<Language>(AppSetting.LANGUAGE);
+  const [, setSelectedLanguage] = useAppConfigurationValue<Language>(AppSetting.LANGUAGE);
+  const selectedLanguage: Language = useMemo(() => i18n.language as Language, [i18n.language]);
 
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {

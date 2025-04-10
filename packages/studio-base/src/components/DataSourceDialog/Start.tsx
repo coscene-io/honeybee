@@ -19,6 +19,7 @@ import { useCurrentUser } from "@foxglove/studio-base/context/BaseUserContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 
 const useStyles = makeStyles()((theme) => ({
@@ -329,7 +330,7 @@ function SidebarItems(): React.JSX.Element {
               </>
             ) : (
               <Button
-                href="https://coscene.cn/"
+                href={`https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}`}
                 target="_blank"
                 className={classes.button}
                 variant="outlined"
