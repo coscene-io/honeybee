@@ -102,10 +102,12 @@ type MessageDefinitionMap = Map<string, MessageDefinition>;
 const CURRENT_FRAME_MAXIMUM_SIZE_BYTES = 400 * 1024 * 1024;
 
 // 页面在活跃状态下，连续 10 分钟没有任何操作，则自动断开
-const INATIVE_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+// const INATIVE_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+const INATIVE_TIMEOUT = Infinity;
 
 // 页面在后台情况下，连续 1 分钟没有任何操作，则自动断开
-const BACKEND_INATIVE_TIMEOUT = 1000 * 60 * 1; // 1 minutes
+// const BACKEND_INATIVE_TIMEOUT = 1000 * 60 * 1; // 1 minutes
+const BACKEND_INATIVE_TIMEOUT = Infinity;
 
 export default class FoxgloveWebSocketPlayer implements Player {
   readonly #sourceId: string;
