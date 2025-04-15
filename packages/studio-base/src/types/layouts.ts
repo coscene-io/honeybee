@@ -16,6 +16,8 @@
 
 import { MosaicNode } from "react-mosaic-component";
 
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
+
 export type TabConfig = { title: string; layout?: MosaicNode<string> };
 
 export type TabPanelConfig = {
@@ -26,4 +28,13 @@ export type TabPanelConfig = {
 export type TabLocation = {
   panelId: string;
   tabIndex?: number;
+};
+
+/**
+ * Metadata describing a layout.
+ */
+export type LayoutInfo = {
+  name: string;
+  from: string;
+  data: LayoutData;
 };

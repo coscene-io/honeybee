@@ -6,7 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Logger from "@foxglove/log";
-import { LayoutLoader, LayoutInfo, LayoutData } from "@foxglove/studio-base";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { LayoutLoader } from "@foxglove/studio-base/services/ILayoutLoader";
+import { LayoutInfo } from "@foxglove/studio-base/types/layouts";
 
 import { Desktop } from "../../common/types";
 

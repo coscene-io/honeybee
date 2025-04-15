@@ -40,6 +40,7 @@ import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
 import { NativeWindow } from "./services/NativeWindow";
 import { Auth, Desktop, NativeMenuBridge, Storage } from "../common/types";
+import { DesktopLayoutLoader } from "./services/DesktopLayoutLoader";
 
 const desktopBridge = (global as unknown as { desktopBridge: Desktop }).desktopBridge;
 const storageBridge = (global as unknown as { storageBridge?: Storage }).storageBridge;
@@ -200,7 +201,9 @@ export default function Root(props: {
     };
   }, []);
 
-  const initProviders = SharedProviders({ consoleApi, loginStatusKey });
+  const [layoutLoaders] = useState(() => [new DesktopLayoutLoader(desktopBridge)]);
+
+  const initProviders = SharedProviders({ consoleApi, loginStatusKey, loaders: layoutLoaders });
 
   const extraProviders = useMemo(() => {
     const providers: React.JSX.Element[] = initProviders;
