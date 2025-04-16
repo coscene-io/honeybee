@@ -115,6 +115,7 @@ function makeElectronBuilderConfig(params) {
         { from: path.join(__dirname, "../resources/icon/BagIcon.png"), to: "BagIcon.png" },
         { from: path.join(__dirname, "../resources/icon/McapIcon.png"), to: "McapIcon.png" },
         { from: path.join(__dirname, "../resources/icon/FoxeIcon.png"), to: "FoxeIcon.png" },
+        { from: path.join(__dirname, "../resources/icon/CoeIcon.png"), to: "CoeIcon.png" },
       ],
       extendInfo: {
         CFBundleDocumentTypes: [
@@ -147,12 +148,12 @@ function makeElectronBuilderConfig(params) {
           },
           {
             CFBundleTypeExtensions: ["coe"],
-            CFBundleTypeIconFile: "FoxeIcon",
+            CFBundleTypeIconFile: "CoeIcon",
             CFBundleTypeName: "coScene Extension File",
             CFBundleTypeRole: "Viewer",
             LSHandlerRank: "Owner",
             CFBundleTypeIconSystemGenerated: 1,
-            LSItemContentTypes: ["dev.foxglove.extension"],
+            LSItemContentTypes: ["dev.coscene.extension"],
           },
         ],
         CFBundleURLTypes: [
@@ -182,9 +183,9 @@ function makeElectronBuilderConfig(params) {
             UTTypeConformsTo: ["public.data", "public.archive", "public.zip-archive"],
             UTTypeDescription: "coScene Extension File",
             UTTypeIcons: { UTTypeIconText: "coe" },
-            UTTypeIdentifier: "dev.foxglove.extension",
+            UTTypeIdentifier: "dev.coscene.extension",
             UTTypeTagSpecification: { "public.filename-extension": "coe" },
-            UTTypeReferenceURL: "https://foxglove.dev/docs/studio/extensions/getting-started",
+            UTTypeReferenceURL: "https://docs.coscene.cn/docs/viz/extensions/introduction",
           },
         ],
         UTImportedTypeDeclarations: [
