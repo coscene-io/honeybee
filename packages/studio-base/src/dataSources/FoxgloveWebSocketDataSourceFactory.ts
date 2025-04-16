@@ -49,6 +49,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
   #userId: string;
   #username: string;
   #deviceName: string;
+  #disableTimeout: boolean;
 
   public constructor({ confirm }: { confirm: confirmTypes }) {
     const currentUser = localStorage.getItem("current_user") ?? "{}";
@@ -61,6 +62,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
     this.#deviceName = deviceName ?? "unknown";
 
     this.#confirm = confirm;
+    this.#disableTimeout = localStorage.getItem("disable_timeout") === "true";
   }
 
   public formConfig = {
@@ -99,6 +101,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       userId: this.#userId,
       username: this.#username,
       deviceName: this.#deviceName,
+      disableTimeout: this.#disableTimeout,
     });
   }
 }
