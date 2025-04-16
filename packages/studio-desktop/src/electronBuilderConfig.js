@@ -54,6 +54,11 @@ function makeElectronBuilderConfig(params) {
           name: "coScene Extension",
           mimeType: "application/zip",
         },
+        {
+          ext: "coe",
+          name: "coScene Extension",
+          mimeType: "application/zip",
+        },
       ],
       icon: path.join(__dirname, "../resources/icon/icon.png"),
     },
@@ -78,6 +83,11 @@ function makeElectronBuilderConfig(params) {
         },
         {
           ext: "foxe",
+          name: "coScene Extension",
+          mimeType: "application/zip",
+        },
+        {
+          ext: "coe",
           name: "coScene Extension",
           mimeType: "application/zip",
         },
@@ -135,6 +145,15 @@ function makeElectronBuilderConfig(params) {
             CFBundleTypeIconSystemGenerated: 1,
             LSItemContentTypes: ["dev.foxglove.extension"],
           },
+          {
+            CFBundleTypeExtensions: ["coe"],
+            CFBundleTypeIconFile: "FoxeIcon",
+            CFBundleTypeName: "coScene Extension File",
+            CFBundleTypeRole: "Viewer",
+            LSHandlerRank: "Owner",
+            CFBundleTypeIconSystemGenerated: 1,
+            LSItemContentTypes: ["dev.foxglove.extension"],
+          },
         ],
         CFBundleURLTypes: [
           {
@@ -157,6 +176,14 @@ function makeElectronBuilderConfig(params) {
             UTTypeIcons: { UTTypeIconText: "foxe" },
             UTTypeIdentifier: "dev.foxglove.extension",
             UTTypeTagSpecification: { "public.filename-extension": "foxe" },
+            UTTypeReferenceURL: "https://foxglove.dev/docs/studio/extensions/getting-started",
+          },
+          {
+            UTTypeConformsTo: ["public.data", "public.archive", "public.zip-archive"],
+            UTTypeDescription: "coScene Extension File",
+            UTTypeIcons: { UTTypeIconText: "coe" },
+            UTTypeIdentifier: "dev.foxglove.extension",
+            UTTypeTagSpecification: { "public.filename-extension": "coe" },
             UTTypeReferenceURL: "https://foxglove.dev/docs/studio/extensions/getting-started",
           },
         ],
