@@ -146,10 +146,10 @@ export function main(): void {
       const userExtensionRoot = pathJoin(homePath, ".coStudio", "layouts");
       return await fetchLayouts(userExtensionRoot);
     },
-    async installExtension(foxeFileData: Uint8Array) {
+    async installExtension(coeFileData: Uint8Array) {
       const homePath = (await ipcRenderer.invoke("getHomePath")) as string;
       const userExtensionRoot = pathJoin(homePath, ".coStudio", "extensions");
-      return await installExtension(foxeFileData, userExtensionRoot);
+      return await installExtension(coeFileData, userExtensionRoot);
     },
     async uninstallExtension(id: string): Promise<boolean> {
       const homePath = (await ipcRenderer.invoke("getHomePath")) as string;

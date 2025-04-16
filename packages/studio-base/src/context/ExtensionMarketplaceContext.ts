@@ -23,6 +23,7 @@ export type ExtensionMarketplaceDetail = {
   changelog?: string;
   sha256sum?: string;
   foxe?: string;
+  coe?: string;
   keywords?: string[];
   time?: Record<string, string>;
 };

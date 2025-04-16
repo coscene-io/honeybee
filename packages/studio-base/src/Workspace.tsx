@@ -163,7 +163,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
   // file types we support for drag/drop
   const allowedDropExtensions = useMemo(() => {
-    const extensions = [".foxe"];
+    const extensions = [".foxe", ".coe"];
     for (const source of availableSources) {
       if (source.type === "file" && source.supportedFileTypes) {
         extensions.push(...source.supportedFileTypes);
@@ -213,7 +213,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       log.debug("open handle", handle);
       const file = await handle.getFile();
 
-      if (file.name.endsWith(".foxe")) {
+      if (file.name.endsWith(".foxe") || file.name.endsWith(".coe")) {
         // Extension installation
         try {
           const arrayBuffer = await file.arrayBuffer();
@@ -246,7 +246,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       log.debug("open files", files);
 
       for (const file of files) {
-        if (file.name.endsWith(".foxe")) {
+        if (file.name.endsWith(".foxe") || file.name.endsWith(".coe")) {
           // Extension installation
           try {
             const arrayBuffer = await file.arrayBuffer();

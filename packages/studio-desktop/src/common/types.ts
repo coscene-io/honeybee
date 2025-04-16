@@ -103,7 +103,7 @@ interface Desktop {
   fetchLayouts: () => Promise<DesktopLayout[]>;
 
   // Install a coScene Extension (.foxe file) locally. The extension id is returned
-  installExtension: (foxeFileData: Uint8Array) => Promise<DesktopExtension>;
+  installExtension: (coeFileData: Uint8Array) => Promise<DesktopExtension>;
 
   // Uninstall an extension. Returns true if the extension was found and uninstalled, or false if it
   // was not found (i.e. already uninstalled)
