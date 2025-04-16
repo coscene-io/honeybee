@@ -218,7 +218,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#username = username;
     this.#deviceName = deviceName;
     this.#disableTimeout = disableTimeout;
-    if (!this.#disableTimeout) {
+    if (this.#disableTimeout) {
       this.#inactiveTimeout = TIMEOUT_DISABLED;
     }
 
