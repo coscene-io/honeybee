@@ -101,13 +101,14 @@ type MessageDefinitionMap = Map<string, MessageDefinition>;
  */
 const CURRENT_FRAME_MAXIMUM_SIZE_BYTES = 400 * 1024 * 1024;
 
-// hack 演示 暂时设置为 100 年
-// 页面在活跃状态下，连续 100 年没有任何操作，则自动断开
-const INATIVE_TIMEOUT = 1000 * 60 * 60 * 24 * 365 * 100; // 100 years
+// 100 年 disable timeout
+const TIMEOUT_DISABLED = 1000 * 60 * 60 * 24 * 365 * 100;
 
-// hack 演示 暂时设置为 100 年
-// 页面在后台情况下，连续 100 年没有任何操作，则自动断开
-const BACKEND_INATIVE_TIMEOUT = 1000 * 60 * 60 * 24 * 365 * 100; // 100 years
+// 页面在活跃状态下，连续 10 分钟没有任何操作，则自动断开
+const INATIVE_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+
+// 页面在后台情况下，连续 1 分钟没有任何操作，则自动断开
+const BACKEND_INATIVE_TIMEOUT = 1000 * 60 * 1; // 1 minutes
 
 export default class FoxgloveWebSocketPlayer implements Player {
   readonly #sourceId: string;
@@ -171,9 +172,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #fetchedAssets = new Map<string, Promise<Asset>>();
   #parameterTypeByName = new Map<string, Parameter["type"]>();
   #messageSizeEstimateByTopic: Record<string, number> = {};
-  // #INATIVE_TIMEOUT
   #inactiveTimeout = INATIVE_TIMEOUT;
   #confirm: confirmTypes;
+  #disableTimeout: boolean;
 
   #userId: string;
   #username: string;
@@ -191,6 +192,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     userId,
     username,
     deviceName,
+    disableTimeout,
   }: {
     url: string;
     metricsCollector: PlayerMetricsCollectorInterface;
@@ -200,6 +202,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     userId: string;
     username: string;
     deviceName: string;
+    disableTimeout: boolean;
   }) {
     this.#metricsCollector = metricsCollector;
     this.#url = url;
@@ -214,6 +217,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#userId = userId;
     this.#username = username;
     this.#deviceName = deviceName;
+    this.#disableTimeout = disableTimeout;
+    if (!this.#disableTimeout) {
+      this.#inactiveTimeout = TIMEOUT_DISABLED;
+    }
+
     this.#open();
   }
 
@@ -1030,6 +1038,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
     };
 
     const resetInactiveTimeout = () => {
+      if (this.#disableTimeout) {
+        return;
+      }
+
       if (document.visibilityState === "visible") {
         this.#inactiveTimeout = INATIVE_TIMEOUT;
       } else {
