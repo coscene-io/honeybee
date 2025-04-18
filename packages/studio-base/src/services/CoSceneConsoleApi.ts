@@ -712,7 +712,7 @@ class CoSceneConsoleApi {
         "Topic-Prefix": this.#addTopicPrefix,
         "Playback-Quality-Level": this.#playbackQualityLevel,
         "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
-        ProjectName: projectName,
+        "Project-Name": projectName,
       },
       body: JSON.stringify({
         start,
