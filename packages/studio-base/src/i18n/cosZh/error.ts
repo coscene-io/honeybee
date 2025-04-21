@@ -23,6 +23,8 @@ export const cosError: Partial<TypeOptions["resources"]["cosError"]> = {
   repetitiveConnection: "重复的连接",
   repeatedConnectionDesc:
     "同一时间只能有一个人连接到同一个机器人。当前有用户正在连接，请稍后刷新并重试。",
+  fileFormatUnsupported: "不支持当前文件格式",
+
   SEMANTIC_LIB_ERROR: "semantic-lib 内部错误",
   GET_JOBRUN_FROM_DPS: "从data platform 获取 jobrun 失败",
   GET_PROJECT_FROM_DPS: "从data platform 获取 project 信息失败",
