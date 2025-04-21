@@ -551,9 +551,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   return (
     <PanelStateContextProvider>
       {dataSourceDialog.open && <DataSourceDialog />}
-      {isDesktopApp() && (
-        <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
-      )}
+      <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
