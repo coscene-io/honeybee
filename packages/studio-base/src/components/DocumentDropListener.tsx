@@ -17,6 +17,7 @@
 import { useSnackbar } from "notistack";
 import { extname } from "path";
 import { useCallback, useLayoutEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
 import DropOverlay from "@foxglove/studio-base/components/DropOverlay";
@@ -37,6 +38,8 @@ export default function DocumentDropListener(props: Props): React.JSX.Element {
   const { onDrop: onDropProp, allowedExtensions } = props;
 
   const { enqueueSnackbar } = useSnackbar();
+
+  const { t } = useTranslation();
 
   const onDrop = useCallback(
     async (ev: DragEvent) => {
@@ -134,7 +137,7 @@ export default function DocumentDropListener(props: Props): React.JSX.Element {
 
       // Check for no supported files
       if (filteredFiles.length === 0 && filteredHandles?.length === 0) {
-        enqueueSnackbar("The file format is unsupported.", { variant: "error" });
+        enqueueSnackbar(t("fileFormatUnsupported", { ns: "cosError" }), { variant: "error" });
         return;
       }
 
@@ -143,7 +146,7 @@ export default function DocumentDropListener(props: Props): React.JSX.Element {
 
       onDropProp?.({ files: filteredFiles, handles: filteredHandles });
     },
-    [enqueueSnackbar, onDropProp, allowedExtensions],
+    [enqueueSnackbar, onDropProp, allowedExtensions, t],
   );
 
   const onDragOver = useCallback(
