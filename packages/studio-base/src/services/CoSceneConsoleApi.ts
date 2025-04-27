@@ -302,8 +302,6 @@ class CoSceneConsoleApi {
   #type?: "realtime" | "playback" | "other";
   #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
 
-  public isApiBaseInfoReady = false;
-
   public constructor(
     baseUrl: string,
     bffUrl: string,
@@ -327,7 +325,6 @@ class CoSceneConsoleApi {
 
   public setApiBaseInfo(baseInfo: BaseInfo): void {
     this.#baseInfo = baseInfo;
-    this.isApiBaseInfoReady = true;
   }
 
   public getApiBaseInfo(): BaseInfo {
