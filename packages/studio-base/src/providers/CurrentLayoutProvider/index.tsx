@@ -17,7 +17,6 @@ import { useShallowMemo } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { VariableValue } from "@foxglove/studio";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useUserProfileStorage } from "@foxglove/studio-base/context/CoSceneUserProfileStorageContext";
@@ -54,7 +53,6 @@ const log = Logger.getLogger(__filename);
 export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
 
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 
 /**
  * Concrete implementation of CurrentLayoutContext.Provider which handles
@@ -69,7 +67,6 @@ export default function CurrentLayoutProvider({
   const analytics = useAnalytics();
   const isMounted = useMountedState();
   const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
-  const baseInfo = useBaseInfo(selectBaseInfo);
 
   const [mosaicId] = useState(() => uuidv4());
 
@@ -273,17 +270,14 @@ export default function CurrentLayoutProvider({
   // Load initial state by re-selecting the last selected layout from the UserProfile.
   useAsync(async () => {
     // Don't restore the layout if there's one specified in the app state url.
-    if (
-      windowAppURLState()?.layoutId != undefined ||
-      currentUserLoginStatus !== "alreadyLogin" ||
-      _.isEmpty(baseInfo.value)
-    ) {
+    if (windowAppURLState()?.layoutId != undefined || currentUserLoginStatus !== "alreadyLogin") {
       return;
     }
 
     // Retreive the selected layout id from the user's profile. If there's no layout specified
     // or we can't load it then save and select a default layout.
     const { currentLayoutId } = await getUserProfile();
+
     try {
       const lastLayout = currentLayoutId
         ? await layoutManager.getLayout(currentLayoutId)
@@ -299,7 +293,7 @@ export default function CurrentLayoutProvider({
     } catch (error) {
       console.error(error);
     }
-  }, [currentUserLoginStatus, baseInfo.value, getUserProfile, layoutManager, setSelectedLayoutId]);
+  }, [currentUserLoginStatus, getUserProfile, layoutManager, setSelectedLayoutId]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({

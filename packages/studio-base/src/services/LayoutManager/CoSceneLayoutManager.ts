@@ -789,35 +789,43 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           case "add-to-cache": {
             const { remoteLayout } = operation;
             log.debug(`Adding layout to cache: ${remoteLayout.id}`);
-            await local.put({
-              id: remoteLayout.id,
-              name: remoteLayout.name,
-              permission: remoteLayout.permission,
-              baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
-              working: undefined,
-              syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
-              isProjectRecommended: remoteLayout.isProjectRecommended,
-              isRecordRecommended: remoteLayout.isRecordRecommended,
-            });
+
+            // only backup layouts with personal layout
+            if (remoteLayout.permission === "CREATOR_WRITE") {
+              await local.put({
+                id: remoteLayout.id,
+                name: remoteLayout.name,
+                permission: remoteLayout.permission,
+                baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+                working: undefined,
+                syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
+                isProjectRecommended: remoteLayout.isProjectRecommended,
+                isRecordRecommended: remoteLayout.isRecordRecommended,
+              });
+            }
             break;
           }
 
           case "update-baseline": {
             const { localLayout, remoteLayout } = operation;
             log.debug(`Updating baseline for ${localLayout.id}`);
-            await local.put({
-              id: remoteLayout.id,
-              name: remoteLayout.name,
-              permission: remoteLayout.permission,
-              baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
-              working: localLayout.working,
-              syncInfo: {
-                status: localLayout.syncInfo.status,
-                lastRemoteSavedAt: remoteLayout.savedAt,
-              },
-              isProjectRecommended: remoteLayout.isProjectRecommended,
-              isRecordRecommended: remoteLayout.isRecordRecommended,
-            });
+
+            // only backup layouts with personal layout
+            if (remoteLayout.permission === "CREATOR_WRITE") {
+              await local.put({
+                id: remoteLayout.id,
+                name: remoteLayout.name,
+                permission: remoteLayout.permission,
+                baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+                working: localLayout.working,
+                syncInfo: {
+                  status: localLayout.syncInfo.status,
+                  lastRemoteSavedAt: remoteLayout.savedAt,
+                },
+                isProjectRecommended: remoteLayout.isProjectRecommended,
+                isRecordRecommended: remoteLayout.isRecordRecommended,
+              });
+            }
             break;
           }
         }
