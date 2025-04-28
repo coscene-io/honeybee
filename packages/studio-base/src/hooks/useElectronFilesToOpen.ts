@@ -8,17 +8,12 @@
 import { useEffect, useState } from "react";
 
 import Logger from "@foxglove/log";
-import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 
 const log = Logger.getLogger(__filename);
-
-const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
 
 // Hook to get any files the main thread has told us to open
 // See the comments in main thread implementation on how the files are injected into this input
 export default function useElectronFilesToOpen(): FileList | undefined {
-  const setCurrentFile = useUploadFiles(selectSetCurrentFile);
-
   const [input] = useState(() =>
     document.querySelector<HTMLInputElement>("#electron-open-file-input"),
   );
@@ -35,7 +30,6 @@ export default function useElectronFilesToOpen(): FileList | undefined {
 
     const update = () => {
       setFileList(input.files ?? undefined);
-      setCurrentFile(input.files?.[0]);
     };
 
     // handle any new file open requests
@@ -43,7 +37,7 @@ export default function useElectronFilesToOpen(): FileList | undefined {
     return () => {
       input.removeEventListener("change", update);
     };
-  }, [input, setCurrentFile]);
+  }, [input]);
 
   return fileList;
 }

@@ -12,15 +12,10 @@ import {
   IDataSourceFactory,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
-
-const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
 
 export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promise<void> {
   const { selectSource } = usePlayerSelection();
-
-  const setCurrentFile = useUploadFiles(selectSetCurrentFile);
 
   const allExtensions = useMemo(() => {
     const extensions = sources.reduce<string[]>((all, source) => {
@@ -66,8 +61,6 @@ export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promi
       throw new Error(`Cannot find source to handle ${file.name}`);
     }
 
-    setCurrentFile(file);
-
     selectSource(foundSource.id, { type: "file", handle: fileHandle });
-  }, [allExtensions, selectSource, sources, setCurrentFile]);
+  }, [allExtensions, selectSource, sources]);
 }
