@@ -98,6 +98,7 @@ const selectProject = (store: CoSceneProjectStore) => store.project;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 
 export function DataSource(): React.JSX.Element {
@@ -113,6 +114,7 @@ export function DataSource(): React.JSX.Element {
   const urlState = useMessagePipeline(selectUrlState);
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const dataSource = useBaseInfo(selectDataSource);
   const enableList = useBaseInfo(selectEnableList);
 
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
@@ -189,7 +191,9 @@ export function DataSource(): React.JSX.Element {
                   separator={<NavigateNextIcon fontSize="small" />}
                   aria-label="breadcrumb"
                 >
-                  {baseInfo.projectSlug ? breadcrumbs : ""}
+                  {baseInfo.projectSlug && dataSource?.id === "coscene-data-platform"
+                    ? breadcrumbs
+                    : ""}
                   {isLiveConnection && (
                     <Link
                       href={deviceLink || "#"}
