@@ -40,12 +40,12 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 //   LayoutState,
 //   useCurrentLayoutSelector,
 // } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { ExtensionCatalogContext } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import PlayerSelectionContext, {
   DataSourceArgs,
   IDataSourceFactory,
   PlayerSelection,
-} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import { ExtensionCatalogContext } from "@foxglove/studio-base/context/ExtensionCatalogContext";
+} from "@foxglove/studio-base/context/PlayerSelectionContext";
 // import { usePerformance } from "@foxglove/studio-base/context/PerformanceContext";
 // import {
 //   UserScriptStore,

@@ -11,7 +11,7 @@ import { t } from "i18next";
 import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
-} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+} from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";

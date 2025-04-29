@@ -37,13 +37,13 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   CoScenePlaylistStore,
   usePlaylist,
   BagFileInfo,
   ParamsFile,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,

@@ -7,7 +7,7 @@
 
 import Log from "@foxglove/log";
 import { Time } from "@foxglove/rostime";
-import { DataSourceArgs } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   PlayerMetricsCollectorInterface,
   SubscribePayload,

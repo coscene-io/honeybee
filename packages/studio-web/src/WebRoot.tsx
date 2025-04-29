@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 import { Toaster } from "react-hot-toast";
 
 import {
-  CoSceneIDataSourceFactory,
+  IDataSourceFactory,
   CoSceneDataPlatformDataSourceFactory,
   FoxgloveWebSocketDataSourceFactory,
   SharedRoot,
@@ -30,7 +30,7 @@ const isDevelopment = process.env.NODE_ENV === "development";
 
 export function WebRoot(props: {
   extraProviders: React.JSX.Element[] | undefined;
-  dataSources: CoSceneIDataSourceFactory[] | undefined;
+  dataSources: IDataSourceFactory[] | undefined;
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
 }): React.JSX.Element {
   const baseUrl = APP_CONFIG.CS_HONEYBEE_BASE_URL;
