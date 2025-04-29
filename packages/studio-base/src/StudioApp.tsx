@@ -56,9 +56,10 @@ export function StudioApp(): React.JSX.Element {
     <UserScriptStateProvider />,
     <ExtensionMarketplaceProvider />,
     <ExtensionCatalogProvider loaders={extensionLoaders} />,
+    <UploadFilesProvider />,
+    // should after UploadFilesProvider
     <PlayerManager playerSources={dataSources} />,
     <EventsProvider />,
-    <UploadFilesProvider />,
     /* eslint-enable react/jsx-key */
   ];
 
