@@ -344,7 +344,7 @@ export default function PlayerManager(
               addRecent({
                 type: "connection",
                 sourceId: foundSource.id,
-                title: args.params.url ?? "online data",
+                title: args.params.url ?? t("onlineData"),
                 label: foundSource.displayName,
                 extra: args.params,
               });
@@ -440,6 +440,7 @@ export default function PlayerManager(
       addRecent,
       setCurrentFile,
       isMounted,
+      t,
     ],
   );
 
