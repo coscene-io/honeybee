@@ -212,14 +212,14 @@ jobs:
               Environment: ${{ github.event.inputs.environment }}
               Download:
                 mac:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
                 win:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win.exe
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win.exe
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
                 linux:
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-                  https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
               Release notes: https://github.com/coscene-io/honeybee/releases
 
       - name: Notification to Feishu (Portal)
