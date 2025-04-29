@@ -240,6 +240,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     [availableSources, enqueueSnackbar, installExtension, selectSource],
   );
 
+  // This function is called when coStudio is launched by clicking on a file.
   const openFiles = useCallback(
     async (files: File[]) => {
       const otherFiles: File[] = [];
@@ -295,9 +296,9 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     (event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
       log.debug("drop event", event);
       const handle = event.handles?.[0];
-      // // When selecting sources with handles we can only select with a single handle since we haven't
-      // // written the code to store multiple handles for recents. When there are multiple handles, we
-      // // fall back to opening regular files.
+      // When selecting sources with handles we can only select with a single handle since we haven't
+      // written the code to store multiple handles for recents. When there are multiple handles, we
+      // fall back to opening regular files.
       if (handle && event.handles?.length === 1) {
         void openHandle(handle);
       } else if (event.files) {
