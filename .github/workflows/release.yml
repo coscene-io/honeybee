@@ -236,12 +236,12 @@ jobs:
               Environment: ${{ github.event.inputs.environment }}
               Download:
                 mac:
-                  https://coscene-download.s3.us-east-1.amazonaws.com/coStudio/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
                 win:
-                  https://coscene-download.s3.us-east-1.amazonaws.com/coStudio/coStudio_${{ github.event.inputs.version }}-win.exe
-                  https://coscene-download.s3.us-east-1.amazonaws.com/coStudio/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
-                  https://coscene-download.s3.us-east-1.amazonaws.com/coStudio/coStudio_${{ github.event.inputs.version }}-win_x64.exe
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-win.exe
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-win_x64.exe
                 linux:
-                  https://coscene-download.s3.us-east-1.amazonaws.com/coStudio/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-                  https://coscene-download.s3.us-east-1.amazonaws.com/coStudio/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
               Release notes: https://github.com/coscene-io/honeybee/releases
