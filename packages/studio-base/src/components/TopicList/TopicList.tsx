@@ -37,7 +37,6 @@ import { DraggedMessagePath } from "@foxglove/studio-base/components/PanelExtens
 import { ContextMenu } from "@foxglove/studio-base/components/TopicList/ContextMenu";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { MessagePathSelectionProvider } from "@foxglove/studio-base/services/messagePathDragging/MessagePathSelectionProvider";
-import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { MessagePathRow } from "./MessagePathRow";
 import { TopicRow } from "./TopicRow";
@@ -302,9 +301,7 @@ export function TopicList(): React.JSX.Element {
           </EmptyState>
         )}
         {/* 连接 honeybee server 的情况下，从 metadata 中获取消息频率 */}
-        {(sourceId === "coscene-websocket" || isDesktopApp()) && (
-          <DirectTopicStatsUpdater interval={6} />
-        )}
+        {sourceId !== "coscene-data-platform" && <DirectTopicStatsUpdater interval={6} />}
       </div>
       {contextMenuState && (
         <ContextMenu
