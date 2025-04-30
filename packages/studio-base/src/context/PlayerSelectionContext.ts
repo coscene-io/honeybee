@@ -8,14 +8,17 @@
 import { createContext, useContext } from "react";
 
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { Player, PlayerMetricsCollectorInterface } from "@foxglove/studio-base/players/types";
+import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
+import { Player } from "@foxglove/studio-base/players/types";
+import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
 
 export type DataSourceFactoryInitializeArgs = {
-  metricsCollector: PlayerMetricsCollectorInterface;
+  metricsCollector: AnalyticsMetricsCollector;
   file?: File;
   files?: File[];
   params?: Record<string, string | undefined>;
+  consoleApi?: ConsoleApi;
 };
 
 export type DataSourceFactoryType = "file" | "connection" | "sample";
@@ -48,10 +51,12 @@ export interface IDataSourceFactory {
   iconName?: RegisteredIconNames;
   description?: string;
   docsLinks?: { label?: string; url: string }[];
+  showDocs?: boolean;
   disabledReason?: string | React.JSX.Element;
   badgeText?: string;
   hidden?: boolean;
   warning?: string | React.JSX.Element;
+  needLogin?: boolean;
 
   sampleLayout?: LayoutData;
 
@@ -101,6 +106,7 @@ export type DataSourceArgs = FileDataSourceArgs | ConnectionDataSourceArgs;
 export interface PlayerSelection {
   selectSource: (sourceId: string, args?: DataSourceArgs) => void;
   selectRecent: (recentId: string) => void;
+  reloadCurrentSource: (params?: Record<string, string | undefined>) => Promise<void>;
 
   /** Currently selected data source */
   selectedSource?: IDataSourceFactory;
@@ -115,6 +121,7 @@ export interface PlayerSelection {
 const PlayerSelectionContext = createContext<PlayerSelection>({
   selectSource: () => {},
   selectRecent: () => {},
+  reloadCurrentSource: async () => {},
   availableSources: [],
   recentSources: [],
 });

@@ -21,15 +21,15 @@ import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourc
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
-  IDataSourceFactory,
-  usePlayerSelection,
-} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import {
   LayoutState,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import {
+  IDataSourceFactory,
+  usePlayerSelection,
+} from "@foxglove/studio-base/context/PlayerSelectionContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";

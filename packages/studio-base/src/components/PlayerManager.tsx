@@ -40,18 +40,19 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 //   LayoutState,
 //   useCurrentLayoutSelector,
 // } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { ExtensionCatalogContext } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import PlayerSelectionContext, {
   DataSourceArgs,
   IDataSourceFactory,
   PlayerSelection,
-} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import { ExtensionCatalogContext } from "@foxglove/studio-base/context/ExtensionCatalogContext";
+} from "@foxglove/studio-base/context/PlayerSelectionContext";
 // import { usePerformance } from "@foxglove/studio-base/context/PerformanceContext";
 // import {
 //   UserScriptStore,
 //   useUserScriptState,
 // } from "@foxglove/studio-base/context/UserScriptStateContext";
 // import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
+import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 import {
   useAppConfigurationValue,
   useTopicPrefixConfigurationValue,
@@ -81,6 +82,7 @@ type PlayerManagerProps = {
 const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
 const selectSetDataSource = (state: CoSceneBaseStore) => state.setDataSource;
 const selectBaseInfo = (state: CoSceneBaseStore) => state.baseInfo;
+const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
 
 function useBeforeConnectionSource(): (
   sourceId: string,
@@ -145,6 +147,7 @@ export default function PlayerManager(
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const beforeConnectionSource = useBeforeConnectionSource();
+  const setCurrentFile = useUploadFiles(selectSetCurrentFile);
 
   const { t } = useTranslation("general");
 
@@ -341,7 +344,7 @@ export default function PlayerManager(
               addRecent({
                 type: "connection",
                 sourceId: foundSource.id,
-                title: args.params.url ?? "online data",
+                title: args.params.url ?? t("onlineData"),
                 label: foundSource.displayName,
                 extra: args.params,
               });
@@ -349,6 +352,7 @@ export default function PlayerManager(
 
             return;
           }
+
           case "file": {
             setDataSource({ id: sourceId, type: "file" });
             setCurrentSourceParams({ sourceId, args });
@@ -368,6 +372,8 @@ export default function PlayerManager(
                 fileList.push(curFile);
               }
               const multiFile = foundSource.supportsMultiFile === true && fileList.length > 1;
+
+              setCurrentFile(file);
 
               const newPlayer = foundSource.initialize({
                 file: multiFile ? undefined : file,
@@ -394,6 +400,8 @@ export default function PlayerManager(
               if (!isMounted()) {
                 return;
               }
+
+              setCurrentFile(file);
 
               const newPlayer = foundSource.initialize({
                 file,
@@ -430,7 +438,9 @@ export default function PlayerManager(
       playbackQualityLevel,
       consoleApi,
       addRecent,
+      setCurrentFile,
       isMounted,
+      t,
     ],
   );
 

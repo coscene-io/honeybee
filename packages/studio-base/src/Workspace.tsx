@@ -55,12 +55,12 @@ import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDial
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import {
   DataSourceArgs,
   usePlayerSelection,
-} from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
+} from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   LeftSidebarItemKey,
   RightSidebarItemKey,
@@ -240,6 +240,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     [availableSources, enqueueSnackbar, installExtension, selectSource],
   );
 
+  // This function is called when coStudio is launched by clicking on a file.
   const openFiles = useCallback(
     async (files: File[]) => {
       const otherFiles: File[] = [];
@@ -295,9 +296,9 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     (event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
       log.debug("drop event", event);
       const handle = event.handles?.[0];
-      // // When selecting sources with handles we can only select with a single handle since we haven't
-      // // written the code to store multiple handles for recents. When there are multiple handles, we
-      // // fall back to opening regular files.
+      // When selecting sources with handles we can only select with a single handle since we haven't
+      // written the code to store multiple handles for recents. When there are multiple handles, we
+      // fall back to opening regular files.
       if (handle && event.handles?.length === 1) {
         void openHandle(handle);
       } else if (event.files) {
