@@ -46,6 +46,7 @@ import {
   TimezoneSettings,
   AddTopicPrefix,
   CompatibilityMode,
+  RosPackagePath,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -247,7 +248,7 @@ export function AppSettingsDialog(
               {supportsAppUpdates && <AutoUpdate />}
               {/* CoScene */}
               {/* {!isDesktopApp() && <LaunchDefault />} */}
-              {/* {isDesktopApp() && <RosPackagePath />} */}
+              {isDesktopApp() && <RosPackagePath />}
               {/* <Stack>
                 <FormLabel>{t("advanced")}:</FormLabel>
                 <FormControlLabel
