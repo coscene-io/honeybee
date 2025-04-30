@@ -10,7 +10,7 @@ import { posthog } from "posthog-js";
 import Logger from "@foxglove/log";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { DataSourceArgs } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 

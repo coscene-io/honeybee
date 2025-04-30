@@ -18,4 +18,5 @@ export const general = {
   shadowMode: "Shadow Mode",
   realtimeViz: "Realtime Viz",
   testing: "Testing",
+  onlineData: "Online Data",
 };

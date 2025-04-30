@@ -25,12 +25,12 @@ import {
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   usePlaylist,
   CoScenePlaylistStore,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppURLState } from "@foxglove/studio-base/util/appURLState";
