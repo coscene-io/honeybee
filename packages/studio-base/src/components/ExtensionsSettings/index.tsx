@@ -5,32 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import {
-  Alert,
-  AlertTitle,
-  Button,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  Typography,
-} from "@mui/material";
+import { List, ListItem, ListItemButton, ListItemText, Typography } from "@mui/material";
 import * as _ from "lodash-es";
-import { useEffect, useMemo, useState } from "react";
-import { useAsyncFn } from "react-use";
+import { useMemo, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 
-import Log from "@foxglove/log";
 import { Immutable } from "@foxglove/studio";
 import { ExtensionDetails } from "@foxglove/studio-base/components/ExtensionDetails";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
-import {
-  ExtensionMarketplaceDetail,
-  useExtensionMarketplace,
-} from "@foxglove/studio-base/context/ExtensionMarketplaceContext";
-
-const log = Log.getLogger(__filename);
+import { ExtensionMarketplaceDetail } from "@foxglove/studio-base/context/ExtensionMarketplaceContext";
 
 const useStyles = makeStyles()((theme) => ({
   listItemButton: {
@@ -96,26 +80,9 @@ export default function ExtensionsSettings(): React.ReactElement {
     | undefined
   >(undefined);
   const installed = useExtensionCatalog((state) => state.installedExtensions);
-  const marketplace = useExtensionMarketplace();
-
-  const [marketplaceEntries, refreshMarketplaceEntries] = useAsyncFn(
-    async () => await marketplace.getAvailableExtensions(),
-    [marketplace],
-  );
-
-  const marketplaceMap = useMemo(
-    () => _.keyBy(marketplaceEntries.value ?? [], (entry) => entry.id),
-    [marketplaceEntries],
-  );
-
   const installedEntries = useMemo(
     () =>
       (installed ?? []).map((entry) => {
-        const marketplaceEntry = marketplaceMap[entry.id];
-        if (marketplaceEntry != undefined) {
-          return { ...marketplaceEntry, namespace: entry.namespace };
-        }
-
         return {
           id: entry.id,
           installed: true,
@@ -131,30 +98,13 @@ export default function ExtensionsSettings(): React.ReactElement {
           qualifiedName: entry.qualifiedName,
         };
       }),
-    [installed, marketplaceMap],
+    [installed],
   );
 
   const namespacedEntries = useMemo(
     () => _.groupBy(installedEntries, (entry) => entry.namespace),
     [installedEntries],
   );
-
-  // Hide installed extensions from the list of available extensions
-  const filteredMarketplaceEntries = useMemo(
-    () =>
-      _.differenceWith(
-        marketplaceEntries.value ?? [],
-        installed ?? [],
-        (a, b) => a.id === b.id && a.namespace === b.namespace,
-      ),
-    [marketplaceEntries, installed],
-  );
-
-  useEffect(() => {
-    refreshMarketplaceEntries().catch((error: unknown) => {
-      log.error(error);
-    });
-  }, [refreshMarketplaceEntries]);
 
   if (focusedExtension != undefined) {
     return (
@@ -170,19 +120,6 @@ export default function ExtensionsSettings(): React.ReactElement {
 
   return (
     <Stack gap={1}>
-      {marketplaceEntries.error && (
-        <Alert
-          severity="error"
-          action={
-            <Button color="inherit" onClick={async () => await refreshMarketplaceEntries()}>
-              Retry
-            </Button>
-          }
-        >
-          <AlertTitle>Failed to retrieve the list of available marketplace extensions</AlertTitle>
-          Check your internet connection and try again.
-        </Alert>
-      )}
       {!_.isEmpty(namespacedEntries) ? (
         Object.entries(namespacedEntries).map(([namespace, entries]) => (
           <List key={namespace}>
@@ -209,22 +146,6 @@ export default function ExtensionsSettings(): React.ReactElement {
           </ListItem>
         </List>
       )}
-      <List>
-        <Stack paddingY={0.25} paddingX={2}>
-          <Typography component="li" variant="overline" color="text.secondary">
-            Available
-          </Typography>
-        </Stack>
-        {filteredMarketplaceEntries.map((entry) => (
-          <ExtensionListEntry
-            key={`${entry.id}_${entry.namespace}`}
-            entry={entry}
-            onClick={() => {
-              setFocusedExtension({ installed: false, entry });
-            }}
-          />
-        ))}
-      </List>
     </Stack>
   );
 }
