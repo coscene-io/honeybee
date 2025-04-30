@@ -154,7 +154,7 @@ export function registerRosPackageProtocolHandlers(): void {
       log.info(`Resolved: ${resolvedResourcePath}`);
 
       // 使用 net.fetch 加载本地文件
-      return await net.fetch(resolvedResourcePath);
+      return await net.fetch(`file://${resolvedResourcePath}`);
     } catch (err) {
       log.error(err);
       return new Response("Not Found", { status: 404 });
