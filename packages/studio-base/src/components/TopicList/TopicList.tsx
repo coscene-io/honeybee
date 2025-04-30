@@ -170,7 +170,6 @@ export function TopicList(): React.JSX.Element {
       };
       switch (treeItem.type) {
         case "topic":
-          // return "topic";
           return (
             <TopicRow
               style={style}
