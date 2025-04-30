@@ -8,7 +8,7 @@ import { StrictMode, useEffect } from "react";
 import ReactDOM from "react-dom";
 
 import Logger from "@foxglove/log";
-import type { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
+import type { IDataSourceFactory } from "@foxglove/studio-base";
 import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
 
 import VersionBanner from "./VersionBanner";
@@ -26,7 +26,7 @@ function LogAfterRender(props: React.PropsWithChildren): React.JSX.Element {
 }
 
 export type MainParams = {
-  dataSources?: CoSceneIDataSourceFactory[];
+  dataSources?: IDataSourceFactory[];
   extraProviders?: React.JSX.Element[];
   rootElement?: React.JSX.Element;
 };

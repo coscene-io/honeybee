@@ -15,7 +15,7 @@ import {
   AppSetting,
   FoxgloveWebSocketDataSourceFactory,
   IAppConfiguration,
-  CoSceneIDataSourceFactory,
+  IDataSourceFactory,
   IdbExtensionLoader,
   McapLocalDataSourceFactory,
   OsContext,
@@ -50,7 +50,7 @@ const authBridge = (global as { authBridge?: Auth }).authBridge;
 export default function Root(props: {
   appConfiguration: IAppConfiguration;
   extraProviders: React.JSX.Element[] | undefined;
-  dataSources: CoSceneIDataSourceFactory[] | undefined;
+  dataSources: IDataSourceFactory[] | undefined;
 }): React.JSX.Element {
   if (!storageBridge) {
     throw new Error("storageBridge is missing");
@@ -130,7 +130,7 @@ export default function Root(props: {
   const nativeAppMenu = useMemo(() => new NativeAppMenu(menuBridge), []);
   const nativeWindow = useMemo(() => new NativeWindow(desktopBridge), []);
 
-  const dataSources: CoSceneIDataSourceFactory[] = useMemo(() => {
+  const dataSources: IDataSourceFactory[] = useMemo(() => {
     if (props.dataSources) {
       return props.dataSources;
     }

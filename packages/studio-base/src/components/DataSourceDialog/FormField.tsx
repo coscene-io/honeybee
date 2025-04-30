@@ -8,7 +8,7 @@
 import { FormHelperText, TextField } from "@mui/material";
 import { ChangeEvent, useState } from "react";
 
-import { Field } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { Field } from "@foxglove/studio-base/context/PlayerSelectionContext";
 
 type Props = {
   disabled: boolean;
