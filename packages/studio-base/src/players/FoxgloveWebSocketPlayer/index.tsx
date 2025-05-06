@@ -180,6 +180,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #username: string;
   #deviceName: string;
   #isReconnect: boolean = false;
+  #authHeader: string;
 
   // #isOldBridge = false;
 
@@ -193,6 +194,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     username,
     deviceName,
     disableTimeout,
+    authHeader,
   }: {
     url: string;
     metricsCollector: PlayerMetricsCollectorInterface;
@@ -203,6 +205,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     username: string;
     deviceName: string;
     disableTimeout: boolean;
+    authHeader: string;
   }) {
     this.#metricsCollector = metricsCollector;
     this.#url = url;
@@ -221,6 +224,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     if (this.#disableTimeout) {
       this.#inactiveTimeout = TIMEOUT_DISABLED;
     }
+    this.#authHeader = authHeader;
 
     this.#open();
   }
@@ -244,8 +248,18 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#client = new FoxgloveClient({
       ws:
         typeof Worker !== "undefined"
-          ? new WorkerSocketAdapter(this.#url, [FoxgloveClient.SUPPORTED_SUBPROTOCOL])
-          : new WebSocket(this.#url, [FoxgloveClient.SUPPORTED_SUBPROTOCOL]),
+          ? new WorkerSocketAdapter(
+              `${this.#url}${this.#url.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(
+                this.#authHeader,
+              )}`,
+              [FoxgloveClient.SUPPORTED_SUBPROTOCOL],
+            )
+          : new WebSocket(
+              `${this.#url}${this.#url.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(
+                this.#authHeader,
+              )}`,
+              [FoxgloveClient.SUPPORTED_SUBPROTOCOL],
+            ),
     });
 
     this.#client.on("open", () => {
