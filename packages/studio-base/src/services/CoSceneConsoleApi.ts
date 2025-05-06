@@ -7,6 +7,7 @@
 import { PartialMessage, Empty, FieldMask } from "@bufbuild/protobuf";
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Policy_Effect } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
 import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
 import { OrganizationService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_connect";
 import { GetOrganizationRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_pb";
@@ -91,6 +92,7 @@ import { timestampToTime } from "@foxglove/studio-base/util/time";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
+const MAX_PAGE_SIZE = 999;
 
 export type User = {
   id: string;
@@ -301,6 +303,17 @@ class CoSceneConsoleApi {
   #baseInfo: BaseInfo = {};
   #type?: "realtime" | "playback" | "other";
   #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
+  #permissionList: {
+    orgPermissionList: string[];
+    projectPermissionList: string[];
+    orgDenyList: string[];
+    projectDenyList: string[];
+  } = {
+    orgPermissionList: [],
+    projectPermissionList: [],
+    orgDenyList: [],
+    projectDenyList: [],
+  };
 
   public constructor(
     baseUrl: string,
@@ -319,12 +332,44 @@ class CoSceneConsoleApi {
     this.#playbackQualityLevel = playbackQualityLevel ?? "ORIGINAL";
   }
 
+  // checkUserPermission(permissionCode?: Endpoints, permissionType?: 'org' | 'project' | 'max') {
+  //   if (!permissionCode) {return true;}
+
+  //   // Get from backend
+  //   const orgDenyList = JSON.parse(localStorage.getItem('coScene_org_permission_deny_list') ?? '[]');
+  //   const orgPermissionList = JSON.parse(localStorage.getItem('coScene_org_permission_list') ?? '[]');
+
+  //   const projectPermissionList = JSON.parse(localStorage.getItem('coScene_project_permission_list') ?? '[]');
+  //   const projectDenyList = JSON.parse(localStorage.getItem('coScene_project_permission_deny_list') ?? '[]');
+
+  //   let permissionList: string[] = [];
+  //   let denyList: string[] = [];
+  //   switch (permissionType) {
+  //     case 'org':
+  //       permissionList = orgPermissionList;
+  //       denyList = orgDenyList;
+  //       break;
+  //     case 'project':
+  //       permissionList = projectPermissionList;
+  //       denyList = projectDenyList;
+  //       break;
+  //     case 'max':
+  //     default:
+  //       permissionList = orgPermissionList.concat(projectPermissionList);
+  //       denyList = orgDenyList.concat(projectDenyList);
+  //       break;
+  //   }
+
+  //   return checkPermissionList(permissionCode, permissionList) && !checkPermissionList(permissionCode, denyList);
+  // }
+
   public getPlaybackQualityLevel(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
     return this.#playbackQualityLevel;
   }
 
-  public setApiBaseInfo(baseInfo: BaseInfo): void {
+  public async setApiBaseInfo(baseInfo: BaseInfo): Promise<void> {
     this.#baseInfo = baseInfo;
+    await this.#getPermissionList();
   }
 
   public getApiBaseInfo(): BaseInfo {
@@ -1090,7 +1135,7 @@ class CoSceneConsoleApi {
   }
 
   public async getRoleLists(): Promise<ListRolesResponse> {
-    const req = new ListRolesRequest({ pageSize: 999 });
+    const req = new ListRolesRequest({ pageSize: MAX_PAGE_SIZE });
 
     const roleClient = getPromiseClient(RoleService);
 
@@ -1152,6 +1197,76 @@ class CoSceneConsoleApi {
 
   public async syncMedia({ key }: { key: string }): Promise<void> {
     await this.#patch("/v1/data/sync", { id: key });
+  }
+
+  async #listRoles(): Promise<ListRolesResponse> {
+    const req = new ListRolesRequest({ pageSize: MAX_PAGE_SIZE });
+
+    return await getPromiseClient(RoleService).listRoles(req);
+  }
+
+  async #getUserRole({ isProject = false }: { isProject?: boolean }): Promise<UserRole> {
+    const parent = isProject
+      ? `warehouses/${this.#baseInfo.warehouseId}/projects/${this.#baseInfo.projectId}`
+      : undefined;
+    const name = "users/current";
+
+    const req = new GetUserRoleRequest({ name, parent });
+
+    return await getPromiseClient(RoleService).getUserRole(req);
+  }
+
+  async #getPermissionList(): Promise<void> {
+    const roles = await this.#listRoles();
+
+    const userOrgRole = await this.#getUserRole({ isProject: false });
+    const userProjectRole = await this.#getUserRole({ isProject: true });
+
+    const orgRole = roles.roles.find((r) => r.name === userOrgRole.role);
+    const projectRole = roles.roles.find((r) => r.name === userProjectRole.role);
+
+    const orgPermissionList = new Set<string>();
+    const orgDenyList = new Set<string>();
+
+    const projectPermissionList = new Set<string>();
+    const projectDenyList = new Set<string>();
+
+    if (orgRole) {
+      orgRole.policy?.statements.forEach((statement) => {
+        if (statement.effect === Policy_Effect.DENY) {
+          for (const action of statement.actions) {
+            orgDenyList.add(action);
+          }
+        }
+        if (statement.effect === Policy_Effect.ALLOW) {
+          for (const action of statement.actions) {
+            orgPermissionList.add(action);
+          }
+        }
+      });
+
+      if (projectRole) {
+        projectRole.policy?.statements.forEach((statement) => {
+          if (statement.effect === Policy_Effect.DENY) {
+            for (const action of statement.actions) {
+              projectDenyList.add(action);
+            }
+          }
+          if (statement.effect === Policy_Effect.ALLOW) {
+            for (const action of statement.actions) {
+              projectPermissionList.add(action);
+            }
+          }
+        });
+      }
+
+      this.#permissionList = {
+        orgPermissionList: [...orgPermissionList],
+        orgDenyList: [...orgDenyList],
+        projectPermissionList: [...projectPermissionList],
+        projectDenyList: [...projectDenyList],
+      };
+    }
   }
 }
 
