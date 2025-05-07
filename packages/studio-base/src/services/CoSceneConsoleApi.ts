@@ -34,14 +34,14 @@ import {
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-// import { DeviceService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_connect";
-// import {
-//   AddProjectDevicesRequest,
-//   CreateProjectDeviceRequest,
-//   ListProjectDevicesRequest,
-//   ListProjectExcludedDevicesRequest,
-//   RemoveProjectDevicesRequest,
-// } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_pb";
+import { DeviceService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_connect";
+import {
+  AddProjectDevicesRequest,
+  CreateProjectDeviceRequest,
+  ListProjectDevicesRequest,
+  ListProjectExcludedDevicesRequest,
+  RemoveProjectDevicesRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_pb";
 import { DiagnosisService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_connect";
 import { GetDiagnosisRuleRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_pb";
 import { EventService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_connect";
