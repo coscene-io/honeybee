@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { BinaryOperator, CosQuery, SerializeOption } from "@coscene-io/coscene/cosel";
-import { QueryFields } from "@coscene-io/coscene/queries";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
@@ -44,6 +42,8 @@ import CoSceneConsoleApi, {
   EventList,
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
+import { BinaryOperator, CosQuery, SerializeOption } from "@foxglove/studio-base/util/cosel";
+import { QueryFields } from "@foxglove/studio-base/util/queries";
 import { durationToNanoSeconds } from "@foxglove/studio-base/util/time";
 
 const HOVER_TOLERANCE = 0.01;

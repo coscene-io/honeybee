@@ -34,6 +34,14 @@ import {
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
+// import { DeviceService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_connect";
+// import {
+//   AddProjectDevicesRequest,
+//   CreateProjectDeviceRequest,
+//   ListProjectDevicesRequest,
+//   ListProjectExcludedDevicesRequest,
+//   RemoveProjectDevicesRequest,
+// } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_pb";
 import { DiagnosisService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_connect";
 import { GetDiagnosisRuleRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_pb";
 import { EventService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_connect";
@@ -87,7 +95,13 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/a
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
+import { BinaryOperator, CosQuery, SerializeOption } from "@foxglove/studio-base/util/cosel";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+import {
+  EndpointDataplatformV1alph2,
+  Endpoints,
+  checkUserPermission,
+} from "@foxglove/studio-base/util/permission/endpoint";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
@@ -331,37 +345,6 @@ class CoSceneConsoleApi {
     this.#timeMode = timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime";
     this.#playbackQualityLevel = playbackQualityLevel ?? "ORIGINAL";
   }
-
-  // checkUserPermission(permissionCode?: Endpoints, permissionType?: 'org' | 'project' | 'max') {
-  //   if (!permissionCode) {return true;}
-
-  //   // Get from backend
-  //   const orgDenyList = JSON.parse(localStorage.getItem('coScene_org_permission_deny_list') ?? '[]');
-  //   const orgPermissionList = JSON.parse(localStorage.getItem('coScene_org_permission_list') ?? '[]');
-
-  //   const projectPermissionList = JSON.parse(localStorage.getItem('coScene_project_permission_list') ?? '[]');
-  //   const projectDenyList = JSON.parse(localStorage.getItem('coScene_project_permission_deny_list') ?? '[]');
-
-  //   let permissionList: string[] = [];
-  //   let denyList: string[] = [];
-  //   switch (permissionType) {
-  //     case 'org':
-  //       permissionList = orgPermissionList;
-  //       denyList = orgDenyList;
-  //       break;
-  //     case 'project':
-  //       permissionList = projectPermissionList;
-  //       denyList = projectDenyList;
-  //       break;
-  //     case 'max':
-  //     default:
-  //       permissionList = orgPermissionList.concat(projectPermissionList);
-  //       denyList = orgDenyList.concat(projectDenyList);
-  //       break;
-  //   }
-
-  //   return checkPermissionList(permissionCode, permissionList) && !checkPermissionList(permissionCode, denyList);
-  // }
 
   public getPlaybackQualityLevel(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
     return this.#playbackQualityLevel;
@@ -1177,10 +1160,17 @@ class CoSceneConsoleApi {
     return await fetch(fullUrl, fullConfig);
   }
 
-  public async createRecord(payload: PartialMessage<CreateRecordRequest>): Promise<CoSceneRecord> {
-    const req = new CreateRecordRequest(payload);
-    return await getPromiseClient(RecordService).createRecord(req);
-  }
+  public createRecord = Object.assign(
+    async (payload: PartialMessage<CreateRecordRequest>): Promise<CoSceneRecord> => {
+      const req = new CreateRecordRequest(payload);
+      return await getPromiseClient(RecordService).createRecord(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.CreateRecord, this.#permissionList);
+      },
+    },
+  );
 
   public async getDiagnosisRule(): Promise<DiagnosisRule> {
     const projectId = this.#baseInfo.projectId;
@@ -1268,6 +1258,64 @@ class CoSceneConsoleApi {
       };
     }
   }
+
+  // export const useListProjectDevices = new Gated(
+  //   enabled =>
+  //     ({
+  //       defaultFilter,
+  //       initialPageSize,
+  //       searchParamFilter,
+  //       refetchInterval,
+  //     }: {
+  //       defaultFilter: CosQuery;
+  //       initialPageSize?: number;
+  //       searchParamFilter?: boolean;
+  //       refetchInterval?: number;
+  //     }) => {
+  //       const { currentProjectId, currentWarehouseId } = useCurrentAtomValue({ type: 'project' });
+  //       const parent = (currentWarehouseId && currentProjectId) ? `warehouses/${currentWarehouseId}/projects/${currentProjectId}` : undefined;
+
+  //       return usePaginatedQuery({
+  //         params: { defaultFilter, initialPageSize, options: { enabled, refetchInterval } },
+  //         queryKey: ['listProjectDevices', parent],
+  //         requestFactory: () => new ListProjectDevicesRequest({ orderBy: 'create_time desc', parent }),
+  //         runRequest: req => getPromiseClient(DeviceService).listProjectDevices(req),
+  //         searchParamFilter,
+  //         serializeFilter: false,
+  //       });
+  //     },
+  //   Endpoint.ListProjectDevices,
+  //   'project',
+  // );
+
+  // public listProjectDevices = Object.assign(
+  //   async ({
+  //     defaultFilter,
+  //     initialPageSize,
+  //     searchParamFilter,
+  //     refetchInterval,
+  //   }: {
+  //     defaultFilter: CosQuery;
+  //     initialPageSize?: number;
+  //     searchParamFilter?: boolean;
+  //     refetchInterval?: number;
+  //   }) => {
+  //     const req = new ListProjectDevicesRequest({
+  //       orderBy: "create_time desc",
+  //       parent: `warehouses/${this.#baseInfo.warehouseId}/projects/${this.#baseInfo.projectId}`,
+  //     });
+
+  //     return await getPromiseClient(DeviceService).listProjectDevices(req);
+  //   },
+  //   {
+  //     permission: () => {
+  //       return checkUserPermission(
+  //         EndpointDataplatformV1alph2.ListProjectDevices,
+  //         this.#permissionList,
+  //       );
+  //     },
+  //   },
+  // );
 }
 
 export type { Org, DeviceCodeResponse, Session, CoverageResponse };
