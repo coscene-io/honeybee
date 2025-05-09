@@ -12,4 +12,6 @@ export const recordInfo = {
   creator: "创建者",
   labels: "标签",
   deviceInfo: "设备信息",
+  deviceId: "设备ID",
+  recordInfo: "记录信息",
 };

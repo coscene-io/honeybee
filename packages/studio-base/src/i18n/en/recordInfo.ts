@@ -12,4 +12,6 @@ export const recordInfo = {
   creator: "creator",
   labels: "labels",
   deviceInfo: "device info",
+  deviceId: "device id",
+  recordInfo: "record info",
 };

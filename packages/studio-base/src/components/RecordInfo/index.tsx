@@ -8,7 +8,7 @@
 import { PartialMessage } from "@bufbuild/protobuf";
 import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 import { UpdateRecordRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
-import { FormLabel, Link, Avatar, SelectChangeEvent } from "@mui/material";
+import { FormLabel, Link, Avatar, Typography, SelectChangeEvent } from "@mui/material";
 import dayjs from "dayjs";
 import { ReactElement, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -105,13 +105,14 @@ export default function RecordInfo(): ReactElement {
     <>
       <Stack flex="auto" overflowX="auto" gap={2} padding={1}>
         <Stack gap={1}>
-          <FormLabel>设备信息</FormLabel>
+          <Typography variant="h6" gutterBottom>
+            {t("deviceInfo")}
+          </Typography>
           <Stack>
             <ProjectDeviceSelector updateRecord={updateRecord} />
           </Stack>
-
           <Stack>
-            <FormLabel>Device ID</FormLabel>
+            <FormLabel>{t("deviceId")}</FormLabel>
             <Link
               variant="body2"
               underline="hover"
@@ -125,7 +126,9 @@ export default function RecordInfo(): ReactElement {
         </Stack>
 
         <Stack gap={1}>
-          <FormLabel>{t("deviceInfo")}</FormLabel>
+          <Typography variant="h6" gutterBottom>
+            {t("recordInfo")}
+          </Typography>
           <Stack>
             <FormLabel>{t("project")}</FormLabel>
             <Link
