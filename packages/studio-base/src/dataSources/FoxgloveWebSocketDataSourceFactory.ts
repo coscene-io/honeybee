@@ -59,7 +59,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
 
     this.#userId = currentUserId;
     this.#username = currentUsername;
-    this.#deviceName = deviceName ?? "unknown";
+    this.#deviceName = deviceName ?? "";
 
     this.#confirm = confirm;
     this.#disableTimeout = localStorage.getItem("disable_timeout") === "true";
