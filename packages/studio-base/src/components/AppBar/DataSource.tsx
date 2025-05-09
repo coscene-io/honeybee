@@ -20,10 +20,6 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import {
-  CoSceneProjectStore,
-  useProject,
-} from "@foxglove/studio-base/context/CoSceneProjectContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
@@ -94,7 +90,7 @@ const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.pr
 const selectPlayerProblems = (ctx: MessagePipelineContext) => ctx.playerState.problems;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 // CoScene
-const selectProject = (store: CoSceneProjectStore) => store.project;
+const selectProject = (store: CoSceneBaseStore) => store.project;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
@@ -110,7 +106,7 @@ export function DataSource(): React.JSX.Element {
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
   const seek = useMessagePipeline(selectSeek);
   // CoScene
-  const project = useProject(selectProject);
+  const project = useBaseInfo(selectProject);
   const urlState = useMessagePipeline(selectUrlState);
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);

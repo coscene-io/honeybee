@@ -5,5 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export * from "./constants";
-export * from "./queryFields";
+export const recordInfo = {
+  createTime: "创建时间",
+  updateTime: "更新时间",
+  project: "项目",
+  creator: "创建者",
+  labels: "标签",
+  deviceInfo: "设备信息",
+};

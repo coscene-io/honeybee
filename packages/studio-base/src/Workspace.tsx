@@ -43,6 +43,7 @@ import PanelSettings from "@foxglove/studio-base/components/PanelSettings";
 import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls";
 import { Playlist } from "@foxglove/studio-base/components/Playlist";
 import { ProblemsList } from "@foxglove/studio-base/components/ProblemsList";
+import RecordInfo from "@foxglove/studio-base/components/RecordInfo";
 import RemountOnValueChange from "@foxglove/studio-base/components/RemountOnValueChange";
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import { Sidebars, SidebarItem } from "@foxglove/studio-base/components/Sidebars";
@@ -120,7 +121,6 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectEnableRepeat = (ctx: MessagePipelineContext) => ctx.enableRepeatPlayback;
 const selectPlayUntil = (ctx: MessagePipelineContext) => ctx.playUntil;
 const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
-const selectEventsSupported = (store: EventsStore) => store.eventsSupported;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 
 const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
@@ -308,9 +308,6 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     [openFiles, openHandle],
   );
 
-  const eventsSupported = useEvents(selectEventsSupported);
-  const showEventsTab = currentUser != undefined && eventsSupported;
-
   const leftSidebarItems = useMemo(() => {
     const items: [LeftSidebarItemKey, SidebarItem][] = [
       [
@@ -365,6 +362,12 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       ["variables", { title: t("variables"), component: VariablesList }],
       ["extensions", { title: t("extensions"), component: ExtensionsSidebar }],
     ]);
+    // if()
+    items.set("record-info", {
+      title: t("recordInfo"),
+      component: RecordInfo,
+    });
+
     if (enableDebugMode) {
       if (PerformanceSidebarComponent) {
         items.set("performance", {
@@ -374,11 +377,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       }
       items.set("studio-logs-settings", { title: t("studioLogs"), component: StudioLogsSettings });
     }
-    if (showEventsTab) {
-      items.set("events", { title: t("events"), component: EventsList });
-    }
     return items;
-  }, [enableDebugMode, showEventsTab, t, PerformanceSidebarComponent]);
+  }, [enableDebugMode, t, PerformanceSidebarComponent]);
 
   const keyboardEventHasModifier = (event: KeyboardEvent) =>
     navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;

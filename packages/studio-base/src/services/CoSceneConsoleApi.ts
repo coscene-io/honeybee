@@ -5,10 +5,19 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { PartialMessage, Empty, FieldMask } from "@bufbuild/protobuf";
+import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { Policy_Effect } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
 import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
+import { LabelService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/label_connect";
+import {
+  CreateLabelRequest,
+  DeleteLabelRequest,
+  ListLabelsRequest,
+  ListLabelsResponse,
+  UpdateLabelRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/label_pb";
 import { OrganizationService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_connect";
 import { GetOrganizationRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_pb";
 import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
@@ -31,16 +40,14 @@ import {
   BatchGetUsersResponse,
   ListOrganizationUsersRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
+import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { DeviceService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_connect";
 import {
-  AddProjectDevicesRequest,
-  CreateProjectDeviceRequest,
+  GetDeviceRequest,
   ListProjectDevicesRequest,
-  ListProjectExcludedDevicesRequest,
-  RemoveProjectDevicesRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_pb";
 import { DiagnosisService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_connect";
 import { GetDiagnosisRuleRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_pb";
@@ -56,6 +63,7 @@ import {
   ListRecordsRequest,
   ListRecordsResponse,
   CreateRecordRequest,
+  UpdateRecordRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
 import { TicketSystemService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/ticket_system_connect";
 import {
@@ -95,11 +103,11 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/a
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
-import { BinaryOperator, CosQuery, SerializeOption } from "@foxglove/studio-base/util/cosel";
+import { CosQuery, SerializeOption } from "@foxglove/studio-base/util/cosel";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
+  EndpointDataplatformV1alph1,
   EndpointDataplatformV1alph2,
-  Endpoints,
   checkUserPermission,
 } from "@foxglove/studio-base/util/permission/endpoint";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
@@ -1259,63 +1267,127 @@ class CoSceneConsoleApi {
     }
   }
 
-  // export const useListProjectDevices = new Gated(
-  //   enabled =>
-  //     ({
-  //       defaultFilter,
-  //       initialPageSize,
-  //       searchParamFilter,
-  //       refetchInterval,
-  //     }: {
-  //       defaultFilter: CosQuery;
-  //       initialPageSize?: number;
-  //       searchParamFilter?: boolean;
-  //       refetchInterval?: number;
-  //     }) => {
-  //       const { currentProjectId, currentWarehouseId } = useCurrentAtomValue({ type: 'project' });
-  //       const parent = (currentWarehouseId && currentProjectId) ? `warehouses/${currentWarehouseId}/projects/${currentProjectId}` : undefined;
+  public listProjectDevices = Object.assign(
+    async ({
+      filter,
+      pageSize,
+      currentPage,
+      warehouseId,
+      projectId,
+    }: {
+      filter: CosQuery;
+      pageSize: number;
+      currentPage: number;
+      warehouseId: string;
+      projectId: string;
+    }) => {
+      const realFilter = CosQuery.Companion.empty();
+      realFilter.mergeFrom(filter);
+      const realFilterStr = realFilter.toQueryString(new SerializeOption(false));
 
-  //       return usePaginatedQuery({
-  //         params: { defaultFilter, initialPageSize, options: { enabled, refetchInterval } },
-  //         queryKey: ['listProjectDevices', parent],
-  //         requestFactory: () => new ListProjectDevicesRequest({ orderBy: 'create_time desc', parent }),
-  //         runRequest: req => getPromiseClient(DeviceService).listProjectDevices(req),
-  //         searchParamFilter,
-  //         serializeFilter: false,
-  //       });
-  //     },
-  //   Endpoint.ListProjectDevices,
-  //   'project',
-  // );
+      const req = new ListProjectDevicesRequest({
+        orderBy: "create_time desc",
+        parent: `warehouses/${warehouseId}/projects/${projectId}`,
+        filter: realFilterStr,
+        pageSize,
+        skip: pageSize * currentPage,
+      });
 
-  // public listProjectDevices = Object.assign(
-  //   async ({
-  //     defaultFilter,
-  //     initialPageSize,
-  //     searchParamFilter,
-  //     refetchInterval,
-  //   }: {
-  //     defaultFilter: CosQuery;
-  //     initialPageSize?: number;
-  //     searchParamFilter?: boolean;
-  //     refetchInterval?: number;
-  //   }) => {
-  //     const req = new ListProjectDevicesRequest({
-  //       orderBy: "create_time desc",
-  //       parent: `warehouses/${this.#baseInfo.warehouseId}/projects/${this.#baseInfo.projectId}`,
-  //     });
+      return await getPromiseClient(DeviceService).listProjectDevices(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.ListProjectDevices,
+          this.#permissionList,
+        );
+      },
+    },
+  );
 
-  //     return await getPromiseClient(DeviceService).listProjectDevices(req);
-  //   },
-  //   {
-  //     permission: () => {
-  //       return checkUserPermission(
-  //         EndpointDataplatformV1alph2.ListProjectDevices,
-  //         this.#permissionList,
-  //       );
-  //     },
-  //   },
-  // );
+  public listLabels = Object.assign(
+    async ({
+      pageSize,
+      warehouseId,
+      projectId,
+    }: {
+      pageSize: number;
+      warehouseId: string;
+      projectId: string;
+    }): Promise<ListLabelsResponse> => {
+      const req = new ListLabelsRequest({
+        parent: `warehouses/${warehouseId}/projects/${projectId}`,
+        pageSize,
+      });
+
+      return await getPromiseClient(LabelService).listLabels(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph1.ListLabels, this.#permissionList);
+      },
+    },
+  );
+
+  public createLabel = Object.assign(
+    async (payload: PartialMessage<CreateLabelRequest>): Promise<Label> => {
+      const req = new CreateLabelRequest(payload);
+      return await getPromiseClient(LabelService).createLabel(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph1.CreateLabel, this.#permissionList);
+      },
+    },
+  );
+
+  public deleteLabel = Object.assign(
+    async (payload: PartialMessage<DeleteLabelRequest>): Promise<void> => {
+      const req = new DeleteLabelRequest(payload);
+      await getPromiseClient(LabelService).deleteLabel(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph1.DeleteLabel, this.#permissionList);
+      },
+    },
+  );
+
+  public updateLabel = Object.assign(
+    async (payload: PartialMessage<UpdateLabelRequest>): Promise<Label> => {
+      const req = new UpdateLabelRequest(payload);
+      return await getPromiseClient(LabelService).updateLabel(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph1.UpdateLabel, this.#permissionList);
+      },
+    },
+  );
+
+  public updateRecord = Object.assign(
+    async (payload: PartialMessage<UpdateRecordRequest>): Promise<CoSceneRecord> => {
+      const req = new UpdateRecordRequest(payload);
+      return await getPromiseClient(RecordService).updateRecord(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.UpdateRecord, this.#permissionList);
+      },
+    },
+  );
+
+  public getDevice = Object.assign(
+    async ({ deviceName }: { deviceName: string }): Promise<Device> => {
+      const req = new GetDeviceRequest({ name: deviceName });
+      return await getPromiseClient(DeviceService).getDevice(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.GetDevice, this.#permissionList);
+      },
+    },
+  );
 }
 
 export type { Org, DeviceCodeResponse, Session, CoverageResponse };
