@@ -4,6 +4,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { CloudUpload, Check, Clear } from "@mui/icons-material";
 import { Tooltip, IconButton, CircularProgress, Typography, Stack } from "@mui/material";
@@ -42,12 +44,12 @@ function useHandleUploadFile() {
   const analytics = useAnalytics();
 
   return useCallback(
-    async (file: File, recordName: string) => {
+    async (file: File, record: Record, project: Project) => {
       toast.success(t("uploadingFile"));
 
       const name = generateFileName({
         filename: file.name,
-        recordName,
+        recordName: record.name,
       });
 
       const Es_file = new File_es({
@@ -58,7 +60,7 @@ function useHandleUploadFile() {
 
       const uploadUrlsResult = await consoleApi.generateFileUploadUrls({
         files: [Es_file],
-        parent: recordName,
+        parent: record.name,
       });
 
       const url = uploadUrlsResult.preSignedUrls[name] ?? "";
@@ -72,7 +74,7 @@ function useHandleUploadFile() {
           setUpdateUploadingFiles(file.name, {
             fileBlob: file,
             status: "uploading",
-            target: { recordName },
+            target: { record, project },
             url,
             progress,
             abortController,
@@ -82,14 +84,14 @@ function useHandleUploadFile() {
         setUpdateUploadingFiles(file.name, {
           fileBlob: file,
           status: "succeeded",
-          target: { recordName },
+          target: { record, project },
           url,
           progress: 100,
           abortController,
         });
 
         void analytics.logEvent(AppEvent.FILE_UPLOAD, {
-          record_name: recordName,
+          record_name: record.name,
           file_name: file.name,
           upload_time: Date.now() - startTime,
           file_size: file.size,
@@ -99,7 +101,7 @@ function useHandleUploadFile() {
         setUpdateUploadingFiles(file.name, {
           fileBlob: file,
           status: "failed",
-          target: { recordName },
+          target: { record, project },
           url,
           progress: 0,
           abortController,
@@ -196,9 +198,9 @@ export function UploadFile(): React.JSX.Element {
         onClose={() => {
           setOpenChooser(false);
         }}
-        onConfirm={(record) => {
+        onConfirm={(record, project) => {
           if (currentFile != undefined) {
-            void handleUploadFile(currentFile, record);
+            void handleUploadFile(currentFile, record, project);
           }
         }}
         defaultRecordName={currentFile?.name}

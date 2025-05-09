@@ -57,7 +57,7 @@ type ChooserDialogProps =
   | {
       open: boolean;
       closeDialog: () => void;
-      onConfirm: (files: Record) => void;
+      onConfirm: (record: Record, project: Project) => void;
       backdropAnimation?: boolean;
       type: "record";
       // adapter files type
@@ -283,7 +283,7 @@ const CustomBreadcrumbs = ({
 };
 
 export function ChooserComponent({
-  setTargetRecordName,
+  setTargetInfo,
   type,
   files,
   setFiles,
@@ -292,7 +292,15 @@ export function ChooserComponent({
   defaultRecordName,
   createRecordConfirmText,
 }: {
-  setTargetRecordName: (recordName?: Record, recordType?: "create" | "select") => void;
+  setTargetInfo: ({
+    record,
+    project,
+    recordType,
+  }: {
+    record?: Record;
+    project?: Project;
+    recordType?: "create" | "select";
+  }) => void;
   files: SelectedFile[];
   setFiles: (files: SelectedFile[]) => void;
   type: "record" | "files";
@@ -328,8 +336,9 @@ export function ChooserComponent({
   const [debounceFilesFilter] = useDebounce(filesFilter, 500);
 
   useEffect(() => {
-    setTargetRecordName(record, "select");
-  }, [record, setTargetRecordName]);
+    setTargetInfo({ record, project, recordType: "select" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record, setTargetInfo]);
 
   const resetState = () => {
     setProjectsPageSize(20);
@@ -561,7 +570,7 @@ export function ChooserComponent({
               <CreateRecordForm
                 parent={project?.name ?? ""}
                 onCreated={(targetRecord: Record) => {
-                  setTargetRecordName(targetRecord, "create");
+                  setTargetInfo({ record: targetRecord, project, recordType: "create" });
                 }}
                 defaultRecordName={defaultRecordName}
                 createRecordConfirmText={createRecordConfirmText}
@@ -672,7 +681,9 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
     maxFilesNumber,
   } = props;
   const { classes } = useStyles();
-  const [targetRecordName, setTargetRecordName] = useState<Record | undefined>(undefined);
+  const [targetRecord, setTargetRecord] = useState<Record | undefined>(undefined);
+  const [targetProject, setTargetProject] = useState<Project | undefined>(undefined);
+
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const { t } = useTranslation("cosPlaylist");
   const backdrop = useMemo(() => {
@@ -699,6 +710,14 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
     setSelectedFiles([]);
     closeDialog();
   }, [closeDialog]);
+
+  const setTargetInfo = useCallback(
+    ({ record, project }: { record?: Record; project?: Project }) => {
+      setTargetRecord(record);
+      setTargetProject(project);
+    },
+    [setTargetRecord, setTargetProject],
+  );
 
   return (
     <Dialog
@@ -728,7 +747,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
         </Typography>
         <Stack className={classes.selecter} direction="row">
           <ChooserComponent
-            setTargetRecordName={setTargetRecordName}
+            setTargetInfo={setTargetInfo}
             files={selectedFiles}
             setFiles={setSelectedFiles}
             type={type}
@@ -750,8 +769,8 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
                 closeDialog();
                 return;
               }
-              if (targetRecordName != undefined) {
-                onConfirm(targetRecordName);
+              if (targetRecord != undefined && targetProject != undefined) {
+                onConfirm(targetRecord, targetProject);
                 closeDialog();
               }
             }}
