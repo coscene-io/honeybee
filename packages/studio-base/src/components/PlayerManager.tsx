@@ -99,7 +99,7 @@ function useBeforeConnectionSource(): (
         const baseInfoRes = await consoleApi.getBaseInfo(baseInfoKey);
 
         setBaseInfo({ loading: false, value: baseInfoRes });
-        consoleApi.setApiBaseInfo(baseInfoRes);
+        await consoleApi.setApiBaseInfo(baseInfoRes);
       } catch (error) {
         setBaseInfo({ loading: false, error });
       }

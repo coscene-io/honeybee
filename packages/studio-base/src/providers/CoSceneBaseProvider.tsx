@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { ReactNode, useState } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
@@ -18,7 +20,11 @@ import {
 function CreateBaseStore() {
   return createStore<CoSceneBaseStore>((set, get) => ({
     dataSource: undefined,
-    baseInfo: { loading: false, value: {} },
+    baseInfo: { loading: false, value: undefined },
+    // monitor loading param to refresh record/project info
+    record: { loading: true, value: undefined },
+    project: { loading: true, value: undefined },
+
     setBaseInfo: (baseInfo: AsyncState<BaseInfo>) => {
       set({ baseInfo });
     },
@@ -39,6 +45,24 @@ function CreateBaseStore() {
             : "DISABLE",
         uploadLocalFile: dataSource?.type === "file" ? "ENABLE" : "DISABLE",
       };
+    },
+    setRecord: (record: AsyncState<Record>) => {
+      set({ record });
+    },
+    setProject: (project: AsyncState<Project>) => {
+      set({ project });
+    },
+    refreshRecord: () => {
+      const { record } = get();
+      if (record.value) {
+        set({ record: { loading: true, value: record.value } });
+      }
+    },
+    refreshProject: () => {
+      const { project } = get();
+      if (project.value) {
+        set({ project: { loading: true, value: project.value } });
+      }
     },
   }));
 }

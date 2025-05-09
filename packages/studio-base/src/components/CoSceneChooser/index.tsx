@@ -4,7 +4,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { QueryFields } from "@coscene-io/coscene/queries";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { ListUserProjectsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
 import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
@@ -52,6 +51,7 @@ import {
   CosQuery,
   checkBagFileSupported,
 } from "@foxglove/studio-base/util/coscene";
+import { QueryFields } from "@foxglove/studio-base/util/queries";
 
 type ChooserDialogProps =
   | {

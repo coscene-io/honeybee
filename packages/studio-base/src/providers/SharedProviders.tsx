@@ -16,7 +16,6 @@ import CoSceneCookiesProvider from "@foxglove/studio-base/providers/CoSceneCooki
 import CoSceneCurrentUserProvider from "@foxglove/studio-base/providers/CoSceneCurrentUserProvider";
 import CoSceneLayoutManagerProvider from "@foxglove/studio-base/providers/CoSceneLayoutManagerProvider";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
-import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
 import CoSceneUserProfileLocalStorageProvider from "@foxglove/studio-base/providers/CoSceneUserProfileLocalStorageProvider";
 import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
 import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
@@ -37,7 +36,6 @@ export function SharedProviders({
     () => [
       <CoSceneConsoleApiContext.Provider value={consoleApi} key="CoSceneConsoleApiContext" />,
       <CoSceneBaseProvider key="CoSceneBaseProvider" />,
-      <CoSceneProjectProvider key="CoSceneProjectProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
       <CoSceneCurrentUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
       // dependent - CoSceneUserProvider

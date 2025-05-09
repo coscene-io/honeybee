@@ -87,9 +87,6 @@ export type EventsStore = {
   /** Used to signal event refreshes. */
   eventFetchCount: number;
 
-  /** Whether events are supported for the currently loaded source. */
-  eventsSupported: boolean;
-
   /** Fetched events for this session. */
   events: AsyncState<TimelinePositionedEvent[]>;
 
@@ -115,10 +112,6 @@ export type EventsStore = {
 
   /** Set the fetched events. */
   setEvents: (events: AsyncState<TimelinePositionedEvent[]>) => void;
-
-  /** Set the flag indicating support for events. */
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
-  setEventsSupported: (supported: boolean) => void;
 
   /** Update the current filter expression. */
   setFilter: (filter: string) => void;

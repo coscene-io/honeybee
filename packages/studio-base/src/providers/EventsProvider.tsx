@@ -25,7 +25,6 @@ function createEventsStore() {
     events: { loading: false, value: NO_EVENTS },
     filter: "",
     selectedEventId: undefined,
-    eventsSupported: false,
     deviceId: undefined,
     eventMarks: [],
     toModifyEvent: undefined,
@@ -41,10 +40,6 @@ function createEventsStore() {
     },
     setFilter: (filter: string) => {
       set({ filter });
-    },
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
-    setEventsSupported: (eventsSupported: boolean) => {
-      set({ eventsSupported });
     },
     setDeviceId: (deviceId: string | undefined) => {
       set({ deviceId });
