@@ -9,8 +9,8 @@ import { Endpoint } from "../endpoints";
 import { default as EndpointDataplatformV1alph1 } from "./dataplatform/v1alpha1/Endpoint";
 import { default as EndpointDataplatformV1alph2 } from "./dataplatform/v1alpha2/Endpoint";
 import { default as EndpointDataplatformV1alph3 } from "./dataplatform/v1alpha3/Endpoint";
-import { default as EndpointMatrixV1alph1 } from "./matrix/v1alpha1";
-import { default as EndpointMatrixV1alph2 } from "./matrix/v1alpha2";
+import { default as EndpointMatrixV1alph1 } from "./matrix/v1alpha1/Endpoint";
+import { default as EndpointMatrixV1alph2 } from "./matrix/v1alpha2/Endpoint";
 
 export type Endpoints =
   | Endpoint
