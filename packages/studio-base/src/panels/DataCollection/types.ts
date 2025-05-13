@@ -40,7 +40,7 @@ export type StartCollectionResponse = {
 export type EndCollectionResponse = {
   success: boolean;
   message: string;
-  recordName: string;
+  recordName?: string;
   tags: string[];
   files: string[];
 };
@@ -53,4 +53,5 @@ export type CancelCollectionResponse = {
 export type TaskInfoSnapshot = {
   projectName: string;
   recordLabels: string[];
+  startTime: string;
 };

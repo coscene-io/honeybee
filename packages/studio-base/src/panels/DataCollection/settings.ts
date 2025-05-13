@@ -8,6 +8,7 @@
 import { produce } from "immer";
 import * as _ from "lodash-es";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 
 import { useShallowMemo } from "@foxglove/hooks";
@@ -46,6 +47,7 @@ export const defaultConfig: Config = {
     },
   },
   displayCollectionLog: true,
+  recordLabels: [],
 };
 
 function serviceError(serviceName?: string) {
@@ -79,6 +81,7 @@ export function useSettingsTree(
 ): SettingsTreeNodes {
   const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
   const [recordLabels, setRecordLabels] = useState<{ label: string; value: string }[]>([]);
+  const { t } = useTranslation("dataCollection");
 
   const [, syncProjects] = useAsyncFn(async () => {
     const userId = userInfo.userId;
@@ -98,23 +101,21 @@ export function useSettingsTree(
     return undefined;
   }, [consoleApi, userInfo.userId]);
 
-  // const [, syncRecordLabels] = useAsyncFn(async () => {
-  //   const userId = userInfo.userId;
+  const [, syncRecordLabels] = useAsyncFn(async () => {
+    if (config.projectName && consoleApi.listLabels.permission()) {
+      try {
+        return await consoleApi.listLabels({
+          warehouseId: config.projectName.split("warehouses/")[1]?.split("/")[0] ?? "",
+          projectId: config.projectName.split("/").pop() ?? "",
+          pageSize: MAX_PROJECTS_PAGE_SIZE,
+        });
+      } catch (error) {
+        console.error("error", error);
+      }
+    }
 
-  //   if (userId) {
-  //     try {
-  //       return await consoleApi.listUserProjects({
-  //         userId,
-  //         pageSize: MAX_PROJECTS_PAGE_SIZE,
-  //         currentPage: 0,
-  //       });
-  //     } catch (error) {
-  //       console.error("error", error);
-  //     }
-  //   }
-
-  //   return undefined;
-  // }, [consoleApi, userInfo.userId]);
+    return undefined;
+  }, [consoleApi, config.projectName]);
 
   useEffect(() => {
     void syncProjects().then((listUserProjectsResponse) => {
@@ -129,54 +130,55 @@ export function useSettingsTree(
     });
   }, [syncProjects]);
 
-  // useEffect(() => {
-  //   void syncProjects().then((listUserProjectsResponse) => {
-  //     if (listUserProjectsResponse) {
-  //       const userProjects = listUserProjectsResponse.userProjects;
-  //       const options = userProjects.map((project) => ({
-  //         label: project.displayName,
-  //         value: project.name,
-  //       }));
-  //       setProjectOptions(options);
-  //     }
-  //   });
-  // }, [syncProjects]);
+  useEffect(() => {
+    void syncRecordLabels().then((listLabelsResponse) => {
+      if (listLabelsResponse) {
+        const labels = listLabelsResponse.labels;
+        const options = labels.map((label) => ({
+          label: label.displayName,
+          value: label.name,
+        }));
+        setRecordLabels(options);
+      }
+    });
+  }, [syncProjects]);
 
   const settings = useMemo(
     (): SettingsTreeNodes => ({
       general: {
         fields: {
           projectName: {
-            label: "Project name",
-            input: "string",
+            label: t("projectName"),
+            input: "select",
             value: config.projectName ?? "",
+            options: projectOptions,
           },
           recordLabels: {
-            label: "Record labels",
-            input: "select",
-            options: projectOptions,
+            label: t("recordLabels"),
+            input: "multipleSelect",
+            options: recordLabels,
             value: config.recordLabels ?? defaultConfig.recordLabels,
           },
         },
       },
       buttons: {
-        label: "Buttons",
+        label: t("buttons"),
         children: {
           startCollection: {
-            label: "Start collection",
+            label: t("startCollection"),
             fields: {
               showRequest: {
-                label: "Show request",
+                label: t("showRequest"),
                 input: "boolean",
                 value: config.buttons.startCollection.showRequest,
               },
               color: {
-                label: "Color",
+                label: t("color"),
                 input: "rgb",
                 value: config.buttons.startCollection.color,
               },
               serviceName: {
-                label: "Service name",
+                label: t("serviceName"),
                 input: "string",
                 error: serviceError(config.buttons.startCollection.serviceName),
                 value: config.buttons.startCollection.serviceName ?? "",
@@ -184,20 +186,20 @@ export function useSettingsTree(
             },
           },
           endCollection: {
-            label: "Stop collection",
+            label: t("endCollection"),
             fields: {
               showRequest: {
-                label: "Show request",
+                label: t("showRequest"),
                 input: "boolean",
                 value: config.buttons.endCollection.showRequest,
               },
               color: {
-                label: "Color",
+                label: t("color"),
                 input: "rgb",
                 value: config.buttons.endCollection.color,
               },
               serviceName: {
-                label: "Service name",
+                label: t("serviceName"),
                 input: "string",
                 error: serviceError(config.buttons.endCollection.serviceName),
                 value: config.buttons.endCollection.serviceName ?? "",
@@ -205,20 +207,20 @@ export function useSettingsTree(
             },
           },
           cancelCollection: {
-            label: "Cancel collection",
+            label: t("cancelCollection"),
             fields: {
               showRequest: {
-                label: "Show request",
+                label: t("showRequest"),
                 input: "boolean",
                 value: config.buttons.cancelCollection.showRequest,
               },
               color: {
-                label: "Color",
+                label: t("color"),
                 input: "rgb",
                 value: config.buttons.cancelCollection.color,
               },
               serviceName: {
-                label: "Service name",
+                label: t("serviceName"),
                 input: "string",
                 error: serviceError(config.buttons.cancelCollection.serviceName),
                 value: config.buttons.cancelCollection.serviceName ?? "",
@@ -228,7 +230,7 @@ export function useSettingsTree(
         },
       },
     }),
-    [config, projectOptions],
+    [config, projectOptions, recordLabels],
   );
   return useShallowMemo(settings);
 }

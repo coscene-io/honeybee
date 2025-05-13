@@ -6,12 +6,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Timestamp } from "@bufbuild/protobuf";
 import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
+import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import {
   Task,
   UploadTaskDetail,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { Palette, Typography } from "@mui/material";
+import { TFunction } from "i18next";
 import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useImmer } from "use-immer";
 
 import Log from "@foxglove/log";
@@ -35,6 +38,7 @@ import {
 } from "./types";
 
 type Props = {
+  deviceLink: string;
   context: PanelExtensionContext;
   userInfo: User;
   consoleApi: ConsoleApi;
@@ -42,10 +46,71 @@ type Props = {
 
 const log = Log.getLogger(__dirname);
 
+async function handleTaskProgress({
+  consoleApi,
+  taskName,
+  lastUploadedFiles,
+  timeout,
+  addLog,
+  t,
+}: {
+  consoleApi: ConsoleApi;
+  taskName: string;
+  lastUploadedFiles: number;
+  timeout: number;
+  addLog: (log: string) => void;
+  t: TFunction<"dataCollection">;
+}): Promise<void> {
+  const task = await consoleApi.getTask({ taskName });
+
+  const uploadedFiles = Number(task.tags.uploadedFiles ?? 0);
+  const totalFiles = Number(task.tags.totalFiles);
+  const porgressText =
+    !Number.isNaN(uploadedFiles) && !Number.isNaN(totalFiles) && totalFiles > 0
+      ? ` ${uploadedFiles}/${totalFiles}`
+      : "";
+
+  switch (task.state) {
+    case TaskStateEnum_TaskState.FAILED:
+    case TaskStateEnum_TaskState.SUCCEEDED:
+      if (totalFiles === 0) {
+        addLog(`[ERROR] ${t("errorNoFilesMatched")}`);
+      } else if (uploadedFiles < totalFiles) {
+        addLog(`[ERROR] ${t("checkFileDeleted")}`);
+      } else {
+        addLog(`${t("fileUploaded")} ${porgressText}`);
+      }
+      break;
+
+    case TaskStateEnum_TaskState.PROCESSING:
+      if (uploadedFiles > lastUploadedFiles) {
+        addLog(`${t("processing")} ${porgressText}`);
+      }
+      setTimeout(() => {
+        void handleTaskProgress({
+          consoleApi,
+          taskName,
+          lastUploadedFiles: uploadedFiles,
+          timeout,
+          addLog,
+          t,
+        });
+      }, timeout);
+      break;
+
+    case TaskStateEnum_TaskState.CANCELLING:
+    case TaskStateEnum_TaskState.CANCELLED:
+      addLog(`[ERROR] ${t("cancelled")}`);
+      break;
+  }
+}
+
 function DataCollectionContent(
   props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
 ): React.JSX.Element {
-  const { context, setColorScheme, userInfo, consoleApi } = props;
+  const { context, setColorScheme, userInfo, consoleApi, deviceLink } = props;
+
+  const { t } = useTranslation("dataCollection");
 
   // panel extensions must notify when they've completed rendering
   // onRender will setRenderDone to a done callback which we can invoke after we've rendered
@@ -72,13 +137,13 @@ function DataCollectionContent(
 
   useEffect(() => {
     if (context.callService == undefined) {
-      addLog("[ERROR] Connect to a data source that supports calling services");
+      addLog("[ERROR] " + t("connectToDataSource"));
     }
     if (Object.entries(config.buttons).some(([, button]) => button.serviceName == undefined)) {
-      addLog("[ERROR] Configure a service in the panel settings");
+      addLog("[ERROR] " + t("configureService"));
     }
     // eslint-disable-next-line @typescript-eslint/unbound-method
-  }, [addLog, config.buttons, context.callService]);
+  }, [addLog, config.buttons, context.callService, t]);
 
   const settingsActionHandler = useCallback(
     (action: SettingsTreeAction) => {
@@ -95,26 +160,62 @@ function DataCollectionContent(
     });
   }, [context, settingsActionHandler, settingsTree]);
 
-  // const createDataCollectionTask = useCallback(
-  //   async ({ scanFolders, taskName }: { scanFolders: string[]; taskName: string }) => {
-  //     const newTask = new Task({
-  //       assigner: `users/current`,
-  //       category: TaskCategoryEnum_TaskCategory.UPLOAD,
-  //       description: "",
-  //       detail: {
-  //         case: "uploadTaskDetail",
-  //         value: new UploadTaskDetail({
-  //           device: "",
-  //           scanFolders,
-  //           endTime: Timestamp.fromDate(new Date()),
-  //           startTime: Timestamp.fromDate(new Date()),
-  //         }),
-  //       },
-  //       title: taskName,
-  //     });
-  //   },
-  //   [context, config.buttons, buttonType],
-  // );
+  const createDataCollectionTask = useCallback(
+    async ({ endCollectionResponse }: { endCollectionResponse: EndCollectionResponse }) => {
+      const { files, recordName } = endCollectionResponse;
+
+      const targetProject = await consoleApi.getProject({
+        projectName: taskInfoSnapshot?.projectName ?? "",
+      });
+
+      const targetOrg = await consoleApi.getOrg("organizations/current");
+
+      const newTask = new Task({
+        assigner: `users/current`,
+        category: TaskCategoryEnum_TaskCategory.UPLOAD,
+        description: "",
+        detail: {
+          case: "uploadTaskDetail",
+          value: new UploadTaskDetail({
+            device: `devices/${deviceLink.split("/").pop()}`,
+            scanFolders: files,
+            endTime: Timestamp.fromDate(new Date()),
+            startTime: Timestamp.fromDate(new Date()),
+          }),
+        },
+        title: recordName ?? `${deviceLink.split("/").pop()}-${taskInfoSnapshot?.startTime}`,
+      });
+
+      const response = await consoleApi.createTask_v2({
+        parent: taskInfoSnapshot?.projectName ?? "",
+        task: newTask,
+      });
+
+      addLog(t("startUpload"));
+
+      addLog(
+        `${t("saveToRecord")}：${window.location.origin}/${targetOrg.slug}/${
+          targetProject.slug
+        }/records/${response.tags.recordName}`,
+      );
+
+      addLog(
+        `${t("progressLink")}：${window.location.origin}/${targetOrg.slug}/${
+          targetProject.slug
+        }/tasks/automated-data-collection-tasks/${response.name.split("/").pop()}`,
+      );
+
+      void handleTaskProgress({
+        consoleApi,
+        taskName: response.name,
+        lastUploadedFiles: 0,
+        timeout: 3000,
+        addLog,
+        t,
+      });
+    },
+    [consoleApi, taskInfoSnapshot?.projectName, taskInfoSnapshot?.startTime, deviceLink, addLog, t],
+  );
 
   const callServiceClicked = useCallback(
     async (buttonType: ButtonType) => {
@@ -131,27 +232,32 @@ function DataCollectionContent(
       switch (buttonType) {
         case "startCollection":
           setCurrentCollectionStage("collecting");
-          addLog("start collection");
+          addLog(t("startCollection"));
           if (config.projectName == undefined) {
-            addLog("[ERROR] Project name is not set");
+            addLog("[ERROR] " + t("projectNameNotSet"));
+            return;
+          }
+          if (!consoleApi.createTask_v2.permission()) {
+            addLog("[ERROR] " + t("noPermissionToCreateTask"));
             return;
           }
           setTaskInfoSnapshot({
             projectName: config.projectName,
             recordLabels: config.recordLabels ?? [],
+            startTime: new Date().toISOString(),
           });
           break;
 
         case "endCollection":
-          addLog("end collection");
+          addLog(t("endingCollection"));
           break;
 
         case "cancelCollection":
-          addLog("cancel collection");
+          addLog(t("cancellingCollection"));
           break;
 
         default:
-          addLog(`[ERROR] Unknown button type: ${buttonType}`);
+          addLog(`[ERROR] ${t("unknownButtonType")}: ${buttonType}`);
           return;
       }
 
@@ -184,38 +290,36 @@ function DataCollectionContent(
         switch (buttonType) {
           case "startCollection":
             if (response.success) {
-              addLog("start collection success");
+              addLog(t("startCollectionSuccess"));
             } else {
-              addLog(`[ERROR] start collection fail ${response.message}`);
+              addLog(`[ERROR] ${t("startCollectionFail")}: ${response.message}`);
               setCurrentCollectionStage("ready");
             }
             break;
 
           case "endCollection":
             if (response.success) {
-              addLog("end collection success");
-              // void createDataCollectionTask({
-              //   projectName: taskInfoSnapshot?.projectName ?? "",
-              //   recordLabels: Array.from(taskInfoSnapshot?.recordLabels ?? []),
-              //   endCollectionResponse: response as EndCollectionResponse,
-              // });
+              addLog(t("endCollectionSuccess"));
+              void createDataCollectionTask({
+                endCollectionResponse: response as EndCollectionResponse,
+              });
               setCurrentCollectionStage("ready");
             } else {
-              addLog(`[ERROR] end collection fail ${response.message}`);
+              addLog(`[ERROR] ${t("endCollectionFail")}: ${response.message}`);
             }
             break;
 
           case "cancelCollection":
             if (response.success) {
-              addLog("cancel collection success");
+              addLog(t("cancelCollectionSuccess"));
               setCurrentCollectionStage("ready");
             } else {
-              addLog(`[ERROR] cancel collection fail ${response.message}`);
+              addLog(`[ERROR] ${t("cancelCollectionFail")}: ${response.message}`);
             }
             break;
 
           default:
-            addLog(`[ERROR] Unknown button type: ${buttonType}`);
+            addLog(`[ERROR] ${t("unknownButtonType")}: ${buttonType}`);
             return;
         }
       } catch (err) {
@@ -231,7 +335,17 @@ function DataCollectionContent(
         setCurrentCollectionStage("ready");
       }
     },
-    [context, setButtonsState, addLog, config.projectName, config.recordLabels, config.buttons],
+    [
+      context,
+      setButtonsState,
+      addLog,
+      t,
+      config.projectName,
+      config.recordLabels,
+      config.buttons,
+      consoleApi.createTask_v2,
+      createDataCollectionTask,
+    ],
   );
 
   useEffect(() => {
@@ -281,7 +395,7 @@ function DataCollectionContent(
       {/* log */}
       <Stack flex="auto" gap={1} padding={1.5} fullHeight>
         <Typography variant="caption" noWrap>
-          logs
+          {t("collectionLog")}
         </Typography>
         <Stack flex="auto" style={{ height: 0 }}>
           {logs.map((logLine, index) => {
@@ -302,13 +416,19 @@ function DataCollectionContent(
   );
 }
 
-export function DataCollection({ context, userInfo, consoleApi }: Props): React.JSX.Element {
+export function DataCollection({
+  deviceLink,
+  context,
+  userInfo,
+  consoleApi,
+}: Props): React.JSX.Element {
   const [colorScheme, setColorScheme] = useState<Palette["mode"]>("light");
 
   // Wrapper component with ThemeProvider so useStyles in the panel receives the right theme.
   return (
     <ThemeProvider isDark={colorScheme === "dark"}>
       <DataCollectionContent
+        deviceLink={deviceLink}
         setColorScheme={setColorScheme}
         context={context}
         userInfo={userInfo}
