@@ -98,23 +98,23 @@ export function useSettingsTree(
     return undefined;
   }, [consoleApi, userInfo.userId]);
 
-  const [, syncRecordLabels] = useAsyncFn(async () => {
-    const userId = userInfo.userId;
+  // const [, syncRecordLabels] = useAsyncFn(async () => {
+  //   const userId = userInfo.userId;
 
-    if (userId) {
-      try {
-        return await consoleApi.listUserProjects({
-          userId,
-          pageSize: MAX_PROJECTS_PAGE_SIZE,
-          currentPage: 0,
-        });
-      } catch (error) {
-        console.error("error", error);
-      }
-    }
+  //   if (userId) {
+  //     try {
+  //       return await consoleApi.listUserProjects({
+  //         userId,
+  //         pageSize: MAX_PROJECTS_PAGE_SIZE,
+  //         currentPage: 0,
+  //       });
+  //     } catch (error) {
+  //       console.error("error", error);
+  //     }
+  //   }
 
-    return undefined;
-  }, [consoleApi, userInfo.userId]);
+  //   return undefined;
+  // }, [consoleApi, userInfo.userId]);
 
   useEffect(() => {
     void syncProjects().then((listUserProjectsResponse) => {

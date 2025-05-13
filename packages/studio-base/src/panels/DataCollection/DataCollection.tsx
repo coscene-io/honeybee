@@ -4,6 +4,12 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { Timestamp } from "@bufbuild/protobuf";
+import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
+import {
+  Task,
+  UploadTaskDetail,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { Palette, Typography } from "@mui/material";
 import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
 import { useImmer } from "use-immer";
@@ -89,22 +95,26 @@ function DataCollectionContent(
     });
   }, [context, settingsActionHandler, settingsTree]);
 
-  // const createDataCollectionTask = useCallback(async () => {
-  //   const response = await context.callService(
-  //     config.buttons[buttonType].serviceName,
-  //     JSON.parse(config.buttons[buttonType].requestPayload),
-  //   );
-  // }, [context, config.buttons, buttonType]);
-
-  // const createDataCollectionTask = async ({
-  //   projectName,
-  //   recordLabels,
-  //   endCollectionResponse,
-  // }: {
-  //   projectName: string;
-  //   recordLabels: string[];
-  //   endCollectionResponse: EndCollectionResponse;
-  // }) => {};
+  // const createDataCollectionTask = useCallback(
+  //   async ({ scanFolders, taskName }: { scanFolders: string[]; taskName: string }) => {
+  //     const newTask = new Task({
+  //       assigner: `users/current`,
+  //       category: TaskCategoryEnum_TaskCategory.UPLOAD,
+  //       description: "",
+  //       detail: {
+  //         case: "uploadTaskDetail",
+  //         value: new UploadTaskDetail({
+  //           device: "",
+  //           scanFolders,
+  //           endTime: Timestamp.fromDate(new Date()),
+  //           startTime: Timestamp.fromDate(new Date()),
+  //         }),
+  //       },
+  //       title: taskName,
+  //     });
+  //   },
+  //   [context, config.buttons, buttonType],
+  // );
 
   const callServiceClicked = useCallback(
     async (buttonType: ButtonType) => {
