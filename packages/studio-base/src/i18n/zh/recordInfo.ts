@@ -5,17 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { TypeOptions } from "i18next";
-
-export const workspace: Partial<TypeOptions["resources"]["workspace"]> = {
-  events: "事件",
-  panel: "面板",
-  performance: "性能",
-  problems: "问题",
-  studioLogs: "日志",
-  topics: "话题",
-  variables: "变量",
-  extensions: "插件",
-  invalidDomain: "仅支持播放{{domain}}的数据",
+export const recordInfo = {
+  createTime: "创建时间",
+  updateTime: "更新时间",
+  project: "项目",
+  creator: "创建者",
+  labels: "标签",
+  deviceInfo: "设备信息",
+  deviceId: "设备ID",
   recordInfo: "记录信息",
 };

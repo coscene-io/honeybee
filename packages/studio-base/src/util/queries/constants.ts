@@ -5,15 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export const workspace = {
-  events: "Events",
-  panel: "Panel",
-  performance: "Performance",
-  problems: "Problems",
-  studioLogs: "Logs",
-  topics: "Topics",
-  variables: "Variables",
-  extensions: "Extensions",
-  invalidDomain: "Only support playback of {{domain}} data",
-  recordInfo: "Record Info",
+export const GENERAL_STALE_TIME_DEFAULT = 20 * 1000;
+
+export const REACT_QUERY_DEFAULT_CONFIG = {
+  queries: { retry: false, refetchOnWindowFocus: false },
 };
+
+export const ACCESS_TOKEN_NAME = "coScene_org_jwt";
