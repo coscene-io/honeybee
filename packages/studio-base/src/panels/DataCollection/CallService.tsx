@@ -88,10 +88,11 @@ export function CallService(props: Props): React.JSX.Element {
 
   const { t } = useTranslation("dataCollection");
 
-  const { requestPayload, showRequest, color, state } = useMemo(() => {
+  const { requestPayload, showRequest, color, state, serviceName } = useMemo(() => {
     return {
       requestPayload: config.buttons[type].requestPayload,
       showRequest: config.buttons[type].showRequest,
+      serviceName: config.buttons[type].serviceName,
       color: config.buttons[type].color,
       state: buttonsState[type],
     };
@@ -104,20 +105,10 @@ export function CallService(props: Props): React.JSX.Element {
     [requestPayload],
   );
 
-  const statusMessage = useMemo(() => {
-    if (!supportCallService) {
-      return "Connect to a data source that supports calling services";
-    }
-    if (!config.serviceName) {
-      return "Configure a service in the panel settings";
-    }
-    return undefined;
-  }, [supportCallService, config.serviceName]);
-
   const canCallService = Boolean(
     supportCallService &&
       requestPayload &&
-      config.serviceName &&
+      serviceName &&
       parsedObject != undefined &&
       state?.status !== "requesting",
   );
@@ -160,11 +151,6 @@ export function CallService(props: Props): React.JSX.Element {
         flexGrow={0}
         gap={1.5}
       >
-        {statusMessage && (
-          <Typography variant="caption" noWrap>
-            {statusMessage}
-          </Typography>
-        )}
         <span>
           <Button
             className={classes.button}

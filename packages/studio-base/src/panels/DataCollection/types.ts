@@ -12,6 +12,8 @@ type State = {
   value: string;
 };
 
+export type CollectionStage = "ready" | "collecting";
+
 export type ButtonsState = {
   [key in ButtonType]: State | undefined;
 };
@@ -19,13 +21,36 @@ export type ButtonsState = {
 export type Config = {
   projectName?: string;
   recordLabels?: string[];
-  serviceName?: string;
   buttons: {
     [key in ButtonType]: {
+      serviceName?: string;
       requestPayload: string;
       showRequest: boolean;
       color: string;
     };
   };
   displayCollectionLog: boolean;
+};
+
+export type StartCollectionResponse = {
+  success: boolean;
+  message: string;
+};
+
+export type EndCollectionResponse = {
+  success: boolean;
+  message: string;
+  recordName: string;
+  tags: string[];
+  files: string[];
+};
+
+export type CancelCollectionResponse = {
+  success: boolean;
+  message: string;
+};
+
+export type TaskInfoSnapshot = {
+  projectName: string;
+  recordLabels: string[];
 };

@@ -13,17 +13,31 @@ import { PanelExtensionContext } from "@foxglove/studio";
 import { CaptureErrorBoundary } from "@foxglove/studio-base/components/CaptureErrorBoundary";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { PanelExtensionAdapter } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import {
+  useCurrentUser,
+  User,
+  UserStore,
+} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { ConsoleApi } from "@foxglove/studio-base/index";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { DataCollection } from "./DataCollection";
 import { Config } from "./types";
 
-function initPanel(crash: ReturnType<typeof useCrash>, context: PanelExtensionContext) {
+const selectUser = (store: UserStore) => store.user;
+
+function initPanel(
+  userInfo: User,
+  consoleApi: ConsoleApi,
+  crash: ReturnType<typeof useCrash>,
+  context: PanelExtensionContext,
+) {
   // eslint-disable-next-line react/no-deprecated
   ReactDOM.render(
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
-        <DataCollection context={context} />
+        <DataCollection context={context} userInfo={userInfo} consoleApi={consoleApi} />
       </CaptureErrorBoundary>
     </StrictMode>,
     context.panelElement,
@@ -41,7 +55,21 @@ type Props = {
 
 function DataCollectionPanelAdapter(props: Props) {
   const crash = useCrash();
-  const boundInitPanel = useMemo(() => initPanel.bind(undefined, crash), [crash]);
+  const userInfo = useCurrentUser(selectUser);
+  const consoleApi = useConsoleApi();
+
+  // const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
+
+  const boundInitPanel = useMemo(() => {
+    if (userInfo == undefined) {
+      return () => {};
+    }
+    return initPanel.bind(undefined, userInfo, consoleApi, crash);
+  }, [crash, consoleApi, userInfo]);
+
+  if (userInfo == undefined) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <PanelExtensionAdapter

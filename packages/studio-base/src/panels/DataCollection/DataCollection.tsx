@@ -4,21 +4,34 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { Palette } from "@mui/material";
+import { Palette, Typography } from "@mui/material";
 import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
 import { useImmer } from "use-immer";
 
 import Log from "@foxglove/log";
 import { PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { ConsoleApi } from "@foxglove/studio-base/index";
 import { CallService } from "@foxglove/studio-base/panels/DataCollection/CallService";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 import { defaultConfig, settingsActionReducer, useSettingsTree } from "./settings";
-import { Config, ButtonType, ButtonsState } from "./types";
+import {
+  Config,
+  StartCollectionResponse,
+  EndCollectionResponse,
+  CancelCollectionResponse,
+  ButtonType,
+  ButtonsState,
+  CollectionStage,
+  TaskInfoSnapshot,
+} from "./types";
 
 type Props = {
   context: PanelExtensionContext;
+  userInfo: User;
+  consoleApi: ConsoleApi;
 };
 
 const log = Log.getLogger(__dirname);
@@ -26,7 +39,7 @@ const log = Log.getLogger(__dirname);
 function DataCollectionContent(
   props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
 ): React.JSX.Element {
-  const { context, setColorScheme } = props;
+  const { context, setColorScheme, userInfo, consoleApi } = props;
 
   // panel extensions must notify when they've completed rendering
   // onRender will setRenderDone to a done callback which we can invoke after we've rendered
@@ -40,6 +53,26 @@ function DataCollectionContent(
     ...defaultConfig,
     ...(context.initialState as Partial<Config>),
   }));
+  const [logs, setLogs] = useState<string[]>([]);
+  const [currentCollectionStage, setCurrentCollectionStage] = useState<CollectionStage>("ready");
+  const [taskInfoSnapshot, setTaskInfoSnapshot] = useState<TaskInfoSnapshot | undefined>(undefined);
+
+  const addLog = useCallback(
+    (newLog: string) => {
+      setLogs((prevLogs) => [...prevLogs, newLog]);
+    },
+    [setLogs],
+  );
+
+  useEffect(() => {
+    if (context.callService == undefined) {
+      addLog("[ERROR] Connect to a data source that supports calling services");
+    }
+    if (Object.entries(config.buttons).some(([, button]) => button.serviceName == undefined)) {
+      addLog("[ERROR] Configure a service in the panel settings");
+    }
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+  }, [addLog, config.buttons, context.callService]);
 
   const settingsActionHandler = useCallback(
     (action: SettingsTreeAction) => {
@@ -48,13 +81,30 @@ function DataCollectionContent(
     [setConfig],
   );
 
-  const settingsTree = useSettingsTree(config);
+  const settingsTree = useSettingsTree(config, userInfo, consoleApi);
   useEffect(() => {
     context.updatePanelSettingsEditor({
       actionHandler: settingsActionHandler,
       nodes: settingsTree,
     });
   }, [context, settingsActionHandler, settingsTree]);
+
+  // const createDataCollectionTask = useCallback(async () => {
+  //   const response = await context.callService(
+  //     config.buttons[buttonType].serviceName,
+  //     JSON.parse(config.buttons[buttonType].requestPayload),
+  //   );
+  // }, [context, config.buttons, buttonType]);
+
+  // const createDataCollectionTask = async ({
+  //   projectName,
+  //   recordLabels,
+  //   endCollectionResponse,
+  // }: {
+  //   projectName: string;
+  //   recordLabels: string[];
+  //   endCollectionResponse: EndCollectionResponse;
+  // }) => {};
 
   const callServiceClicked = useCallback(
     async (buttonType: ButtonType) => {
@@ -68,17 +118,46 @@ function DataCollectionContent(
         return;
       }
 
+      switch (buttonType) {
+        case "startCollection":
+          setCurrentCollectionStage("collecting");
+          addLog("start collection");
+          if (config.projectName == undefined) {
+            addLog("[ERROR] Project name is not set");
+            return;
+          }
+          setTaskInfoSnapshot({
+            projectName: config.projectName,
+            recordLabels: config.recordLabels ?? [],
+          });
+          break;
+
+        case "endCollection":
+          addLog("end collection");
+          break;
+
+        case "cancelCollection":
+          addLog("cancel collection");
+          break;
+
+        default:
+          addLog(`[ERROR] Unknown button type: ${buttonType}`);
+          return;
+      }
+
       try {
         setButtonsState((draft) => {
           draft[buttonType] = {
             status: "requesting",
-            value: `Calling ${config.serviceName}...`,
+            value: `Calling ${config.buttons[buttonType].serviceName}...`,
           };
         });
-        const response = await context.callService(
-          config.serviceName!,
+
+        const response = (await context.callService(
+          config.buttons[buttonType].serviceName!,
           JSON.parse(config.buttons[buttonType].requestPayload),
-        );
+        )) as StartCollectionResponse | EndCollectionResponse | CancelCollectionResponse;
+
         setButtonsState((draft) => {
           draft[buttonType] = {
             status: "success",
@@ -91,6 +170,44 @@ function DataCollectionContent(
               ) ?? "",
           };
         });
+
+        switch (buttonType) {
+          case "startCollection":
+            if (response.success) {
+              addLog("start collection success");
+            } else {
+              addLog(`[ERROR] start collection fail ${response.message}`);
+              setCurrentCollectionStage("ready");
+            }
+            break;
+
+          case "endCollection":
+            if (response.success) {
+              addLog("end collection success");
+              // void createDataCollectionTask({
+              //   projectName: taskInfoSnapshot?.projectName ?? "",
+              //   recordLabels: Array.from(taskInfoSnapshot?.recordLabels ?? []),
+              //   endCollectionResponse: response as EndCollectionResponse,
+              // });
+              setCurrentCollectionStage("ready");
+            } else {
+              addLog(`[ERROR] end collection fail ${response.message}`);
+            }
+            break;
+
+          case "cancelCollection":
+            if (response.success) {
+              addLog("cancel collection success");
+              setCurrentCollectionStage("ready");
+            } else {
+              addLog(`[ERROR] cancel collection fail ${response.message}`);
+            }
+            break;
+
+          default:
+            addLog(`[ERROR] Unknown button type: ${buttonType}`);
+            return;
+        }
       } catch (err) {
         setButtonsState((draft) => {
           draft[buttonType] = {
@@ -99,16 +216,16 @@ function DataCollectionContent(
           };
         });
         log.error(err);
+
+        addLog(`[ERROR] ${(err as Error).message}`);
+        setCurrentCollectionStage("ready");
       }
     },
-    [context, setButtonsState, config.serviceName, config.buttons],
+    [context, setButtonsState, addLog, config.projectName, config.recordLabels, config.buttons],
   );
 
   useEffect(() => {
     context.saveState(config);
-    context.setDefaultPanelTitle(
-      config.serviceName ? `Call service ${config.serviceName}` : undefined,
-    );
   }, [config, context]);
 
   useEffect(() => {
@@ -130,16 +247,21 @@ function DataCollectionContent(
   }, [renderDone]);
 
   return (
-    <Stack>
+    <Stack fullHeight>
       {/* call service button */}
-      <Stack>
+      <Stack direction="row" gap={1}>
         {Object.entries(config.buttons).map(([key]) => (
           <CallService
             key={key}
             type={key as ButtonType}
             config={config}
             buttonsState={buttonsState}
-            supportCallService={context.callService != undefined}
+            supportCallService={
+              context.callService != undefined &&
+              ((key === "startCollection" && currentCollectionStage === "ready") ||
+                (key === "endCollection" && currentCollectionStage === "collecting") ||
+                (key === "cancelCollection" && currentCollectionStage === "collecting"))
+            }
             callServiceClicked={callServiceClicked}
             setConfig={setConfig}
           />
@@ -147,17 +269,41 @@ function DataCollectionContent(
       </Stack>
 
       {/* log */}
-      <Stack></Stack>
+      <Stack flex="auto" gap={1} padding={1.5} fullHeight>
+        <Typography variant="caption" noWrap>
+          logs
+        </Typography>
+        <Stack flex="auto" style={{ height: 0 }}>
+          {logs.map((logLine, index) => {
+            return (
+              <Typography
+                variant="caption"
+                noWrap
+                key={index}
+                color={logLine.startsWith("[ERROR]") ? "error" : undefined}
+              >
+                {logLine}
+              </Typography>
+            );
+          })}
+        </Stack>
+      </Stack>
     </Stack>
   );
 }
 
-export function DataCollection({ context }: Props): React.JSX.Element {
+export function DataCollection({ context, userInfo, consoleApi }: Props): React.JSX.Element {
   const [colorScheme, setColorScheme] = useState<Palette["mode"]>("light");
+
   // Wrapper component with ThemeProvider so useStyles in the panel receives the right theme.
   return (
     <ThemeProvider isDark={colorScheme === "dark"}>
-      <DataCollectionContent context={context} setColorScheme={setColorScheme} />
+      <DataCollectionContent
+        setColorScheme={setColorScheme}
+        context={context}
+        userInfo={userInfo}
+        consoleApi={consoleApi}
+      />
     </ThemeProvider>
   );
 }

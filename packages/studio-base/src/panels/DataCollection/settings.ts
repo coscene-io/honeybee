@@ -7,29 +7,42 @@
 
 import { produce } from "immer";
 import * as _ from "lodash-es";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAsyncFn } from "react-use";
 
 import { useShallowMemo } from "@foxglove/hooks";
 import { SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
+import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { ConsoleApi } from "@foxglove/studio-base/index";
 
 import { Config } from "./types";
+
+export const defaultStartCollectionRequest = `{
+  record_opt: "-o cos -a",
+}`;
+
+export const defaultEndCollectionRequest = `{}`;
+
+export const defaultCancelCollectionRequest = `{
+  auto_remove: true,
+}`;
 
 export const defaultConfig: Config = {
   buttons: {
     startCollection: {
-      requestPayload: "{}",
+      requestPayload: defaultStartCollectionRequest,
       showRequest: false,
       color: "#155dfc",
     },
     endCollection: {
-      requestPayload: "{}",
+      requestPayload: defaultEndCollectionRequest,
       showRequest: false,
       color: "#155dfc",
     },
     cancelCollection: {
-      requestPayload: "{}",
+      requestPayload: defaultCancelCollectionRequest,
       showRequest: false,
-      color: "#000000",
+      color: "#e7000b",
     },
   },
   displayCollectionLog: true,
@@ -57,13 +70,78 @@ export function settingsActionReducer(prevConfig: Config, action: SettingsTreeAc
   return ret;
 }
 
-export function useSettingsTree(config: Config): SettingsTreeNodes {
-  // const { t } = useTranslation();
-  const options = [
-    { label: "label1", value: "label1" },
-    { label: "label2", value: "label2" },
-    { label: "label3", value: "label3" },
-  ];
+const MAX_PROJECTS_PAGE_SIZE = 999;
+
+export function useSettingsTree(
+  config: Config,
+  userInfo: User,
+  consoleApi: ConsoleApi,
+): SettingsTreeNodes {
+  const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
+  const [recordLabels, setRecordLabels] = useState<{ label: string; value: string }[]>([]);
+
+  const [, syncProjects] = useAsyncFn(async () => {
+    const userId = userInfo.userId;
+
+    if (userId) {
+      try {
+        return await consoleApi.listUserProjects({
+          userId,
+          pageSize: MAX_PROJECTS_PAGE_SIZE,
+          currentPage: 0,
+        });
+      } catch (error) {
+        console.error("error", error);
+      }
+    }
+
+    return undefined;
+  }, [consoleApi, userInfo.userId]);
+
+  const [, syncRecordLabels] = useAsyncFn(async () => {
+    const userId = userInfo.userId;
+
+    if (userId) {
+      try {
+        return await consoleApi.listUserProjects({
+          userId,
+          pageSize: MAX_PROJECTS_PAGE_SIZE,
+          currentPage: 0,
+        });
+      } catch (error) {
+        console.error("error", error);
+      }
+    }
+
+    return undefined;
+  }, [consoleApi, userInfo.userId]);
+
+  useEffect(() => {
+    void syncProjects().then((listUserProjectsResponse) => {
+      if (listUserProjectsResponse) {
+        const userProjects = listUserProjectsResponse.userProjects;
+        const options = userProjects.map((project) => ({
+          label: project.displayName,
+          value: project.name,
+        }));
+        setProjectOptions(options);
+      }
+    });
+  }, [syncProjects]);
+
+  // useEffect(() => {
+  //   void syncProjects().then((listUserProjectsResponse) => {
+  //     if (listUserProjectsResponse) {
+  //       const userProjects = listUserProjectsResponse.userProjects;
+  //       const options = userProjects.map((project) => ({
+  //         label: project.displayName,
+  //         value: project.name,
+  //       }));
+  //       setProjectOptions(options);
+  //     }
+  //   });
+  // }, [syncProjects]);
+
   const settings = useMemo(
     (): SettingsTreeNodes => ({
       general: {
@@ -76,14 +154,8 @@ export function useSettingsTree(config: Config): SettingsTreeNodes {
           recordLabels: {
             label: "Record labels",
             input: "select",
-            options,
+            options: projectOptions,
             value: config.recordLabels ?? defaultConfig.recordLabels,
-          },
-          serviceName: {
-            label: "Service name",
-            input: "string",
-            error: serviceError(config.serviceName),
-            value: config.serviceName ?? "",
           },
         },
       },
@@ -103,6 +175,12 @@ export function useSettingsTree(config: Config): SettingsTreeNodes {
                 input: "rgb",
                 value: config.buttons.startCollection.color,
               },
+              serviceName: {
+                label: "Service name",
+                input: "string",
+                error: serviceError(config.buttons.startCollection.serviceName),
+                value: config.buttons.startCollection.serviceName ?? "",
+              },
             },
           },
           endCollection: {
@@ -117,6 +195,12 @@ export function useSettingsTree(config: Config): SettingsTreeNodes {
                 label: "Color",
                 input: "rgb",
                 value: config.buttons.endCollection.color,
+              },
+              serviceName: {
+                label: "Service name",
+                input: "string",
+                error: serviceError(config.buttons.endCollection.serviceName),
+                value: config.buttons.endCollection.serviceName ?? "",
               },
             },
           },
@@ -133,12 +217,18 @@ export function useSettingsTree(config: Config): SettingsTreeNodes {
                 input: "rgb",
                 value: config.buttons.cancelCollection.color,
               },
+              serviceName: {
+                label: "Service name",
+                input: "string",
+                error: serviceError(config.buttons.cancelCollection.serviceName),
+                value: config.buttons.cancelCollection.serviceName ?? "",
+              },
             },
           },
         },
       },
     }),
-    [config],
+    [config, projectOptions],
   );
   return useShallowMemo(settings);
 }
