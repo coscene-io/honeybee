@@ -135,6 +135,7 @@ const selectUser = (store: UserStore) => store.user;
 const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
+const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
 
 function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
@@ -153,6 +154,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
 
   const enableList = useBaseInfo(selectEnableList);
+
+  const dataSource = useBaseInfo(selectDataSource);
 
   // coScene set demo layout in demo mode
 
@@ -362,11 +365,12 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       ["variables", { title: t("variables"), component: VariablesList }],
       ["extensions", { title: t("extensions"), component: ExtensionsSidebar }],
     ]);
-    // if()
-    items.set("record-info", {
-      title: t("recordInfo"),
-      component: RecordInfo,
-    });
+    if (dataSource?.id === "coscene-data-platform") {
+      items.set("record-info", {
+        title: t("recordInfo"),
+        component: RecordInfo,
+      });
+    }
 
     if (enableDebugMode) {
       if (PerformanceSidebarComponent) {
@@ -378,7 +382,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       items.set("studio-logs-settings", { title: t("studioLogs"), component: StudioLogsSettings });
     }
     return items;
-  }, [enableDebugMode, t, PerformanceSidebarComponent]);
+  }, [enableDebugMode, t, PerformanceSidebarComponent, dataSource?.id]);
 
   const keyboardEventHasModifier = (event: KeyboardEvent) =>
     navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;

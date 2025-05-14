@@ -88,6 +88,8 @@ import { TaskService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1a
 import {
   UpsertTaskRequest,
   SyncTaskRequest,
+  CreateTaskRequest,
+  GetTaskRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
 import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resources/job_run_pb";
 import { JobRunService } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_connect";
@@ -108,6 +110,7 @@ import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
   EndpointDataplatformV1alph1,
   EndpointDataplatformV1alph2,
+  EndpointDataplatformV1alph3,
   checkUserPermission,
 } from "@foxglove/studio-base/util/permission/endpoint";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
@@ -895,6 +898,22 @@ class CoSceneConsoleApi {
     return await getPromiseClient(TaskService).upsertTask(request);
   }
 
+  public createTask_v2 = Object.assign(
+    async ({ parent, task }: { parent: string; task: Task }): Promise<Task> => {
+      const request = new CreateTaskRequest({
+        parent,
+        task,
+      });
+      // create task does not have remove dumplicates logic, so we use upsert task to create task
+      return await getPromiseClient(TaskService).createTask(request);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.CreateTask, this.#permissionList);
+      },
+    },
+  );
+
   public async getTicketSystemMetadata({
     parent,
   }: {
@@ -1385,6 +1404,18 @@ class CoSceneConsoleApi {
     {
       permission: () => {
         return checkUserPermission(EndpointDataplatformV1alph2.GetDevice, this.#permissionList);
+      },
+    },
+  );
+
+  public getTask = Object.assign(
+    async ({ taskName }: { taskName: string }): Promise<Task> => {
+      const req = new GetTaskRequest({ name: taskName });
+      return await getPromiseClient(TaskService).getTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.GetTask, this.#permissionList);
       },
     },
   );
