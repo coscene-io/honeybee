@@ -9,6 +9,7 @@ import { TFunction } from "i18next";
 import { PanelInfo } from "@foxglove/studio-base/context/PanelCatalogContext";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 
+import dataCollectionThumbnail from "./DataCollection/thumbnail.png";
 import dataSourceInfoThumbnail from "./DataSourceInfo/thumbnail.png";
 import gaugeThumbnail from "./Gauge/thumbnail.png";
 import imageThumbnail from "./Image/thumbnail.png";
@@ -214,7 +215,7 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     title: t("dataCollection"),
     type: "DataCollection",
     description: t("dataCollectionDescription"),
-    thumbnail: tabThumbnail,
+    thumbnail: dataCollectionThumbnail,
     module: async () => await import("./DataCollection"),
   },
 ];

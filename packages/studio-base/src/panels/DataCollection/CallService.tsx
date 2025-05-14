@@ -115,7 +115,7 @@ export function CallService(props: Props): React.JSX.Element {
     <Stack flex="auto" gap={1} padding={1.5} position="relative" fullHeight>
       <Stack gap={1} flexGrow="1">
         {showRequest && (
-          <Stack flexGrow="1">
+          <Stack flexGrow="1" gap={1}>
             <Typography variant="caption" noWrap>
               {t("requestDetails")}
             </Typography>

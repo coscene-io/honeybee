@@ -1306,12 +1306,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
   public publish({ topic, msg }: PublishPayload): void {
     if (!this.#client) {
-      throw new Error(`Attempted to publish without a valid coScene WebSocket connection`);
+      throw new Error(t("dataCollection:attemptedToPublishWithoutValidCoSceneWebSocketConnection"));
     }
 
     const clientChannel = this.#publicationsByTopic.get(topic);
     if (!clientChannel) {
-      throw new Error(`Tried to publish on topic '${topic}' that has not been advertised before.`);
+      throw new Error(
+        t("dataCollection:triedToPublishOnTopicThatHasNotBeenAdvertisedBefore", { topic }),
+      );
     }
 
     if (clientChannel.encoding === "json") {

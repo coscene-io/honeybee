@@ -45,4 +45,8 @@ export const dataCollection = {
   taskStatePending: "Task is pending",
   pendingUploadFiles: "Pending upload files",
   uploadFileFail: "Upload file fail",
+  attemptedToPublishWithoutValidCoSceneWebSocketConnection:
+    "Attempted to publish without a valid coScene WebSocket connection",
+  triedToPublishOnTopicThatHasNotBeenAdvertisedBefore:
+    "Tried to publish on topic '{{topic}}' that has not been advertised before.",
 };
