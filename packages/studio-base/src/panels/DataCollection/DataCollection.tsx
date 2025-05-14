@@ -198,7 +198,6 @@ function DataCollectionContent(
         const targetOrg = await consoleApi.getOrg("organizations/current");
 
         const newTask = new Task({
-          assigner: "",
           category: TaskCategoryEnum_TaskCategory.UPLOAD,
           description: "",
           detail: {
