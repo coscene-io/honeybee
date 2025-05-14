@@ -10,7 +10,6 @@ export const dataCollection = {
   endCollection: "End collection",
   cancelCollection: "Cancel collection",
   requestDetails: "Request details",
-
   collectionLog: "Collection log",
   connectToDataSource: "Please connect to a data source that supports calling services",
   configureService: "Please configure a service in the panel settings first",
@@ -32,7 +31,7 @@ export const dataCollection = {
   errorNoFilesMatched: "No files matched",
   checkFileDeleted: "Check file deleted",
   fileUploaded: "File uploaded",
-  processing: "Processing",
+  processing: "File uploading",
   cancelled: "Cancelled",
   pleaseLoginToUseThisPanel: "Please login to use this panel",
   loading: "Loading...",
@@ -43,4 +42,7 @@ export const dataCollection = {
   showRequest: "Show request",
   color: "Color",
   serviceName: "Service name",
+  taskStatePending: "Task is pending",
+  pendingUploadFiles: "Pending upload files",
+  uploadFileFail: "Upload file fail",
 };

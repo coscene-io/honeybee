@@ -31,8 +31,8 @@ export const dataCollection: Partial<TypeOptions["resources"]["dataCollection"]>
   cancelCollectionFail: "取消采集失败",
   errorNoFilesMatched: "没有匹配的文件",
   checkFileDeleted: "检查文件是否已删除",
-  fileUploaded: "文件已上传",
-  processing: "处理中",
+  fileUploaded: "文件上传完成",
+  processing: "文件上传中",
   cancelled: "已取消",
   pleaseLoginToUseThisPanel: "请登录后使用此面板",
   loading: "加载中...",
@@ -43,4 +43,7 @@ export const dataCollection: Partial<TypeOptions["resources"]["dataCollection"]>
   showRequest: "显示请求",
   color: "颜色",
   serviceName: "服务名称",
+  taskStatePending: "任务等待中",
+  pendingUploadFiles: "待上传文件数",
+  uploadFileFail: "上传文件失败",
 };

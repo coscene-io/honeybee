@@ -4,6 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 
 export type ButtonType = "startCollection" | "endCollection" | "cancelCollection";
 
@@ -51,7 +52,7 @@ export type CancelCollectionResponse = {
 };
 
 export type TaskInfoSnapshot = {
-  projectName: string;
+  project: Project;
   recordLabels: string[];
   startTime: string;
 };

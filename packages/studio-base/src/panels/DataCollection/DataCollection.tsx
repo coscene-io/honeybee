@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Timestamp } from "@bufbuild/protobuf";
+import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
 import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import {
@@ -49,17 +51,21 @@ const log = Log.getLogger(__dirname);
 async function handleTaskProgress({
   consoleApi,
   taskName,
-  lastUploadedFiles,
   timeout,
   addLog,
   t,
+  showRecordLink = true,
+  targetOrg,
+  targetProject,
 }: {
   consoleApi: ConsoleApi;
   taskName: string;
-  lastUploadedFiles: number;
   timeout: number;
   addLog: (log: string) => void;
   t: TFunction<"dataCollection">;
+  showRecordLink: boolean;
+  targetOrg: Organization;
+  targetProject: Project;
 }): Promise<void> {
   const task = await consoleApi.getTask({ taskName });
 
@@ -70,6 +76,17 @@ async function handleTaskProgress({
       ? ` ${uploadedFiles}/${totalFiles}`
       : "";
 
+  let needShowRecordLink = showRecordLink;
+
+  if (task.tags.recordName != undefined && showRecordLink) {
+    addLog(
+      `[${new Date().toISOString()}] ${t("saveToRecord")}：${window.location.origin}/${
+        targetOrg.slug
+      }/${targetProject.slug}/records/${task.tags.recordName}`,
+    );
+    needShowRecordLink = false;
+  }
+
   switch (task.state) {
     case TaskStateEnum_TaskState.FAILED:
     case TaskStateEnum_TaskState.SUCCEEDED:
@@ -78,22 +95,40 @@ async function handleTaskProgress({
       } else if (uploadedFiles < totalFiles) {
         addLog(`[ERROR] ${t("checkFileDeleted")}`);
       } else {
-        addLog(`${t("fileUploaded")} ${porgressText}`);
+        addLog("+++++++++++++++++++++++++++");
+        addLog(`[${new Date().toISOString()}] ${t("fileUploaded")} ${porgressText}`);
+        addLog("+++++++++++++++++++++++++++");
       }
       break;
 
-    case TaskStateEnum_TaskState.PROCESSING:
-      if (uploadedFiles > lastUploadedFiles) {
-        addLog(`${t("processing")} ${porgressText}`);
-      }
+    case TaskStateEnum_TaskState.PENDING:
+      addLog(`[${new Date().toISOString()}] ${t("taskStatePending")}`);
       setTimeout(() => {
         void handleTaskProgress({
           consoleApi,
           taskName,
-          lastUploadedFiles: uploadedFiles,
           timeout,
           addLog,
           t,
+          showRecordLink: needShowRecordLink,
+          targetOrg,
+          targetProject,
+        });
+      }, timeout);
+      break;
+
+    case TaskStateEnum_TaskState.PROCESSING:
+      addLog(`[${new Date().toISOString()}] ${t("processing")} ${porgressText}`);
+      setTimeout(() => {
+        void handleTaskProgress({
+          consoleApi,
+          taskName,
+          timeout,
+          addLog,
+          t,
+          showRecordLink: needShowRecordLink,
+          targetOrg,
+          targetProject,
         });
       }, timeout);
       break;
@@ -135,16 +170,6 @@ function DataCollectionContent(
     [setLogs],
   );
 
-  useEffect(() => {
-    if (context.callService == undefined) {
-      addLog("[ERROR] " + t("connectToDataSource"));
-    }
-    if (Object.entries(config.buttons).some(([, button]) => button.serviceName == undefined)) {
-      addLog("[ERROR] " + t("configureService"));
-    }
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-  }, [addLog, config.buttons, context.callService, t]);
-
   const settingsActionHandler = useCallback(
     (action: SettingsTreeAction) => {
       setConfig((prevConfig) => settingsActionReducer(prevConfig, action));
@@ -162,59 +187,68 @@ function DataCollectionContent(
 
   const createDataCollectionTask = useCallback(
     async ({ endCollectionResponse }: { endCollectionResponse: EndCollectionResponse }) => {
-      const { files, record_name } = endCollectionResponse;
+      try {
+        const { files, record_name, tags } = endCollectionResponse;
+        const { recordLabels } = taskInfoSnapshot ?? {};
 
-      const targetProject = await consoleApi.getProject({
-        projectName: taskInfoSnapshot?.projectName ?? "",
-      });
+        const targetProject = await consoleApi.getProject({
+          projectName: taskInfoSnapshot?.project.name ?? "",
+        });
 
-      const targetOrg = await consoleApi.getOrg("organizations/current");
+        const targetOrg = await consoleApi.getOrg("organizations/current");
 
-      const newTask = new Task({
-        assigner: `users/current`,
-        category: TaskCategoryEnum_TaskCategory.UPLOAD,
-        description: "",
-        detail: {
-          case: "uploadTaskDetail",
-          value: new UploadTaskDetail({
-            device: `devices/${deviceLink.split("/").pop()}`,
-            scanFolders: files,
-            endTime: Timestamp.fromDate(new Date()),
-            startTime: Timestamp.fromDate(new Date()),
-          }),
-        },
-        title: record_name ?? `${deviceLink.split("/").pop()}-${taskInfoSnapshot?.startTime}`,
-      });
+        const newTask = new Task({
+          assigner: "",
+          category: TaskCategoryEnum_TaskCategory.UPLOAD,
+          description: "",
+          detail: {
+            case: "uploadTaskDetail",
+            value: new UploadTaskDetail({
+              device: `devices/${deviceLink.split("/").pop()}`,
+              scanFolders: files,
+              endTime: Timestamp.fromDate(new Date()),
+              startTime: Timestamp.fromDate(new Date()),
+              labels: Array.from(new Set([...tags, ...(recordLabels ?? [])])),
+            }),
+          },
+          title: record_name ?? `${deviceLink.split("/").pop()}-${taskInfoSnapshot?.startTime}`,
+        });
 
-      const response = await consoleApi.createTask_v2({
-        parent: taskInfoSnapshot?.projectName ?? "",
-        task: newTask,
-      });
+        const response = await consoleApi.createTask_v2({
+          parent: taskInfoSnapshot?.project.name ?? "",
+          task: newTask,
+        });
 
-      addLog(t("startUpload"));
+        addLog("+++++++++++++++++++++++++++");
+        addLog(`[${new Date().toISOString()}] ${t("startUpload")}`);
+        addLog("+++++++++++++++++++++++++++");
 
-      addLog(
-        `${t("saveToRecord")}：${window.location.origin}/${targetOrg.slug}/${
-          targetProject.slug
-        }/records/${response.tags.recordName}`,
-      );
+        addLog(
+          `[${new Date().toISOString()}] ${t("progressLink")}：${window.location.origin}/${
+            targetOrg.slug
+          }/${targetProject.slug}/tasks/automated-data-collection-tasks/${response.name
+            .split("/")
+            .pop()}`,
+        );
 
-      addLog(
-        `${t("progressLink")}：${window.location.origin}/${targetOrg.slug}/${
-          targetProject.slug
-        }/tasks/automated-data-collection-tasks/${response.name.split("/").pop()}`,
-      );
+        addLog(`[${new Date().toISOString()}] ${t("pendingUploadFiles")}: ${files.length}`);
 
-      void handleTaskProgress({
-        consoleApi,
-        taskName: response.name,
-        lastUploadedFiles: 0,
-        timeout: 3000,
-        addLog,
-        t,
-      });
+        void handleTaskProgress({
+          consoleApi,
+          taskName: response.name,
+          timeout: 3000,
+          addLog,
+          t,
+          showRecordLink: true,
+          targetOrg,
+          targetProject,
+        });
+      } catch (err) {
+        log.error(err);
+        addLog(`[ERROR] ${t("uploadFileFail")}`);
+      }
     },
-    [consoleApi, taskInfoSnapshot?.projectName, taskInfoSnapshot?.startTime, deviceLink, addLog, t],
+    [taskInfoSnapshot, consoleApi, deviceLink, addLog, t],
   );
 
   const callServiceClicked = useCallback(
@@ -230,30 +264,51 @@ function DataCollectionContent(
       }
 
       switch (buttonType) {
-        case "startCollection":
-          setCurrentCollectionStage("collecting");
-          addLog(t("startCollection"));
+        case "startCollection": {
+          if (
+            Object.entries(config.buttons).some(([, button]) => button.serviceName == undefined)
+          ) {
+            addLog("[ERROR] " + t("configureService"));
+            return;
+          }
           if (config.projectName == undefined) {
             addLog("[ERROR] " + t("projectNameNotSet"));
             return;
           }
+          addLog("+++++++++++++++++++++++++++");
+          addLog(`[${new Date().toISOString()}] ${t("startCollection")}`);
+          addLog("+++++++++++++++++++++++++++");
+
+          const project = await consoleApi.getProject({
+            projectName: config.projectName,
+          });
+
+          await consoleApi.setApiBaseInfo({
+            projectId: project.name.split("/").pop(),
+            projectSlug: project.slug,
+            projectDisplayName: project.displayName,
+            warehouseId: project.name.split("warehouses/")[1]?.split("/")[0],
+          });
+
           if (!consoleApi.createTask_v2.permission()) {
             addLog("[ERROR] " + t("noPermissionToCreateTask"));
             return;
           }
+          setCurrentCollectionStage("collecting");
           setTaskInfoSnapshot({
-            projectName: config.projectName,
+            project,
             recordLabels: config.recordLabels ?? [],
             startTime: new Date().toISOString(),
           });
           break;
+        }
 
         case "endCollection":
-          addLog(t("endingCollection"));
+          addLog(`[${new Date().toISOString()}] ${t("endingCollection")}`);
           break;
 
         case "cancelCollection":
-          addLog(t("cancellingCollection"));
+          addLog(`[${new Date().toISOString()}] ${t("cancellingCollection")}`);
           break;
 
         default:
@@ -290,7 +345,7 @@ function DataCollectionContent(
         switch (buttonType) {
           case "startCollection":
             if (response.success) {
-              addLog(t("startCollectionSuccess"));
+              addLog(`[${new Date().toISOString()}] ${t("startCollectionSuccess")}`);
             } else {
               addLog(`[ERROR] ${t("startCollectionFail")}: ${response.message}`);
               setCurrentCollectionStage("ready");
@@ -299,7 +354,9 @@ function DataCollectionContent(
 
           case "endCollection":
             if (response.success) {
-              addLog(t("endCollectionSuccess"));
+              addLog("+++++++++++++++++++++++++++");
+              addLog(`[${new Date().toISOString()}] ${t("endCollectionSuccess")}`);
+              addLog("+++++++++++++++++++++++++++");
               void createDataCollectionTask({
                 endCollectionResponse: response as EndCollectionResponse,
               });
@@ -311,7 +368,9 @@ function DataCollectionContent(
 
           case "cancelCollection":
             if (response.success) {
-              addLog(t("cancelCollectionSuccess"));
+              addLog("+++++++++++++++++++++++++++");
+              addLog(`[${new Date().toISOString()}] ${t("cancelCollectionSuccess")}`);
+              addLog("+++++++++++++++++++++++++++");
               setCurrentCollectionStage("ready");
             } else {
               addLog(`[ERROR] ${t("cancelCollectionFail")}: ${response.message}`);
@@ -343,7 +402,7 @@ function DataCollectionContent(
       config.projectName,
       config.recordLabels,
       config.buttons,
-      consoleApi.createTask_v2,
+      consoleApi,
       createDataCollectionTask,
     ],
   );
@@ -397,7 +456,7 @@ function DataCollectionContent(
         <Typography variant="caption" noWrap>
           {t("collectionLog")}
         </Typography>
-        <Stack flex="auto" style={{ height: 0 }}>
+        <Stack flex="auto" style={{ height: 0 }} overflow="auto">
           {logs.map((logLine, index) => {
             return (
               <Typography
@@ -405,8 +464,24 @@ function DataCollectionContent(
                 noWrap
                 key={index}
                 color={logLine.startsWith("[ERROR]") ? "error" : undefined}
+                minHeight={20}
               >
-                {logLine}
+                {logLine.split(/(https?:\/\/[^\s]+)/).map((part, i) => {
+                  if (part.match(/^https?:\/\//)) {
+                    return (
+                      <a
+                        key={i}
+                        href={part}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "inherit", textDecoration: "underline" }}
+                      >
+                        {part}
+                      </a>
+                    );
+                  }
+                  return part;
+                })}
               </Typography>
             );
           })}

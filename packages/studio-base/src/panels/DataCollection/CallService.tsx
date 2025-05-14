@@ -88,11 +88,10 @@ export function CallService(props: Props): React.JSX.Element {
 
   const { t } = useTranslation("dataCollection");
 
-  const { requestPayload, showRequest, color, state, serviceName } = useMemo(() => {
+  const { requestPayload, showRequest, color, state } = useMemo(() => {
     return {
       requestPayload: config.buttons[type].requestPayload,
       showRequest: config.buttons[type].showRequest,
-      serviceName: config.buttons[type].serviceName,
       color: config.buttons[type].color,
       state: buttonsState[type],
     };
@@ -108,7 +107,6 @@ export function CallService(props: Props): React.JSX.Element {
   const canCallService = Boolean(
     supportCallService &&
       requestPayload &&
-      serviceName &&
       parsedObject != undefined &&
       state?.status !== "requesting",
   );
@@ -145,7 +143,7 @@ export function CallService(props: Props): React.JSX.Element {
       </Stack>
       <Stack
         direction="row"
-        justifyContent="flex-end"
+        justifyContent="center"
         alignItems="center"
         overflow="hidden"
         flexGrow={0}

@@ -19,13 +19,13 @@ import { ConsoleApi } from "@foxglove/studio-base/index";
 import { Config } from "./types";
 
 export const defaultStartCollectionRequest = `{
-  record_opt: "-o cos -a",
+  "record_opt": "-o cos -a"
 }`;
 
 export const defaultEndCollectionRequest = `{}`;
 
 export const defaultCancelCollectionRequest = `{
-  auto_remove: true,
+  "auto_remove": true
 }`;
 
 export const defaultConfig: Config = {
@@ -102,13 +102,20 @@ export function useSettingsTree(
   }, [consoleApi, userInfo.userId]);
 
   const [, syncRecordLabels] = useAsyncFn(async () => {
-    if (config.projectName && consoleApi.listLabels.permission()) {
+    if (config.projectName) {
       try {
-        return await consoleApi.listLabels({
+        const listLabelsResponse = await consoleApi.listLabels({
           warehouseId: config.projectName.split("warehouses/")[1]?.split("/")[0] ?? "",
           projectId: config.projectName.split("/").pop() ?? "",
           pageSize: MAX_PROJECTS_PAGE_SIZE,
         });
+        const labels = listLabelsResponse.labels;
+        const options = labels.map((label) => ({
+          label: label.displayName,
+          value: label.displayName,
+        }));
+        setRecordLabels(options);
+        return listLabelsResponse;
       } catch (error) {
         console.error("error", error);
       }
@@ -131,17 +138,8 @@ export function useSettingsTree(
   }, [syncProjects]);
 
   useEffect(() => {
-    void syncRecordLabels().then((listLabelsResponse) => {
-      if (listLabelsResponse) {
-        const labels = listLabelsResponse.labels;
-        const options = labels.map((label) => ({
-          label: label.displayName,
-          value: label.name,
-        }));
-        setRecordLabels(options);
-      }
-    });
-  }, [syncProjects]);
+    void syncRecordLabels();
+  }, [syncRecordLabels]);
 
   const settings = useMemo(
     (): SettingsTreeNodes => ({
