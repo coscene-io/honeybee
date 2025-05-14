@@ -40,7 +40,7 @@ export type StartCollectionResponse = {
 export type EndCollectionResponse = {
   success: boolean;
   message: string;
-  recordName?: string;
+  record_name?: string;
   tags: string[];
   files: string[];
 };

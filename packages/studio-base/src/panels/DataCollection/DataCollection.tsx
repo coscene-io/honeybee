@@ -162,7 +162,7 @@ function DataCollectionContent(
 
   const createDataCollectionTask = useCallback(
     async ({ endCollectionResponse }: { endCollectionResponse: EndCollectionResponse }) => {
-      const { files, recordName } = endCollectionResponse;
+      const { files, record_name } = endCollectionResponse;
 
       const targetProject = await consoleApi.getProject({
         projectName: taskInfoSnapshot?.projectName ?? "",
@@ -183,7 +183,7 @@ function DataCollectionContent(
             startTime: Timestamp.fromDate(new Date()),
           }),
         },
-        title: recordName ?? `${deviceLink.split("/").pop()}-${taskInfoSnapshot?.startTime}`,
+        title: record_name ?? `${deviceLink.split("/").pop()}-${taskInfoSnapshot?.startTime}`,
       });
 
       const response = await consoleApi.createTask_v2({
