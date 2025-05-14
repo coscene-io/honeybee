@@ -19,7 +19,7 @@ import { ConsoleApi } from "@foxglove/studio-base/index";
 import { Config } from "./types";
 
 export const defaultStartCollectionRequest = `{
-  "record_opt": "-o cos -a"
+  "record_opt": "-a"
 }`;
 
 export const defaultEndCollectionRequest = `{}`;
