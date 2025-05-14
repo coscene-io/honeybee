@@ -52,4 +52,6 @@ export const panels = {
   variableSliderDescription: "Update numerical variable values for a layout.",
   settings: "Settings",
   momentsBarDesc: "Displaying momentary information in card form",
+  dataCollection: "Data Collection",
+  dataCollectionDescription: "Data collection description",
 };

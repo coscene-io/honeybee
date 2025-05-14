@@ -26,3 +26,4 @@ export * from "./threeDee";
 export * from "./topicList";
 export * from "./workspace";
 export * from "./recordInfo";
+export * from "./dataCollection";
