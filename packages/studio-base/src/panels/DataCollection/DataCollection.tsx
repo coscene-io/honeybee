@@ -306,14 +306,14 @@ function DataCollectionContent(
         return;
       }
 
-      if (Object.entries(config.buttons).some(([, button]) => button.serviceName == undefined)) {
+      if (Object.entries(config.buttons).some(([, button]) => !button.serviceName)) {
         addLog("[ERROR] " + t("configureService"));
         return;
       }
 
       switch (buttonType) {
         case "startCollection": {
-          if (config.projectName == undefined) {
+          if (!config.projectName) {
             addLog("[ERROR] " + t("projectNameNotSet"));
             return;
           }
