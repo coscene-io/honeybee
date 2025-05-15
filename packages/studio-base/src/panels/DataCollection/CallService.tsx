@@ -22,6 +22,7 @@ type Props = {
   supportCallService: boolean;
   callServiceClicked: (buttonType: ButtonType) => Promise<void>;
   setConfig: Updater<Config>;
+  elapsedTime?: string;
 };
 
 const useStyles = makeStyles<{ buttonColor?: string }>()((theme, { buttonColor }) => {
@@ -73,7 +74,7 @@ function parseInput(value: string): { error?: string; parsedObject?: unknown } {
     } else if (parsedAny == undefined) {
       error = "Request content must be an object, not null";
     } else if (typeof parsedAny !== "object") {
-      error = `Request content must be an object, not ‘${typeof parsedAny}’`;
+      error = `Request content must be an object, not '${typeof parsedAny}'`;
     } else {
       parsedObject = parsedAny;
     }
@@ -84,7 +85,15 @@ function parseInput(value: string): { error?: string; parsedObject?: unknown } {
 }
 
 export function CallService(props: Props): React.JSX.Element {
-  const { type, config, buttonsState, supportCallService, callServiceClicked, setConfig } = props;
+  const {
+    type,
+    config,
+    buttonsState,
+    supportCallService,
+    callServiceClicked,
+    setConfig,
+    elapsedTime,
+  } = props;
 
   const { t } = useTranslation("dataCollection");
 
@@ -159,7 +168,7 @@ export function CallService(props: Props): React.JSX.Element {
             }}
             data-testid="call-service-button"
           >
-            {t(type)}
+            {elapsedTime ? `${t(type)} (${elapsedTime})` : t(type)}
           </Button>
         </span>
       </Stack>
