@@ -233,7 +233,7 @@ function DataCollectionContent(
 
         let task_title = record_name;
 
-        if (record_name == undefined) {
+        if (!record_name) {
           const targetDevice = await consoleApi.getDevice({
             deviceName: `devices/${deviceLink.split("/").pop()}`,
           });
