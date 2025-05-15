@@ -46,4 +46,7 @@ export const dataCollection: Partial<TypeOptions["resources"]["dataCollection"]>
   taskStatePending: "任务等待中",
   pendingUploadFiles: "待上传文件数",
   uploadFileFail: "上传文件失败",
+  attemptedToPublishWithoutValidCoSceneWebSocketConnection:
+    "尝试在没有有效的 coScene WebSocket 连接的情况下发布",
+  triedToPublishOnTopicThatHasNotBeenAdvertisedBefore: "尝试在未被广告的主题 '{{topic}}' 上发布",
 };

@@ -455,7 +455,12 @@ function DataCollectionContent(
         <Typography variant="caption" noWrap>
           {t("collectionLog")}
         </Typography>
-        <Stack flex="auto" style={{ height: 0 }} overflow="auto">
+        <Stack
+          flex="auto"
+          style={{ height: 0, border: "1px solid", borderRadius: 4 }}
+          overflow="auto"
+          padding={1}
+        >
           {logs.map((logLine, index) => {
             return (
               <Typography

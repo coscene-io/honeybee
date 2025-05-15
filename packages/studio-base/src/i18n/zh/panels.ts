@@ -53,5 +53,5 @@ export const panels: Partial<TypeOptions["resources"]["panels"]> = {
   settings: "设置",
   momentsBarDesc: "以卡片形式显示一刻信息",
   dataCollection: "数据采集",
-  dataCollectionDescription: "数据采集描述",
+  dataCollectionDescription: "通过实时连接，向设备的 service 发送指令采集数据",
 };
