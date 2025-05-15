@@ -53,5 +53,6 @@ export const panels = {
   settings: "Settings",
   momentsBarDesc: "Displaying momentary information in card form",
   dataCollection: "Data Collection",
-  dataCollectionDescription: "Data collection description",
+  dataCollectionDescription:
+    "Send instructions to the device service through a live connection to collect data",
 };
