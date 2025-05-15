@@ -242,6 +242,7 @@ function DataCollectionContent(
         }
 
         const newTask = new Task({
+          assignee: `users/${userInfo.userId}`,
           category: TaskCategoryEnum_TaskCategory.UPLOAD,
           description: "",
           detail: {
@@ -291,7 +292,7 @@ function DataCollectionContent(
         addLog(`[ERROR] ${t("uploadFileFail")}`);
       }
     },
-    [taskInfoSnapshot, consoleApi, deviceLink, addLog, t],
+    [taskInfoSnapshot, consoleApi, deviceLink, addLog, t, userInfo.userId],
   );
 
   const callServiceClicked = useCallback(
