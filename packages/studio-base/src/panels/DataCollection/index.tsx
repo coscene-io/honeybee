@@ -88,13 +88,13 @@ function DataCollectionPanelAdapter(props: Props) {
     return initPanel.bind(undefined, deviceLink, userInfo, consoleApi, crash);
   }, [crash, consoleApi, userInfo, deviceLink]);
 
-  // if (dataSource?.id !== "coscene-websocket") {
-  //   return (
-  //     <Stack fullHeight justifyContent="center" alignItems="center">
-  //       {t("onlySupportRealTimeVisualization")}
-  //     </Stack>
-  //   );
-  // }
+  if (dataSource?.id !== "coscene-websocket") {
+    return (
+      <Stack fullHeight justifyContent="center" alignItems="center">
+        {t("onlySupportRealTimeVisualization")}
+      </Stack>
+    );
+  }
 
   if (loginStatus === "notLogin") {
     return (

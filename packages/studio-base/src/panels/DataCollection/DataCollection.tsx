@@ -159,7 +159,7 @@ function DataCollectionContent(
     ...defaultConfig,
     ...(context.initialState as Partial<Config>),
   }));
-  const [logs, setLogs] = useState<string[]>(["1111"]);
+  const [logs, setLogs] = useState<string[]>([]);
   const [currentCollectionStage, setCurrentCollectionStage] = useState<CollectionStage>("ready");
   const [taskInfoSnapshot, setTaskInfoSnapshot] = useState<TaskInfoSnapshot | undefined>(undefined);
 
