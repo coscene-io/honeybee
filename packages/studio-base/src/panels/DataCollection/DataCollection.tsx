@@ -82,7 +82,7 @@ async function handleTaskProgress({
     addLog(
       `[${new Date().toISOString()}] ${t("saveToRecord")}：${window.location.origin}/${
         targetOrg.slug
-      }/${targetProject.slug}/records/${task.tags.recordName}`,
+      }/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
     needShowRecordLink = false;
   }
@@ -242,6 +242,7 @@ function DataCollectionContent(
         }
 
         const newTask = new Task({
+          assignee: `users/${userInfo.userId}`,
           category: TaskCategoryEnum_TaskCategory.UPLOAD,
           description: "",
           detail: {
@@ -291,7 +292,7 @@ function DataCollectionContent(
         addLog(`[ERROR] ${t("uploadFileFail")}`);
       }
     },
-    [taskInfoSnapshot, consoleApi, deviceLink, addLog, t],
+    [taskInfoSnapshot, consoleApi, deviceLink, addLog, t, userInfo.userId],
   );
 
   const callServiceClicked = useCallback(
@@ -306,15 +307,14 @@ function DataCollectionContent(
         return;
       }
 
+      if (Object.entries(config.buttons).some(([, button]) => !button.serviceName)) {
+        addLog("[ERROR] " + t("configureService"));
+        return;
+      }
+
       switch (buttonType) {
         case "startCollection": {
-          if (
-            Object.entries(config.buttons).some(([, button]) => button.serviceName == undefined)
-          ) {
-            addLog("[ERROR] " + t("configureService"));
-            return;
-          }
-          if (config.projectName == undefined) {
+          if (!config.projectName) {
             addLog("[ERROR] " + t("projectNameNotSet"));
             return;
           }
