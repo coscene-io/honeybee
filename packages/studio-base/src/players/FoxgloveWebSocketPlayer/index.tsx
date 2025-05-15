@@ -104,11 +104,23 @@ const CURRENT_FRAME_MAXIMUM_SIZE_BYTES = 400 * 1024 * 1024;
 // 100 年 disable timeout
 const TIMEOUT_DISABLED = 1000 * 60 * 60 * 24 * 365 * 100;
 
-// 页面在活跃状态下，连续 10 分钟没有任何操作，则自动断开
-const INATIVE_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+// 页面在活跃状态下，连续 30 分钟没有任何操作，则自动断开
+const TIMEOUT_CONFIG = {
+  foreground: 1000 * 60 * 30, // 前台30分钟
+  background: 1000 * 60 * 10, // 后台10分钟
+  warning: 1000 * 60 * 5, // 提前5分钟警告
+};
 
-// 页面在后台情况下，连续 1 分钟没有任何操作，则自动断开
-const BACKEND_INATIVE_TIMEOUT = 1000 * 60 * 1; // 1 minutes
+const ACTIVITY_EVENTS = [
+  "mousemove",
+  "mousedown",
+  "keypress",
+  "touchmove",
+  "scroll", // 添加滚动事件
+  "wheel", // 添加滚轮事件
+  "pointermove", // 添加指针移动事件
+  "pointerdown", // 添加指针按下事件
+];
 
 export default class FoxgloveWebSocketPlayer implements Player {
   readonly #sourceId: string;
@@ -172,9 +184,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #fetchedAssets = new Map<string, Promise<Asset>>();
   #parameterTypeByName = new Map<string, Parameter["type"]>();
   #messageSizeEstimateByTopic: Record<string, number> = {};
-  #inactiveTimeout = INATIVE_TIMEOUT;
+  #inactiveTimeout = TIMEOUT_CONFIG.foreground;
   #confirm: confirmTypes;
   #disableTimeout: boolean;
+  #lastActivityTime: number = Date.now();
+  #remainingTime: number = TIMEOUT_CONFIG.foreground;
 
   #userId: string;
   #username: string;
@@ -1035,6 +1049,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
         clearTimeout(timeoutId);
       }
 
+      this.#lastActivityTime = Date.now();
+      this.#remainingTime = this.#inactiveTimeout;
+
       timeoutId = setTimeout(() => {
         this.close();
         void this.#confirm({
@@ -1049,6 +1066,17 @@ export default class FoxgloveWebSocketPlayer implements Player {
           }
         });
       }, this.#inactiveTimeout);
+
+      // 每秒更新剩余时间
+      const updateRemainingTime = () => {
+        if (this.#closed) {
+          return;
+        }
+        const elapsed = Date.now() - this.#lastActivityTime;
+        this.#remainingTime = Math.max(0, this.#inactiveTimeout - elapsed);
+        setTimeout(updateRemainingTime, 1000);
+      };
+      updateRemainingTime();
     };
 
     const resetInactiveTimeout = () => {
@@ -1057,29 +1085,26 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
 
       if (document.visibilityState === "visible") {
-        this.#inactiveTimeout = INATIVE_TIMEOUT;
+        this.#inactiveTimeout = TIMEOUT_CONFIG.foreground;
       } else {
-        this.#inactiveTimeout = BACKEND_INATIVE_TIMEOUT;
+        this.#inactiveTimeout = TIMEOUT_CONFIG.background;
       }
       resetTimer();
     };
 
-    const addEventListener = () => {
-      // 监听页面上的各种事件，以判断当前用户是否活跃
-      window.addEventListener("mousemove", resetTimer);
-      window.addEventListener("mousedown", resetTimer);
-      window.addEventListener("keypress", resetTimer);
-      window.addEventListener("touchmove", resetTimer);
+    const throttledResetTimer = _.throttle(resetTimer, 1000); // 1秒内最多执行一次
 
-      // 监听当前 tab 是否在前台，如果不在前台，超时时间变短
+    const addEventListener = () => {
+      ACTIVITY_EVENTS.forEach((event) => {
+        window.addEventListener(event, throttledResetTimer);
+      });
       window.addEventListener("visibilitychange", resetInactiveTimeout);
     };
 
     const removeEventListener = () => {
-      window.removeEventListener("mousemove", resetTimer);
-      window.removeEventListener("mousedown", resetTimer);
-      window.removeEventListener("keypress", resetTimer);
-      window.removeEventListener("touchmove", resetTimer);
+      ACTIVITY_EVENTS.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
 
       window.removeEventListener("visibilitychange", resetInactiveTimeout);
     };
@@ -1323,7 +1348,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           ? Array.from(value as unknown as ArrayLike<unknown>)
           : value;
       };
-      const message = Buffer.from(JSON.stringify(msg, replacer) ?? "");
+      const message = new Uint8Array(textEncoder.encode(JSON.stringify(msg, replacer) ?? ""));
       this.#client.sendMessage(clientChannel.id, message);
     } else if (
       ROS_ENCODINGS.includes(clientChannel.encoding) &&
@@ -1594,6 +1619,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
     if (updatedDatatypes != undefined) {
       this.#datatypes = updatedDatatypes; // Signal that datatypes changed.
     }
+  }
+
+  public getRemainingTime(): number {
+    return this.#remainingTime;
+  }
+
+  public isTimeoutDisabled(): boolean {
+    return this.#disableTimeout;
   }
 }
 
