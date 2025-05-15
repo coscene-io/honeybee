@@ -82,7 +82,7 @@ async function handleTaskProgress({
     addLog(
       `[${new Date().toISOString()}] ${t("saveToRecord")}：${window.location.origin}/${
         targetOrg.slug
-      }/${targetProject.slug}/records/${task.tags.recordName}`,
+      }/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
     needShowRecordLink = false;
   }
@@ -305,15 +305,13 @@ function DataCollectionContent(
         });
         return;
       }
+      if (Object.entries(config.buttons).some(([, button]) => button.serviceName == undefined)) {
+        addLog("[ERROR] " + t("configureService"));
+        return;
+      }
 
       switch (buttonType) {
         case "startCollection": {
-          if (
-            Object.entries(config.buttons).some(([, button]) => button.serviceName == undefined)
-          ) {
-            addLog("[ERROR] " + t("configureService"));
-            return;
-          }
           if (config.projectName == undefined) {
             addLog("[ERROR] " + t("projectNameNotSet"));
             return;
