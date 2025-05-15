@@ -242,7 +242,7 @@ function DataCollectionContent(
         }
 
         const newTask = new Task({
-          assignee: `users/${userInfo.userId}`,
+          assigner: `users/${userInfo.userId}`,
           category: TaskCategoryEnum_TaskCategory.UPLOAD,
           description: "",
           detail: {
