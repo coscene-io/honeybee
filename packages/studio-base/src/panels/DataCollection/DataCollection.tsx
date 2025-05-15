@@ -305,6 +305,7 @@ function DataCollectionContent(
         });
         return;
       }
+
       if (Object.entries(config.buttons).some(([, button]) => button.serviceName == undefined)) {
         addLog("[ERROR] " + t("configureService"));
         return;
