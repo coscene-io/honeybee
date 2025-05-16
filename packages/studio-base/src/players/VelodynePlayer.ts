@@ -313,6 +313,8 @@ export default class VelodynePlayer implements Player {
   public setGlobalVariables(_globalVariables: GlobalVariables): void {
     // no-op
   }
+
+  public reOpen(): void {}
 }
 
 function rawPacketToRos(packet: RawPacket, topOfHour: Time): { stamp: Time; data: Uint8Array } {

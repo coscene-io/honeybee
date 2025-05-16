@@ -735,4 +735,6 @@ export default class RosbridgePlayer implements Player {
       this.#isRefreshing = false;
     }
   }
+
+  public reOpen(): void {}
 }

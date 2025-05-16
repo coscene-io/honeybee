@@ -294,6 +294,8 @@ class BenchmarkPlayer implements Player {
         .join("ms, ")}ms`,
     );
   }
+
+  public reOpen(): void {}
 }
 
 function getFrameStats(frames: number[]) {

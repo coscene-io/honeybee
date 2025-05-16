@@ -265,6 +265,8 @@ class PointcloudPlayer implements Player {
       BenchmarkStats.Instance().recordFrameTime(frameTimeMs);
     }
   }
+
+  public reOpen(): void {}
 }
 
 export { PointcloudPlayer };

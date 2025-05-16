@@ -106,4 +106,7 @@ export default class FakePlayer implements Player {
   public setGlobalVariables = (): void => {
     // no-op
   };
+  public reOpen = (): void => {
+    // no-op
+  };
 }

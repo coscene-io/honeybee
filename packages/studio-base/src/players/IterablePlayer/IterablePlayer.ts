@@ -1148,4 +1148,6 @@ export class IterablePlayer implements Player {
       },
     });
   }
+
+  public reOpen(): void {}
 }

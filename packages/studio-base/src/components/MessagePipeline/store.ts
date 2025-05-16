@@ -271,6 +271,14 @@ export function createMessagePipelineStore({
           condvar.notifyAll();
         };
       },
+
+      close() {
+        get().player?.close();
+      },
+
+      reOpen() {
+        get().player?.reOpen();
+      },
     },
   }));
 }

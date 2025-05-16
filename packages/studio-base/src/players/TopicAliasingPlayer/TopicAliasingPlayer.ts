@@ -238,4 +238,8 @@ export class TopicAliasingPlayer implements Player {
       this.#player.setSubscriptions(aliasedSubscriptions);
     }
   }
+
+  public reOpen(): void {
+    this.#player.reOpen();
+  }
 }

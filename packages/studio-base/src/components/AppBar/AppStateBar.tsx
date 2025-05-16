@@ -26,9 +26,19 @@ import {
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
+
+import { useAutoDisconnection } from "./hooks/useAutoDisconnection";
+
+// 页面在活跃状态下，连续 30 分钟没有任何操作，则自动断开
+const TIMEOUT_CONFIG = {
+  foreground: 1000 * 60 * 30, // 前台30分钟
+  background: 1000 * 60 * 10, // 后台10分钟
+  warning: 1000 * 60 * 5, // 提前5分钟警告
+};
 
 const useStyles = makeStyles()((theme) => ({
   mediaGenerationStatusBar: {
@@ -60,6 +70,13 @@ export function AppStateBar(): React.JSX.Element {
   const { classes, theme } = useStyles();
   const { t } = useTranslation("appBar");
   const presence = useMessagePipeline(selectPresence);
+  const [confirm, confirmModal] = useConfirm();
+  const remainingTime = useAutoDisconnection({
+    confirm,
+    foregroundTimeout: TIMEOUT_CONFIG.foreground,
+    backgroundTimeout: TIMEOUT_CONFIG.background,
+  });
+
   const [showLoadingStatus, setShowLoadingStatus] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout | undefined>(undefined);
   const { layoutActions } = useWorkspaceActions();
@@ -386,6 +403,14 @@ export function AppStateBar(): React.JSX.Element {
           </Stack>
         </Stack>
       )}
+      <button
+        onClick={() => {
+          close();
+        }}
+      >
+        hello world
+      </button>
+      {confirmModal}
     </>
   );
 }
