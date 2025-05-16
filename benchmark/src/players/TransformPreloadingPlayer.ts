@@ -308,6 +308,8 @@ class TransformPreloadingPlayer implements Player {
         .join("ms, ")}ms`,
     );
   }
+
+  public reOpen(): void {}
 }
 
 type TFParams = {

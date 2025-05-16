@@ -670,4 +670,6 @@ stale graph may result in missing topics you expect. Ensure that roscore is reac
   #getCurrentTime(): Time {
     return this.#clockTime ?? fromMillis(Date.now());
   }
+
+  public reOpen(): void {}
 }

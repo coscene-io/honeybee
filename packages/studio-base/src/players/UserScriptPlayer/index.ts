@@ -1124,4 +1124,6 @@ export default class UserScriptPlayer implements Player {
   public seekPlayback(time: Time): void {
     this.#player.seekPlayback?.(time);
   }
+
+  public reOpen(): void {}
 }
