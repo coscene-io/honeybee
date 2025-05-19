@@ -76,10 +76,10 @@ export function useAutoDisconnection({
         close();
         removeEventListener();
         void confirm({
-          title: t("note"),
-          prompt: t("inactivePageDescription"),
+          title: t("vizIsDisconnected"),
+          prompt: t("inactivePageDescription", { time: remainingTime / 1000 / 60 }),
           ok: t("reconnect"),
-          cancel: t("cancel"),
+          cancel: t("exitAndClosePage"),
         })
           .then((result) => {
             if (result === "ok") {

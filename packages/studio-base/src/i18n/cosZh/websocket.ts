@@ -22,5 +22,8 @@ export const cosWebsocket: Partial<TypeOptions["resources"]["cosWebsocket"]> = {
   reconnetDesc: "如果需要，请重新连接。",
   reconnect: "重新连接",
   IKnow: "我知道了",
-  inactivePageDescription: "页面已经不活跃很长时间，连接已断开, 是否重新连接？",
+  vizIsDisconnected: "实时可视化已断开",
+  inactivePageDescription:
+    "页面已长达 {{time}} 分钟无操作，为节省流量消耗，实时可视化已自动断开连接。",
+  exitAndClosePage: "退出并关闭页面",
 };
