@@ -15,7 +15,7 @@ import {
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { Palette, Typography } from "@mui/material";
 import { TFunction } from "i18next";
-import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useImmer } from "use-immer";
 
@@ -82,7 +82,7 @@ async function handleTaskProgress({
     addLog(
       `[${new Date().toISOString()}] ${t("saveToRecord")}：${window.location.origin}/${
         targetOrg.slug
-      }/${targetProject.slug}/records/${task.tags.recordName}`,
+      }/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
     needShowRecordLink = false;
   }
@@ -162,6 +162,8 @@ function DataCollectionContent(
   const [logs, setLogs] = useState<string[]>([]);
   const [currentCollectionStage, setCurrentCollectionStage] = useState<CollectionStage>("ready");
   const [taskInfoSnapshot, setTaskInfoSnapshot] = useState<TaskInfoSnapshot | undefined>(undefined);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const timerRef = useRef<NodeJS.Timeout>();
 
   const addLog = useCallback(
     (newLog: string) => {
@@ -185,6 +187,38 @@ function DataCollectionContent(
     });
   }, [context, settingsActionHandler, settingsTree]);
 
+  const formatElapsedTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
+  };
+
+  const startTimer = useCallback(() => {
+    setElapsedTime(0);
+    timerRef.current = setInterval(() => {
+      setElapsedTime((prev) => prev + 1);
+    }, 1000);
+  }, []);
+
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = undefined;
+    }
+    setElapsedTime(0);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
   const createDataCollectionTask = useCallback(
     async ({ endCollectionResponse }: { endCollectionResponse: EndCollectionResponse }) => {
       try {
@@ -197,7 +231,18 @@ function DataCollectionContent(
 
         const targetOrg = await consoleApi.getOrg("organizations/current");
 
+        let task_title = record_name;
+
+        if (!record_name) {
+          const targetDevice = await consoleApi.getDevice({
+            deviceName: `devices/${deviceLink.split("/").pop()}`,
+          });
+
+          task_title = `${targetDevice.serialNumber}-${taskInfoSnapshot?.startTime}`;
+        }
+
         const newTask = new Task({
+          assigner: `users/${userInfo.userId}`,
           category: TaskCategoryEnum_TaskCategory.UPLOAD,
           description: "",
           detail: {
@@ -210,7 +255,7 @@ function DataCollectionContent(
               labels: Array.from(new Set([...tags, ...(recordLabels ?? [])])),
             }),
           },
-          title: record_name ?? `${deviceLink.split("/").pop()}-${taskInfoSnapshot?.startTime}`,
+          title: task_title,
         });
 
         const response = await consoleApi.createTask_v2({
@@ -247,7 +292,7 @@ function DataCollectionContent(
         addLog(`[ERROR] ${t("uploadFileFail")}`);
       }
     },
-    [taskInfoSnapshot, consoleApi, deviceLink, addLog, t],
+    [taskInfoSnapshot, consoleApi, deviceLink, addLog, t, userInfo.userId],
   );
 
   const callServiceClicked = useCallback(
@@ -262,15 +307,14 @@ function DataCollectionContent(
         return;
       }
 
+      if (Object.entries(config.buttons).some(([, button]) => !button.serviceName)) {
+        addLog("[ERROR] " + t("configureService"));
+        return;
+      }
+
       switch (buttonType) {
         case "startCollection": {
-          if (
-            Object.entries(config.buttons).some(([, button]) => button.serviceName == undefined)
-          ) {
-            addLog("[ERROR] " + t("configureService"));
-            return;
-          }
-          if (config.projectName == undefined) {
+          if (!config.projectName) {
             addLog("[ERROR] " + t("projectNameNotSet"));
             return;
           }
@@ -299,6 +343,7 @@ function DataCollectionContent(
             recordLabels: config.recordLabels ?? [],
             startTime: new Date().toISOString(),
           });
+          startTimer();
           break;
         }
 
@@ -348,6 +393,7 @@ function DataCollectionContent(
             } else {
               addLog(`[ERROR] ${t("startCollectionFail")}: ${response.message}`);
               setCurrentCollectionStage("ready");
+              stopTimer();
             }
             break;
 
@@ -360,6 +406,7 @@ function DataCollectionContent(
                 endCollectionResponse: response as EndCollectionResponse,
               });
               setCurrentCollectionStage("ready");
+              stopTimer();
             } else {
               addLog(`[ERROR] ${t("endCollectionFail")}: ${response.message}`);
             }
@@ -371,6 +418,7 @@ function DataCollectionContent(
               addLog(`[${new Date().toISOString()}] ${t("cancelCollectionSuccess")}`);
               addLog("+++++++++++++++++++++++++++");
               setCurrentCollectionStage("ready");
+              stopTimer();
             } else {
               addLog(`[ERROR] ${t("cancelCollectionFail")}: ${response.message}`);
             }
@@ -391,6 +439,7 @@ function DataCollectionContent(
 
         addLog(`[ERROR] ${(err as Error).message}`);
         setCurrentCollectionStage("ready");
+        stopTimer();
       }
     },
     [
@@ -403,6 +452,8 @@ function DataCollectionContent(
       config.buttons,
       consoleApi,
       createDataCollectionTask,
+      startTimer,
+      stopTimer,
     ],
   );
 
@@ -446,6 +497,7 @@ function DataCollectionContent(
             }
             callServiceClicked={callServiceClicked}
             setConfig={setConfig}
+            elapsedTime={key === "endCollection" ? formatElapsedTime(elapsedTime) : undefined}
           />
         ))}
       </Stack>
