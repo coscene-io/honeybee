@@ -247,6 +247,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
       if (this.#closed || !this.#client) {
         return;
       }
+      if (this.#connectionAttemptTimeout != undefined) {
+        clearTimeout(this.#connectionAttemptTimeout);
+      }
       this.#presence = PlayerPresence.PRESENT;
       this.#resetSessionState();
       this.#problems.clear();
@@ -330,6 +333,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         variant: "danger",
       }).then((result) => {
         if (result === "ok") {
+          this.#isReconnect = true;
           this.reOpen();
         }
         if (result === "cancel") {
@@ -363,6 +367,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
     // this during a disconnect event. Any necessary state clearing is handled once a new connection
     // is established
     this.#client.on("close", (event) => {
+      if (this.#closed) {
+        return;
+      }
+
       // Foxglove type description is incorrect, we need to cast to the correct type
       const realCloseEventMessage: { type: "close"; data: CloseEventMessage } =
         event as unknown as {
@@ -1082,7 +1090,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
   public reOpen(): void {
     this.#closed = false;
-    this.#isReconnect = true;
     this.#open();
   }
 
