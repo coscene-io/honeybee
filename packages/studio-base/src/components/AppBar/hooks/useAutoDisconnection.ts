@@ -6,21 +6,21 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// 100 年 disable timeout
-const TIMEOUT_DISABLED = Number.MAX_SAFE_INTEGER;
+const TIMEOUT_DISABLED = 1000 * 60 * 60 * 24 * 365 * 100;
 
 const ACTIVITY_EVENTS = [
   "mousemove",
@@ -31,10 +31,12 @@ const ACTIVITY_EVENTS = [
   "wheel", // 添加滚轮事件
   "pointermove", // 添加指针移动事件
   "pointerdown", // 添加指针按下事件
+  "visibilitychange",
 ];
 
 const selectClose = (ctx: MessagePipelineContext) => ctx.close;
 const selectReOpen = (ctx: MessagePipelineContext) => ctx.reOpen;
+const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
 
 export function useAutoDisconnection({
   confirm,
@@ -46,46 +48,58 @@ export function useAutoDisconnection({
   backgroundTimeout: number;
 }): number {
   const [inactiveTimeout, setInactiveTimeout] = useState<number>(foregroundTimeout);
-  const [isDisableTimeout, setIsDisableTimeout] = useState<boolean>(false);
-  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | undefined>(undefined);
   const [remainingTime, setRemainingTime] = useState<number>(inactiveTimeout);
   const [lastActivityTime, setLastActivityTime] = useState<number>(Date.now());
 
-  const { t } = useTranslation("cosWebsocket");
+  // 使用 useRef 替代 useState 来管理 timeoutId
+  const timeoutRef = useRef<NodeJS.Timeout>();
 
+  const { t } = useTranslation("cosWebsocket");
+  const dataSource = useBaseInfo(selectDataSource);
   const close = useMessagePipeline(selectClose);
   const reOpen = useMessagePipeline(selectReOpen);
 
   const resetTimer = useCallback(() => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
+    // 清除旧的 timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
     }
 
     const currentTime = Date.now();
     setLastActivityTime(currentTime);
 
-    setTimeoutId(
-      setTimeout(() => {
-        try {
-          close();
-          void confirm({
-            title: t("note"),
-            prompt: t("inactivePageDescription"),
-            ok: t("reconnect"),
-            cancel: t("cancel"),
-          }).then((result) => {
+    const timeout = document.visibilityState === "visible" ? foregroundTimeout : backgroundTimeout;
+    setInactiveTimeout(timeout);
+
+    const inactiveTimeoutId = setTimeout(() => {
+      try {
+        close();
+        removeEventListener();
+        void confirm({
+          title: t("note"),
+          prompt: t("inactivePageDescription"),
+          ok: t("reconnect"),
+          cancel: t("cancel"),
+        })
+          .then((result) => {
             if (result === "ok") {
+              addEventListener();
               reOpen();
             } else {
               window.close();
             }
+          })
+          .catch((error: unknown) => {
+            console.error("Error during confirmation:", error);
           });
-        } catch (error) {
-          console.error("Error during disconnection:", error);
-        }
-      }, inactiveTimeout),
-    );
-  }, [timeoutId, inactiveTimeout, close, confirm, t, reOpen]);
+      } catch (error) {
+        console.error("Error during disconnection:", error);
+      }
+    }, timeout);
+
+    // 更新 ref 的值
+    timeoutRef.current = inactiveTimeoutId;
+  }, [inactiveTimeout, close, confirm, t, reOpen]);
 
   // 使用 useEffect 处理倒计时更新
   useEffect(() => {
@@ -104,47 +118,36 @@ export function useAutoDisconnection({
     };
   }, [lastActivityTime, inactiveTimeout]);
 
-  const resetInactiveTimeout = useCallback(() => {
-    if (isDisableTimeout) {
-      return;
-    }
-
-    if (document.visibilityState === "visible") {
-      setInactiveTimeout(foregroundTimeout);
-    } else {
-      setInactiveTimeout(backgroundTimeout);
-    }
-    resetTimer();
-  }, [isDisableTimeout, foregroundTimeout, backgroundTimeout, resetTimer]);
-
   const throttledResetTimer = useMemo(() => _.throttle(resetTimer, 1000), [resetTimer]);
 
   const addEventListener = useCallback(() => {
     ACTIVITY_EVENTS.forEach((event) => {
       window.addEventListener(event, throttledResetTimer);
     });
-    window.addEventListener("visibilitychange", resetInactiveTimeout);
-  }, [throttledResetTimer, resetInactiveTimeout]);
+  }, []);
 
   const removeEventListener = useCallback(() => {
     ACTIVITY_EVENTS.forEach((event) => {
       window.removeEventListener(event, throttledResetTimer);
     });
-    window.removeEventListener("visibilitychange", resetInactiveTimeout);
-  }, [throttledResetTimer, resetInactiveTimeout]);
+  }, []);
 
   useEffect(() => {
     const disableTimeout = localStorage.getItem("disable_timeout") === "true";
-    setIsDisableTimeout(disableTimeout);
-    if (disableTimeout) {
+    if (disableTimeout || (dataSource && dataSource.id !== "coscene-websocket")) {
       setInactiveTimeout(TIMEOUT_DISABLED);
+      return;
     }
 
     addEventListener();
+    throttledResetTimer();
     return () => {
       removeEventListener();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, [addEventListener, removeEventListener]);
+  }, []);
 
   return remainingTime;
 }

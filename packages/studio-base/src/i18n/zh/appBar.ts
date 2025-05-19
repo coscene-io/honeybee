@@ -68,4 +68,6 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
     "将在 coStudio 中打开当前页面，请确认已经安装 coStudio，或者点击此处<download>下载</download>，并允许打开外部链接",
   openByCoStudio: "通过 coStudio 打开",
   doNotShowAgain: "不再提示",
+  autoDisconnectionTips:
+    "检测到长时间无操作，可视化即将自动断连，如需继续使用请保持活跃状态 {{time}}",
 };

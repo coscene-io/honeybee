@@ -7,7 +7,9 @@
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoIcon from "@mui/icons-material/Info";
+import WarningIcon from "@mui/icons-material/Warning";
 import { Button, IconButton, CircularProgress, Stack } from "@mui/material";
+import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -57,6 +59,10 @@ const useStyles = makeStyles()((theme) => ({
   mediaGenerationErrorStatusBar: {
     backgroundColor: theme.palette.error.main,
     color: theme.palette.error.contrastText,
+  },
+  autoDisconnectionTips: {
+    backgroundColor: theme.palette.warning.main,
+    color: theme.palette.warning.contrastText,
   },
 }));
 
@@ -379,6 +385,23 @@ export function AppStateBar(): React.JSX.Element {
 
   return (
     <>
+      {remainingTime < TIMEOUT_CONFIG.warning && (
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="center"
+          position="relative"
+          className={classes.autoDisconnectionTips}
+          paddingY={1}
+          gap={1}
+        >
+          <WarningIcon fontSize="small" />
+          {t("autoDisconnectionTips", {
+            time: dayjs(remainingTime).format("mm:ss"),
+          })}
+        </Stack>
+      )}
+
       {layoutTipsOpen && (
         <Stack direction="row" alignItems="center" justifyContent="center" position="relative">
           <Stack direction="row" alignItems="center">
@@ -403,13 +426,6 @@ export function AppStateBar(): React.JSX.Element {
           </Stack>
         </Stack>
       )}
-      <button
-        onClick={() => {
-          close();
-        }}
-      >
-        hello world
-      </button>
       {confirmModal}
     </>
   );
