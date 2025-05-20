@@ -14,6 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
 import { useSnackbar } from "notistack";
 import {
   PropsWithChildren,
@@ -52,11 +53,16 @@ import PlayerSelectionContext, {
 //   useUserScriptState,
 // } from "@foxglove/studio-base/context/UserScriptStateContext";
 // import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
+import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 import {
   useAppConfigurationValue,
   useTopicPrefixConfigurationValue,
 } from "@foxglove/studio-base/hooks";
+import { confirmTypes, useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import {
@@ -65,6 +71,7 @@ import {
 } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
 // import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 // import { UserScripts } from "@foxglove/studio-base/types/panels";
 
 const log = Logger.getLogger(__filename);
@@ -83,13 +90,16 @@ const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
 const selectSetDataSource = (state: CoSceneBaseStore) => state.setDataSource;
 const selectBaseInfo = (state: CoSceneBaseStore) => state.baseInfo;
 const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
+const selectGetEntitlement = (state: SubscriptionEntitlementStore) => state.getEntitlement;
 
-function useBeforeConnectionSource(): (
-  sourceId: string,
-  params: Record<string, string | undefined>,
-) => Promise<void> {
+function useBeforeConnectionSource(
+  confirm: confirmTypes,
+): (sourceId: string, params: Record<string, string | undefined>) => Promise<boolean> {
   const consoleApi = useConsoleApi();
   const setBaseInfo = useBaseInfo(selectSetBaseInfo);
+  const getEntitlement = useSubscriptionEntitlement(selectGetEntitlement);
+  const entitlement = getEntitlement(PlanFeatureEnum_PlanFeature.OUTBOUND_TRAFFIC);
+  const { t } = useTranslation("general");
 
   const syncBaseInfo = useCallback(
     async (baseInfoKey: string) => {
@@ -107,11 +117,41 @@ function useBeforeConnectionSource(): (
     [consoleApi, setBaseInfo],
   );
 
-  const beforeConnectionSource = useCallback(
+  const beforeConnectionSource: (
+    sourceId: string,
+    params: Record<string, string | undefined>,
+  ) => Promise<boolean> = useCallback(
     async (sourceId: string, params: Record<string, string | undefined>) => {
       switch (sourceId) {
         case "coscene-data-platform":
           consoleApi.setType("playback");
+          if (!entitlement || entitlement.usage > entitlement.maxQuota) {
+            void confirm({
+              title: t("outboundTrafficLimitReached", {
+                ns: "workspace",
+              }),
+              prompt: t("outboundTrafficLimitReachedDesc", {
+                ns: "workspace",
+              }),
+              ok: t("upgradeSubscriptionPlan", {
+                ns: "workspace",
+              }),
+              cancel: t("iKnow", {
+                ns: "workspace",
+              }),
+            })
+              .then((result) => {
+                if (result === "ok") {
+                  window.open(`${APP_CONFIG.OFFICIAL_WEB_URL}/pricing`, "_blank");
+                } else {
+                  window.close();
+                }
+              })
+              .catch((error: unknown) => {
+                console.error("Error during confirmation:", error);
+              });
+            return false;
+          }
           if (!params.key) {
             throw new Error("coscene-data-platform params.key is required");
           }
@@ -127,8 +167,10 @@ function useBeforeConnectionSource(): (
           consoleApi.setType(undefined);
           break;
       }
+
+      return true;
     },
-    [syncBaseInfo, consoleApi],
+    [syncBaseInfo, consoleApi, entitlement],
   );
 
   return beforeConnectionSource;
@@ -146,7 +188,9 @@ export default function PlayerManager(
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
-  const beforeConnectionSource = useBeforeConnectionSource();
+  const [confirm, confirmModal] = useConfirm();
+
+  const beforeConnectionSource = useBeforeConnectionSource(confirm);
   const setCurrentFile = useUploadFiles(selectSetCurrentFile);
 
   const { t } = useTranslation("general");
@@ -326,7 +370,10 @@ export default function PlayerManager(
 
             setCurrentSourceParams({ sourceId, args: { type: "connection", params } });
 
-            await beforeConnectionSource(sourceId, args.params ?? {});
+            const isReady = await beforeConnectionSource(sourceId, args.params ?? {});
+            if (!isReady) {
+              return;
+            }
 
             const newPlayer = foundSource.initialize({
               metricsCollector,
@@ -504,6 +551,7 @@ export default function PlayerManager(
           {children}
         </MessagePipelineProvider>
       </PlayerSelectionContext.Provider>
+      {confirmModal}
     </>
   );
 }

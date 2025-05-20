@@ -50,6 +50,7 @@ declare global {
         options: string[];
       };
       COSTUDIO_DOWNLOAD_URL?: string;
+      OFFICIAL_WEB_URL?: string;
     };
   }
 }
@@ -97,6 +98,8 @@ export const APP_CONFIG = {
   },
   COSTUDIO_DOWNLOAD_URL:
     cosConfig.COSTUDIO_DOWNLOAD_URL ?? process.env.COSTUDIO_DOWNLOAD_URL ?? undefined,
+
+  OFFICIAL_WEB_URL: cosConfig.OFFICIAL_WEB_URL ?? "https://www.coscene.cn",
 };
 
 export function getDomainConfig(): DomainConfig {
