@@ -65,15 +65,13 @@ export function UploadingFileList({
                       const orgSlug = currentUser?.orgSlug;
                       const targetSite = currentUser?.targetSite;
 
-                      const projectId = status.target.recordName
-                        .split("/projects/")[1]
-                        ?.split("/")[0];
-                      const recordId = status.target.recordName
+                      const projectSlug = status.target.project.slug;
+                      const recordId = status.target.record.name
                         .split("/records/")[1]
                         ?.split("/")[0];
 
                       await navigator.clipboard.writeText(
-                        `${targetSite}/${orgSlug}/${projectId}/records/${recordId}`,
+                        `${targetSite}/${orgSlug}/${projectSlug}/records/${recordId}`,
                       );
                       toast.success(t("copyRecordLinkSuccess"));
                     }}
@@ -91,15 +89,13 @@ export function UploadingFileList({
                       const orgSlug = currentUser?.orgSlug;
                       const targetSite = currentUser?.targetSite;
 
-                      const projectId = status.target.recordName
-                        .split("/projects/")[1]
-                        ?.split("/")[0];
-                      const recordId = status.target.recordName
+                      const projectSlug = status.target.project.slug;
+                      const recordId = status.target.record.name
                         .split("/records/")[1]
                         ?.split("/")[0];
 
                       window.open(
-                        `${targetSite}/${orgSlug}/${projectId}/records/${recordId}`,
+                        `${targetSite}/${orgSlug}/${projectSlug}/records/${recordId}`,
                         "_blank",
                       );
                     }}

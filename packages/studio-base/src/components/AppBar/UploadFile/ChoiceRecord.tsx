@@ -4,6 +4,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { Button, Dialog, Stack, Typography } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,11 +20,12 @@ export function ChoiceRecordDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  onConfirm: (recordName: string) => void;
+  onConfirm: (record: Record, project: Project) => void;
   defaultRecordName?: string;
 }): React.JSX.Element {
   const { t } = useTranslation("appBar");
-  const [targetRecordName, setTargetRecordName] = useState<string | undefined>(undefined);
+  const [targetRecord, setTargetRecord] = useState<Record | undefined>(undefined);
+  const [targetProject, setTargetProject] = useState<Project | undefined>(undefined);
 
   return (
     <Dialog open={open} onClose={onClose}>
@@ -33,12 +36,13 @@ export function ChoiceRecordDialog({
         <ChooserComponent
           type="record"
           checkFileSupportedFunc={() => true}
-          setTargetRecordName={(record, recordType) => {
-            if (recordType === "create") {
-              onConfirm(record?.name ?? "");
+          setTargetInfo={({ record, project, recordType }) => {
+            if (recordType === "create" && record != undefined && project != undefined) {
+              onConfirm(record, project);
               onClose();
             } else {
-              setTargetRecordName(record?.name);
+              setTargetRecord(record);
+              setTargetProject(project);
             }
           }}
           files={[]}
@@ -55,14 +59,14 @@ export function ChoiceRecordDialog({
           </Button>
           <Button
             onClick={() => {
-              if (targetRecordName != undefined) {
-                onConfirm(targetRecordName);
+              if (targetRecord != undefined && targetProject != undefined) {
+                onConfirm(targetRecord, targetProject);
                 onClose();
               }
             }}
             variant="contained"
             size="large"
-            disabled={targetRecordName == undefined}
+            disabled={targetRecord == undefined || targetProject == undefined}
           >
             {t("ok", {
               ns: "cosGeneral",
