@@ -67,7 +67,7 @@ export const appBar = {
   createRecordAndUpload: "Create record and upload",
   openInCoStudio: "Open in coStudio",
   openInCoStudioPrompt:
-    "This page will be opened in coStudio, please confirm that coStudio has been installed, or click here <download>download</download> to download and allow external links to be opened",
+    "This page will be opened in coStudio, please confirm that <download>coStudio</download> has been installed",
   openByCoStudio: "Open by coStudio",
   doNotShowAgain: "Do not show again",
   autoDisconnectionTips:
