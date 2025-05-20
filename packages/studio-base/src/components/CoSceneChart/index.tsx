@@ -162,15 +162,36 @@ function CoSceneChart(props: Props): React.JSX.Element {
 
     return () => {
       log.info(`Unregister chart ${id}`);
-      sendWrapper("destroy").catch(() => {}); // may fail if worker is torn down
-      rpcSendRef.current = undefined;
-      sendWrapperRef.current = undefined;
-      initialized.current = false;
-      previousUpdateMessage.current = {};
-      canvasRef.current?.remove();
-      canvasRef.current = undefined;
-      if (supportsOffscreenCanvas) {
-        webWorkerManager.unregisterWorkerListener(id);
+      try {
+        // 先尝试清理 RPC 连接
+        if (sendWrapperRef.current) {
+          sendWrapperRef.current("destroy").catch((err: unknown) => {
+            log.warn(`Error during chart destroy: ${err}`);
+          });
+        }
+
+        // 清理引用
+        rpcSendRef.current = undefined;
+        sendWrapperRef.current = undefined;
+        initialized.current = false;
+        previousUpdateMessage.current = {};
+
+        // 清理 canvas
+        if (canvasRef.current) {
+          canvasRef.current.remove();
+          canvasRef.current = undefined;
+        }
+
+        // 最后注销 worker
+        if (supportsOffscreenCanvas) {
+          try {
+            webWorkerManager.unregisterWorkerListener(id);
+          } catch (err: unknown) {
+            log.warn(`Error during worker unregistration: ${err}`);
+          }
+        }
+      } catch (err: unknown) {
+        log.error(`Error during chart cleanup: ${err}`);
       }
     };
   }, [id]);
