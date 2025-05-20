@@ -170,7 +170,7 @@ function useBeforeConnectionSource(
 
       return true;
     },
-    [syncBaseInfo, consoleApi, entitlement],
+    [consoleApi, entitlement, syncBaseInfo, confirm, t],
   );
 
   return beforeConnectionSource;
