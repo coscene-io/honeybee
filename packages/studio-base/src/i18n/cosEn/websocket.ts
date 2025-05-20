@@ -22,6 +22,8 @@ export const cosWebsocket = {
   reconnetDesc: "Reconnect if necessary.",
   reconnect: "Reconnect",
   IKnow: "I know",
+  vizIsDisconnected: "The real-time visualisation has been disconnected",
   inactivePageDescription:
     "The page has been inactive for a long time, the connection has been disconnected, whether to reconnect?",
+  exitAndClosePage: "Exit and close the page",
 };

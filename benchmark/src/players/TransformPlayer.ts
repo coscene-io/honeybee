@@ -185,6 +185,8 @@ class TransformPlayer implements Player {
       BenchmarkStats.Instance().recordFrameTime(frameTimeMs);
     }
   }
+
+  public reOpen(): void {}
 }
 
 function currentRotation(timestamp: Time): Quaternion {

@@ -160,6 +160,8 @@ class SinewavePlayer implements Player {
       BenchmarkStats.Instance().recordFrameTime(frameTimeMs);
     }
   }
+
+  public reOpen(): void {}
 }
 
 export { SinewavePlayer };

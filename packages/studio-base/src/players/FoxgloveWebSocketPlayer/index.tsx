@@ -101,15 +101,6 @@ type MessageDefinitionMap = Map<string, MessageDefinition>;
  */
 const CURRENT_FRAME_MAXIMUM_SIZE_BYTES = 400 * 1024 * 1024;
 
-// 100 年 disable timeout
-const TIMEOUT_DISABLED = 1000 * 60 * 60 * 24 * 365 * 100;
-
-// 页面在活跃状态下，连续 10 分钟没有任何操作，则自动断开
-const INATIVE_TIMEOUT = 1000 * 60 * 10; // 10 minutes
-
-// 页面在后台情况下，连续 1 分钟没有任何操作，则自动断开
-const BACKEND_INATIVE_TIMEOUT = 1000 * 60 * 1; // 1 minutes
-
 export default class FoxgloveWebSocketPlayer implements Player {
   readonly #sourceId: string;
 
@@ -172,17 +163,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #fetchedAssets = new Map<string, Promise<Asset>>();
   #parameterTypeByName = new Map<string, Parameter["type"]>();
   #messageSizeEstimateByTopic: Record<string, number> = {};
-  #inactiveTimeout = INATIVE_TIMEOUT;
   #confirm: confirmTypes;
-  #disableTimeout: boolean;
 
   #userId: string;
   #username: string;
   #deviceName: string;
   #isReconnect: boolean = false;
   #authHeader: string;
-
-  // #isOldBridge = false;
 
   public constructor({
     url,
@@ -193,7 +180,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
     userId,
     username,
     deviceName,
-    disableTimeout,
     authHeader,
   }: {
     url: string;
@@ -204,7 +190,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
     userId: string;
     username: string;
     deviceName: string;
-    disableTimeout: boolean;
     authHeader: string;
   }) {
     this.#metricsCollector = metricsCollector;
@@ -220,10 +205,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#userId = userId;
     this.#username = username;
     this.#deviceName = deviceName;
-    this.#disableTimeout = disableTimeout;
-    if (this.#disableTimeout) {
-      this.#inactiveTimeout = TIMEOUT_DISABLED;
-    }
     this.#authHeader = authHeader;
 
     this.#open();
@@ -268,7 +249,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
       if (this.#connectionAttemptTimeout != undefined) {
         clearTimeout(this.#connectionAttemptTimeout);
-        this.#disconnectAfterInactivity();
       }
       this.#presence = PlayerPresence.PRESENT;
       this.#resetSessionState();
@@ -353,9 +333,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         variant: "danger",
       }).then((result) => {
         if (result === "ok") {
-          this.#closed = false;
           this.#isReconnect = true;
-          this.#open();
+          this.reOpen();
         }
         if (result === "cancel") {
           window.close();
@@ -388,8 +367,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
     // this during a disconnect event. Any necessary state clearing is handled once a new connection
     // is established
     this.#client.on("close", (event) => {
-      // to remove event listener
-      this.#disconnectAfterInactivity();
+      if (this.#closed) {
+        return;
+      }
+
       // Foxglove type description is incorrect, we need to cast to the correct type
       const realCloseEventMessage: { type: "close"; data: CloseEventMessage } =
         event as unknown as {
@@ -1026,73 +1007,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#emitState();
   }
 
-  // if there is no active from user for 10 min, the connection will be closed
-  #disconnectAfterInactivity = (): void => {
-    let timeoutId: NodeJS.Timeout | undefined = undefined;
-
-    const resetTimer = () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-
-      timeoutId = setTimeout(() => {
-        this.close();
-        void this.#confirm({
-          title: t("cosWebsocket:note"),
-          prompt: t("cosWebsocket:inactivePageDescription"),
-          ok: t("cosWebsocket:reconnect"),
-          cancel: t("cosWebsocket:cancel"),
-        }).then((result) => {
-          if (result === "ok") {
-            this.#closed = false;
-            this.#open();
-          }
-        });
-      }, this.#inactiveTimeout);
-    };
-
-    const resetInactiveTimeout = () => {
-      if (this.#disableTimeout) {
-        return;
-      }
-
-      if (document.visibilityState === "visible") {
-        this.#inactiveTimeout = INATIVE_TIMEOUT;
-      } else {
-        this.#inactiveTimeout = BACKEND_INATIVE_TIMEOUT;
-      }
-      resetTimer();
-    };
-
-    const addEventListener = () => {
-      // 监听页面上的各种事件，以判断当前用户是否活跃
-      window.addEventListener("mousemove", resetTimer);
-      window.addEventListener("mousedown", resetTimer);
-      window.addEventListener("keypress", resetTimer);
-      window.addEventListener("touchmove", resetTimer);
-
-      // 监听当前 tab 是否在前台，如果不在前台，超时时间变短
-      window.addEventListener("visibilitychange", resetInactiveTimeout);
-    };
-
-    const removeEventListener = () => {
-      window.removeEventListener("mousemove", resetTimer);
-      window.removeEventListener("mousedown", resetTimer);
-      window.removeEventListener("keypress", resetTimer);
-      window.removeEventListener("touchmove", resetTimer);
-
-      window.removeEventListener("visibilitychange", resetInactiveTimeout);
-    };
-
-    if (this.#closed) {
-      removeEventListener();
-      return;
-    }
-
-    addEventListener();
-    resetTimer();
-  };
-
   // Potentially performance-sensitive; await can be expensive
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   #emitState = debouncePromise(() => {
@@ -1164,6 +1078,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
   public close(): void {
     this.#closed = true;
     this.#client?.close();
+    this.#client = undefined;
+
     if (this.#openTimeout != undefined) {
       clearTimeout(this.#openTimeout);
       this.#openTimeout = undefined;
@@ -1172,6 +1088,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
       clearInterval(this.#getParameterInterval);
       this.#getParameterInterval = undefined;
     }
+  }
+
+  public reOpen(): void {
+    this.#closed = false;
+    this.#open();
   }
 
   public setSubscriptions(subscriptions: SubscribePayload[]): void {
@@ -1323,7 +1244,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           ? Array.from(value as unknown as ArrayLike<unknown>)
           : value;
       };
-      const message = Buffer.from(JSON.stringify(msg, replacer) ?? "");
+      const message = new Uint8Array(textEncoder.encode(JSON.stringify(msg, replacer) ?? ""));
       this.#client.sendMessage(clientChannel.id, message);
     } else if (
       ROS_ENCODINGS.includes(clientChannel.encoding) &&
