@@ -70,4 +70,6 @@ export const appBar = {
     "This page will be opened in coStudio, please confirm that coStudio has been installed, or click here <download>download</download> to download and allow external links to be opened",
   openByCoStudio: "Open by coStudio",
   doNotShowAgain: "Do not show again",
+  autoDisconnectionTips:
+    "If no operation is performed for a long time, the visualization will be disconnected automatically. Please keep it active if you want to continue using it. {{time}}",
 };

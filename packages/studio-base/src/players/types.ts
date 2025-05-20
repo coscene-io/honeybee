@@ -52,6 +52,8 @@ export interface Player {
   setListener(listener: (playerState: PlayerState) => Promise<void>): void;
   // Close the player; i.e. terminate any connections it might have open.
   close(): void;
+  // Reopen the player; i.e. reconnect to the server.
+  reOpen(): void;
   // Set a new set of subscriptions/advertisers. This might trigger fetching
   // new data, which might in turn trigger a backfill of messages.
   setSubscriptions(subscriptions: Immutable<SubscribePayload[]>): void;

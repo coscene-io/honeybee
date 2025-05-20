@@ -7,7 +7,9 @@
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoIcon from "@mui/icons-material/Info";
+import WarningIcon from "@mui/icons-material/Warning";
 import { Button, IconButton, CircularProgress, Stack } from "@mui/material";
+import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -26,9 +28,19 @@ import {
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
+
+import { useAutoDisconnection } from "./hooks/useAutoDisconnection";
+
+// 页面在活跃状态下，连续 30 分钟没有任何操作，则自动断开
+const TIMEOUT_CONFIG = {
+  foreground: 1000 * 60 * 30, // 前台30分钟
+  background: 1000 * 60 * 10, // 后台10分钟
+  warning: 1000 * 60 * 5, // 提前5分钟警告
+};
 
 const useStyles = makeStyles()((theme) => ({
   mediaGenerationStatusBar: {
@@ -48,6 +60,10 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.error.main,
     color: theme.palette.error.contrastText,
   },
+  autoDisconnectionTips: {
+    backgroundColor: theme.palette.warning.main,
+    color: theme.palette.warning.contrastText,
+  },
 }));
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
@@ -60,6 +76,13 @@ export function AppStateBar(): React.JSX.Element {
   const { classes, theme } = useStyles();
   const { t } = useTranslation("appBar");
   const presence = useMessagePipeline(selectPresence);
+  const [confirm, confirmModal] = useConfirm();
+  const remainingTime = useAutoDisconnection({
+    confirm,
+    foregroundTimeout: TIMEOUT_CONFIG.foreground,
+    backgroundTimeout: TIMEOUT_CONFIG.background,
+  });
+
   const [showLoadingStatus, setShowLoadingStatus] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout | undefined>(undefined);
   const { layoutActions } = useWorkspaceActions();
@@ -362,6 +385,23 @@ export function AppStateBar(): React.JSX.Element {
 
   return (
     <>
+      {remainingTime < TIMEOUT_CONFIG.warning && (
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="center"
+          position="relative"
+          className={classes.autoDisconnectionTips}
+          paddingY={1}
+          gap={1}
+        >
+          <WarningIcon fontSize="small" />
+          {t("autoDisconnectionTips", {
+            time: dayjs(remainingTime).format("mm:ss"),
+          })}
+        </Stack>
+      )}
+
       {layoutTipsOpen && (
         <Stack direction="row" alignItems="center" justifyContent="center" position="relative">
           <Stack direction="row" alignItems="center">
@@ -386,6 +426,7 @@ export function AppStateBar(): React.JSX.Element {
           </Stack>
         </Stack>
       )}
+      {confirmModal}
     </>
   );
 }
