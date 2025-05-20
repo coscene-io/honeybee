@@ -52,14 +52,15 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
   #disableTimeout: boolean;
 
   public constructor({ confirm }: { confirm: confirmTypes }) {
-    const currentUser = localStorage.getItem("current_user") ?? "{}";
-    const currentUserId = JSON.parse(currentUser).userId ?? "";
-    const currentUsername = JSON.parse(currentUser).nickName ?? "";
-    const deviceName = windowAppURLState()?.dsParams?.hostName;
+    const userStore = localStorage.getItem("user-storage") ?? "{}";
+    const userInfo = JSON.parse(userStore);
+    const currentUserId = userInfo?.state?.user?.userId ?? "";
+    const currentUsername = userInfo?.state?.user?.nickName ?? "";
+    const deviceName = windowAppURLState()?.dsParams?.hostName ?? "";
 
     this.#userId = currentUserId;
     this.#username = currentUsername;
-    this.#deviceName = deviceName ?? "";
+    this.#deviceName = deviceName;
 
     this.#confirm = confirm;
     this.#disableTimeout = localStorage.getItem("disable_timeout") === "true";
