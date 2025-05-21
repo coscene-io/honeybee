@@ -11,8 +11,10 @@ import { useAsyncFn } from "react-use";
 import Logger from "@foxglove/log";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { useSubscriptionEntitlement } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
-import { SubscriptionEntitlementStore } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
+import {
+  useSubscriptionEntitlement,
+  SubscriptionEntitlementStore,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 
 const log = Logger.getLogger(__filename);
 
