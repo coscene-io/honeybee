@@ -18,4 +18,8 @@ export const workspace: Partial<TypeOptions["resources"]["workspace"]> = {
   extensions: "插件",
   invalidDomain: "仅支持播放{{domain}}的数据",
   recordInfo: "记录信息",
+  outboundTrafficLimitReached: "组织流量使用已耗尽",
+  outboundTrafficLimitReachedDesc: "组织流量使用已耗尽，如需继续使用，请增购流量或升级订阅计划。",
+  iKnow: "我知道了",
+  upgradeSubscriptionPlan: "升级订阅计划",
 };
