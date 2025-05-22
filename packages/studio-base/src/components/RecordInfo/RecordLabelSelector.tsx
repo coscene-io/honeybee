@@ -45,6 +45,8 @@ export default function RecordLabelSelector({
       <Select
         labelId="demo-multiple-chip-label"
         id="demo-multiple-chip"
+        size="small"
+        variant="filled"
         multiple
         value={value}
         onChange={onChange}

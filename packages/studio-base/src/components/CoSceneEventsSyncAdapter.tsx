@@ -41,8 +41,12 @@ import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
 } from "@foxglove/studio-base/services/CoSceneConsoleApi";
-import { stringToColor } from "@foxglove/studio-base/util/coscene";
-import { BinaryOperator, CosQuery, SerializeOption } from "@foxglove/studio-base/util/cosel";
+import {
+  stringToColor,
+  BinaryOperator,
+  CosQuery,
+  SerializeOption,
+} from "@foxglove/studio-base/util/coscene";
 import { QueryFields } from "@foxglove/studio-base/util/queries";
 import { durationToNanoSeconds } from "@foxglove/studio-base/util/time";
 

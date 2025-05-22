@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 
 import Logger from "@foxglove/log";
+import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
 import ProjectDeviceSelector from "@foxglove/studio-base/components/RecordInfo/ProjectDeviceSelector";
 import RecordLabelSelector from "@foxglove/studio-base/components/RecordInfo/RecordLabelSelector";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -25,6 +26,7 @@ const selectRecord = (store: CoSceneBaseStore) => store.record;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectProject = (store: CoSceneBaseStore) => store.project;
 const selectRefreshRecord = (store: CoSceneBaseStore) => store.refreshRecord;
+const selectRecordCustomFieldValues = (store: CoSceneBaseStore) => store.recordCustomFieldValues;
 
 const log = Logger.getLogger(__filename);
 
@@ -33,6 +35,7 @@ export default function RecordInfo(): ReactElement {
   const record = useBaseInfo(selectRecord);
   const project = useBaseInfo(selectProject);
   const baseInfo = useBaseInfo(selectBaseInfo);
+  const recordCustomFieldValues = useBaseInfo(selectRecordCustomFieldValues);
 
   const refreshRecord = useBaseInfo(selectRefreshRecord);
 
@@ -199,6 +202,23 @@ export default function RecordInfo(): ReactElement {
               </Stack>
             </Stack>
           )}
+
+          <CustomFieldValuesFields
+            variant="secondary"
+            properties={recordCustomFieldValues?.properties ?? []}
+            customFieldValues={record.value?.customFieldValues ?? []}
+            readonly={!consoleApi.getRecordCustomFieldValues.permission()}
+            onChange={(customFieldValues) => {
+              if (!record.value) {
+                return;
+              }
+
+              void updateRecord({
+                record: { name: record.value.name, customFieldValues },
+                updateMask: { paths: ["customFieldValues"] },
+              });
+            }}
+          />
         </Stack>
       </Stack>
     </>

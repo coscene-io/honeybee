@@ -70,10 +70,13 @@ import {
   GetTicketSystemMetadataRequest,
   TicketSystemMetadata,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
+import { CustomFieldSchema } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
 import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
+import { CustomFieldService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/custom_field_connect";
+import { GetRecordCustomFieldSchemaRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/custom_field_pb";
 import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_connect";
 import {
   ListFilesRequest,
@@ -103,9 +106,8 @@ import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
 import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
-import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
+import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
-import { CosQuery, SerializeOption } from "@foxglove/studio-base/util/cosel";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
   EndpointDataplatformV1alph1,
@@ -1416,6 +1418,21 @@ class CoSceneConsoleApi {
     {
       permission: () => {
         return checkUserPermission(EndpointDataplatformV1alph3.GetTask, this.#permissionList);
+      },
+    },
+  );
+
+  public getRecordCustomFieldValues = Object.assign(
+    async (project: string): Promise<CustomFieldSchema> => {
+      const req = new GetRecordCustomFieldSchemaRequest({ project });
+      return await getPromiseClient(CustomFieldService).getRecordCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetRecordCustomFieldSchema,
+          this.#permissionList,
+        );
       },
     },
   );

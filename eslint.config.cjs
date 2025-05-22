@@ -97,10 +97,11 @@ module.exports = tslintPlugin.config(
     },
 
     rules: {
+      "@typescript-eslint/no-shadow": "off",
       "tss-unused-classes/unused-classes": "error",
       "prettier/prettier": "off",
-      "import/no-self-import": "off",
-      "import/no-duplicates": "off",
+      "import/no-self-import": "error",
+      "import/no-duplicates": "error",
       "id-denylist": ["error", "useEffectOnce", "window"],
       "no-console": "off",
       "@foxglove/studio/license-header": "error",

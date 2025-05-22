@@ -15,7 +15,7 @@ import Logger from "@foxglove/log";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { BinaryOperator, CosQuery } from "@foxglove/studio-base/util/cosel";
+import { BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene";
 import { QueryFields } from "@foxglove/studio-base/util/queries";
 
 export const MAX_DEVICE_LIST_LENGTH = 99999;
@@ -81,9 +81,11 @@ export default function ProjectDeviceSelector({
   return (
     <Stack fullWidth>
       <Select
+        size="small"
         value={record.value?.device?.name ?? ""}
         disabled={disabled}
         fullWidth
+        variant="filled"
         onChange={selectDevice}
         renderValue={(value) => {
           const device = projectDevices.value?.find((d) => d.name === value);
