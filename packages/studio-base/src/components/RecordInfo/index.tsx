@@ -50,6 +50,14 @@ export default function RecordInfo(): ReactElement {
     });
   }, [consoleApi, record.value?.device?.name]);
 
+  const [deviceCustomFieldValues, getDeviceCustomFieldValues] = useAsyncFn(async () => {
+    if (!record.value?.device?.name) {
+      return;
+    }
+
+    return await consoleApi.getDeviceCustomFieldValues(record.value.device.name);
+  }, [consoleApi, record.value?.device?.name]);
+
   const [creator, getCreator] = useAsyncFn(async () => {
     if (!record.value?.creator) {
       return;
@@ -77,6 +85,14 @@ export default function RecordInfo(): ReactElement {
       });
     }
   }, [record.value?.device?.name, getDeviceInfo]);
+
+  useEffect(() => {
+    if (record.value?.device?.name) {
+      getDeviceCustomFieldValues().catch((error: unknown) => {
+        log.error(error);
+      });
+    }
+  }, [record.value?.device?.name, getDeviceCustomFieldValues]);
 
   useEffect(() => {
     if (record.value?.creator) {
@@ -125,6 +141,14 @@ export default function RecordInfo(): ReactElement {
               {deviceInfo.value?.serialNumber}
             </Link>
           </Stack>
+
+          <CustomFieldValuesFields
+            variant="secondary"
+            properties={deviceCustomFieldValues.value?.properties ?? []}
+            customFieldValues={deviceInfo.value?.customFieldValues ?? []}
+            readonly
+            ignoreProperties
+          />
         </Stack>
 
         <Stack gap={1}>

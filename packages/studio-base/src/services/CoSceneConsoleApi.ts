@@ -76,7 +76,12 @@ import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/data
 import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { CustomFieldService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/custom_field_connect";
-import { GetRecordCustomFieldSchemaRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/custom_field_pb";
+import {
+  GetRecordCustomFieldSchemaRequest,
+  GetMomentCustomFieldSchemaRequest,
+  GetDeviceCustomFieldSchemaRequest,
+  GetTaskCustomFieldSchemaRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/custom_field_pb";
 import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_connect";
 import {
   ListFilesRequest,
@@ -1431,6 +1436,51 @@ class CoSceneConsoleApi {
       permission: () => {
         return checkUserPermission(
           EndpointDataplatformV1alph3.GetRecordCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getMomentCustomFieldValues = Object.assign(
+    async (project: string): Promise<CustomFieldSchema> => {
+      const req = new GetMomentCustomFieldSchemaRequest({ project });
+      return await getPromiseClient(CustomFieldService).getMomentCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetMomentCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getDeviceCustomFieldValues = Object.assign(
+    async (project: string): Promise<CustomFieldSchema> => {
+      const req = new GetDeviceCustomFieldSchemaRequest({ project });
+      return await getPromiseClient(CustomFieldService).getDeviceCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetDeviceCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getTaskCustomFieldValues = Object.assign(
+    async (project: string): Promise<CustomFieldSchema> => {
+      const req = new GetTaskCustomFieldSchemaRequest({ project });
+      return await getPromiseClient(CustomFieldService).getTaskCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetTaskCustomFieldSchema,
           this.#permissionList,
         );
       },

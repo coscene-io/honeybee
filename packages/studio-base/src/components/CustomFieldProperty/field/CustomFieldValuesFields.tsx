@@ -12,6 +12,8 @@ import type {
 import _debounce from "lodash/debounce";
 import { useMemo } from "react";
 
+import { CustomFieldValueField } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValueField";
+
 import { CustomFieldValuesFindByPropery } from "./CustomFieldValuesFindByPropery";
 
 export function CustomFieldValuesFields({
@@ -20,12 +22,14 @@ export function CustomFieldValuesFields({
   readonly = false,
   onChange,
   variant = "primary",
+  ignoreProperties = false,
 }: {
   properties: Property[];
   customFieldValues: CustomFieldValue[];
   readonly?: boolean;
   onChange?: (customFieldValues: CustomFieldValue[]) => void;
   variant?: "primary" | "secondary";
+  ignoreProperties?: boolean;
 }): React.ReactNode {
   const debouncedOnChange = useMemo(
     () =>
@@ -36,6 +40,33 @@ export function CustomFieldValuesFields({
         : undefined,
     [onChange],
   );
+
+  if (ignoreProperties) {
+    return customFieldValues.map((customFieldValue, index) => (
+      <CustomFieldValueField
+        key={customFieldValue.property?.id ?? index}
+        variant={variant}
+        customFieldValue={customFieldValue}
+        readonly={readonly}
+        onChange={
+          debouncedOnChange
+            ? (newCustomFieldValue) => {
+                const index = customFieldValues.findIndex(
+                  (value) => value.property?.id === newCustomFieldValue.property?.id,
+                );
+                if (index !== -1) {
+                  const newCustomFieldValues = [...customFieldValues];
+                  newCustomFieldValues[index] = newCustomFieldValue;
+                  debouncedOnChange(newCustomFieldValues);
+                } else {
+                  debouncedOnChange([...customFieldValues, newCustomFieldValue]);
+                }
+              }
+            : undefined
+        }
+      />
+    ));
+  }
 
   return (
     <>
