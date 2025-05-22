@@ -11,7 +11,8 @@
 import { User } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
 import { Autocomplete, Box, TextField } from "@mui/material";
 import PinyinMatch from "pinyin-match";
-import { useAsync } from "react-use";
+import { useEffect } from "react";
+import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -43,27 +44,38 @@ export function UserSelect({
   const consoleApi = useConsoleApi();
   const { classes } = useStyles();
 
-  const { value: users } = useAsync(async () => {
+  const [users, getUsers] = useAsyncFn(async () => {
     return await consoleApi.listOrganizationUsers();
-  });
+  }, [consoleApi]);
 
-  const activatedUsers = users?.filter((user) => user.active);
+  useEffect(() => {
+    getUsers().catch((err: unknown) => {
+      console.error(err);
+    });
+  }, [getUsers]);
+
+  if (users.value == undefined) {
+    return;
+  }
+
+  const activatedUsers = users.value.filter((user) => user.active);
+  const targetUser = activatedUsers.find((user) => user.name === value) ?? undefined;
 
   return (
     <Autocomplete
       size="small"
       disabled={disabled}
       disableClearable={allowClear === false}
-      options={activatedUsers ?? []}
+      options={activatedUsers}
       getOptionLabel={(option) => option.nickname ?? ""}
-      renderInput={(params) => <TextField {...params} autoFocus variant="filled" error={error} />}
+      renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
       renderOption={(optionProps, option) => (
         <Box component="li" {...optionProps} key={option.name}>
           <img className={classes.avatar} src={option.avatar} />
           {option.nickname}
         </Box>
       )}
-      value={activatedUsers?.find((user) => user.name === value)}
+      value={targetUser}
       isOptionEqualToValue={(option, value) => option.name === value.name}
       onChange={(_event, option) => {
         if (option) {

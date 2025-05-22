@@ -23,4 +23,6 @@ export const general = {
   searchKeyword: "Search keyword",
   pleaseSelect: "Please select",
   pleaseEnter: "Please enter",
+  clearButtonLabel: "Clear",
+  okButtonLabel: "OK",
 };

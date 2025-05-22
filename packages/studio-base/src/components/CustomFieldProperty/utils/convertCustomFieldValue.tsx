@@ -8,7 +8,7 @@
 import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { Avatar, Stack } from "@mui/material";
 import dayjs from "dayjs";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useAsyncFn } from "react-use";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -18,16 +18,25 @@ export function ConvertCustomFieldValue(customFieldValue?: CustomFieldValue): Re
 
   const consoleApi = useConsoleApi();
 
-  const [, getUser] = useAsyncFn(
+  const [user, getUser] = useAsyncFn(
     async (userId?: string) => {
       if (userId == undefined) {
         return;
       }
 
-      return await consoleApi.getUser(userId);
+      const user = await consoleApi.batchGetUsers([userId]);
+      return user.users[0];
     },
     [consoleApi],
   );
+
+  useEffect(() => {
+    if (customFieldValue?.value.case === "user") {
+      getUser(customFieldValue.value.value.ids[0]).catch((err: unknown) => {
+        console.error(err);
+      });
+    }
+  }, [customFieldValue, getUser]);
 
   switch (customFieldValue?.value.case) {
     case "text":
@@ -51,22 +60,16 @@ export function ConvertCustomFieldValue(customFieldValue?: CustomFieldValue): Re
       break;
 
     case "user":
-      getUser(customFieldValue.value.value.ids[0])
-        .then((user) => {
-          value = (
-            <Stack direction="row" alignItems="center" gap={1}>
-              <Avatar
-                src={user?.avatar ?? undefined}
-                variant="circular"
-                style={{ width: 24, height: 24 }}
-              />
-              {user?.name}
-            </Stack>
-          );
-        })
-        .catch((err: unknown) => {
-          console.error(err);
-        });
+      value = (
+        <Stack direction="row" alignItems="center" gap={1}>
+          <Avatar
+            src={user.value?.avatar ?? undefined}
+            variant="circular"
+            style={{ width: 24, height: 24 }}
+          />
+          {user.value?.nickname}
+        </Stack>
+      );
 
       break;
   }

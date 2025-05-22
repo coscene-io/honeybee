@@ -11,6 +11,9 @@ import { TimeValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alp
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { Locale } from "date-fns";
+import { zhCN, enUS, ja } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 
 export function CustomFieldTimeEditor({
   allowClear,
@@ -25,13 +28,16 @@ export function CustomFieldTimeEditor({
   customFieldValue: CustomFieldValue;
   disabled?: boolean;
 }): React.ReactNode {
+  const { i18n, t } = useTranslation("general");
   let value: Date | undefined;
   if (customFieldValue.value.case === "time") {
     value = customFieldValue.value.value.value?.toDate();
   }
 
+  const adapterLocale: Locale = i18n.language === "zh" ? zhCN : i18n.language === "ja" ? ja : enUS;
+
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={adapterLocale}>
       <DateTimePicker
         value={value}
         disabled={disabled}
@@ -45,6 +51,10 @@ export function CustomFieldTimeEditor({
             customFieldValue.value = { case: undefined, value: undefined };
           }
           onChange(customFieldValue);
+        }}
+        localeText={{
+          clearButtonLabel: t("clearButtonLabel"),
+          okButtonLabel: t("okButtonLabel"),
         }}
         slotProps={{
           textField: {

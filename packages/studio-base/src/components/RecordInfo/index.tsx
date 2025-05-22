@@ -50,20 +50,18 @@ export default function RecordInfo(): ReactElement {
     });
   }, [consoleApi, record.value?.device?.name]);
 
-  const [deviceCustomFieldValues, getDeviceCustomFieldValues] = useAsyncFn(async () => {
-    if (!record.value?.device?.name) {
-      return;
-    }
-
-    return await consoleApi.getDeviceCustomFieldValues(record.value.device.name);
-  }, [consoleApi, record.value?.device?.name]);
+  const [deviceCustomFieldSchema, getDeviceCustomFieldSchema] = useAsyncFn(async () => {
+    return await consoleApi.getDeviceCustomFieldSchema();
+  }, [consoleApi]);
 
   const [creator, getCreator] = useAsyncFn(async () => {
     if (!record.value?.creator) {
       return;
     }
 
-    return await consoleApi.getUser(record.value.creator);
+    const users = await consoleApi.batchGetUsers([record.value.creator]);
+
+    return users.users[0];
   }, [consoleApi, record.value?.creator]);
 
   const [labels, getLabels] = useAsyncFn(async () => {
@@ -88,11 +86,11 @@ export default function RecordInfo(): ReactElement {
 
   useEffect(() => {
     if (record.value?.device?.name) {
-      getDeviceCustomFieldValues().catch((error: unknown) => {
+      getDeviceCustomFieldSchema().catch((error: unknown) => {
         log.error(error);
       });
     }
-  }, [record.value?.device?.name, getDeviceCustomFieldValues]);
+  }, [record.value?.device?.name, getDeviceCustomFieldSchema]);
 
   useEffect(() => {
     if (record.value?.creator) {
@@ -144,7 +142,7 @@ export default function RecordInfo(): ReactElement {
 
           <CustomFieldValuesFields
             variant="secondary"
-            properties={deviceCustomFieldValues.value?.properties ?? []}
+            properties={deviceCustomFieldSchema.value?.properties ?? []}
             customFieldValues={deviceInfo.value?.customFieldValues ?? []}
             readonly
             ignoreProperties
@@ -221,22 +219,24 @@ export default function RecordInfo(): ReactElement {
             </Stack>
           )}
 
-          <CustomFieldValuesFields
-            variant="secondary"
-            properties={recordCustomFieldValues?.properties ?? []}
-            customFieldValues={record.value?.customFieldValues ?? []}
-            readonly={!consoleApi.getRecordCustomFieldValues.permission()}
-            onChange={(customFieldValues) => {
-              if (!record.value) {
-                return;
-              }
+          {record.value?.customFieldValues && recordCustomFieldValues?.properties && (
+            <CustomFieldValuesFields
+              variant="secondary"
+              properties={recordCustomFieldValues.properties}
+              customFieldValues={record.value.customFieldValues}
+              readonly={!consoleApi.getRecordCustomFieldValues.permission()}
+              onChange={(customFieldValues) => {
+                if (!record.value) {
+                  return;
+                }
 
-              void updateRecord({
-                record: { name: record.value.name, customFieldValues },
-                updateMask: { paths: ["customFieldValues"] },
-              });
-            }}
-          />
+                void updateRecord({
+                  record: { name: record.value.name, customFieldValues },
+                  updateMask: { paths: ["customFieldValues"] },
+                });
+              }}
+            />
+          )}
         </Stack>
       </Stack>
     </>

@@ -7,6 +7,7 @@
 
 import { Timestamp, FieldMask } from "@bufbuild/protobuf";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
@@ -41,6 +42,7 @@ import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 import { v4 as uuidv4 } from "uuid";
 
+import Logger from "@foxglove/log";
 import {
   toDate,
   isLessThan,
@@ -52,6 +54,7 @@ import {
   fromDate,
 } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { UserSelect } from "@foxglove/studio-base/components/UserSelect";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
@@ -109,8 +112,8 @@ const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectEventMarks = (store: EventsStore) => store.eventMarks;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
-
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
 
 const PIVOT_METRIC = "pivotMetric";
 const temperature = [...new Array(9).keys()].map((i) => `温度0${i + 1}`);
@@ -132,8 +135,12 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
   );
 }
 
+const log = Logger.getLogger(__filename);
+
 export function CoSceneCreateEventContainer(props: { onClose: () => void }): React.JSX.Element {
   const { onClose } = props;
+
+  const consoleApi = useConsoleApi();
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
@@ -146,6 +153,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
   const isEditing = toModifyEvent != undefined;
 
   const eventMarks = useEvents(selectEventMarks);
+  const customFieldSchema = useEvents(selectCustomFieldSchema);
 
   const markStartTime = eventMarks[0]?.time;
   const markEndTime = eventMarks[1]?.time;
@@ -156,6 +164,24 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+
+  const [taskCustomFieldSchema, getTaskCustomFieldSchema] = useAsyncFn(async () => {
+    if (!baseInfo.warehouseId || !baseInfo.projectId) {
+      return;
+    }
+
+    return await consoleApi.getTaskCustomFieldSchema(
+      `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`,
+    );
+  }, [consoleApi, baseInfo.warehouseId, baseInfo.projectId]);
+
+  useEffect(() => {
+    if (baseInfo.warehouseId && baseInfo.projectId) {
+      getTaskCustomFieldSchema().catch((error: unknown) => {
+        log.error(error);
+      });
+    }
+  }, [baseInfo.warehouseId, baseInfo.projectId, getTaskCustomFieldSchema]);
 
   const passingFile = bagFiles.value?.filter((bag) => {
     if (bag.startTime == undefined || bag.endTime == undefined) {
@@ -187,7 +213,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
   }, [passingFile]);
 
   const { classes } = useStyles();
-  const consoleApi = useConsoleApi();
 
   const [event, setEvent] = useImmer<{
     eventName: string;
@@ -203,6 +228,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     imageFile?: File;
     imgUrl?: string;
     record: string;
+    customFieldValues?: CustomFieldValue[];
   }>({
     eventName: "",
     startTime: markStartTime ? toDate(markStartTime) : undefined,
@@ -213,6 +239,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     enabledCreateNewTask: false,
     fileName: passingFile?.[0]?.name ?? "",
     record: "",
+    customFieldValues: undefined,
   });
 
   const [task, setTask] = useImmer<{
@@ -221,12 +248,14 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     assignee: string;
     assigner: string;
     needSyncTask: boolean;
+    customFieldValues: CustomFieldValue[];
   }>({
     title: "",
     description: "",
     assignee: "",
     assigner: "",
     needSyncTask: false,
+    customFieldValues: [],
   });
 
   useEffect(() => {
@@ -246,6 +275,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
         fileName: toModifyEvent.record,
         imgUrl: toModifyEvent.imgUrl,
         record: toModifyEvent.record,
+        customFieldValues: toModifyEvent.customFieldValues,
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -528,6 +558,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
       newEvent.customizedFields[key] = keyedMetadata[key] ?? "";
     });
 
+    newEvent.customFieldValues = event.customFieldValues ?? [];
+
     if (projectName == undefined || recordName == undefined) {
       toast.error(t("createMomentFailed"));
       return;
@@ -575,6 +607,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     event.eventName,
     event.durationUnit,
     event.description,
+    event.customFieldValues,
     event.imageFile,
     event.enabledCreateNewTask,
     projectName,
@@ -619,12 +652,15 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
       newEvent.description = event.description;
     }
 
+    newEvent.customFieldValues = event.customFieldValues ?? [];
+
     const maskArray = [
       "displayName",
       "duration_nanos",
       "description",
       "duration",
       "customizedFields",
+      "customFieldValues",
     ];
 
     if (!event.imgUrl && !event.imageFile) {
@@ -672,6 +708,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
   }, [
     consoleApi,
     enqueueSnackbar,
+    event.customFieldValues,
     event.description,
     event.duration,
     event.durationUnit,
@@ -945,6 +982,19 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
             </Select>
           </Stack>
         )}
+        {customFieldSchema?.properties && event.customFieldValues && (
+          <Stack paddingX={3} paddingTop={2} gap={2}>
+            {/* custom field */}
+            <CustomFieldValuesFields
+              variant="secondary"
+              properties={customFieldSchema.properties}
+              customFieldValues={event.customFieldValues}
+              onChange={(customFieldValues) => {
+                setEvent((old) => ({ ...old, customFieldValues }));
+              }}
+            />
+          </Stack>
+        )}
         {!isEditing && (
           <Stack paddingX={3} paddingTop={2}>
             <FormControlLabel
@@ -966,6 +1016,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
             />
           </Stack>
         )}
+
         {event.enabledCreateNewTask && (
           <>
             <Stack paddingX={3} paddingTop={2}>
@@ -1014,6 +1065,21 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
                 />
               </FormControl>
             </Stack>
+
+            {taskCustomFieldSchema.value && (
+              <Stack paddingX={3} paddingTop={2} gap={2}>
+                {/* custom field */}
+                <CustomFieldValuesFields
+                  variant="secondary"
+                  properties={taskCustomFieldSchema.value.properties}
+                  customFieldValues={task.customFieldValues}
+                  onChange={(customFieldValues) => {
+                    setTask((old) => ({ ...old, customFieldValues }));
+                  }}
+                />
+              </Stack>
+            )}
+
             <Stack paddingX={3} paddingTop={2}>
               {syncedTask?.enabled ?? false ? (
                 <FormControlLabel

@@ -6,6 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+import {
+  CustomFieldSchema,
+  CustomFieldValue,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { createContext } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { StoreApi, useStore } from "zustand";
@@ -28,6 +32,7 @@ export type ToModifyEvent = {
   imageFile?: File;
   imgUrl?: string;
   record: string;
+  customFieldValues?: CustomFieldValue[];
 };
 
 /**
@@ -104,6 +109,9 @@ export type EventsStore = {
 
   toModifyEvent: ToModifyEvent | undefined;
 
+  // customFieldValues: CustomFieldValue[];
+  customFieldSchema?: CustomFieldSchema;
+
   /** Refreshes events from api. */
   refreshEvents: () => void;
 
@@ -123,6 +131,8 @@ export type EventsStore = {
   setEventMarks: (marks: TimelinePositionedEventMark[]) => void;
 
   setToModifyEvent: (toModifyEvent: ToModifyEvent | undefined) => void;
+
+  setCustomFieldSchema: (customFieldSchema?: CustomFieldSchema) => void;
 };
 
 export const EventsContext = createContext<undefined | StoreApi<EventsStore>>(undefined);

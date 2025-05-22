@@ -23,4 +23,6 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   onlineData: "在线数据",
   pleaseSelect: "请选择",
   pleaseEnter: "请输入",
+  clearButtonLabel: "清除",
+  okButtonLabel: "确定",
 };

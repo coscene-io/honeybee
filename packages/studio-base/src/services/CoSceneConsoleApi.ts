@@ -1442,7 +1442,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public getMomentCustomFieldValues = Object.assign(
+  public getMomentCustomFieldSchema = Object.assign(
     async (project: string): Promise<CustomFieldSchema> => {
       const req = new GetMomentCustomFieldSchemaRequest({ project });
       return await getPromiseClient(CustomFieldService).getMomentCustomFieldSchema(req);
@@ -1457,9 +1457,9 @@ class CoSceneConsoleApi {
     },
   );
 
-  public getDeviceCustomFieldValues = Object.assign(
-    async (project: string): Promise<CustomFieldSchema> => {
-      const req = new GetDeviceCustomFieldSchemaRequest({ project });
+  public getDeviceCustomFieldSchema = Object.assign(
+    async (): Promise<CustomFieldSchema> => {
+      const req = new GetDeviceCustomFieldSchemaRequest();
       return await getPromiseClient(CustomFieldService).getDeviceCustomFieldSchema(req);
     },
     {
@@ -1472,7 +1472,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public getTaskCustomFieldValues = Object.assign(
+  public getTaskCustomFieldSchema = Object.assign(
     async (project: string): Promise<CustomFieldSchema> => {
       const req = new GetTaskCustomFieldSchemaRequest({ project });
       return await getPromiseClient(CustomFieldService).getTaskCustomFieldSchema(req);
