@@ -33,7 +33,6 @@ export function CustomFieldValueFieldEditor({
           error={error}
           onChange={onChange}
           customFieldValue={customFieldValue}
-          enableState={variant === "secondary"}
         />
       );
       break;
@@ -44,7 +43,6 @@ export function CustomFieldValueFieldEditor({
           error={error}
           onChange={onChange}
           customFieldValue={customFieldValue}
-          enableState={variant === "secondary"}
         />
       );
       break;
@@ -52,6 +50,7 @@ export function CustomFieldValueFieldEditor({
     case "enums":
       content = (
         <CustomFieldEnumEditor
+          allowClear={!customFieldValue.property.required}
           customFieldValue={customFieldValue}
           onChange={onChange}
           error={error}
@@ -65,6 +64,7 @@ export function CustomFieldValueFieldEditor({
           customFieldValue={customFieldValue}
           onChange={onChange}
           error={error}
+          allowClear={!customFieldValue.property.required}
         />
       );
       break;
@@ -75,6 +75,7 @@ export function CustomFieldValueFieldEditor({
           customFieldValue={customFieldValue}
           onChange={onChange}
           error={error}
+          allowClear={!customFieldValue.property.required}
         />
       );
       break;

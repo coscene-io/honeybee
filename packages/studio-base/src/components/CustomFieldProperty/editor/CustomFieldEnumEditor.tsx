@@ -44,23 +44,6 @@ export function CustomFieldEnumEditor({
     return _orderBy(options, "keyword");
   }, [property]);
 
-  // return (
-  //   <Combobox
-  //     allowClear={allowClear}
-  //     error={error}
-  //     onChange={(value) => {
-  //       customFieldValue.value = { case: 'enums', value: new EnumValue({ id: value }) };
-  //       onChange(customFieldValue);
-  //     }}
-  //     options={options}
-  //     value={customFieldValue.value.case === 'enums' ? customFieldValue.value.value.id : undefined}
-  //     disabled={disabled}
-  //     notFoundContent={t('noMatchingItemsFound')}
-  //     searchInputPlaceholder={t('searchKeyword')}
-  //     placeholder={property?.description || t('pleaseSelect')}
-  //   />
-  // );
-
   return (
     <Autocomplete
       size="small"

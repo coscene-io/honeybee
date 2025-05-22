@@ -7,13 +7,15 @@
 
 import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { UserValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-// import { InternalUserDropdown } from "@coscene-io/data-platform-web/src/components/selector/UserDropdown";
+
+import { UserSelect } from "@foxglove/studio-base/components/UserSelect";
 
 export function CustomFieldUserEditor({
   allowClear,
   onChange,
   customFieldValue,
   disabled,
+  error,
 }: {
   allowClear?: boolean;
   error?: boolean; // todo
@@ -27,21 +29,15 @@ export function CustomFieldUserEditor({
   }
 
   return (
-    <>
-      CustomFieldUserEditor
-      {value}
-    </>
+    <UserSelect
+      value={value}
+      allowClear={allowClear}
+      disabled={disabled}
+      error={error}
+      onChange={(user) => {
+        customFieldValue.value = { case: "user", value: new UserValue({ ids: [user.name] }) };
+        onChange(customFieldValue);
+      }}
+    />
   );
-
-  // return (
-  //   <InternalUserDropdown
-  //     value={value}
-  //     disabled={disabled}
-  //     allowClear={allowClear}
-  //     onChange={(id) => {
-  //       customFieldValue.value = { case: "user", value: new UserValue({ ids: [id] }) };
-  //       onChange(customFieldValue);
-  //     }}
-  //   />
-  // );
 }

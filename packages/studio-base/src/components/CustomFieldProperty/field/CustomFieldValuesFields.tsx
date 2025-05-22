@@ -9,6 +9,8 @@ import type {
   CustomFieldValue,
   Property,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import _debounce from "lodash/debounce";
+import { useMemo } from "react";
 
 import { CustomFieldValuesFindByPropery } from "./CustomFieldValuesFindByPropery";
 
@@ -25,6 +27,16 @@ export function CustomFieldValuesFields({
   onChange?: (customFieldValues: CustomFieldValue[]) => void;
   variant?: "primary" | "secondary";
 }): React.ReactNode {
+  const debouncedOnChange = useMemo(
+    () =>
+      onChange
+        ? _debounce((values: CustomFieldValue[]) => {
+            onChange(values);
+          }, 300)
+        : undefined,
+    [onChange],
+  );
+
   return (
     <>
       {properties.map((property) => {
@@ -34,7 +46,7 @@ export function CustomFieldValuesFields({
             property={property}
             customFieldValues={customFieldValues}
             readonly={readonly}
-            onChange={onChange}
+            onChange={debouncedOnChange}
             variant={variant}
           />
         );

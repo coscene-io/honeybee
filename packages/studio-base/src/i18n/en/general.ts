@@ -22,4 +22,5 @@ export const general = {
   noMatchingItemsFound: "No matching items found",
   searchKeyword: "Search keyword",
   pleaseSelect: "Please select",
+  pleaseEnter: "Please enter",
 };

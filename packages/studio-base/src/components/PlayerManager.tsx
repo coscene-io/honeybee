@@ -98,8 +98,11 @@ function useBeforeConnectionSource(): (
         setBaseInfo({ loading: true, value: {} });
         const baseInfoRes = await consoleApi.getBaseInfo(baseInfoKey);
 
-        setBaseInfo({ loading: false, value: baseInfoRes });
+        // consoleApi.setApiBaseInfo should be called before setBaseInfo
+        // because will get promise from setBaseInfo
         await consoleApi.setApiBaseInfo(baseInfoRes);
+
+        setBaseInfo({ loading: false, value: baseInfoRes });
       } catch (error) {
         setBaseInfo({ loading: false, error });
       }
@@ -324,9 +327,8 @@ export default function PlayerManager(
               ...args.params,
             };
 
-            setCurrentSourceParams({ sourceId, args: { type: "connection", params } });
-
             await beforeConnectionSource(sourceId, args.params ?? {});
+            setCurrentSourceParams({ sourceId, args: { type: "connection", params } });
 
             const newPlayer = foundSource.initialize({
               metricsCollector,

@@ -6,9 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { PartialMessage } from "@bufbuild/protobuf";
-import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 import { UpdateRecordRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
-import { FormLabel, Link, Avatar, Typography, SelectChangeEvent } from "@mui/material";
+import { FormLabel, Link, Avatar, Typography } from "@mui/material";
 import dayjs from "dayjs";
 import { ReactElement, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -165,16 +164,11 @@ export default function RecordInfo(): ReactElement {
               <RecordLabelSelector
                 value={record.value?.labels.map((label) => label.name) ?? []}
                 options={labels.value?.labels ?? []}
-                onChange={(event: SelectChangeEvent<string[]>) => {
+                onChange={(_, newValue) => {
                   void updateRecord({
                     record: {
                       name: record.value?.name,
-                      labels: (event.target.value as string[])
-                        .map(
-                          (labelName) =>
-                            labels.value?.labels.find((label) => label.name === labelName),
-                        )
-                        .filter((label): label is Label => label != undefined),
+                      labels: newValue,
                     },
                     updateMask: { paths: ["labels"] },
                   });

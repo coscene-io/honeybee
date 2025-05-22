@@ -22,4 +22,5 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   testing: "批量测试",
   onlineData: "在线数据",
   pleaseSelect: "请选择",
+  pleaseEnter: "请输入",
 };
