@@ -19,8 +19,8 @@ const selectSetRecord = (state: CoSceneBaseStore) => state.setRecord;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectRecord = (store: CoSceneBaseStore) => store.record;
 const selectProject = (store: CoSceneBaseStore) => store.project;
-const selectSetRecordCustomFieldValues = (state: CoSceneBaseStore) =>
-  state.setRecordCustomFieldValues;
+const selectSetRecordCustomFieldSchema = (state: CoSceneBaseStore) =>
+  state.setRecordCustomFieldSchema;
 
 export function BaseSyncAdapter(): ReactNull {
   const baseInfo = useBaseInfo(selectBaseInfo);
@@ -28,7 +28,7 @@ export function BaseSyncAdapter(): ReactNull {
   const setRecord = useBaseInfo(selectSetRecord);
   const record = useBaseInfo(selectRecord);
   const project = useBaseInfo(selectProject);
-  const setRecordCustomFieldValues = useBaseInfo(selectSetRecordCustomFieldValues);
+  const setRecordCustomFieldSchema = useBaseInfo(selectSetRecordCustomFieldSchema);
 
   const consoleApi = useConsoleApi();
 
@@ -68,17 +68,17 @@ export function BaseSyncAdapter(): ReactNull {
     record.loading,
   ]);
 
-  const [_customFieldValues, syncCustomFieldValues] = useAsyncFn(async () => {
+  const [_customFieldSchema, syncCustomFieldSchema] = useAsyncFn(async () => {
     if (
       baseInfo.value?.recordId &&
       baseInfo.value.warehouseId &&
       baseInfo.value.projectId &&
       record.loading
     ) {
-      const customFieldValues = await consoleApi.getRecordCustomFieldValues(
+      const customFieldSchema = await consoleApi.getRecordCustomFieldSchema(
         `warehouses/${baseInfo.value.warehouseId}/projects/${baseInfo.value.projectId}`,
       );
-      setRecordCustomFieldValues(customFieldValues);
+      setRecordCustomFieldSchema(customFieldSchema);
     }
   }, [
     baseInfo.value?.recordId,
@@ -86,7 +86,7 @@ export function BaseSyncAdapter(): ReactNull {
     baseInfo.value?.projectId,
     record.loading,
     consoleApi,
-    setRecordCustomFieldValues,
+    setRecordCustomFieldSchema,
   ]);
 
   useEffect(() => {
@@ -102,10 +102,10 @@ export function BaseSyncAdapter(): ReactNull {
   }, [syncRecord]);
 
   useEffect(() => {
-    syncCustomFieldValues().catch((error: unknown) => {
+    syncCustomFieldSchema().catch((error: unknown) => {
       log.error(error);
     });
-  }, [syncCustomFieldValues]);
+  }, [syncCustomFieldSchema]);
 
   return ReactNull;
 }
