@@ -224,7 +224,7 @@ export default function RecordInfo(): ReactElement {
               variant="secondary"
               properties={recordCustomFieldValues.properties}
               customFieldValues={record.value.customFieldValues}
-              readonly={!consoleApi.getRecordCustomFieldValues.permission()}
+              readonly={!consoleApi.updateRecord.permission()}
               onChange={(customFieldValues) => {
                 if (!record.value) {
                   return;

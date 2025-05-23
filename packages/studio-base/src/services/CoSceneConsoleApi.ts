@@ -118,6 +118,7 @@ import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-ba
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
+  Endpoint,
   EndpointDataplatformV1alph1,
   EndpointDataplatformV1alph2,
   EndpointDataplatformV1alph3,
@@ -783,25 +784,32 @@ class CoSceneConsoleApi {
   }
 
   // event
-  public async createEvent({
-    event,
-    parent,
-    recordName,
-  }: {
-    event: Event;
-    parent: string;
-    recordName: string;
-  }): Promise<Event> {
-    const createEventRequest = new CreateEventRequest({
-      parent,
+  public createEvent = Object.assign(
+    async ({
       event,
-      record: recordName,
-    });
+      parent,
+      recordName,
+    }: {
+      event: Event;
+      parent: string;
+      recordName: string;
+    }): Promise<Event> => {
+      const createEventRequest = new CreateEventRequest({
+        parent,
+        event,
+        record: recordName,
+      });
 
-    const newEvent = await getPromiseClient(EventService).createEvent(createEventRequest);
+      const newEvent = await getPromiseClient(EventService).createEvent(createEventRequest);
 
-    return newEvent;
-  }
+      return newEvent;
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.CreateEvent, this.#permissionList);
+      },
+    },
+  );
 
   public async getEvents(params: { fileList: SingleFileGetEventsRequest[] }): Promise<EventList> {
     const eventBinaryArray = await this.#post<GetEventsResponse>(
