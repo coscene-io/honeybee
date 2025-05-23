@@ -23,7 +23,6 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 
 const selectRecord = (store: CoSceneBaseStore) => store.record;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectProject = (store: CoSceneBaseStore) => store.project;
 const selectRefreshRecord = (store: CoSceneBaseStore) => store.refreshRecord;
 const selectRecordCustomFieldSchema = (store: CoSceneBaseStore) => store.recordCustomFieldSchema;
 
@@ -32,7 +31,6 @@ const log = Logger.getLogger(__filename);
 export default function RecordInfo(): ReactElement {
   const consoleApi = useConsoleApi();
   const record = useBaseInfo(selectRecord);
-  const project = useBaseInfo(selectProject);
   const baseInfo = useBaseInfo(selectBaseInfo);
   const recordCustomFieldSchema = useBaseInfo(selectRecordCustomFieldSchema);
 
@@ -153,18 +151,6 @@ export default function RecordInfo(): ReactElement {
           <Typography variant="h6" gutterBottom>
             {t("recordInfo")}
           </Typography>
-          <Stack>
-            <FormLabel>{t("project")}</FormLabel>
-            <Link
-              variant="body2"
-              underline="hover"
-              data-testid={project.value?.displayName}
-              href={`/${baseInfo.value?.organizationSlug}/${baseInfo.value?.projectSlug}`}
-              target="_blank"
-            >
-              {project.value?.displayName}
-            </Link>
-          </Stack>
 
           <Stack>
             <FormLabel>{t("creator")}</FormLabel>
@@ -199,6 +185,25 @@ export default function RecordInfo(): ReactElement {
             </Stack>
           </Stack>
 
+          {record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
+            <CustomFieldValuesFields
+              variant="secondary"
+              properties={recordCustomFieldSchema.properties}
+              customFieldValues={record.value.customFieldValues}
+              readonly={!consoleApi.updateRecord.permission()}
+              onChange={(customFieldValues) => {
+                if (!record.value) {
+                  return;
+                }
+
+                void updateRecord({
+                  record: { name: record.value.name, customFieldValues },
+                  updateMask: { paths: ["customFieldValues"] },
+                });
+              }}
+            />
+          )}
+
           {record.value?.createTime && (
             <Stack>
               <FormLabel>{t("createTime")}</FormLabel>
@@ -217,25 +222,6 @@ export default function RecordInfo(): ReactElement {
                 {dayjs(record.value.updateTime.toDate()).format("YYYY-MM-DD HH:mm:ss")}
               </Stack>
             </Stack>
-          )}
-
-          {record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
-            <CustomFieldValuesFields
-              variant="secondary"
-              properties={recordCustomFieldSchema.properties}
-              customFieldValues={record.value.customFieldValues}
-              readonly={!consoleApi.updateRecord.permission()}
-              onChange={(customFieldValues) => {
-                if (!record.value) {
-                  return;
-                }
-
-                void updateRecord({
-                  record: { name: record.value.name, customFieldValues },
-                  updateMask: { paths: ["customFieldValues"] },
-                });
-              }}
-            />
           )}
         </Stack>
       </Stack>
