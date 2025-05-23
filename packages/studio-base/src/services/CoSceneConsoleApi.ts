@@ -70,7 +70,10 @@ import {
   GetTicketSystemMetadataRequest,
   TicketSystemMetadata,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
-import { CustomFieldSchema } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import {
+  CustomFieldValue,
+  CustomFieldSchema,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
 import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
@@ -875,6 +878,7 @@ class CoSceneConsoleApi {
       description: string;
       assignee: string;
       assigner: string;
+      customFieldValues?: CustomFieldValue[];
     };
     event: Event;
   }): Promise<Task> {
@@ -895,6 +899,7 @@ class CoSceneConsoleApi {
           },
         },
       },
+      customFieldValues: task.customFieldValues,
     });
 
     const request = new UpsertTaskRequest({
