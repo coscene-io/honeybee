@@ -23,7 +23,6 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 
 const selectRecord = (store: CoSceneBaseStore) => store.record;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectProject = (store: CoSceneBaseStore) => store.project;
 const selectRefreshRecord = (store: CoSceneBaseStore) => store.refreshRecord;
 const selectRecordCustomFieldSchema = (store: CoSceneBaseStore) => store.recordCustomFieldSchema;
 
@@ -32,7 +31,6 @@ const log = Logger.getLogger(__filename);
 export default function RecordInfo(): ReactElement {
   const consoleApi = useConsoleApi();
   const record = useBaseInfo(selectRecord);
-  const project = useBaseInfo(selectProject);
   const baseInfo = useBaseInfo(selectBaseInfo);
   const recordCustomFieldSchema = useBaseInfo(selectRecordCustomFieldSchema);
 
@@ -153,18 +151,6 @@ export default function RecordInfo(): ReactElement {
           <Typography variant="h6" gutterBottom>
             {t("recordInfo")}
           </Typography>
-          <Stack>
-            <FormLabel>{t("project")}</FormLabel>
-            <Link
-              variant="body2"
-              underline="hover"
-              data-testid={project.value?.displayName}
-              href={`/${baseInfo.value?.organizationSlug}/${baseInfo.value?.projectSlug}`}
-              target="_blank"
-            >
-              {project.value?.displayName}
-            </Link>
-          </Stack>
 
           <Stack>
             <FormLabel>{t("creator")}</FormLabel>
