@@ -1440,7 +1440,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public getRecordCustomFieldValues = Object.assign(
+  public getRecordCustomFieldSchema = Object.assign(
     async (project: string): Promise<CustomFieldSchema> => {
       const req = new GetRecordCustomFieldSchemaRequest({ project });
       return await getPromiseClient(CustomFieldService).getRecordCustomFieldSchema(req);

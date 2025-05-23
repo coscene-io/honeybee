@@ -25,7 +25,7 @@ const selectRecord = (store: CoSceneBaseStore) => store.record;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectProject = (store: CoSceneBaseStore) => store.project;
 const selectRefreshRecord = (store: CoSceneBaseStore) => store.refreshRecord;
-const selectRecordCustomFieldValues = (store: CoSceneBaseStore) => store.recordCustomFieldValues;
+const selectRecordCustomFieldSchema = (store: CoSceneBaseStore) => store.recordCustomFieldSchema;
 
 const log = Logger.getLogger(__filename);
 
@@ -34,7 +34,7 @@ export default function RecordInfo(): ReactElement {
   const record = useBaseInfo(selectRecord);
   const project = useBaseInfo(selectProject);
   const baseInfo = useBaseInfo(selectBaseInfo);
-  const recordCustomFieldValues = useBaseInfo(selectRecordCustomFieldValues);
+  const recordCustomFieldSchema = useBaseInfo(selectRecordCustomFieldSchema);
 
   const refreshRecord = useBaseInfo(selectRefreshRecord);
 
@@ -219,10 +219,10 @@ export default function RecordInfo(): ReactElement {
             </Stack>
           )}
 
-          {record.value?.customFieldValues && recordCustomFieldValues?.properties && (
+          {record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
             <CustomFieldValuesFields
               variant="secondary"
-              properties={recordCustomFieldValues.properties}
+              properties={recordCustomFieldSchema.properties}
               customFieldValues={record.value.customFieldValues}
               readonly={!consoleApi.updateRecord.permission()}
               onChange={(customFieldValues) => {

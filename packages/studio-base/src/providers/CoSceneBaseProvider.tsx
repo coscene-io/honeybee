@@ -65,8 +65,8 @@ function CreateBaseStore() {
         set({ project: { loading: true, value: project.value } });
       }
     },
-    setRecordCustomFieldValues: (recordCustomFieldValues: CustomFieldSchema) => {
-      set({ recordCustomFieldValues });
+    setRecordCustomFieldSchema: (recordCustomFieldSchema: CustomFieldSchema) => {
+      set({ recordCustomFieldSchema });
     },
   }));
 }
