@@ -982,13 +982,14 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
             </Select>
           </Stack>
         )}
-        {customFieldSchema?.properties && event.customFieldValues && (
+        {/* if is edit moment make sure event.customFieldValues is not undefined */}
+        {customFieldSchema?.properties && (!isEditing || event.customFieldValues) && (
           <Stack paddingX={3} paddingTop={2} gap={2}>
             {/* custom field */}
             <CustomFieldValuesFields
               variant="secondary"
               properties={customFieldSchema.properties}
-              customFieldValues={event.customFieldValues}
+              customFieldValues={event.customFieldValues ?? []}
               onChange={(customFieldValues) => {
                 setEvent((old) => ({ ...old, customFieldValues }));
               }}
