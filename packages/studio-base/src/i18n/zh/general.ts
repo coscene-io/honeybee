@@ -21,4 +21,8 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   realtimeViz: "实时可视化",
   testing: "批量测试",
   onlineData: "在线数据",
+  pleaseSelect: "请选择",
+  pleaseEnter: "请输入",
+  clearButtonLabel: "清除",
+  okButtonLabel: "确定",
 };

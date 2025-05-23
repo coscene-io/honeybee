@@ -48,12 +48,7 @@ import PlaybackQualityControls from "@foxglove/studio-base/components/PlaybackCo
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import {
-  ProjectRoleEnum,
-  ProjectRoleWeight,
-  useCurrentUser,
-  UserStore,
-} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
@@ -93,8 +88,6 @@ const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
-
-const selectUserRole = (store: UserStore) => store.role;
 
 function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
@@ -154,9 +147,9 @@ export default function PlaybackControls(props: {
   const urlState = useMessagePipeline(selectUrlState);
   const enableList = useBaseInfo(selectEnableList);
 
-  const currentUserRole = useCurrentUser(selectUserRole);
-
   const { t } = useTranslation("cosEvent");
+
+  const consoleApi = useConsoleApi();
 
   const { classes, cx } = useStyles();
   const repeat = useWorkspaceStore(selectPlaybackRepeat);
@@ -250,11 +243,9 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            {enableList.event === "ENABLE" &&
-              currentUserRole.projectRole >
-                ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
-                <MemoedMomentButton disableControls={disableControls} />
-              )}
+            {enableList.event === "ENABLE" && consoleApi.createEvent.permission() && (
+              <MemoedMomentButton disableControls={disableControls} />
+            )}
             <Tooltip
               // A desired workflow is the ability to copy data source info text (start, end, duration)
               // from the tooltip. However, there's a UX quirk where the tooltip will close if the user

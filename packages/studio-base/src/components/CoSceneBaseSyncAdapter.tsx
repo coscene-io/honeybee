@@ -19,6 +19,8 @@ const selectSetRecord = (state: CoSceneBaseStore) => state.setRecord;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectRecord = (store: CoSceneBaseStore) => store.record;
 const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectSetRecordCustomFieldValues = (state: CoSceneBaseStore) =>
+  state.setRecordCustomFieldValues;
 
 export function BaseSyncAdapter(): ReactNull {
   const baseInfo = useBaseInfo(selectBaseInfo);
@@ -26,6 +28,7 @@ export function BaseSyncAdapter(): ReactNull {
   const setRecord = useBaseInfo(selectSetRecord);
   const record = useBaseInfo(selectRecord);
   const project = useBaseInfo(selectProject);
+  const setRecordCustomFieldValues = useBaseInfo(selectSetRecordCustomFieldValues);
 
   const consoleApi = useConsoleApi();
 
@@ -65,6 +68,27 @@ export function BaseSyncAdapter(): ReactNull {
     record.loading,
   ]);
 
+  const [_customFieldValues, syncCustomFieldValues] = useAsyncFn(async () => {
+    if (
+      baseInfo.value?.recordId &&
+      baseInfo.value.warehouseId &&
+      baseInfo.value.projectId &&
+      record.loading
+    ) {
+      const customFieldValues = await consoleApi.getRecordCustomFieldValues(
+        `warehouses/${baseInfo.value.warehouseId}/projects/${baseInfo.value.projectId}`,
+      );
+      setRecordCustomFieldValues(customFieldValues);
+    }
+  }, [
+    baseInfo.value?.recordId,
+    baseInfo.value?.warehouseId,
+    baseInfo.value?.projectId,
+    record.loading,
+    consoleApi,
+    setRecordCustomFieldValues,
+  ]);
+
   useEffect(() => {
     syncProjects().catch((error: unknown) => {
       log.error(error);
@@ -76,6 +100,12 @@ export function BaseSyncAdapter(): ReactNull {
       log.error(error);
     });
   }, [syncRecord]);
+
+  useEffect(() => {
+    syncCustomFieldValues().catch((error: unknown) => {
+      log.error(error);
+    });
+  }, [syncCustomFieldValues]);
 
   return ReactNull;
 }
