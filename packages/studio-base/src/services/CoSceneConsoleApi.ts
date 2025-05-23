@@ -70,10 +70,21 @@ import {
   GetTicketSystemMetadataRequest,
   TicketSystemMetadata,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
+import {
+  CustomFieldValue,
+  CustomFieldSchema,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
 import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
+import { CustomFieldService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/custom_field_connect";
+import {
+  GetRecordCustomFieldSchemaRequest,
+  GetMomentCustomFieldSchemaRequest,
+  GetDeviceCustomFieldSchemaRequest,
+  GetTaskCustomFieldSchemaRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/custom_field_pb";
 import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_connect";
 import {
   ListFilesRequest,
@@ -103,11 +114,11 @@ import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
 import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
-import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
+import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
-import { CosQuery, SerializeOption } from "@foxglove/studio-base/util/cosel";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
+  Endpoint,
   EndpointDataplatformV1alph1,
   EndpointDataplatformV1alph2,
   EndpointDataplatformV1alph3,
@@ -773,25 +784,32 @@ class CoSceneConsoleApi {
   }
 
   // event
-  public async createEvent({
-    event,
-    parent,
-    recordName,
-  }: {
-    event: Event;
-    parent: string;
-    recordName: string;
-  }): Promise<Event> {
-    const createEventRequest = new CreateEventRequest({
-      parent,
+  public createEvent = Object.assign(
+    async ({
       event,
-      record: recordName,
-    });
+      parent,
+      recordName,
+    }: {
+      event: Event;
+      parent: string;
+      recordName: string;
+    }): Promise<Event> => {
+      const createEventRequest = new CreateEventRequest({
+        parent,
+        event,
+        record: recordName,
+      });
 
-    const newEvent = await getPromiseClient(EventService).createEvent(createEventRequest);
+      const newEvent = await getPromiseClient(EventService).createEvent(createEventRequest);
 
-    return newEvent;
-  }
+      return newEvent;
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.CreateEvent, this.#permissionList);
+      },
+    },
+  );
 
   public async getEvents(params: { fileList: SingleFileGetEventsRequest[] }): Promise<EventList> {
     const eventBinaryArray = await this.#post<GetEventsResponse>(
@@ -868,6 +886,7 @@ class CoSceneConsoleApi {
       description: string;
       assignee: string;
       assigner: string;
+      customFieldValues?: CustomFieldValue[];
     };
     event: Event;
   }): Promise<Task> {
@@ -888,6 +907,7 @@ class CoSceneConsoleApi {
           },
         },
       },
+      customFieldValues: task.customFieldValues,
     });
 
     const request = new UpsertTaskRequest({
@@ -1416,6 +1436,66 @@ class CoSceneConsoleApi {
     {
       permission: () => {
         return checkUserPermission(EndpointDataplatformV1alph3.GetTask, this.#permissionList);
+      },
+    },
+  );
+
+  public getRecordCustomFieldValues = Object.assign(
+    async (project: string): Promise<CustomFieldSchema> => {
+      const req = new GetRecordCustomFieldSchemaRequest({ project });
+      return await getPromiseClient(CustomFieldService).getRecordCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetRecordCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getMomentCustomFieldSchema = Object.assign(
+    async (project: string): Promise<CustomFieldSchema> => {
+      const req = new GetMomentCustomFieldSchemaRequest({ project });
+      return await getPromiseClient(CustomFieldService).getMomentCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetMomentCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getDeviceCustomFieldSchema = Object.assign(
+    async (): Promise<CustomFieldSchema> => {
+      const req = new GetDeviceCustomFieldSchemaRequest();
+      return await getPromiseClient(CustomFieldService).getDeviceCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetDeviceCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getTaskCustomFieldSchema = Object.assign(
+    async (project: string): Promise<CustomFieldSchema> => {
+      const req = new GetTaskCustomFieldSchemaRequest({ project });
+      return await getPromiseClient(CustomFieldService).getTaskCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetTaskCustomFieldSchema,
+          this.#permissionList,
+        );
       },
     },
   );

@@ -19,4 +19,10 @@ export const general = {
   realtimeViz: "Realtime Viz",
   testing: "Testing",
   onlineData: "Online Data",
+  noMatchingItemsFound: "No matching items found",
+  searchKeyword: "Search keyword",
+  pleaseSelect: "Please select",
+  pleaseEnter: "Please enter",
+  clearButtonLabel: "Clear",
+  okButtonLabel: "OK",
 };

@@ -6,15 +6,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { PartialMessage } from "@bufbuild/protobuf";
-import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 import { UpdateRecordRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
-import { FormLabel, Link, Avatar, Typography, SelectChangeEvent } from "@mui/material";
+import { FormLabel, Link, Avatar, Typography } from "@mui/material";
 import dayjs from "dayjs";
 import { ReactElement, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 
 import Logger from "@foxglove/log";
+import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
 import ProjectDeviceSelector from "@foxglove/studio-base/components/RecordInfo/ProjectDeviceSelector";
 import RecordLabelSelector from "@foxglove/studio-base/components/RecordInfo/RecordLabelSelector";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -25,6 +25,7 @@ const selectRecord = (store: CoSceneBaseStore) => store.record;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectProject = (store: CoSceneBaseStore) => store.project;
 const selectRefreshRecord = (store: CoSceneBaseStore) => store.refreshRecord;
+const selectRecordCustomFieldValues = (store: CoSceneBaseStore) => store.recordCustomFieldValues;
 
 const log = Logger.getLogger(__filename);
 
@@ -33,6 +34,7 @@ export default function RecordInfo(): ReactElement {
   const record = useBaseInfo(selectRecord);
   const project = useBaseInfo(selectProject);
   const baseInfo = useBaseInfo(selectBaseInfo);
+  const recordCustomFieldValues = useBaseInfo(selectRecordCustomFieldValues);
 
   const refreshRecord = useBaseInfo(selectRefreshRecord);
 
@@ -48,12 +50,18 @@ export default function RecordInfo(): ReactElement {
     });
   }, [consoleApi, record.value?.device?.name]);
 
+  const [deviceCustomFieldSchema, getDeviceCustomFieldSchema] = useAsyncFn(async () => {
+    return await consoleApi.getDeviceCustomFieldSchema();
+  }, [consoleApi]);
+
   const [creator, getCreator] = useAsyncFn(async () => {
     if (!record.value?.creator) {
       return;
     }
 
-    return await consoleApi.getUser(record.value.creator);
+    const users = await consoleApi.batchGetUsers([record.value.creator]);
+
+    return users.users[0];
   }, [consoleApi, record.value?.creator]);
 
   const [labels, getLabels] = useAsyncFn(async () => {
@@ -75,6 +83,14 @@ export default function RecordInfo(): ReactElement {
       });
     }
   }, [record.value?.device?.name, getDeviceInfo]);
+
+  useEffect(() => {
+    if (record.value?.device?.name) {
+      getDeviceCustomFieldSchema().catch((error: unknown) => {
+        log.error(error);
+      });
+    }
+  }, [record.value?.device?.name, getDeviceCustomFieldSchema]);
 
   useEffect(() => {
     if (record.value?.creator) {
@@ -123,6 +139,14 @@ export default function RecordInfo(): ReactElement {
               {deviceInfo.value?.serialNumber}
             </Link>
           </Stack>
+
+          <CustomFieldValuesFields
+            variant="secondary"
+            properties={deviceCustomFieldSchema.value?.properties ?? []}
+            customFieldValues={deviceInfo.value?.customFieldValues ?? []}
+            readonly
+            ignoreProperties
+          />
         </Stack>
 
         <Stack gap={1}>
@@ -162,16 +186,11 @@ export default function RecordInfo(): ReactElement {
               <RecordLabelSelector
                 value={record.value?.labels.map((label) => label.name) ?? []}
                 options={labels.value?.labels ?? []}
-                onChange={(event: SelectChangeEvent<string[]>) => {
+                onChange={(_, newValue) => {
                   void updateRecord({
                     record: {
                       name: record.value?.name,
-                      labels: (event.target.value as string[])
-                        .map(
-                          (labelName) =>
-                            labels.value?.labels.find((label) => label.name === labelName),
-                        )
-                        .filter((label): label is Label => label != undefined),
+                      labels: newValue,
                     },
                     updateMask: { paths: ["labels"] },
                   });
@@ -198,6 +217,25 @@ export default function RecordInfo(): ReactElement {
                 {dayjs(record.value.updateTime.toDate()).format("YYYY-MM-DD HH:mm:ss")}
               </Stack>
             </Stack>
+          )}
+
+          {record.value?.customFieldValues && recordCustomFieldValues?.properties && (
+            <CustomFieldValuesFields
+              variant="secondary"
+              properties={recordCustomFieldValues.properties}
+              customFieldValues={record.value.customFieldValues}
+              readonly={!consoleApi.updateRecord.permission()}
+              onChange={(customFieldValues) => {
+                if (!record.value) {
+                  return;
+                }
+
+                void updateRecord({
+                  record: { name: record.value.name, customFieldValues },
+                  updateMask: { paths: ["customFieldValues"] },
+                });
+              }}
+            />
           )}
         </Stack>
       </Stack>

@@ -7,6 +7,7 @@
 
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { CustomFieldSchema } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { ReactNode, useState } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
@@ -63,6 +64,9 @@ function CreateBaseStore() {
       if (project.value) {
         set({ project: { loading: true, value: project.value } });
       }
+    },
+    setRecordCustomFieldValues: (recordCustomFieldValues: CustomFieldSchema) => {
+      set({ recordCustomFieldValues });
     },
   }));
 }

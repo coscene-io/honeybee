@@ -7,6 +7,7 @@
 
 import { Timestamp, FieldMask } from "@bufbuild/protobuf";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
@@ -15,7 +16,6 @@ import HelpIcon from "@mui/icons-material/Help";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Alert,
-  Box,
   Button,
   Checkbox,
   CircularProgress,
@@ -29,12 +29,10 @@ import {
   Select,
   MenuItem,
   Tooltip,
-  Autocomplete,
   Link,
 } from "@mui/material";
 import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
-import PinyinMatch from "pinyin-match";
 import { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -44,6 +42,7 @@ import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 import { v4 as uuidv4 } from "uuid";
 
+import Logger from "@foxglove/log";
 import {
   toDate,
   isLessThan,
@@ -55,7 +54,9 @@ import {
   fromDate,
 } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { UserSelect } from "@foxglove/studio-base/components/UserSelect";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
@@ -105,20 +106,14 @@ const useStyles = makeStyles()((theme, _params) => ({
     gap: "8px",
     padding: "24px",
   },
-  avatar: {
-    width: 18,
-    height: 18,
-    borderRadius: "50%",
-    marginRight: 5,
-  },
 }));
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectEventMarks = (store: EventsStore) => store.eventMarks;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
-
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
 
 const PIVOT_METRIC = "pivotMetric";
 const temperature = [...new Array(9).keys()].map((i) => `温度0${i + 1}`);
@@ -140,8 +135,12 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
   );
 }
 
+const log = Logger.getLogger(__filename);
+
 export function CoSceneCreateEventContainer(props: { onClose: () => void }): React.JSX.Element {
   const { onClose } = props;
+
+  const consoleApi = useConsoleApi();
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
@@ -154,6 +153,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
   const isEditing = toModifyEvent != undefined;
 
   const eventMarks = useEvents(selectEventMarks);
+  const customFieldSchema = useEvents(selectCustomFieldSchema);
 
   const markStartTime = eventMarks[0]?.time;
   const markEndTime = eventMarks[1]?.time;
@@ -164,6 +164,24 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+
+  const [taskCustomFieldSchema, getTaskCustomFieldSchema] = useAsyncFn(async () => {
+    if (!baseInfo.warehouseId || !baseInfo.projectId) {
+      return;
+    }
+
+    return await consoleApi.getTaskCustomFieldSchema(
+      `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`,
+    );
+  }, [consoleApi, baseInfo.warehouseId, baseInfo.projectId]);
+
+  useEffect(() => {
+    if (baseInfo.warehouseId && baseInfo.projectId) {
+      getTaskCustomFieldSchema().catch((error: unknown) => {
+        log.error(error);
+      });
+    }
+  }, [baseInfo.warehouseId, baseInfo.projectId, getTaskCustomFieldSchema]);
 
   const passingFile = bagFiles.value?.filter((bag) => {
     if (bag.startTime == undefined || bag.endTime == undefined) {
@@ -195,7 +213,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
   }, [passingFile]);
 
   const { classes } = useStyles();
-  const consoleApi = useConsoleApi();
 
   const [event, setEvent] = useImmer<{
     eventName: string;
@@ -211,6 +228,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     imageFile?: File;
     imgUrl?: string;
     record: string;
+    customFieldValues?: CustomFieldValue[];
   }>({
     eventName: "",
     startTime: markStartTime ? toDate(markStartTime) : undefined,
@@ -221,6 +239,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     enabledCreateNewTask: false,
     fileName: passingFile?.[0]?.name ?? "",
     record: "",
+    customFieldValues: undefined,
   });
 
   const [task, setTask] = useImmer<{
@@ -229,12 +248,14 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     assignee: string;
     assigner: string;
     needSyncTask: boolean;
+    customFieldValues: CustomFieldValue[];
   }>({
     title: "",
     description: "",
     assignee: "",
     assigner: "",
     needSyncTask: false,
+    customFieldValues: [],
   });
 
   useEffect(() => {
@@ -254,6 +275,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
         fileName: toModifyEvent.record,
         imgUrl: toModifyEvent.imgUrl,
         record: toModifyEvent.record,
+        customFieldValues: toModifyEvent.customFieldValues,
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -397,10 +419,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
   const projectName = event.fileName.split("/records/")[0];
   const recordName = event.fileName.split("/files/")[0];
 
-  const { value: users } = useAsync(async () => {
-    return await consoleApi.listOrganizationUsers();
-  });
-
   const { value: syncedTask } = useAsync(async () => {
     const parent = `${projectName}/ticketSystem`;
     return await consoleApi.getTicketSystemMetadata({ parent }).then((result) => ({
@@ -408,8 +426,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
       enabled: result.jiraEnabled || result.onesEnabled || result.teambitionEnabled,
     }));
   });
-
-  const activatedUsers = users?.filter((user) => user.active);
 
   const [, syncTask] = useAsyncFn(async (name: string) => {
     try {
@@ -542,6 +558,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
       newEvent.customizedFields[key] = keyedMetadata[key] ?? "";
     });
 
+    newEvent.customFieldValues = event.customFieldValues ?? [];
+
     if (projectName == undefined || recordName == undefined) {
       toast.error(t("createMomentFailed"));
       return;
@@ -589,6 +607,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     event.eventName,
     event.durationUnit,
     event.description,
+    event.customFieldValues,
     event.imageFile,
     event.enabledCreateNewTask,
     projectName,
@@ -633,12 +652,15 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
       newEvent.description = event.description;
     }
 
+    newEvent.customFieldValues = event.customFieldValues ?? [];
+
     const maskArray = [
       "displayName",
       "duration_nanos",
       "description",
       "duration",
       "customizedFields",
+      "customFieldValues",
     ];
 
     if (!event.imgUrl && !event.imageFile) {
@@ -686,6 +708,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
   }, [
     consoleApi,
     enqueueSnackbar,
+    event.customFieldValues,
     event.description,
     event.duration,
     event.durationUnit,
@@ -709,6 +732,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
         </Stack>
         <Stack paddingX={3} paddingTop={2}>
           <TextField
+            size="small"
+            variant="filled"
             id="event-name"
             label={
               <>
@@ -721,7 +746,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
             onChange={(val) => {
               setEvent((old) => ({ ...old, eventName: val.target.value }));
             }}
-            variant="outlined"
             autoFocus
             onKeyDown={onMetaDataKeyDown}
           />
@@ -743,6 +767,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
         </Stack>
         <Stack paddingX={3} paddingTop={2}>
           <TextField
+            size="small"
+            variant="filled"
             id="description"
             label={t("description")}
             rows={2}
@@ -751,7 +777,6 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
               setEvent((old) => ({ ...old, description: val.target.value }));
             }}
             onKeyDown={onMetaDataKeyDown}
-            variant="outlined"
           />
         </Stack>
         <Stack paddingX={3} paddingTop={2}>
@@ -877,6 +902,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
                 return (
                   <div className={classes.row} key={index}>
                     <TextField
+                      size="small"
+                      variant="filled"
                       value={key}
                       placeholder={t("attributeKey")}
                       error={hasDuplicate}
@@ -890,6 +917,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
                       }}
                     />
                     <TextField
+                      size="small"
+                      variant="filled"
                       value={value}
                       placeholder={t("attributeValue")}
                       error={hasDuplicate}
@@ -937,6 +966,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
           <Stack paddingX={3} paddingTop={2}>
             <FormLabel>{t("record")}</FormLabel>
             <Select
+              size="small"
+              variant="filled"
               value={recordItems[0]?.name ?? ""}
               disabled={recordItems.length <= 1}
               onChange={(e) => {
@@ -949,6 +980,19 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
                 </MenuItem>
               ))}
             </Select>
+          </Stack>
+        )}
+        {customFieldSchema?.properties && event.customFieldValues && (
+          <Stack paddingX={3} paddingTop={2} gap={2}>
+            {/* custom field */}
+            <CustomFieldValuesFields
+              variant="secondary"
+              properties={customFieldSchema.properties}
+              customFieldValues={event.customFieldValues}
+              onChange={(customFieldValues) => {
+                setEvent((old) => ({ ...old, customFieldValues }));
+              }}
+            />
           </Stack>
         )}
         {!isEditing && (
@@ -972,12 +1016,14 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
             />
           </Stack>
         )}
+
         {event.enabledCreateNewTask && (
           <>
             <Stack paddingX={3} paddingTop={2}>
               <TextField
+                size="small"
+                variant="filled"
                 fullWidth
-                variant="outlined"
                 label={
                   <>
                     <span className={classes.requiredFlags}>*</span>
@@ -994,6 +1040,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
             </Stack>
             <Stack paddingX={3} paddingTop={2}>
               <TextField
+                size="small"
+                variant="filled"
                 id="description"
                 label={t("taskDescription")}
                 rows={3}
@@ -1002,42 +1050,36 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
                   setTask((state) => ({ ...state, description: val.target.value }));
                 }}
                 fullWidth
-                variant="outlined"
                 onKeyDown={onMetaDataKeyDown}
               />
             </Stack>
             <Stack paddingX={3} paddingTop={2}>
               <FormControl>
                 <FormLabel>{t("taskAssignee")}</FormLabel>
-                <Autocomplete
-                  disableClearable
-                  options={activatedUsers ?? []}
-                  getOptionLabel={(option) => option.nickname ?? ""}
-                  renderInput={(params) => <TextField {...params} autoFocus variant="outlined" />}
-                  renderOption={(optionProps, option) => (
-                    <Box component="li" {...optionProps} key={option.name}>
-                      <img className={classes.avatar} src={option.avatar} />
-                      {option.nickname}
-                    </Box>
-                  )}
-                  value={activatedUsers?.find((user) => user.name === task.assignee)}
-                  isOptionEqualToValue={(option, value) => option.name === value.name}
-                  onChange={(_event, option) => {
-                    setTask((s) => ({ ...s, assignee: option.name }));
+                <UserSelect
+                  value={task.assignee}
+                  onChange={(user) => {
+                    setTask((s) => ({ ...s, assignee: user.name }));
                   }}
-                  filterOptions={(options, { inputValue }) => {
-                    if (!inputValue) {
-                      return options;
-                    }
-                    return options.filter((option) => {
-                      const pinyinMatch = PinyinMatch.match(option.nickname ?? "", inputValue);
-                      return (option.nickname ?? "").includes(inputValue) || pinyinMatch !== false;
-                    });
-                  }}
-                  onKeyDown={onMetaDataKeyDown}
+                  onMetaDataKeyDown={onMetaDataKeyDown}
                 />
               </FormControl>
             </Stack>
+
+            {taskCustomFieldSchema.value && (
+              <Stack paddingX={3} paddingTop={2} gap={2}>
+                {/* custom field */}
+                <CustomFieldValuesFields
+                  variant="secondary"
+                  properties={taskCustomFieldSchema.value.properties}
+                  customFieldValues={task.customFieldValues}
+                  onChange={(customFieldValues) => {
+                    setTask((old) => ({ ...old, customFieldValues }));
+                  }}
+                />
+              </Stack>
+            )}
+
             <Stack paddingX={3} paddingTop={2}>
               {syncedTask?.enabled ?? false ? (
                 <FormControlLabel

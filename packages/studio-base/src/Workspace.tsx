@@ -362,15 +362,17 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
+      [
+        "record-info",
+        {
+          title: t("recordInfo"),
+          component: RecordInfo,
+          hidden: dataSource?.id !== "coscene-data-platform",
+        },
+      ],
       ["variables", { title: t("variables"), component: VariablesList }],
       ["extensions", { title: t("extensions"), component: ExtensionsSidebar }],
     ]);
-    if (dataSource?.id === "coscene-data-platform") {
-      items.set("record-info", {
-        title: t("recordInfo"),
-        component: RecordInfo,
-      });
-    }
 
     if (enableDebugMode) {
       if (PerformanceSidebarComponent) {

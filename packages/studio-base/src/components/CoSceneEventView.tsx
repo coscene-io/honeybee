@@ -21,6 +21,7 @@ import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
 import { toRFC3339String, fromDate, areEqual } from "@foxglove/rostime";
+import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import {
   useMessagePipeline,
@@ -92,6 +93,7 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
 
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectUserRole = (store: UserStore) => store.role;
@@ -132,7 +134,10 @@ function EventViewComponent(params: {
   } = params;
   const { classes, cx, theme } = useStyles();
   const consoleApi = useConsoleApi();
+
   const refreshEvents = useEvents(selectRefreshEvents);
+  const customFieldSchema = useEvents(selectCustomFieldSchema);
+
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
   const currentUserRole = useCurrentUser(selectUserRole);
@@ -252,6 +257,7 @@ function EventViewComponent(params: {
       fileName: "",
       imgUrl: event.imgUrl,
       record: event.event.record,
+      customFieldValues: event.event.customFieldValues,
     });
   };
 
@@ -477,6 +483,17 @@ function EventViewComponent(params: {
             <Stack>
               <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
             </Stack>
+          </Stack>
+
+          <Stack paddingTop={2} gap={2}>
+            {/* custom field */}
+            <CustomFieldValuesFields
+              variant="secondary"
+              properties={customFieldSchema?.properties ?? []}
+              customFieldValues={event.event.customFieldValues}
+              readonly
+              ignoreProperties
+            />
           </Stack>
         </div>
       </Stack>
