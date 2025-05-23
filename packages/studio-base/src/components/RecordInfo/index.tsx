@@ -199,6 +199,25 @@ export default function RecordInfo(): ReactElement {
             </Stack>
           </Stack>
 
+          {record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
+            <CustomFieldValuesFields
+              variant="secondary"
+              properties={recordCustomFieldSchema.properties}
+              customFieldValues={record.value.customFieldValues}
+              readonly={!consoleApi.updateRecord.permission()}
+              onChange={(customFieldValues) => {
+                if (!record.value) {
+                  return;
+                }
+
+                void updateRecord({
+                  record: { name: record.value.name, customFieldValues },
+                  updateMask: { paths: ["customFieldValues"] },
+                });
+              }}
+            />
+          )}
+
           {record.value?.createTime && (
             <Stack>
               <FormLabel>{t("createTime")}</FormLabel>
@@ -217,25 +236,6 @@ export default function RecordInfo(): ReactElement {
                 {dayjs(record.value.updateTime.toDate()).format("YYYY-MM-DD HH:mm:ss")}
               </Stack>
             </Stack>
-          )}
-
-          {record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
-            <CustomFieldValuesFields
-              variant="secondary"
-              properties={recordCustomFieldSchema.properties}
-              customFieldValues={record.value.customFieldValues}
-              readonly={!consoleApi.updateRecord.permission()}
-              onChange={(customFieldValues) => {
-                if (!record.value) {
-                  return;
-                }
-
-                void updateRecord({
-                  record: { name: record.value.name, customFieldValues },
-                  updateMask: { paths: ["customFieldValues"] },
-                });
-              }}
-            />
           )}
         </Stack>
       </Stack>
