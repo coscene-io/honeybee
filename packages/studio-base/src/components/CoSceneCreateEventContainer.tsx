@@ -655,12 +655,12 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
     newEvent.customFieldValues = event.customFieldValues ?? [];
 
     const maskArray = [
-      "displayName",
+      "display_name",
       "duration_nanos",
       "description",
       "duration",
-      "customizedFields",
-      "customFieldValues",
+      "customized_fields",
+      "custom_field_values",
     ];
 
     if (!event.imgUrl && !event.imageFile) {
@@ -702,7 +702,8 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
 
       refreshEvents();
       enqueueSnackbar(t("editMomentSuccess"), { variant: "success" });
-    } catch {
+    } catch (err) {
+      console.error(err);
       enqueueSnackbar(t("editMomentFailed"), { variant: "error" });
     }
   }, [
