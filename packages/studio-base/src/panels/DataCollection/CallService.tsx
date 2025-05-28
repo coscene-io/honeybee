@@ -143,7 +143,7 @@ export function CallService(props: Props): React.JSX.Element {
               error={requestParseError != undefined}
             />
             {requestParseError && (
-              <Typography variant="caption" noWrap color={requestParseError ? "error" : undefined}>
+              <Typography variant="caption" color={requestParseError ? "error" : undefined}>
                 {requestParseError}
               </Typography>
             )}
