@@ -30,12 +30,15 @@ export function CustomFieldUserEditor({
 
   return (
     <UserSelect
-      value={value}
+      value={`users/${value}`}
       allowClear={allowClear}
       disabled={disabled}
       error={error}
       onChange={(user) => {
-        customFieldValue.value = { case: "user", value: new UserValue({ ids: [user.name] }) };
+        customFieldValue.value = {
+          case: "user",
+          value: new UserValue({ ids: [user.name.split("/").pop() ?? ""] }),
+        };
         onChange(customFieldValue);
       }}
     />
