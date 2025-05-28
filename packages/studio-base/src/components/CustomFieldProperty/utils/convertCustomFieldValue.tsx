@@ -24,7 +24,7 @@ export function ConvertCustomFieldValue(customFieldValue?: CustomFieldValue): Re
         return;
       }
 
-      const user = await consoleApi.batchGetUsers([userId]);
+      const user = await consoleApi.batchGetUsers([`users/${userId}`]);
       return user.users[0];
     },
     [consoleApi],
