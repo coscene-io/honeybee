@@ -29,12 +29,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import {
-  ProjectRoleEnum,
-  ProjectRoleWeight,
-  UserStore,
-  useCurrentUser,
-} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
   TimelinePositionedEvent,
   EventsStore,
@@ -362,8 +357,7 @@ function EventViewComponent(params: {
               <RepeatOneOutlinedIcon fontSize="small" />
             </IconButton>
 
-            {currentUserRole.projectRole >
-              ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
+            {consoleApi.updateEvent.permission() && (
               <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
                 <EditIcon fontSize="small" />
               </IconButton>
@@ -373,8 +367,7 @@ function EventViewComponent(params: {
               <ShareIcon fontSize="small" />
             </IconButton>
 
-            {currentUserRole.projectRole >
-              ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
+            {consoleApi.updateEvent.permission() && (
               <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
                 <DeleteIcon fontSize="small" />
               </IconButton>
