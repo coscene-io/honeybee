@@ -41,6 +41,7 @@ export function CustomFieldTimeEditor({
       <DateTimePicker
         value={value}
         disabled={disabled}
+        timeSteps={{ minutes: 1 }}
         onChange={(newValue: Date | ReactNull) => {
           if (newValue) {
             customFieldValue.value = {
