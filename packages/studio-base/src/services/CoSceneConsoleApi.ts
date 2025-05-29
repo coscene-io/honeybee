@@ -840,20 +840,21 @@ class CoSceneConsoleApi {
     return await getPromiseClient(EventService).deleteEvent(deleteEventRequest);
   }
 
-  public async updateEvent({
-    event,
-    updateMask,
-  }: {
-    event: Event;
-    updateMask: FieldMask;
-  }): Promise<void> {
-    const req = new UpdateEventRequest({
-      event,
-      updateMask,
-    });
+  public updateEvent = Object.assign(
+    async ({ event, updateMask }: { event: Event; updateMask: FieldMask }): Promise<void> => {
+      const req = new UpdateEventRequest({
+        event,
+        updateMask,
+      });
 
-    await getPromiseClient(EventService).updateEvent(req);
-  }
+      await getPromiseClient(EventService).updateEvent(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.UpdateEvent, this.#permissionList);
+      },
+    },
+  );
 
   public async getUser(userName: string): Promise<CoUser> {
     const request = new GetUserRequest({

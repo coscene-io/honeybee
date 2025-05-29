@@ -30,12 +30,6 @@ import {
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
-  ProjectRoleEnum,
-  ProjectRoleWeight,
-  UserStore,
-  useCurrentUser,
-} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import {
   TimelinePositionedEvent,
   EventsStore,
   useEvents,
@@ -96,7 +90,6 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectUserRole = (store: UserStore) => store.role;
 
 const log = Logger.getLogger(__filename);
 
@@ -140,7 +133,6 @@ function EventViewComponent(params: {
 
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
-  const currentUserRole = useCurrentUser(selectUserRole);
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
@@ -362,8 +354,7 @@ function EventViewComponent(params: {
               <RepeatOneOutlinedIcon fontSize="small" />
             </IconButton>
 
-            {currentUserRole.projectRole >
-              ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
+            {consoleApi.updateEvent.permission() && (
               <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
                 <EditIcon fontSize="small" />
               </IconButton>
@@ -373,8 +364,7 @@ function EventViewComponent(params: {
               <ShareIcon fontSize="small" />
             </IconButton>
 
-            {currentUserRole.projectRole >
-              ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
+            {consoleApi.updateEvent.permission() && (
               <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
                 <DeleteIcon fontSize="small" />
               </IconButton>
