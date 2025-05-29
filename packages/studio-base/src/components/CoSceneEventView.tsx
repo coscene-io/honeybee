@@ -29,7 +29,6 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
   TimelinePositionedEvent,
   EventsStore,
@@ -91,7 +90,6 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectUserRole = (store: UserStore) => store.role;
 
 const log = Logger.getLogger(__filename);
 
@@ -135,7 +133,6 @@ function EventViewComponent(params: {
 
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
-  const currentUserRole = useCurrentUser(selectUserRole);
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
