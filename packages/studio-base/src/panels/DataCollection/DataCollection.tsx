@@ -179,7 +179,8 @@ function DataCollectionContent(
     [setConfig],
   );
 
-  const settingsTree = useSettingsTree(config, userInfo, consoleApi);
+  const settingsTree = useSettingsTree(config, userInfo, consoleApi, settingsActionHandler);
+
   useEffect(() => {
     context.updatePanelSettingsEditor({
       actionHandler: settingsActionHandler,
