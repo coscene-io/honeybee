@@ -343,7 +343,6 @@ function DataCollectionContent(
             recordLabels: config.recordLabels ?? [],
             startTime: new Date().toISOString(),
           });
-          startTimer();
           break;
         }
 
@@ -390,6 +389,7 @@ function DataCollectionContent(
           case "startCollection":
             if (response.success) {
               addLog(`[${new Date().toISOString()}] ${t("startCollectionSuccess")}`);
+              startTimer();
             } else {
               addLog(`[ERROR] ${t("startCollectionFail")}: ${response.message}`);
               setCurrentCollectionStage("ready");
