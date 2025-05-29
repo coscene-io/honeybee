@@ -78,6 +78,7 @@ export function useSettingsTree(
   config: Config,
   userInfo: User,
   consoleApi: ConsoleApi,
+  settingsActionHandler: (action: SettingsTreeAction) => void,
 ): SettingsTreeNodes {
   const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
   const [recordLabels, setRecordLabels] = useState<{ label: string; value: string }[]>([]);
@@ -132,10 +133,21 @@ export function useSettingsTree(
           label: project.displayName,
           value: project.name,
         }));
+        const targetProject = options.find((option) => option.value === config.projectName);
+        if (targetProject == undefined) {
+          settingsActionHandler({
+            action: "update",
+            payload: {
+              path: ["general", "projectName"],
+              input: "select",
+              value: undefined,
+            },
+          });
+        }
         setProjectOptions(options);
       }
     });
-  }, [syncProjects]);
+  }, [syncProjects, settingsActionHandler]);
 
   useEffect(() => {
     void syncRecordLabels();
