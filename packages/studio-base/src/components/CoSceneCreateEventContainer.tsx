@@ -7,7 +7,10 @@
 
 import { Timestamp, FieldMask } from "@bufbuild/protobuf";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
-import { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import {
+  CustomFieldValue,
+  Property,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
@@ -435,6 +438,44 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
       enqueueSnackbar(t("syncTaskFailed"), { variant: "error" });
     }
   });
+
+  // 检查必填自定义字段是否都已填写的辅助函数
+  const checkRequiredCustomFieldsFilled = (
+    properties: Property[] | undefined,
+    customFieldValues: CustomFieldValue[] | undefined,
+  ): boolean => {
+    if (!properties) {
+      return true; // 如果没有自定义字段配置，则认为已填写完整
+    }
+
+    // 获取所有必填字段
+    const requiredProperties = properties.filter((property) => property.required);
+
+    if (requiredProperties.length === 0) {
+      return true; // 如果没有必填字段，则认为已填写完整
+    }
+
+    // 检查每个必填字段是否都有值
+    return requiredProperties.every((property) => {
+      const fieldValue = customFieldValues?.find((value) => value.property?.id === property.id);
+
+      if (!fieldValue?.value.value) {
+        return false; // 字段没有值
+      }
+
+      return true;
+    });
+  };
+
+  const isAllEventRequiredCustomFieldFilled = checkRequiredCustomFieldsFilled(
+    customFieldSchema?.properties,
+    event.customFieldValues,
+  );
+
+  const isAllTaskRequiredCustomFieldFilled = checkRequiredCustomFieldsFilled(
+    taskCustomFieldSchema.value?.properties,
+    task.customFieldValues,
+  );
 
   const [createdTask, createTask] = useAsyncFn(
     async ({ targetEvent }: { targetEvent: Event }) => {
@@ -1139,7 +1180,9 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
               createdEvent.loading ||
               editedEvent.loading ||
               !event.eventName ||
-              (event.enabledCreateNewTask && task.title === "")
+              (event.enabledCreateNewTask && task.title === "") ||
+              !isAllEventRequiredCustomFieldFilled ||
+              (event.enabledCreateNewTask && !isAllTaskRequiredCustomFieldFilled)
             }
             ref={createMomentBtnRef}
           >
