@@ -42,22 +42,22 @@ const useStyles = makeStyles<{ buttonColor?: string }>()((theme, { buttonColor }
       },
     },
     textarea: {
-      height: "100%",
+      minHeight: "120px",
 
       [`.${inputBaseClasses.root}`]: {
         backgroundColor: theme.palette.background.paper,
-        height: "100%",
+        minHeight: "120px",
         overflow: "hidden",
         padding: theme.spacing(1, 0.5),
         textAlign: "left",
         width: "100%",
 
         [`.${inputBaseClasses.input}`]: {
-          height: "100% !important",
+          minHeight: "100px !important",
           lineHeight: 1.4,
           fontFamily: theme.typography.fontMonospace,
           overflow: "auto !important",
-          resize: "none",
+          resize: "vertical",
         },
       },
     },
@@ -143,7 +143,7 @@ export function CallService(props: Props): React.JSX.Element {
               error={requestParseError != undefined}
             />
             {requestParseError && (
-              <Typography variant="caption" noWrap color={requestParseError ? "error" : undefined}>
+              <Typography variant="caption" color={requestParseError ? "error" : undefined}>
                 {requestParseError}
               </Typography>
             )}
