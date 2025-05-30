@@ -7,7 +7,6 @@
 
 import { StrictMode, useMemo } from "react";
 import ReactDOM from "react-dom";
-import { useTranslation } from "react-i18next";
 
 import { useCrash } from "@foxglove/hooks";
 import { PanelExtensionContext } from "@foxglove/studio";
@@ -18,7 +17,6 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { PanelExtensionAdapter } from "@foxglove/studio-base/components/PanelExtensionAdapter";
-import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
@@ -30,7 +28,7 @@ import { ConsoleApi } from "@foxglove/studio-base/index";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { DataCollection } from "./DataCollection";
-import { Config } from "./types";
+import { Config, PanelState } from "./types";
 
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
@@ -38,6 +36,7 @@ const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState
 const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
 
 function initPanel(
+  panelState: PanelState,
   deviceLink: string,
   userInfo: User,
   consoleApi: ConsoleApi,
@@ -49,6 +48,7 @@ function initPanel(
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
         <DataCollection
+          panelState={panelState}
           deviceLink={deviceLink}
           context={context}
           userInfo={userInfo}
@@ -79,38 +79,29 @@ function DataCollectionPanelAdapter(props: Props) {
   const dataSource = useBaseInfo(selectDataSource);
 
   const deviceLink = urlState?.parameters?.deviceLink ?? "";
-  const { t } = useTranslation("dataCollection");
+
+  const panelState: PanelState = useMemo(() => {
+    if (dataSource?.id !== "coscene-websocket") {
+      return "SOURCE_TYPE_NOT_SUPPORTED";
+    }
+
+    if (loginStatus === "notLogin") {
+      return "NOT_LOGIN";
+    }
+
+    if (userInfo == undefined) {
+      return "LOADING";
+    }
+
+    return "NOMAL";
+  }, [dataSource?.id, loginStatus, userInfo]);
 
   const boundInitPanel = useMemo(() => {
     if (userInfo == undefined) {
       return () => {};
     }
-    return initPanel.bind(undefined, deviceLink, userInfo, consoleApi, crash);
-  }, [crash, consoleApi, userInfo, deviceLink]);
-
-  if (dataSource?.id !== "coscene-websocket") {
-    return (
-      <Stack fullHeight justifyContent="center" alignItems="center">
-        {t("onlySupportRealTimeVisualization")}
-      </Stack>
-    );
-  }
-
-  if (loginStatus === "notLogin") {
-    return (
-      <Stack fullHeight justifyContent="center" alignItems="center">
-        {t("pleaseLoginToUseThisPanel")}
-      </Stack>
-    );
-  }
-
-  if (userInfo == undefined) {
-    return (
-      <Stack fullHeight justifyContent="center" alignItems="center">
-        {t("loading")}
-      </Stack>
-    );
-  }
+    return initPanel.bind(undefined, panelState, deviceLink, userInfo, consoleApi, crash);
+  }, [crash, consoleApi, userInfo, deviceLink, panelState]);
 
   return (
     <PanelExtensionAdapter

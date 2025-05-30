@@ -129,10 +129,12 @@ export function useSettingsTree(
     void syncProjects().then((listUserProjectsResponse) => {
       if (listUserProjectsResponse) {
         const userProjects = listUserProjectsResponse.userProjects;
-        const options = userProjects.map((project) => ({
-          label: project.displayName,
-          value: project.name,
-        }));
+        const options = userProjects
+          .filter((project) => !project.isArchived)
+          .map((project) => ({
+            label: project.displayName,
+            value: project.name,
+          }));
         const targetProject = options.find((option) => option.value === config.projectName);
         if (targetProject == undefined) {
           settingsActionHandler({
