@@ -403,11 +403,14 @@ function DataCollectionContent(
               addLog("+++++++++++++++++++++++++++");
               addLog(`[${new Date().toISOString()}] ${t("endCollectionSuccess")}`);
               addLog("+++++++++++++++++++++++++++");
+              setCurrentCollectionStage("ready");
+              stopTimer();
+              if ("type" in response && response.type === "SKIP_CAPTURE") {
+                return;
+              }
               void createDataCollectionTask({
                 endCollectionResponse: response as EndCollectionResponse,
               });
-              setCurrentCollectionStage("ready");
-              stopTimer();
             } else {
               addLog(`[ERROR] ${t("endCollectionFail")}: ${response.message}`);
             }
