@@ -41,7 +41,7 @@ import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConf
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
-} from "@foxglove/studio-base/services/CoSceneConsoleApi";
+} from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import {
   stringToColor,
   BinaryOperator,

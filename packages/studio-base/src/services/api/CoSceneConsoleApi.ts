@@ -127,18 +127,7 @@ import {
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
-// 自定义HTTP错误类
-class HttpError extends Error {
-  public readonly status: number;
-  public readonly response?: Response;
-
-  public constructor(status: number, message: string, response?: Response) {
-    super(message);
-    this.name = "HttpError";
-    this.status = status;
-    this.response = response;
-  }
-}
+import { HttpError } from "./HttpError";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 const MAX_PAGE_SIZE = 999;
@@ -658,7 +647,7 @@ class CoSceneConsoleApi {
           severity: "error",
         });
       }
-      throw new Error(`Status ${res.status}${message != undefined ? `: ${message}` : ""}`);
+      throw new HttpError(res.status, message ?? `Status ${res.status}`, res);
     }
 
     try {
@@ -1517,5 +1506,4 @@ class CoSceneConsoleApi {
 }
 
 export type { Org, DeviceCodeResponse, Session, CoverageResponse };
-export { HttpError };
 export default CoSceneConsoleApi;
