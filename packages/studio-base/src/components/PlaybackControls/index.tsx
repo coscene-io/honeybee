@@ -15,6 +15,7 @@
 //   You may not use this file except in compliance with the License.
 
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import {
   ArrowRepeatAll20Regular,
   ArrowRepeatAllOff20Regular,
@@ -90,6 +91,7 @@ const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackCon
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectRecord = (store: CoSceneBaseStore) => store.record;
 
 function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
@@ -149,8 +151,10 @@ export default function PlaybackControls(props: {
   const urlState = useMessagePipeline(selectUrlState);
   const enableList = useBaseInfo(selectEnableList);
   const projectInfo = useBaseInfo(selectProject);
+  const recordInfo = useBaseInfo(selectRecord);
 
   const project: Project | undefined = useMemo(() => projectInfo.value ?? undefined, [projectInfo]);
+  const record: Record | undefined = useMemo(() => recordInfo.value ?? undefined, [recordInfo]);
 
   const { t } = useTranslation("cosEvent");
 
@@ -250,7 +254,8 @@ export default function PlaybackControls(props: {
           <Stack direction="row" flex={1} gap={0.5}>
             {enableList.event === "ENABLE" &&
               consoleApi.createEvent.permission() &&
-              project?.isArchived === false && (
+              project?.isArchived === false &&
+              record?.isArchived === false && (
                 <MemoedMomentButton disableControls={disableControls} />
               )}
             <Tooltip

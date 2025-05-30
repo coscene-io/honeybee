@@ -7,6 +7,7 @@
 
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
+import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import EditIcon from "@mui/icons-material/EditOutlined";
@@ -89,6 +90,7 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
+const selectRecord = (store: CoSceneBaseStore) => store.record;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectProject = (store: CoSceneBaseStore) => store.project;
@@ -138,9 +140,11 @@ function EventViewComponent(params: {
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const projectInfo = useBaseInfo(selectProject);
+  const recordInfo = useBaseInfo(selectRecord);
 
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
   const project: Project | undefined = useMemo(() => projectInfo.value ?? undefined, [projectInfo]);
+  const record: Record | undefined = useMemo(() => recordInfo.value ?? undefined, [recordInfo]);
 
   const seek = useMessagePipeline(selectSeek);
 
@@ -359,21 +363,25 @@ function EventViewComponent(params: {
               <RepeatOneOutlinedIcon fontSize="small" />
             </IconButton>
 
-            {consoleApi.updateEvent.permission() && project?.isArchived === false && (
-              <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-            )}
+            {consoleApi.updateEvent.permission() &&
+              project?.isArchived === false &&
+              record?.isArchived === false && (
+                <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              )}
 
             <IconButton size="small" onClick={handleShareEvent} title={t("share")}>
               <ShareIcon fontSize="small" />
             </IconButton>
 
-            {consoleApi.updateEvent.permission() && project?.isArchived === false && (
-              <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            )}
+            {consoleApi.updateEvent.permission() &&
+              project?.isArchived === false &&
+              record?.isArchived === false && (
+                <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              )}
           </div>
         </div>
 
