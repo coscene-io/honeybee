@@ -296,7 +296,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
             />
           ),
           ok: t("cosWebsocket:confirm"),
-          cancel: t("cosWebsocket:cancel"),
+          cancel: t("cosWebsocket:exitAndClosePage"),
           variant: "danger",
         }).then((result) => {
           if (result === "ok") {
@@ -329,7 +329,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           />
         ),
         ok: t("cosWebsocket:reconnect"),
-        cancel: t("cosWebsocket:cancel"),
+        cancel: t("cosWebsocket:exitAndClosePage"),
         variant: "danger",
       }).then((result) => {
         if (result === "ok") {
