@@ -18,7 +18,7 @@ import { StatusCode } from "grpc-web";
 import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
 
-import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";

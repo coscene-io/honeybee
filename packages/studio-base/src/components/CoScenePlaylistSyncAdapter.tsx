@@ -30,7 +30,7 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
-import { MediaStatus, FileList } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import { MediaStatus, FileList } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
 const HOVER_TOLERANCE = 0.01;

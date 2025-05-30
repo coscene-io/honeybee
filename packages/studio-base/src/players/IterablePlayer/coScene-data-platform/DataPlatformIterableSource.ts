@@ -18,7 +18,7 @@ import {
   MessageEvent,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
-import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";

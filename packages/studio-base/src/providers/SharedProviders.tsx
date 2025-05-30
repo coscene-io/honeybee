@@ -18,7 +18,7 @@ import CoSceneLayoutManagerProvider from "@foxglove/studio-base/providers/CoScen
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoSceneUserProfileLocalStorageProvider from "@foxglove/studio-base/providers/CoSceneUserProfileLocalStorageProvider";
 import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
-import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
 

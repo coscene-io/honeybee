@@ -13,7 +13,7 @@ import Logger from "@foxglove/log";
 import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/mcap-support";
 import { fromNanoSec, Time, toMillis } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
-import CoSceneConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const log = Logger.getLogger(__filename);
 

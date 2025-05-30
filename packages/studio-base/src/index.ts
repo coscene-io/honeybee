@@ -49,7 +49,7 @@ export { SharedProviders } from "./providers/SharedProviders";
 export { migratePanelsState, migrateLayout } from "./services/migrateLayout";
 export type { Layout, ISO8601Timestamp, ILayoutStorage } from "./services/CoSceneILayoutStorage";
 export { default as CoSceneDataPlatformDataSourceFactory } from "./dataSources/CoSceneDataPlatformDataSourceFactory";
-export { default as ConsoleApi } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+export { default as ConsoleApi } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 export type { LayoutID } from "./context/CurrentLayoutContext";
 export { IdbExtensionLoader } from "./services/IdbExtensionLoader";
 export type { IUrdfStorage } from "./services/UrdfStorage";

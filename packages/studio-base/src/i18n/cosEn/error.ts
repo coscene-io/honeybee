@@ -23,6 +23,7 @@ export const cosError = {
   repeatedConnectionDesc:
     "Only one person can connect to the same robot at a time. There is currently a user connected, please refresh and try again later.",
   fileFormatUnsupported: "The file format is unsupported.",
+  unauthorized: "Unauthorized, please check if you have access",
 
   // error code message
   SEMANTIC_LIB_ERROR: "Internal semantic-lib error",

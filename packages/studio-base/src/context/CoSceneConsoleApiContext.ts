@@ -7,7 +7,7 @@
 
 import { createContext, useContext } from "react";
 
-import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const CoSceneConsoleApiContext = createContext<ConsoleApi | undefined>(undefined);
 CoSceneConsoleApiContext.displayName = "ConsoleApiContext";

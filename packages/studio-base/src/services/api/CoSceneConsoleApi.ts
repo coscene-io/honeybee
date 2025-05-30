@@ -127,6 +127,8 @@ import {
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
+import { HttpError } from "./HttpError";
+
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 const MAX_PAGE_SIZE = 999;
 
@@ -623,7 +625,8 @@ class CoSceneConsoleApi {
           authBridge?.logout();
         }
       } else if (res.status === 403) {
-        throw new Error(
+        throw new HttpError(
+          403,
           "Unauthorized. Please check if you are logged in and have permission to access.",
         );
       }
@@ -644,7 +647,7 @@ class CoSceneConsoleApi {
           severity: "error",
         });
       }
-      throw new Error(`Status ${res.status}${message != undefined ? `: ${message}` : ""}`);
+      throw new HttpError(res.status, message ?? `Status ${res.status}`, res);
     }
 
     try {
