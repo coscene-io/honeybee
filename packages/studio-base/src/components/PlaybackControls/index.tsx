@@ -14,6 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import {
   ArrowRepeatAll20Regular,
   ArrowRepeatAllOff20Regular,
@@ -88,6 +89,7 @@ const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
+const selectProject = (store: CoSceneBaseStore) => store.project;
 
 function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
@@ -146,6 +148,9 @@ export default function PlaybackControls(props: {
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
   const enableList = useBaseInfo(selectEnableList);
+  const projectInfo = useBaseInfo(selectProject);
+
+  const project: Project | undefined = useMemo(() => projectInfo.value ?? undefined, [projectInfo]);
 
   const { t } = useTranslation("cosEvent");
 
@@ -243,9 +248,11 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            {enableList.event === "ENABLE" && consoleApi.createEvent.permission() && (
-              <MemoedMomentButton disableControls={disableControls} />
-            )}
+            {enableList.event === "ENABLE" &&
+              consoleApi.createEvent.permission() &&
+              project?.isArchived === false && (
+                <MemoedMomentButton disableControls={disableControls} />
+              )}
             <Tooltip
               // A desired workflow is the ability to copy data source info text (start, end, duration)
               // from the tooltip. However, there's a UX quirk where the tooltip will close if the user

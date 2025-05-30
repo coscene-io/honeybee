@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
@@ -90,6 +91,7 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectProject = (store: CoSceneBaseStore) => store.project;
 
 const log = Logger.getLogger(__filename);
 
@@ -135,7 +137,10 @@ function EventViewComponent(params: {
   const { t } = useTranslation("cosEvent");
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const projectInfo = useBaseInfo(selectProject);
+
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const project: Project | undefined = useMemo(() => projectInfo.value ?? undefined, [projectInfo]);
 
   const seek = useMessagePipeline(selectSeek);
 
@@ -354,7 +359,7 @@ function EventViewComponent(params: {
               <RepeatOneOutlinedIcon fontSize="small" />
             </IconButton>
 
-            {consoleApi.updateEvent.permission() && (
+            {consoleApi.updateEvent.permission() && project?.isArchived === false && (
               <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
                 <EditIcon fontSize="small" />
               </IconButton>
@@ -364,7 +369,7 @@ function EventViewComponent(params: {
               <ShareIcon fontSize="small" />
             </IconButton>
 
-            {consoleApi.updateEvent.permission() && (
+            {consoleApi.updateEvent.permission() && project?.isArchived === false && (
               <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
                 <DeleteIcon fontSize="small" />
               </IconButton>
