@@ -57,3 +57,5 @@ export type TaskInfoSnapshot = {
   recordLabels: string[];
   startTime: string;
 };
+
+export type PanelState = "SOURCE_TYPE_NOT_SUPPORTED" | "NOT_LOGIN" | "LOADING" | "NOMAL";

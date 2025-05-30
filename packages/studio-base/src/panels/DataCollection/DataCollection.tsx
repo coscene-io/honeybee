@@ -37,6 +37,7 @@ import {
   ButtonsState,
   CollectionStage,
   TaskInfoSnapshot,
+  PanelState,
 } from "./types";
 
 type Props = {
@@ -44,6 +45,7 @@ type Props = {
   context: PanelExtensionContext;
   userInfo: User;
   consoleApi: ConsoleApi;
+  panelState?: PanelState;
 };
 
 const log = Log.getLogger(__dirname);
@@ -141,7 +143,7 @@ async function handleTaskProgress({
 }
 
 function DataCollectionContent(
-  props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
+  props: Omit<Props, "panelState"> & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
 ): React.JSX.Element {
   const { context, setColorScheme, userInfo, consoleApi, deviceLink } = props;
 
@@ -552,23 +554,42 @@ function DataCollectionContent(
 }
 
 export function DataCollection({
+  panelState,
   deviceLink,
   context,
   userInfo,
   consoleApi,
 }: Props): React.JSX.Element {
   const [colorScheme, setColorScheme] = useState<Palette["mode"]>("light");
+  const { t } = useTranslation("dataCollection");
 
   // Wrapper component with ThemeProvider so useStyles in the panel receives the right theme.
   return (
     <ThemeProvider isDark={colorScheme === "dark"}>
-      <DataCollectionContent
-        deviceLink={deviceLink}
-        setColorScheme={setColorScheme}
-        context={context}
-        userInfo={userInfo}
-        consoleApi={consoleApi}
-      />
+      {panelState === "SOURCE_TYPE_NOT_SUPPORTED" && (
+        <Stack fullHeight justifyContent="center" alignItems="center">
+          {t("onlySupportRealTimeVisualization")}
+        </Stack>
+      )}
+      {panelState === "NOT_LOGIN" && (
+        <Stack fullHeight justifyContent="center" alignItems="center">
+          {t("pleaseLoginToUseThisPanel")}
+        </Stack>
+      )}
+      {panelState === "LOADING" && (
+        <Stack fullHeight justifyContent="center" alignItems="center">
+          {t("loading")}
+        </Stack>
+      )}
+      {panelState === "NOMAL" && (
+        <DataCollectionContent
+          deviceLink={deviceLink}
+          setColorScheme={setColorScheme}
+          context={context}
+          userInfo={userInfo}
+          consoleApi={consoleApi}
+        />
+      )}
     </ThemeProvider>
   );
 }
