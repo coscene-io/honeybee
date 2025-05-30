@@ -879,48 +879,55 @@ class CoSceneConsoleApi {
     return await getPromiseClient(OrganizationService).getOrganization(request);
   }
 
-  public async createTask({
-    parent,
-    task,
-    event,
-  }: {
-    parent: string;
-    task: {
-      title: string;
-      description: string;
-      assignee: string;
-      assigner: string;
-      customFieldValues?: CustomFieldValue[];
-    };
-    event: Event;
-  }): Promise<Task> {
-    const currentUser = await this.getUser("users/current");
-    const newTask = new Task({
-      category: TaskCategoryEnum_TaskCategory.COMMON,
-      title: task.title,
-      description: task.description,
-      state: TaskStateEnum_TaskState.PENDING,
-      assignee: task.assignee,
-      assigner: currentUser.name,
-      detail: {
-        case: "commonTaskDetail",
-        value: {
-          related: {
-            case: "event",
-            value: event.name,
+  public createTask = Object.assign(
+    async ({
+      parent,
+      task,
+      event,
+    }: {
+      parent: string;
+      task: {
+        title: string;
+        description: string;
+        assignee: string;
+        assigner: string;
+        customFieldValues?: CustomFieldValue[];
+      };
+      event: Event;
+    }): Promise<Task> => {
+      const currentUser = await this.getUser("users/current");
+      const newTask = new Task({
+        category: TaskCategoryEnum_TaskCategory.COMMON,
+        title: task.title,
+        description: task.description,
+        state: TaskStateEnum_TaskState.PENDING,
+        assignee: task.assignee,
+        assigner: currentUser.name,
+        detail: {
+          case: "commonTaskDetail",
+          value: {
+            related: {
+              case: "event",
+              value: event.name,
+            },
           },
         },
-      },
-      customFieldValues: task.customFieldValues,
-    });
+        customFieldValues: task.customFieldValues,
+      });
 
-    const request = new UpsertTaskRequest({
-      parent,
-      task: newTask,
-    });
-    // create task does not have remove dumplicates logic, so we use upsert task to create task
-    return await getPromiseClient(TaskService).upsertTask(request);
-  }
+      const request = new UpsertTaskRequest({
+        parent,
+        task: newTask,
+      });
+      // create task does not have remove dumplicates logic, so we use upsert task to create task
+      return await getPromiseClient(TaskService).upsertTask(request);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.CreateTask, this.#permissionList);
+      },
+    },
+  );
 
   public createTask_v2 = Object.assign(
     async ({ parent, task }: { parent: string; task: Task }): Promise<Task> => {

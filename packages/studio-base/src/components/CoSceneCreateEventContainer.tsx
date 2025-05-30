@@ -1037,7 +1037,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
             />
           </Stack>
         )}
-        {!isEditing && (
+        {!isEditing && consoleApi.createTask.permission() && (
           <Stack paddingX={3} paddingTop={2}>
             <FormControlLabel
               disableTypography
