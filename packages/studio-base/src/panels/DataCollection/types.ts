@@ -41,6 +41,7 @@ export type StartCollectionResponse = {
 export type EndCollectionResponse = {
   success: boolean;
   message: string;
+  type: "NORMAL" | "SKIP_CAPTURE";
   record_name?: string;
   tags: string[];
   files: string[];
