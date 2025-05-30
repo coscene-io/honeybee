@@ -9,12 +9,12 @@ import { filterMap } from "@foxglove/den/collection";
 import Logger from "@foxglove/log";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import ConsoleApi, { ConsoleApiLayout } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import {
   IRemoteLayoutStorage,
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
+import ConsoleApi, { ConsoleApiLayout } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const log = Logger.getLogger(__filename);
 

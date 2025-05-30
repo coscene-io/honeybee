@@ -24,6 +24,7 @@ import {
   useState,
   useContext,
 } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 
@@ -65,6 +66,7 @@ import {
 } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
 // import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { HttpError } from "@foxglove/studio-base/services/api/HttpError";
 // import { UserScripts } from "@foxglove/studio-base/types/panels";
 
 const log = Logger.getLogger(__filename);
@@ -90,6 +92,7 @@ function useBeforeConnectionSource(): (
 ) => Promise<void> {
   const consoleApi = useConsoleApi();
   const setBaseInfo = useBaseInfo(selectSetBaseInfo);
+  const { t } = useTranslation("cosError");
 
   const syncBaseInfo = useCallback(
     async (baseInfoKey: string) => {
@@ -104,10 +107,15 @@ function useBeforeConnectionSource(): (
 
         setBaseInfo({ loading: false, value: baseInfoRes });
       } catch (error) {
+        if (error instanceof HttpError) {
+          if (error.status === 403) {
+            toast.error(t("unauthorized"));
+          }
+        }
         setBaseInfo({ loading: false, error });
       }
     },
-    [consoleApi, setBaseInfo],
+    [consoleApi, setBaseInfo, t],
   );
 
   const beforeConnectionSource = useCallback(
