@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import type { Theme } from "@mui/material";
-import * as Comlink from "comlink";
+import * as Comlink from "@coscene-io/comlink";
 
 import { ComlinkWrap } from "@foxglove/den/worker";
 import { Immutable } from "@foxglove/studio";
