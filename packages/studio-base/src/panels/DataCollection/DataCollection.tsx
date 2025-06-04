@@ -26,6 +26,7 @@ import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { ConsoleApi } from "@foxglove/studio-base/index";
 import { CallService } from "@foxglove/studio-base/panels/DataCollection/CallService";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { defaultConfig, settingsActionReducer, useSettingsTree } from "./settings";
 import {
@@ -82,9 +83,9 @@ async function handleTaskProgress({
 
   if (task.tags.recordName != undefined && showRecordLink) {
     addLog(
-      `[${new Date().toISOString()}] ${t("saveToRecord")}：${window.location.origin}/${
-        targetOrg.slug
-      }/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
+      `[${new Date().toISOString()}] ${t("saveToRecord")}：https://${
+        APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+      }/${targetOrg.slug}/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
     needShowRecordLink = false;
   }
@@ -271,11 +272,11 @@ function DataCollectionContent(
         addLog("+++++++++++++++++++++++++++");
 
         addLog(
-          `[${new Date().toISOString()}] ${t("progressLink")}：${window.location.origin}/${
-            targetOrg.slug
-          }/${targetProject.slug}/tasks/automated-data-collection-tasks/${response.name
-            .split("/")
-            .pop()}`,
+          `[${new Date().toISOString()}] ${t("progressLink")}：https://${
+            APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+          }/${targetOrg.slug}/${
+            targetProject.slug
+          }/tasks/automated-data-collection-tasks/${response.name.split("/").pop()}`,
         );
 
         addLog(`[${new Date().toISOString()}] ${t("pendingUploadFiles")}: ${files.length}`);
