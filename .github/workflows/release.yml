@@ -226,55 +226,55 @@ jobs:
           access_key_secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
           gpg_private_key: ${{ env.APT_GPG_PRIVATE_KEY }}
 
-  # notification:
-  #   needs: build
-  #   runs-on: ubuntu-latest
+  notification:
+    needs: build
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Notification to Feishu
-  #       id: feishu
-  #       uses: foxundermoon/feishu-action@v2
-  #       if: github.event.inputs.environment != 'portal'
-  #       with:
-  #         url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
-  #         msg_type: text
-  #         content: |
-  #           text: |
-  #             A new version of coScene Studio has been published.
-  #             Version: ${{ github.event.inputs.version }}
-  #             Environment: ${{ github.event.inputs.environment }}
-  #             Download:
-  #               mac:
-  #                 https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
-  #               win:
-  #                 https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win.exe
-  #                 https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
-  #                 https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
-  #               linux:
-  #                 https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-  #                 https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
-  #             Release notes: https://github.com/coscene-io/honeybee/releases
+    steps:
+      - name: Notification to Feishu
+        id: feishu
+        uses: foxundermoon/feishu-action@v2
+        if: github.event.inputs.environment != 'portal'
+        with:
+          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
+          msg_type: text
+          content: |
+            text: |
+              A new version of coScene Studio has been published.
+              Version: ${{ github.event.inputs.version }}
+              Environment: ${{ github.event.inputs.environment }}
+              Download:
+                mac:
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
+                win:
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win.exe
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
+                linux:
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+                  https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+              Release notes: https://github.com/coscene-io/honeybee/releases
 
-  #     - name: Notification to Feishu (Portal)
-  #       id: feishu-portal
-  #       uses: foxundermoon/feishu-action@v2
-  #       if: github.event.inputs.environment == 'portal'
-  #       with:
-  #         url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
-  #         msg_type: text
-  #         content: |
-  #           text: |
-  #             A new version of coScene Studio has been published.
-  #             Version: ${{ github.event.inputs.version }}
-  #             Environment: ${{ github.event.inputs.environment }}
-  #             Download:
-  #               mac:
-  #                 https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
-  #               win:
-  #                 https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-win.exe
-  #                 https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
-  #                 https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-win_x64.exe
-  #               linux:
-  #                 https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-  #                 https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
-  #             Release notes: https://github.com/coscene-io/honeybee/releases
+      - name: Notification to Feishu (Portal)
+        id: feishu-portal
+        uses: foxundermoon/feishu-action@v2
+        if: github.event.inputs.environment == 'portal'
+        with:
+          url: ${{ secrets.FEISHU_BOT_WEBHOOK_URL_STUDIO_RELEASE }}
+          msg_type: text
+          content: |
+            text: |
+              A new version of coScene Studio has been published.
+              Version: ${{ github.event.inputs.version }}
+              Environment: ${{ github.event.inputs.environment }}
+              Download:
+                mac:
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
+                win:
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-win.exe
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-win_arm64.exe
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-win_x64.exe
+                linux:
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
+                  https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
+              Release notes: https://github.com/coscene-io/honeybee/releases
