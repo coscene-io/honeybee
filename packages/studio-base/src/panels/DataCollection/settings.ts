@@ -116,6 +116,14 @@ export function useSettingsTree(
           value: label.displayName,
         }));
         setRecordLabels(options);
+        settingsActionHandler({
+          action: "update",
+          payload: {
+            path: ["general", "recordLabels"],
+            input: "select",
+            value: undefined,
+          },
+        });
         return listLabelsResponse;
       } catch (error) {
         console.error("error", error);
