@@ -9,14 +9,15 @@ import i18next from "i18next";
 import { APP_CONFIG } from "./appConfig";
 
 export function getDocsLink(path?: string): string {
-  if (!path) {
-    return APP_CONFIG.DOC_BASE_URL;
-  }
   const lang = i18next.language === "zh" ? "zh" : "en";
 
   const env = APP_CONFIG.VITE_APP_PROJECT_ENV;
 
   const langPrefix = env === "aws" || lang === "zh" ? "" : lang;
+
+  if (!path) {
+    return `${APP_CONFIG.DOC_BASE_URL}/${langPrefix}`;
+  }
 
   return `${APP_CONFIG.DOC_BASE_URL}/${langPrefix}/docs${path}`;
 }
