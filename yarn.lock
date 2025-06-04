@@ -4094,6 +4094,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@coscene-io/comlink@npm:4.4.1":
+  version: 4.4.1
+  resolution: "@coscene-io/comlink@npm:4.4.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcomlink%2F4.4.1%2F7dea1a372fc7017dca8f123297ea20cd4b11dcc2"
+  checksum: 206ddb3388ce777b27bb66884b5c701316dd9804dd8e24d09a2e03ed8b1c0f2a00e46658904d0eba4101327911b1bfdaac4e9b0c2250083df3005a8266251cab
+  languageName: node
+  linkType: hard
+
 "@coscene-io/cosceneapis-es@npm:0.0.358":
   version: 0.0.358
   resolution: "@coscene-io/cosceneapis-es@npm:0.0.358::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es%2F0.0.358%2Ff9816b3ef45f9fab6adff2b885fe2931bf537860"
@@ -5148,8 +5155,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@foxglove/comlink-transfer-handlers@workspace:packages/comlink-transfer-handlers"
   dependencies:
+    "@coscene-io/comlink": 4.4.1
     "@foxglove/tsconfig": 2.0.0
-    comlink: "github:foxglove/comlink#9181fa505671b35b1e66e0a8361a6fc1bdd03307"
     typescript: 5.3.3
   languageName: unknown
   linkType: soft
@@ -5172,9 +5179,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@foxglove/den@workspace:packages/den"
   dependencies:
+    "@coscene-io/comlink": 4.4.1
     "@foxglove/tsconfig": 2.0.0
     async-mutex: 0.4.1
-    comlink: "github:foxglove/comlink#9181fa505671b35b1e66e0a8361a6fc1bdd03307"
     xacro-parser: 0.3.9
   languageName: unknown
   linkType: soft
@@ -5531,6 +5538,7 @@ __metadata:
     "@bufbuild/connect": 0.13.0
     "@bufbuild/connect-web": 0.13.0
     "@bufbuild/protobuf": 1.3.0
+    "@coscene-io/comlink": 4.4.1
     "@coscene-io/cosceneapis-es": 0.0.358
     "@coscene-io/cosel": 23.49.2
     "@emotion/cache": 11.14.0
@@ -5618,7 +5626,6 @@ __metadata:
     chartjs-plugin-annotation: 3.0.1
     chartjs-plugin-datalabels: 2.2.0
     chromatic: 11.25.2
-    comlink: "github:foxglove/comlink#9181fa505671b35b1e66e0a8361a6fc1bdd03307"
     crypto-browserify: 3.12.0
     css-loader: 6.10.0
     cytoscape: 3.31.0
@@ -12697,13 +12704,6 @@ __metadata:
   dependencies:
     delayed-stream: ~1.0.0
   checksum: 49fa4aeb4916567e33ea81d088f6584749fc90c7abec76fd516bf1c5aa5c79f3584b5ba3de6b86d26ddd64bae5329c4c7479343250cfe71c75bb366eae53bb7c
-  languageName: node
-  linkType: hard
-
-"comlink@github:foxglove/comlink#9181fa505671b35b1e66e0a8361a6fc1bdd03307":
-  version: 4.4.1
-  resolution: "comlink@https://github.com/foxglove/comlink.git#commit=9181fa505671b35b1e66e0a8361a6fc1bdd03307"
-  checksum: 1d89d5dee814e71f1cf5d46b5d4b8223bbc598d5b9a82ed53791b4127d35a3473d9cb1a4984e1d034ac6322de0a4dfb72d131529f870604efe79b42f4462dc98
   languageName: node
   linkType: hard
 
