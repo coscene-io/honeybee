@@ -26,6 +26,7 @@ import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { ConsoleApi } from "@foxglove/studio-base/index";
 import { CallService } from "@foxglove/studio-base/panels/DataCollection/CallService";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { defaultConfig, settingsActionReducer, useSettingsTree } from "./settings";
 import {
@@ -82,9 +83,9 @@ async function handleTaskProgress({
 
   if (task.tags.recordName != undefined && showRecordLink) {
     addLog(
-      `[${new Date().toISOString()}] ${t("saveToRecord")}：${window.location.origin}/${
-        targetOrg.slug
-      }/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
+      `[${new Date().toISOString()}] ${t("saveToRecord")}：https://${
+        APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+      }/${targetOrg.slug}/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
     needShowRecordLink = false;
   }
@@ -166,6 +167,8 @@ function DataCollectionContent(
   const [taskInfoSnapshot, setTaskInfoSnapshot] = useState<TaskInfoSnapshot | undefined>(undefined);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const timerRef = useRef<NodeJS.Timeout>();
+  const logContainerRef = useRef<HTMLDivElement>(ReactNull);
+  const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
 
   const addLog = useCallback(
     (newLog: string) => {
@@ -271,11 +274,11 @@ function DataCollectionContent(
         addLog("+++++++++++++++++++++++++++");
 
         addLog(
-          `[${new Date().toISOString()}] ${t("progressLink")}：${window.location.origin}/${
-            targetOrg.slug
-          }/${targetProject.slug}/tasks/automated-data-collection-tasks/${response.name
-            .split("/")
-            .pop()}`,
+          `[${new Date().toISOString()}] ${t("progressLink")}：https://${
+            APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+          }/${targetOrg.slug}/${
+            targetProject.slug
+          }/tasks/automated-data-collection-tasks/${response.name.split("/").pop()}`,
         );
 
         addLog(`[${new Date().toISOString()}] ${t("pendingUploadFiles")}: ${files.length}`);
@@ -485,6 +488,27 @@ function DataCollectionContent(
     renderDone();
   }, [renderDone]);
 
+  // 滚动到底部
+  const scrollToBottom = useCallback(() => {
+    if (logContainerRef.current && !isUserScrolling) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [isUserScrolling]);
+
+  // 检测用户是否手动滚动
+  const handleScroll = useCallback(() => {
+    if (logContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5; // 5px 容差
+      setIsUserScrolling(!isAtBottom);
+    }
+  }, []);
+
+  // 当日志更新时自动滚动到底部
+  useEffect(() => {
+    scrollToBottom();
+  }, [logs, scrollToBottom]);
+
   return (
     <Stack fullHeight>
       {/* call service button */}
@@ -513,11 +537,19 @@ function DataCollectionContent(
         <Typography variant="caption" noWrap>
           {t("collectionLog")}
         </Typography>
-        <Stack
-          flex="auto"
-          style={{ height: 0, border: "1px solid", borderRadius: 4 }}
-          overflow="auto"
-          padding={1}
+        <div
+          ref={logContainerRef}
+          onScroll={handleScroll}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: "1 1 auto",
+            height: 0,
+            border: "1px solid",
+            borderRadius: 4,
+            overflow: "auto",
+            padding: 8,
+          }}
         >
           {logs.map((logLine, index) => {
             return (
@@ -547,7 +579,7 @@ function DataCollectionContent(
               </Typography>
             );
           })}
-        </Stack>
+        </div>
       </Stack>
     </Stack>
   );
