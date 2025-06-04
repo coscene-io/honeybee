@@ -126,6 +126,7 @@ jobs:
             dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
             dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg.blockmap
             dist/latest-mac.yml:/coStudio${{ env.ENV_PREFIX }}packages/latest-mac.yml
+            dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg:/coStudio${{ env.ENV_PREFIX }}latest/coStudio_latest-mac_universal.dmg
 
       - name: Upload to OSS (Windows)
         if: matrix.os == 'win' && github.event.inputs.environment != 'portal'
@@ -143,6 +144,9 @@ jobs:
             dist/coStudio_${{ github.event.inputs.version }}-win_x64.exe:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe
             dist/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-win_x64.exe.blockmap
             dist/latest.yml:/coStudio${{ env.ENV_PREFIX }}packages/latest.yml
+            dist/coStudio_${{ github.event.inputs.version }}-win.exe:/coStudio${{ env.ENV_PREFIX }}latest/coStudio_latest-win.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win_arm64.exe:/coStudio${{ env.ENV_PREFIX }}latest/coStudio_latest-win_arm64.exe
+            dist/coStudio_${{ github.event.inputs.version }}-win_x64.exe:/coStudio${{ env.ENV_PREFIX }}latest/coStudio_latest-win_x64.exe
 
       - name: Upload to OSS (Linux)
         if: matrix.os == 'linux' && github.event.inputs.environment != 'portal'
@@ -156,6 +160,8 @@ jobs:
             dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
             dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
             dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}packages/latest-linux.yml
+            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb:/coStudio${{ env.ENV_PREFIX }}latest/coStudio_latest-linux_amd64.deb
+            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb:/coStudio${{ env.ENV_PREFIX }}latest/coStudio_latest-linux_arm64.deb
 
       - name: Prepare files for upload
         if: github.event.inputs.environment == 'portal'
@@ -173,6 +179,33 @@ jobs:
           aws_bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
           source_dir: "dist_temp"
           destination_dir: "coStudio/"
+
+      - name: Prepare latest files for upload
+        if: github.event.inputs.environment == 'portal'
+        run: |
+          mkdir -p dist_latest
+          # Copy and rename files for latest directory
+          if [ "${{ matrix.os }}" = "darwin" ]; then
+            cp dist/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg dist_latest/coStudio_latest-mac_universal.dmg
+          elif [ "${{ matrix.os }}" = "win" ]; then
+            cp dist/coStudio_${{ github.event.inputs.version }}-win.exe dist_latest/coStudio_latest-win.exe
+            cp dist/coStudio_${{ github.event.inputs.version }}-win_arm64.exe dist_latest/coStudio_latest-win_arm64.exe
+            cp dist/coStudio_${{ github.event.inputs.version }}-win_x64.exe dist_latest/coStudio_latest-win_x64.exe
+          elif [ "${{ matrix.os }}" = "linux" ]; then
+            cp dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb dist_latest/coStudio_latest-linux_amd64.deb
+            cp dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb dist_latest/coStudio_latest-linux_arm64.deb
+          fi
+          ls -l dist_latest
+
+      - name: Upload latest files to s3
+        if: github.event.inputs.environment == 'portal'
+        uses: shallwefootball/s3-upload-action@master
+        with:
+          aws_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
+          aws_secret_access_key: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
+          aws_bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
+          source_dir: "dist_latest"
+          destination_dir: "coStudio/latest/"
 
       - name: Update APT Source
         if: matrix.os == 'linux' && (github.event.inputs.environment == 'saas' || github.event.inputs.environment == 'portal')
