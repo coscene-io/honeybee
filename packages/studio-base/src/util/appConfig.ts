@@ -96,7 +96,9 @@ export const APP_CONFIG = {
     options: ["en", "zh"],
   },
   COSTUDIO_DOWNLOAD_URL:
-    cosConfig.COSTUDIO_DOWNLOAD_URL ?? process.env.COSTUDIO_DOWNLOAD_URL ?? undefined,
+    cosConfig.COSTUDIO_DOWNLOAD_URL ??
+    process.env.COSTUDIO_DOWNLOAD_URL ??
+    "https://download.coscene.cn/coStudio/packages",
 };
 
 export function getDomainConfig(): DomainConfig {
