@@ -18,7 +18,7 @@ export function getDocsLink(path?: string): string {
 
   const langPrefix = env === "aws" || lang === "zh" ? "" : lang;
 
-  return `${APP_CONFIG.DOC_BASE_URL}${langPrefix}/docs${path}`;
+  return `${APP_CONFIG.DOC_BASE_URL}/${langPrefix}/docs${path}`;
 }
 
 export function getLegalDocsLink(type: "terms" | "privacy" | "security"): string {
