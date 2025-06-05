@@ -690,6 +690,12 @@ export type SettingsTreeFieldValue =
       labels?: [string, string];
       max?: number;
       min?: number;
+    }
+  | {
+      input: "button";
+      value?: string;
+      label?: string;
+      onClick: () => void;
     };
 
 export type SettingsTreeField = SettingsTreeFieldValue & {
