@@ -85,7 +85,7 @@ export type LayerSettingsUrdf = BaseSettings & {
 
 export type LayerSettingsCustomUrdf = CustomLayerSettings & {
   layerId: "foxglove.Urdf";
-  sourceType: "url" | "filePath" | "param" | "topic";
+  sourceType: "url" | "filePath" | "param" | "topic" | "projectGeneralResource";
   url?: string;
   filePath?: string;
   parameter?: string;
@@ -353,6 +353,10 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
                 label: "Topic",
                 value: "topic",
               },
+              {
+                label: "Project General Resource",
+                value: "projectGeneralResource",
+              },
             ],
           },
           url:
@@ -395,6 +399,17 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
                   items: filterMap(this.renderer.parameters ?? [], ([paramName, value]) =>
                     typeof value === "string" ? paramName : undefined,
                   ),
+                }
+              : undefined,
+          projectGeneralResource:
+            config.sourceType === "projectGeneralResource"
+              ? {
+                  label: "Project General Resource",
+                  input: "button",
+                  value: "test",
+                  onClick: () => {
+                    // console.log("hello world");
+                  },
                 }
               : undefined,
           label: {
