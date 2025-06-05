@@ -9,6 +9,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import ErrorIcon from "@mui/icons-material/Error";
 import {
   Autocomplete,
+  Button,
   MenuItem,
   MenuList,
   MenuListProps,
@@ -481,6 +482,12 @@ function FieldInput({
             actionHandler({ action: "update", payload: { path, input: "vec2", value } });
           }}
         />
+      );
+    case "button":
+      return (
+        <Button onClick={field.onClick} fullWidth variant="outlined">
+          {field.label}
+        </Button>
       );
   }
 }
