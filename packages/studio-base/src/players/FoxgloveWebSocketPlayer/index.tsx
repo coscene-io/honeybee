@@ -90,6 +90,9 @@ type ResolvedService = {
   requestMessageWriter: MessageWriter;
 };
 type MessageDefinitionMap = Map<string, MessageDefinition>;
+interface DeviceInfo {
+  macAddress: string;
+}
 
 /**
  * When the tab is inactive setTimeout's are throttled to at most once per second.
@@ -300,14 +303,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
           variant: "danger",
         }).then((result) => {
           if (result === "ok") {
-            this.#client?.login(this.#userId, this.#username);
+            // this.#client?.login(this.#userId, this.#username);
+            void this.#checkLanReachable(message.lanCandidates, message.infoPort, message.MacAddr);
           }
           if (result === "cancel") {
             window.close();
           }
         });
       } else {
-        this.#client?.login(this.#userId, this.#username);
+        // this.#client?.login(this.#userId, this.#username);
+        void this.#checkLanReachable(message.lanCandidates, message.infoPort, message.MacAddr);
       }
     });
 
@@ -1514,6 +1519,102 @@ export default class FoxgloveWebSocketPlayer implements Player {
     }
     if (updatedDatatypes != undefined) {
       this.#datatypes = updatedDatatypes; // Signal that datatypes changed.
+    }
+  }
+
+  // 检查局域网是否可达
+  async #checkLanReachable(
+    lanCandidates: string[],
+    infoPort: string,
+    targetMacAddr: string,
+  ): Promise<void> {
+    if (lanCandidates.length > 0 && targetMacAddr !== "") {
+      for (const candidate of lanCandidates) {
+        try {
+          const reachable = await this.#checkDeviceMacAddress(candidate, infoPort, targetMacAddr);
+          if (reachable) {
+            // 找到匹配的IP地址，重新连接WebSocket
+            await this.#reconnectWithNewUrl(candidate);
+            return;
+          }
+        } catch (error) {
+          log.debug(`Failed to check candidate ${candidate}:`, error);
+          // 继续检查下一个候选地址
+        }
+      }
+      // 如果所有候选地址都无法连接或MAC地址不匹配，则使用原始连接
+      this.#client?.login(this.#userId, this.#username);
+    } else {
+      this.#client?.login(this.#userId, this.#username);
+    }
+  }
+
+  // 检查指定IP和端口的设备MAC地址
+  async #checkDeviceMacAddress(ip: string, port: string, targetMacAddr: string): Promise<boolean> {
+    try {
+      // 使用 AbortController 实现超时
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 3000); // 3秒超时
+
+      const response = await fetch(`http://${ip}:${port}/device-info`, {
+        method: "GET",
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = (await response.json()) as DeviceInfo;
+      const deviceMacAddr = data.macAddress;
+
+      if (typeof deviceMacAddr === "string") {
+        // 比较MAC地址（忽略大小写和分隔符）
+        const normalizedDeviceMac = deviceMacAddr.replace(/[:-]/g, "").toLowerCase();
+        const normalizedTargetMac = targetMacAddr.replace(/[:-]/g, "").toLowerCase();
+        return normalizedDeviceMac === normalizedTargetMac;
+      }
+
+      return false;
+    } catch (error) {
+      log.debug(`Error checking device MAC for ${ip}:${port}:`, error);
+      return false;
+    }
+  }
+
+  // 使用新的IP地址重新连接WebSocket
+  async #reconnectWithNewUrl(newIp: string): Promise<void> {
+    try {
+      // 关闭当前连接
+      this.#client?.close();
+      this.#client = undefined;
+
+      // 更新URL为局域网地址
+      const urlObj = new URL(this.#url);
+      const newUrl = `${urlObj.protocol}//${newIp}:${urlObj.port}${urlObj.pathname}${urlObj.search}`;
+      this.#url = newUrl;
+      this.#name = newUrl;
+
+      // 更新URL状态
+      this.#urlState = {
+        sourceId: this.#sourceId,
+        parameters: { ...(this.#urlState?.parameters ?? {}), url: this.#url },
+      };
+
+      log.info(`Reconnecting with LAN address: ${this.#url}`);
+
+      // 重新开始连接
+      this.#open();
+    } catch (error) {
+      log.error("Failed to reconnect with new URL:", error);
+      // 如果重连失败，回退到原始登录流程
+      if (this.#client) {
+        this.#client.login(this.#userId, this.#username);
+      }
     }
   }
 }
