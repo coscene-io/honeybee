@@ -304,7 +304,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
           variant: "danger",
         }).then((result) => {
           if (result === "ok") {
-            // this.#client?.login(this.#userId, this.#username);
             void this.#checkLanReachable(message.lanCandidates, message.infoPort, message.macAddr);
           }
           if (result === "cancel") {
@@ -312,7 +311,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
           }
         });
       } else {
-        // this.#client?.login(this.#userId, this.#username);
         void this.#checkLanReachable(message.lanCandidates, message.infoPort, message.macAddr);
       }
     });
