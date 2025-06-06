@@ -8,8 +8,17 @@
 import { ErrorCircle16Filled, LinkMultipleFilled } from "@fluentui/react-icons";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import SignalCellularAltIcon from "@mui/icons-material/SignalCellularAlt";
-import { CircularProgress, IconButton, Link, Breadcrumbs } from "@mui/material";
-import { useMemo } from "react";
+import {
+  CircularProgress,
+  IconButton,
+  Link,
+  Breadcrumbs,
+  Popover,
+  Typography,
+  Box,
+  Paper,
+} from "@mui/material";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -85,6 +94,20 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     whiteSpace: "nowrap",
     color: theme.palette.appBar.text,
   },
+  networkStatusPopover: {
+    padding: theme.spacing(2),
+    minWidth: 200,
+    maxWidth: 300,
+  },
+  statusHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+    marginBottom: theme.spacing(1),
+  },
+  fluentIconPrimary: {
+    color: theme.palette.primary.main,
+  },
 }));
 
 const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
@@ -155,6 +178,78 @@ const Adornment = () => {
   );
 };
 
+const RealTimeVizLinkState = () => {
+  const { classes } = useStyles();
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>(undefined);
+  const urlState = useMessagePipeline(selectUrlState);
+  const { t } = useTranslation("appBar");
+
+  const linkType = urlState?.parameters?.linkType ?? "";
+  const url = urlState?.parameters?.url ?? "";
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(undefined);
+  };
+
+  return (
+    <>
+      <AppBarIconButton
+        color="inherit"
+        onClick={handleClick}
+        aria-describedby={open ? "network-status-popover" : undefined}
+      >
+        {linkType === "colink" ? (
+          <SignalCellularAltIcon fontSize="small" />
+        ) : (
+          <LinkMultipleFilled fontSize={20} />
+        )}
+      </AppBarIconButton>
+      <Popover
+        id="network-status-popover"
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "center",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "center",
+        }}
+      >
+        <Paper className={classes.networkStatusPopover}>
+          <Box className={classes.statusHeader}>
+            {linkType === "colink" ? (
+              <SignalCellularAltIcon fontSize="small" color="primary" />
+            ) : (
+              <LinkMultipleFilled fontSize={16} className={classes.fluentIconPrimary} />
+            )}
+            <Typography variant="subtitle2" fontWeight="medium">
+              {t("networkConnection")}
+            </Typography>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            {linkType === "colink" ? (
+              <>{t("colinkRemoteConnection")}</>
+            ) : (
+              <>
+                {t("localNetworkConnection")} {url && new URL(url).hostname}
+              </>
+            )}
+          </Typography>
+        </Paper>
+      </Popover>
+    </>
+  );
+};
+
 const RealTimeVizDataSource = () => {
   const { classes } = useStyles();
   const { t } = useTranslation("appBar");
@@ -183,8 +278,6 @@ const RealTimeVizDataSource = () => {
   const playerDisplayName =
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
-  const linkType = urlState?.parameters?.linkType ?? "";
-
   const breadcrumbs = [
     <Link
       href={projectHref}
@@ -210,13 +303,7 @@ const RealTimeVizDataSource = () => {
 
   return (
     <>
-      <AppBarIconButton color="inherit">
-        {linkType === "colink" ? (
-          <SignalCellularAltIcon fontSize="small" />
-        ) : (
-          <LinkMultipleFilled fontSize={20} />
-        )}
-      </AppBarIconButton>
+      <RealTimeVizLinkState />
       <div className={classes.textTruncate}>
         {enableList.uploadLocalFile === "ENABLE" ? (
           <UploadFileComponent />

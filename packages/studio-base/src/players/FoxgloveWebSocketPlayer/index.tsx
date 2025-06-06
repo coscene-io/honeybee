@@ -312,14 +312,24 @@ export default class FoxgloveWebSocketPlayer implements Player {
           variant: "danger",
         }).then((result) => {
           if (result === "ok") {
-            void this.#checkLanReachable(message.lanCandidates, message.infoPort, message.macAddr);
+            void this.#checkLanReachable(
+              message.lanCandidates,
+              message.infoPort,
+              message.macAddr,
+              message.linkType,
+            );
           }
           if (result === "cancel") {
             window.close();
           }
         });
       } else {
-        void this.#checkLanReachable(message.lanCandidates, message.infoPort, message.macAddr);
+        void this.#checkLanReachable(
+          message.lanCandidates,
+          message.infoPort,
+          message.macAddr,
+          message.linkType,
+        );
       }
     });
 
@@ -1527,14 +1537,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
     lanCandidates: string[],
     infoPort: string,
     targetMacAddr: string,
+    linkType: string,
   ): Promise<void> {
     if (this.#client == undefined) {
       throw new Error("FoxgloveWebSocketPlayer: client is undefined");
     }
 
+    this.#client.login(this.#userId, this.#username);
+
     // only desktop app can check lan reachable
-    if (!isDesktopApp()) {
-      this.#client.login(this.#userId, this.#username);
+    if (!isDesktopApp() || linkType !== "colink") {
       return;
     }
 
@@ -1591,17 +1603,15 @@ export default class FoxgloveWebSocketPlayer implements Player {
           // 找到匹配的IP地址，重新连接WebSocket
           // 弹窗询问用户是否使用局域网连接
           const result = await this.#confirm({
-            title: "检测到局域网连接",
-            prompt: `检测到设备在局域网地址 ${reachableResult.candidate} 可达，是否切换到局域网连接以获得更好的性能？`,
-            ok: "使用局域网连接",
-            cancel: "继续使用当前连接",
-            // variant: "info",
+            title: "有局域网可用",
+            prompt: `检测到你与当前设备处于同一局域网，可使用局域网连接设备，提高网络速度`,
+            ok: "立即切换",
+            cancel: "保持现状",
+            variant: "toast",
           });
 
           if (result === "ok") {
             await this.#reconnectWithNewUrl(reachableResult.candidate);
-          } else {
-            this.#client.login(this.#userId, this.#username);
           }
           return;
         }
@@ -1674,6 +1684,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
       // 更新URL为局域网地址
       const newUrl = `ws://${newIp}:21274`;
       this.#url = newUrl;
+
+      this.#urlState = {
+        sourceId: this.#sourceId,
+        parameters: { ...this.#urlState?.parameters, url: newUrl, linkType: "unknown" },
+      };
 
       log.info(`Reconnecting with LAN address: ${this.#url}`);
       // 重新开始连接

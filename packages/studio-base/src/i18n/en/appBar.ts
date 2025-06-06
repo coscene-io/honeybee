@@ -72,4 +72,7 @@ export const appBar = {
   doNotShowAgain: "Do not show again",
   autoDisconnectionTips:
     "If no operation is performed for a long time, the visualization will be disconnected automatically. Please keep it active if you want to continue using it. {{time}}",
+  networkConnection: "Network connection",
+  colinkRemoteConnection: "coLink remote connection",
+  localNetworkConnection: "local network connection",
 };

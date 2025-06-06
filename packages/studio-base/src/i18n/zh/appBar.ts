@@ -70,4 +70,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   doNotShowAgain: "不再提示",
   autoDisconnectionTips:
     "检测到长时间无操作，可视化即将自动断连，如需继续使用请保持活跃状态 {{time}}",
+  networkConnection: "网络连接",
+  localNetworkConnection: "局域网连接",
+  colinkRemoteConnection: "coLink 远程连接",
 };
