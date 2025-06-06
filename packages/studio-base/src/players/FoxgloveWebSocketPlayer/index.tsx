@@ -40,6 +40,7 @@ import {
   Topic,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import rosDatatypesToMessageDefinition from "@foxglove/studio-base/util/rosDatatypesToMessageDefinition";
 import {
   Channel,
@@ -90,6 +91,9 @@ type ResolvedService = {
   requestMessageWriter: MessageWriter;
 };
 type MessageDefinitionMap = Map<string, MessageDefinition>;
+interface DeviceInfo {
+  macAddr: string;
+}
 
 /**
  * When the tab is inactive setTimeout's are throttled to at most once per second.
@@ -199,7 +203,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#sourceId = sourceId;
     this.#urlState = {
       sourceId: this.#sourceId,
-      parameters: { ...params, url: this.#url },
+      parameters: { ...params, url: this.#url, linkType: "unknown" },
     };
     this.#confirm = confirm;
     this.#userId = userId;
@@ -279,6 +283,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this.#client?.login(this.#userId, this.#username);
         return;
       }
+
+      this.#urlState = {
+        sourceId: this.#sourceId,
+        parameters: { ...this.#urlState?.parameters, linkType: message.linkType },
+      };
+
+      this.#emitState();
+
       if (message.userId) {
         void this.#confirm({
           title: t("cosWebsocket:note"),
@@ -300,14 +312,24 @@ export default class FoxgloveWebSocketPlayer implements Player {
           variant: "danger",
         }).then((result) => {
           if (result === "ok") {
-            this.#client?.login(this.#userId, this.#username);
+            void this.#checkLanReachable(
+              message.lanCandidates,
+              message.infoPort,
+              message.macAddr,
+              message.linkType,
+            );
           }
           if (result === "cancel") {
             window.close();
           }
         });
       } else {
-        this.#client?.login(this.#userId, this.#username);
+        void this.#checkLanReachable(
+          message.lanCandidates,
+          message.infoPort,
+          message.macAddr,
+          message.linkType,
+        );
       }
     });
 
@@ -391,14 +413,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#client?.close();
       this.#client = undefined;
 
-      if (realCloseEventMessage.data.code === 1000) {
-        // repeated connection, someone is connecting this device
-        this.#problems.addProblem("repeated-connection,", {
-          severity: "error",
-          message: t("cosError:repetitiveConnection"),
-          tip: t("cosError:repeatedConnectionDesc"),
-        });
-      } else {
+      if (realCloseEventMessage.data.code !== 1000) {
         this.#problems.addProblem("ws:connection-failed", {
           severity: "error",
           message: t("cosError:connectionFailed"),
@@ -1514,6 +1529,176 @@ export default class FoxgloveWebSocketPlayer implements Player {
     }
     if (updatedDatatypes != undefined) {
       this.#datatypes = updatedDatatypes; // Signal that datatypes changed.
+    }
+  }
+
+  // check lan reachable, only desktop app can do this
+  async #checkLanReachable(
+    lanCandidates: string[],
+    infoPort: string,
+    targetMacAddr: string,
+    linkType: string,
+  ): Promise<void> {
+    if (this.#client == undefined) {
+      throw new Error("FoxgloveWebSocketPlayer: client is undefined");
+    }
+
+    this.#client.login(this.#userId, this.#username);
+
+    // only desktop app can check lan reachable
+    if (!isDesktopApp() || linkType !== "colink") {
+      return;
+    }
+
+    // 检查当前URL是否已经包含lanCandidates中的某个IP
+    const currentUrl = new URL(this.#url);
+    const currentHost = currentUrl.hostname;
+    if (lanCandidates.some((candidate) => candidate === currentHost)) {
+      this.#client.login(this.#userId, this.#username);
+      return;
+    }
+
+    if (lanCandidates.length > 0 && targetMacAddr !== "") {
+      // 创建 AbortController 用于取消其他请求
+      const abortController = new AbortController();
+
+      // 并发检查所有候选地址的可达性，一旦有可达地址就终止其他请求
+      const checkPromises = lanCandidates.map(async (candidate) => {
+        try {
+          const reachable = await this.#checkDeviceMacAddress(
+            candidate,
+            infoPort,
+            targetMacAddr,
+            abortController.signal,
+          );
+          if (reachable) {
+            // 找到可达地址，立即取消其他请求
+            abortController.abort();
+          }
+          return { candidate, reachable };
+        } catch (error) {
+          // 检查是否因为 abort 而失败
+          if (error instanceof Error && error.name === "AbortError") {
+            return { candidate, reachable: false };
+          }
+          log.debug(`Failed to check candidate ${candidate}:`, error);
+          return { candidate, reachable: false };
+        }
+      });
+
+      try {
+        // 使用 Promise.allSettled 等待所有 promise 完成或被取消
+        const results = await Promise.allSettled(checkPromises);
+
+        // 找到第一个成功且可达的地址
+        let reachableResult: { candidate: string; reachable: boolean } | undefined;
+        for (const result of results) {
+          if (result.status === "fulfilled" && result.value.reachable) {
+            reachableResult = result.value;
+            break;
+          }
+        }
+
+        if (reachableResult) {
+          // 找到匹配的IP地址，重新连接WebSocket
+          // 弹窗询问用户是否使用局域网连接
+          const result = await this.#confirm({
+            title: t("cosWebsocket:lanAvailable"),
+            prompt: t("cosWebsocket:lanConnectionPrompt"),
+            ok: t("cosWebsocket:switchNow"),
+            cancel: t("cosWebsocket:keepCurrent"),
+            variant: "toast",
+          });
+
+          if (result === "ok") {
+            await this.#reconnectWithNewUrl(reachableResult.candidate);
+          }
+          return;
+        }
+      } catch (error) {
+        log.debug("Error during concurrent address checking:", error);
+      }
+
+      // 如果所有候选地址都无法连接或MAC地址不匹配，则使用原始连接
+      this.#client.login(this.#userId, this.#username);
+    } else {
+      this.#client.login(this.#userId, this.#username);
+    }
+  }
+
+  // 检查指定IP和端口的设备MAC地址
+  async #checkDeviceMacAddress(
+    ip: string,
+    port: string,
+    targetMacAddr: string,
+    externalSignal?: AbortSignal,
+  ): Promise<boolean> {
+    try {
+      // 使用 AbortController 实现超时
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 3000); // 3秒超时
+
+      // 如果有外部信号，监听外部取消
+      if (externalSignal) {
+        externalSignal.addEventListener("abort", () => {
+          controller.abort();
+        });
+      }
+
+      const response = await fetch(`http://${ip}:${port}/device-info`, {
+        method: "GET",
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = (await response.json()) as DeviceInfo;
+      const deviceMacAddr = data.macAddr;
+
+      if (typeof deviceMacAddr === "string") {
+        // 比较MAC地址（忽略大小写和分隔符）
+        const normalizedDeviceMac = deviceMacAddr.replace(/[:-]/g, "").toLowerCase();
+        const normalizedTargetMac = targetMacAddr.replace(/[:-]/g, "").toLowerCase();
+        return normalizedDeviceMac === normalizedTargetMac;
+      }
+
+      return false;
+    } catch (error) {
+      log.debug(`Error checking device MAC for ${ip}:${port}:`, error);
+      return false;
+    }
+  }
+
+  // 使用新的IP地址重新连接WebSocket
+  async #reconnectWithNewUrl(newIp: string): Promise<void> {
+    try {
+      // 关闭当前连接
+      this.#client?.close();
+
+      // 更新URL为局域网地址
+      const newUrl = `ws://${newIp}:21274`;
+      this.#url = newUrl;
+
+      this.#urlState = {
+        sourceId: this.#sourceId,
+        parameters: { ...this.#urlState?.parameters, url: newUrl, linkType: "unknown" },
+      };
+
+      log.info(`Reconnecting with LAN address: ${this.#url}`);
+      // 重新开始连接
+      this.#open();
+    } catch (error) {
+      log.error("Failed to reconnect with new URL:", error);
+      // 如果重连失败，回退到原始登录流程
+      if (this.#client) {
+        this.#client.login(this.#userId, this.#username);
+      }
     }
   }
 }

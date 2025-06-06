@@ -254,12 +254,21 @@ export type Parameter = {
   type?: "byte_array" | "float64" | "float64_array";
 };
 
-export type Login = {
+export type ServerLogin = {
+  op: "login";
+  userId: string;
+  username: string;
+  infoPort: string;
+  macAddr: string;
+  lanCandidates: string[];
+  linkType: "other" | "colink";
+};
+
+export type ClientLogin = {
   op: "login";
   userId: string;
   username: string;
 };
-
 export type Kicked = {
   op: "kicked";
   userId: string;
@@ -282,7 +291,7 @@ export type ServerMessage =
   | ConnectionGraphUpdate
   | FetchAssetResponse
   | ServiceCallFailure
-  | Login
+  | ServerLogin
   | Kicked;
 
 export type ClientMessage =
@@ -299,7 +308,7 @@ export type ClientMessage =
   | SubscribeConnectionGraph
   | UnsubscribeConnectionGraph
   | FetchAsset
-  | Login;
+  | ClientLogin;
 
 /**
  * Abstraction that supports both browser and Node WebSocket clients.

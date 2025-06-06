@@ -30,7 +30,7 @@ import {
   ServiceId,
   SubscriptionId,
   Time,
-  Login,
+  ServerLogin,
   Kicked,
   ChannelId,
   MessageData,
@@ -57,7 +57,7 @@ type EventTypes = {
   connectionGraphUpdate: (event: ConnectionGraphUpdate) => void;
   fetchAssetResponse: (event: FetchAssetResponse) => void;
   serviceCallFailure: (event: ServiceCallFailure) => void;
-  login: (event: Login) => void;
+  login: (event: ServerLogin) => void;
   kicked: (event: Kicked) => void;
 };
 
