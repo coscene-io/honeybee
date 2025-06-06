@@ -203,7 +203,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#sourceId = sourceId;
     this.#urlState = {
       sourceId: this.#sourceId,
-      parameters: { ...params, url: this.#url },
+      parameters: { ...params, url: this.#url, linkType: "unknown" },
     };
     this.#confirm = confirm;
     this.#userId = userId;
@@ -283,6 +283,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this.#client?.login(this.#userId, this.#username);
         return;
       }
+
+      this.#urlState = {
+        sourceId: this.#sourceId,
+        parameters: { ...this.#urlState?.parameters, linkType: message.linkType },
+      };
+
+      this.#emitState();
+
       if (message.userId) {
         void this.#confirm({
           title: t("cosWebsocket:note"),
@@ -1514,75 +1522,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
     }
   }
 
-  // Sort IP addresses by connection priority
-  #sortIpAddresses(ipAddresses: string[]): string[] {
-    return [...ipAddresses].sort((a, b) => {
-      const priorityA = this.#getIpPriority(a);
-      const priorityB = this.#getIpPriority(b);
-      return priorityA - priorityB;
-    });
-  }
-
-  // 192.168.x.x > 10.x.x.x > 172.x.x.x > any other ip
-  // Get IP address connection priority (lower number = higher priority)
-  #getIpPriority(ip: string): number {
-    // Parse IPv4 address
-    const parts = ip.split(".").map(Number);
-
-    // Ensure valid IPv4 address
-    if (parts.length !== 4 || parts.some((part) => isNaN(part) || part < 0 || part > 255)) {
-      return 1000; // Invalid address, lowest priority
-    }
-
-    const octet1 = parts[0]!;
-    const octet2 = parts[1]!;
-    const octet3 = parts[2]!;
-
-    // 1. 192.168.x.x (home/small networks) - highest priority, usually fastest
-    if (octet1 === 192 && octet2 === 168) {
-      // Prefer 192.168.1.x, then 192.168.0.x, then others
-      if (octet3 === 1) {
-        return 1;
-      }
-      if (octet3 === 0) {
-        return 2;
-      }
-      // Other 192.168.x.x: priority 3-49 (ensure all 192.168.x.x have higher priority than 10.x.x.x)
-      return Math.min(3 + Math.floor(octet3 / 10), 49);
-    }
-
-    // 2. 10.x.x.x (enterprise Class A networks) - second priority
-    if (octet1 === 10) {
-      // 10.0.x.x and 10.1.x.x are usually main subnets, prioritize them
-      if (octet2 === 0) {
-        return 50;
-      }
-      if (octet2 === 1) {
-        return 51;
-      }
-      // Other 10.x.x.x: priority 52-99 (ensure all 10.x.x.x have higher priority than 172.x.x.x)
-      return Math.min(52 + Math.floor(octet2 / 10), 99);
-    }
-
-    // 3. 172.16.x.x - 172.31.x.x (enterprise Class B networks) - third priority
-    if (octet1 === 172 && octet2 >= 16 && octet2 <= 31) {
-      return 100 + (octet2 - 16);
-    }
-
-    // 4. 169.254.x.x (auto-configuration addresses) - lower priority, usually slower
-    if (octet1 === 169 && octet2 === 254) {
-      return 500;
-    }
-
-    // 5. 127.x.x.x (loopback addresses) - low probability but high priority if present
-    if (octet1 === 127) {
-      return 10;
-    }
-
-    // 6. Other addresses - lowest priority
-    return 800;
-  }
-
   // check lan reachable, only desktop app can do this
   async #checkLanReachable(
     lanCandidates: string[],
@@ -1608,35 +1547,68 @@ export default class FoxgloveWebSocketPlayer implements Player {
     }
 
     if (lanCandidates.length > 0 && targetMacAddr !== "") {
-      // Sort IP addresses by connection priority
-      const sortedCandidates = this.#sortIpAddresses(lanCandidates);
+      // 创建 AbortController 用于取消其他请求
+      const abortController = new AbortController();
 
-      for (const candidate of sortedCandidates) {
+      // 并发检查所有候选地址的可达性，一旦有可达地址就终止其他请求
+      const checkPromises = lanCandidates.map(async (candidate) => {
         try {
-          const reachable = await this.#checkDeviceMacAddress(candidate, infoPort, targetMacAddr);
+          const reachable = await this.#checkDeviceMacAddress(
+            candidate,
+            infoPort,
+            targetMacAddr,
+            abortController.signal,
+          );
           if (reachable) {
-            // 找到匹配的IP地址，重新连接WebSocket
-            // 弹窗询问用户是否使用局域网连接
-            const result = await this.#confirm({
-              title: "检测到局域网连接",
-              prompt: `检测到设备在局域网地址 ${candidate} 可达，是否切换到局域网连接以获得更好的性能？`,
-              ok: "使用局域网连接",
-              cancel: "继续使用当前连接",
-              // variant: "info",
-            });
-
-            if (result === "ok") {
-              await this.#reconnectWithNewUrl(candidate);
-            } else {
-              this.#client.login(this.#userId, this.#username);
-            }
-            return;
+            // 找到可达地址，立即取消其他请求
+            abortController.abort();
           }
+          return { candidate, reachable };
         } catch (error) {
+          // 检查是否因为 abort 而失败
+          if (error instanceof Error && error.name === "AbortError") {
+            return { candidate, reachable: false };
+          }
           log.debug(`Failed to check candidate ${candidate}:`, error);
-          // 继续检查下一个候选地址
+          return { candidate, reachable: false };
         }
+      });
+
+      try {
+        // 使用 Promise.allSettled 等待所有 promise 完成或被取消
+        const results = await Promise.allSettled(checkPromises);
+
+        // 找到第一个成功且可达的地址
+        let reachableResult: { candidate: string; reachable: boolean } | undefined;
+        for (const result of results) {
+          if (result.status === "fulfilled" && result.value.reachable) {
+            reachableResult = result.value;
+            break;
+          }
+        }
+
+        if (reachableResult) {
+          // 找到匹配的IP地址，重新连接WebSocket
+          // 弹窗询问用户是否使用局域网连接
+          const result = await this.#confirm({
+            title: "检测到局域网连接",
+            prompt: `检测到设备在局域网地址 ${reachableResult.candidate} 可达，是否切换到局域网连接以获得更好的性能？`,
+            ok: "使用局域网连接",
+            cancel: "继续使用当前连接",
+            // variant: "info",
+          });
+
+          if (result === "ok") {
+            await this.#reconnectWithNewUrl(reachableResult.candidate);
+          } else {
+            this.#client.login(this.#userId, this.#username);
+          }
+          return;
+        }
+      } catch (error) {
+        log.debug("Error during concurrent address checking:", error);
       }
+
       // 如果所有候选地址都无法连接或MAC地址不匹配，则使用原始连接
       this.#client.login(this.#userId, this.#username);
     } else {
@@ -1645,13 +1617,25 @@ export default class FoxgloveWebSocketPlayer implements Player {
   }
 
   // 检查指定IP和端口的设备MAC地址
-  async #checkDeviceMacAddress(ip: string, port: string, targetMacAddr: string): Promise<boolean> {
+  async #checkDeviceMacAddress(
+    ip: string,
+    port: string,
+    targetMacAddr: string,
+    externalSignal?: AbortSignal,
+  ): Promise<boolean> {
     try {
       // 使用 AbortController 实现超时
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
       }, 3000); // 3秒超时
+
+      // 如果有外部信号，监听外部取消
+      if (externalSignal) {
+        externalSignal.addEventListener("abort", () => {
+          controller.abort();
+        });
+      }
 
       const response = await fetch(`http://${ip}:${port}/device-info`, {
         method: "GET",
