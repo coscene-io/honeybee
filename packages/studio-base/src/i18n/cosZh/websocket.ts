@@ -26,4 +26,8 @@ export const cosWebsocket: Partial<TypeOptions["resources"]["cosWebsocket"]> = {
   inactivePageDescription:
     "页面已长达 {{time}} 分钟无操作，为节省流量消耗，实时可视化已自动断开连接。",
   exitAndClosePage: "退出并关闭页面",
+  lanAvailable: "有局域网可用",
+  lanConnectionPrompt: "检测到你与当前设备处于同一局域网，可使用局域网连接设备，提高网络速度",
+  switchNow: "立即切换",
+  keepCurrent: "保持现状",
 };

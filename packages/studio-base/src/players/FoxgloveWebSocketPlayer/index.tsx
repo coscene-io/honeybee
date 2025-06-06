@@ -1603,10 +1603,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
           // 找到匹配的IP地址，重新连接WebSocket
           // 弹窗询问用户是否使用局域网连接
           const result = await this.#confirm({
-            title: "有局域网可用",
-            prompt: `检测到你与当前设备处于同一局域网，可使用局域网连接设备，提高网络速度`,
-            ok: "立即切换",
-            cancel: "保持现状",
+            title: t("cosWebsocket:lanAvailable"),
+            prompt: t("cosWebsocket:lanConnectionPrompt"),
+            ok: t("cosWebsocket:switchNow"),
+            cancel: t("cosWebsocket:keepCurrent"),
             variant: "toast",
           });
 
