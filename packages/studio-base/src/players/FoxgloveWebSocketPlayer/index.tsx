@@ -40,6 +40,7 @@ import {
   Topic,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import rosDatatypesToMessageDefinition from "@foxglove/studio-base/util/rosDatatypesToMessageDefinition";
 import {
   Channel,
@@ -91,7 +92,7 @@ type ResolvedService = {
 };
 type MessageDefinitionMap = Map<string, MessageDefinition>;
 interface DeviceInfo {
-  macAddress: string;
+  macAddr: string;
 }
 
 /**
@@ -304,7 +305,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         }).then((result) => {
           if (result === "ok") {
             // this.#client?.login(this.#userId, this.#username);
-            void this.#checkLanReachable(message.lanCandidates, message.infoPort, message.MacAddr);
+            void this.#checkLanReachable(message.lanCandidates, message.infoPort, message.macAddr);
           }
           if (result === "cancel") {
             window.close();
@@ -312,7 +313,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         });
       } else {
         // this.#client?.login(this.#userId, this.#username);
-        void this.#checkLanReachable(message.lanCandidates, message.infoPort, message.MacAddr);
+        void this.#checkLanReachable(message.lanCandidates, message.infoPort, message.macAddr);
       }
     });
 
@@ -396,14 +397,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#client?.close();
       this.#client = undefined;
 
-      if (realCloseEventMessage.data.code === 1000) {
-        // repeated connection, someone is connecting this device
-        this.#problems.addProblem("repeated-connection,", {
-          severity: "error",
-          message: t("cosError:repetitiveConnection"),
-          tip: t("cosError:repeatedConnectionDesc"),
-        });
-      } else {
+      if (realCloseEventMessage.data.code !== 1000) {
         this.#problems.addProblem("ws:connection-failed", {
           severity: "error",
           message: t("cosError:connectionFailed"),
@@ -1522,19 +1516,122 @@ export default class FoxgloveWebSocketPlayer implements Player {
     }
   }
 
-  // 检查局域网是否可达
+  // Sort IP addresses by connection priority
+  #sortIpAddresses(ipAddresses: string[]): string[] {
+    return [...ipAddresses].sort((a, b) => {
+      const priorityA = this.#getIpPriority(a);
+      const priorityB = this.#getIpPriority(b);
+      return priorityA - priorityB;
+    });
+  }
+
+  // 192.168.x.x > 10.x.x.x > 172.x.x.x > any other ip
+  // Get IP address connection priority (lower number = higher priority)
+  #getIpPriority(ip: string): number {
+    // Parse IPv4 address
+    const parts = ip.split(".").map(Number);
+
+    // Ensure valid IPv4 address
+    if (parts.length !== 4 || parts.some((part) => isNaN(part) || part < 0 || part > 255)) {
+      return 1000; // Invalid address, lowest priority
+    }
+
+    const octet1 = parts[0]!;
+    const octet2 = parts[1]!;
+    const octet3 = parts[2]!;
+
+    // 1. 192.168.x.x (home/small networks) - highest priority, usually fastest
+    if (octet1 === 192 && octet2 === 168) {
+      // Prefer 192.168.1.x, then 192.168.0.x, then others
+      if (octet3 === 1) {
+        return 1;
+      }
+      if (octet3 === 0) {
+        return 2;
+      }
+      // Other 192.168.x.x: priority 3-49 (ensure all 192.168.x.x have higher priority than 10.x.x.x)
+      return Math.min(3 + Math.floor(octet3 / 10), 49);
+    }
+
+    // 2. 10.x.x.x (enterprise Class A networks) - second priority
+    if (octet1 === 10) {
+      // 10.0.x.x and 10.1.x.x are usually main subnets, prioritize them
+      if (octet2 === 0) {
+        return 50;
+      }
+      if (octet2 === 1) {
+        return 51;
+      }
+      // Other 10.x.x.x: priority 52-99 (ensure all 10.x.x.x have higher priority than 172.x.x.x)
+      return Math.min(52 + Math.floor(octet2 / 10), 99);
+    }
+
+    // 3. 172.16.x.x - 172.31.x.x (enterprise Class B networks) - third priority
+    if (octet1 === 172 && octet2 >= 16 && octet2 <= 31) {
+      return 100 + (octet2 - 16);
+    }
+
+    // 4. 169.254.x.x (auto-configuration addresses) - lower priority, usually slower
+    if (octet1 === 169 && octet2 === 254) {
+      return 500;
+    }
+
+    // 5. 127.x.x.x (loopback addresses) - low probability but high priority if present
+    if (octet1 === 127) {
+      return 10;
+    }
+
+    // 6. Other addresses - lowest priority
+    return 800;
+  }
+
+  // check lan reachable, only desktop app can do this
   async #checkLanReachable(
     lanCandidates: string[],
     infoPort: string,
     targetMacAddr: string,
   ): Promise<void> {
+    if (this.#client == undefined) {
+      throw new Error("FoxgloveWebSocketPlayer: client is undefined");
+    }
+
+    // only desktop app can check lan reachable
+    if (!isDesktopApp()) {
+      this.#client.login(this.#userId, this.#username);
+      return;
+    }
+
+    // 检查当前URL是否已经包含lanCandidates中的某个IP
+    const currentUrl = new URL(this.#url);
+    const currentHost = currentUrl.hostname;
+    if (lanCandidates.some((candidate) => candidate === currentHost)) {
+      this.#client.login(this.#userId, this.#username);
+      return;
+    }
+
     if (lanCandidates.length > 0 && targetMacAddr !== "") {
-      for (const candidate of lanCandidates) {
+      // Sort IP addresses by connection priority
+      const sortedCandidates = this.#sortIpAddresses(lanCandidates);
+
+      for (const candidate of sortedCandidates) {
         try {
           const reachable = await this.#checkDeviceMacAddress(candidate, infoPort, targetMacAddr);
           if (reachable) {
             // 找到匹配的IP地址，重新连接WebSocket
-            await this.#reconnectWithNewUrl(candidate);
+            // 弹窗询问用户是否使用局域网连接
+            const result = await this.#confirm({
+              title: "检测到局域网连接",
+              prompt: `检测到设备在局域网地址 ${candidate} 可达，是否切换到局域网连接以获得更好的性能？`,
+              ok: "使用局域网连接",
+              cancel: "继续使用当前连接",
+              // variant: "info",
+            });
+
+            if (result === "ok") {
+              await this.#reconnectWithNewUrl(candidate);
+            } else {
+              this.#client.login(this.#userId, this.#username);
+            }
             return;
           }
         } catch (error) {
@@ -1543,9 +1640,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
         }
       }
       // 如果所有候选地址都无法连接或MAC地址不匹配，则使用原始连接
-      this.#client?.login(this.#userId, this.#username);
+      this.#client.login(this.#userId, this.#username);
     } else {
-      this.#client?.login(this.#userId, this.#username);
+      this.#client.login(this.#userId, this.#username);
     }
   }
 
@@ -1570,7 +1667,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
 
       const data = (await response.json()) as DeviceInfo;
-      const deviceMacAddr = data.macAddress;
+      const deviceMacAddr = data.macAddr;
 
       if (typeof deviceMacAddr === "string") {
         // 比较MAC地址（忽略大小写和分隔符）
@@ -1591,22 +1688,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
     try {
       // 关闭当前连接
       this.#client?.close();
-      this.#client = undefined;
 
       // 更新URL为局域网地址
-      const urlObj = new URL(this.#url);
-      const newUrl = `${urlObj.protocol}//${newIp}:${urlObj.port}${urlObj.pathname}${urlObj.search}`;
+      const newUrl = `ws://${newIp}:21274`;
       this.#url = newUrl;
-      this.#name = newUrl;
-
-      // 更新URL状态
-      this.#urlState = {
-        sourceId: this.#sourceId,
-        parameters: { ...(this.#urlState?.parameters ?? {}), url: this.#url },
-      };
 
       log.info(`Reconnecting with LAN address: ${this.#url}`);
-
       // 重新开始连接
       this.#open();
     } catch (error) {

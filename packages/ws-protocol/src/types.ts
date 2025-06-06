@@ -259,7 +259,7 @@ export type ServerLogin = {
   userId: string;
   username: string;
   infoPort: string;
-  MacAddr: string;
+  macAddr: string;
   lanCandidates: string[];
 };
 
