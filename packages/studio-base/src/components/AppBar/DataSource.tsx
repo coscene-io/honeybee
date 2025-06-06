@@ -5,13 +5,24 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ErrorCircle16Filled } from "@fluentui/react-icons";
+import { ErrorCircle16Filled, LinkMultipleFilled } from "@fluentui/react-icons";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import { CircularProgress, IconButton, Link, Breadcrumbs } from "@mui/material";
-import { useMemo } from "react";
+import SignalCellularAltIcon from "@mui/icons-material/SignalCellularAlt";
+import {
+  CircularProgress,
+  IconButton,
+  Link,
+  Breadcrumbs,
+  Popover,
+  Typography,
+  Box,
+  Paper,
+} from "@mui/material";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
 import { UploadFile } from "@foxglove/studio-base/components/AppBar/UploadFile";
 import {
   MessagePipelineContext,
@@ -83,6 +94,20 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     whiteSpace: "nowrap",
     color: theme.palette.appBar.text,
   },
+  networkStatusPopover: {
+    padding: theme.spacing(2),
+    minWidth: 200,
+    maxWidth: 300,
+  },
+  statusHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+    marginBottom: theme.spacing(1),
+  },
+  fluentIconPrimary: {
+    color: theme.palette.primary.main,
+  },
 }));
 
 const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
@@ -97,56 +122,161 @@ const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 
-export function DataSource(): React.JSX.Element {
-  const { t } = useTranslation("appBar");
-  const { classes, cx } = useStyles();
-
+const UploadFileComponent = () => {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerName = useMessagePipeline(selectPlayerName);
-  const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
-  const seek = useMessagePipeline(selectSeek);
-  // CoScene
-  const project = useBaseInfo(selectProject);
-  const urlState = useMessagePipeline(selectUrlState);
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const dataSource = useBaseInfo(selectDataSource);
-  const enableList = useBaseInfo(selectEnableList);
+  const initializing = playerPresence === PlayerPresence.INITIALIZING;
+  const playerDisplayName =
+    initializing && playerName == undefined ? "Initializing..." : playerName;
 
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  return (
+    <Stack direction="row" alignItems="center" gap={1}>
+      {playerDisplayName} <UploadFile />
+    </Stack>
+  );
+};
 
+const Adornment = () => {
+  const { classes, cx } = useStyles();
   const { sidebarActions } = useWorkspaceActions();
 
-  // A crude but correct proxy (for our current architecture) for whether a connection is live
-  const isLiveConnection = seek == undefined;
+  const playerPresence = useMessagePipeline(selectPlayerPresence);
+  const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
 
   const reconnecting = playerPresence === PlayerPresence.RECONNECTING;
   const initializing = playerPresence === PlayerPresence.INITIALIZING;
+
   const error =
     playerPresence === PlayerPresence.ERROR ||
     playerProblems.some((problem) => problem.severity === "error");
   const loading = reconnecting || initializing;
 
-  const playerDisplayName =
-    initializing && playerName == undefined ? "Initializing..." : playerName;
+  return (
+    <div className={cx(classes.adornment, { [classes.adornmentError]: error })}>
+      {loading && (
+        <CircularProgress
+          size={ICON_SIZE}
+          color="inherit"
+          className={classes.spinner}
+          variant="indeterminate"
+        />
+      )}
+      {error && (
+        <IconButton
+          color="inherit"
+          className={classes.iconButton}
+          onClick={() => {
+            sidebarActions.left.setOpen(true);
+            sidebarActions.left.selectItem("problems");
+          }}
+        >
+          <ErrorCircle16Filled />
+        </IconButton>
+      )}
+    </div>
+  );
+};
 
-  const hostName = urlState?.parameters?.hostName;
-  const deviceLink = urlState?.parameters?.deviceLink ?? "";
+const RealTimeVizLinkState = () => {
+  const { classes } = useStyles();
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>(undefined);
+  const urlState = useMessagePipeline(selectUrlState);
+  const { t } = useTranslation("appBar");
 
-  if (playerPresence === PlayerPresence.NOT_PRESENT) {
-    return <div className={classes.sourceName}>{t("noDataSource")}</div>;
-  }
+  const linkType = urlState?.parameters?.linkType ?? "";
+  const url = urlState?.parameters?.url ?? "";
+  const open = Boolean(anchorEl);
 
-  // CoScene
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(undefined);
+  };
+
+  return (
+    <>
+      <AppBarIconButton
+        color="inherit"
+        onClick={handleClick}
+        aria-describedby={open ? "network-status-popover" : undefined}
+      >
+        {linkType === "colink" ? (
+          <SignalCellularAltIcon fontSize="small" />
+        ) : (
+          <LinkMultipleFilled fontSize={20} />
+        )}
+      </AppBarIconButton>
+      <Popover
+        id="network-status-popover"
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "center",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "center",
+        }}
+      >
+        <Paper className={classes.networkStatusPopover}>
+          <Box className={classes.statusHeader}>
+            {linkType === "colink" ? (
+              <SignalCellularAltIcon fontSize="small" color="primary" />
+            ) : (
+              <LinkMultipleFilled fontSize={16} className={classes.fluentIconPrimary} />
+            )}
+            <Typography variant="subtitle2" fontWeight="medium">
+              {t("networkConnection")}
+            </Typography>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            {linkType === "colink" ? (
+              <>{t("colinkRemoteConnection")}</>
+            ) : (
+              <>
+                {t("localNetworkConnection")} {url && new URL(url).hostname}
+              </>
+            )}
+          </Typography>
+        </Paper>
+      </Popover>
+    </>
+  );
+};
+
+const RealTimeVizDataSource = () => {
+  const { classes } = useStyles();
+  const { t } = useTranslation("appBar");
+
+  const playerPresence = useMessagePipeline(selectPlayerPresence);
+
+  const project = useBaseInfo(selectProject);
+  const urlState = useMessagePipeline(selectUrlState);
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const enableList = useBaseInfo(selectEnableList);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const dataSource = useBaseInfo(selectDataSource);
+  const playerName = useMessagePipeline(selectPlayerName);
+
   const projectHref =
     process.env.NODE_ENV === "development"
       ? `https://dev.coscene.cn/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
       : `/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
 
-  const recordHref = `${projectHref}/records/${baseInfo.recordId}`;
-  const jobHref = `${projectHref}/matrix/workflow-runs/${baseInfo.workflowRunsId}/job-runs/${baseInfo.jobRunsId}`;
+  const hostName = urlState?.parameters?.hostName;
+  const deviceLink = urlState?.parameters?.deviceLink ?? "";
 
-  const secondaryHref = baseInfo.jobRunsDisplayName ? jobHref : recordHref;
+  const initializing = playerPresence === PlayerPresence.INITIALIZING;
+
+  const secondaryHref = `${projectHref}/records/${baseInfo.recordId}`;
+  const playerDisplayName =
+    initializing && playerName == undefined ? "Initializing..." : playerName;
 
   const breadcrumbs = [
     <Link
@@ -173,68 +303,117 @@ export function DataSource(): React.JSX.Element {
 
   return (
     <>
+      <RealTimeVizLinkState />
+      <div className={classes.textTruncate}>
+        {enableList.uploadLocalFile === "ENABLE" ? (
+          <UploadFileComponent />
+        ) : (
+          <Stack direction="row" alignItems="center" gap={2}>
+            <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+              {baseInfo.projectSlug && dataSource?.id === "coscene-data-platform"
+                ? breadcrumbs
+                : ""}
+              <Link
+                href={deviceLink || "#"}
+                target="_blank"
+                underline="hover"
+                key="1"
+                color="inherit"
+                className={classes.breadcrumbs}
+              >
+                {hostName ?? playerDisplayName ?? t("unknown")}
+              </Link>
+            </Breadcrumbs>
+          </Stack>
+        )}
+      </div>
+      <span>/</span>
+      <EndTimestamp />
+    </>
+  );
+};
+
+const CommonDataSource = () => {
+  const { classes } = useStyles();
+
+  const project = useBaseInfo(selectProject);
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const enableList = useBaseInfo(selectEnableList);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const dataSource = useBaseInfo(selectDataSource);
+
+  const projectHref =
+    process.env.NODE_ENV === "development"
+      ? `https://dev.coscene.cn/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
+      : `/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
+
+  const secondaryHref = `${projectHref}/records/${baseInfo.recordId}`;
+
+  const breadcrumbs = [
+    <Link
+      href={projectHref}
+      target="_blank"
+      underline="hover"
+      key="1"
+      color="inherit"
+      className={classes.breadcrumbs}
+    >
+      {project.value?.displayName}
+    </Link>,
+    <Link
+      href={secondaryHref}
+      target="_blank"
+      underline="hover"
+      key="2"
+      color="inherit"
+      className={classes.breadcrumbs}
+    >
+      {baseInfo.jobRunsDisplayName ?? baseInfo.recordDisplayName}
+    </Link>,
+  ];
+
+  return (
+    <>
+      <div className={classes.textTruncate}>
+        {enableList.uploadLocalFile === "ENABLE" ? (
+          <UploadFileComponent />
+        ) : (
+          <Stack direction="row" alignItems="center" gap={2}>
+            <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+              {baseInfo.projectSlug && dataSource?.id === "coscene-data-platform"
+                ? breadcrumbs
+                : ""}
+            </Breadcrumbs>
+          </Stack>
+        )}
+      </div>
+    </>
+  );
+};
+
+export function DataSource(): React.JSX.Element {
+  const { t } = useTranslation("appBar");
+  const { classes } = useStyles();
+
+  const playerPresence = useMessagePipeline(selectPlayerPresence);
+  const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
+  const seek = useMessagePipeline(selectSeek);
+
+  // A crude but correct proxy (for our current architecture) for whether a connection is live
+  const isLiveConnection = seek == undefined;
+
+  if (playerPresence === PlayerPresence.NOT_PRESENT) {
+    return <div className={classes.sourceName}>{t("noDataSource")}</div>;
+  }
+
+  return (
+    <>
       <WssErrorModal playerProblems={playerProblems} />
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
-          <div className={classes.textTruncate}>
-            {enableList.uploadLocalFile === "ENABLE" ? (
-              <Stack direction="row" alignItems="center" gap={1}>
-                {playerDisplayName} <UploadFile />
-              </Stack>
-            ) : (
-              <Stack direction="row" alignItems="center" gap={2}>
-                <Breadcrumbs
-                  separator={<NavigateNextIcon fontSize="small" />}
-                  aria-label="breadcrumb"
-                >
-                  {baseInfo.projectSlug && dataSource?.id === "coscene-data-platform"
-                    ? breadcrumbs
-                    : ""}
-                  {isLiveConnection && (
-                    <Link
-                      href={deviceLink || "#"}
-                      target="_blank"
-                      underline="hover"
-                      key="1"
-                      color="inherit"
-                      className={classes.breadcrumbs}
-                    >
-                      {hostName ?? playerDisplayName ?? t("unknown")}
-                    </Link>
-                  )}
-                </Breadcrumbs>
-              </Stack>
-            )}
-          </div>
-          {isLiveConnection && (
-            <>
-              <span>/</span>
-              <EndTimestamp />
-            </>
-          )}
+          {isLiveConnection ? <RealTimeVizDataSource /> : <CommonDataSource />}
         </div>
-        <div className={cx(classes.adornment, { [classes.adornmentError]: error })}>
-          {loading && (
-            <CircularProgress
-              size={ICON_SIZE}
-              color="inherit"
-              className={classes.spinner}
-              variant="indeterminate"
-            />
-          )}
-          {error && (
-            <IconButton
-              color="inherit"
-              className={classes.iconButton}
-              onClick={() => {
-                sidebarActions.left.setOpen(true);
-                sidebarActions.left.selectItem("problems");
-              }}
-            >
-              <ErrorCircle16Filled />
-            </IconButton>
-          )}
-        </div>
+        <Adornment />
       </Stack>
     </>
   );
