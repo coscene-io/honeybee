@@ -483,6 +483,7 @@ function FieldInput({
           }}
         />
       );
+    // select file from project common files
     case "button":
       return (
         <Button onClick={field.onClick} fullWidth variant="outlined">
