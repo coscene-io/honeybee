@@ -10,7 +10,7 @@ import { Button, Dialog, Stack, Typography } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ChooserComponent } from "@foxglove/studio-base/components/CoSceneChooser";
+import { ChooserComponent } from "@foxglove/studio-base/components/CoSceneChooser/ChooserComponent";
 
 export function ChoiceRecordDialog({
   open,
