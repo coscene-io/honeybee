@@ -43,12 +43,12 @@ const useStyles = makeStyles()((theme) => ({
 
 function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
   const {
+    checkFileSupportedFunc,
     backdropAnimation,
     open,
     closeDialog,
+    mode,
     onConfirm,
-    type,
-    checkFileSupportedFunc,
     maxFilesNumber,
   } = props;
 
@@ -99,31 +99,39 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
   );
 
   const handleConfirm = useCallback(() => {
-    if (type === "files") {
-      onConfirm(selectedFiles);
+    const isFileMode = mode === "select-files-from-record" || mode === "select-files-from-project";
+
+    if (isFileMode) {
+      (onConfirm as (files: SelectedFile[]) => void)(selectedFiles);
       setSelectedFiles([]);
       closeDialog();
       return;
     }
 
     if (targetRecord && targetProject) {
-      onConfirm(targetRecord, targetProject);
+      (onConfirm as (record: Record, project: Project) => void)(targetRecord, targetProject);
       closeDialog();
     }
-  }, [type, selectedFiles, targetRecord, targetProject, onConfirm, closeDialog]);
+  }, [mode, selectedFiles, targetRecord, targetProject, onConfirm, closeDialog]);
 
   const isConfirmDisabled = useMemo(() => {
-    if (type === "files") {
+    const isFileMode = mode === "select-files-from-record" || mode === "select-files-from-project";
+
+    if (isFileMode) {
       return selectedFiles.length === 0;
     }
     return !targetRecord || !targetProject;
-  }, [type, selectedFiles.length, targetRecord, targetProject]);
+  }, [mode, selectedFiles.length, targetRecord, targetProject]);
 
   const dialogTitle = useMemo(() => {
-    return type === "files"
+    const isFileMode = mode === "select-files-from-record" || mode === "select-files-from-project";
+
+    return isFileMode
       ? t("selecteFilesFromRecord")
       : t("selectRecordToSaveTheMoment", { ns: "cosEvent" });
-  }, [type, t]);
+  }, [mode, t]);
+
+  const showFilesList = mode === "select-files-from-record" || mode === "select-files-from-project";
 
   return (
     <Dialog
@@ -154,10 +162,10 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
             setTargetInfo={handleTargetInfoChange}
             files={selectedFiles}
             setFiles={setSelectedFiles}
-            type={type}
+            mode={mode}
             checkFileSupportedFunc={checkFileSupportedFunc ?? checkBagFileSupported}
           />
-          {type === "files" && <FilesList files={selectedFiles} setFiles={setSelectedFiles} />}
+          {showFilesList && <FilesList files={selectedFiles} setFiles={setSelectedFiles} />}
         </Stack>
 
         <Stack direction="row" justifyContent="flex-end" paddingTop={2} gap={1}>

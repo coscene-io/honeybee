@@ -12,25 +12,12 @@ import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha
 import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 
-export type ChooserDialogProps =
-  | {
-      open: boolean;
-      closeDialog: () => void;
-      onConfirm: (record: Record, project: Project) => void;
-      backdropAnimation?: boolean;
-      type: "record";
-      checkFileSupportedFunc?: undefined;
-      maxFilesNumber?: undefined;
-    }
-  | {
-      open: boolean;
-      closeDialog: () => void;
-      onConfirm: (files: SelectedFile[]) => void;
-      backdropAnimation?: boolean;
-      checkFileSupportedFunc?: (file: File) => boolean;
-      type: "files";
-      maxFilesNumber?: number;
-    };
+// Chooser mode definitions
+export type ChooserMode =
+  | "select-files-from-record" // Project → Record → Files (select)
+  | "select-record" // Project → Record (select)
+  | "create-record" // Project → Record (create)
+  | "select-files-from-project"; // Project → Files (cross-record selection)
 
 export interface SelectedFile {
   file: File;
@@ -40,7 +27,6 @@ export interface SelectedFile {
 }
 
 export type ListType = "projects" | "records" | "files";
-export type RecordType = "create" | "select";
 
 export interface PaginationState {
   page: number;
@@ -48,28 +34,46 @@ export interface PaginationState {
   filter: string;
 }
 
-export interface ChooserComponentProps {
-  setTargetInfo: (params: { record?: Record; project?: Project; recordType?: RecordType }) => void;
+// Base chooser properties
+export interface BaseChooserProps {
+  mode: ChooserMode;
+  setTargetInfo: (params: { record?: Record; project?: Project; isCreating?: boolean }) => void;
   files: SelectedFile[];
   setFiles: (files: SelectedFile[]) => void;
-  type: "record" | "files";
-  checkFileSupportedFunc: (file: File) => boolean;
-  defaultRecordType?: RecordType;
+  checkFileSupportedFunc?: (file: File) => boolean;
   defaultRecordName?: string;
   createRecordConfirmText?: string;
 }
 
-export interface FilesListProps {
-  files: SelectedFile[];
-  setFiles: (files: SelectedFile[]) => void;
+// Base dialog properties
+interface BaseDialogProps {
+  open: boolean;
+  closeDialog: () => void;
+  backdropAnimation?: boolean;
 }
 
+// Dialog properties - internal properties are optional, managed by dialog internally
+export type ChooserDialogProps = BaseDialogProps & {
+  checkFileSupportedFunc?: (file: File) => boolean;
+} & (
+    | {
+        mode: "select-record" | "create-record";
+        onConfirm: (record: Record, project: Project) => void;
+        maxFilesNumber?: undefined;
+      }
+    | {
+        mode: "select-files-from-record" | "select-files-from-project";
+        onConfirm: (files: SelectedFile[]) => void;
+        maxFilesNumber?: number;
+      }
+  );
+
+// Breadcrumb navigation properties
 export interface CustomBreadcrumbsProps {
   project?: Project;
   clearProject: () => void;
   record?: Record;
   clearRecord: () => void;
-  type: "record" | "files";
-  recordType: RecordType;
-  setRecordType: (recordType: RecordType) => void;
+  mode: ChooserMode;
+  setRecordType: (type: "create" | "select") => void;
 }

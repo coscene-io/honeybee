@@ -17,13 +17,18 @@ import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 
-import { FilesListProps, SelectedFile } from "./types";
+import { SelectedFile } from "./types";
 
 const useStyles = makeStyles()((theme) => ({
   filesListContainer: {
     borderLeft: `1px solid ${theme.palette.divider}`,
   },
 }));
+
+interface FilesListProps {
+  files: SelectedFile[];
+  setFiles: (files: SelectedFile[]) => void;
+}
 
 export const FilesList = memo<FilesListProps>(({ files, setFiles }) => {
   const { t } = useTranslation("cosPlaylist");
