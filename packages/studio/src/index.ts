@@ -692,10 +692,9 @@ export type SettingsTreeFieldValue =
       min?: number;
     }
   | {
-      input: "button";
+      input: "commonResourceSelector";
       value?: string;
       label?: string;
-      onClick: () => void;
     };
 
 export type SettingsTreeField = SettingsTreeFieldValue & {

@@ -401,15 +401,12 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
                   ),
                 }
               : undefined,
-          projectGeneralResource:
+          projectCommonResourceSelector:
             config.sourceType === "projectGeneralResource"
               ? {
                   label: "Project General Resource",
-                  input: "button",
+                  input: "commonResourceSelector",
                   value: "test",
-                  onClick: () => {
-                    // console.log("hello world");
-                  },
                 }
               : undefined,
           label: {

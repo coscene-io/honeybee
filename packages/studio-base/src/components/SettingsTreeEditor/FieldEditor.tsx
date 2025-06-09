@@ -9,7 +9,6 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import ErrorIcon from "@mui/icons-material/Error";
 import {
   Autocomplete,
-  Button,
   MenuItem,
   MenuList,
   MenuListProps,
@@ -27,6 +26,7 @@ import { v4 as uuid } from "uuid";
 import { Immutable, SettingsTreeAction, SettingsTreeField } from "@foxglove/studio";
 import CoSceneDeduplicatedMessagePath from "@foxglove/studio-base/components/CoSceneDeduplicatedMessagePath/MessagePathInput";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
+import CommonResourceSelecter from "@foxglove/studio-base/components/SettingsTreeEditor/inputs/CommonResourceSelecter";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 
@@ -483,12 +483,17 @@ function FieldInput({
           }}
         />
       );
-    // select file from project common files
-    case "button":
+    case "commonResourceSelector":
       return (
-        <Button onClick={field.onClick} fullWidth variant="outlined">
-          {field.label}
-        </Button>
+        <CommonResourceSelecter
+          value={field.value}
+          onChange={(value) => {
+            actionHandler({
+              action: "update",
+              payload: { path, input: "commonResourceSelector", value },
+            });
+          }}
+        />
       );
   }
 }

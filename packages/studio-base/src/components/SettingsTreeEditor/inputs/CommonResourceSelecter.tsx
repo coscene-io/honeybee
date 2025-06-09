@@ -5,8 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Button } from "@mui/material";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
+
+import CoSceneChooser from "@foxglove/studio-base/components/CoSceneChooser";
 
 const useStyles = makeStyles()((theme) => ({
   styledButton: {
@@ -34,16 +37,37 @@ interface CommonSourceSelecterProps {
   onChange: (value?: string) => void;
 }
 
-export default function CommonSourceSelecter({
+export default function CommonResourceSelecter({
   value,
   onChange,
 }: CommonSourceSelecterProps): React.JSX.Element {
   const { t } = useTranslation("cosSettings");
   const { classes } = useStyles();
+  const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);
 
   return (
     <>
-      <Button className={classes.styledButton} fullWidth variant="text">
+      <CoSceneChooser
+        open={addFileDialogOpen}
+        closeDialog={() => {
+          setAddFileDialogOpen(false);
+        }}
+        onConfirm={(files) => {
+          if (files.length > 0) {
+            onChange(files[0]?.file.name ?? undefined);
+          }
+        }}
+        mode="select-files-from-project"
+        maxFilesNumber={1}
+      />
+      <Button
+        className={classes.styledButton}
+        fullWidth
+        variant="text"
+        onClick={() => {
+          setAddFileDialogOpen(true);
+        }}
+      >
         {value ?? t("selectCommonSource")}
       </Button>
     </>
