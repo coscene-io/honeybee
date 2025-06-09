@@ -172,7 +172,7 @@ export function ChooserComponent({
     filter.setField("recursive", [BinaryOperator.EQ], ["true"]);
 
     return await consoleApi.listFiles({
-      revcordName: record.name,
+      recordName: record.name,
       pageSize: filesPagination.pageSize,
       filter: filter.toQueryString(new SerializeOption(false)),
       currentPage: filesPagination.page,
