@@ -351,9 +351,16 @@ export function ChooserComponent({
     // select-files-from-project mode: get files directly from project
     // Note: This requires using all records under the project to get files, or using specific project file API
     if (mode === "select-files-from-project" && project) {
-      // Return empty result for now, needs implementation based on actual API
-      // TODO: Implement project-level file list retrieval
-      return new ListFilesResponse();
+      const filter = CosQuery.Companion.empty();
+      filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesPagination.debouncedFilter]);
+      filter.setField("recursive", [BinaryOperator.EQ], ["true"]);
+
+      return await consoleApi.listFiles({
+        parent: project.name,
+        pageSize: filesPagination.pageSize,
+        filter: filter.toQueryString(new SerializeOption(false)),
+        currentPage: filesPagination.page,
+      });
     }
 
     // select-files-from-record mode: get files from record
@@ -363,7 +370,7 @@ export function ChooserComponent({
       filter.setField("recursive", [BinaryOperator.EQ], ["true"]);
 
       return await consoleApi.listFiles({
-        recordName: record.name,
+        parent: record.name,
         pageSize: filesPagination.pageSize,
         filter: filter.toQueryString(new SerializeOption(false)),
         currentPage: filesPagination.page,
