@@ -1047,18 +1047,18 @@ class CoSceneConsoleApi {
   }
 
   public async listFiles({
-    revcordName,
+    recordName,
     pageSize,
     filter,
     currentPage,
   }: {
-    revcordName: string;
+    recordName: string;
     pageSize: number;
     filter: string;
     currentPage: number;
   }): Promise<ListFilesResponse> {
     const req = new ListFilesRequest({
-      parent: revcordName,
+      parent: recordName,
       filter,
       pageSize,
       skip: pageSize * currentPage,
