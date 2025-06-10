@@ -237,6 +237,7 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
 
   public override settingsNodes(): SettingsTreeEntry[] {
     const entries: SettingsTreeEntry[] = [];
+
     const baseDisplayModeField: SettingsTreeField = {
       label: "Display mode",
       input: "select",
@@ -255,6 +256,7 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
         },
       ],
     };
+
     const baseFallbackColorField: SettingsTreeField = {
       label: "Color",
       help: "Fallback color used in case a link does not specify any color itself",
