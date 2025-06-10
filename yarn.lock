@@ -4101,12 +4101,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis-es@npm:0.0.358":
-  version: 0.0.358
-  resolution: "@coscene-io/cosceneapis-es@npm:0.0.358::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es%2F0.0.358%2Ff9816b3ef45f9fab6adff2b885fe2931bf537860"
+"@coscene-io/cosceneapis-es@npm:0.0.367":
+  version: 0.0.367
+  resolution: "@coscene-io/cosceneapis-es@npm:0.0.367::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es%2F0.0.367%2F6142f79d3720edf8599f68fb4f2cb33270d4d455"
   dependencies:
     "@buf/googleapis_googleapis.bufbuild_es": 1.2.0-20230502210827-cc916c318597.1
-  checksum: 40b847b94d0602fff041b60715caeec8c9ac5449cb82462735f965dfb6f4a930ea4e4f6fbdd569d4672ebe6ebe1eaf56029daa844a7a1551c71b2361990eb007
+  checksum: 4bb9dc7f716df82696c155203626583d7a53ef9b4b5e62988bb25984f05ad9c018c6ad97af8ebe07e2d8da33877a326660a372780ce733537068cb07273c3398
   languageName: node
   linkType: hard
 
@@ -5539,7 +5539,7 @@ __metadata:
     "@bufbuild/connect-web": 0.13.0
     "@bufbuild/protobuf": 1.3.0
     "@coscene-io/comlink": 4.4.1
-    "@coscene-io/cosceneapis-es": 0.0.358
+    "@coscene-io/cosceneapis-es": 0.0.367
     "@coscene-io/cosel": 23.49.2
     "@emotion/cache": 11.14.0
     "@emotion/react": 11.14.0
