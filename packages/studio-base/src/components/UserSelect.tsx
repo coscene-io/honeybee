@@ -33,13 +33,15 @@ export function UserSelect({
   allowClear,
   disabled,
   error,
+  multiple,
 }: {
   allowClear?: boolean;
-  value: string;
-  onChange: (value: User) => void;
+  value: string | string[];
+  onChange: (value: User | User[]) => void;
   onMetaDataKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   disabled?: boolean;
   error?: boolean;
+  multiple?: boolean;
 }): React.ReactNode {
   const consoleApi = useConsoleApi();
   const { classes } = useStyles();
@@ -59,39 +61,82 @@ export function UserSelect({
   }
 
   const activatedUsers = users.value.filter((user) => user.active);
-  const targetUser = activatedUsers.find((user) => user.name === value) ?? undefined;
 
-  return (
-    <Autocomplete
-      size="small"
-      disabled={disabled}
-      disableClearable={allowClear === false}
-      options={activatedUsers}
-      getOptionLabel={(option) => option.nickname ?? ""}
-      renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
-      renderOption={(optionProps, option) => (
-        <Box component="li" {...optionProps} key={option.name}>
-          <img className={classes.avatar} src={option.avatar} />
-          {option.nickname}
-        </Box>
-      )}
-      value={targetUser}
-      isOptionEqualToValue={(option, value) => option.name === value.name}
-      onChange={(_event, option) => {
-        if (option) {
-          onChange(option);
-        }
-      }}
-      filterOptions={(options, { inputValue }) => {
-        if (!inputValue) {
-          return options;
-        }
-        return options.filter((option) => {
-          const pinyinMatch = PinyinMatch.match(option.nickname ?? "", inputValue);
-          return (option.nickname ?? "").includes(inputValue) || pinyinMatch !== false;
-        });
-      }}
-      onKeyDown={onMetaDataKeyDown}
-    />
-  );
+  // 处理单选和多选的值
+  if (multiple === true) {
+    // 多选模式
+    const valueArray = Array.isArray(value) ? value : [value];
+    const selectedUsers = activatedUsers.filter((user) => valueArray.includes(user.name));
+
+    return (
+      <Autocomplete
+        size="small"
+        disabled={disabled}
+        disableClearable={allowClear === false}
+        multiple
+        options={activatedUsers}
+        getOptionLabel={(option) => option.nickname ?? ""}
+        renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
+        renderOption={(optionProps, option) => (
+          <Box component="li" {...optionProps} key={option.name}>
+            <img className={classes.avatar} src={option.avatar} />
+            {option.nickname}
+          </Box>
+        )}
+        value={selectedUsers}
+        isOptionEqualToValue={(option, value) => option.name === value.name}
+        onChange={(_event, options) => {
+          onChange(options);
+        }}
+        filterOptions={(options, { inputValue }) => {
+          if (!inputValue) {
+            return options;
+          }
+          return options.filter((option) => {
+            const pinyinMatch = PinyinMatch.match(option.nickname ?? "", inputValue);
+            return (option.nickname ?? "").includes(inputValue) || pinyinMatch !== false;
+          });
+        }}
+        onKeyDown={onMetaDataKeyDown}
+      />
+    );
+  } else {
+    // 单选模式
+    const singleValue = Array.isArray(value) ? value[0] : value;
+    const selectedUser = activatedUsers.find((user) => user.name === singleValue) ?? undefined;
+
+    return (
+      <Autocomplete
+        size="small"
+        disabled={disabled}
+        disableClearable={allowClear === false}
+        options={activatedUsers}
+        getOptionLabel={(option) => option.nickname ?? ""}
+        renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
+        renderOption={(optionProps, option) => (
+          <Box component="li" {...optionProps} key={option.name}>
+            <img className={classes.avatar} src={option.avatar} />
+            {option.nickname}
+          </Box>
+        )}
+        value={selectedUser}
+        isOptionEqualToValue={(option, value) => option.name === value.name}
+        onChange={(_event, option) => {
+          if (option) {
+            onChange(option);
+          }
+        }}
+        filterOptions={(options, { inputValue }) => {
+          if (!inputValue) {
+            return options;
+          }
+          return options.filter((option) => {
+            const pinyinMatch = PinyinMatch.match(option.nickname ?? "", inputValue);
+            return (option.nickname ?? "").includes(inputValue) || pinyinMatch !== false;
+          });
+        }}
+        onKeyDown={onMetaDataKeyDown}
+      />
+    );
+  }
 }
