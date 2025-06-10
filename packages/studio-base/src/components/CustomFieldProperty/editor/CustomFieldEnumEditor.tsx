@@ -44,7 +44,7 @@ export function CustomFieldEnumEditor({
     return _orderBy(options, "keyword");
   }, [property]);
 
-  if (property?.type.case === "enums" && property.type.value.multiple === true) {
+  if (property?.type.case === "enums" && property.type.value.multiple) {
     return (
       <Autocomplete
         multiple
@@ -62,8 +62,8 @@ export function CustomFieldEnumEditor({
         isOptionEqualToValue={(option, value) => option.value === value.value}
         value={
           customFieldValue.value.case === "enums"
-            ? options.filter(
-                (option) => (customFieldValue.value.value as EnumValue).ids?.includes(option.value),
+            ? options.filter((option) =>
+                (customFieldValue.value.value as EnumValue).ids.includes(option.value),
               )
             : []
         }
