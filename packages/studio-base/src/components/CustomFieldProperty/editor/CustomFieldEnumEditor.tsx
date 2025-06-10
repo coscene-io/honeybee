@@ -44,13 +44,56 @@ export function CustomFieldEnumEditor({
     return _orderBy(options, "keyword");
   }, [property]);
 
+  if (property?.type.case === "enums" && property.type.value.multiple) {
+    return (
+      <Autocomplete
+        multiple
+        size="small"
+        disableClearable={allowClear === false}
+        onChange={(_, newValue) => {
+          customFieldValue.value = {
+            case: "enums",
+            value: new EnumValue({ ids: newValue.map((v) => v.value) }),
+          };
+          onChange(customFieldValue);
+        }}
+        options={options}
+        getOptionLabel={(option) => option.keyword}
+        isOptionEqualToValue={(option, value) => option.value === value.value}
+        value={
+          customFieldValue.value.case === "enums"
+            ? options.filter((option) =>
+                (customFieldValue.value.value as EnumValue).ids.includes(option.value),
+              )
+            : []
+        }
+        disabled={disabled}
+        noOptionsText={t("noMatchingItemsFound")}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            error={error}
+            variant="filled"
+            placeholder={property.description || t("pleaseSelect")}
+            inputProps={{
+              ...params.inputProps,
+              "aria-label": property.description || t("pleaseSelect"),
+            }}
+          />
+        )}
+      />
+    );
+  }
+
   return (
     <Autocomplete
       size="small"
       disableClearable={allowClear === false}
       onChange={(_, newValue) => {
-        customFieldValue.value = { case: "enums", value: new EnumValue({ id: newValue?.value }) };
-        onChange(customFieldValue);
+        if (newValue) {
+          customFieldValue.value = { case: "enums", value: new EnumValue({ id: newValue.value }) };
+          onChange(customFieldValue);
+        }
       }}
       options={options}
       getOptionLabel={(option) => option.keyword}

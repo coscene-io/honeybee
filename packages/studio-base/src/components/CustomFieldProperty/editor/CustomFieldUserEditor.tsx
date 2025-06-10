@@ -28,6 +28,49 @@ export function CustomFieldUserEditor({
     value = customFieldValue.value.value.ids[0] ?? "";
   }
 
+  const multiSelect =
+    customFieldValue.property?.type.case === "user"
+      ? customFieldValue.property.type.value.multiple
+      : false;
+
+  if (multiSelect) {
+    let value: string[] = [];
+    if (customFieldValue.value.case === "user") {
+      value = customFieldValue.value.value.ids.map((id) => {
+        // if id is reference field will be like {{task.assignee}}
+        if (id && !id.startsWith("users/") && !id.startsWith("{{")) {
+          return `users/${id}`;
+        }
+        return id;
+      });
+    }
+
+    return (
+      <UserSelect
+        value={value}
+        allowClear={allowClear}
+        disabled={disabled}
+        error={error}
+        multiple
+        onChange={(users) => {
+          if (Array.isArray(users)) {
+            const userIds = users.map((u) => {
+              const id = u.name.split("/").pop() ?? "";
+              return id;
+            });
+            customFieldValue.value = {
+              case: "user",
+              value: new UserValue({ ids: userIds }),
+            };
+          } else {
+            customFieldValue.value = { case: undefined };
+          }
+          onChange(customFieldValue);
+        }}
+      />
+    );
+  }
+
   return (
     <UserSelect
       value={`users/${value}`}
@@ -35,11 +78,13 @@ export function CustomFieldUserEditor({
       disabled={disabled}
       error={error}
       onChange={(user) => {
-        customFieldValue.value = {
-          case: "user",
-          value: new UserValue({ ids: [user.name.split("/").pop() ?? ""] }),
-        };
-        onChange(customFieldValue);
+        if (!Array.isArray(user)) {
+          customFieldValue.value = {
+            case: "user",
+            value: new UserValue({ ids: [user.name.split("/").pop() ?? ""] }),
+          };
+          onChange(customFieldValue);
+        }
       }}
     />
   );
