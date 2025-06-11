@@ -1101,7 +1101,9 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
                 <UserSelect
                   value={task.assignee}
                   onChange={(user) => {
-                    setTask((s) => ({ ...s, assignee: user.name }));
+                    if (!Array.isArray(user)) {
+                      setTask((s) => ({ ...s, assignee: user.name }));
+                    }
                   }}
                   onMetaDataKeyDown={onMetaDataKeyDown}
                 />
