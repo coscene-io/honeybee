@@ -85,7 +85,7 @@ export type LayerSettingsUrdf = BaseSettings & {
 
 export type LayerSettingsCustomUrdf = CustomLayerSettings & {
   layerId: "foxglove.Urdf";
-  sourceType: "url" | "filePath" | "param" | "topic" | "projectGeneralResource";
+  sourceType: "url" | "filePath" | "param" | "topic" | "commonResource";
   url?: string;
   filePath?: string;
   parameter?: string;
@@ -93,6 +93,7 @@ export type LayerSettingsCustomUrdf = CustomLayerSettings & {
   framePrefix: string;
   displayMode: "auto" | "visual" | "collision";
   fallbackColor?: string;
+  commonResource?: string;
 };
 
 const DEFAULT_SETTINGS: LayerSettingsUrdf = {
@@ -118,6 +119,7 @@ const DEFAULT_CUSTOM_SETTINGS: LayerSettingsCustomUrdf = {
   framePrefix: "",
   displayMode: "auto",
   fallbackColor: DEFAULT_COLOR_STR,
+  commonResource: "",
 };
 const URDF_TOPIC_SCHEMAS = new Set<string>(["std_msgs/String", "std_msgs/msg/String"]);
 
@@ -357,7 +359,7 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
               },
               {
                 label: "Project General Resource",
-                value: "projectGeneralResource",
+                value: "commonResource",
               },
             ],
           },
@@ -403,12 +405,12 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
                   ),
                 }
               : undefined,
-          projectCommonResourceSelector:
-            config.sourceType === "projectGeneralResource"
+          commonResource:
+            config.sourceType === "commonResource"
               ? {
                   label: "Project General Resource",
                   input: "commonResourceSelector",
-                  value: "test",
+                  value: config.commonResource ?? DEFAULT_CUSTOM_SETTINGS.commonResource,
                 }
               : undefined,
           label: {
@@ -828,6 +830,7 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
     const framePrefix = (settings as Partial<LayerSettingsCustomUrdf>).framePrefix;
     const label =
       (settings as Partial<LayerSettingsCustomUrdf>).label ?? DEFAULT_CUSTOM_SETTINGS.label;
+    const commonResource = (settings as Partial<LayerSettingsCustomUrdf>).commonResource;
 
     if (label !== renderable?.userData.settings.label) {
       // Label has changed, update the config
@@ -880,6 +883,16 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
         } else {
           this.renderer.settings.errors.add(path, VALID_SRC_ERR, `Invalid URDF URL: "${url}"`);
         }
+      } else if (sourceType === "commonResource") {
+        if (commonResource != undefined) {
+          this.#fetchUrdf(instanceId, `s3://${commonResource}`);
+        } else {
+          this.renderer.settings.errors.add(
+            path,
+            VALID_SRC_ERR,
+            `Invalid Common Resource: "${commonResource}"`,
+          );
+        }
       } else if (sourceType === "filePath") {
         if (filePath != undefined) {
           this.#fetchUrdf(instanceId, `file://${filePath}`);
@@ -902,6 +915,8 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
       baseUrl = url;
     } else if (sourceType === "filePath") {
       baseUrl = `file://${filePath}`;
+    } else if (sourceType === "commonResource") {
+      baseUrl = `s3://${commonResource}`;
     }
 
     // Parse the URDF
@@ -1181,7 +1196,7 @@ function createMeshMarker(
   };
 }
 
-const VALID_PROTOCOLS = ["https:", "http:", "file:", "data:", "package:"];
+const VALID_PROTOCOLS = ["https:", "http:", "file:", "data:", "package:", "s3:"];
 
 function isValidUrl(str: string): boolean {
   try {

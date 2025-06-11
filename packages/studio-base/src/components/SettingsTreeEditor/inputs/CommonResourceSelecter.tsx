@@ -7,9 +7,11 @@
 import { Button } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAsync } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import CoSceneChooser from "@foxglove/studio-base/components/CoSceneChooser";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 
 const useStyles = makeStyles()((theme) => ({
   styledButton: {
@@ -21,6 +23,7 @@ const useStyles = makeStyles()((theme) => ({
     justifyContent: "center",
     paddingTop: theme.spacing(0.5),
     paddingBottom: theme.spacing(0.5),
+    overflow: "hidden",
 
     "&:hover": {
       backgroundColor: theme.palette.action.selected,
@@ -44,6 +47,14 @@ export default function CommonResourceSelecter({
   const { t } = useTranslation("cosSettings");
   const { classes } = useStyles();
   const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);
+  const consoleApi = useConsoleApi();
+
+  const { value: file } = useAsync(async () => {
+    if (!value) {
+      return undefined;
+    }
+    return await consoleApi.getFile({ name: value });
+  }, [consoleApi, value]);
 
   return (
     <>
@@ -59,6 +70,9 @@ export default function CommonResourceSelecter({
         }}
         mode="select-files-from-project"
         maxFilesNumber={1}
+        checkFileSupportedFunc={(file) => {
+          return file.name.endsWith(".urdf");
+        }}
       />
       <Button
         className={classes.styledButton}
@@ -68,7 +82,7 @@ export default function CommonResourceSelecter({
           setAddFileDialogOpen(true);
         }}
       >
-        {value ?? t("selectCommonSource")}
+        {file ? file.filename.split("/").pop() : t("selectCommonSource")}
       </Button>
     </>
   );
