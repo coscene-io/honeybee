@@ -21,68 +21,147 @@ import { CustomBreadcrumbsProps } from "./types";
 const selectUser = (store: UserStore) => store.user;
 
 export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
-  ({ project, clearProject, record, clearRecord, type, recordType, setRecordType }) => {
+  ({ project, clearProject, record, clearRecord, mode, setRecordType }) => {
     const { t } = useTranslation("cosGeneral");
     const currentUser = useCurrentUser(selectUser);
 
     const breadcrumbs = useMemo(() => {
       const items: React.JSX.Element[] = [];
 
-      if (!project && !record) {
-        items.push(
-          <Typography key="project" color="text.primary">
-            {t("project")}
-          </Typography>,
-        );
-      } else if (project && !record) {
-        items.push(
-          <Link
-            underline="hover"
-            key="project-link"
-            color="inherit"
-            onClick={clearProject}
-            style={{ cursor: "pointer" }}
-          >
-            {t("project")}
-          </Link>,
-          <Typography key="project-name" color="text.primary">
-            {project.displayName}
-          </Typography>,
-        );
-      } else if (project && record) {
-        items.push(
-          <Link
-            underline="hover"
-            key="project-link"
-            color="inherit"
-            onClick={() => {
-              clearProject();
-              clearRecord();
-            }}
-            style={{ cursor: "pointer" }}
-          >
-            {t("project")}
-          </Link>,
-          <Link
-            underline="hover"
-            key="project-name-link"
-            color="inherit"
-            onClick={clearRecord}
-            style={{ cursor: "pointer" }}
-          >
-            {project.displayName}
-          </Link>,
-          <Typography key="record-title" color="text.primary">
-            {record.title}
-          </Typography>,
-        );
+      // Determine breadcrumb display logic based on mode
+      if (mode === "select-files-from-project") {
+        // select-files-from-project mode: Project → Files
+        if (!project) {
+          items.push(
+            <Typography key="project" color="text.primary">
+              {t("project")}
+            </Typography>,
+          );
+        } else {
+          items.push(
+            <Link
+              underline="hover"
+              key="project-link"
+              color="inherit"
+              onClick={clearProject}
+              style={{ cursor: "pointer" }}
+            >
+              {t("project")}
+            </Link>,
+            <Typography key="project-name" color="text.primary">
+              {project.displayName}
+            </Typography>,
+          );
+        }
+      } else if (mode === "select-record" || mode === "create-record") {
+        // select-record and create-record modes: Project → Record
+        if (!project) {
+          items.push(
+            <Typography key="project" color="text.primary">
+              {t("project")}
+            </Typography>,
+          );
+        } else if (!record) {
+          items.push(
+            <Link
+              underline="hover"
+              key="project-link"
+              color="inherit"
+              onClick={clearProject}
+              style={{ cursor: "pointer" }}
+            >
+              {t("project")}
+            </Link>,
+            <Typography key="project-name" color="text.primary">
+              {project.displayName}
+            </Typography>,
+          );
+        } else {
+          items.push(
+            <Link
+              underline="hover"
+              key="project-link"
+              color="inherit"
+              onClick={() => {
+                clearProject();
+                clearRecord();
+              }}
+              style={{ cursor: "pointer" }}
+            >
+              {t("project")}
+            </Link>,
+            <Link
+              underline="hover"
+              key="project-name-link"
+              color="inherit"
+              onClick={clearRecord}
+              style={{ cursor: "pointer" }}
+            >
+              {project.displayName}
+            </Link>,
+            <Typography key="record-title" color="text.primary">
+              {record.title}
+            </Typography>,
+          );
+        }
+      } else {
+        // select-files-from-record mode: Project → Record → Files
+        if (!project && !record) {
+          items.push(
+            <Typography key="project" color="text.primary">
+              {t("project")}
+            </Typography>,
+          );
+        } else if (project && !record) {
+          items.push(
+            <Link
+              underline="hover"
+              key="project-link"
+              color="inherit"
+              onClick={clearProject}
+              style={{ cursor: "pointer" }}
+            >
+              {t("project")}
+            </Link>,
+            <Typography key="project-name" color="text.primary">
+              {project.displayName}
+            </Typography>,
+          );
+        } else if (project && record) {
+          items.push(
+            <Link
+              underline="hover"
+              key="project-link"
+              color="inherit"
+              onClick={() => {
+                clearProject();
+                clearRecord();
+              }}
+              style={{ cursor: "pointer" }}
+            >
+              {t("project")}
+            </Link>,
+            <Link
+              underline="hover"
+              key="project-name-link"
+              color="inherit"
+              onClick={clearRecord}
+              style={{ cursor: "pointer" }}
+            >
+              {project.displayName}
+            </Link>,
+            <Typography key="record-title" color="text.primary">
+              {record.title}
+            </Typography>,
+          );
+        }
       }
 
       return items;
-    }, [project, record, clearProject, clearRecord, t]);
+    }, [project, record, clearProject, clearRecord, t, mode]);
 
     const actionButton = useMemo(() => {
-      if (type === "record" && !project && !record) {
+      if ((mode === "select-record" || mode === "create-record") && !project && !record) {
         return (
           <Button
             variant="text"
@@ -95,8 +174,15 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
         );
       }
 
-      if (type === "record" && project && !record) {
-        return recordType === "create" ? (
+      // Only show record-related buttons in modes that require record operations
+      if (
+        (mode === "select-record" ||
+          mode === "create-record" ||
+          mode === "select-files-from-record") &&
+        project &&
+        !record
+      ) {
+        return mode === "create-record" ? (
           <Button
             variant="text"
             onClick={() => {
@@ -118,7 +204,7 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
       }
 
       return undefined;
-    }, [type, project, record, recordType, setRecordType, currentUser?.targetSite, t]);
+    }, [mode, project, record, setRecordType, currentUser?.targetSite, t]);
 
     return (
       <Stack direction="row" alignItems="center" justifyContent="space-between">

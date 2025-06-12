@@ -9,6 +9,7 @@ import { Endpoint } from "../endpoints";
 import { default as EndpointDataplatformV1alph1 } from "./dataplatform/v1alpha1/Endpoint";
 import { default as EndpointDataplatformV1alph2 } from "./dataplatform/v1alpha2/Endpoint";
 import { default as EndpointDataplatformV1alph3 } from "./dataplatform/v1alpha3/Endpoint";
+import { default as EndpointDatastorageV1alph1 } from "./datastorage/v1alpha1/Endpoints";
 import { default as EndpointMatrixV1alph1 } from "./matrix/v1alpha1/Endpoint";
 import { default as EndpointMatrixV1alph2 } from "./matrix/v1alpha2/Endpoint";
 
@@ -18,7 +19,8 @@ export type Endpoints =
   | EndpointMatrixV1alph2
   | EndpointDataplatformV1alph1
   | EndpointDataplatformV1alph2
-  | EndpointDataplatformV1alph3;
+  | EndpointDataplatformV1alph3
+  | EndpointDatastorageV1alph1;
 
 const checkPermissionList = (permissionCode: Endpoints, permissionList: string[]) => {
   let hasPermission = false;
@@ -84,5 +86,6 @@ export {
   EndpointDataplatformV1alph3,
   EndpointMatrixV1alph1,
   EndpointMatrixV1alph2,
+  EndpointDatastorageV1alph1,
   checkUserPermission,
 };

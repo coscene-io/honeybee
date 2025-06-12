@@ -19,4 +19,5 @@ export const cosSettings = {
   auto: "Auto",
   timeMode: "Time Mode",
   understandFrameRateOptimization: "Understand Frame Rate Optimization",
+  selectCommonSource: "Select Common Source",
 };
