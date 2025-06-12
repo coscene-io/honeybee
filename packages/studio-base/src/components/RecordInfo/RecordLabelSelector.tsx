@@ -37,14 +37,17 @@ export default function RecordLabelSelector({
           <TextField {...params} variant="filled" placeholder={t("search")} />
         )}
         renderTags={(value, getTagProps) =>
-          value.map((option, index) => (
-            <Chip
-              label={option.displayName}
-              size="small"
-              {...getTagProps({ index })}
-              key={`${option.name}-${index}`}
-            />
-          ))
+          value.map((option, index) => {
+            const { key: _key, ...tagProps } = getTagProps({ index });
+            return (
+              <Chip
+                label={option.displayName}
+                size="small"
+                {...tagProps}
+                key={`${option.name}-${index}`}
+              />
+            );
+          })
         }
       />
     </Stack>
