@@ -690,6 +690,11 @@ export type SettingsTreeFieldValue =
       labels?: [string, string];
       max?: number;
       min?: number;
+    }
+  | {
+      input: "commonResourceSelector";
+      value?: string;
+      label?: string;
     };
 
 export type SettingsTreeField = SettingsTreeFieldValue & {

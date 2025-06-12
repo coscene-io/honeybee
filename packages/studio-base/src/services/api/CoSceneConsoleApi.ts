@@ -4,6 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 import { PartialMessage, Empty, FieldMask } from "@bufbuild/protobuf";
 import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
@@ -94,6 +95,7 @@ import {
   GenerateFileDownloadUrlResponse,
   GenerateFileUploadUrlsRequest,
   GenerateFileUploadUrlsResponse,
+  GetFileRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
 import { TaskService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_connect";
 import {
@@ -102,6 +104,11 @@ import {
   CreateTaskRequest,
   GetTaskRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
+import { SecurityTokenService } from "@coscene-io/cosceneapis-es/coscene/datastorage/v1alpha1/services/security_token_connect";
+import {
+  GenerateSecurityTokenRequest,
+  GenerateSecurityTokenResponse,
+} from "@coscene-io/cosceneapis-es/coscene/datastorage/v1alpha1/services/security_token_pb";
 import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resources/job_run_pb";
 import { JobRunService } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_connect";
 import { GetJobRunRequest } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_pb";
@@ -122,6 +129,7 @@ import {
   EndpointDataplatformV1alph1,
   EndpointDataplatformV1alph2,
   EndpointDataplatformV1alph3,
+  EndpointDatastorageV1alph1,
   checkUserPermission,
 } from "@foxglove/studio-base/util/permission/endpoint";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
@@ -1047,18 +1055,18 @@ class CoSceneConsoleApi {
   }
 
   public async listFiles({
-    recordName,
+    parent,
     pageSize,
     filter,
     currentPage,
   }: {
-    recordName: string;
+    parent: string;
     pageSize: number;
     filter: string;
     currentPage: number;
   }): Promise<ListFilesResponse> {
     const req = new ListFilesRequest({
-      parent: recordName,
+      parent,
       filter,
       pageSize,
       skip: pageSize * currentPage,
@@ -1505,6 +1513,35 @@ class CoSceneConsoleApi {
       permission: () => {
         return checkUserPermission(
           EndpointDataplatformV1alph3.GetTaskCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getFile = Object.assign(
+    async (payload: PartialMessage<GetFileRequest>): Promise<File_es> => {
+      const req = new GetFileRequest(payload);
+      return await getPromiseClient(FileService).getFile(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.GetFile, this.#permissionList);
+      },
+    },
+  );
+
+  public generateSecurityToken = Object.assign(
+    async (
+      payload: PartialMessage<GenerateSecurityTokenRequest>,
+    ): Promise<GenerateSecurityTokenResponse> => {
+      const req = new GenerateSecurityTokenRequest(payload);
+      return await getPromiseClient(SecurityTokenService).generateSecurityToken(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDatastorageV1alph1.GenerateSecurityToken,
           this.#permissionList,
         );
       },

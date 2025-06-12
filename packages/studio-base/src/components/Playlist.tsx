@@ -404,7 +404,7 @@ export function Playlist(): React.JSX.Element {
 
           handleAddFiles(fileNames);
         }}
-        type="files"
+        mode="select-files-from-record"
       />
       {confirmModal}
     </Stack>
