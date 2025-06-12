@@ -7,7 +7,7 @@
 
 import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { EnumValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { Autocomplete, TextField } from "@mui/material";
+import { Autocomplete, TextField, Chip } from "@mui/material";
 import _orderBy from "lodash/orderBy";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -69,6 +69,19 @@ export function CustomFieldEnumEditor({
         }
         disabled={disabled}
         noOptionsText={t("noMatchingItemsFound")}
+        renderTags={(value, getTagProps) =>
+          value.map((option, index) => {
+            const { key: _key, ...tagProps } = getTagProps({ index });
+            return (
+              <Chip
+                label={option.keyword}
+                size="small"
+                {...tagProps}
+                key={`${option.value}-${index}`}
+              />
+            );
+          })
+        }
         renderInput={(params) => (
           <TextField
             {...params}
