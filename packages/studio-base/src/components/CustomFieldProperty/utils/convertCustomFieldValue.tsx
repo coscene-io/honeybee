@@ -49,7 +49,16 @@ export function ConvertCustomFieldValue(customFieldValue?: CustomFieldValue): Re
 
     case "enums":
       if (customFieldValue.property?.type.case === "enums") {
-        value = customFieldValue.property.type.value.values[customFieldValue.value.value.id];
+        const enumType = customFieldValue.property.type.value;
+        if (enumType.multiple) {
+          value = customFieldValue.value.value.ids
+            .map((id) => {
+              return enumType.values[id];
+            })
+            .join(",");
+        } else {
+          value = enumType.values[customFieldValue.value.value.id];
+        }
       }
       break;
 

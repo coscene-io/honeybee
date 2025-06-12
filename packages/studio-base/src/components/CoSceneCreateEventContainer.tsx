@@ -820,7 +820,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
             onKeyDown={onMetaDataKeyDown}
           />
         </Stack>
-        <Stack paddingX={3} paddingTop={2}>
+        <Stack paddingX={3} paddingTop={2} gap={1}>
           <FormLabel>{t("photo")}</FormLabel>
           {event.imageFile ? (
             <Stack>
@@ -848,7 +848,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
             )
           )}
 
-          {event.imgUrl ? (
+          {event.imgUrl || event.imageFile ? (
             <Button
               className={classes.addFileButton}
               onClick={() => {

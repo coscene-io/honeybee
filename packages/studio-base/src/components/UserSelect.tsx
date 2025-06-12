@@ -9,7 +9,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import { User } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
-import { Autocomplete, Box, TextField } from "@mui/material";
+import { Autocomplete, Box, TextField, Chip } from "@mui/material";
 import PinyinMatch from "pinyin-match";
 import { useEffect } from "react";
 import { useAsyncFn } from "react-use";
@@ -85,6 +85,19 @@ export function UserSelect({
         )}
         value={selectedUsers}
         isOptionEqualToValue={(option, value) => option.name === value.name}
+        renderTags={(value, getTagProps) =>
+          value.map((option, index) => {
+            const { key: _key, ...tagProps } = getTagProps({ index });
+            return (
+              <Chip
+                label={option.nickname ?? ""}
+                size="small"
+                {...tagProps}
+                key={`${option.name}-${index}`}
+              />
+            );
+          })
+        }
         onChange={(_event, options) => {
           onChange(options);
         }}
