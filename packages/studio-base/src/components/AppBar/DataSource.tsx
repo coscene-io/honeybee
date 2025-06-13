@@ -33,6 +33,7 @@ import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { EndTimestamp } from "./EndTimestamp";
 
@@ -267,7 +268,7 @@ const RealTimeVizDataSource = () => {
   const projectHref =
     process.env.NODE_ENV === "development"
       ? `https://dev.coscene.cn/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
-      : `/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
+      : `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
 
   const hostName = urlState?.parameters?.hostName;
   const deviceLink = urlState?.parameters?.deviceLink ?? "";
@@ -345,7 +346,7 @@ const CommonDataSource = () => {
   const projectHref =
     process.env.NODE_ENV === "development"
       ? `https://dev.coscene.cn/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
-      : `/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
+      : `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
 
   const secondaryHref = `${projectHref}/records/${baseInfo.recordId}`;
 
