@@ -20,5 +20,8 @@ export const MuiFormLabel: OverrideComponentReturn<"MuiFormLabel"> = {
         marginTop: 0,
       },
     }),
+    asterisk: {
+      color: "red",
+    },
   },
 };
