@@ -69,6 +69,7 @@ const useStyles = makeStyles()((theme) => ({
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const selectUser = (store: UserStore) => store.user;
 const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
@@ -81,9 +82,12 @@ export function AppStateBar(): React.JSX.Element {
   const { t } = useTranslation("appBar");
   const presence = useMessagePipeline(selectPresence);
   const [confirm, confirmModal] = useConfirm();
+  const urlState = useMessagePipeline(selectUrlState);
 
+  const linkType = urlState?.parameters?.linkType ?? "";
   const dataSource = useBaseInfo(selectDataSource);
-  const isDisableTimeout = disableTimeoutSetting || dataSource?.id !== "coscene-websocket";
+  const isDisableTimeout =
+    disableTimeoutSetting || dataSource?.id !== "coscene-websocket" || linkType !== "coLink";
 
   const remainingTime = useAutoDisconnection({
     confirm,
