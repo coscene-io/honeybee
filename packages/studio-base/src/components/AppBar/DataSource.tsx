@@ -257,76 +257,39 @@ const RealTimeVizDataSource = () => {
 
   const playerPresence = useMessagePipeline(selectPlayerPresence);
 
-  const project = useBaseInfo(selectProject);
   const urlState = useMessagePipeline(selectUrlState);
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const enableList = useBaseInfo(selectEnableList);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
-  const dataSource = useBaseInfo(selectDataSource);
   const playerName = useMessagePipeline(selectPlayerName);
-
-  const projectHref =
-    process.env.NODE_ENV === "development"
-      ? `https://dev.coscene.cn/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
-      : `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
 
   const hostName = urlState?.parameters?.hostName;
   const deviceLink = urlState?.parameters?.deviceLink ?? "";
 
   const initializing = playerPresence === PlayerPresence.INITIALIZING;
 
-  const secondaryHref = `${projectHref}/records/${baseInfo.recordId}`;
   const playerDisplayName =
     initializing && playerName == undefined ? "Initializing..." : playerName;
-
-  const breadcrumbs = [
-    <Link
-      href={projectHref}
-      target="_blank"
-      underline="hover"
-      key="1"
-      color="inherit"
-      className={classes.breadcrumbs}
-    >
-      {project.value?.displayName}
-    </Link>,
-    <Link
-      href={secondaryHref}
-      target="_blank"
-      underline="hover"
-      key="2"
-      color="inherit"
-      className={classes.breadcrumbs}
-    >
-      {baseInfo.jobRunsDisplayName ?? baseInfo.recordDisplayName}
-    </Link>,
-  ];
 
   return (
     <>
       <RealTimeVizLinkState />
       <div className={classes.textTruncate}>
-        {enableList.uploadLocalFile === "ENABLE" ? (
-          <UploadFileComponent />
-        ) : (
-          <Stack direction="row" alignItems="center" gap={2}>
-            <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
-              {baseInfo.projectSlug && dataSource?.id === "coscene-data-platform"
-                ? breadcrumbs
-                : ""}
-              <Link
-                href={deviceLink || "#"}
-                target="_blank"
-                underline="hover"
-                key="1"
-                color="inherit"
-                className={classes.breadcrumbs}
-              >
-                {hostName ?? playerDisplayName ?? t("unknown")}
-              </Link>
-            </Breadcrumbs>
-          </Stack>
-        )}
+        <Stack direction="row" alignItems="center" gap={2}>
+          <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+            <Link
+              href={
+                APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
+                  ? `https://${APP_CONFIG.DOMAIN_CONFIG.default.webDomain}/${deviceLink}`
+                  : "#"
+              }
+              target="_blank"
+              underline="hover"
+              key="1"
+              color="inherit"
+              className={classes.breadcrumbs}
+            >
+              {hostName ?? playerDisplayName ?? t("unknown")}
+            </Link>
+          </Breadcrumbs>
+        </Stack>
       </div>
       <span>/</span>
       <EndTimestamp />
