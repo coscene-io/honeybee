@@ -50,6 +50,7 @@ export function CustomFieldEnumEditor({
         multiple
         size="small"
         disableClearable={allowClear === false}
+        disableCloseOnSelect={true}
         onChange={(_, newValue) => {
           customFieldValue.value = {
             case: "enums",
