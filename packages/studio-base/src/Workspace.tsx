@@ -367,7 +367,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         {
           title: t("recordInfo"),
           component: RecordInfo,
-          hidden: dataSource?.id !== "coscene-data-platform",
+          hidden: dataSource == undefined || dataSource.id !== "coscene-data-platform",
         },
       ],
       ["variables", { title: t("variables"), component: VariablesList }],
@@ -383,8 +383,17 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       }
       items.set("studio-logs-settings", { title: t("studioLogs"), component: StudioLogsSettings });
     }
-    return items;
-  }, [enableDebugMode, t, PerformanceSidebarComponent, dataSource?.id]);
+
+    // 过滤掉 hidden === true 的项目
+    const filteredItems = new Map<RightSidebarItemKey, SidebarItem>();
+    for (const [key, item] of items) {
+      if (item.hidden !== true) {
+        filteredItems.set(key, item);
+      }
+    }
+
+    return filteredItems;
+  }, [t, dataSource, enableDebugMode, PerformanceSidebarComponent]);
 
   const keyboardEventHasModifier = (event: KeyboardEvent) =>
     navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;
