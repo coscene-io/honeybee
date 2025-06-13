@@ -125,4 +125,4 @@ This Agreement, the Privacy Policy and other documents signed by you and Kexing 
 11.9 Export Compliance
 The Service may be subject to export restriction laws and regulations of the United States and any other applicable jurisdiction, and you are responsible for compliance with your use of the Service. You warrant that you, your affiliates, and users of your end products are not and will not be a person or entity on OFAC's list of Specially Designated Nationals or the Comprehensive Screening List, or any entity owned directly or indirectly by a Specially Designated National in the aggregate 50% or higher interest. By using the Platform or registering, you also expressly warrant that you are not subject to any sanctions imposed by any government departments, agencies and international organizations.
 11.10 Contact us
-If you have questions about this Agreement or any other questions, please feel free to contact us at contact@coscene.io.
+If you have questions about this Agreement or any other questions, please feel free to contact us at hi@coscene.io.
