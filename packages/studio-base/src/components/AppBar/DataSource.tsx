@@ -268,9 +268,11 @@ const RealTimeVizDataSource = () => {
   const playerDisplayName =
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
+  const linkType = urlState?.parameters?.linkType ?? "";
+
   return (
     <>
-      <RealTimeVizLinkState />
+      {linkType !== "unknown" && <RealTimeVizLinkState />}
       <div className={classes.textTruncate}>
         <Stack direction="row" alignItems="center" gap={2}>
           <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
