@@ -14,6 +14,7 @@ import {
   UploadTaskDetail,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { Palette, Typography } from "@mui/material";
+import dayjs from "dayjs";
 import { TFunction } from "i18next";
 import { Dispatch, SetStateAction, useCallback, useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -83,7 +84,7 @@ async function handleTaskProgress({
 
   if (task.tags.recordName != undefined && showRecordLink) {
     addLog(
-      `[${new Date().toISOString()}] ${t("saveToRecord")}：https://${
+      `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("saveToRecord")}：https://${
         APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
       }/${targetOrg.slug}/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
@@ -99,13 +100,13 @@ async function handleTaskProgress({
         addLog(`[ERROR] ${t("checkFileDeleted")}`);
       } else {
         addLog("+++++++++++++++++++++++++++");
-        addLog(`[${new Date().toISOString()}] ${t("fileUploaded")} ${porgressText}`);
+        addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("fileUploaded")} ${porgressText}`);
         addLog("+++++++++++++++++++++++++++");
       }
       break;
 
     case TaskStateEnum_TaskState.PENDING:
-      addLog(`[${new Date().toISOString()}] ${t("taskStatePending")}`);
+      addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("taskStatePending")}`);
       setTimeout(() => {
         void handleTaskProgress({
           consoleApi,
@@ -121,7 +122,7 @@ async function handleTaskProgress({
       break;
 
     case TaskStateEnum_TaskState.PROCESSING:
-      addLog(`[${new Date().toISOString()}] ${t("processing")} ${porgressText}`);
+      addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("processing")} ${porgressText}`);
       setTimeout(() => {
         void handleTaskProgress({
           consoleApi,
@@ -270,18 +271,20 @@ function DataCollectionContent(
         });
 
         addLog("+++++++++++++++++++++++++++");
-        addLog(`[${new Date().toISOString()}] ${t("startUpload")}`);
+        addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("startUpload")}`);
         addLog("+++++++++++++++++++++++++++");
 
         addLog(
-          `[${new Date().toISOString()}] ${t("progressLink")}：https://${
+          `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("progressLink")}：https://${
             APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
           }/${targetOrg.slug}/${
             targetProject.slug
           }/tasks/automated-data-collection-tasks/${response.name.split("/").pop()}`,
         );
 
-        addLog(`[${new Date().toISOString()}] ${t("pendingUploadFiles")}: ${files.length}`);
+        addLog(
+          `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("pendingUploadFiles")}: ${files.length}`,
+        );
 
         void handleTaskProgress({
           consoleApi,
@@ -325,7 +328,7 @@ function DataCollectionContent(
             return;
           }
           addLog("+++++++++++++++++++++++++++");
-          addLog(`[${new Date().toISOString()}] ${t("startCollection")}`);
+          addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("startCollection")}`);
           addLog("+++++++++++++++++++++++++++");
 
           const project = await consoleApi.getProject({
@@ -347,17 +350,17 @@ function DataCollectionContent(
           setTaskInfoSnapshot({
             project,
             recordLabels: config.recordLabels ?? [],
-            startTime: new Date().toISOString(),
+            startTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           });
           break;
         }
 
         case "endCollection":
-          addLog(`[${new Date().toISOString()}] ${t("endingCollection")}`);
+          addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("endingCollection")}`);
           break;
 
         case "cancelCollection":
-          addLog(`[${new Date().toISOString()}] ${t("cancellingCollection")}`);
+          addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("cancellingCollection")}`);
           break;
 
         default:
@@ -394,7 +397,7 @@ function DataCollectionContent(
         switch (buttonType) {
           case "startCollection":
             if (response.success) {
-              addLog(`[${new Date().toISOString()}] ${t("startCollectionSuccess")}`);
+              addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("startCollectionSuccess")}`);
               startTimer();
             } else {
               addLog(`[ERROR] ${t("startCollectionFail")}: ${response.message}`);
@@ -406,7 +409,7 @@ function DataCollectionContent(
           case "endCollection":
             if (response.success) {
               addLog("+++++++++++++++++++++++++++");
-              addLog(`[${new Date().toISOString()}] ${t("endCollectionSuccess")}`);
+              addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("endCollectionSuccess")}`);
               addLog("+++++++++++++++++++++++++++");
               setCurrentCollectionStage("ready");
               stopTimer();
@@ -424,7 +427,7 @@ function DataCollectionContent(
           case "cancelCollection":
             if (response.success) {
               addLog("+++++++++++++++++++++++++++");
-              addLog(`[${new Date().toISOString()}] ${t("cancelCollectionSuccess")}`);
+              addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("cancelCollectionSuccess")}`);
               addLog("+++++++++++++++++++++++++++");
               setCurrentCollectionStage("ready");
               stopTimer();
