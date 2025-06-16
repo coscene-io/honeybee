@@ -67,20 +67,15 @@ import { ListRecordsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplat
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { ListFilesResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
 import ClearIcon from "@mui/icons-material/Clear";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   List,
   ListItem,
-  ListItemIcon,
   ListItemButton,
-  Checkbox,
   TextField,
-  Typography,
   IconButton,
   ListItemText,
   TablePagination,
-  Tooltip,
 } from "@mui/material";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -99,6 +94,7 @@ import {
 import { QueryFields } from "@foxglove/studio-base/util/queries";
 
 import { CustomBreadcrumbs } from "./CustomBreadcrumbs";
+import { SelectFilesList } from "./SelectFilesList";
 import { usePagination } from "./hooks/usePagination";
 import { BaseChooserProps, ListType, SelectedFile } from "./types";
 
@@ -153,71 +149,6 @@ const RecordsList = ({ records, selectedRecord, onRecordSelect }: RecordsListPro
   </List>
 );
 
-interface FilesListProps {
-  files: File[];
-  selectedFiles: SelectedFile[];
-  onFileToggle: (file: File) => void;
-  checkFileSupportedFunc: (file: File) => boolean;
-}
-
-const FilesList = ({
-  files,
-  selectedFiles,
-  onFileToggle,
-  checkFileSupportedFunc,
-}: FilesListProps) => {
-  const { t } = useTranslation("cosPlaylist");
-
-  return (
-    <List>
-      {files.map((file) => {
-        const supportedImport = checkFileSupportedFunc(file);
-        const isSelected = selectedFiles.some((f) => f.file.name === file.name);
-        const repeatFile = selectedFiles.find(
-          (f) => f.file.sha256 === file.sha256 && f.file.name !== file.name,
-        );
-
-        return (
-          <ListItem key={file.name} disablePadding>
-            <ListItemButton
-              disabled={!supportedImport || repeatFile != undefined}
-              role={undefined}
-              onClick={() => {
-                onFileToggle(file);
-              }}
-              dense
-            >
-              <ListItemIcon>
-                <Checkbox
-                  edge="start"
-                  checked={isSelected}
-                  disabled={!supportedImport}
-                  tabIndex={-1}
-                  disableRipple
-                  inputProps={{ "aria-labelledby": file.filename }}
-                />
-              </ListItemIcon>
-              <ListItemText id={file.name} primary={file.filename.split("/").pop()} />
-            </ListItemButton>
-            {repeatFile && (
-              <Typography color="error">
-                <Tooltip
-                  title={t("duplicateFile", {
-                    ns: "cosPlaylist",
-                    filename: repeatFile.file.filename,
-                  })}
-                >
-                  <HelpOutlineIcon fontSize="small" />
-                </Tooltip>
-              </Typography>
-            )}
-          </ListItem>
-        );
-      })}
-    </List>
-  );
-};
-
 export function ChooserComponent({
   setTargetInfo,
   mode,
@@ -236,6 +167,9 @@ export function ChooserComponent({
   );
   const [project, setProject] = useState<Project | undefined>(undefined);
   const [record, setRecord] = useState<Record | undefined>(undefined);
+
+  // 文件夹导航状态
+  const [currentFolderPath, setCurrentFolderPath] = useState<readonly string[]>([]);
 
   // Pagination hooks for different list types
   const projectsPagination = usePagination(20);
@@ -348,13 +282,19 @@ export function ChooserComponent({
       return new ListFilesResponse();
     }
 
+    const filter = CosQuery.Companion.empty();
+
+    if (filesPagination.debouncedFilter.length > 0) {
+      filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesPagination.debouncedFilter]);
+    }
+
+    if (currentFolderPath.length > 0) {
+      filter.setField(QueryFields.DIR, [BinaryOperator.EQ], [currentFolderPath.join("/")]);
+    }
+
     // select-files-from-project mode: get files directly from project
     // Note: This requires using all records under the project to get files, or using specific project file API
     if (mode === "select-files-from-project" && project) {
-      const filter = CosQuery.Companion.empty();
-      filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesPagination.debouncedFilter]);
-      filter.setField("recursive", [BinaryOperator.EQ], ["true"]);
-
       return await consoleApi.listFiles({
         parent: project.name,
         pageSize: filesPagination.pageSize,
@@ -365,10 +305,6 @@ export function ChooserComponent({
 
     // select-files-from-record mode: get files from record
     if (record) {
-      const filter = CosQuery.Companion.empty();
-      filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesPagination.debouncedFilter]);
-      filter.setField("recursive", [BinaryOperator.EQ], ["true"]);
-
       return await consoleApi.listFiles({
         parent: record.name,
         pageSize: filesPagination.pageSize,
@@ -387,6 +323,7 @@ export function ChooserComponent({
     record,
     project,
     mode,
+    currentFolderPath,
   ]);
 
   // Sync data when list type or pagination changes
@@ -428,6 +365,7 @@ export function ChooserComponent({
     (selectedProject: Project) => {
       resetAllPagination();
       setProject(selectedProject);
+      setCurrentFolderPath([]); // 重置文件夹路径
 
       // In select-files-from-project mode, no need to select record after project selection
       if (mode === "select-files-from-project") {
@@ -441,6 +379,7 @@ export function ChooserComponent({
     (selectedRecord: Record) => {
       resetAllPagination();
       setRecord(selectedRecord);
+      setCurrentFolderPath([]); // 重置文件夹路径
     },
     [resetAllPagination],
   );
@@ -466,11 +405,13 @@ export function ChooserComponent({
   const clearProject = useCallback(() => {
     setProject(undefined);
     setRecord(undefined);
+    setCurrentFolderPath([]); // 重置文件夹路径
     resetAllPagination();
   }, [resetAllPagination]);
 
   const clearRecord = useCallback(() => {
     setRecord(undefined);
+    setCurrentFolderPath([]); // reset folder path
     resetAllPagination();
   }, [resetAllPagination]);
 
@@ -486,6 +427,9 @@ export function ChooserComponent({
         clearProject={clearProject}
         clearRecord={clearRecord}
         setRecordType={setRecordType}
+        currentFolderPath={currentFolderPath}
+        onNavigateToFolder={setCurrentFolderPath}
+        listType={listType}
       />
 
       {showSearchField && (
@@ -543,11 +487,13 @@ export function ChooserComponent({
           )}
 
           {listType === "files" && (
-            <FilesList
-              files={filesList.value?.files.filter((file) => !file.name.endsWith("/")) ?? []}
+            <SelectFilesList
+              files={filesList.value?.files ?? []}
               selectedFiles={files}
               onFileToggle={handleFileToggle}
               checkFileSupportedFunc={checkFileSupportedFunc ?? checkBagFileSupported}
+              currentFolderPath={currentFolderPath}
+              onNavigateToFolder={setCurrentFolderPath}
             />
           )}
         </Stack>

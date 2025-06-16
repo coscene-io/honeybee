@@ -8,6 +8,7 @@
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
+import FolderIcon from "@mui/icons-material/Folder";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { Breadcrumbs, Link, Typography, Button } from "@mui/material";
 import { memo, useMemo } from "react";
@@ -21,7 +22,17 @@ import { CustomBreadcrumbsProps } from "./types";
 const selectUser = (store: UserStore) => store.user;
 
 export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
-  ({ project, clearProject, record, clearRecord, mode, setRecordType }) => {
+  ({
+    project,
+    clearProject,
+    record,
+    clearRecord,
+    mode,
+    setRecordType,
+    currentFolderPath,
+    onNavigateToFolder,
+    listType,
+  }) => {
     const { t } = useTranslation("cosGeneral");
     const currentUser = useCurrentUser(selectUser);
 
@@ -48,10 +59,27 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
             >
               {t("project")}
             </Link>,
-            <Typography key="project-name" color="text.primary">
-              {project.displayName}
-            </Typography>,
           );
+
+          if (listType === "files") {
+            items.push(
+              <Link
+                underline="hover"
+                key="project-name-link"
+                color="inherit"
+                onClick={() => onNavigateToFolder?.([])}
+                style={{ cursor: "pointer" }}
+              >
+                {project.displayName}
+              </Link>,
+            );
+          } else {
+            items.push(
+              <Typography key="project-name" color="text.primary">
+                {project.displayName}
+              </Typography>,
+            );
+          }
         }
       } else if (mode === "select-record" || mode === "create-record") {
         // select-record and create-record modes: Project → Record
@@ -150,15 +178,76 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
             >
               {project.displayName}
             </Link>,
-            <Typography key="record-title" color="text.primary">
-              {record.title}
-            </Typography>,
           );
+
+          if (listType === "files") {
+            items.push(
+              <Link
+                underline="hover"
+                key="record-title-link"
+                color="inherit"
+                onClick={() => onNavigateToFolder?.([])}
+                style={{ cursor: "pointer" }}
+              >
+                {record.title}
+              </Link>,
+            );
+          } else {
+            items.push(
+              <Typography key="record-title" color="text.primary">
+                {record.title}
+              </Typography>,
+            );
+          }
         }
       }
 
+      // 添加文件夹路径面包屑
+      if (currentFolderPath && currentFolderPath.length > 0) {
+        currentFolderPath.forEach((folder, index) => {
+          const isLast = index === currentFolderPath.length - 1;
+          const pathToFolder = currentFolderPath.slice(0, index + 1);
+
+          if (isLast) {
+            items.push(
+              <Typography
+                key={`folder-${index}`}
+                color="text.primary"
+                style={{ display: "flex", alignItems: "center", gap: 4 }}
+              >
+                <FolderIcon fontSize="small" />
+                {folder}
+              </Typography>,
+            );
+          } else {
+            items.push(
+              <Link
+                key={`folder-${index}`}
+                underline="hover"
+                color="inherit"
+                onClick={() => onNavigateToFolder?.(pathToFolder)}
+                style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+              >
+                <FolderIcon fontSize="small" />
+                {folder}
+              </Link>,
+            );
+          }
+        });
+      }
+
       return items;
-    }, [project, record, clearProject, clearRecord, t, mode]);
+    }, [
+      project,
+      record,
+      clearProject,
+      clearRecord,
+      t,
+      mode,
+      currentFolderPath,
+      onNavigateToFolder,
+      listType,
+    ]);
 
     const actionButton = useMemo(() => {
       if ((mode === "select-record" || mode === "create-record") && !project && !record) {

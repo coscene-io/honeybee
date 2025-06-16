@@ -76,4 +76,8 @@ export interface CustomBreadcrumbsProps {
   clearRecord: () => void;
   mode: ChooserMode;
   setRecordType: (type: "create" | "select") => void;
+  // expand breadcrumb to support folder navigation
+  currentFolderPath?: readonly string[];
+  onNavigateToFolder?: (path: readonly string[]) => void;
+  listType: ListType;
 }
