@@ -113,11 +113,22 @@ export function CallService(props: Props): React.JSX.Element {
     [requestPayload],
   );
 
+  // Check if endCollection or cancelCollection button is requesting
+  const isEndOrCancelRequesting = useMemo(() => {
+    return (
+      buttonsState.endCollection?.status === "requesting" ||
+      buttonsState.cancelCollection?.status === "requesting"
+    );
+  }, [buttonsState]);
+
   const canCallService = Boolean(
     supportCallService &&
       requestPayload &&
       parsedObject != undefined &&
-      state?.status !== "requesting",
+      state?.status !== "requesting" &&
+      // If endCollection or cancelCollection is requesting, disable both of them
+      // startCollection is not affected by this restriction
+      !(isEndOrCancelRequesting && (type === "endCollection" || type === "cancelCollection")),
   );
 
   return (
