@@ -51,4 +51,5 @@ export enum QueryFields {
   WORKFLOW_RUN_ID = "workflow_run_id",
   ID = "id",
   RECURSIVE = "recursive",
+  DIR = "dir",
 }
