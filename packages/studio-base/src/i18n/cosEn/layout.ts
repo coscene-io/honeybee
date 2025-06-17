@@ -19,7 +19,7 @@ export const cosLayout = {
   createBlankLayout: "Create blank layout",
   addLayoutToGetStart: "Add a new layout to get started!",
   importFromFile: "import from file...",
-  noLayouts: "No layouts found",
+  noLayouts: "No layout",
   theseLayoutsHaveUnsavedChanges: "These layouts have unsaved changes",
   thisLayoutHasUnsavedChanges: "This layout has unsaved changes",
   rename: "Rename",

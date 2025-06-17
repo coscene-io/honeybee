@@ -26,6 +26,7 @@ import { formatTimeRaw, isAbsoluteTime } from "@foxglove/studio-base/util/time";
 const useStyles = makeStyles()((theme) => ({
   overline: {
     opacity: 0.6,
+    textTransform: "capitalize",
   },
   numericValue: {
     fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
