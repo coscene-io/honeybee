@@ -1062,7 +1062,7 @@ class CoSceneConsoleApi {
   }: {
     parent: string;
     pageSize: number;
-    filter: string;
+    filter?: string;
     currentPage: number;
   }): Promise<ListFilesResponse> {
     const req = new ListFilesRequest({
