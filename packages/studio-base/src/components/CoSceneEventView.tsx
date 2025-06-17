@@ -418,86 +418,93 @@ function EventViewComponent(params: {
           </Stack>
 
           {variant === "learge" && (
-            <Stack
-              gap={1}
-              fontSize="12px"
-              color={theme.palette.text.secondary}
-              marginTop={description || imgUrl || metadataMap.length > 0 ? "8px" : undefined}
-            >
-              {description && (
-                <Stack lineHeight="1.5">
-                  <HighlightedText text={description} highlight={filter} />
+            <>
+              <Stack
+                gap={1}
+                fontSize="12px"
+                color={theme.palette.text.secondary}
+                marginTop={description || imgUrl || metadataMap.length > 0 ? "8px" : undefined}
+              >
+                {description && (
+                  <Stack lineHeight="1.5">
+                    <HighlightedText text={description} highlight={filter} />
+                  </Stack>
+                )}
+                {imgUrl && (
+                  <Fragment key="img">
+                    <img src={imgUrl} className={classes.eventImg} />
+                  </Fragment>
+                )}
+                <Stack gap={1}>
+                  {metadataMap.map(([key, value]: string[], index) => (
+                    <Stack key={index} alignItems="center" flexDirection="row">
+                      <Stack flexDirection="row" alignItems="center" gap={0.5}>
+                        <Stack
+                          width="4px"
+                          height="4px"
+                          minWidth="4px"
+                          minHeight="4px"
+                          borderRadius="100%"
+                          style={{ backgroundColor: theme.palette.text.secondary }}
+                        />
+                        <span>
+                          <HighlightedText text={key ?? ""} highlight={filter} />
+                        </span>
+                      </Stack>
+                      <Stack marginRight={1}>:</Stack>
+                      <Stack>
+                        <HighlightedText text={value ?? ""} highlight={filter} />
+                      </Stack>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Stack>
+
+              {ruleNavAddress != undefined && (
+                <Stack
+                  flexDirection="row"
+                  gap={1}
+                  fontSize="12px"
+                  color={theme.palette.text.secondary}
+                >
+                  <Stack justifyContent="center">{t("rule")}:</Stack>
+                  <Stack
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    {ruleNavAddress}
+                  </Stack>
                 </Stack>
               )}
-              {imgUrl && (
-                <Fragment key="img">
-                  <img src={imgUrl} className={classes.eventImg} />
-                </Fragment>
-              )}
-              <Stack gap={1}>
-                {metadataMap.map(([key, value]: string[], index) => (
-                  <Stack key={index} alignItems="center" flexDirection="row">
-                    <Stack flexDirection="row" alignItems="center" gap={0.5}>
-                      <Stack
-                        width="4px"
-                        height="4px"
-                        minWidth="4px"
-                        minHeight="4px"
-                        borderRadius="100%"
-                        style={{ backgroundColor: theme.palette.text.secondary }}
-                      />
-                      <span>
-                        <HighlightedText text={key ?? ""} highlight={filter} />
-                      </span>
-                    </Stack>
-                    <Stack marginRight={1}>:</Stack>
-                    <Stack>
-                      <HighlightedText text={value ?? ""} highlight={filter} />
-                    </Stack>
-                  </Stack>
-                ))}
-              </Stack>
-            </Stack>
-          )}
 
-          {ruleNavAddress != undefined && (
-            <Stack flexDirection="row" gap={1} fontSize="12px" color={theme.palette.text.secondary}>
-              <Stack justifyContent="center">{t("rule")}:</Stack>
               <Stack
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
+                alignItems="center"
+                flexDirection="row"
+                fontSize="12px"
+                color={theme.palette.text.secondary}
               >
-                {ruleNavAddress}
+                <Stack flexDirection="row" alignItems="center" gap={0.5}>
+                  <Stack justifyContent="center">{t("creater")}</Stack>
+                </Stack>
+                <Stack marginRight={1}>:</Stack>
+                <Stack>
+                  <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
+                </Stack>
               </Stack>
-            </Stack>
+
+              <Stack paddingTop={2} gap={2}>
+                {/* custom field */}
+                <CustomFieldValuesFields
+                  variant="secondary"
+                  properties={customFieldSchema?.properties ?? []}
+                  customFieldValues={event.event.customFieldValues}
+                  readonly
+                  ignoreProperties
+                />
+              </Stack>
+            </>
           )}
-
-          <Stack
-            alignItems="center"
-            flexDirection="row"
-            fontSize="12px"
-            color={theme.palette.text.secondary}
-          >
-            <Stack flexDirection="row" alignItems="center" gap={0.5}>
-              <Stack justifyContent="center">{t("creater")}</Stack>
-            </Stack>
-            <Stack marginRight={1}>:</Stack>
-            <Stack>
-              <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
-            </Stack>
-          </Stack>
-
-          <Stack paddingTop={2} gap={2}>
-            {/* custom field */}
-            <CustomFieldValuesFields
-              variant="secondary"
-              properties={customFieldSchema?.properties ?? []}
-              customFieldValues={event.event.customFieldValues}
-              readonly
-              ignoreProperties
-            />
-          </Stack>
         </div>
       </Stack>
     </Stack>
