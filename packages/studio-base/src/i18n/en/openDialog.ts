@@ -43,15 +43,17 @@ export const openDialog = {
 
   newToCoSceneStudio: "Welcome to coScene Studio",
   newToCoSceneStudioDescription:
-    "Not sure where to start? Check out the help docs to accelerate your understanding and optimization of your usage practices",
+    "Not sure where to start? Check out our help docs to quickly get up to speed and optimize your user experience",
   helpDocs: "Help Docs",
   monitoringEquipment:
     "Continuously monitor equipment data to quickly identify and address potential issues",
-  storedData: "Safely store petabytes of multimodal data",
+  storedData: "Securely store petabytes of multimodal data with built-in governance tools",
   automaticData:
-    "Efficient automation processes, automatically collect, preprocess, and diagnose key segments",
+    "Automate data collection, preprocessing, and key moment detection and diagnosis through efficient workflows",
+  extend:
+    "Scale effortlessly with integrations to your preferred annotation vendors and simulation engines",
   coordination:
-    "Convenient data collaboration with R&D, operations, and testing personnel to drive the development of general artificial intelligence with data",
+    "Enable seamless collaboration across R&D, operations, and testing teams—driving the development of AI and robotics through data",
   openNewConnection: "Open a new connection",
   webSocketDataSourceDesc:
     "Connect to a ROS 1, ROS 2, or custom system using the coScene WebSocket protocol. For ROS systems, be sure to first install the coBridge ROS package.",
