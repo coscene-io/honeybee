@@ -297,6 +297,7 @@ function SidebarItems(): React.JSX.Element {
               <ul className={classes.featureList}>
                 <li>{t("storedData")}</li>
                 <li>{t("automaticData")}</li>
+                <li>{t("extend")}</li>
                 <li>{t("coordination")}</li>
               </ul>
             ),
