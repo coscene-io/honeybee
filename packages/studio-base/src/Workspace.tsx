@@ -361,13 +361,6 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     return cleanItems;
   }, [enableList.event, enableList.playlist, playerProblems, t]);
 
-  useEffect(() => {
-    if (playerProblems != undefined && playerProblems.length > 0) {
-      sidebarActions.left.setOpen(true);
-      sidebarActions.left.selectItem("problems");
-    }
-  }, [playerProblems, sidebarActions.left]);
-
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
       [
