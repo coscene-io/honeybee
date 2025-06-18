@@ -13,7 +13,8 @@ export type ForwardedMenuEvent =
   | "open-demo"
   | "open-help-about"
   | "open-help-docs"
-  | "open-help-general";
+  | "open-help-general"
+  | "open-help-slack";
 
 export type ForwardedWindowEvent =
   | "enter-full-screen"

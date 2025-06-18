@@ -80,6 +80,7 @@ import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
+import useNativeAppMenuEvent from "./hooks/useNativeAppMenuEvent";
 
 const log = Logger.getLogger(__filename);
 
@@ -204,6 +205,13 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       containerRef.current.focus();
     }
   }, []);
+
+  useNativeAppMenuEvent(
+    "open-help-general",
+    useCallback(() => {
+      dialogActions.preferences.open("general");
+    }, [dialogActions.preferences]),
+  );
 
   const { enqueueSnackbar } = useSnackbar();
 
