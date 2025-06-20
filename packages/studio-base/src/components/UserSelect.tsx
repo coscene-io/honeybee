@@ -9,7 +9,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import { User } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
-import { Autocomplete, Box, TextField, Chip } from "@mui/material";
+import PersonIcon from "@mui/icons-material/Person";
+import { Autocomplete, Box, TextField, Chip, Avatar } from "@mui/material";
 import PinyinMatch from "pinyin-match";
 import { useEffect } from "react";
 import { useAsyncFn } from "react-use";
@@ -79,7 +80,14 @@ export function UserSelect({
         renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
         renderOption={(optionProps, option) => (
           <Box component="li" {...optionProps} key={option.name}>
-            <img className={classes.avatar} src={option.avatar} />
+            <Avatar
+              src={option.avatar != undefined && option.avatar !== "" ? option.avatar : undefined}
+              className={classes.avatar}
+              variant="rounded"
+            >
+              {option.avatar == undefined ||
+                (option.avatar === "" && <PersonIcon color="secondary" />)}
+            </Avatar>
             {option.nickname}
           </Box>
         )}
