@@ -60,7 +60,7 @@ export const cosEvent = {
   syncTaskFailed: "Sync task failed",
   syncTaskSuccess: "Sync task success",
   syncTaskTooltip:
-    "No integration service configuration information detected, go to Project Management > Integration Services to configure it",
+    "No integration service configuration information detected, go to Project Settings > Integration Services to configure it",
   time: "Time",
   triggerTime: "Trigger Time",
   value: "Value",

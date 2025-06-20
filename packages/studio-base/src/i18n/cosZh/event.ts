@@ -61,7 +61,7 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   syncTask: "同步任务到工单系统",
   syncTaskFailed: "同步任务失败",
   syncTaskSuccess: "同步任务成功",
-  syncTaskTooltip: "未检测到集成服务配置信息，请前往 项目管理 > 集成服务 进行配置",
+  syncTaskTooltip: "未检测到集成服务配置信息，请前往 项目设置 > 集成服务 进行配置",
   time: "时间",
   triggerTime: "触发时间",
   value: "值",
