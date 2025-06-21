@@ -98,10 +98,10 @@ export async function getCoStudioVersion(): Promise<string> {
     if (versionMatch?.[1]) {
       return versionMatch[1].trim();
     } else {
-      throw new Error("未找到版本信息");
+      throw new Error("not found version");
     }
   } catch (error) {
-    console.error("获取版本信息失败:", error);
+    console.error("get version info failed:", error);
     return "0.0.0";
   }
 }
