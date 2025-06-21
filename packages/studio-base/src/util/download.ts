@@ -102,7 +102,7 @@ export async function getCoStudioVersion(): Promise<string> {
     }
   } catch (error) {
     console.error("获取版本信息失败:", error);
-    throw error;
+    return "0.0.0";
   }
 }
 
