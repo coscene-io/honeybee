@@ -80,13 +80,10 @@ export function UserSelect({
         renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
         renderOption={(optionProps, option) => (
           <Box component="li" {...optionProps} key={option.name}>
-            <Avatar
-              src={option.avatar != undefined && option.avatar !== "" ? option.avatar : undefined}
-              className={classes.avatar}
-              variant="rounded"
-            >
-              {option.avatar == undefined ||
-                (option.avatar === "" && <PersonIcon color="secondary" />)}
+            <Avatar src="" className={classes.avatar} variant="rounded">
+              {(option.avatar == undefined || option.avatar === "") && (
+                <PersonIcon color="secondary" />
+              )}
             </Avatar>
             {option.nickname}
           </Box>
@@ -136,7 +133,11 @@ export function UserSelect({
         renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
         renderOption={(optionProps, option) => (
           <Box component="li" {...optionProps} key={option.name}>
-            <img className={classes.avatar} src={option.avatar} />
+            <Avatar src="" className={classes.avatar} variant="rounded">
+              {(option.avatar == undefined || option.avatar === "") && (
+                <PersonIcon color="secondary" />
+              )}
+            </Avatar>
             {option.nickname}
           </Box>
         )}
