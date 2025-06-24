@@ -292,6 +292,7 @@ export default React.memo(function LayoutRow({
   );
 
   const onTextFieldKeyDown = useCallback((event: React.KeyboardEvent) => {
+    event.stopPropagation();
     if (event.key === "Escape") {
       setEditingName(false);
     }
