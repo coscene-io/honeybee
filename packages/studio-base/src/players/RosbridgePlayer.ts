@@ -288,7 +288,7 @@ export default class RosbridgePlayer implements Player {
           messageReaders[type] =
             this.#rosVersion !== 2
               ? new ROS1MessageReader(parsedDefinition)
-              : new ROS2MessageReader(parsedDefinition);
+              : new ROS2MessageReader(parsedDefinition, { timeType: "sec,nsec" });
         }
       }
 
