@@ -15,7 +15,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import { toSec, add, fromSec } from "@foxglove/rostime";
-import { CoSceneCreateEventContainer } from "@foxglove/studio-base/components/CoSceneCreateEventContainer";
+import { CoSceneCreateEventContainer } from "@foxglove/studio-base/components/CoSceneCreateEventContainer/index";
 import {
   MessagePipelineContext,
   useMessagePipeline,
