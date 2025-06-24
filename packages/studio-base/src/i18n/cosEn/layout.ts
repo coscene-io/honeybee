@@ -60,7 +60,7 @@ export const cosLayout = {
   removeRecordRecommendedLayout: "Remove preferred",
   markAsProjectRecommendedLayout: "Mark as project preferred",
   markAsRecordRecommendedLayout: "Mark as preferred",
-  copyToRecordDefaultLayoutTitle: "Copy as Record preferred",
+  copyToRecordDefaultLayoutTitle: "Copy as record preferred",
   copyToRecordDefaultLayoutDesc:
     "Copies the current layout as the preferred for the record, which is automatically loaded when the visualisation is subsequently accessed from the current record.",
   update: "Update",
