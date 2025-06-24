@@ -204,7 +204,7 @@ export function parseChannel(
         ? parseRos2idl(schema)
         : parseMessageDefinition(schema, { ros2: true });
 
-      const reader = new ROS2MessageReader(parsedDefinitions);
+      const reader = new ROS2MessageReader(parsedDefinitions, { timeType: "sec,nsec" });
 
       return {
         datatypes: parsedDefinitionsToDatatypes(parsedDefinitions, channel.schema.name),
