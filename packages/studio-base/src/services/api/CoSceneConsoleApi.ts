@@ -1286,15 +1286,15 @@ class CoSceneConsoleApi {
       : undefined;
 
     const req = new ListUserRolesRequest({ parent });
-    return getPromiseClient(RoleService).listUserRoles(req);
+    return await getPromiseClient(RoleService).listUserRoles(req);
   }
 
   async #getPermissionList(): Promise<void> {
     const userOrgRole = await this.listUserRoles({ isProjectRole: false });
     const userProjectRole = await this.listUserRoles({ isProjectRole: true });
 
-    const orgRole: Role | undefined = userOrgRole?.userRoles[0];
-    const projectRole: Role | undefined = userProjectRole?.userRoles[0];
+    const orgRole: Role | undefined = userOrgRole.userRoles[0];
+    const projectRole: Role | undefined = userProjectRole.userRoles[0];
 
     const { permissionList: orgPermissionList, denyList: orgDenyList } =
       permissionListFromRole(orgRole);
