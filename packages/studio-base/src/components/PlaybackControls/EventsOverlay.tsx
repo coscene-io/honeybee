@@ -15,7 +15,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import { toSec, add, fromSec } from "@foxglove/rostime";
-import { CoSceneCreateEventContainer } from "@foxglove/studio-base/components/CoSceneCreateEventContainer/index";
+import { CreateEventContainer } from "@foxglove/studio-base/components/CreateEventContainer/index";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -233,7 +233,7 @@ function EventMark({
         {({ TransitionProps }) => (
           <Fade {...TransitionProps}>
             <div className={classes.creatEventContainer}>
-              <CoSceneCreateEventContainer
+              <CreateEventContainer
                 onClose={() => {
                   setOpen(false);
                   setTimeout(() => {

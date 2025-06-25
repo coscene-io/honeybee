@@ -21,9 +21,9 @@ import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { v4 as uuidv4 } from "uuid";
 
-import { EventForm } from "@foxglove/studio-base/components/CoSceneCreateEventContainer/component/EventForm";
-import { TaskForm } from "@foxglove/studio-base/components/CoSceneCreateEventContainer/component/TaskForm";
-import { useDefaultEventForm } from "@foxglove/studio-base/components/CoSceneCreateEventContainer/hooks";
+import { EventForm } from "@foxglove/studio-base/components/CreateEventContainer/component/EventForm";
+import { TaskForm } from "@foxglove/studio-base/components/CreateEventContainer/component/TaskForm";
+import { useDefaultEventForm } from "@foxglove/studio-base/components/CreateEventContainer/hooks";
 import { convertCustomFieldValuesMapToArray } from "@foxglove/studio-base/components/CustomFieldProperty/utils/convertCustomFieldForm";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
@@ -53,7 +53,7 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
   );
 }
 
-export function CoSceneCreateEventContainer({ onClose }: { onClose: () => void }): React.ReactNode {
+export function CreateEventContainer({ onClose }: { onClose: () => void }): React.ReactNode {
   const [isComposition, setIsComposition] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [enabledCreateNewTask, setEnabledCreateNewTask] = useState(false);

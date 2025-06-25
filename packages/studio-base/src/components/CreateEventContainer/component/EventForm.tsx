@@ -31,7 +31,7 @@ import { add, fromSec, fromDate } from "@foxglove/rostime";
 import {
   useGetPassingFile,
   useTimeRange,
-} from "@foxglove/studio-base/components/CoSceneCreateEventContainer/hooks";
+} from "@foxglove/studio-base/components/CreateEventContainer/hooks";
 import {
   CustomFieldValuesForm,
   FormWithCustomFieldValues,
