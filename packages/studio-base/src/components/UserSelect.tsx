@@ -27,6 +27,27 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
+interface BaseUserSelectProps {
+  allowClear?: boolean;
+  value: string | string[];
+  onMetaDataKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
+  disabled?: boolean;
+  error?: boolean;
+}
+
+interface SingleUserSelectProps extends BaseUserSelectProps {
+  multiple?: false;
+  onChange: (value: User) => void;
+}
+
+interface MultipleUserSelectProps extends BaseUserSelectProps {
+  multiple: true;
+  onChange: (value: User[]) => void;
+}
+
+// union type
+type UserSelectProps = SingleUserSelectProps | MultipleUserSelectProps;
+
 export function UserSelect({
   value,
   onChange,
@@ -35,15 +56,7 @@ export function UserSelect({
   disabled,
   error,
   multiple,
-}: {
-  allowClear?: boolean;
-  value: string | string[];
-  onChange: (value: User | User[]) => void;
-  onMetaDataKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
-  disabled?: boolean;
-  error?: boolean;
-  multiple?: boolean;
-}): React.ReactNode {
+}: UserSelectProps): React.ReactNode {
   const consoleApi = useConsoleApi();
   const { classes } = useStyles();
 

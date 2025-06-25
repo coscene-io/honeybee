@@ -82,4 +82,5 @@ export const cosEvent = {
   creater: "Creater",
   share: "Share",
   loopPlay: "Loop Play",
+  startTimeAndDurationRequired: "Start time and duration are required",
 };
