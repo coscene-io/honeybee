@@ -6322,6 +6322,7 @@ __metadata:
     react-dnd: 16.0.1
     react-dnd-html5-backend: 16.0.1
     react-dom: ^18.3.1
+    react-hook-form: 7.58.1
     react-hot-toast: 2.4.0
     react-hover-observer: 2.1.1
     react-i18next: 14.0.5
@@ -24047,6 +24048,15 @@ __metadata:
     react: ^0.14.8 || ^15.0.1 || ^16.0.0 || ^17.0.1 || ^18.0.0
     react-dom: ^0.14.8 || ^15.0.1 || ^16.0.0 || ^17.0.1 || ^18.0.0
   checksum: c3907cc4c1d3e9ecc8ca7727058ebcba6ec89848d9e07bfd2c77ee8f28f1ad99bf55e38359dec8a1125de83d41ac09a2874f53c41415edc86ffa9840fa1b7856
+  languageName: node
+  linkType: hard
+
+"react-hook-form@npm:7.58.1":
+  version: 7.58.1
+  resolution: "react-hook-form@npm:7.58.1"
+  peerDependencies:
+    react: ^16.8.0 || ^17 || ^18 || ^19
+  checksum: 0ab385f2c9f69ebd57466546c80e46933a0e9c9d7cc43b408fc3946548b6e5b49562f45719ffae8ae94872bf3f2d7600e009634ad241bfb3afa2c177a0858cd4
   languageName: node
   linkType: hard
 
