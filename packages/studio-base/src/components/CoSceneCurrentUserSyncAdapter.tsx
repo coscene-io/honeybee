@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Role } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
 import { useEffect, useMemo } from "react";
 import { useAsyncFn } from "react-use";
 
@@ -44,35 +45,22 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
-  const [_userRole, syncUserRole] = useAsyncFn(
-    async (warehouseId, projectId) => {
-      if (currentUser != undefined) {
-        const res = await consoleApi.getRoleLists();
-        const roles = res.roles;
+  const [_userRole, syncUserRole] = useAsyncFn(async () => {
+    if (currentUser != undefined) {
+      const projectRoles = await consoleApi.listUserRoles({ isProjectRole: true });
 
-        const projectRoles = await consoleApi.getProjectUserRoles(
-          `warehouses/${warehouseId}/projects/${projectId}`,
-          `users/current`,
-        );
+      const orgRoles = await consoleApi.listUserRoles({ isProjectRole: false });
 
-        const orgRoles = await consoleApi.getOrgUserRoles(`users/current`);
+      const projectRoleCode = projectRoles.userRoles[0] ?? new Role();
 
-        const projectRoleCode = projectRoles.role;
+      const orgRolesCode = orgRoles.userRoles[0] ?? new Role();
 
-        const orgRolesCode = orgRoles.role;
-
-        const organizationRole = roles.find((role) => role.name === orgRolesCode);
-
-        const projectRole = roles.find((role) => role.name === projectRoleCode);
-
-        setUserRole(
-          OrganizationRoleWeight[organizationRole?.code as OrganizationRoleEnum],
-          ProjectRoleWeight[projectRole?.code as ProjectRoleEnum],
-        );
-      }
-    },
-    [consoleApi, currentUser, setUserRole],
-  );
+      setUserRole(
+        OrganizationRoleWeight[orgRolesCode.code as OrganizationRoleEnum],
+        ProjectRoleWeight[projectRoleCode.code as ProjectRoleEnum],
+      );
+    }
+  }, [consoleApi, currentUser, setUserRole]);
 
   const [_userInfo, syncUserInfo] = useAsyncFn(async () => {
     if (loginStatus === "alreadyLogin") {
@@ -97,7 +85,7 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
 
   useEffect(() => {
     if (baseInfo.projectId != undefined && baseInfo.warehouseId != undefined) {
-      syncUserRole(baseInfo.warehouseId, baseInfo.projectId).catch((err: unknown) => {
+      syncUserRole().catch((err: unknown) => {
         log.error("syncUserRole", err);
       });
     }
