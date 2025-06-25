@@ -4,6 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { User } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
 import {
   TextField,
   FormLabel,
@@ -12,10 +13,9 @@ import {
   Checkbox,
   Tooltip,
 } from "@mui/material";
-import { useCallback } from "react";
 import { Controller, UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { useAsyncFn, useAsync } from "react-use";
+import { useAsync } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
@@ -58,7 +58,7 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
   const baseInfo = asyncBaseInfo.value ?? {};
 
   // Get task custom field schema
-  const [taskCustomFieldSchema] = useAsyncFn(async () => {
+  const taskCustomFieldSchema = useAsync(async () => {
     if (!baseInfo.warehouseId || !baseInfo.projectId) {
       return;
     }
@@ -89,16 +89,9 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
     }
   }, [consoleApi, baseInfo.projectSlug]);
 
-  const handleUserChange = useCallback((user: unknown) => {
-    if (!Array.isArray(user) && user && typeof user === "object" && "name" in user) {
-      return (user as { name: string }).name;
-    }
-    return "";
-  }, []);
-
   return (
     <Stack>
-      <Stack paddingX={3} paddingTop={2}>
+      <Stack paddingTop={2}>
         <Controller
           name="title"
           control={control}
@@ -126,7 +119,7 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
         />
       </Stack>
 
-      <Stack paddingX={3} paddingTop={2}>
+      <Stack paddingTop={2}>
         <Controller
           name="description"
           control={control}
@@ -138,7 +131,6 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
               id="task-description"
               label={t("taskDescription")}
               rows={3}
-              multiline
               fullWidth
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
@@ -148,7 +140,7 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
         />
       </Stack>
 
-      <Stack paddingX={3} paddingTop={2}>
+      <Stack paddingTop={2}>
         <FormControl>
           <FormLabel>{t("taskAssignee")}</FormLabel>
           <Controller
@@ -157,9 +149,8 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
             render={({ field, fieldState }) => (
               <UserSelect
                 value={field.value}
-                onChange={(user: unknown) => {
-                  const assigneeName = handleUserChange(user);
-                  field.onChange(assigneeName);
+                onChange={(user: User) => {
+                  field.onChange(user.name);
                 }}
                 onMetaDataKeyDown={onMetaDataKeyDown}
                 error={!!fieldState.error}
@@ -170,7 +161,7 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
       </Stack>
 
       {taskCustomFieldSchema.value && (
-        <Stack paddingX={3} paddingTop={2} gap={2}>
+        <Stack paddingTop={2} gap={2}>
           <CustomFieldValuesForm
             form={form as unknown as FormWithCustomFieldValues}
             properties={taskCustomFieldSchema.value.properties}
@@ -178,7 +169,7 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
         </Stack>
       )}
 
-      <Stack paddingX={3} paddingTop={2}>
+      <Stack paddingTop={2}>
         {syncedTask?.enabled ?? false ? (
           <Controller
             name="needSyncTask"

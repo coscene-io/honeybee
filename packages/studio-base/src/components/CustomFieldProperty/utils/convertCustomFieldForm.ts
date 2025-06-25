@@ -21,9 +21,9 @@ export function convertCustomFieldValuesToMap(
 }
 
 export function convertCustomFieldValuesMapToArray(
-  customFieldValuesMap: Record<string, CustomFieldValue>,
+  customFieldValuesMap: Record<string, CustomFieldValue | undefined>,
 ): CustomFieldValue[] {
   return Object.entries(customFieldValuesMap)
     .map(([, value]) => value)
-    .filter((item) => item.value.value);
+    .filter((item): item is CustomFieldValue => item?.value.value != undefined);
 }

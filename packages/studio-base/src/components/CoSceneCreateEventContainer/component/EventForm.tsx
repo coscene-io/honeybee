@@ -28,7 +28,10 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { add, fromSec, fromDate } from "@foxglove/rostime";
-import { useGetPassingFile } from "@foxglove/studio-base/components/CoSceneCreateEventContainer/hooks";
+import {
+  useGetPassingFile,
+  useTimeRange,
+} from "@foxglove/studio-base/components/CoSceneCreateEventContainer/hooks";
 import {
   CustomFieldValuesForm,
   FormWithCustomFieldValues,
@@ -85,9 +88,10 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
 
   const customFieldSchema = useEvents(selectCustomFieldSchema);
   const toModifyEvent = useEvents(selectToModifyEvent);
-
   const { control, watch, setValue } = form;
   const watchedValues = watch();
+
+  const { startTime, duration } = useTimeRange(watchedValues.fileName);
 
   // 使用 useFieldArray 管理 metadataEntries
   const { fields, append, remove, update } = useFieldArray({
@@ -142,6 +146,11 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
       document.removeEventListener("compositionend", handleCompositionEnd);
     };
   }, []);
+
+  useEffect(() => {
+    setValue("startTime", startTime);
+    setValue("duration", duration);
+  }, [startTime, duration, setValue]);
 
   // 自动添加新行的逻辑
   const handleAutoAppendRow = useCallback(
@@ -205,7 +214,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
 
   return (
     <Stack>
-      <Stack paddingX={3} paddingTop={2}>
+      <Stack paddingTop={2}>
         <Controller
           name="eventName"
           control={control}
@@ -234,7 +243,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
         />
       </Stack>
 
-      <Stack paddingX={3} paddingTop={2}>
+      <Stack paddingTop={2}>
         <FormControl>
           <FormLabel>{t("startAndEndTime")}</FormLabel>
           <Typography paddingY={1}>
@@ -250,7 +259,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
         </FormControl>
       </Stack>
 
-      <Stack paddingX={3} paddingTop={2}>
+      <Stack paddingTop={2}>
         <Controller
           name="description"
           control={control}
@@ -270,7 +279,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
         />
       </Stack>
 
-      <Stack paddingX={3} paddingTop={2} gap={1}>
+      <Stack paddingTop={2} gap={1}>
         <FormLabel>{t("photo")}</FormLabel>
         {watchedValues.imageFile ? (
           <Stack>
@@ -335,7 +344,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
         />
       </Stack>
 
-      <Stack paddingX={3} paddingTop={2}>
+      <Stack paddingTop={2}>
         <FormLabel>{t("attribute")}</FormLabel>
         <div className={classes.grid}>
           {isSupor ? (
@@ -472,7 +481,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
       </Stack>
 
       {!isEditing && (
-        <Stack paddingX={3} paddingTop={2}>
+        <Stack paddingTop={2}>
           <FormLabel>{t("record")}</FormLabel>
           <Controller
             name="fileName"
@@ -497,7 +506,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
       )}
 
       {customFieldSchema?.properties && (!isEditing || watchedValues.customFieldValues) && (
-        <Stack paddingX={3} paddingTop={2} gap={2}>
+        <Stack paddingTop={2} gap={2}>
           <CustomFieldValuesForm
             form={form as unknown as FormWithCustomFieldValues}
             properties={customFieldSchema.properties}
@@ -506,7 +515,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
       )}
 
       {duplicateKey && (
-        <Stack paddingX={3} paddingTop={2}>
+        <Stack paddingTop={2}>
           <Typography color="error">
             {t("duplicateKey")} {duplicateKey[0]}
           </Typography>

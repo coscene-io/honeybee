@@ -538,6 +538,7 @@ export function CoSceneCreateEventContainer(props: { onClose: () => void }): Rea
             version: 1,
           },
         }) ?? task.description;
+
       try {
         const newTask = await consoleApi.createTask({
           parent,

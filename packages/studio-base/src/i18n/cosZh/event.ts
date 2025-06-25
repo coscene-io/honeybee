@@ -83,4 +83,5 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   creater: "创建者",
   share: "分享",
   loopPlay: "循环播放",
+  startTimeAndDurationRequired: "开始时间和持续时间不能为空",
 };

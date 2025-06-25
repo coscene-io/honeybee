@@ -5,7 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { toDate, subtract, isLessThan, isGreaterThan } from "@foxglove/rostime";
+import { useEffect, useState } from "react";
+
+import { toDate, subtract, isLessThan, isGreaterThan, add, toSec } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { convertCustomFieldValuesToMap } from "@foxglove/studio-base/components/CustomFieldProperty/utils/convertCustomFieldForm";
 import {
@@ -86,4 +88,36 @@ export const useDefaultEventForm = (): CreateEventForm => {
     record: "",
     customFieldValues: {},
   };
+};
+
+export const useTimeRange = (
+  fileName: string,
+): { startTime: Date | undefined; duration: number } => {
+  const [startTime, setStartTime] = useState<Date | undefined>(undefined);
+  const [duration, setDuration] = useState<number>(0);
+
+  const eventMarks = useEvents(selectEventMarks);
+  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
+  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
+
+  const markStartTime = eventMarks[0]?.time;
+  const markEndTime = eventMarks[1]?.time;
+
+  const passingFile = useGetPassingFile();
+
+  const currentFile = passingFile?.find((bag) => bag.name === fileName);
+
+  useEffect(() => {
+    setStartTime(
+      markStartTime
+        ? timeMode === "relativeTime"
+          ? toDate(add(markStartTime, currentFile?.startTime ?? { sec: 0, nsec: 0 }))
+          : toDate(markStartTime)
+        : undefined,
+    );
+
+    setDuration(markEndTime && markStartTime ? toSec(subtract(markEndTime, markStartTime)) : 0);
+  }, [markStartTime, markEndTime, timeMode]);
+
+  return { startTime, duration };
 };

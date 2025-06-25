@@ -31,5 +31,5 @@ export type CreateTaskForm = {
   assignee: string;
   assigner: string;
   needSyncTask: boolean;
-  customFieldValues: CustomFieldValue[];
+  customFieldValues?: Record<string, CustomFieldValue>;
 };
