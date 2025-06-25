@@ -39,8 +39,6 @@ import { useMountedState } from "react-use";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import {
-  OrganizationRoleEnum,
-  OrganizationRoleWeight,
   ProjectRoleEnum,
   ProjectRoleWeight,
   UserStore,
@@ -380,10 +378,8 @@ export default React.memo(function LayoutRow({
     layoutIsShared(layout) &&
       onRecommendedToProjectLayout != undefined &&
       !layout.isRecordRecommended &&
-      ((currentUserRole.organizationRole >=
-        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_ADMIN] &&
-        currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) ||
-        currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN]) && {
+      currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN] &&
+      baseInfo.projectId != undefined && {
         type: "item",
         key: "recommendedToProjectLayout",
         text: layout.isProjectRecommended
@@ -394,10 +390,7 @@ export default React.memo(function LayoutRow({
       },
     onCopyToRecordDefaultLayout != undefined &&
       !layout.isRecordRecommended &&
-      ((currentUserRole.organizationRole >=
-        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_READER] &&
-        currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) ||
-        currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER]) &&
+      currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER] &&
       baseInfo.recordId != undefined && {
         type: "item",
         key: "copyToRecordDefaultLayout",
