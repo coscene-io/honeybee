@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -70,4 +70,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   doNotShowAgain: "不再提示",
   autoDisconnectionTips:
     "检测到长时间无操作，可视化即将自动断连，如需继续使用请保持活跃状态 {{time}}",
+  networkConnection: "网络连接",
+  localNetworkConnection: "局域网连接",
+  colinkRemoteConnection: "coLink 远程连接",
 };

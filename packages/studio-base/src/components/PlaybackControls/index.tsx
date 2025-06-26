@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -14,6 +14,8 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import {
   ArrowRepeatAll20Regular,
   ArrowRepeatAllOff20Regular,
@@ -48,12 +50,7 @@ import PlaybackQualityControls from "@foxglove/studio-base/components/PlaybackCo
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import {
-  ProjectRoleEnum,
-  ProjectRoleWeight,
-  useCurrentUser,
-  UserStore,
-} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
@@ -93,8 +90,8 @@ const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
-
-const selectUserRole = (store: UserStore) => store.role;
+const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectRecord = (store: CoSceneBaseStore) => store.record;
 
 function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
@@ -153,10 +150,15 @@ export default function PlaybackControls(props: {
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
   const enableList = useBaseInfo(selectEnableList);
+  const projectInfo = useBaseInfo(selectProject);
+  const recordInfo = useBaseInfo(selectRecord);
 
-  const currentUserRole = useCurrentUser(selectUserRole);
+  const project: Project | undefined = useMemo(() => projectInfo.value ?? undefined, [projectInfo]);
+  const record: Record | undefined = useMemo(() => recordInfo.value ?? undefined, [recordInfo]);
 
   const { t } = useTranslation("cosEvent");
+
+  const consoleApi = useConsoleApi();
 
   const { classes, cx } = useStyles();
   const repeat = useWorkspaceStore(selectPlaybackRepeat);
@@ -251,8 +253,9 @@ export default function PlaybackControls(props: {
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
             {enableList.event === "ENABLE" &&
-              currentUserRole.projectRole >
-                ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
+              consoleApi.createEvent.permission() &&
+              project?.isArchived === false &&
+              record?.isArchived === false && (
                 <MemoedMomentButton disableControls={disableControls} />
               )}
             <Tooltip

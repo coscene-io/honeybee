@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -24,6 +24,7 @@ export const cosError: Partial<TypeOptions["resources"]["cosError"]> = {
   repeatedConnectionDesc:
     "同一时间只能有一个人连接到同一个机器人。当前有用户正在连接，请稍后刷新并重试。",
   fileFormatUnsupported: "不支持当前文件格式",
+  unauthorized: "暂无权限",
 
   SEMANTIC_LIB_ERROR: "semantic-lib 内部错误",
   GET_JOBRUN_FROM_DPS: "从data platform 获取 jobrun 失败",

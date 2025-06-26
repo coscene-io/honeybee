@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -36,7 +36,7 @@ export const dataCollection: Partial<TypeOptions["resources"]["dataCollection"]>
   cancelled: "已取消",
   pleaseLoginToUseThisPanel: "请登录后使用此面板",
   loading: "加载中...",
-  onlySupportRealTimeVisualization: "当前面仅支持实时可视化",
+  onlySupportRealTimeVisualization: "当前面板仅支持实时可视化",
   projectName: "项目名称",
   recordLabels: "记录标签",
   buttons: "按钮",

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,6 +7,7 @@
 
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { CustomFieldSchema } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { ReactNode, useState } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
@@ -63,6 +64,9 @@ function CreateBaseStore() {
       if (project.value) {
         set({ project: { loading: true, value: project.value } });
       }
+    },
+    setRecordCustomFieldSchema: (recordCustomFieldSchema: CustomFieldSchema) => {
+      set({ recordCustomFieldSchema });
     },
   }));
 }

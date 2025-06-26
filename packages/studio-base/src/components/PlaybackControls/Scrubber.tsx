@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -25,12 +25,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useBaseInfo, CoSceneBaseStore } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import {
-  ProjectRoleEnum,
-  ProjectRoleWeight,
-  useCurrentUser,
-  UserStore,
-} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   useClearHoverValue,
   useSetHoverValue,
@@ -72,7 +67,6 @@ const selectRanges = (ctx: MessagePipelineContext) =>
   ctx.playerState.progress.fullyLoadedFractionRanges;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
-const selectUserRole = (store: UserStore) => store.role;
 
 type Props = {
   onSeek: (seekTo: Time) => void;
@@ -82,7 +76,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const { onSeek } = props;
   const { classes, cx } = useStyles();
 
-  const currentUserRole = useCurrentUser(selectUserRole);
+  const consoleApi = useConsoleApi();
   const [hoverComponentId] = useState<string>(() => uuidv4());
 
   const [cursor, setCursor] = useState("pointer");
@@ -256,14 +250,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
           />
         </Stack>
         <BagsOverlay />
-        {enableList.event === "ENABLE" &&
-          currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
-            <EventsOverlay
-              componentId={hoverComponentId}
-              isDragging={isDragging}
-              setCursor={setCursor}
-            />
-          )}
+        {enableList.event === "ENABLE" && consoleApi.createEvent.permission() && (
+          <EventsOverlay
+            componentId={hoverComponentId}
+            isDragging={isDragging}
+            setCursor={setCursor}
+          />
+        )}
         <PlaybackBarHoverTicks componentId={hoverComponentId} />
       </Stack>
     </Tooltip>

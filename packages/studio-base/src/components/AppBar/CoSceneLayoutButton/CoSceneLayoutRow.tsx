@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,6 +7,7 @@
 
 import ErrorIcon from "@mui/icons-material/Error";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ThumbUpOffAltIcon from "@mui/icons-material/ThumbUpOffAlt";
 import {
   ListItem,
   ListItemButton,
@@ -22,6 +23,7 @@ import {
   styled as muiStyled,
   Chip,
   Stack,
+  Tooltip,
 } from "@mui/material";
 import {
   useCallback,
@@ -39,8 +41,6 @@ import { useMountedState } from "react-use";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import {
-  OrganizationRoleEnum,
-  OrganizationRoleWeight,
   ProjectRoleEnum,
   ProjectRoleWeight,
   UserStore,
@@ -108,6 +108,15 @@ const StyledMenuItem = muiStyled(MenuItem, {
       ].join(",")})`,
     },
   }),
+}));
+
+const StyledChip = muiStyled(Chip)(() => ({
+  "& .MuiChip-label": {
+    display: "flex",
+    alignItems: "center",
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
 }));
 
 export type LayoutActionMenuItem =
@@ -292,6 +301,7 @@ export default React.memo(function LayoutRow({
   );
 
   const onTextFieldKeyDown = useCallback((event: React.KeyboardEvent) => {
+    event.stopPropagation();
     if (event.key === "Escape") {
       setEditingName(false);
     }
@@ -380,10 +390,8 @@ export default React.memo(function LayoutRow({
     layoutIsShared(layout) &&
       onRecommendedToProjectLayout != undefined &&
       !layout.isRecordRecommended &&
-      ((currentUserRole.organizationRole >=
-        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_ADMIN] &&
-        currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) ||
-        currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN]) && {
+      currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN] &&
+      baseInfo.projectId != undefined && {
         type: "item",
         key: "recommendedToProjectLayout",
         text: layout.isProjectRecommended
@@ -394,10 +402,7 @@ export default React.memo(function LayoutRow({
       },
     onCopyToRecordDefaultLayout != undefined &&
       !layout.isRecordRecommended &&
-      ((currentUserRole.organizationRole >=
-        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_READER] &&
-        currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) ||
-        currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER]) &&
+      currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER] &&
       baseInfo.recordId != undefined && {
         type: "item",
         key: "copyToRecordDefaultLayout",
@@ -567,14 +572,47 @@ export default React.memo(function LayoutRow({
             noWrap
             style={{ display: editingName ? "none" : "block" }}
           >
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
               <HighlightedText text={layout.name} highlight={searchQuery} />
-              {layout.isProjectRecommended && (
-                <Chip label={t("projectRecommandedLayout")} color="success" size="small" />
-              )}
-              {layout.isRecordRecommended && (
-                <Chip label={t("recordDefaultLayout")} color="success" size="small" />
-              )}
+              <Stack marginTop={0.5}>
+                {layout.isProjectRecommended && (
+                  <StyledChip
+                    label={
+                      <Tooltip title={t("projectRecommandedLayout")} placement="top">
+                        <ThumbUpOffAltIcon
+                          fontSize="small"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            lineHeight: 1,
+                          }}
+                        />
+                      </Tooltip>
+                    }
+                    color="success"
+                    size="small"
+                  />
+                )}
+                {layout.isRecordRecommended && (
+                  <StyledChip
+                    label={
+                      <Tooltip title={t("recordDefaultLayout")} placement="top">
+                        <ThumbUpOffAltIcon
+                          fontSize="small"
+                          style={{
+                            color: "white",
+                            display: "flex",
+                            alignItems: "center",
+                            lineHeight: 1,
+                          }}
+                        />
+                      </Tooltip>
+                    }
+                    color="info"
+                    size="small"
+                  />
+                )}
+              </Stack>
             </Stack>
           </Typography>
         </ListItemText>

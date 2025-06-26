@@ -8,7 +8,7 @@
   },
   "author": {
     "name": "coScene Technologies",
-    "email": "contact@coscene.io"
+    "email": "hi@coscene.io"
   },
   "homepage": "https://www.coscene.cn/",
   "main": "./src/index.ts",
@@ -20,8 +20,8 @@
     "prepack": "tsc -b"
   },
   "devDependencies": {
+    "@coscene-io/comlink": "4.4.1",
     "@foxglove/tsconfig": "2.0.0",
-    "comlink": "github:foxglove/comlink#9181fa505671b35b1e66e0a8361a6fc1bdd03307",
     "typescript": "5.3.3"
   }
 }

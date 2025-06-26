@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -20,4 +20,5 @@ export const cosSettings: Partial<TypeOptions["resources"]["cosSettings"]> = {
   auto: "自动",
   timeMode: "时间模式",
   understandFrameRateOptimization: "了解帧率优化",
+  selectCommonSource: "选择通用资源",
 };

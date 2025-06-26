@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -20,6 +20,7 @@ import { StoreApi, useStore } from "zustand";
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Immutable } from "@foxglove/studio";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CurrentLayoutContext, {
   LayoutState,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
@@ -104,6 +105,8 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
 
   const urdfStorage = useUrdfStorage();
 
+  const consoleApi = useConsoleApi();
+
   // We make a new store when the player changes. This throws away any state from the previous store
   // and re-creates the pipeline functions and references. We make a new store to avoid holding onto
   // any state from the previous store.
@@ -112,8 +115,13 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
   // are ok with this behavior because the <Workspace> re-mounts all panels when a player changes.
   // The re-mounted panels will re-initialize and setup new publishers and subscribers.
   const store = useMemo(() => {
-    return createMessagePipelineStore({ promisesToWaitForRef, initialPlayer: player, urdfStorage });
-  }, [player, urdfStorage]);
+    return createMessagePipelineStore({
+      promisesToWaitForRef,
+      initialPlayer: player,
+      urdfStorage,
+      consoleApi,
+    });
+  }, [player, urdfStorage, consoleApi]);
 
   const subscriptions = useStore(store, selectSubscriptions);
 

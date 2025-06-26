@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -19,6 +19,7 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoScenePlaylistStore,
@@ -40,9 +41,13 @@ import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConf
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
-} from "@foxglove/studio-base/services/CoSceneConsoleApi";
-import { stringToColor } from "@foxglove/studio-base/util/coscene";
-import { BinaryOperator, CosQuery, SerializeOption } from "@foxglove/studio-base/util/cosel";
+} from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import {
+  stringToColor,
+  BinaryOperator,
+  CosQuery,
+  SerializeOption,
+} from "@foxglove/studio-base/util/coscene";
 import { QueryFields } from "@foxglove/studio-base/util/queries";
 import { durationToNanoSeconds } from "@foxglove/studio-base/util/time";
 
@@ -167,6 +172,8 @@ const selectPause = (ctx: MessagePipelineContext) => ctx.pausePlayback;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
 const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectSetCustomFieldSchema = (store: EventsStore) => store.setCustomFieldSchema;
 
 /**
  * Syncs events from server and syncs hovered event with hovered time.
@@ -189,9 +196,33 @@ export function CoSceneEventsSyncAdapter(): React.JSX.Element {
   const seek = useMessagePipeline(selectSeek);
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
+  const setCustomFieldSchema = useEvents(selectSetCustomFieldSchema);
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
+
+  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+
+  const [, getMomentCustomFieldValues] = useAsyncFn(async () => {
+    if (!baseInfo.warehouseId || !baseInfo.projectId) {
+      return;
+    }
+
+    const customFieldSchema = await consoleApi.getMomentCustomFieldSchema(
+      `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`,
+    );
+
+    setCustomFieldSchema(customFieldSchema);
+  }, [consoleApi, baseInfo.warehouseId, baseInfo.projectId, setCustomFieldSchema]);
+
+  useEffect(() => {
+    if (baseInfo.warehouseId && baseInfo.projectId) {
+      getMomentCustomFieldValues().catch((error: unknown) => {
+        log.error(error);
+      });
+    }
+  }, [baseInfo.warehouseId, baseInfo.projectId, getMomentCustomFieldValues]);
 
   useEffect(() => {
     if (loopedEvent != undefined && currentTime != undefined && seek != undefined) {

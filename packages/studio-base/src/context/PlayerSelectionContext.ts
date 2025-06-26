@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -10,7 +10,7 @@ import { createContext, useContext } from "react";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import { Player } from "@foxglove/studio-base/players/types";
-import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
 
 export type DataSourceFactoryInitializeArgs = {

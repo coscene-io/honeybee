@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -412,11 +412,16 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   data-testid="user-button"
                 >
                   <Avatar
-                    src={userInfo?.avatarUrl ?? undefined}
+                    src={
+                      userInfo?.avatarUrl != undefined && userInfo.avatarUrl !== ""
+                        ? userInfo.avatarUrl
+                        : undefined
+                    }
                     className={classes.avatar}
                     variant="rounded"
                   >
-                    {userInfo?.avatarUrl == undefined && <PersonIcon color="secondary" />}
+                    {userInfo?.avatarUrl == undefined ||
+                      (userInfo.avatarUrl === "" && <PersonIcon color="secondary" />)}
                   </Avatar>
                 </IconButton>
               </Tooltip>

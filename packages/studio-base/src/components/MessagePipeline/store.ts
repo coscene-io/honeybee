@@ -1,10 +1,11 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import * as _ from "lodash-es";
 import { MutableRefObject } from "react";
 import shallowequal from "shallowequal";
@@ -16,6 +17,7 @@ import {
   makeSubscriptionMemoizer,
   mergeSubscriptions,
 } from "@foxglove/studio-base/components/MessagePipeline/subscriptions";
+import { ConsoleApi } from "@foxglove/studio-base/index";
 import {
   AdvertiseOptions,
   Player,
@@ -97,10 +99,12 @@ export function createMessagePipelineStore({
   promisesToWaitForRef,
   initialPlayer,
   urdfStorage,
+  consoleApi,
 }: {
   promisesToWaitForRef: MutableRefObject<FramePromise[]>;
   initialPlayer: Player | undefined;
   urdfStorage: IUrdfStorage;
+  consoleApi: ConsoleApi;
 }): StoreApi<MessagePipelineInternalState> {
   return createStore((set, get) => ({
     player: initialPlayer,
@@ -186,13 +190,23 @@ export function createMessagePipelineStore({
             };
           }
 
-          const fetchedUrdfFile = await builtinFetch(fileUri, opts);
+          const fetchedUrdfFile = fileUri.startsWith("s3://")
+            ? await builtinS3Fetch(fileUri, consoleApi, opts)
+            : await builtinFetch(fileUri, opts);
           if (urdfStorage.checkUriNeedsCache(fileUri)) {
             await urdfStorage.set(fileUri, fetchedUrdfFile.data);
           }
 
           return fetchedUrdfFile;
         };
+
+        if (protocol === "s3:") {
+          try {
+            return await cachedFetchAsset(uri, options);
+          } catch {
+            // Do nothing here as one of the fallback methods below might work.
+          }
+        }
 
         if (protocol === "package:") {
           // For the desktop app, package:// is registered as a supported schema for builtin _fetch_ calls.
@@ -499,5 +513,60 @@ async function builtinFetch(url: string, opts?: { signal?: AbortSignal }) {
     uri: url,
     data: new Uint8Array(await response.arrayBuffer()),
     mediaType: response.headers.get("content-type") ?? undefined,
+  };
+}
+
+let s3Client: { key: string; client: S3Client } | undefined;
+
+async function builtinS3Fetch(
+  url: string,
+  consoleApi: ConsoleApi,
+  opts?: { signal?: AbortSignal },
+) {
+  const pkgPath = url.slice("s3://".length);
+
+  const project = pkgPath.split("/files/")[0];
+  if (s3Client == undefined || s3Client.key !== project) {
+    const response = await consoleApi.generateSecurityToken({
+      project,
+      expireDuration: { seconds: BigInt(60 * 60 * 24 * 30) },
+    });
+
+    s3Client = {
+      key: project ?? "",
+      client: new S3Client({
+        region: "dev-cn-shanghai",
+        endpoint: `https://${response.endpoint}`,
+        forcePathStyle: true,
+        credentials: {
+          accessKeyId: response.accessKeyId,
+          secretAccessKey: response.accessKeySecret,
+          sessionToken: response.sessionToken,
+        },
+      }),
+    };
+  }
+
+  const fileKey = `project${pkgPath.split("project").pop()}`;
+
+  const command = new GetObjectCommand({
+    Bucket: "default",
+    Key: fileKey,
+  });
+
+  const response = await s3Client.client.send(command, {
+    abortSignal: opts?.signal,
+  });
+
+  if (!response.Body) {
+    throw new Error(`No body in S3 response for ${url}`);
+  }
+
+  const bodyBytes = await response.Body.transformToByteArray();
+
+  return {
+    uri: url,
+    data: new Uint8Array(bodyBytes),
+    mediaType: undefined,
   };
 }

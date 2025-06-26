@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -18,9 +18,9 @@ import CoSceneLayoutManagerProvider from "@foxglove/studio-base/providers/CoScen
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoSceneUserProfileLocalStorageProvider from "@foxglove/studio-base/providers/CoSceneUserProfileLocalStorageProvider";
 import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
-import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
+import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 export function SharedProviders({
   consoleApi,

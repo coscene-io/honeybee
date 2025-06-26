@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -49,7 +49,7 @@ export { SharedProviders } from "./providers/SharedProviders";
 export { migratePanelsState, migrateLayout } from "./services/migrateLayout";
 export type { Layout, ISO8601Timestamp, ILayoutStorage } from "./services/CoSceneILayoutStorage";
 export { default as CoSceneDataPlatformDataSourceFactory } from "./dataSources/CoSceneDataPlatformDataSourceFactory";
-export { default as ConsoleApi } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+export { default as ConsoleApi } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 export type { LayoutID } from "./context/CurrentLayoutContext";
 export { IdbExtensionLoader } from "./services/IdbExtensionLoader";
 export type { IUrdfStorage } from "./services/UrdfStorage";

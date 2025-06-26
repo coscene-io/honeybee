@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -97,9 +97,9 @@ export const APP_CONFIG = {
     options: ["en", "zh"],
   },
   COSTUDIO_DOWNLOAD_URL:
-    cosConfig.COSTUDIO_DOWNLOAD_URL ?? process.env.COSTUDIO_DOWNLOAD_URL ?? undefined,
-
-  OFFICIAL_WEB_URL: cosConfig.OFFICIAL_WEB_URL ?? "https://www.coscene.cn",
+    cosConfig.COSTUDIO_DOWNLOAD_URL ??
+    process.env.COSTUDIO_DOWNLOAD_URL ??
+    "https://download.coscene.cn/coStudio/packages",
 };
 
 export function getDomainConfig(): DomainConfig {

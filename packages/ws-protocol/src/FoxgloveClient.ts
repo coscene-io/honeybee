@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -30,7 +30,7 @@ import {
   ServiceId,
   SubscriptionId,
   Time,
-  Login,
+  ServerLogin,
   Kicked,
   ChannelId,
   MessageData,
@@ -57,7 +57,7 @@ type EventTypes = {
   connectionGraphUpdate: (event: ConnectionGraphUpdate) => void;
   fetchAssetResponse: (event: FetchAssetResponse) => void;
   serviceCallFailure: (event: ServiceCallFailure) => void;
-  login: (event: Login) => void;
+  login: (event: ServerLogin) => void;
   kicked: (event: Kicked) => void;
 };
 

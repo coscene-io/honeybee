@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -10,18 +10,20 @@ import { Button, Dialog, Stack, Typography } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ChooserComponent } from "@foxglove/studio-base/components/CoSceneChooser";
+import { ChooserComponent } from "@foxglove/studio-base/components/CoSceneChooser/ChooserComponent";
 
 export function ChoiceRecordDialog({
   open,
   onClose,
   onConfirm,
   defaultRecordName,
+  mode = "create-record",
 }: {
   open: boolean;
   onClose: () => void;
   onConfirm: (record: Record, project: Project) => void;
   defaultRecordName?: string;
+  mode?: "select-record" | "create-record";
 }): React.JSX.Element {
   const { t } = useTranslation("appBar");
   const [targetRecord, setTargetRecord] = useState<Record | undefined>(undefined);
@@ -34,10 +36,10 @@ export function ChoiceRecordDialog({
       </Stack>
       <Stack flex={1}>
         <ChooserComponent
-          type="record"
+          mode={mode}
           checkFileSupportedFunc={() => true}
-          setTargetInfo={({ record, project, recordType }) => {
-            if (recordType === "create" && record != undefined && project != undefined) {
+          setTargetInfo={({ record, project, isCreating }) => {
+            if (isCreating === true && record != undefined && project != undefined) {
               onConfirm(record, project);
               onClose();
             } else {
@@ -47,7 +49,6 @@ export function ChoiceRecordDialog({
           }}
           files={[]}
           setFiles={() => {}}
-          defaultRecordType="create"
           defaultRecordName={defaultRecordName}
           createRecordConfirmText={t("createRecordAndUpload")}
         />

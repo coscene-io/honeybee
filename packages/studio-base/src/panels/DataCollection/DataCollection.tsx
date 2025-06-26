@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -14,6 +14,7 @@ import {
   UploadTaskDetail,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { Palette, Typography } from "@mui/material";
+import dayjs from "dayjs";
 import { TFunction } from "i18next";
 import { Dispatch, SetStateAction, useCallback, useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,6 +27,7 @@ import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { ConsoleApi } from "@foxglove/studio-base/index";
 import { CallService } from "@foxglove/studio-base/panels/DataCollection/CallService";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { defaultConfig, settingsActionReducer, useSettingsTree } from "./settings";
 import {
@@ -37,6 +39,7 @@ import {
   ButtonsState,
   CollectionStage,
   TaskInfoSnapshot,
+  PanelState,
 } from "./types";
 
 type Props = {
@@ -44,6 +47,7 @@ type Props = {
   context: PanelExtensionContext;
   userInfo: User;
   consoleApi: ConsoleApi;
+  panelState?: PanelState;
 };
 
 const log = Log.getLogger(__dirname);
@@ -80,9 +84,9 @@ async function handleTaskProgress({
 
   if (task.tags.recordName != undefined && showRecordLink) {
     addLog(
-      `[${new Date().toISOString()}] ${t("saveToRecord")}：${window.location.origin}/${
-        targetOrg.slug
-      }/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
+      `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("saveToRecord")}：https://${
+        APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+      }/${targetOrg.slug}/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
     needShowRecordLink = false;
   }
@@ -96,13 +100,13 @@ async function handleTaskProgress({
         addLog(`[ERROR] ${t("checkFileDeleted")}`);
       } else {
         addLog("+++++++++++++++++++++++++++");
-        addLog(`[${new Date().toISOString()}] ${t("fileUploaded")} ${porgressText}`);
+        addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("fileUploaded")} ${porgressText}`);
         addLog("+++++++++++++++++++++++++++");
       }
       break;
 
     case TaskStateEnum_TaskState.PENDING:
-      addLog(`[${new Date().toISOString()}] ${t("taskStatePending")}`);
+      addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("taskStatePending")}`);
       setTimeout(() => {
         void handleTaskProgress({
           consoleApi,
@@ -118,7 +122,7 @@ async function handleTaskProgress({
       break;
 
     case TaskStateEnum_TaskState.PROCESSING:
-      addLog(`[${new Date().toISOString()}] ${t("processing")} ${porgressText}`);
+      addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("processing")} ${porgressText}`);
       setTimeout(() => {
         void handleTaskProgress({
           consoleApi,
@@ -141,7 +145,7 @@ async function handleTaskProgress({
 }
 
 function DataCollectionContent(
-  props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
+  props: Omit<Props, "panelState"> & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
 ): React.JSX.Element {
   const { context, setColorScheme, userInfo, consoleApi, deviceLink } = props;
 
@@ -164,6 +168,8 @@ function DataCollectionContent(
   const [taskInfoSnapshot, setTaskInfoSnapshot] = useState<TaskInfoSnapshot | undefined>(undefined);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const timerRef = useRef<NodeJS.Timeout>();
+  const logContainerRef = useRef<HTMLDivElement>(ReactNull);
+  const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
 
   const addLog = useCallback(
     (newLog: string) => {
@@ -179,7 +185,8 @@ function DataCollectionContent(
     [setConfig],
   );
 
-  const settingsTree = useSettingsTree(config, userInfo, consoleApi);
+  const settingsTree = useSettingsTree(config, userInfo, consoleApi, settingsActionHandler);
+
   useEffect(() => {
     context.updatePanelSettingsEditor({
       actionHandler: settingsActionHandler,
@@ -264,18 +271,20 @@ function DataCollectionContent(
         });
 
         addLog("+++++++++++++++++++++++++++");
-        addLog(`[${new Date().toISOString()}] ${t("startUpload")}`);
+        addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("startUpload")}`);
         addLog("+++++++++++++++++++++++++++");
 
         addLog(
-          `[${new Date().toISOString()}] ${t("progressLink")}：${window.location.origin}/${
-            targetOrg.slug
-          }/${targetProject.slug}/tasks/automated-data-collection-tasks/${response.name
-            .split("/")
-            .pop()}`,
+          `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("progressLink")}：https://${
+            APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+          }/${targetOrg.slug}/${
+            targetProject.slug
+          }/tasks/automated-data-collection-tasks/${response.name.split("/").pop()}`,
         );
 
-        addLog(`[${new Date().toISOString()}] ${t("pendingUploadFiles")}: ${files.length}`);
+        addLog(
+          `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("pendingUploadFiles")}: ${files.length}`,
+        );
 
         void handleTaskProgress({
           consoleApi,
@@ -319,7 +328,7 @@ function DataCollectionContent(
             return;
           }
           addLog("+++++++++++++++++++++++++++");
-          addLog(`[${new Date().toISOString()}] ${t("startCollection")}`);
+          addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("startCollection")}`);
           addLog("+++++++++++++++++++++++++++");
 
           const project = await consoleApi.getProject({
@@ -341,18 +350,17 @@ function DataCollectionContent(
           setTaskInfoSnapshot({
             project,
             recordLabels: config.recordLabels ?? [],
-            startTime: new Date().toISOString(),
+            startTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           });
-          startTimer();
           break;
         }
 
         case "endCollection":
-          addLog(`[${new Date().toISOString()}] ${t("endingCollection")}`);
+          addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("endingCollection")}`);
           break;
 
         case "cancelCollection":
-          addLog(`[${new Date().toISOString()}] ${t("cancellingCollection")}`);
+          addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("cancellingCollection")}`);
           break;
 
         default:
@@ -389,7 +397,8 @@ function DataCollectionContent(
         switch (buttonType) {
           case "startCollection":
             if (response.success) {
-              addLog(`[${new Date().toISOString()}] ${t("startCollectionSuccess")}`);
+              addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("startCollectionSuccess")}`);
+              startTimer();
             } else {
               addLog(`[ERROR] ${t("startCollectionFail")}: ${response.message}`);
               setCurrentCollectionStage("ready");
@@ -400,13 +409,16 @@ function DataCollectionContent(
           case "endCollection":
             if (response.success) {
               addLog("+++++++++++++++++++++++++++");
-              addLog(`[${new Date().toISOString()}] ${t("endCollectionSuccess")}`);
+              addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("endCollectionSuccess")}`);
               addLog("+++++++++++++++++++++++++++");
+              setCurrentCollectionStage("ready");
+              stopTimer();
+              if ("type" in response && response.type === "SKIP_CAPTURE") {
+                return;
+              }
               void createDataCollectionTask({
                 endCollectionResponse: response as EndCollectionResponse,
               });
-              setCurrentCollectionStage("ready");
-              stopTimer();
             } else {
               addLog(`[ERROR] ${t("endCollectionFail")}: ${response.message}`);
             }
@@ -415,7 +427,7 @@ function DataCollectionContent(
           case "cancelCollection":
             if (response.success) {
               addLog("+++++++++++++++++++++++++++");
-              addLog(`[${new Date().toISOString()}] ${t("cancelCollectionSuccess")}`);
+              addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("cancelCollectionSuccess")}`);
               addLog("+++++++++++++++++++++++++++");
               setCurrentCollectionStage("ready");
               stopTimer();
@@ -479,6 +491,27 @@ function DataCollectionContent(
     renderDone();
   }, [renderDone]);
 
+  // 滚动到底部
+  const scrollToBottom = useCallback(() => {
+    if (logContainerRef.current && !isUserScrolling) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [isUserScrolling]);
+
+  // 检测用户是否手动滚动
+  const handleScroll = useCallback(() => {
+    if (logContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5; // 5px 容差
+      setIsUserScrolling(!isAtBottom);
+    }
+  }, []);
+
+  // 当日志更新时自动滚动到底部
+  useEffect(() => {
+    scrollToBottom();
+  }, [logs, scrollToBottom]);
+
   return (
     <Stack fullHeight>
       {/* call service button */}
@@ -507,11 +540,19 @@ function DataCollectionContent(
         <Typography variant="caption" noWrap>
           {t("collectionLog")}
         </Typography>
-        <Stack
-          flex="auto"
-          style={{ height: 0, border: "1px solid", borderRadius: 4 }}
-          overflow="auto"
-          padding={1}
+        <div
+          ref={logContainerRef}
+          onScroll={handleScroll}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: "1 1 auto",
+            height: 0,
+            border: "1px solid",
+            borderRadius: 4,
+            overflow: "auto",
+            padding: 8,
+          }}
         >
           {logs.map((logLine, index) => {
             return (
@@ -541,30 +582,49 @@ function DataCollectionContent(
               </Typography>
             );
           })}
-        </Stack>
+        </div>
       </Stack>
     </Stack>
   );
 }
 
 export function DataCollection({
+  panelState,
   deviceLink,
   context,
   userInfo,
   consoleApi,
 }: Props): React.JSX.Element {
   const [colorScheme, setColorScheme] = useState<Palette["mode"]>("light");
+  const { t } = useTranslation("dataCollection");
 
   // Wrapper component with ThemeProvider so useStyles in the panel receives the right theme.
   return (
     <ThemeProvider isDark={colorScheme === "dark"}>
-      <DataCollectionContent
-        deviceLink={deviceLink}
-        setColorScheme={setColorScheme}
-        context={context}
-        userInfo={userInfo}
-        consoleApi={consoleApi}
-      />
+      {panelState === "SOURCE_TYPE_NOT_SUPPORTED" && (
+        <Stack fullHeight justifyContent="center" alignItems="center">
+          {t("onlySupportRealTimeVisualization")}
+        </Stack>
+      )}
+      {panelState === "NOT_LOGIN" && (
+        <Stack fullHeight justifyContent="center" alignItems="center">
+          {t("pleaseLoginToUseThisPanel")}
+        </Stack>
+      )}
+      {panelState === "LOADING" && (
+        <Stack fullHeight justifyContent="center" alignItems="center">
+          {t("loading")}
+        </Stack>
+      )}
+      {panelState === "NOMAL" && (
+        <DataCollectionContent
+          deviceLink={deviceLink}
+          setColorScheme={setColorScheme}
+          context={context}
+          userInfo={userInfo}
+          consoleApi={consoleApi}
+        />
+      )}
     </ThemeProvider>
   );
 }

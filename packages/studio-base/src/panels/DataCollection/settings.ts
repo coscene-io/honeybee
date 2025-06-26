@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -78,6 +78,7 @@ export function useSettingsTree(
   config: Config,
   userInfo: User,
   consoleApi: ConsoleApi,
+  settingsActionHandler: (action: SettingsTreeAction) => void,
 ): SettingsTreeNodes {
   const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
   const [recordLabels, setRecordLabels] = useState<{ label: string; value: string }[]>([]);
@@ -115,6 +116,14 @@ export function useSettingsTree(
           value: label.displayName,
         }));
         setRecordLabels(options);
+        settingsActionHandler({
+          action: "update",
+          payload: {
+            path: ["general", "recordLabels"],
+            input: "select",
+            value: undefined,
+          },
+        });
         return listLabelsResponse;
       } catch (error) {
         console.error("error", error);
@@ -128,14 +137,27 @@ export function useSettingsTree(
     void syncProjects().then((listUserProjectsResponse) => {
       if (listUserProjectsResponse) {
         const userProjects = listUserProjectsResponse.userProjects;
-        const options = userProjects.map((project) => ({
-          label: project.displayName,
-          value: project.name,
-        }));
+        const options = userProjects
+          .filter((project) => !project.isArchived)
+          .map((project) => ({
+            label: project.displayName,
+            value: project.name,
+          }));
+        const targetProject = options.find((option) => option.value === config.projectName);
+        if (targetProject == undefined) {
+          settingsActionHandler({
+            action: "update",
+            payload: {
+              path: ["general", "projectName"],
+              input: "select",
+              value: undefined,
+            },
+          });
+        }
         setProjectOptions(options);
       }
     });
-  }, [syncProjects]);
+  }, [syncProjects, settingsActionHandler]);
 
   useEffect(() => {
     void syncRecordLabels();

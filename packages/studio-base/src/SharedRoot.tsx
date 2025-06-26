@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -25,7 +25,11 @@ import AppConfigurationContext from "./context/AppConfigurationContext";
 
 const log = Logger.getLogger(__filename);
 
-if (APP_CONFIG.POSTHOG.token && APP_CONFIG.POSTHOG.api_host) {
+if (
+  APP_CONFIG.VITE_APP_PROJECT_ENV !== "aws" &&
+  APP_CONFIG.POSTHOG.token &&
+  APP_CONFIG.POSTHOG.api_host
+) {
   posthog.init(APP_CONFIG.POSTHOG.token, {
     api_host: APP_CONFIG.POSTHOG.api_host,
     person_profiles: "always",
@@ -54,7 +58,11 @@ export function SharedRoot(
     extraProviders,
     extensionLoaders,
   } = props;
-  if (APP_CONFIG.VITE_APP_PROJECT_ENV !== "local" && APP_CONFIG.SENTRY_ENABLED) {
+  if (
+    APP_CONFIG.VITE_APP_PROJECT_ENV !== "local" &&
+    APP_CONFIG.VITE_APP_PROJECT_ENV !== "aws" &&
+    APP_CONFIG.SENTRY_ENABLED
+  ) {
     log.info("initializing Sentry");
     Sentry.init({
       dsn: APP_CONFIG.SENTRY_HONEYBEE_DSN,

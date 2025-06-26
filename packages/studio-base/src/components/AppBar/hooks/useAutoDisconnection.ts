@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -13,7 +13,6 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -36,16 +35,17 @@ const ACTIVITY_EVENTS = [
 
 const selectClose = (ctx: MessagePipelineContext) => ctx.close;
 const selectReOpen = (ctx: MessagePipelineContext) => ctx.reOpen;
-const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
 
 export function useAutoDisconnection({
   confirm,
   foregroundTimeout,
   backgroundTimeout,
+  disableTimeout,
 }: {
   confirm: confirmTypes;
   foregroundTimeout: number;
   backgroundTimeout: number;
+  disableTimeout: boolean;
 }): number {
   const [inactiveTimeout, setInactiveTimeout] = useState<number>(foregroundTimeout);
   const [remainingTime, setRemainingTime] = useState<number>(inactiveTimeout);
@@ -55,7 +55,6 @@ export function useAutoDisconnection({
   const timeoutRef = useRef<NodeJS.Timeout>();
 
   const { t } = useTranslation("cosWebsocket");
-  const dataSource = useBaseInfo(selectDataSource);
   const close = useMessagePipeline(selectClose);
   const reOpen = useMessagePipeline(selectReOpen);
 
@@ -103,6 +102,10 @@ export function useAutoDisconnection({
 
   // 使用 useEffect 处理倒计时更新
   useEffect(() => {
+    if (disableTimeout) {
+      return;
+    }
+
     let timer: NodeJS.Timeout;
 
     const updateRemainingTime = () => {
@@ -133,8 +136,7 @@ export function useAutoDisconnection({
   }, []);
 
   useEffect(() => {
-    const disableTimeout = localStorage.getItem("disable_timeout") === "true";
-    if (disableTimeout || (dataSource && dataSource.id !== "coscene-websocket")) {
+    if (disableTimeout) {
       setInactiveTimeout(TIMEOUT_DISABLED);
       return;
     }

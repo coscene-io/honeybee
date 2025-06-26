@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -26,6 +26,7 @@ import { v4 as uuid } from "uuid";
 import { Immutable, SettingsTreeAction, SettingsTreeField } from "@foxglove/studio";
 import CoSceneDeduplicatedMessagePath from "@foxglove/studio-base/components/CoSceneDeduplicatedMessagePath/MessagePathInput";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
+import CommonResourceSelecter from "@foxglove/studio-base/components/SettingsTreeEditor/inputs/CommonResourceSelecter";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 
@@ -479,6 +480,18 @@ function FieldInput({
           max={field.max}
           onChange={(value) => {
             actionHandler({ action: "update", payload: { path, input: "vec2", value } });
+          }}
+        />
+      );
+    case "commonResourceSelector":
+      return (
+        <CommonResourceSelecter
+          value={field.value}
+          onChange={(value) => {
+            actionHandler({
+              action: "update",
+              payload: { path, input: "commonResourceSelector", value },
+            });
           }}
         />
       );

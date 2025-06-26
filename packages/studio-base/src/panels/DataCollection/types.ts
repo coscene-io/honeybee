@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -41,6 +41,7 @@ export type StartCollectionResponse = {
 export type EndCollectionResponse = {
   success: boolean;
   message: string;
+  type: "NORMAL" | "SKIP_CAPTURE";
   record_name?: string;
   tags: string[];
   files: string[];
@@ -56,3 +57,5 @@ export type TaskInfoSnapshot = {
   recordLabels: string[];
   startTime: string;
 };
+
+export type PanelState = "SOURCE_TYPE_NOT_SUPPORTED" | "NOT_LOGIN" | "LOADING" | "NOMAL";

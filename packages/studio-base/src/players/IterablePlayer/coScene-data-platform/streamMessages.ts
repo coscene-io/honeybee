@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -13,7 +13,7 @@ import Logger from "@foxglove/log";
 import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/mcap-support";
 import { fromNanoSec, Time, toMillis } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
-import CoSceneConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const log = Logger.getLogger(__filename);
 

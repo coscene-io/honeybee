@@ -1,11 +1,13 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
+import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import EditIcon from "@mui/icons-material/EditOutlined";
@@ -21,6 +23,7 @@ import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
 import { toRFC3339String, fromDate, areEqual } from "@foxglove/rostime";
+import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import {
   useMessagePipeline,
@@ -28,12 +31,6 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import {
-  ProjectRoleEnum,
-  ProjectRoleWeight,
-  UserStore,
-  useCurrentUser,
-} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
   TimelinePositionedEvent,
   EventsStore,
@@ -92,9 +89,11 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
 
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
+const selectRecord = (store: CoSceneBaseStore) => store.record;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectUserRole = (store: UserStore) => store.role;
+const selectProject = (store: CoSceneBaseStore) => store.project;
 
 const log = Logger.getLogger(__filename);
 
@@ -132,13 +131,20 @@ function EventViewComponent(params: {
   } = params;
   const { classes, cx, theme } = useStyles();
   const consoleApi = useConsoleApi();
+
   const refreshEvents = useEvents(selectRefreshEvents);
+  const customFieldSchema = useEvents(selectCustomFieldSchema);
+
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
-  const currentUserRole = useCurrentUser(selectUserRole);
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const projectInfo = useBaseInfo(selectProject);
+  const recordInfo = useBaseInfo(selectRecord);
+
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const project: Project | undefined = useMemo(() => projectInfo.value ?? undefined, [projectInfo]);
+  const record: Record | undefined = useMemo(() => recordInfo.value ?? undefined, [recordInfo]);
 
   const seek = useMessagePipeline(selectSeek);
 
@@ -252,6 +258,7 @@ function EventViewComponent(params: {
       fileName: "",
       imgUrl: event.imgUrl,
       record: event.event.record,
+      customFieldValues: event.event.customFieldValues,
     });
   };
 
@@ -356,23 +363,25 @@ function EventViewComponent(params: {
               <RepeatOneOutlinedIcon fontSize="small" />
             </IconButton>
 
-            {currentUserRole.projectRole >
-              ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
-              <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-            )}
+            {consoleApi.updateEvent.permission() &&
+              project?.isArchived === false &&
+              record?.isArchived === false && (
+                <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              )}
 
             <IconButton size="small" onClick={handleShareEvent} title={t("share")}>
               <ShareIcon fontSize="small" />
             </IconButton>
 
-            {currentUserRole.projectRole >
-              ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER] && (
-              <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            )}
+            {consoleApi.updateEvent.permission() &&
+              project?.isArchived === false &&
+              record?.isArchived === false && (
+                <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              )}
           </div>
         </div>
 
@@ -409,75 +418,93 @@ function EventViewComponent(params: {
           </Stack>
 
           {variant === "learge" && (
-            <Stack
-              gap={1}
-              fontSize="12px"
-              color={theme.palette.text.secondary}
-              marginTop={description || imgUrl || metadataMap.length > 0 ? "8px" : undefined}
-            >
-              {description && (
-                <Stack lineHeight="1.5">
-                  <HighlightedText text={description} highlight={filter} />
+            <>
+              <Stack
+                gap={1}
+                fontSize="12px"
+                color={theme.palette.text.secondary}
+                marginTop={description || imgUrl || metadataMap.length > 0 ? "8px" : undefined}
+              >
+                {description && (
+                  <Stack lineHeight="1.5">
+                    <HighlightedText text={description} highlight={filter} />
+                  </Stack>
+                )}
+                {imgUrl && (
+                  <Fragment key="img">
+                    <img src={imgUrl} className={classes.eventImg} />
+                  </Fragment>
+                )}
+                <Stack gap={1}>
+                  {metadataMap.map(([key, value]: string[], index) => (
+                    <Stack key={index} alignItems="center" flexDirection="row">
+                      <Stack flexDirection="row" alignItems="center" gap={0.5}>
+                        <Stack
+                          width="4px"
+                          height="4px"
+                          minWidth="4px"
+                          minHeight="4px"
+                          borderRadius="100%"
+                          style={{ backgroundColor: theme.palette.text.secondary }}
+                        />
+                        <span>
+                          <HighlightedText text={key ?? ""} highlight={filter} />
+                        </span>
+                      </Stack>
+                      <Stack marginRight={1}>:</Stack>
+                      <Stack>
+                        <HighlightedText text={value ?? ""} highlight={filter} />
+                      </Stack>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Stack>
+
+              {ruleNavAddress != undefined && (
+                <Stack
+                  flexDirection="row"
+                  gap={1}
+                  fontSize="12px"
+                  color={theme.palette.text.secondary}
+                >
+                  <Stack justifyContent="center">{t("rule")}:</Stack>
+                  <Stack
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    {ruleNavAddress}
+                  </Stack>
                 </Stack>
               )}
-              {imgUrl && (
-                <Fragment key="img">
-                  <img src={imgUrl} className={classes.eventImg} />
-                </Fragment>
-              )}
-              <Stack gap={1}>
-                {metadataMap.map(([key, value]: string[], index) => (
-                  <Stack key={index} alignItems="center" flexDirection="row">
-                    <Stack flexDirection="row" alignItems="center" gap={0.5}>
-                      <Stack
-                        width="4px"
-                        height="4px"
-                        minWidth="4px"
-                        minHeight="4px"
-                        borderRadius="100%"
-                        style={{ backgroundColor: theme.palette.text.secondary }}
-                      />
-                      <span>
-                        <HighlightedText text={key ?? ""} highlight={filter} />
-                      </span>
-                    </Stack>
-                    <Stack marginRight={1}>:</Stack>
-                    <Stack>
-                      <HighlightedText text={value ?? ""} highlight={filter} />
-                    </Stack>
-                  </Stack>
-                ))}
-              </Stack>
-            </Stack>
-          )}
 
-          {ruleNavAddress != undefined && (
-            <Stack flexDirection="row" gap={1} fontSize="12px" color={theme.palette.text.secondary}>
-              <Stack justifyContent="center">{t("rule")}:</Stack>
               <Stack
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
+                alignItems="center"
+                flexDirection="row"
+                fontSize="12px"
+                color={theme.palette.text.secondary}
               >
-                {ruleNavAddress}
+                <Stack flexDirection="row" alignItems="center" gap={0.5}>
+                  <Stack justifyContent="center">{t("creater")}</Stack>
+                </Stack>
+                <Stack marginRight={1}>:</Stack>
+                <Stack>
+                  <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
+                </Stack>
               </Stack>
-            </Stack>
-          )}
 
-          <Stack
-            alignItems="center"
-            flexDirection="row"
-            fontSize="12px"
-            color={theme.palette.text.secondary}
-          >
-            <Stack flexDirection="row" alignItems="center" gap={0.5}>
-              <Stack justifyContent="center">{t("creater")}</Stack>
-            </Stack>
-            <Stack marginRight={1}>:</Stack>
-            <Stack>
-              <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
-            </Stack>
-          </Stack>
+              <Stack paddingTop={2} gap={2}>
+                {/* custom field */}
+                <CustomFieldValuesFields
+                  variant="secondary"
+                  properties={customFieldSchema?.properties ?? []}
+                  customFieldValues={event.event.customFieldValues}
+                  readonly
+                  ignoreProperties
+                />
+              </Stack>
+            </>
+          )}
         </div>
       </Stack>
     </Stack>

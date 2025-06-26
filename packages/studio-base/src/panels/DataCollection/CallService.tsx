@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -42,22 +42,22 @@ const useStyles = makeStyles<{ buttonColor?: string }>()((theme, { buttonColor }
       },
     },
     textarea: {
-      height: "100%",
+      minHeight: "120px",
 
       [`.${inputBaseClasses.root}`]: {
         backgroundColor: theme.palette.background.paper,
-        height: "100%",
+        minHeight: "120px",
         overflow: "hidden",
         padding: theme.spacing(1, 0.5),
         textAlign: "left",
         width: "100%",
 
         [`.${inputBaseClasses.input}`]: {
-          height: "100% !important",
+          minHeight: "100px !important",
           lineHeight: 1.4,
           fontFamily: theme.typography.fontMonospace,
           overflow: "auto !important",
-          resize: "none",
+          resize: "vertical",
         },
       },
     },
@@ -113,11 +113,22 @@ export function CallService(props: Props): React.JSX.Element {
     [requestPayload],
   );
 
+  // Check if endCollection or cancelCollection button is requesting
+  const isEndOrCancelRequesting = useMemo(() => {
+    return (
+      buttonsState.endCollection?.status === "requesting" ||
+      buttonsState.cancelCollection?.status === "requesting"
+    );
+  }, [buttonsState]);
+
   const canCallService = Boolean(
     supportCallService &&
       requestPayload &&
       parsedObject != undefined &&
-      state?.status !== "requesting",
+      state?.status !== "requesting" &&
+      // If endCollection or cancelCollection is requesting, disable both of them
+      // startCollection is not affected by this restriction
+      !(isEndOrCancelRequesting && (type === "endCollection" || type === "cancelCollection")),
   );
 
   return (
@@ -143,7 +154,7 @@ export function CallService(props: Props): React.JSX.Element {
               error={requestParseError != undefined}
             />
             {requestParseError && (
-              <Typography variant="caption" noWrap color={requestParseError ? "error" : undefined}>
+              <Typography variant="caption" color={requestParseError ? "error" : undefined}>
                 {requestParseError}
               </Typography>
             )}

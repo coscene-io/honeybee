@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -23,6 +23,7 @@ export const cosError = {
   repeatedConnectionDesc:
     "Only one person can connect to the same robot at a time. There is currently a user connected, please refresh and try again later.",
   fileFormatUnsupported: "The file format is unsupported.",
+  unauthorized: "Unauthorized",
 
   // error code message
   SEMANTIC_LIB_ERROR: "Internal semantic-lib error",

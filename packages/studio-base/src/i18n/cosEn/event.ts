@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -60,7 +60,7 @@ export const cosEvent = {
   syncTaskFailed: "Sync task failed",
   syncTaskSuccess: "Sync task success",
   syncTaskTooltip:
-    "No integration service configuration information detected, go to Project Management > Integration Services to configure it",
+    "No integration service configuration information detected, go to Project Settings > Integration Services to configure it",
   time: "Time",
   triggerTime: "Trigger Time",
   value: "Value",
@@ -82,4 +82,5 @@ export const cosEvent = {
   creater: "Creater",
   share: "Share",
   loopPlay: "Loop Play",
+  startTimeAndDurationRequired: "Start time and duration are required",
 };

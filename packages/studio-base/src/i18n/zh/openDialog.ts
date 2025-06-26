@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -40,12 +40,13 @@ export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   uploadToDataPlatform: "上传到数据平台",
   viewOurDocs: "查看我们的文档",
   newToCoSceneStudio: "欢迎来到刻行时空数据平台",
-  newToCoSceneStudioDescription: "不知道从哪里开始？查看帮助文档了解加速理解并优化你的使用实践",
+  newToCoSceneStudioDescription: "不知道从哪里开始？查看帮助文档，快速优化您的使用体验",
   helpDocs: "帮助文档",
   monitoringEquipment: "持续监控设备数据，及时发现并处理潜在问题",
-  storedData: "安全地存储 PB 级多模态数据",
-  automaticData: "高效的自动化流程，自动采集、自动预处理、自动诊断关键片段",
-  coordination: "与研发、运维、测试人员便捷数据协作，以数据驱动通用人工智能发展",
+  storedData: "安全存储 PB 级多模态数据",
+  automaticData: "通过高效的工作流程自动执行数据采集、预处理以及关键时刻检测和诊断",
+  extend: "通过与您首选的标注供应商和仿真引擎集成，轻松实现扩展",
+  coordination: "在研发、运营和测试团队之间实现无缝协作，通过数据推动人工智能和机器人技术的发展",
   openNewConnection: "打开一个新的连接",
   webSocketDataSourceDesc:
     "使用刻行时空 WebSocket 协议连接到 ROS 1、ROS 2 或自定义系统。对于 ROS 系统，请确认已安装 coBridge ROS 包。",

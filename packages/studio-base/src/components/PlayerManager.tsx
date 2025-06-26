@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -25,6 +25,7 @@ import {
   useState,
   useContext,
 } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 
@@ -71,6 +72,7 @@ import {
 } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
 // import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { HttpError } from "@foxglove/studio-base/services/api/HttpError";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 // import { UserScripts } from "@foxglove/studio-base/types/panels";
 
@@ -108,13 +110,21 @@ function useBeforeConnectionSource(
         setBaseInfo({ loading: true, value: {} });
         const baseInfoRes = await consoleApi.getBaseInfo(baseInfoKey);
 
-        setBaseInfo({ loading: false, value: baseInfoRes });
+        // consoleApi.setApiBaseInfo should be called before setBaseInfo
+        // because will get promise from setBaseInfo
         await consoleApi.setApiBaseInfo(baseInfoRes);
+
+        setBaseInfo({ loading: false, value: baseInfoRes });
       } catch (error) {
+        if (error instanceof HttpError) {
+          if (error.status === 403) {
+            toast.error(t("unauthorized", { ns: "cosError" }));
+          }
+        }
         setBaseInfo({ loading: false, error });
       }
     },
-    [consoleApi, setBaseInfo],
+    [consoleApi, setBaseInfo, t],
   );
 
   const beforeConnectionSource: (

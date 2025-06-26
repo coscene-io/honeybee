@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -48,6 +48,22 @@ enum Endpoint {
 
   GetFilesType = "coscene.dataplatform.v1alpha3.services.FileService.GetFilesType",
   SetFileType = "coscene.dataplatform.v1alpha3.services.FileService.SetFileType",
+
+  AddCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.AddCustomFieldProperties",
+  AddDeviceCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.AddDeviceCustomFieldProperties",
+  AddMomentCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.AddMomentCustomFieldProperties",
+  AddRecordCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.AddRecordCustomFieldProperties",
+  AddTaskCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.AddTaskCustomFieldProperties",
+  GetCustomFieldSchema = "coscene.dataplatform.v1alpha3.services.CustomFieldService.GetCustomFieldSchema",
+  GetDeviceCustomFieldSchema = "coscene.dataplatform.v1alpha3.services.CustomFieldService.GetDeviceCustomFieldSchema",
+  GetMomentCustomFieldSchema = "coscene.dataplatform.v1alpha3.services.CustomFieldService.GetMomentCustomFieldSchema",
+  GetRecordCustomFieldSchema = "coscene.dataplatform.v1alpha3.services.CustomFieldService.GetRecordCustomFieldSchema",
+  GetTaskCustomFieldSchema = "coscene.dataplatform.v1alpha3.services.CustomFieldService.GetTaskCustomFieldSchema",
+  RemoveCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveCustomFieldProperties",
+  RemoveDeviceCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveDeviceCustomFieldProperties",
+  RemoveMomentCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveMomentCustomFieldProperties",
+  RemoveRecordCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveRecordCustomFieldProperties",
+  RemoveTaskCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveTaskCustomFieldProperties",
 }
 
 export default Endpoint;

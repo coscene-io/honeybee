@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -67,9 +67,12 @@ export const appBar = {
   createRecordAndUpload: "Create record and upload",
   openInCoStudio: "Open in coStudio",
   openInCoStudioPrompt:
-    "This page will be opened in coStudio, please confirm that coStudio has been installed, or click here <download>download</download> to download and allow external links to be opened",
+    "This page will be opened in coStudio, please confirm that <download>coStudio</download> has been installed",
   openByCoStudio: "Open by coStudio",
   doNotShowAgain: "Do not show again",
   autoDisconnectionTips:
     "If no operation is performed for a long time, the visualization will be disconnected automatically. Please keep it active if you want to continue using it. {{time}}",
+  networkConnection: "Network connection",
+  colinkRemoteConnection: "coLink remote connection",
+  localNetworkConnection: "local network connection",
 };

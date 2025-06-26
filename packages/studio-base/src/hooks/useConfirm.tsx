@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -14,11 +14,11 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Dialog, DialogContent, DialogTitle, DialogActions, Button } from "@mui/material";
+import { Dialog, DialogContent, DialogTitle, DialogActions, Button, Paper } from "@mui/material";
 import { useCallback, useRef, useState } from "react";
 import { useKeyPressEvent } from "react-use";
 
-type ConfirmVariant = "danger" | "primary";
+type ConfirmVariant = "danger" | "primary" | "toast";
 type ConfirmAction = "ok" | "cancel";
 
 export type ConfirmOptions = {
@@ -81,6 +81,36 @@ function ConfirmModal(props: ConfirmModalProps) {
   ];
   if (props.variant === "danger") {
     buttons.reverse();
+  }
+
+  // Toast variant - positioned at top right
+  if (props.variant === "toast") {
+    return (
+      <Paper
+        elevation={8}
+        style={{
+          position: "fixed",
+          top: 50,
+          right: 16,
+          zIndex: 9999,
+          maxWidth: 400,
+          minWidth: 300,
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
+          borderRadius: 8,
+        }}
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onComplete("ok");
+          }}
+        >
+          <DialogTitle>{props.title}</DialogTitle>
+          <DialogContent>{props.prompt}</DialogContent>
+          <DialogActions>{buttons}</DialogActions>
+        </form>
+      </Paper>
+    );
   }
 
   return (

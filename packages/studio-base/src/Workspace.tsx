@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -80,6 +80,7 @@ import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
+import useNativeAppMenuEvent from "./hooks/useNativeAppMenuEvent";
 
 const log = Logger.getLogger(__filename);
 
@@ -204,6 +205,13 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       containerRef.current.focus();
     }
   }, []);
+
+  useNativeAppMenuEvent(
+    "open-help-general",
+    useCallback(() => {
+      dialogActions.preferences.open("general");
+    }, [dialogActions.preferences]),
+  );
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -353,24 +361,19 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     return cleanItems;
   }, [enableList.event, enableList.playlist, playerProblems, t]);
 
-  useEffect(() => {
-    if (playerProblems != undefined && playerProblems.length > 0) {
-      sidebarActions.left.setOpen(true);
-      sidebarActions.left.selectItem("problems");
-    }
-  }, [playerProblems, sidebarActions.left]);
-
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
+      [
+        "record-info",
+        {
+          title: t("recordInfo"),
+          component: RecordInfo,
+          hidden: dataSource == undefined || dataSource.id !== "coscene-data-platform",
+        },
+      ],
       ["variables", { title: t("variables"), component: VariablesList }],
       ["extensions", { title: t("extensions"), component: ExtensionsSidebar }],
     ]);
-    if (dataSource?.id === "coscene-data-platform") {
-      items.set("record-info", {
-        title: t("recordInfo"),
-        component: RecordInfo,
-      });
-    }
 
     if (enableDebugMode) {
       if (PerformanceSidebarComponent) {
@@ -381,8 +384,17 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       }
       items.set("studio-logs-settings", { title: t("studioLogs"), component: StudioLogsSettings });
     }
-    return items;
-  }, [enableDebugMode, t, PerformanceSidebarComponent, dataSource?.id]);
+
+    // 过滤掉 hidden === true 的项目
+    const filteredItems = new Map<RightSidebarItemKey, SidebarItem>();
+    for (const [key, item] of items) {
+      if (item.hidden !== true) {
+        filteredItems.set(key, item);
+      }
+    }
+
+    return filteredItems;
+  }, [t, dataSource, enableDebugMode, PerformanceSidebarComponent]);
 
   const keyboardEventHasModifier = (event: KeyboardEvent) =>
     navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;

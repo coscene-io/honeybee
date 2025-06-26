@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -26,4 +26,9 @@ export const cosWebsocket = {
   inactivePageDescription:
     "The page has been inactive for a long time, the connection has been disconnected, whether to reconnect?",
   exitAndClosePage: "Exit and close the page",
+  lanAvailable: "LAN Available",
+  lanConnectionPrompt:
+    "Detected that you and the current device are on the same LAN, you can use LAN connection to improve network speed",
+  switchNow: "Switch Now",
+  keepCurrent: "Keep Current",
 };
