@@ -115,10 +115,9 @@ const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlayerProblems = (ctx: MessagePipelineContext) => ctx.playerState.problems;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
-// CoScene
-const selectProject = (store: CoSceneBaseStore) => store.project;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
+const selectProject = (store: CoSceneBaseStore) => store.project;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();

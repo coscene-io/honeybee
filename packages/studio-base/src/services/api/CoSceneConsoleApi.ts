@@ -33,6 +33,11 @@ import {
   ListUserRolesResponse,
   ListUserRolesRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_pb";
+import { SubscriptionService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/subscription_connect";
+import {
+  ListOrganizationSubscriptionsRequest,
+  ListOrganizationSubscriptionsResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/subscription_pb";
 import { UserService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_connect";
 import {
   GetUserRequest,
@@ -1446,6 +1451,23 @@ class CoSceneConsoleApi {
     {
       permission: () => {
         return checkUserPermission(EndpointDataplatformV1alph3.GetTask, this.#permissionList);
+      },
+    },
+  );
+
+  public listOrganizationSubscriptions = Object.assign(
+    async (
+      payload: PartialMessage<ListOrganizationSubscriptionsRequest>,
+    ): Promise<ListOrganizationSubscriptionsResponse> => {
+      const req = new ListOrganizationSubscriptionsRequest(payload);
+      return await getPromiseClient(SubscriptionService).listOrganizationSubscriptions(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph1.ListOrganizationSubscriptions,
+          this.#permissionList,
+        );
       },
     },
   );

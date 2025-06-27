@@ -4,6 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
@@ -18,6 +19,7 @@ import { ChoiceRecordDialog } from "@foxglove/studio-base/components/AppBar/Uplo
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useEntitlementWithDialog } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { generateFileName, uploadWithProgress } from "@foxglove/studio-base/util/coscene/upload";
@@ -120,6 +122,10 @@ export function UploadFile(): React.JSX.Element {
   const uploadingFiles = useUploadFiles(selectUploadingFiles);
   const loginStatus = useCurrentUser(selectLoginStatus);
 
+  const [entitlement, entitlementDialog] = useEntitlementWithDialog(
+    PlanFeatureEnum_PlanFeature.INTERNAL_STORAGE,
+  );
+
   const currentFileStatus = uploadingFiles[currentFile?.name ?? ""];
 
   const { t } = useTranslation("appBar");
@@ -149,13 +155,13 @@ export function UploadFile(): React.JSX.Element {
         <IconButton
           onClick={() => {
             if (
-              (currentFileStatus == undefined || currentFileStatus.status === "failed") &&
-              loginStatus === "alreadyLogin"
+              loginStatus === "alreadyLogin" &&
+              currentFile != undefined &&
+              (currentFileStatus == undefined || currentFileStatus.status === "failed")
             ) {
-              if (
-                currentFile != undefined &&
-                (currentFileStatus == undefined || currentFileStatus.status === "failed")
-              ) {
+              if (entitlement != undefined && entitlement.usage > entitlement.maxQuota) {
+                entitlementDialog();
+              } else {
                 setOpenChooser(true);
               }
             }
