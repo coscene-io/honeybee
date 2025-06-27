@@ -70,7 +70,7 @@ export function UserMenu({
   const { classes } = useStyles();
   const currentUserType = useCurrentUserType();
   const analytics = useAnalytics();
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const { t } = useTranslation("cosAppBar");
   const [latestVersion, setLatestVersion] = useState("");
   const setUser = useCoSceneCurrentUser(selectSetUser);
@@ -197,7 +197,6 @@ export function UserMenu({
           </MenuItem>
         )}
       </Menu>
-      {confirmModal}
     </>
   );
 }
