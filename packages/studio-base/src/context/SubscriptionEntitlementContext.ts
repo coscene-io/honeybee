@@ -70,8 +70,6 @@ export function useEntitlementWithDialog(
       .then((result) => {
         if (result === "ok") {
           window.open(`${APP_CONFIG.OFFICIAL_WEB_URL}/pricing`, "_blank");
-        } else {
-          window.close();
         }
       })
       .catch((error: unknown) => {
