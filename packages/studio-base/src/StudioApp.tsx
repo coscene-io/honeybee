@@ -14,6 +14,7 @@ import { useSharedRootContext } from "@foxglove/studio-base/context/SharedRootCo
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
+import SubscriptionEntitlementProvider from "@foxglove/studio-base/providers/SubscriptionEntitlementProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import UploadFilesProvider from "@foxglove/studio-base/providers/UploadFilesProvider";
 
@@ -65,8 +66,9 @@ export function StudioApp(): React.JSX.Element {
     <ExtensionMarketplaceProvider />,
     <ExtensionCatalogProvider loaders={extensionLoaders} />,
     <UploadFilesProvider />,
-    <PlayerManager playerSources={dataSources} />,
     <EventsProvider />,
+    <SubscriptionEntitlementProvider />,
+    <PlayerManager playerSources={dataSources} />,
     /* eslint-enable react/jsx-key */
   ];
 

@@ -14,6 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
 import { useSnackbar } from "notistack";
 import {
   PropsWithChildren,
@@ -53,6 +54,7 @@ import PlayerSelectionContext, {
 //   useUserScriptState,
 // } from "@foxglove/studio-base/context/UserScriptStateContext";
 // import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
+import { useEntitlementWithDialog } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 import {
   useAppConfigurationValue,
@@ -90,10 +92,13 @@ const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
 function useBeforeConnectionSource(): (
   sourceId: string,
   params: Record<string, string | undefined>,
-) => Promise<void> {
+) => Promise<boolean> {
   const consoleApi = useConsoleApi();
   const setBaseInfo = useBaseInfo(selectSetBaseInfo);
-  const { t } = useTranslation("cosError");
+  const [entitlement, entitlementDialog] = useEntitlementWithDialog(
+    PlanFeatureEnum_PlanFeature.OUTBOUND_TRAFFIC,
+  );
+  const { t } = useTranslation("general");
 
   const syncBaseInfo = useCallback(
     async (baseInfoKey: string) => {
@@ -110,7 +115,7 @@ function useBeforeConnectionSource(): (
       } catch (error) {
         if (error instanceof HttpError) {
           if (error.status === 403) {
-            toast.error(t("unauthorized"));
+            toast.error(t("unauthorized", { ns: "cosError" }));
           }
         }
         setBaseInfo({ loading: false, error });
@@ -119,11 +124,18 @@ function useBeforeConnectionSource(): (
     [consoleApi, setBaseInfo, t],
   );
 
-  const beforeConnectionSource = useCallback(
+  const beforeConnectionSource: (
+    sourceId: string,
+    params: Record<string, string | undefined>,
+  ) => Promise<boolean> = useCallback(
     async (sourceId: string, params: Record<string, string | undefined>) => {
       switch (sourceId) {
         case "coscene-data-platform":
           consoleApi.setType("playback");
+          if (entitlement != undefined && entitlement.usage > entitlement.maxQuota) {
+            entitlementDialog();
+            return false;
+          }
           if (!params.key) {
             throw new Error("coscene-data-platform params.key is required");
           }
@@ -139,8 +151,10 @@ function useBeforeConnectionSource(): (
           consoleApi.setType(undefined);
           break;
       }
+
+      return true;
     },
-    [syncBaseInfo, consoleApi],
+    [consoleApi, entitlement, syncBaseInfo, entitlementDialog],
   );
 
   return beforeConnectionSource;
@@ -161,6 +175,8 @@ export default function PlayerManager(
   const beforeConnectionSource = useBeforeConnectionSource();
   const setCurrentFile = useUploadFiles(selectSetCurrentFile);
 
+  const confirm = useConfirm();
+
   const { t } = useTranslation("general");
 
   useWarnImmediateReRender();
@@ -172,8 +188,6 @@ export default function PlayerManager(
   const isMounted = useMountedState();
 
   const consoleApi = useConsoleApi();
-
-  const confirm = useConfirm();
 
   const metricsCollector = useMemo(
     () =>
@@ -338,8 +352,12 @@ export default function PlayerManager(
               ...args.params,
             };
 
-            await beforeConnectionSource(sourceId, args.params ?? {});
             setCurrentSourceParams({ sourceId, args: { type: "connection", params } });
+
+            const isReady = await beforeConnectionSource(sourceId, args.params ?? {});
+            if (!isReady) {
+              return;
+            }
 
             const newPlayer = foundSource.initialize({
               metricsCollector,
