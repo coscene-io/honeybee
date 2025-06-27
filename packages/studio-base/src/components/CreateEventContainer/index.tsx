@@ -258,11 +258,8 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
           "duration",
           "customizedFields",
           "customFieldValues",
+          "files",
         ];
-
-        if (event.imageFile) {
-          maskArray.push("files");
-        }
 
         await consoleApi.updateEvent({
           event: newEvent,
