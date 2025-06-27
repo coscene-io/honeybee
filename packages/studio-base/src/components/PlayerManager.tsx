@@ -54,16 +54,13 @@ import PlayerSelectionContext, {
 //   useUserScriptState,
 // } from "@foxglove/studio-base/context/UserScriptStateContext";
 // import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
-import {
-  SubscriptionEntitlementStore,
-  useSubscriptionEntitlement,
-} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
+import { useEntitlementWithDialog } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 import {
   useAppConfigurationValue,
   useTopicPrefixConfigurationValue,
 } from "@foxglove/studio-base/hooks";
-import { confirmTypes, useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import {
@@ -73,7 +70,6 @@ import {
 // import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import { HttpError } from "@foxglove/studio-base/services/api/HttpError";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 // import { UserScripts } from "@foxglove/studio-base/types/panels";
 
 const log = Logger.getLogger(__filename);
@@ -92,15 +88,16 @@ const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
 const selectSetDataSource = (state: CoSceneBaseStore) => state.setDataSource;
 const selectBaseInfo = (state: CoSceneBaseStore) => state.baseInfo;
 const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
-const selectGetEntitlement = (state: SubscriptionEntitlementStore) => state.getEntitlement;
 
-function useBeforeConnectionSource(
-  confirm: confirmTypes,
-): (sourceId: string, params: Record<string, string | undefined>) => Promise<boolean> {
+function useBeforeConnectionSource(): (
+  sourceId: string,
+  params: Record<string, string | undefined>,
+) => Promise<boolean> {
   const consoleApi = useConsoleApi();
   const setBaseInfo = useBaseInfo(selectSetBaseInfo);
-  const getEntitlement = useSubscriptionEntitlement(selectGetEntitlement);
-  const entitlement = getEntitlement(PlanFeatureEnum_PlanFeature.OUTBOUND_TRAFFIC);
+  const [entitlement, entitlementDialog] = useEntitlementWithDialog(
+    PlanFeatureEnum_PlanFeature.OUTBOUND_TRAFFIC,
+  );
   const { t } = useTranslation("general");
 
   const syncBaseInfo = useCallback(
@@ -135,31 +132,8 @@ function useBeforeConnectionSource(
       switch (sourceId) {
         case "coscene-data-platform":
           consoleApi.setType("playback");
-          if (!entitlement || entitlement.usage > entitlement.maxQuota) {
-            void confirm({
-              title: t("outboundTrafficLimitReached", {
-                ns: "workspace",
-              }),
-              prompt: t("outboundTrafficLimitReachedDesc", {
-                ns: "workspace",
-              }),
-              ok: t("upgradeSubscriptionPlan", {
-                ns: "workspace",
-              }),
-              cancel: t("iKnow", {
-                ns: "workspace",
-              }),
-            })
-              .then((result) => {
-                if (result === "ok") {
-                  window.open(`${APP_CONFIG.OFFICIAL_WEB_URL}/pricing`, "_blank");
-                } else {
-                  window.close();
-                }
-              })
-              .catch((error: unknown) => {
-                console.error("Error during confirmation:", error);
-              });
+          if (entitlement == undefined || entitlement.usage > entitlement.maxQuota) {
+            entitlementDialog();
             return false;
           }
           if (!params.key) {
@@ -180,7 +154,7 @@ function useBeforeConnectionSource(
 
       return true;
     },
-    [consoleApi, entitlement, syncBaseInfo, confirm, t],
+    [consoleApi, entitlement, syncBaseInfo, entitlementDialog],
   );
 
   return beforeConnectionSource;
@@ -198,10 +172,10 @@ export default function PlayerManager(
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
-  const confirm = useConfirm();
-
-  const beforeConnectionSource = useBeforeConnectionSource(confirm);
+  const beforeConnectionSource = useBeforeConnectionSource();
   const setCurrentFile = useUploadFiles(selectSetCurrentFile);
+
+  const confirm = useConfirm();
 
   const { t } = useTranslation("general");
 
