@@ -212,7 +212,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
   const userMenuOpen = Boolean(userAnchorEl);
   const panelMenuOpen = Boolean(panelAnchorEl);
   const userInfo = useCoSceneCurrentUser(selectUser);
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
 
   const handleOpenInCoStudio = useCallback(async () => {
     const skipConfirm = localStorage.getItem("openInCoStudioDoNotShowAgain") === "true";
@@ -455,7 +455,6 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
           setUserAnchorEl(undefined);
         }}
       />
-      {confirmModal}
     </>
   );
 }

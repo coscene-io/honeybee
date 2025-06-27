@@ -118,7 +118,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const { setSelectedLayoutId } = useCurrentLayoutActions();
   const analytics = useAnalytics();
   const [prompt, promptModal] = usePrompt();
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const [selectLayoutTemplateModalOpen, setSelectLayoutTemplateModalOpen] = useState(false);
   const layoutManager = useLayoutManager();
 
@@ -653,7 +653,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         ref={anchorEl}
       />
       {promptModal}
-      {confirmModal}
       {unsavedChangesPrompt}
       {layoutActions.unsavedChangesPrompt}
       <Menu

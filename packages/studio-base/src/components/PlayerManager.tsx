@@ -198,7 +198,7 @@ export default function PlayerManager(
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
 
   const beforeConnectionSource = useBeforeConnectionSource(confirm);
   const setCurrentFile = useUploadFiles(selectSetCurrentFile);
@@ -387,6 +387,7 @@ export default function PlayerManager(
 
             const newPlayer = foundSource.initialize({
               metricsCollector,
+              confirm,
               params: {
                 addTopicPrefix,
                 timeMode,
@@ -490,6 +491,7 @@ export default function PlayerManager(
       setDataSource,
       constructPlayers,
       beforeConnectionSource,
+      confirm,
       addTopicPrefix,
       timeMode,
       playbackQualityLevel,
@@ -561,7 +563,6 @@ export default function PlayerManager(
           {children}
         </MessagePipelineProvider>
       </PlayerSelectionContext.Provider>
-      {confirmModal}
     </>
   );
 }

@@ -156,7 +156,7 @@ export function EventsList(): React.JSX.Element {
   const [momentVariant, setMomentVariant] = useState<"small" | "learge">("learge");
 
   const { t } = useTranslation("cosEvent");
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
 
   const setToModifyEvent = useEvents(selectSetToModifyEvent);
   const setEventMarks = useEvents(selectSetEventMarks);
@@ -399,7 +399,6 @@ export function EventsList(): React.JSX.Element {
           );
         })}
       </div>
-      {confirmModal}
     </Stack>
   );
 }

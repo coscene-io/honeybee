@@ -59,7 +59,7 @@ export function UserMenu({
   const currentUserType = useCurrentUserType();
   const analytics = useAnalytics();
   const { enqueueSnackbar } = useSnackbar();
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const { t } = useTranslation("appBar");
 
   const { dialogActions } = useWorkspaceActions();
@@ -171,7 +171,6 @@ export function UserMenu({
           <MenuItem onClick={onSignInClick}>{t("signIn")}</MenuItem>
         ) : undefined}
       </Menu>
-      {confirmModal}
     </>
   );
 }

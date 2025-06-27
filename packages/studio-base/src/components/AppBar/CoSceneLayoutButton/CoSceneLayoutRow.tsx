@@ -181,7 +181,7 @@ export default React.memo(function LayoutRow({
   onCopyToRecordDefaultLayout?: (item: Layout) => void;
 }): React.JSX.Element {
   const isMounted = useMountedState();
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const layoutManager = useLayoutManager();
   const { t } = useTranslation("cosLayout");
   const currentUserRole = useCurrentUser(selectUserRole);
@@ -539,7 +539,6 @@ export default React.memo(function LayoutRow({
         </IconButton>
       }
     >
-      {confirmModal}
       <ListItemButton
         data-testid="layout-list-item"
         selected={selected || multiSelectedIds.includes(layout.id)}
