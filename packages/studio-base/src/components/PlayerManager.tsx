@@ -132,7 +132,7 @@ function useBeforeConnectionSource(): (
       switch (sourceId) {
         case "coscene-data-platform":
           consoleApi.setType("playback");
-          if (entitlement == undefined || entitlement.usage > entitlement.maxQuota) {
+          if (entitlement != undefined && entitlement.usage > entitlement.maxQuota) {
             entitlementDialog();
             return false;
           }

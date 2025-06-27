@@ -159,7 +159,7 @@ export function UploadFile(): React.JSX.Element {
               currentFile != undefined &&
               (currentFileStatus == undefined || currentFileStatus.status === "failed")
             ) {
-              if (entitlement == undefined || entitlement.usage > entitlement.maxQuota) {
+              if (entitlement != undefined && entitlement.usage > entitlement.maxQuota) {
                 entitlementDialog();
               } else {
                 setOpenChooser(true);
