@@ -9,6 +9,7 @@ import { Fragment, Suspense, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
+import { DialogsStore, useDialogs } from "@foxglove/studio-base/context/DialogsContext";
 import { useSharedRootContext } from "@foxglove/studio-base/context/SharedRootContext";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
@@ -36,6 +37,13 @@ function contextMenuHandler(event: MouseEvent) {
   event.preventDefault();
   return false;
 }
+
+const selectDialogs = (store: DialogsStore) => store.dialogs;
+
+const GlobalDialogs = (): React.JSX.Element => {
+  const dialogs = useDialogs(selectDialogs);
+  return <>{Array.from(dialogs.values()).map((dialog) => dialog)}</>;
+};
 
 export function StudioApp(): React.JSX.Element {
   const {
@@ -83,29 +91,32 @@ export function StudioApp(): React.JSX.Element {
   }, []);
 
   return (
-    <MaybeLaunchPreference>
-      <MultiProvider providers={providers}>
-        <SendNotificationToastAdapter />
-        <DndProvider backend={HTML5Backend}>
-          <Suspense fallback={<></>}>
-            <PanelCatalogProvider>
-              <Workspace
-                deepLinks={deepLinks}
-                appBarLeftInset={appBarLeftInset}
-                onAppBarDoubleClick={onAppBarDoubleClick}
-                showCustomWindowControls={customWindowControlProps?.showCustomWindowControls}
-                isMaximized={customWindowControlProps?.isMaximized}
-                initialZoomFactor={customWindowControlProps?.initialZoomFactor}
-                onMinimizeWindow={customWindowControlProps?.onMinimizeWindow}
-                onMaximizeWindow={customWindowControlProps?.onMaximizeWindow}
-                onUnmaximizeWindow={customWindowControlProps?.onUnmaximizeWindow}
-                onCloseWindow={customWindowControlProps?.onCloseWindow}
-                AppBarComponent={AppBarComponent}
-              />
-            </PanelCatalogProvider>
-          </Suspense>
-        </DndProvider>
-      </MultiProvider>
-    </MaybeLaunchPreference>
+    <>
+      <MaybeLaunchPreference>
+        <MultiProvider providers={providers}>
+          <SendNotificationToastAdapter />
+          <DndProvider backend={HTML5Backend}>
+            <Suspense fallback={<></>}>
+              <PanelCatalogProvider>
+                <Workspace
+                  deepLinks={deepLinks}
+                  appBarLeftInset={appBarLeftInset}
+                  onAppBarDoubleClick={onAppBarDoubleClick}
+                  showCustomWindowControls={customWindowControlProps?.showCustomWindowControls}
+                  isMaximized={customWindowControlProps?.isMaximized}
+                  initialZoomFactor={customWindowControlProps?.initialZoomFactor}
+                  onMinimizeWindow={customWindowControlProps?.onMinimizeWindow}
+                  onMaximizeWindow={customWindowControlProps?.onMaximizeWindow}
+                  onUnmaximizeWindow={customWindowControlProps?.onUnmaximizeWindow}
+                  onCloseWindow={customWindowControlProps?.onCloseWindow}
+                  AppBarComponent={AppBarComponent}
+                />
+                <GlobalDialogs />
+              </PanelCatalogProvider>
+            </Suspense>
+          </DndProvider>
+        </MultiProvider>
+      </MaybeLaunchPreference>
+    </>
   );
 }

@@ -58,6 +58,7 @@ import {
   useAppConfigurationValue,
   useTopicPrefixConfigurationValue,
 } from "@foxglove/studio-base/hooks";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import {
@@ -171,6 +172,8 @@ export default function PlayerManager(
   const isMounted = useMountedState();
 
   const consoleApi = useConsoleApi();
+
+  const confirm = useConfirm();
 
   const metricsCollector = useMemo(
     () =>
@@ -340,6 +343,7 @@ export default function PlayerManager(
 
             const newPlayer = foundSource.initialize({
               metricsCollector,
+              confirm,
               params: {
                 addTopicPrefix,
                 timeMode,
@@ -443,6 +447,7 @@ export default function PlayerManager(
       setDataSource,
       constructPlayers,
       beforeConnectionSource,
+      confirm,
       addTopicPrefix,
       timeMode,
       playbackQualityLevel,
