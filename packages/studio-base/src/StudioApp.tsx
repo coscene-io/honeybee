@@ -91,32 +91,30 @@ export function StudioApp(): React.JSX.Element {
   }, []);
 
   return (
-    <>
-      <MaybeLaunchPreference>
-        <MultiProvider providers={providers}>
-          <SendNotificationToastAdapter />
-          <DndProvider backend={HTML5Backend}>
-            <Suspense fallback={<></>}>
-              <PanelCatalogProvider>
-                <Workspace
-                  deepLinks={deepLinks}
-                  appBarLeftInset={appBarLeftInset}
-                  onAppBarDoubleClick={onAppBarDoubleClick}
-                  showCustomWindowControls={customWindowControlProps?.showCustomWindowControls}
-                  isMaximized={customWindowControlProps?.isMaximized}
-                  initialZoomFactor={customWindowControlProps?.initialZoomFactor}
-                  onMinimizeWindow={customWindowControlProps?.onMinimizeWindow}
-                  onMaximizeWindow={customWindowControlProps?.onMaximizeWindow}
-                  onUnmaximizeWindow={customWindowControlProps?.onUnmaximizeWindow}
-                  onCloseWindow={customWindowControlProps?.onCloseWindow}
-                  AppBarComponent={AppBarComponent}
-                />
-                <GlobalDialogs />
-              </PanelCatalogProvider>
-            </Suspense>
-          </DndProvider>
-        </MultiProvider>
-      </MaybeLaunchPreference>
-    </>
+    <MaybeLaunchPreference>
+      <MultiProvider providers={providers}>
+        <SendNotificationToastAdapter />
+        <DndProvider backend={HTML5Backend}>
+          <Suspense fallback={<></>}>
+            <PanelCatalogProvider>
+              <Workspace
+                deepLinks={deepLinks}
+                appBarLeftInset={appBarLeftInset}
+                onAppBarDoubleClick={onAppBarDoubleClick}
+                showCustomWindowControls={customWindowControlProps?.showCustomWindowControls}
+                isMaximized={customWindowControlProps?.isMaximized}
+                initialZoomFactor={customWindowControlProps?.initialZoomFactor}
+                onMinimizeWindow={customWindowControlProps?.onMinimizeWindow}
+                onMaximizeWindow={customWindowControlProps?.onMaximizeWindow}
+                onUnmaximizeWindow={customWindowControlProps?.onUnmaximizeWindow}
+                onCloseWindow={customWindowControlProps?.onCloseWindow}
+                AppBarComponent={AppBarComponent}
+              />
+              <GlobalDialogs />
+            </PanelCatalogProvider>
+          </Suspense>
+        </DndProvider>
+      </MultiProvider>
+    </MaybeLaunchPreference>
   );
 }
