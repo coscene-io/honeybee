@@ -58,9 +58,9 @@ export function StudioApp(): React.JSX.Element {
     <ExtensionMarketplaceProvider />,
     <ExtensionCatalogProvider loaders={extensionLoaders} />,
     <UploadFilesProvider />,
-    <PlayerManager playerSources={dataSources} />,
     <EventsProvider />,
     <SubscriptionEntitlementProvider />,
+    <PlayerManager playerSources={dataSources} />,
     /* eslint-enable react/jsx-key */
   ];
 
