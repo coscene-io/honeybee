@@ -480,6 +480,14 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
         </div>
       </Stack>
 
+      {duplicateKey && (
+        <Stack paddingTop={2}>
+          <Typography color="error">
+            {t("duplicateKey")} {duplicateKey[0]}
+          </Typography>
+        </Stack>
+      )}
+
       {!isEditing && (
         <Stack paddingTop={2}>
           <FormLabel>{t("record")}</FormLabel>
@@ -511,14 +519,6 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
             form={form as unknown as FormWithCustomFieldValues}
             properties={customFieldSchema.properties}
           />
-        </Stack>
-      )}
-
-      {duplicateKey && (
-        <Stack paddingTop={2}>
-          <Typography color="error">
-            {t("duplicateKey")} {duplicateKey[0]}
-          </Typography>
         </Stack>
       )}
     </Stack>
