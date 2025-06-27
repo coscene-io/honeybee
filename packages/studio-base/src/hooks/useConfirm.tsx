@@ -15,8 +15,11 @@
 //   You may not use this file except in compliance with the License.
 
 import { Dialog, DialogContent, DialogTitle, DialogActions, Button, Paper } from "@mui/material";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import { useKeyPressEvent } from "react-use";
+import { v4 as uuidv4 } from "uuid";
+
+import { DialogsStore, useDialogs } from "@foxglove/studio-base/context/DialogsContext";
 
 type ConfirmVariant = "danger" | "primary" | "toast";
 type ConfirmAction = "ok" | "cancel";
@@ -139,27 +142,35 @@ function ConfirmModal(props: ConfirmModalProps) {
 export type confirmTypes = (options: ConfirmOptions) => Promise<ConfirmAction>;
 export type confirmModalTypes = React.JSX.Element | undefined;
 
+const selectAddDialog = (store: DialogsStore) => store.addDialog;
+const selectRemoveDialog = (store: DialogsStore) => store.removeDialog;
+
 // Returns a function that can be used similarly to the DOM confirm(), but
 // backed by a React element rather than a native modal, and asynchronous.
-export function useConfirm(): [
-  confirm: (options: ConfirmOptions) => Promise<ConfirmAction>,
-  confirmModal: React.JSX.Element | undefined,
-] {
-  const [modal, setModal] = useState<React.JSX.Element | undefined>();
+export function useConfirm(): (options: ConfirmOptions) => Promise<ConfirmAction> {
+  const addDialog = useDialogs(selectAddDialog);
+  const removeDialog = useDialogs(selectRemoveDialog);
 
-  const openConfirm = useCallback(async (options: ConfirmOptions) => {
-    return await new Promise<ConfirmAction>((resolve) => {
-      setModal(
-        <ConfirmModal
-          {...options}
-          onComplete={(value) => {
-            resolve(value);
-            setModal(undefined);
-          }}
-        />,
-      );
-    });
-  }, []);
+  const openConfirm = useCallback(
+    async (options: ConfirmOptions, key?: string) => {
+      const dialogKey = key ?? uuidv4();
+      return await new Promise<ConfirmAction>((resolve) => {
+        addDialog({
+          key: dialogKey,
+          dialog: (
+            <ConfirmModal
+              {...options}
+              onComplete={(value) => {
+                resolve(value);
+                removeDialog({ key: dialogKey });
+              }}
+            />
+          ),
+        });
+      });
+    },
+    [addDialog, removeDialog],
+  );
 
-  return [openConfirm, modal];
+  return openConfirm;
 }

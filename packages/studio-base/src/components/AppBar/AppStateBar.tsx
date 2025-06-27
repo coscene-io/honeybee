@@ -81,7 +81,7 @@ export function AppStateBar(): React.JSX.Element {
   const { classes, theme } = useStyles();
   const { t } = useTranslation("appBar");
   const presence = useMessagePipeline(selectPresence);
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const urlState = useMessagePipeline(selectUrlState);
 
   const linkType = urlState?.parameters?.linkType ?? "";
@@ -439,7 +439,6 @@ export function AppStateBar(): React.JSX.Element {
           </Stack>
         </Stack>
       )}
-      {confirmModal}
     </>
   );
 }

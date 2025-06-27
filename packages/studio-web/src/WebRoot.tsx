@@ -20,7 +20,6 @@ import {
   SharedProviders,
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
-import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { useCoSceneInit } from "./CoSceneInit";
@@ -37,10 +36,6 @@ export function WebRoot(props: {
   const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
 
   useCoSceneInit();
-
-  // if has many sources need to set confirm
-  // recommand set confirm to message pipeline
-  const [confirm, confirmModal] = useConfirm();
 
   const appConfiguration = useMemo(
     () =>
@@ -60,11 +55,11 @@ export function WebRoot(props: {
   const dataSources = useMemo(() => {
     const sources = [
       new CoSceneDataPlatformDataSourceFactory(),
-      new FoxgloveWebSocketDataSourceFactory({ confirm }),
+      new FoxgloveWebSocketDataSourceFactory(),
     ];
 
     return props.dataSources ?? sources;
-  }, [props.dataSources, confirm]);
+  }, [props.dataSources]);
 
   const consoleApi = useMemo(
     () => new ConsoleApi(baseUrl, APP_CONFIG.VITE_APP_BFF_URL, jwt),
@@ -96,7 +91,6 @@ export function WebRoot(props: {
         <StudioApp />
       </SharedRoot>
       <Toaster />
-      {confirmModal}
     </>
   );
 }

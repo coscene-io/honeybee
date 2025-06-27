@@ -149,7 +149,7 @@ export function Playlist(): React.JSX.Element {
   const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
   const { t } = useTranslation("cosPlaylist");
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const consoleApi = useConsoleApi();
 
   const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);
@@ -406,7 +406,6 @@ export function Playlist(): React.JSX.Element {
         }}
         mode="select-files-from-record"
       />
-      {confirmModal}
     </Stack>
   );
 }
