@@ -124,11 +124,17 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
   }, [mode, selectedFiles.length, targetRecord, targetProject]);
 
   const dialogTitle = useMemo(() => {
-    const isFileMode = mode === "select-files-from-record" || mode === "select-files-from-project";
-
-    return isFileMode
-      ? t("selecteFilesFromRecord")
-      : t("selectRecordToSaveTheMoment", { ns: "cosEvent" });
+    switch (mode) {
+      case "select-record":
+        return t("selectRecord");
+      case "create-record":
+        return t("createRecord");
+      case "select-files-from-record":
+        return t("selecteFilesFromRecord");
+      case "select-files-from-project":
+        return t("selectRecordFromProjectResources");
+      default:
+    }
   }, [mode, t]);
 
   const showFilesList = mode === "select-files-from-record" || mode === "select-files-from-project";

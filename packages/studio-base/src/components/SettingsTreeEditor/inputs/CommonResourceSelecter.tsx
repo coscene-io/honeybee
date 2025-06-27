@@ -82,7 +82,7 @@ export default function CommonResourceSelecter({
           setAddFileDialogOpen(true);
         }}
       >
-        {file ? file.filename.split("/").pop() : t("selectCommonSource")}
+        {file ? file.filename.split("/").pop() : t("selectProjectSources")}
       </Button>
     </>
   );
