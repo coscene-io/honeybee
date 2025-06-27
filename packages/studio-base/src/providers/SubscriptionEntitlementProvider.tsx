@@ -32,7 +32,9 @@ function createSubscriptionEntitlementStore() {
         return undefined;
       }
 
-      return data.charges.find((item) => item.feature === feature)?.entitlement;
+      const target = data.charges.find((item) => item.feature === feature)?.entitlement;
+
+      return target?.hardLimit === true ? target : undefined;
     },
   }));
 }
