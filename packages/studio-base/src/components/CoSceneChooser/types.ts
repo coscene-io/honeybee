@@ -55,6 +55,7 @@ interface BaseDialogProps {
 // Dialog properties - internal properties are optional, managed by dialog internally
 export type ChooserDialogProps = BaseDialogProps & {
   checkFileSupportedFunc?: (file: File) => boolean;
+  dialogTitle?: string;
 } & (
     | {
         mode: "select-record" | "create-record";

@@ -27,4 +27,8 @@ export const cosPlaylist = {
   generateMediaFailed: "Media generation failed, please check the file",
   generateMediaProcessing: "Media generation in progress, you can play it later",
   projectFrom: "From {{projectName}}",
+  selectOrCreateRecord: "Select or create record",
+  selectRecord: "Select record",
+  createRecord: "Create record",
+  selectRecordFromProjectResources: "Select project resources",
 };
