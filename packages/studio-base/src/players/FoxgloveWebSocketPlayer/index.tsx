@@ -307,6 +307,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
               }}
             />
           ),
+          disableEscapeKeyDown: true,
+          disableBackdropClick: true,
           ok: t("cosWebsocket:confirm"),
           cancel: t("cosWebsocket:exitAndClosePage"),
           variant: "danger",
@@ -350,6 +352,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
             }}
           />
         ),
+        disableEscapeKeyDown: true,
+        disableBackdropClick: true,
         ok: t("cosWebsocket:reconnect"),
         cancel: t("cosWebsocket:exitAndClosePage"),
         variant: "danger",
