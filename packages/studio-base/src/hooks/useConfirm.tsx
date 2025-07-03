@@ -36,6 +36,10 @@ export type ConfirmOptions = {
   cancel?: string | false;
   // indicate the type of confirmation
   variant?: ConfirmVariant;
+  // if true, the escape key will not close the modal
+  disableEscapeKeyDown?: boolean;
+  // if true, the backdrop click will not close the modal
+  disableBackdropClick?: boolean;
 };
 
 type ConfirmModalProps = ConfirmOptions & {
@@ -119,7 +123,13 @@ function ConfirmModal(props: ConfirmModalProps) {
   return (
     <Dialog
       open
-      onClose={() => {
+      onClose={(_e, reason) => {
+        if ((props.disableEscapeKeyDown ?? false) && reason === "escapeKeyDown") {
+          return;
+        }
+        if ((props.disableBackdropClick ?? false) && reason === "backdropClick") {
+          return;
+        }
         onComplete("cancel");
       }}
       maxWidth="sm"
