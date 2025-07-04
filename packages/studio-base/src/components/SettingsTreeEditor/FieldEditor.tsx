@@ -381,7 +381,15 @@ function FieldInput({
               },
             });
           }}
-          MenuProps={{ MenuListProps: { dense: true } }}
+          MenuProps={{
+            MenuListProps: { dense: true },
+            PaperProps: {
+              style: {
+                maxHeight: 240,
+                overflow: "auto",
+              },
+            },
+          }}
         >
           {field.options.map(({ label, value = UNDEFINED_SENTINEL_VALUE, disabled }) => (
             <MenuItem key={value} value={value} disabled={disabled}>
@@ -429,7 +437,15 @@ function FieldInput({
               },
             });
           }}
-          MenuProps={{ MenuListProps: { dense: true } }}
+          MenuProps={{
+            MenuListProps: { dense: true },
+            PaperProps: {
+              style: {
+                maxHeight: 240,
+                overflow: "auto",
+              },
+            },
+          }}
         >
           {field.options.map(({ label, value, disabled }) => (
             <MenuItem key={value} value={value} disabled={disabled}>
@@ -440,6 +456,7 @@ function FieldInput({
         </Select>
       );
     }
+
     case "gradient":
       return (
         <ColorGradientInput
