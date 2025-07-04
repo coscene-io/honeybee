@@ -29,6 +29,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
 import { CreateEventForm, CreateTaskForm } from "./types";
@@ -64,6 +65,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
   const projectName = `warehouses/${baseInfo.value?.warehouseId}/projects/${baseInfo.value?.projectId}`;
   const recordName = `warehouses/${baseInfo.value?.warehouseId}/projects/${baseInfo.value?.projectId}/records/${baseInfo.value?.recordId}`;
+  const fieldConfigurationUrl = `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/${baseInfo.value?.organizationSlug}/${baseInfo.value?.projectSlug}/manage/advanced-settings/custom-field/moment-custom-field`;
 
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
 
@@ -319,22 +321,34 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
         {enabledCreateNewTask && <TaskForm form={taskForm} />}
 
-        <Stack paddingTop={2} direction="row" justifyContent="end" gap={2}>
-          <Button variant="outlined" onClick={onClose}>
-            {t("cancel")}
-          </Button>
-          <Button
-            variant="contained"
-            id="create-moment"
-            ref={createMomentBtnRef}
-            disabled={isLoading}
-            onClick={onSubmit}
-          >
-            {isLoading && (
-              <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
-            )}
-            {isEditing ? t("edit") : t("createMoment")}
-          </Button>
+        <Stack paddingTop={2} direction="row" justifyContent="space-between" gap={2}>
+          <Stack>
+            <Button
+              variant="text"
+              onClick={() => {
+                window.open(fieldConfigurationUrl, "_blank");
+              }}
+            >
+              {t("fieldConfiguration")}
+            </Button>
+          </Stack>
+          <Stack gap={2} direction="row">
+            <Button variant="outlined" onClick={onClose}>
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="contained"
+              id="create-moment"
+              ref={createMomentBtnRef}
+              disabled={isLoading}
+              onClick={onSubmit}
+            >
+              {isLoading && (
+                <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
+              )}
+              {isEditing ? t("edit") : t("createMoment")}
+            </Button>
+          </Stack>
         </Stack>
       </Stack>
     </>
