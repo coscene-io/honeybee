@@ -88,6 +88,7 @@ export function UserSelect({
         disabled={disabled}
         disableClearable={allowClear === false}
         multiple
+        disableCloseOnSelect={true}
         options={activatedUsers}
         getOptionLabel={(option) => option.nickname ?? ""}
         renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
