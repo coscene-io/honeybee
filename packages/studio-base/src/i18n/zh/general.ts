@@ -25,4 +25,5 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   pleaseEnter: "请输入",
   clearButtonLabel: "清除",
   okButtonLabel: "确定",
+  unknownField: "未知字段",
 };
