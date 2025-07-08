@@ -27,8 +27,8 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   duration: "持续时间",
   edit: "编辑",
   editMoment: "编辑一刻",
-  editMomentFailed: "编辑一刻失败",
-  editMomentSuccess: "编辑一刻成功",
+  editMomentFailed: "保存失败",
+  editMomentSuccess: "保存成功",
   elapsed: "经过时间",
   end: "结束",
   errorDeletingEvent: "删除一刻失败",
@@ -85,4 +85,5 @@ export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
   loopPlay: "循环播放",
   startTimeAndDurationRequired: "开始时间和持续时间不能为空",
   fieldConfiguration: "字段配置",
+  save: "保存",
 };
