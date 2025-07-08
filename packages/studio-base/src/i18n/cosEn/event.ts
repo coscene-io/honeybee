@@ -25,8 +25,8 @@ export const cosEvent = {
   duration: "Duration",
   edit: "Edit",
   editMoment: "Edit Moment",
-  editMomentFailed: "Edit Moment Failed",
-  editMomentSuccess: "Edit Moment Success",
+  editMomentFailed: "Save failed",
+  editMomentSuccess: "Save success",
   elapsed: "Elapsed",
   end: "End",
   errorDeletingEvent: "Error deleting event",
@@ -84,4 +84,5 @@ export const cosEvent = {
   loopPlay: "Loop Play",
   startTimeAndDurationRequired: "Start time and duration are required",
   fieldConfiguration: "Field configuration",
+  save: "Save",
 };

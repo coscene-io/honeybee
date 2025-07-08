@@ -346,7 +346,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
               {isLoading && (
                 <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
               )}
-              {isEditing ? t("edit") : t("createMoment")}
+              {isEditing ? t("save") : t("createMoment")}
             </Button>
           </Stack>
         </Stack>
