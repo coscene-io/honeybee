@@ -25,4 +25,5 @@ export const general = {
   pleaseEnter: "Please enter",
   clearButtonLabel: "Clear",
   okButtonLabel: "OK",
+  unknownField: "Unknown Field",
 };
