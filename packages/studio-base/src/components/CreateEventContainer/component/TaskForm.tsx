@@ -70,12 +70,11 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
 
   // Get sync task metadata
   const { value: syncedTask } = useAsync(async () => {
-    if (!baseInfo.projectSlug) {
+    if (!baseInfo.warehouseId || !baseInfo.projectId) {
       return { enabled: false };
     }
 
-    const projectName = baseInfo.projectSlug.split("/records/")[0];
-    const parent = `${projectName}/ticketSystem`;
+    const parent = `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}/ticketSystem`;
 
     try {
       const result = await consoleApi.getTicketSystemMetadata({ parent });
@@ -87,7 +86,7 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
       log.error(error);
       return { enabled: false };
     }
-  }, [consoleApi, baseInfo.projectSlug]);
+  }, [baseInfo.warehouseId, baseInfo.projectId, consoleApi]);
 
   return (
     <Stack>
