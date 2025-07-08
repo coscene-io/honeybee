@@ -293,7 +293,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
   return (
     <>
-      <Stack paddingX={3} paddingY={2} style={{ maxWidth: "800px" }}>
+      <Stack paddingX={3} paddingY={2} style={{ width: "500px" }}>
         <Stack>
           <Typography variant="h4">{isEditing ? t("editMoment") : t("createMoment")}</Typography>
         </Stack>
