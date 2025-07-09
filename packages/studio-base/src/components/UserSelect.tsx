@@ -33,6 +33,7 @@ interface BaseUserSelectProps {
   onMetaDataKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   disabled?: boolean;
   error?: boolean;
+  placeholder?: string;
 }
 
 interface SingleUserSelectProps extends BaseUserSelectProps {
@@ -56,6 +57,7 @@ export function UserSelect({
   disabled,
   error,
   multiple,
+  placeholder,
 }: UserSelectProps): React.ReactNode {
   const consoleApi = useConsoleApi();
   const { classes } = useStyles();
@@ -91,7 +93,14 @@ export function UserSelect({
         disableCloseOnSelect={true}
         options={activatedUsers}
         getOptionLabel={(option) => option.nickname ?? ""}
-        renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            variant="filled"
+            error={error}
+            placeholder={selectedUsers.length > 0 ? undefined : placeholder}
+          />
+        )}
         renderOption={(optionProps, option) => (
           <Box component="li" {...optionProps} key={option.name}>
             <Avatar src={option.avatar} className={classes.avatar} variant="rounded">
@@ -144,7 +153,9 @@ export function UserSelect({
         disableClearable={allowClear === false}
         options={activatedUsers}
         getOptionLabel={(option) => option.nickname ?? ""}
-        renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
+        renderInput={(params) => (
+          <TextField {...params} variant="filled" error={error} placeholder={placeholder} />
+        )}
         renderOption={(optionProps, option) => (
           <Box component="li" {...optionProps} key={option.name}>
             <Avatar src={option.avatar} className={classes.avatar} variant="rounded">
