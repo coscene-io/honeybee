@@ -295,13 +295,20 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     [availableSources, enqueueSnackbar, installExtension, selectSource],
   );
 
+  // Store stable reference to avoid re-running effects unnecessarily
+  const handleFilesRef = useRef<typeof openFiles>(openFiles);
+  useLayoutEffect(() => {
+    handleFilesRef.current = openFiles;
+  }, [openFiles]);
+
   // files the main thread told us to open
   const filesToOpen = useElectronFilesToOpen();
+
   useEffect(() => {
-    if (filesToOpen) {
-      void openFiles(Array.from(filesToOpen));
+    if (filesToOpen && filesToOpen.length > 0) {
+      void handleFilesRef.current(Array.from(filesToOpen));
     }
-  }, [filesToOpen, openFiles]);
+  }, [filesToOpen]);
 
   const dropHandler = useCallback(
     (event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
