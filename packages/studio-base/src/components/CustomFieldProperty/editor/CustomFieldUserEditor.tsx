@@ -7,6 +7,7 @@
 
 import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { UserValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { useTranslation } from "react-i18next";
 
 import { UserSelect } from "@foxglove/studio-base/components/UserSelect";
 
@@ -23,6 +24,8 @@ export function CustomFieldUserEditor({
   customFieldValue: CustomFieldValue;
   disabled?: boolean;
 }): React.ReactNode {
+  const { t } = useTranslation("general");
+
   let value = "";
   if (customFieldValue.value.case === "user") {
     value = customFieldValue.value.value.ids[0] ?? "";
@@ -51,6 +54,7 @@ export function CustomFieldUserEditor({
         allowClear={allowClear}
         disabled={disabled}
         error={error}
+        placeholder={customFieldValue.property?.description ?? t("pleaseSelect")}
         multiple
         onChange={(users) => {
           if (Array.isArray(users)) {
@@ -77,6 +81,7 @@ export function CustomFieldUserEditor({
       allowClear={allowClear}
       disabled={disabled}
       error={error}
+      placeholder={customFieldValue.property?.description ?? t("pleaseSelect")}
       onChange={(user) => {
         if (!Array.isArray(user)) {
           customFieldValue.value = {

@@ -29,6 +29,8 @@ export function CustomFieldTimeEditor({
   disabled?: boolean;
 }): React.ReactNode {
   const { i18n, t } = useTranslation("general");
+  const { property } = customFieldValue;
+
   let value: Date | undefined;
   if (customFieldValue.value.case === "time") {
     value = customFieldValue.value.value.value?.toDate();
@@ -63,6 +65,7 @@ export function CustomFieldTimeEditor({
             error,
             size: "small",
             variant: "filled",
+            placeholder: property?.description ?? t("pleaseSelect"),
           },
           actionBar: {
             actions: allowClear != undefined && allowClear ? ["clear", "accept"] : ["accept"],
