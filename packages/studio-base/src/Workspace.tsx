@@ -14,8 +14,6 @@
 //   You may not use this file except in compliance with the License.
 
 import * as _ from "lodash-es";
-import { useSnackbar } from "notistack";
-import { extname } from "path";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -57,7 +55,6 @@ import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import {
   DataSourceArgs,
   usePlayerSelection,
@@ -72,6 +69,7 @@ import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useCoSceneInitialDeepLinkState";
 import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDefaultWebLaunchPreference";
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
+import { useHandleFiles } from "@foxglove/studio-base/hooks/useHandleFiles";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
@@ -145,6 +143,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { availableSources, selectSource } = usePlayerSelection();
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems);
+  const { dropHandler, handleFilesRef } = useHandleFiles();
 
   const dataSourceDialog = useWorkspaceStore(selectWorkspaceDataSourceDialog);
   const leftSidebarItem = useWorkspaceStore(selectWorkspaceLeftSidebarItem);
@@ -213,94 +212,6 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     }, [dialogActions.preferences]),
   );
 
-  const { enqueueSnackbar } = useSnackbar();
-
-  const installExtension = useExtensionCatalog((state) => state.installExtension);
-
-  const openHandle = useCallback(
-    async (
-      handle: FileSystemFileHandle /* foxglove-depcheck-used: @types/wicg-file-system-access */,
-    ) => {
-      log.debug("open handle", handle);
-      const file = await handle.getFile();
-
-      if (file.name.endsWith(".foxe") || file.name.endsWith(".coe")) {
-        // Extension installation
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          const data = new Uint8Array(arrayBuffer);
-          const extension = await installExtension("local", data);
-          enqueueSnackbar(`Installed extension ${extension.id}`, { variant: "success" });
-        } catch (err) {
-          log.error(err);
-          enqueueSnackbar(`Failed to install extension ${file.name}: ${err.message}`, {
-            variant: "error",
-          });
-        }
-      }
-
-      // Look for a source that supports the file extensions
-      const matchedSource = availableSources.find((source) => {
-        const ext = extname(file.name);
-        return source.supportedFileTypes?.includes(ext);
-      });
-      if (matchedSource) {
-        selectSource(matchedSource.id, { type: "file", handle });
-      }
-    },
-    [availableSources, enqueueSnackbar, installExtension, selectSource],
-  );
-
-  // This function is called when coStudio is launched by clicking on a file.
-  const openFiles = useCallback(
-    async (files: File[]) => {
-      const otherFiles: File[] = [];
-      log.debug("open files", files);
-
-      for (const file of files) {
-        if (file.name.endsWith(".foxe") || file.name.endsWith(".coe")) {
-          // Extension installation
-          try {
-            const arrayBuffer = await file.arrayBuffer();
-            const data = new Uint8Array(arrayBuffer);
-            const extension = await installExtension("local", data);
-            enqueueSnackbar(`Installed extension ${extension.id}`, { variant: "success" });
-          } catch (err) {
-            log.error(err);
-            enqueueSnackbar(`Failed to install extension ${file.name}: ${err.message}`, {
-              variant: "error",
-            });
-          }
-        } else {
-          otherFiles.push(file);
-        }
-      }
-
-      if (otherFiles.length > 0) {
-        // Look for a source that supports the dragged file extensions
-        for (const source of availableSources) {
-          const filteredFiles = otherFiles.filter((file) => {
-            const ext = extname(file.name);
-            return source.supportedFileTypes?.includes(ext);
-          });
-
-          // select the first source that has files that match the supported extensions
-          if (filteredFiles.length > 0) {
-            selectSource(source.id, { type: "file", files: otherFiles });
-            break;
-          }
-        }
-      }
-    },
-    [availableSources, enqueueSnackbar, installExtension, selectSource],
-  );
-
-  // Store stable reference to avoid re-running effects unnecessarily
-  const handleFilesRef = useRef<typeof openFiles>(openFiles);
-  useLayoutEffect(() => {
-    handleFilesRef.current = openFiles;
-  }, [openFiles]);
-
   // files the main thread told us to open
   const filesToOpen = useElectronFilesToOpen();
 
@@ -308,23 +219,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     if (filesToOpen && filesToOpen.length > 0) {
       void handleFilesRef.current(Array.from(filesToOpen));
     }
-  }, [filesToOpen]);
-
-  const dropHandler = useCallback(
-    (event: { files?: File[]; handles?: FileSystemFileHandle[] }) => {
-      log.debug("drop event", event);
-      const handle = event.handles?.[0];
-      // When selecting sources with handles we can only select with a single handle since we haven't
-      // written the code to store multiple handles for recents. When there are multiple handles, we
-      // fall back to opening regular files.
-      if (handle && event.handles?.length === 1) {
-        void openHandle(handle);
-      } else if (event.files) {
-        void openFiles(event.files);
-      }
-    },
-    [openFiles, openHandle],
-  );
+  }, [filesToOpen, handleFilesRef]);
 
   const leftSidebarItems = useMemo(() => {
     const items: [LeftSidebarItemKey, SidebarItem][] = [
