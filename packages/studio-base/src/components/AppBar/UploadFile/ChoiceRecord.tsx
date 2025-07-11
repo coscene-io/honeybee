@@ -16,13 +16,13 @@ export function ChoiceRecordDialog({
   open,
   onClose,
   onConfirm,
-  defaultRecordName,
+  defaultRecordDisplayName,
   mode = "create-record",
 }: {
   open: boolean;
   onClose: () => void;
   onConfirm: (record: Record, project: Project) => void;
-  defaultRecordName?: string;
+  defaultRecordDisplayName?: string;
   mode?: "select-record" | "create-record";
 }): React.JSX.Element {
   const { t } = useTranslation("appBar");
@@ -49,7 +49,7 @@ export function ChoiceRecordDialog({
           }}
           files={[]}
           setFiles={() => {}}
-          defaultRecordName={defaultRecordName}
+          defaultRecordDisplayName={defaultRecordDisplayName}
           createRecordConfirmText={t("createRecordAndUpload")}
         />
         <Stack direction="row" justifyContent="flex-end" paddingX={2} paddingBottom={2} gap={1}>

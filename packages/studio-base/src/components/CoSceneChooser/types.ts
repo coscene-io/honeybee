@@ -41,7 +41,8 @@ export interface BaseChooserProps {
   files: SelectedFile[];
   setFiles: (files: SelectedFile[]) => void;
   checkFileSupportedFunc?: (file: File) => boolean;
-  defaultRecordName?: string;
+  defaultRecordDisplayName?: string;
+  defaultProject?: Project;
   createRecordConfirmText?: string;
 }
 
@@ -55,6 +56,7 @@ interface BaseDialogProps {
 // Dialog properties - internal properties are optional, managed by dialog internally
 export type ChooserDialogProps = BaseDialogProps & {
   checkFileSupportedFunc?: (file: File) => boolean;
+  defaultProject?: Project;
   dialogTitle?: string;
 } & (
     | {
