@@ -50,6 +50,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
     mode,
     onConfirm,
     maxFilesNumber,
+    defaultProject,
   } = props;
 
   const { classes } = useStyles();
@@ -171,6 +172,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
             setFiles={setSelectedFiles}
             mode={mode}
             checkFileSupportedFunc={checkFileSupportedFunc ?? checkBagFileSupported}
+            defaultProject={defaultProject}
           />
           {showFilesList && <FilesList files={selectedFiles} setFiles={setSelectedFiles} />}
         </Stack>
