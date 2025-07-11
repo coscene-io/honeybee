@@ -9,19 +9,6 @@ import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/datapl
 import { NumberValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { FilledInput } from "@mui/material";
 import { useEffect, useState } from "react";
-import { makeStyles } from "tss-react/mui";
-
-const useStyles = makeStyles()(() => ({
-  filledInput: {
-    ".MuiInputBase-input": {
-      "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": {
-        appearance: "none",
-        margin: 0,
-      },
-      MozAppearance: "textfield",
-    },
-  },
-}));
 
 export function CustomFieldNumberEditor({
   error,
@@ -34,7 +21,6 @@ export function CustomFieldNumberEditor({
   customFieldValue: CustomFieldValue;
   disabled?: boolean;
 }): React.ReactNode {
-  const { classes } = useStyles();
   const [value, setValue] = useState<string>("");
 
   useEffect(() => {
@@ -71,7 +57,11 @@ export function CustomFieldNumberEditor({
         setValue(event.target.value);
         onSave(event.target.value);
       }}
-      className={classes.filledInput}
+      inputProps={{
+        onWheel: (event: React.WheelEvent<HTMLInputElement>) => {
+          event.currentTarget.blur();
+        },
+      }}
     />
   );
 }
