@@ -61,6 +61,7 @@ const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHov
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectProject = (store: CoSceneBaseStore) => store.project;
 const selectUser = (store: UserStore) => store.user;
 
 const useStyles = makeStyles()((theme) => ({
@@ -157,6 +158,7 @@ export function Playlist(): React.JSX.Element {
   const setHoveredBag = useTimelineInteractionState(selectSetHoverBag);
   const urlState = useMessagePipeline(selectUrlState);
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const project = useBaseInfo(selectProject);
 
   const currentUser = useCurrentUser(selectUser);
   const { selectSource } = usePlayerSelection();
@@ -393,6 +395,7 @@ export function Playlist(): React.JSX.Element {
       </div>
       <CoSceneChooser
         open={addFileDialogOpen}
+        defaultProject={project.value}
         closeDialog={() => {
           setAddFileDialogOpen(false);
         }}

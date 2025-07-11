@@ -209,7 +209,7 @@ export function UploadFile(): React.JSX.Element {
             void handleUploadFile(currentFile, record, project);
           }
         }}
-        defaultRecordName={currentFile?.name}
+        defaultRecordDisplayName={currentFile?.name}
       />
     </>
   );

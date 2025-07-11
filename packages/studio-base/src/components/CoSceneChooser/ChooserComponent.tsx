@@ -155,7 +155,8 @@ export function ChooserComponent({
   files,
   setFiles,
   checkFileSupportedFunc,
-  defaultRecordName,
+  defaultRecordDisplayName,
+  defaultProject,
   createRecordConfirmText,
 }: BaseChooserProps): React.JSX.Element {
   const { t } = useTranslation("cosGeneral");
@@ -165,7 +166,7 @@ export function ChooserComponent({
   const [recordType, setRecordType] = useState<"create" | "select">(
     mode === "create-record" ? "create" : "select",
   );
-  const [project, setProject] = useState<Project | undefined>(undefined);
+  const [project, setProject] = useState<Project | undefined>(defaultProject);
   const [record, setRecord] = useState<Record | undefined>(undefined);
 
   // 文件夹导航状态
@@ -481,7 +482,7 @@ export function ChooserComponent({
               onCreated={(targetRecord: Record) => {
                 setTargetInfo({ record: targetRecord, project, isCreating: true });
               }}
-              defaultRecordName={defaultRecordName}
+              defaultRecordDisplayName={defaultRecordDisplayName}
               createRecordConfirmText={createRecordConfirmText}
             />
           )}
