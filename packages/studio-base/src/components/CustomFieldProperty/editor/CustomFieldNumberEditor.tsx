@@ -21,19 +21,17 @@ export function CustomFieldNumberEditor({
   customFieldValue: CustomFieldValue;
   disabled?: boolean;
 }): React.ReactNode {
-  const [value, setValue] = useState<number | undefined>(undefined);
+  const [value, setValue] = useState<string>("");
 
   useEffect(() => {
-    if (customFieldValue.value.case === "number" && value == undefined) {
-      setValue(customFieldValue.value.value.value);
+    if (customFieldValue.value.case === "number") {
+      setValue(customFieldValue.value.value.value.toString());
+    } else {
+      setValue("");
     }
-  }, [customFieldValue.value, value]);
+  }, [customFieldValue.value]);
 
   const onSave = (value: string) => {
-    if (customFieldValue.property?.required === true && value === "") {
-      return;
-    }
-
     if (value) {
       customFieldValue.value = {
         case: "number",
@@ -56,11 +54,13 @@ export function CustomFieldNumberEditor({
       disabled={disabled}
       placeholder={customFieldValue.property?.description}
       onChange={(event) => {
-        if (customFieldValue.property?.required === true && event.target.value === "") {
-          return;
-        }
-        setValue(event.target.value ? Number(event.target.value) : undefined);
+        setValue(event.target.value);
         onSave(event.target.value);
+      }}
+      inputProps={{
+        onWheel: (event: React.WheelEvent<HTMLInputElement>) => {
+          event.currentTarget.blur();
+        },
       }}
     />
   );
