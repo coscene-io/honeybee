@@ -34,11 +34,6 @@ function CustomFieldValuesFormItem({
       name={`customFieldValues.${property.id}`}
       rules={{
         required: property.required,
-        validate: property.required
-          ? {
-              requiredValue: (val) => val?.value.case != undefined,
-            }
-          : undefined,
       }}
       render={({ field }) => {
         const customFieldValue =
