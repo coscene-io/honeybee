@@ -35,6 +35,7 @@ import {
   downloadLatestStudio,
   getCoStudioVersion,
   checkSupportCoStudioDownload,
+  openUserFeedback,
 } from "@foxglove/studio-base/util/download";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
@@ -180,6 +181,8 @@ export function UserMenu({
             </Stack>
           </MenuItem>
         )}
+
+        <MenuItem onClick={openUserFeedback}>{t("userFeedback")}</MenuItem>
 
         {(isDesktop || loginStatus === "alreadyLogin") && (
           <MenuItem
