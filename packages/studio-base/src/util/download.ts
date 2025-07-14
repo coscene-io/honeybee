@@ -16,6 +16,7 @@
 
 // extra boundary added for jest testing, since jsdom's Blob doesn't support .text()
 import getArch from "arch";
+import i18next from "i18next";
 
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
@@ -109,4 +110,15 @@ export async function getCoStudioVersion(): Promise<string> {
 // first check current platform is not desktop, then check APP_CONFIG.COSTUDIO_DOWNLOAD_URL is not empty
 export function checkSupportCoStudioDownload(): boolean {
   return !isDesktopApp() && !!APP_CONFIG.COSTUDIO_DOWNLOAD_URL;
+}
+
+export function openUserFeedback(): void {
+  const url =
+    APP_CONFIG.VITE_APP_PROJECT_ENV === "aws"
+      ? "https://form.typeform.com/to/mEjmjcNJ"
+      : i18next.language === "zh"
+      ? "https://coscene0.feishu.cn/share/base/form/shrcnlWpp89ToqBDtXhwa8dCrgh"
+      : "https://coscene0.feishu.cn/share/base/form/shrcnWeMYQ3872PQYD5x73EJIYc";
+
+  window.open(url, "_blank");
 }

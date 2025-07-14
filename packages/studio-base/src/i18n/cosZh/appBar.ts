@@ -18,4 +18,5 @@ export const cosAppBar: Partial<TypeOptions["resources"]["cosAppBar"]> = {
   menu: "菜单",
   signoutSuccess: "登出成功",
   downloadLatestStudio: "下载 coStudio",
+  userFeedback: "用户反馈",
 };
