@@ -21,9 +21,7 @@ export function CustomFieldValueFieldDisplay({
 
   return (
     <FormControl>
-      <FormLabel required={customFieldValue.property?.required} color={variant}>
-        {customFieldValue.property?.name}
-      </FormLabel>
+      <FormLabel color={variant}>{customFieldValue.property?.name}</FormLabel>
       {value ?? "-"}
     </FormControl>
   );
