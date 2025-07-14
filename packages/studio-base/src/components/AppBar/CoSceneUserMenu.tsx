@@ -182,17 +182,7 @@ export function UserMenu({
           </MenuItem>
         )}
 
-        <MenuItem onClick={openUserFeedback} className="test">
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%"
-            gap={1}
-          >
-            <span>{t("userFeedback")}</span>
-          </Stack>
-        </MenuItem>
+        <MenuItem onClick={openUserFeedback}>{t("userFeedback")}</MenuItem>
 
         {(isDesktop || loginStatus === "alreadyLogin") && (
           <MenuItem
