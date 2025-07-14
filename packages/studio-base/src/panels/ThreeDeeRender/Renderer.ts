@@ -925,7 +925,9 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
 
   public updateCustomLayersCount(): void {
     const layerCount = Object.keys(this.config.layers).length;
-    const label = `Custom Layers${layerCount > 0 ? ` (${layerCount})` : ""}`;
+    const label = `${i18next.t("threeDee:customLayers")}${
+      layerCount > 0 ? ` (${layerCount})` : ""
+    }`;
     this.settings.setLabel(["layers"], label);
   }
 
