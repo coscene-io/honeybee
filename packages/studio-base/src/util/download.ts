@@ -113,11 +113,12 @@ export function checkSupportCoStudioDownload(): boolean {
 }
 
 export function openUserFeedback(): void {
-  const url = APP_CONFIG.VITE_APP_PROJECT_ENV === 'aws'
-    ? 'https://form.typeform.com/to/mEjmjcNJ'
-    : (i18next.language === 'zh'
-      ? 'https://coscene0.feishu.cn/share/base/form/shrcnlWpp89ToqBDtXhwa8dCrgh'
-      : 'https://coscene0.feishu.cn/share/base/form/shrcnWeMYQ3872PQYD5x73EJIYc');
+  const url =
+    APP_CONFIG.VITE_APP_PROJECT_ENV === "aws"
+      ? "https://form.typeform.com/to/mEjmjcNJ"
+      : i18next.language === "zh"
+        ? "https://coscene0.feishu.cn/share/base/form/shrcnlWpp89ToqBDtXhwa8dCrgh"
+        : "https://coscene0.feishu.cn/share/base/form/shrcnWeMYQ3872PQYD5x73EJIYc";
 
   window.open(url, "_blank");
 }
