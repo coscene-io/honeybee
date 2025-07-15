@@ -93,7 +93,6 @@ export function HelpMenu(props: HelpMenuProps): React.JSX.Element {
       }}
     >
       <ListSubheader className={classes.subheader}>Documentation</ListSubheader>
-
       <MenuItem
         href={getDocsLink("/viz/about-viz")}
         className={classes.menuItem}
@@ -111,7 +110,9 @@ export function HelpMenu(props: HelpMenuProps): React.JSX.Element {
         <ListItemText
           primary={t("dataVisualization", { ns: "cosHelp" })}
           secondary={t("visualizeMachineDataAndAnalysis", { ns: "cosHelp" })}
-          secondaryTypographyProps={{ className: classes.menuText }}
+          secondaryTypographyProps={{
+            className: classes.menuText,
+          }}
         />
       </MenuItem>
       {/* <MenuItem

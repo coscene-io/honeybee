@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Menu, PaperProps, PopoverPosition, PopoverReference } from "@mui/material";
+import { Menu, PopoverPosition, PopoverReference } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 
 import { PanelCatalog } from "@foxglove/studio-base/components/PanelCatalog";
@@ -41,12 +41,6 @@ export function AddPanelMenu(props: AddPanelProps): React.JSX.Element {
       disablePortal={disablePortal}
       open={open}
       onClose={handleClose}
-      MenuListProps={{
-        dense: true,
-        disablePadding: true,
-        "aria-labelledby": "add-panel-button",
-        className: classes.menuList,
-      }}
       anchorOrigin={{
         horizontal: "left",
         vertical: "bottom",
@@ -55,11 +49,9 @@ export function AddPanelMenu(props: AddPanelProps): React.JSX.Element {
         vertical: "top",
         horizontal: "left",
       }}
-      slotProps={{
-        paper: {
-          "data-tourid": "add-panel-menu",
-        } as Partial<PaperProps & { "data-tourid"?: string }>,
-      }}
+      aria-labelledby="add-panel-button"
+      data-tourid="add-panel-menu"
+      className={classes.menuList}
     >
       <PanelCatalog
         isMenu

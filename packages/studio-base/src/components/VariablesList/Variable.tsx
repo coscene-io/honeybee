@@ -195,10 +195,8 @@ export default function Variable(props: {
               anchorEl={anchorEl}
               open={menuOpen}
               onClose={handleClose}
-              MenuListProps={{
-                "aria-labelledby": "variable-action-button",
-                dense: true,
-              }}
+              data-tourid="variable-actions-menu"
+              aria-labelledby="variable-action-button"
             >
               <MenuItem onClick={deleteVariable}>
                 <Typography color="error.main" variant="inherit">

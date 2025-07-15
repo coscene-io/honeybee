@@ -40,7 +40,12 @@ export function Utilities({
         {utilityFiles.map(({ fileName, filePath }) => (
           <ListItem disablePadding key={filePath} onClick={gotoUtils.bind(undefined, filePath)}>
             <ListItemButton selected={script ? filePath === script.filePath : undefined}>
-              <ListItemText primary={fileName} primaryTypographyProps={{ variant: "body2" }} />
+              <ListItemText
+                primary={fileName}
+                primaryTypographyProps={{
+                  variant: "body2",
+                }}
+              />
             </ListItemButton>
           </ListItem>
         ))}

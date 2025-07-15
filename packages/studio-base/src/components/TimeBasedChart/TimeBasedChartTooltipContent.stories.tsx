@@ -39,12 +39,14 @@ export const SingleItemSingleDataset: StoryObj = {
         title={<TimeBasedChartTooltipContent multiDataset={false} content={[data]} />}
         placement="top"
         arrow
-        PopperProps={{
-          anchorEl: {
-            getBoundingClientRect: () => {
-              return new DOMRect(200, 100, 0, 0);
+        slotProps={{
+          popper: {
+            anchorEl: {
+              getBoundingClientRect: () => {
+                return new DOMRect(200, 100, 0, 0);
+              },
             },
-          },
+          }
         }}
       >
         <div style={{ width: "100%", height: "100%" }} />
@@ -79,12 +81,14 @@ export const SingleItemMultiDataset: StoryObj = {
         }
         placement="top"
         arrow
-        PopperProps={{
-          anchorEl: {
-            getBoundingClientRect: () => {
-              return new DOMRect(200, 100, 0, 0);
+        slotProps={{
+          popper: {
+            anchorEl: {
+              getBoundingClientRect: () => {
+                return new DOMRect(200, 100, 0, 0);
+              },
             },
-          },
+          }
         }}
       >
         <div style={{ width: "100%", height: "100%" }} />
@@ -113,12 +117,14 @@ export const MultipleItemsSingleDataset: StoryObj = {
         title={<TimeBasedChartTooltipContent multiDataset={false} content={[data, data]} />}
         placement="top"
         arrow
-        PopperProps={{
-          anchorEl: {
-            getBoundingClientRect: () => {
-              return new DOMRect(200, 100, 0, 0);
+        slotProps={{
+          popper: {
+            anchorEl: {
+              getBoundingClientRect: () => {
+                return new DOMRect(200, 100, 0, 0);
+              },
             },
-          },
+          }
         }}
       >
         <div style={{ width: "100%", height: "100%" }} />
@@ -161,12 +167,14 @@ export const MultipleItemsMultipleDataset: StoryObj = {
         }
         placement="top"
         arrow
-        PopperProps={{
-          anchorEl: {
-            getBoundingClientRect: () => {
-              return new DOMRect(200, 100, 0, 0);
+        slotProps={{
+          popper: {
+            anchorEl: {
+              getBoundingClientRect: () => {
+                return new DOMRect(200, 100, 0, 0);
+              },
             },
-          },
+          }
         }}
       >
         <div style={{ width: "100%", height: "100%" }} />

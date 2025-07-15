@@ -38,15 +38,17 @@ export const BasicCard: StoryObj = {
           </IconButton>
         }
         title="Word of the day"
-        titleTypographyProps={{
-          variant: "body2",
-          color: "text.secondary",
-        }}
         subheader={<>be &bull; nev &bull; o &bull; lent</>}
-        subheaderTypographyProps={{
-          variant: "h5",
-        }}
-      />
+        slotProps={{
+          title: {
+            variant: "body2",
+            color: "text.secondary",
+          },
+
+          subheader: {
+            variant: "h5",
+          }
+        }} />
       <Divider />
       <CardContent>
         <Typography color="text.secondary" gutterBottom>

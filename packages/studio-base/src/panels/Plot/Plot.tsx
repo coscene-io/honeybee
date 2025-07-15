@@ -821,8 +821,12 @@ export function Plot(props: Props): React.JSX.Element {
           title={tooltipContent ?? <></>}
           disableInteractive
           followCursor
-          TransitionComponent={Fade}
-          TransitionProps={{ timeout: 0 }}
+          slots={{
+            transition: Fade
+          }}
+          slotProps={{
+            transition: { timeout: 0 }
+          }}
         >
           <div className={classes.verticalBarWrapper}>
             <div

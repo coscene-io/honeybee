@@ -298,7 +298,9 @@ function UnMemoedRendererOverlay(props: Props): React.JSX.Element {
         onClose={() => {
           setPublishMenuExpanded(false);
         }}
-        MenuListProps={{ dense: true }}
+        MenuListProps={{
+          dense: true,
+        }}
       >
         <MenuItem
           selected={props.publishClickType === "pose_estimate"}

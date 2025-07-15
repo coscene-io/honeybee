@@ -17,9 +17,6 @@ export const MuiFilledInput: OverrideComponentReturn<"MuiFilledInput"> = {
     input: ({ theme }) => ({
       padding: theme.spacing(1, 1.125),
     }),
-    inputSizeSmall: ({ theme }) => ({
-      padding: theme.spacing(0.75, 1),
-    }),
     root: ({ theme }) => ({
       borderRadius: theme.shape.borderRadius,
 

@@ -139,10 +139,10 @@ const NodeRow = React.memo(function NodeRow(props: NodeRowProps) {
         <ListItemText
           primary={info.displayName}
           secondary={info.status.message}
+          style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
           secondaryTypographyProps={{
             color: MESSAGE_COLORS[levelName ?? "stale"],
           }}
-          style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
         />
       </ListItemButton>
     </ListItem>

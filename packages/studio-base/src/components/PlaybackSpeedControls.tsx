@@ -84,10 +84,6 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          "aria-labelledby": "playback-speed-button",
-          dense: true,
-        }}
         anchorOrigin={{
           vertical: "top",
           horizontal: "left",
@@ -96,6 +92,8 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
           vertical: "bottom",
           horizontal: "left",
         }}
+        data-tourid="playback-speed-controls"
+        aria-labelledby="playback-speed-button"
       >
         {SPEED_OPTIONS.map((option) => (
           <MenuItem
@@ -114,7 +112,9 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
             <ListItemText
               inset={speed !== option}
               primary={formatSpeed(option)}
-              primaryTypographyProps={{ variant: "inherit" }}
+              primaryTypographyProps={{
+                variant: "inherit",
+              }}
             />
           </MenuItem>
         ))}

@@ -214,10 +214,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
       }
       placement="top"
       disableInteractive
-      TransitionComponent={Fade}
-      TransitionProps={{ timeout: 0 }}
-      PopperProps={popperProps}
-    >
+      slotProps={{
+        popper: popperProps,
+        transition: { timeout: 0 }
+      }}
+      slots={{
+        transition: Fade
+      }}>
       <Stack
         direction="row"
         flexGrow={1}

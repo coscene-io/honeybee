@@ -54,10 +54,8 @@ export function NodeActionsMenu({
         onClose={() => {
           setAnchorEl(undefined);
         }}
-        MenuListProps={{
-          "aria-label": "node actions button",
-          dense: true,
-        }}
+        data-tourid="node-actions-menu"
+        aria-label="node actions button"
       >
         {actions.map((action, index) => {
           if (action.type === "divider") {

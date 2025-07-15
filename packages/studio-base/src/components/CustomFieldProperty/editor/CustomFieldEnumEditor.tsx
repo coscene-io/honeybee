@@ -90,9 +90,11 @@ export function CustomFieldEnumEditor({
             error={error}
             variant="filled"
             placeholder={value.length > 0 ? undefined : property.description || t("pleaseSelect")}
-            inputProps={{
-              ...params.inputProps,
-              "aria-label": property.description || t("pleaseSelect"),
+            slotProps={{
+              htmlInput: {
+                ...params.inputProps,
+                "aria-label": property.description || t("pleaseSelect"),
+              }
             }}
           />
         )}
@@ -128,9 +130,11 @@ export function CustomFieldEnumEditor({
           error={error}
           variant="filled"
           placeholder={property?.description ?? t("pleaseSelect")}
-          inputProps={{
-            ...params.inputProps,
-            "aria-label": property?.description ?? t("pleaseSelect"),
+          slotProps={{
+            htmlInput: {
+              ...params.inputProps,
+              "aria-label": property?.description ?? t("pleaseSelect"),
+            }
           }}
         />
       )}

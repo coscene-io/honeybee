@@ -183,12 +183,12 @@ function showInvisibleFilter(child: Immutable<SettingsTreeNode>): boolean {
   return child.visible !== true;
 }
 const getSelectVisibilityFilterField = (t: TFunction<"settingsEditor">) =>
-  ({
+  (({
     input: "select",
     label: t("filterList"),
     help: t("filterListHelp"),
-    options: SelectVisibilityFilterOptions(t),
-  }) as const;
+    options: SelectVisibilityFilterOptions(t)
+  }) as const);
 
 type State = {
   editing: boolean;
@@ -412,21 +412,23 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
               onFocus={(event) => {
                 event.target.select();
               }}
-              InputProps={{
-                endAdornment: (
-                  <IconButton
-                    className={classes.actionButton}
-                    title="Rename"
-                    data-node-function="edit-label"
-                    color="primary"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleEditing();
-                    }}
-                  >
-                    <CheckIcon fontSize="small" />
-                  </IconButton>
-                ),
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <IconButton
+                      className={classes.actionButton}
+                      title="Rename"
+                      data-node-function="edit-label"
+                      color="primary"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleEditing();
+                      }}
+                    >
+                      <CheckIcon fontSize="small" />
+                    </IconButton>
+                  ),
+                }
               }}
             />
           ) : (

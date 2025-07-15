@@ -206,8 +206,10 @@ function DiagnosticStatusPanel(props: Props) {
             <TextField
               variant="standard"
               {...params}
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               placeholder={selectedDisplayName ?? "Filter"}
+              slotProps={{
+                input: { ...params.InputProps, disableUnderline: true }
+              }}
             />
           )}
         />

@@ -93,14 +93,6 @@ export function ColorPickerControl(props: ColorPickerInputProps): React.JSX.Elem
       <TextField
         size="small"
         error={editedValueIsInvalid}
-        InputProps={{
-          onFocus: (event) => {
-            event.target.select();
-          },
-          role: "input",
-          startAdornment: <TagIcon fontSize="small" />,
-          style: { fontFamily: theme.typography.fontMonospace },
-        }}
         placeholder={alphaType === "alpha" ? "RRGGBBAA" : "RRGGBB"}
         value={editedValue}
         onKeyDown={(event) => event.key === "Enter" && onEnterKey?.()}
@@ -109,6 +101,16 @@ export function ColorPickerControl(props: ColorPickerInputProps): React.JSX.Elem
           updateEditedValue(event.target.value);
         }}
         onBlur={onInputBlur}
+        slotProps={{
+          input: {
+            onFocus: (event) => {
+              event.target.select();
+            },
+            role: "input",
+            startAdornment: <TagIcon fontSize="small" />,
+            style: { fontFamily: theme.typography.fontMonospace },
+          }
+        }}
       />
     </Stack>
   );

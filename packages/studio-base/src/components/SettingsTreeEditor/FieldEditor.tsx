@@ -11,7 +11,6 @@ import {
   Autocomplete,
   MenuItem,
   MenuList,
-  MenuListProps,
   Select,
   TextField,
   ToggleButton,
@@ -130,19 +129,11 @@ function FieldInput({
           value={field.value}
           disabled={field.disabled}
           readOnly={field.readonly}
-          ListboxComponent={MenuList}
-          ListboxProps={{ dense: true } as Partial<MenuListProps>}
           renderOption={(props, option, { selected }) => (
             <MenuItem selected={selected} {...props}>
               {option}
             </MenuItem>
           )}
-          componentsProps={{
-            clearIndicator: {
-              size: "small",
-              className: classes.clearIndicator,
-            },
-          }}
           clearIcon={<CancelIcon fontSize="small" />}
           renderInput={(params) => (
             <TextField {...params} variant="filled" size="small" placeholder={field.placeholder} />
@@ -159,6 +150,16 @@ function FieldInput({
             });
           }}
           options={field.items}
+          slotProps={{
+            clearIndicator: {
+              size: "small",
+              className: classes.clearIndicator,
+            },
+
+            listbox: {
+              component: MenuList,
+            },
+          }}
         />
       );
     case "number":
@@ -221,14 +222,16 @@ function FieldInput({
           disabled={field.disabled}
           value={field.value ?? ""}
           placeholder={field.placeholder}
-          InputProps={{
-            readOnly: field.readonly,
-          }}
           onChange={(event) => {
             actionHandler({
               action: "update",
               payload: { path, input: "string", value: event.target.value },
             });
+          }}
+          slotProps={{
+            input: {
+              readOnly: field.readonly,
+            },
           }}
         />
       );

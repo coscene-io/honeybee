@@ -142,7 +142,6 @@ export function PanelListItem(props: Props): React.JSX.Element {
       placement="right"
       enterDelay={500}
       leaveDelay={0}
-      TransitionComponent={Fade}
       title={
         <Stack paddingTop={0.25} style={{ width: 200 }}>
           {panel.thumbnail != undefined && <img src={panel.thumbnail} alt={panel.title} />}
@@ -156,6 +155,9 @@ export function PanelListItem(props: Props): React.JSX.Element {
           </Stack>
         </Stack>
       }
+      slots={{
+        transition: Fade
+      }}
     >
       <ListItem dense disablePadding>
         <ListItemButton

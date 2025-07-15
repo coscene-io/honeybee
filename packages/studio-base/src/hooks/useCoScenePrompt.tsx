@@ -116,11 +116,13 @@ function ModalPrompt({
             value={value}
             error={errorMessage != undefined}
             helperText={errorMessage}
-            FormHelperTextProps={{
-              variant: "standard",
-            }}
             onChange={(event) => {
               setValue(event.target.value);
+            }}
+            slotProps={{
+              formHelperText: {
+                variant: "standard",
+              }
             }}
           />
         </DialogContent>

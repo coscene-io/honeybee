@@ -86,15 +86,11 @@ function PlaybackQualityControls(): React.JSX.Element {
           {getPlaybackQualityTranslation(playbackQuality)}
         </Button>
       </Tooltip>
-
       <Menu
         id="playback-quality-menu"
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          "aria-labelledby": "playback-quality-button",
-        }}
         anchorOrigin={{
           vertical: "top",
           horizontal: "left",
@@ -103,6 +99,8 @@ function PlaybackQualityControls(): React.JSX.Element {
           vertical: "bottom",
           horizontal: "left",
         }}
+        data-tourid="playback-quality-controls"
+        aria-labelledby="playback-quality-button"
       >
         {SPEED_OPTIONS.map((option) => (
           <MenuItem
@@ -124,7 +122,9 @@ function PlaybackQualityControls(): React.JSX.Element {
             <ListItemText
               inset={playbackQuality !== option}
               primary={getPlaybackQualityTranslation(option)}
-              primaryTypographyProps={{ variant: "body2" }}
+              primaryTypographyProps={{
+                variant: "body2",
+              }}
             />
           </MenuItem>
         ))}

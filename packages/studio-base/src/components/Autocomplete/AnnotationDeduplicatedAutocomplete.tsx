@@ -263,9 +263,6 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
   return (
     <MuiAutocomplete
       className={className}
-      componentsProps={{
-        paper: { elevation: 8 },
-      }}
       disableCloseOnSelect
       disabled={disabled}
       freeSolo
@@ -277,7 +274,6 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
         return getItemValue(item.item);
       }}
       filterOptions={filterOptions}
-      ListboxComponent={ReactWindowListboxAdapter}
       onChange={onSelect}
       onInputChange={onChange}
       openOnFocus
@@ -317,6 +313,12 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
       selectOnFocus={selectOnFocus}
       size="small"
       value={value ?? ReactNull}
-    />
+      slotProps={{
+        paper: { elevation: 8 },
+
+        listbox: {
+          component: ReactWindowListboxAdapter
+        }
+      }} />
   );
 }) as <T>(props: AutocompleteProps<T> & React.RefAttributes<IAutocomplete>) => React.JSX.Element; // https://stackoverflow.com/a/58473012/23649

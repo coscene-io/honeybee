@@ -131,10 +131,6 @@ function PlaybackTimeMethodMenu({
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          dense: true,
-          "aria-labelledby": "playback-time-display-toggle-button",
-        }}
         anchorOrigin={{
           vertical: "top",
           horizontal: "right",
@@ -143,6 +139,8 @@ function PlaybackTimeMethodMenu({
           vertical: "bottom",
           horizontal: "right",
         }}
+        data-tourid="playback-time-display"
+        aria-labelledby="playback-time-display-toggle-button"
       >
         {[
           { key: "TOD", label: timeOfDayString ?? "Time of Day" },
@@ -164,7 +162,9 @@ function PlaybackTimeMethodMenu({
             <ListItemText
               inset={timeFormat !== option.key}
               primary={option.label}
-              primaryTypographyProps={{ variant: "inherit" }}
+              primaryTypographyProps={{
+                variant: "inherit",
+              }}
             />
           </MenuItem>
         ))}
@@ -268,21 +268,6 @@ export function UnconnectedPlaybackTimeDisplay({
             error={hasError}
             variant="filled"
             size="small"
-            InputProps={{
-              startAdornment: hasError ? <WarningIcon color="error" /> : undefined,
-              endAdornment: (
-                <PlaybackTimeMethodMenu
-                  {...{
-                    currentTime,
-                    timezone,
-                    timeOfDayString,
-                    timeRawString,
-                    timeFormat: appTimeFormat.timeFormat,
-                    setTimeFormat: appTimeFormat.setTimeFormat,
-                  }}
-                />
-              ),
-            }}
             onFocus={(e) => {
               onPause();
               setHasError(false);
@@ -300,6 +285,23 @@ export function UnconnectedPlaybackTimeDisplay({
             onChange={(event) => {
               setInputText(event.target.value);
             }}
+            slotProps={{
+              input: {
+                startAdornment: hasError ? <WarningIcon color="error" /> : undefined,
+                endAdornment: (
+                  <PlaybackTimeMethodMenu
+                    {...{
+                      currentTime,
+                      timezone,
+                      timeOfDayString,
+                      timeRawString,
+                      timeFormat: appTimeFormat.timeFormat,
+                      setTimeFormat: appTimeFormat.setTimeFormat,
+                    }}
+                  />
+                ),
+              },
+            }}
           />
         </form>
       ) : (
@@ -311,12 +313,14 @@ export function UnconnectedPlaybackTimeDisplay({
           defaultValue={
             appTimeFormat.timeFormat === "SEC" ? "0000000000.000000000" : "0000-00-00 00:00:00.000"
           }
-          InputProps={{
-            endAdornment: (
-              <IconButton edge="end" size="small" disabled>
-                <ArrowDropDownIcon fontSize="small" />
-              </IconButton>
-            ),
+          slotProps={{
+            input: {
+              endAdornment: (
+                <IconButton edge="end" size="small" disabled>
+                  <ArrowDropDownIcon fontSize="small" />
+                </IconButton>
+              ),
+            },
           }}
         />
       )}

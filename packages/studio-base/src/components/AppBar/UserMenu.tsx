@@ -5,14 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import {
-  Divider,
-  Menu,
-  MenuItem,
-  PaperProps,
-  PopoverPosition,
-  PopoverReference,
-} from "@mui/material";
+import { Divider, Menu, MenuItem, PopoverPosition, PopoverReference } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -138,11 +131,10 @@ export function UserMenu({
         open={open}
         onClose={handleClose}
         onClick={handleClose}
-        MenuListProps={{ className: classes.menuList, dense: true }}
-        slotProps={{
-          paper: {
-            "data-tourid": "user-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>,
+        data-tourid="user-menu"
+        MenuListProps={{
+          className: classes.menuList,
+          dense: true,
         }}
       >
         {currentUser && <MenuItem disabled>{currentUser.email}</MenuItem>}

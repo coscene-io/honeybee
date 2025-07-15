@@ -133,7 +133,11 @@ export function ScriptListItem({
       }
     >
       {editMode ? (
-        <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+        <ListItemText
+          primaryTypographyProps={{
+            variant: "body2",
+          }}
+        >
           <InputBase
             autoFocus
             fullWidth
@@ -154,7 +158,10 @@ export function ScriptListItem({
         >
           <ListItemText
             primary={title}
-            primaryTypographyProps={{ variant: "body2", noWrap: true }}
+            primaryTypographyProps={{
+              variant: "body2",
+              noWrap: true,
+            }}
           />
         </ListItemButton>
       )}
