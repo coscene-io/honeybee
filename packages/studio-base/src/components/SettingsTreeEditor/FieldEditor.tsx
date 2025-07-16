@@ -427,7 +427,6 @@ function FieldInput({
           variant="filled"
           value={selectValue}
           multiple
-          placeholder={field.placeholder}
           onChange={(event) => {
             actionHandler({
               action: "update",
@@ -440,6 +439,14 @@ function FieldInput({
                     : (event.target.value as undefined | string | string[]),
               },
             });
+          }}
+          // Select + multiple is not supported placeholder
+          // so we need to use renderValue to show the placeholder
+          renderValue={(selected) => {
+            if (selected.length === 0) {
+              return <Typography style={{ color: "#999" }}>{field.placeholder ?? ""}</Typography>;
+            }
+            return Array.isArray(selected) ? selected.join(", ") : selected;
           }}
           MenuProps={{
             MenuListProps: { dense: true },

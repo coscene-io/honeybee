@@ -188,12 +188,12 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
       openSiblingPanel({
         panelType: "DiagnosticStatusPanel",
         siblingConfigCreator: () =>
-          ({
+          (({
             selectedHardwareId: info.status.hardware_id,
             selectedName: info.status.name,
             topicToRender,
-            collapsedSections: [],
-          }) as DiagnosticStatusConfig,
+            collapsedSections: []
+          }) as DiagnosticStatusConfig),
         updateIfExists: true,
       });
     },
