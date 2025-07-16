@@ -337,7 +337,7 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
             color="secondary"
             size="small"
             onChange={(event) => {
-              saveConfig({ minLevel: event.target.value });
+              saveConfig({ minLevel: Number(event.target.value) });
             }}
             MenuProps={{
               slotProps: {
