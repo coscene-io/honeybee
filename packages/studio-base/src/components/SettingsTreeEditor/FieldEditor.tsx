@@ -386,7 +386,11 @@ function FieldInput({
             });
           }}
           MenuProps={{
-            MenuListProps: { dense: true },
+            slotProps: {
+              list: {
+                dense: true,
+              },
+            },
             PaperProps: {
               style: {
                 maxHeight: 240,
@@ -449,7 +453,11 @@ function FieldInput({
             return Array.isArray(selected) ? selected.join(", ") : selected;
           }}
           MenuProps={{
-            MenuListProps: { dense: true },
+            slotProps: {
+              list: {
+                dense: true,
+              },
+            },
             PaperProps: {
               style: {
                 maxHeight: 240,
