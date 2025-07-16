@@ -315,10 +315,10 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
       value={value ?? ReactNull}
       slotProps={{
         paper: { elevation: 8 },
-
-        listbox: {
-          component: ReactWindowListboxAdapter
-        }
-      }} />
+      }}
+      slots={{
+        listbox: ReactWindowListboxAdapter,
+      }}
+    />
   );
 }) as <T>(props: AutocompleteProps<T> & React.RefAttributes<IAutocomplete>) => React.JSX.Element; // https://stackoverflow.com/a/58473012/23649
