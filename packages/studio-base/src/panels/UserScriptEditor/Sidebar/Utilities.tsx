@@ -42,8 +42,10 @@ export function Utilities({
             <ListItemButton selected={script ? filePath === script.filePath : undefined}>
               <ListItemText
                 primary={fileName}
-                primaryTypographyProps={{
-                  variant: "body2",
+                slotProps={{
+                  primary: {
+                    variant: "body2",
+                  },
                 }}
               />
             </ListItemButton>

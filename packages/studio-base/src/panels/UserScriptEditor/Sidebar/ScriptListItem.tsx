@@ -134,8 +134,10 @@ export function ScriptListItem({
     >
       {editMode ? (
         <ListItemText
-          primaryTypographyProps={{
-            variant: "body2",
+          slotProps={{
+            primary: {
+              variant: "body2",
+            },
           }}
         >
           <InputBase
@@ -158,9 +160,11 @@ export function ScriptListItem({
         >
           <ListItemText
             primary={title}
-            primaryTypographyProps={{
-              variant: "body2",
-              noWrap: true,
+            slotProps={{
+              primary: {
+                variant: "body2",
+                noWrap: true,
+              },
             }}
           />
         </ListItemButton>

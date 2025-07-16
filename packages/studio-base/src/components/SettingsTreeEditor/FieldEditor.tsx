@@ -389,11 +389,11 @@ function FieldInput({
               list: {
                 dense: true,
               },
-            },
-            PaperProps: {
-              style: {
-                maxHeight: 240,
-                overflow: "auto",
+              paper: {
+                style: {
+                  maxHeight: 240,
+                  overflow: "auto",
+                },
               },
             },
           }}
@@ -456,11 +456,11 @@ function FieldInput({
               list: {
                 dense: true,
               },
-            },
-            PaperProps: {
-              style: {
-                maxHeight: 240,
-                overflow: "auto",
+              paper: {
+                style: {
+                  maxHeight: 240,
+                  overflow: "auto",
+                },
               },
             },
           }}

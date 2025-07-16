@@ -93,6 +93,7 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
         }}
         data-tourid="playback-time-mode"
         aria-labelledby="playback-quality-button"
+        slotProps={{ list: { dense: true } }}
       >
         <MenuItem
           selected={timeMode === ABSOLUTE_TIME}
@@ -108,8 +109,10 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
           <ListItemText
             inset={timeMode !== ABSOLUTE_TIME}
             primary={t(ABSOLUTE_TIME)}
-            primaryTypographyProps={{
-              variant: "body2",
+            slotProps={{
+              primary: {
+                variant: "body2",
+              },
             }}
           />
         </MenuItem>
@@ -127,8 +130,10 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
           <ListItemText
             inset={timeMode !== RELATATIVE_TIME}
             primary={t(RELATATIVE_TIME)}
-            primaryTypographyProps={{
-              variant: "body2",
+            slotProps={{
+              primary: {
+                variant: "body2",
+              },
             }}
           />
         </MenuItem>

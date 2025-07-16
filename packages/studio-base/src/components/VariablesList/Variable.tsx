@@ -197,6 +197,7 @@ export default function Variable(props: {
               onClose={handleClose}
               data-tourid="variable-actions-menu"
               aria-labelledby="variable-action-button"
+              slotProps={{ list: { dense: true } }}
             >
               <MenuItem onClick={deleteVariable}>
                 <Typography color="error.main" variant="inherit">
@@ -253,10 +254,12 @@ export default function Variable(props: {
                 />
               </Stack>
             }
-            primaryTypographyProps={{
-              component: "div",
-              fontWeight: 600,
-              variant: "body2",
+            slotProps={{
+              primary: {
+                component: "div",
+                fontWeight: 600,
+                variant: "body2",
+              },
             }}
           />
         </ListItemButton>

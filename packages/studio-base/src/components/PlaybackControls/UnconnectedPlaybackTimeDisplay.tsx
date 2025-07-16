@@ -139,6 +139,7 @@ function PlaybackTimeMethodMenu({
           vertical: "bottom",
           horizontal: "right",
         }}
+        slotProps={{ list: { dense: true } }}
         data-tourid="playback-time-display"
         aria-labelledby="playback-time-display-toggle-button"
       >
@@ -162,8 +163,10 @@ function PlaybackTimeMethodMenu({
             <ListItemText
               inset={timeFormat !== option.key}
               primary={option.label}
-              primaryTypographyProps={{
-                variant: "inherit",
+              slotProps={{
+                primary: {
+                  variant: "inherit",
+                },
               }}
             />
           </MenuItem>

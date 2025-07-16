@@ -99,6 +99,7 @@ function PlaybackQualityControls(): React.JSX.Element {
           vertical: "bottom",
           horizontal: "left",
         }}
+        slotProps={{ list: { dense: true } }}
         data-tourid="playback-quality-controls"
         aria-labelledby="playback-quality-button"
       >
@@ -122,8 +123,10 @@ function PlaybackQualityControls(): React.JSX.Element {
             <ListItemText
               inset={playbackQuality !== option}
               primary={getPlaybackQualityTranslation(option)}
-              primaryTypographyProps={{
-                variant: "body2",
+              slotProps={{
+                primary: {
+                  variant: "body2",
+                },
               }}
             />
           </MenuItem>

@@ -61,6 +61,7 @@ export function ContextMenu(props: {
       anchorPosition={anchorPosition}
       data-tourid="topic-context-menu"
       aria-labelledby="topic-context-menu"
+      slotProps={{ list: { dense: true } }}
     >
       {menuItems.map((item, index) => (
         <MenuItem key={index} {...item} />

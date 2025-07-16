@@ -56,6 +56,7 @@ export function NodeActionsMenu({
         }}
         data-tourid="node-actions-menu"
         aria-label="node actions button"
+        slotProps={{ list: { dense: true } }}
       >
         {actions.map((action, index) => {
           if (action.type === "divider") {

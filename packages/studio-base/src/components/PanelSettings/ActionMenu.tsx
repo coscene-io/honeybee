@@ -58,6 +58,7 @@ export function ActionMenu({
         onClose={handleClose}
         aria-labelledby="basic-button"
         data-tourid="panel-settings-action-menu"
+        slotProps={{ list: { dense: true } }}
       >
         <MenuItem
           disabled={!allowShare}

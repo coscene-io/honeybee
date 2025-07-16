@@ -230,8 +230,10 @@ export function TopicList(): React.JSX.Element {
                 className={classes.listItemText}
                 primary={<Skeleton animation={false} width="20%" />}
                 secondary={<Skeleton animation="wave" width="55%" />}
-                secondaryTypographyProps={{
-                  variant: "caption",
+                slotProps={{
+                  secondary: {
+                    variant: "caption",
+                  },
                 }}
               />
             </ListItem>
