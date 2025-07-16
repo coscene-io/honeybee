@@ -665,7 +665,13 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         }}
         aria-labelledby="add-panel-menu"
         data-tourid="add-panel-menu"
-        className={classes.menuList}
+        slotProps={{
+          list: {
+            className: classes.menuList,
+            dense: true,
+            disablePadding: true,
+          },
+        }}
       >
         <div className={cx(classes.toolbar, classes.toolbarMenu)}>
           <TextField

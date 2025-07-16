@@ -631,6 +631,11 @@ export default React.memo(function LayoutRow({
         onClose={handleClose}
         aria-labelledby="layout-actions"
         data-tourid="layout-actions"
+        slotProps={{
+          list: {
+            dense: true,
+          },
+        }}
       >
         {filteredItems.map((item) => {
           switch (item.type) {

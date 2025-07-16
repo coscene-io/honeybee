@@ -94,6 +94,11 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
         }}
         data-tourid="playback-speed-controls"
         aria-labelledby="playback-speed-button"
+        slotProps={{
+          list: {
+            dense: true,
+          },
+        }}
       >
         {SPEED_OPTIONS.map((option) => (
           <MenuItem
@@ -112,8 +117,10 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
             <ListItemText
               inset={speed !== option}
               primary={formatSpeed(option)}
-              primaryTypographyProps={{
-                variant: "inherit",
+              slotProps={{
+                primary: {
+                  variant: "inherit",
+                },
               }}
             />
           </MenuItem>

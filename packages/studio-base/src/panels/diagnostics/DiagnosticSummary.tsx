@@ -97,7 +97,7 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
   select: {
-    [`.${inputBaseClasses.input}.${selectClasses.select}.${inputBaseClasses.inputSizeSmall}`]: {
+    [`.${inputBaseClasses.input}.${selectClasses.select}.${inputBaseClasses.sizeSmall}`]: {
       paddingTop: 0,
       paddingBottom: 0,
       minWidth: 40,
@@ -140,8 +140,10 @@ const NodeRow = React.memo(function NodeRow(props: NodeRowProps) {
           primary={info.displayName}
           secondary={info.status.message}
           style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-          secondaryTypographyProps={{
-            color: MESSAGE_COLORS[levelName ?? "stale"],
+          slotProps={{
+            secondary: {
+              color: MESSAGE_COLORS[levelName ?? "stale"],
+            },
           }}
         />
       </ListItemButton>
@@ -188,12 +190,12 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
       openSiblingPanel({
         panelType: "DiagnosticStatusPanel",
         siblingConfigCreator: () =>
-          (({
+          ({
             selectedHardwareId: info.status.hardware_id,
             selectedName: info.status.name,
             topicToRender,
-            collapsedSections: []
-          }) as DiagnosticStatusConfig),
+            collapsedSections: [],
+          }) as DiagnosticStatusConfig,
         updateIfExists: true,
       });
     },
@@ -335,9 +337,15 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
             color="secondary"
             size="small"
             onChange={(event) => {
-              saveConfig({ minLevel: event.target.value as number });
+              saveConfig({ minLevel: event.target.value });
             }}
-            MenuProps={{ MenuListProps: { dense: true } }}
+            MenuProps={{
+              slotProps: {
+                list: {
+                  dense: true,
+                },
+              },
+            }}
           >
             {KNOWN_LEVELS.map((level) => (
               <MenuItem key={level} value={level}>

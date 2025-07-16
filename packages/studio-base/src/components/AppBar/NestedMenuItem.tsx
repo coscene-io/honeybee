@@ -97,9 +97,11 @@ export function NestedMenuItem(
         disableAutoFocus
         disableEnforceFocus
         hideBackdrop
-        MenuListProps={{
-          dense: true,
-          className: classes.menuList,
+        slotProps={{
+          list: {
+            dense: true,
+            className: classes.menuList,
+          },
         }}
       >
         {items.map((item, idx) => {

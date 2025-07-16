@@ -52,7 +52,12 @@ export function AppMenu(props: AppMenuProps): React.JSX.Element {
         onClose={handleNestedMenuClose}
         aria-labelledby="app-menu-button"
         data-tourid="app-menu"
-        className={classes.menuList}
+        slotProps={{
+          list: {
+            className: classes.menuList,
+            dense: true,
+          },
+        }}
       >
         <MenuItem
           onClick={() => {

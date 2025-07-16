@@ -132,9 +132,11 @@ export function UserMenu({
         onClose={handleClose}
         onClick={handleClose}
         data-tourid="user-menu"
-        MenuListProps={{
-          className: classes.menuList,
-          dense: true,
+        slotProps={{
+          list: {
+            className: classes.menuList,
+            dense: true,
+          },
         }}
       >
         {currentUser && <MenuItem disabled>{currentUser.email}</MenuItem>}

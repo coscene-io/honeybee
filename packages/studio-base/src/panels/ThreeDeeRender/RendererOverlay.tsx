@@ -298,8 +298,10 @@ function UnMemoedRendererOverlay(props: Props): React.JSX.Element {
         onClose={() => {
           setPublishMenuExpanded(false);
         }}
-        MenuListProps={{
-          dense: true,
+        slotProps={{
+          list: {
+            dense: true,
+          },
         }}
       >
         <MenuItem

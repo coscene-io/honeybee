@@ -88,8 +88,11 @@ export function HelpMenu(props: HelpMenuProps): React.JSX.Element {
       open={open}
       onClose={handleClose}
       transformOrigin={transformOrigin}
-      MenuListProps={{
-        "aria-labelledby": "help-button",
+      slotProps={{
+        list: {
+          "aria-labelledby": "help-button",
+          dense: true,
+        },
       }}
     >
       <ListSubheader className={classes.subheader}>Documentation</ListSubheader>
@@ -110,8 +113,10 @@ export function HelpMenu(props: HelpMenuProps): React.JSX.Element {
         <ListItemText
           primary={t("dataVisualization", { ns: "cosHelp" })}
           secondary={t("visualizeMachineDataAndAnalysis", { ns: "cosHelp" })}
-          secondaryTypographyProps={{
-            className: classes.menuText,
+          slotProps={{
+            secondary: {
+              className: classes.menuText,
+            },
           }}
         />
       </MenuItem>

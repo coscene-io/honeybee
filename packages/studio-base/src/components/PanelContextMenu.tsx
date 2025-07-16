@@ -110,6 +110,11 @@ function PanelContextMenuComponent(props: PanelContextMenuProps): React.JSX.Elem
         anchorPosition={position ? { top: position.y, left: position.x } : undefined}
         aria-labelledby="panel-context-menu"
         data-tourid="panel-context-menu"
+        slotProps={{
+          list: {
+            dense: true,
+          },
+        }}
       >
         {items.map((item, index) => {
           if (item.type === "divider") {

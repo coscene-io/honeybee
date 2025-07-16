@@ -70,9 +70,11 @@ export function SettingsMenu({
         onClose={handleClose}
         onClick={handleClose}
         data-tourid="user-menu"
-        MenuListProps={{
-          className: classes.menuList,
-          dense: true,
+        slotProps={{
+          list: {
+            className: classes.menuList,
+            dense: true,
+          },
         }}
       >
         <MenuItem

@@ -51,7 +51,13 @@ export function AddPanelMenu(props: AddPanelProps): React.JSX.Element {
       }}
       aria-labelledby="add-panel-button"
       data-tourid="add-panel-menu"
-      className={classes.menuList}
+      slotProps={{
+        list: {
+          className: classes.menuList,
+          dense: true,
+          disablePadding: true,
+        },
+      }}
     >
       <PanelCatalog
         isMenu

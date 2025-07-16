@@ -214,6 +214,11 @@ function PanelActionsDropdownComponent({ isUnknownPanel }: Props): React.JSX.Ele
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         aria-labelledby="panel-menu-button"
         data-tourid="panel-actions-dropdown"
+        slotProps={{
+          list: {
+            dense: true,
+          },
+        }}
       >
         <MenuItem
           className={classes.menuItem}
