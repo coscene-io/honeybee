@@ -240,14 +240,13 @@ export const Autocomplete = React.forwardRef(function Autocomplete(
       size="small"
       value={value ?? ReactNull}
       slots={{
-        popper: CustomPopper
+        popper: CustomPopper,
+        listbox: ReactWindowListboxAdapter,
       }}
       slotProps={{
         paper: { elevation: 8 },
-
-        listbox: {
-          component: ReactWindowListboxAdapter
-        }
-      }} />
+        listbox: {},
+      }}
+    />
   );
 });

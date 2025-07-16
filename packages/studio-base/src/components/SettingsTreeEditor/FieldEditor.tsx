@@ -11,7 +11,6 @@ import {
   Autocomplete,
   MenuItem,
   MenuList,
-  MenuListProps,
   Select,
   TextField,
   ToggleButton,
@@ -151,15 +150,15 @@ function FieldInput({
             });
           }}
           options={field.items}
+          slots={{
+            listbox: (props) => <MenuList {...props} dense />,
+          }}
           slotProps={{
             clearIndicator: {
               size: "small",
               className: classes.clearIndicator,
             },
-
-            listbox: {
-              component: (props: MenuListProps) => <MenuList {...props} dense />,
-            },
+            listbox: {},
           }}
         />
       );
