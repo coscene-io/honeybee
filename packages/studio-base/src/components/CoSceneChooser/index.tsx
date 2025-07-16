@@ -151,6 +151,10 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
       slotProps={{
         backdrop: { children: backdrop },
       }}
+      PaperProps={{
+        square: false,
+        elevation: 4,
+      }}
     >
       <IconButton className={classes.closeButton} onClick={handleModalClose} edge="end">
         <CloseIcon />

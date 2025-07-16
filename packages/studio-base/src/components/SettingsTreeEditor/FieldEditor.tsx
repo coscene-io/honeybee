@@ -11,6 +11,7 @@ import {
   Autocomplete,
   MenuItem,
   MenuList,
+  MenuListProps,
   Select,
   TextField,
   ToggleButton,
@@ -157,7 +158,7 @@ function FieldInput({
             },
 
             listbox: {
-              component: MenuList,
+              component: (props: MenuListProps) => <MenuList {...props} dense />,
             },
           }}
         />
