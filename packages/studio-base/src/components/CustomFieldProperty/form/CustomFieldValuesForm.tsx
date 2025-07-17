@@ -39,6 +39,13 @@ function CustomFieldValuesFormItem({
             if (value?.value.value == undefined) {
               return false;
             }
+            if (
+              ((property.type.case === "user" && value.value.case === "user") ||
+                (property.type.case === "enums" && value.value.case === "enums")) &&
+              value.value.value.ids.length === 0
+            ) {
+              return false;
+            }
           }
           return true;
         },
