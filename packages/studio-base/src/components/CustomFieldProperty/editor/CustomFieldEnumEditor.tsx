@@ -71,7 +71,7 @@ export function CustomFieldEnumEditor({
         value={value}
         disabled={disabled}
         noOptionsText={t("noMatchingItemsFound")}
-        renderTags={(value, getTagProps) =>
+        renderValue={(value, getTagProps) =>
           value.map((option, index) => {
             const { key: _key, ...tagProps } = getTagProps({ index });
             return (
@@ -94,7 +94,7 @@ export function CustomFieldEnumEditor({
               htmlInput: {
                 ...params.inputProps,
                 "aria-label": property.description || t("pleaseSelect"),
-              }
+              },
             }}
           />
         )}
@@ -134,7 +134,7 @@ export function CustomFieldEnumEditor({
             htmlInput: {
               ...params.inputProps,
               "aria-label": property?.description ?? t("pleaseSelect"),
-            }
+            },
           }}
         />
       )}

@@ -16,7 +16,7 @@ const useStyles = makeStyles()((theme) => ({
       padding: theme.spacing(0.375, 0.5),
       gap: theme.spacing(0.375),
 
-      [`.${inputBaseClasses.inputSizeSmall}`]: {
+      [`&.${inputBaseClasses.sizeSmall} > .${inputBaseClasses.input}`]: {
         padding: theme.spacing(0.425, 0.5),
       },
     },
@@ -59,7 +59,7 @@ export function FilterTagInput({
           variant: "filled",
           size: "small",
           deleteIcon: <Dismiss12Filled />,
-        }
+        },
       }}
     />
   );
