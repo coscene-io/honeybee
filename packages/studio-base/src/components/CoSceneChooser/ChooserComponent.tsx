@@ -432,7 +432,6 @@ export function ChooserComponent({
         onNavigateToFolder={setCurrentFolderPath}
         listType={listType}
       />
-
       {showSearchField && (
         <TextField
           variant="filled"
@@ -442,23 +441,24 @@ export function ChooserComponent({
           }}
           size="small"
           placeholder={t("search")}
-          InputProps={{
-            startAdornment: <SearchIcon fontSize="small" />,
-            endAdornment: currentPagination.filter && (
-              <IconButton
-                edge="end"
-                onClick={() => {
-                  currentPagination.setFilter("");
-                }}
-                size="small"
-              >
-                <ClearIcon fontSize="small" />
-              </IconButton>
-            ),
+          slotProps={{
+            input: {
+              startAdornment: <SearchIcon fontSize="small" />,
+              endAdornment: currentPagination.filter && (
+                <IconButton
+                  edge="end"
+                  onClick={() => {
+                    currentPagination.setFilter("");
+                  }}
+                  size="small"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              ),
+            },
           }}
         />
       )}
-
       <Stack flex={1} fullWidth overflow="hidden">
         <Stack fullHeight overflowY="scroll" overflow="hidden">
           {listType === "projects" && (

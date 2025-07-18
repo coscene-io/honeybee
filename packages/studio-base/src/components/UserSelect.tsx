@@ -113,7 +113,7 @@ export function UserSelect({
         )}
         value={selectedUsers}
         isOptionEqualToValue={(option, value) => option.name === value.name}
-        renderTags={(value, getTagProps) =>
+        renderValue={(value, getTagProps) =>
           value.map((option, index) => {
             const { key: _key, ...tagProps } = getTagProps({ index });
             return (

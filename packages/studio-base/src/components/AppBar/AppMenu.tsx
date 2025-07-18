@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Menu, MenuItem, PaperProps, PopoverPosition, PopoverReference } from "@mui/material";
+import { Menu, MenuItem, PopoverPosition, PopoverReference } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -50,15 +50,13 @@ export function AppMenu(props: AppMenuProps): React.JSX.Element {
         open={open}
         disableAutoFocusItem
         onClose={handleNestedMenuClose}
-        MenuListProps={{
-          "aria-labelledby": "app-menu-button",
-          dense: true,
-          className: classes.menuList,
-        }}
+        aria-labelledby="app-menu-button"
+        data-tourid="app-menu"
         slotProps={{
-          paper: {
-            "data-tourid": "app-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>,
+          list: {
+            className: classes.menuList,
+            dense: true,
+          },
         }}
       >
         <MenuItem

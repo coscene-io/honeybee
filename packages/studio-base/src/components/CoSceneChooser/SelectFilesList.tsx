@@ -93,7 +93,11 @@ export function SelectFilesList({
                 disabled={!supportedImport}
                 tabIndex={-1}
                 disableRipple
-                inputProps={{ "aria-labelledby": fileItem.filename }}
+                slotProps={{
+                  input: {
+                    "aria-labelledby": fileItem.filename,
+                  },
+                }}
               />
               <InsertDriveFileIcon color="action" fontSize="small" />
               <ListItemText

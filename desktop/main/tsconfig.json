@@ -1,10 +1,6 @@
 {
   "extends": "@foxglove/tsconfig/base",
-  "include": [
-    "./**/*",
-    "../common/*",
-    "../../package.json"
-  ],
+  "include": ["./**/*", "../common/*", "../../package.json"],
   "compilerOptions": {
     "jsx": "react-jsx",
     "rootDir": "../../",

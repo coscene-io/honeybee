@@ -534,7 +534,6 @@ function DataCollectionContent(
           />
         ))}
       </Stack>
-
       {/* log */}
       <Stack flex="auto" gap={1} padding={1.5} fullHeight>
         <Typography variant="caption" noWrap>

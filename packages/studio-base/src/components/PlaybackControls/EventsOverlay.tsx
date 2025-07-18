@@ -170,19 +170,21 @@ function EventMark({
     <div>
       <Tooltip
         title={t("startPoint")}
-        PopperProps={{
-          modifiers: [
-            {
-              name: "offset",
-              options: {
-                // Offset popper to hug the track better.
-                offset: [0, 4],
-              },
-            },
-          ],
-        }}
         placement="top"
         open={marks.length === 1}
+        slotProps={{
+          popper: {
+            modifiers: [
+              {
+                name: "offset",
+                options: {
+                  // Offset popper to hug the track better.
+                  offset: [0, 4],
+                },
+              },
+            ],
+          },
+        }}
       >
         <div
           ref={leftMarkRef}

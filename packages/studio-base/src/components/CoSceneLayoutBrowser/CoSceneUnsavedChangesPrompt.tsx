@@ -141,8 +141,10 @@ export function UnsavedChangesPrompt({
                 onChange={handleNameChange}
                 error={nameError != undefined}
                 helperText={nameError}
-                FormHelperTextProps={{
-                  variant: "standard",
+                slotProps={{
+                  formHelperText: {
+                    variant: "standard",
+                  },
                 }}
               />
             )}

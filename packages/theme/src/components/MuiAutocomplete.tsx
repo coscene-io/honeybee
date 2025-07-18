@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import CancelIcon from "@mui/icons-material/Cancel";
-import { autocompleteClasses, inputBaseClasses, inputClasses } from "@mui/material";
+import { autocompleteClasses, inputBaseClasses } from "@mui/material";
 
 import { OverrideComponentReturn } from "../types";
 
@@ -34,7 +34,7 @@ export const MuiAutocomplete: OverrideComponentReturn<"MuiAutocomplete"> = {
           padding: theme.spacing(0.75, 1),
         },
       },
-      [`.${autocompleteClasses.input}.${inputClasses.inputAdornedEnd}`]: {
+      [`.${autocompleteClasses.input}.${inputBaseClasses.input}.${inputBaseClasses.adornedEnd}`]: {
         paddingRight: theme.spacing(2),
       },
     }),
@@ -50,7 +50,6 @@ export const MuiAutocomplete: OverrideComponentReturn<"MuiAutocomplete"> = {
     endAdornment: ({ theme }) => ({
       display: "flex",
       alignItems: "center",
-      top: `calc(50% - ${theme.spacing(1.5)})`,
 
       [`.${autocompleteClasses.root} .${inputBaseClasses.sizeSmall}.${inputBaseClasses.root} &`]: {
         right: theme.spacing(0.75),

@@ -102,9 +102,11 @@ export function ShareJsonModal({
           helperText={
             error ? "The JSON provided is invalid." : " " // pass whitespace to prevent height from jumping
           }
-          inputProps={{ "data-testid": "share-json-input" }}
-          FormHelperTextProps={{ variant: "standard" }}
           spellCheck={false}
+          slotProps={{
+            htmlInput: { "data-testid": "share-json-input" },
+            formHelperText: { variant: "standard" },
+          }}
         />
       </DialogContent>
       <DialogActions>
