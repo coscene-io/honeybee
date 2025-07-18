@@ -34,6 +34,38 @@ function CustomFieldValuesFormItem({
       name={`customFieldValues.${property.id}`}
       rules={{
         required: property.required,
+        validate: (value) => {
+          if (property.required) {
+            if (value?.value.value == undefined) {
+              return false;
+            }
+            if (
+              property.type.case === "user" &&
+              value.value.case === "user" &&
+              value.value.value.ids.length === 0
+            ) {
+              return false;
+            }
+            if (
+              property.type.case === "enums" &&
+              property.type.value.multiple &&
+              value.value.case === "enums" &&
+              value.value.value.ids.length === 0
+            ) {
+              return false;
+            }
+            if (
+              property.type.case === "enums" &&
+              !property.type.value.multiple &&
+              value.value.case === "enums" &&
+              value.value.value.id === ""
+            ) {
+              return false;
+            }
+          }
+
+          return true;
+        },
       }}
       render={({ field }) => {
         const customFieldValue =

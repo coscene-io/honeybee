@@ -51,9 +51,6 @@ export function CustomFieldStringEditor({
       disabled={disabled}
       placeholder={customFieldValue.property?.description}
       onChange={(event) => {
-        if (customFieldValue.property?.required === true && event.target.value === "") {
-          return;
-        }
         setValue(event.target.value);
         onSave(event.target.value);
       }}
