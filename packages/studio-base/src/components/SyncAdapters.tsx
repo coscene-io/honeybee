@@ -10,8 +10,8 @@ import { useMemo } from "react";
 import { BaseSyncAdapter } from "@foxglove/studio-base/components/CoSceneBaseSyncAdapter";
 import { CurrentLayoutSyncAdapter } from "@foxglove/studio-base/components/CoSceneCurrentLayoutSyncAdapter";
 import { CoSceneCurrentUserSyncAdapter } from "@foxglove/studio-base/components/CoSceneCurrentUserSyncAdapter";
-import { CoSceneEventsSyncAdapter } from "@foxglove/studio-base/components/CoSceneEventsSyncAdapter";
 import { PlaylistSyncAdapter } from "@foxglove/studio-base/components/CoScenePlaylistSyncAdapter";
+import { EventsSyncAdapter } from "@foxglove/studio-base/components/Events/EventsSyncAdapter";
 import { SubscriptionEntitlementSyncAdapter } from "@foxglove/studio-base/components/SubscriptionEntitlementSyncAdapter";
 import { URLStateSyncAdapter } from "@foxglove/studio-base/components/URLStateSyncAdapter";
 // import { UpdateChecker } from "@foxglove/studio-base/components/UpdateChecker";
@@ -29,7 +29,7 @@ export function SyncAdapters(): React.JSX.Element {
     return (
       <>
         <CoSceneCurrentUserSyncAdapter />
-        <CoSceneEventsSyncAdapter />
+        <EventsSyncAdapter />
         <PlaylistSyncAdapter />
         <URLStateSyncAdapter />
         <CurrentLayoutSyncAdapter />
