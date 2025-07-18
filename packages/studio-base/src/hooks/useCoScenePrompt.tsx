@@ -122,7 +122,7 @@ function ModalPrompt({
             slotProps={{
               formHelperText: {
                 variant: "standard",
-              }
+              },
             }}
           />
         </DialogContent>

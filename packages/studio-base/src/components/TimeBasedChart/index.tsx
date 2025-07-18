@@ -784,10 +784,10 @@ export default function TimeBasedChart(props: Props): React.JSX.Element {
         disableInteractive
         followCursor
         slots={{
-          transition: Fade
+          transition: Fade,
         }}
         slotProps={{
-          transition: { timeout: 0 }
+          transition: { timeout: 0 },
         }}
       >
         <Stack direction="row" style={{ width }}>

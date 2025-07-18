@@ -254,7 +254,7 @@ export function EventsList(): React.JSX.Element {
                   <ClearIcon fontSize="small" />
                 </IconButton>
               ),
-            }
+            },
           }}
         />
         <Select

@@ -57,8 +57,9 @@ export function FormField(props: Props): React.JSX.Element {
 
           formHelperText: {
             variant: "standard",
-          }
-        }} />
+          },
+        }}
+      />
       <FormHelperText>{field.description}</FormHelperText>
     </div>
   );

@@ -105,8 +105,9 @@ export function ShareJsonModal({
           spellCheck={false}
           slotProps={{
             htmlInput: { "data-testid": "share-json-input" },
-            formHelperText: { variant: "standard" }
-          }} />
+            formHelperText: { variant: "standard" },
+          }}
+        />
       </DialogContent>
       <DialogActions>
         <Stack direction="row" gap={1}>

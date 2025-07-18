@@ -297,7 +297,7 @@ export function Playlist(): React.JSX.Element {
                   <ClearIcon fontSize="small" />
                 </IconButton>
               ),
-            }
+            },
           }}
         />
         {urlState != undefined && (

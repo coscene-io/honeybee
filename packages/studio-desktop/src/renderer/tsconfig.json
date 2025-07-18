@@ -1,26 +1,14 @@
 {
   "extends": "@foxglove/tsconfig/base",
-  "include": [
-    "./**/*",
-    "../common/**/*",
-    "../../package.json"
-  ],
+  "include": ["./**/*", "../common/**/*", "../../package.json"],
   "compilerOptions": {
     "noEmit": true,
     "jsx": "react-jsx",
     "experimentalDecorators": true,
     "useUnknownInCatchVariables": false,
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "es2022",
-      "webworker",
-      "ESNext.Disposable"
-    ],
+    "lib": ["dom", "dom.iterable", "es2022", "webworker", "ESNext.Disposable"],
     "paths": {
-      "@foxglove/studio-base/*": [
-        "../../../studio-base/src/*"
-      ]
+      "@foxglove/studio-base/*": ["../../../studio-base/src/*"]
     }
   }
 }

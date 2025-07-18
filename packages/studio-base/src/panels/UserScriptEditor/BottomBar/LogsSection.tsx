@@ -105,7 +105,7 @@ const LogsSection = ({ logs }: { logs: readonly UserScriptLog[] }): React.JSX.El
                   slotProps={{
                     primary: {
                       color: valueColorMap[typeof value] ?? "text.primary",
-                    }
+                    },
                   }}
                 />
               )}

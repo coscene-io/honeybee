@@ -47,8 +47,9 @@ export const BasicCard: StoryObj = {
 
           subheader: {
             variant: "h5",
-          }
-        }} />
+          },
+        }}
+      />
       <Divider />
       <CardContent>
         <Typography color="text.secondary" gutterBottom>

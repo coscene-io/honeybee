@@ -200,7 +200,8 @@ export function NumberInput(
           onPointerDown,
           onPointerUp,
           onPointerMove,
-        }
-      }} />
+        },
+      }}
+    />
   );
 }

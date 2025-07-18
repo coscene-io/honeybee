@@ -143,7 +143,7 @@ export function ColorPickerInput(props: ColorPickerInputProps): React.JSX.Elemen
                 </IconButton>
               </Tooltip>
             ),
-          }
+          },
         }}
       />
       <Popover

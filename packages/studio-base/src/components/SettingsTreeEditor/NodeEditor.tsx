@@ -183,12 +183,12 @@ function showInvisibleFilter(child: Immutable<SettingsTreeNode>): boolean {
   return child.visible !== true;
 }
 const getSelectVisibilityFilterField = (t: TFunction<"settingsEditor">) =>
-  (({
+  ({
     input: "select",
     label: t("filterList"),
     help: t("filterListHelp"),
-    options: SelectVisibilityFilterOptions(t)
-  }) as const);
+    options: SelectVisibilityFilterOptions(t),
+  }) as const;
 
 type State = {
   editing: boolean;
@@ -428,7 +428,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
                       <CheckIcon fontSize="small" />
                     </IconButton>
                   ),
-                }
+                },
               }}
             />
           ) : (

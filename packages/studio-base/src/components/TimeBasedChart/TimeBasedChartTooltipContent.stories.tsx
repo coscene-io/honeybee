@@ -46,7 +46,7 @@ export const SingleItemSingleDataset: StoryObj = {
                 return new DOMRect(200, 100, 0, 0);
               },
             },
-          }
+          },
         }}
       >
         <div style={{ width: "100%", height: "100%" }} />
@@ -88,7 +88,7 @@ export const SingleItemMultiDataset: StoryObj = {
                 return new DOMRect(200, 100, 0, 0);
               },
             },
-          }
+          },
         }}
       >
         <div style={{ width: "100%", height: "100%" }} />
@@ -124,7 +124,7 @@ export const MultipleItemsSingleDataset: StoryObj = {
                 return new DOMRect(200, 100, 0, 0);
               },
             },
-          }
+          },
         }}
       >
         <div style={{ width: "100%", height: "100%" }} />
@@ -174,7 +174,7 @@ export const MultipleItemsMultipleDataset: StoryObj = {
                 return new DOMRect(200, 100, 0, 0);
               },
             },
-          }
+          },
         }}
       >
         <div style={{ width: "100%", height: "100%" }} />

@@ -455,7 +455,7 @@ export function ChooserComponent({
                   <ClearIcon fontSize="small" />
                 </IconButton>
               ),
-            }
+            },
           }}
         />
       )}

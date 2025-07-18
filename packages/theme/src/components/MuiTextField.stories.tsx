@@ -108,7 +108,7 @@ export default {
                               <FilterListIcon fontSize="small" />
                             </InputAdornment>
                           ),
-                        }
+                        },
                       }}
                     />
 

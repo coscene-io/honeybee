@@ -109,7 +109,7 @@ export function ColorPickerControl(props: ColorPickerInputProps): React.JSX.Elem
             role: "input",
             startAdornment: <TagIcon fontSize="small" />,
             style: { fontFamily: theme.typography.fontMonospace },
-          }
+          },
         }}
       />
     </Stack>

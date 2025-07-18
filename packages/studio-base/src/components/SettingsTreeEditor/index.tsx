@@ -154,8 +154,9 @@ export default function SettingsTreeEditor({
 
               htmlInput: {
                 "data-testid": `${variant}-settings-filter-input`,
-              }
-            }} />
+              },
+            }}
+          />
         </header>
       )}
       <div className={classes.fieldGrid}>

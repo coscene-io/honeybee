@@ -34,6 +34,7 @@ export const SidebarHeader = ({
       subheader: {
         variant: "body2",
         color: "text.secondary",
-      }
-    }} />
+      },
+    }}
+  />
 );

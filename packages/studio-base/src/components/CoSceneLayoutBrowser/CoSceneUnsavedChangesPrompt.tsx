@@ -144,7 +144,7 @@ export function UnsavedChangesPrompt({
                 slotProps={{
                   formHelperText: {
                     variant: "standard",
-                  }
+                  },
                 }}
               />
             )}

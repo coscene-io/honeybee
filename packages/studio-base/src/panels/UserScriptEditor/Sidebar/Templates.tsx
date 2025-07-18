@@ -40,7 +40,7 @@ export function Templates({
                 primary={name}
                 secondary={description}
                 slotProps={{
-                  secondary: { variant: "caption" }
+                  secondary: { variant: "caption" },
                 }}
               />
             </ListItemButton>

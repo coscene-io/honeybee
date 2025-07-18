@@ -279,7 +279,7 @@ export const PanelCatalog = forwardRef<HTMLDivElement, Props>(function PanelCata
                   <CancelIcon fontSize="small" />
                 </IconButton>
               ),
-            }
+            },
           }}
         />
       </div>

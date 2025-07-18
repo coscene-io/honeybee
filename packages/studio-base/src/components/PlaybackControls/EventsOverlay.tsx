@@ -183,7 +183,7 @@ function EventMark({
                 },
               },
             ],
-          }
+          },
         }}
       >
         <div

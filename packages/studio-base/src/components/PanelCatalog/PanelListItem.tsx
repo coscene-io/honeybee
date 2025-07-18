@@ -156,7 +156,7 @@ export function PanelListItem(props: Props): React.JSX.Element {
         </Stack>
       }
       slots={{
-        transition: Fade
+        transition: Fade,
       }}
     >
       <ListItem dense disablePadding>

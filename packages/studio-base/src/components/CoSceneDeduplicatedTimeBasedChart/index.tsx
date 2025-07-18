@@ -809,10 +809,10 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): React.J
         disableInteractive
         followCursor
         slots={{
-          transition: Fade
+          transition: Fade,
         }}
         slotProps={{
-          transition: { timeout: 0 }
+          transition: { timeout: 0 },
         }}
       >
         <Stack direction="row" style={{ width }}>
