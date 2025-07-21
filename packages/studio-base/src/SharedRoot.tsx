@@ -5,9 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import * as Sentry from "@sentry/browser";
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
+import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
@@ -58,6 +61,8 @@ export function SharedRoot(
     extraProviders,
     extensionLoaders,
   } = props;
+  const { i18n } = useTranslation();
+
   if (
     APP_CONFIG.VITE_APP_PROJECT_ENV !== "local" &&
     APP_CONFIG.VITE_APP_PROJECT_ENV !== "aws" &&
@@ -87,6 +92,8 @@ export function SharedRoot(
     });
   }
 
+  const adapterLocale = i18n.language === "zh" ? "zh-cn" : i18n.language === "ja" ? "ja" : "en";
+
   return (
     <AppConfigurationContext.Provider value={appConfiguration}>
       <PostHogProvider client={posthog}>
@@ -94,22 +101,24 @@ export function SharedRoot(
           {enableGlobalCss && <GlobalCss />}
           <CssBaseline>
             <ErrorBoundary>
-              <SharedRootContext.Provider
-                value={{
-                  appBarLeftInset,
-                  AppBarComponent,
-                  appConfiguration,
-                  customWindowControlProps,
-                  dataSources,
-                  deepLinks,
-                  enableLaunchPreferenceScreen,
-                  extensionLoaders,
-                  extraProviders,
-                  onAppBarDoubleClick,
-                }}
-              >
-                {children}
-              </SharedRootContext.Provider>
+              <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={adapterLocale}>
+                <SharedRootContext.Provider
+                  value={{
+                    appBarLeftInset,
+                    AppBarComponent,
+                    appConfiguration,
+                    customWindowControlProps,
+                    dataSources,
+                    deepLinks,
+                    enableLaunchPreferenceScreen,
+                    extensionLoaders,
+                    extraProviders,
+                    onAppBarDoubleClick,
+                  }}
+                >
+                  {children}
+                </SharedRootContext.Provider>
+              </LocalizationProvider>
             </ErrorBoundary>
           </CssBaseline>
         </ColorSchemeThemeProvider>

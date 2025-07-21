@@ -289,13 +289,15 @@ export function Playlist(): React.JSX.Element {
           }}
           size="small"
           placeholder={t("searchByNameTime")}
-          InputProps={{
-            startAdornment: <SearchIcon fontSize="small" />,
-            endAdornment: filterText !== "" && (
-              <IconButton edge="end" onClick={clearFilter} size="small">
-                <ClearIcon fontSize="small" />
-              </IconButton>
-            ),
+          slotProps={{
+            input: {
+              startAdornment: <SearchIcon fontSize="small" />,
+              endAdornment: filterText !== "" && (
+                <IconButton edge="end" onClick={clearFilter} size="small">
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              ),
+            },
           }}
         />
         {urlState != undefined && (

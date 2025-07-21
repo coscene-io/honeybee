@@ -389,7 +389,13 @@ export default function Table({
               onChange={(e) => {
                 table.setPageSize(Number(e.target.value));
               }}
-              MenuProps={{ MenuListProps: { dense: true } }}
+              MenuProps={{
+                slotProps: {
+                  list: {
+                    dense: true,
+                  },
+                },
+              }}
             >
               {[10, 20, 30, 40, 50].map((size) => (
                 <MenuItem key={size} value={size}>{`Show ${size}`}</MenuItem>

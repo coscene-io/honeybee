@@ -8,7 +8,6 @@
 import {
   Menu,
   MenuItem,
-  PaperProps,
   PopoverPosition,
   PopoverReference,
   Stack,
@@ -145,11 +144,12 @@ export function UserMenu({
         open={open}
         onClose={handleClose}
         onClick={handleClose}
-        MenuListProps={{ className: classes.menuList, dense: true }}
+        data-tourid="user-menu"
         slotProps={{
-          paper: {
-            "data-tourid": "user-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>,
+          list: {
+            className: classes.menuList,
+            dense: true,
+          },
         }}
       >
         {loginStatus === "alreadyLogin" && (
