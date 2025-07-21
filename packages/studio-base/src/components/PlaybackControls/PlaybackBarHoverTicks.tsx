@@ -119,9 +119,11 @@ export default function PlaybackBarHoverTicks(props: Props): React.JSX.Element {
             disableHoverListener
             disableTouchListener
             disableInteractive
-            TransitionProps={{ timeout: 0 }}
             open={displayHoverTime}
             title={<div className={classes.time}>{hoverTimeDisplay}</div>}
+            slotProps={{
+              transition: { timeout: 0 },
+            }}
           >
             <div className={classes.tick} />
           </Tooltip>

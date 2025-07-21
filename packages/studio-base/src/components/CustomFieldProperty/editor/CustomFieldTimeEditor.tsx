@@ -8,11 +8,11 @@
 import { Timestamp } from "@bufbuild/protobuf";
 import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { TimeValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { Locale } from "date-fns";
-import { zhCN, enUS, ja } from "date-fns/locale";
+import dayjs, { Dayjs } from "dayjs";
+import "dayjs/locale/zh-cn";
+import "dayjs/locale/en";
+import "dayjs/locale/ja";
 import { useTranslation } from "react-i18next";
 
 export function CustomFieldTimeEditor({
@@ -28,50 +28,59 @@ export function CustomFieldTimeEditor({
   customFieldValue: CustomFieldValue;
   disabled?: boolean;
 }): React.ReactNode {
-  const { i18n, t } = useTranslation("general");
+  const { t } = useTranslation("general");
   const { property } = customFieldValue;
 
-  let value: Date | undefined;
+  let value: Dayjs | undefined;
   if (customFieldValue.value.case === "time") {
-    value = customFieldValue.value.value.value?.toDate();
+    const dateValue = customFieldValue.value.value.value?.toDate();
+    value = dateValue ? dayjs(dateValue) : undefined;
   }
 
-  const adapterLocale: Locale = i18n.language === "zh" ? zhCN : i18n.language === "ja" ? ja : enUS;
-
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={adapterLocale}>
-      <DateTimePicker
-        value={value}
-        disabled={disabled}
-        timeSteps={{ minutes: 1 }}
-        onChange={(newValue: Date | ReactNull) => {
-          if (newValue) {
-            customFieldValue.value = {
-              case: "time",
-              value: new TimeValue({ value: Timestamp.fromDate(newValue) }),
-            };
-          } else {
-            customFieldValue.value = { case: undefined, value: undefined };
-          }
-          onChange(customFieldValue);
-        }}
-        localeText={{
-          clearButtonLabel: t("clearButtonLabel"),
-          okButtonLabel: t("okButtonLabel"),
-        }}
-        slotProps={{
-          textField: {
-            fullWidth: true,
-            error,
-            size: "small",
-            variant: "filled",
-            placeholder: property?.description ?? t("pleaseSelect"),
+    <DateTimePicker
+      value={value}
+      disabled={disabled}
+      timeSteps={{ minutes: 1 }}
+      // label={property?.description ?? t("pleaseSelect")}
+      onChange={(newValue: Dayjs | ReactNull) => {
+        if (newValue) {
+          customFieldValue.value = {
+            case: "time",
+            value: new TimeValue({ value: Timestamp.fromDate(newValue.toDate()) }),
+          };
+        } else {
+          customFieldValue.value = { case: undefined, value: undefined };
+        }
+        onChange(customFieldValue);
+      }}
+      localeText={{
+        clearButtonLabel: t("clearButtonLabel"),
+        okButtonLabel: t("okButtonLabel"),
+        fieldYearPlaceholder: ({ format }) => {
+          return `${property?.description ?? t("pleaseSelect")} ${format}`;
+        },
+      }}
+      slotProps={{
+        textField: {
+          fullWidth: true,
+          error,
+          size: "small",
+          variant: "filled",
+          sx: {
+            padding: "0px",
+            "& .MuiPickersInputBase-sectionsContainer": {
+              padding: "6px 8px !important",
+            },
           },
-          actionBar: {
-            actions: allowClear != undefined && allowClear ? ["clear", "accept"] : ["accept"],
-          },
-        }}
-      />
-    </LocalizationProvider>
+        },
+        openPickerButton: {
+          size: "small",
+        },
+        actionBar: {
+          actions: allowClear != undefined && allowClear ? ["clear", "accept"] : ["accept"],
+        },
+      }}
+    />
   );
 }

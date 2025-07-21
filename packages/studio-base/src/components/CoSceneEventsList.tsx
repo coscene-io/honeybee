@@ -245,14 +245,16 @@ export function EventsList(): React.JSX.Element {
             setFilter(event.currentTarget.value);
           }}
           placeholder={t("searchByKV")}
-          InputProps={{
-            size: "small",
-            startAdornment: <SearchIcon fontSize="small" />,
-            endAdornment: filter !== "" && (
-              <IconButton edge="end" onClick={clearFilter} size="small">
-                <ClearIcon fontSize="small" />
-              </IconButton>
-            ),
+          slotProps={{
+            input: {
+              size: "small",
+              startAdornment: <SearchIcon fontSize="small" />,
+              endAdornment: filter !== "" && (
+                <IconButton edge="end" onClick={clearFilter} size="small">
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              ),
+            },
           }}
         />
         <Select

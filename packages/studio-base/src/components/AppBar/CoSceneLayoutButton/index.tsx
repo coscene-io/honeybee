@@ -6,14 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import CancelIcon from "@mui/icons-material/Cancel";
 import SearchIcon from "@mui/icons-material/Search";
-import {
-  Menu,
-  PaperProps,
-  Divider,
-  MenuItem as MuiMenuItem,
-  IconButton,
-  TextField,
-} from "@mui/material";
+import { Menu, Divider, MenuItem as MuiMenuItem, IconButton, TextField } from "@mui/material";
 import * as _ from "lodash-es";
 import moment from "moment";
 import { useSnackbar } from "notistack";
@@ -662,12 +655,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         onClose={() => {
           setMenuOpen(false);
         }}
-        MenuListProps={{
-          dense: true,
-          disablePadding: true,
-          "aria-labelledby": "add-panel-button",
-          className: classes.menuList,
-        }}
         anchorOrigin={{
           horizontal: "right",
           vertical: "bottom",
@@ -676,10 +663,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           vertical: "top",
           horizontal: "right",
         }}
+        aria-labelledby="add-panel-menu"
+        data-tourid="add-panel-menu"
         slotProps={{
-          paper: {
-            "data-tourid": "add-panel-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>,
+          list: {
+            className: classes.menuList,
+            dense: true,
+            disablePadding: true,
+          },
         }}
       >
         <div className={cx(classes.toolbar, classes.toolbarMenu)}>
@@ -694,19 +685,21 @@ export function CoSceneLayoutButton(): React.JSX.Element {
             }}
             autoFocus
             data-testid="panel-list-textfield"
-            InputProps={{
-              startAdornment: <SearchIcon fontSize="small" />,
-              endAdornment: searchQuery && (
-                <IconButton
-                  size="small"
-                  edge="end"
-                  onClick={() => {
-                    setSearchQuery("");
-                  }}
-                >
-                  <CancelIcon fontSize="small" />
-                </IconButton>
-              ),
+            slotProps={{
+              input: {
+                startAdornment: <SearchIcon fontSize="small" />,
+                endAdornment: searchQuery && (
+                  <IconButton
+                    size="small"
+                    edge="end"
+                    onClick={() => {
+                      setSearchQuery("");
+                    }}
+                  >
+                    <CancelIcon fontSize="small" />
+                  </IconButton>
+                ),
+              },
             }}
           />
         </div>
