@@ -109,6 +109,7 @@ import {
   GetTaskRequest,
   ListTasksResponse,
   ListTasksRequest,
+  UpdateTaskRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
 import { SecurityTokenService } from "@coscene-io/cosceneapis-es/coscene/datastorage/v1alpha1/services/security_token_connect";
 import {
@@ -1573,6 +1574,18 @@ class CoSceneConsoleApi {
     {
       permission: () => {
         return checkUserPermission(EndpointDataplatformV1alph3.ListTasks, this.#permissionList);
+      },
+    },
+  );
+
+  public updateTask = Object.assign(
+    async (payload: PartialMessage<UpdateTaskRequest>): Promise<Task> => {
+      const req = new UpdateTaskRequest(payload);
+      return await getPromiseClient(TaskService).updateTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.UpdateTask, this.#permissionList);
       },
     },
   );

@@ -14,7 +14,7 @@ import { createStore } from "zustand";
 import { TasksContext, TaskStore } from "@foxglove/studio-base/context/TasksContext";
 
 function createTasksStore() {
-  return createStore<TaskStore>((set) => ({
+  return createStore<TaskStore>((set, get) => ({
     orgTasks: { loading: false, value: [] },
     projectTasks: { loading: false, value: [] },
     focusedTask: undefined,
@@ -22,6 +22,7 @@ function createTasksStore() {
     customFieldSchema: undefined,
     orgTasksFilter: "",
     projectTasksFilter: "",
+    reloadTrigger: 0,
     setOrgTasks: (tasks: AsyncState<Task[]>) => {
       set({ orgTasks: tasks });
     },
@@ -42,6 +43,9 @@ function createTasksStore() {
     },
     setCustomFieldSchema: (customFieldSchema: CustomFieldSchema | undefined) => {
       set({ customFieldSchema });
+    },
+    reloadProjectTasks: () => {
+      set({ reloadTrigger: get().reloadTrigger + 1 });
     },
   }));
 }

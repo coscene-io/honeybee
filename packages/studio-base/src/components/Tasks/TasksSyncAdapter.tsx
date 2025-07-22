@@ -22,6 +22,7 @@ const selectSetProjectTasks = (store: TaskStore) => store.setProjectTasks;
 const selectOrgTasksFilter = (store: TaskStore) => store.orgTasksFilter;
 const selectProjectTasksFilter = (store: TaskStore) => store.projectTasksFilter;
 const selectSetProjectTasksFilter = (store: TaskStore) => store.setProjectTasksFilter;
+const selectReloadTrigger = (store: TaskStore) => store.reloadTrigger;
 
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
@@ -42,6 +43,7 @@ export function TasksSyncAdapter(): ReactNull {
   const setCustomFieldSchema = useTasks(selectSetCustomFieldSchema);
   const setOrgTasks = useTasks(selectSetOrgTasks);
   const setProjectTasks = useTasks(selectSetProjectTasks);
+  const reloadTrigger = useTasks(selectReloadTrigger);
 
   useAsync(async () => {
     if (!baseInfo.warehouseId || !baseInfo.projectId) {
@@ -73,6 +75,7 @@ export function TasksSyncAdapter(): ReactNull {
       pageSize: 1000,
     });
     return projectTasks.tasks;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     baseInfo.warehouseId,
     baseInfo.projectId,
@@ -80,6 +83,7 @@ export function TasksSyncAdapter(): ReactNull {
     consoleApi,
     user?.userId,
     setProjectTasksFilter,
+    reloadTrigger, // Trigger to reload project tasks when reloadProjectTasks() is called
   ]);
 
   useEffect(() => {

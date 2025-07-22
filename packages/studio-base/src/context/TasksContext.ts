@@ -32,6 +32,9 @@ export type TaskStore = {
   // task custom field schema
   customFieldSchema: CustomFieldSchema | undefined;
 
+  // Trigger counter for reloading project tasks
+  reloadTrigger: number;
+
   setOrgTasks: (tasks: AsyncState<Task[]>) => void;
   setOrgTasksFilter: (filter: string) => void;
 
@@ -42,6 +45,8 @@ export type TaskStore = {
   setViewingTask: (task: Task | undefined) => void;
 
   setCustomFieldSchema: (customFieldSchema: CustomFieldSchema | undefined) => void;
+
+  reloadProjectTasks: () => void;
 };
 
 export const TasksContext = createContext<undefined | StoreApi<TaskStore>>(undefined);

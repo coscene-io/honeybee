@@ -13,4 +13,6 @@ export const task = {
   pending: "Pending",
   processing: "Processing",
   succeeded: "Succeeded",
+  updateTaskStateSuccess: "Update task state successfully",
+  updateTaskStateFailed: "Update task state failed",
 };

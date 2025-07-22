@@ -15,4 +15,6 @@ export const task: Partial<TypeOptions["resources"]["task"]> = {
   pending: "待处理",
   processing: "处理中",
   succeeded: "已完成",
+  updateTaskStateSuccess: "更新任务状态成功",
+  updateTaskStateFailed: "更新任务状态失败",
 };

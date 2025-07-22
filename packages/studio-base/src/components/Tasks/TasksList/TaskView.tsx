@@ -7,6 +7,7 @@
 import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { alpha, Stack, Select, MenuItem, Button } from "@mui/material";
 import { useRef } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -15,7 +16,9 @@ import { CustomFieldValuesFields } from "@foxglove/studio-base/components/Custom
 import {
   getTaskStateDisplayName,
   taskStateOptions,
+  TaskStateType,
 } from "@foxglove/studio-base/components/Tasks/TasksList/utils/taskFilterUtils";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 
 const useStyles = makeStyles<void, "taskSelected">()((theme, _params) => ({
@@ -54,10 +57,9 @@ const useStyles = makeStyles<void, "taskSelected">()((theme, _params) => ({
 }));
 
 const selectFocusedTask = (store: TaskStore) => store.focusedTask;
-
 const selectSetFocusedTask = (store: TaskStore) => store.setFocusedTask;
 const selectSetViewingTask = (store: TaskStore) => store.setViewingTask;
-
+const selectReloadProjectTasks = (store: TaskStore) => store.reloadProjectTasks;
 const selectCustomFieldSchema = (store: TaskStore) => store.customFieldSchema;
 
 export default function TaskView(params: { task: Task }): React.JSX.Element {
@@ -73,8 +75,28 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
 
   const setFocusedTask = useTasks(selectSetFocusedTask);
   const setViewingTask = useTasks(selectSetViewingTask);
+  const reloadProjectTasks = useTasks(selectReloadProjectTasks);
 
   const customFieldSchema = useTasks(selectCustomFieldSchema);
+
+  const consoleApi = useConsoleApi();
+
+  const handleUpdateTaskState = async (state: TaskStateType) => {
+    try {
+      await consoleApi.updateTask({
+        task: {
+          name: task.name,
+          state,
+        },
+        updateMask: { paths: ["state"] },
+      });
+      reloadProjectTasks();
+      toast.success(t("updateTaskStateSuccess"));
+    } catch (error) {
+      console.error(error);
+      toast.error(t("updateTaskStateFailed"));
+    }
+  };
 
   return (
     <Stack flexDirection="row" ref={scrollRef}>
@@ -109,9 +131,8 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
             <Select
               size="small"
               value={task.state}
-              onChange={(_event) => {
-                // 处理状态变更的逻辑
-                // TODO: 实现状态更新逻辑
+              onChange={(event) => {
+                void handleUpdateTaskState(event.target.value as TaskStateType);
               }}
               variant="filled"
               style={{ minWidth: 120 }}
@@ -125,6 +146,7 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
 
             <Avatar userName={task.assignee} />
           </Stack>
+
           {/* <Divider />
           <Stack
             flexDirection="row"
@@ -165,6 +187,7 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
             </Stack>
           </Stack>
           <Divider /> */}
+
           <Stack paddingTop={2} gap={2}>
             {/* custom field */}
             <CustomFieldValuesFields
@@ -175,6 +198,7 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
               ignoreProperties
             />
           </Stack>
+
           {/* view detail */}
           <Stack>
             <Button
