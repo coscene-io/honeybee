@@ -4759,10 +4759,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/cosel@npm:23.49.2":
-  version: 23.49.2
-  resolution: "@coscene-io/cosel@npm:23.49.2::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosel%2F23.49.2%2Fc14bdc8f4226ed187a0c339fb8f989f5e49b845b"
-  checksum: d69448a65574efc452f4d7ec0fe0b448fbed99a7d562426ce03f2859f6a8359152e8d34a76e6beaa5e974a74935030fa679a51491dec8dd7f36d32bd038f1316
+"@coscene-io/cosel@npm:24.14.0":
+  version: 24.14.0
+  resolution: "@coscene-io/cosel@npm:24.14.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosel%2F24.14.0%2Fc79ce512a1b6e4ff75fc101b3733df2009481af7"
+  checksum: 09954cb612b8bcb18323a8fe7e816bae6a14c1eb3d90c76d1957ae3e2bcfc79019e0f2646a9593f854fa75a42a3a5c5749eff613416d8d695849fc42e7b865c9
   languageName: node
   linkType: hard
 
@@ -6152,7 +6152,7 @@ __metadata:
     "@bufbuild/protobuf": 1.3.0
     "@coscene-io/comlink": 4.4.1
     "@coscene-io/cosceneapis-es": 0.0.376
-    "@coscene-io/cosel": 23.49.2
+    "@coscene-io/cosel": 24.14.0
     "@emotion/cache": 11.14.0
     "@emotion/react": 11.14.0
     "@emotion/styled": 11.14.0

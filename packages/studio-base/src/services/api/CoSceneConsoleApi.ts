@@ -107,6 +107,8 @@ import {
   SyncTaskRequest,
   CreateTaskRequest,
   GetTaskRequest,
+  ListTasksResponse,
+  ListTasksRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
 import { SecurityTokenService } from "@coscene-io/cosceneapis-es/coscene/datastorage/v1alpha1/services/security_token_connect";
 import {
@@ -901,6 +903,7 @@ class CoSceneConsoleApi {
     },
   );
 
+  // user detail info only for current user
   public async getUser(userName: string): Promise<CoUser> {
     const request = new GetUserRequest({
       name: userName,
@@ -909,6 +912,7 @@ class CoSceneConsoleApi {
     return result;
   }
 
+  // no sensitive info, can get all users info
   public async batchGetUsers(userNames: string[]): Promise<BatchGetUsersResponse> {
     const request = new BatchGetUsersRequest({
       names: userNames,
@@ -1557,6 +1561,18 @@ class CoSceneConsoleApi {
           EndpointDatastorageV1alph1.GenerateSecurityToken,
           this.#permissionList,
         );
+      },
+    },
+  );
+
+  public listTasks = Object.assign(
+    async (payload: PartialMessage<ListTasksRequest>): Promise<ListTasksResponse> => {
+      const req = new ListTasksRequest(payload);
+      return await getPromiseClient(TaskService).listTasks(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.ListTasks, this.#permissionList);
       },
     },
   );

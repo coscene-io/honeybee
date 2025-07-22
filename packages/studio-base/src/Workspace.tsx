@@ -48,6 +48,7 @@ import { Sidebars, SidebarItem } from "@foxglove/studio-base/components/Sidebars
 import Stack from "@foxglove/studio-base/components/Stack";
 import { StudioLogsSettings } from "@foxglove/studio-base/components/StudioLogsSettings";
 import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
+import { TasksList } from "@foxglove/studio-base/components/Tasks/TasksList";
 import { TopicList } from "@foxglove/studio-base/components/TopicList";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
@@ -239,6 +240,13 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
           title: t("moment", { ns: "cosWorkspace" }),
           component: EventsList,
           hidden: enableList.event === "DISABLE",
+        },
+      ],
+      [
+        "tasks",
+        {
+          title: t("tasks", { ns: "cosWorkspace" }),
+          component: TasksList,
         },
       ],
       [
