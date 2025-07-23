@@ -94,9 +94,9 @@ export class OffscreenCanvasRenderer {
     if (this.#destroyed) {
       return;
     }
-    
+
     this.#destroyed = true;
-    
+
     // Immediately dispose of the worker to prevent further operations
     this.#dispose?.();
     this.#dispose = undefined;
