@@ -337,10 +337,18 @@ export function Plot(props: Props): React.JSX.Element {
     canvasDiv.appendChild(canvas);
 
     const offscreenCanvas = canvas.transferControlToOffscreen();
-    setRenderer(new OffscreenCanvasRenderer(offscreenCanvas, theme, { handleWorkerError }));
+    const newRenderer = new OffscreenCanvasRenderer(offscreenCanvas, theme, { handleWorkerError });
+    setRenderer(newRenderer);
 
     return () => {
+      // Explicitly destroy the renderer to ensure worker cleanup
+      newRenderer.destroy();
       canvasDiv.removeChild(canvas);
+
+      // Debug logging to verify cleanup
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[Plot] Canvas cleanup completed - renderer destroyed and canvas removed");
+      }
     };
   }, [canvasDiv, theme, handleWorkerError]);
 
@@ -374,6 +382,15 @@ export function Plot(props: Props): React.JSX.Element {
     return () => {
       resizeObserver.disconnect();
       plotCoordinator.destroy();
+      // Also explicitly destroy renderer if it hasn't been destroyed yet
+      if (!renderer.isDestroyed()) {
+        renderer.destroy();
+      }
+
+      // Debug logging to verify cleanup
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[Plot] Cleanup completed - coordinator and renderer destroyed");
+      }
     };
   }, [canvasDiv, datasetsBuilder, renderer]);
 
