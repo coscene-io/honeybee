@@ -6,11 +6,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useEffect } from "react";
-import { useAsyncFn } from "react-use";
+import { useAsync, useAsyncFn } from "react-use";
 
 import Logger from "@foxglove/log";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 
 const log = Logger.getLogger(__filename);
 
@@ -21,6 +22,9 @@ const selectRecord = (store: CoSceneBaseStore) => store.record;
 const selectProject = (store: CoSceneBaseStore) => store.project;
 const selectSetRecordCustomFieldSchema = (state: CoSceneBaseStore) =>
   state.setRecordCustomFieldSchema;
+const selectSetDeviceCustomFieldSchema = (state: CoSceneBaseStore) =>
+  state.setDeviceCustomFieldSchema;
+const selectLoginStatus = (state: UserStore) => state.loginStatus;
 
 export function BaseSyncAdapter(): ReactNull {
   const baseInfo = useBaseInfo(selectBaseInfo);
@@ -29,6 +33,8 @@ export function BaseSyncAdapter(): ReactNull {
   const record = useBaseInfo(selectRecord);
   const project = useBaseInfo(selectProject);
   const setRecordCustomFieldSchema = useBaseInfo(selectSetRecordCustomFieldSchema);
+  const setDeviceCustomFieldSchema = useBaseInfo(selectSetDeviceCustomFieldSchema);
+  const loginStatus = useCurrentUser(selectLoginStatus);
 
   const consoleApi = useConsoleApi();
 
@@ -88,6 +94,13 @@ export function BaseSyncAdapter(): ReactNull {
     consoleApi,
     setRecordCustomFieldSchema,
   ]);
+
+  useAsync(async () => {
+    if (loginStatus === "alreadyLogin") {
+      const customFieldSchema = await consoleApi.getDeviceCustomFieldSchema();
+      setDeviceCustomFieldSchema(customFieldSchema);
+    }
+  }, [consoleApi, setDeviceCustomFieldSchema, loginStatus]);
 
   useEffect(() => {
     syncProjects().catch((error: unknown) => {

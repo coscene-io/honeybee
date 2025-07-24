@@ -68,6 +68,9 @@ function CreateBaseStore() {
     setRecordCustomFieldSchema: (recordCustomFieldSchema: CustomFieldSchema) => {
       set({ recordCustomFieldSchema });
     },
+    setDeviceCustomFieldSchema: (deviceCustomFieldSchema: CustomFieldSchema) => {
+      set({ deviceCustomFieldSchema });
+    },
   }));
 }
 

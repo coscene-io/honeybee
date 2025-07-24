@@ -37,13 +37,16 @@ export type CoSceneBaseStore = {
   baseInfo: AsyncState<BaseInfo>;
   record: AsyncState<Record>;
   recordCustomFieldSchema?: CustomFieldSchema;
+  deviceCustomFieldSchema?: CustomFieldSchema;
   project: AsyncState<Project>;
   setBaseInfo: (baseInfo: AsyncState<BaseInfo>) => void;
   setDataSource: (dataSource: { id: string; type: "connection" | "file" | "sample" }) => void;
   setRecord: (record: AsyncState<Record>) => void;
   setProject: (project: AsyncState<Project>) => void;
   refreshRecord: () => void;
+  // schema
   setRecordCustomFieldSchema: (recordCustomFieldSchema: CustomFieldSchema) => void;
+  setDeviceCustomFieldSchema: (deviceCustomFieldSchema: CustomFieldSchema) => void;
 
   getEnableList: () => {
     event: "ENABLE" | "DISABLE";
