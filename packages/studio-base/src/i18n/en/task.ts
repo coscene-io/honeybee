@@ -28,4 +28,5 @@ export const task = {
   confirmVizTargetRecordDescription:
     "After switching, the current operation will be interrupted, and the data playback of {{recordTitle}} will be entered. Confirm to enter?",
   enterImmediately: "Enter immediately",
+  clearAllFilters: "Clear All Filters",
 };

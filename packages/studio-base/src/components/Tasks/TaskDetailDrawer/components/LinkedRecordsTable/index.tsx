@@ -31,6 +31,7 @@ import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import { ConvertCustomFieldValue } from "@foxglove/studio-base/components/CustomFieldProperty/utils/convertCustomFieldValue";
+import RecordTableFilter from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable/components/RecordTableFilter";
 import { useVizTargetSource } from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/useSelectSource";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -46,7 +47,13 @@ declare module "@mui/x-data-grid" {
 const selectRecordCustomFieldSchema = (store: CoSceneBaseStore) => store.recordCustomFieldSchema;
 
 const useStyles = makeStyles()((theme) => ({
+  container: {
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+  },
   dataGrid: {
+    flex: 1,
     "& .MuiDataGrid-cell": {
       display: "flex",
       alignItems: "center",
@@ -208,7 +215,7 @@ function CustomFieldCell({
     return <Typography variant="body2">-</Typography>;
   }
 
-  const displayValue = ConvertCustomFieldValue(customFieldValue);
+  const displayValue = ConvertCustomFieldValue({ customFieldValue, noWrap: true });
 
   return <Typography variant="body2">{displayValue ?? "-"}</Typography>;
 }
@@ -222,7 +229,9 @@ export default function LinkedRecordsTable({
   setPageSize,
   setCurrentPage,
   onSelectionChange,
-  onBatchAction, // setFilter: _setFilter,
+  onBatchAction,
+  filter,
+  setFilter,
 }: {
   linkedRecords: ListRecordsResponse;
   pageSize: number;
@@ -231,7 +240,8 @@ export default function LinkedRecordsTable({
   setCurrentPage: (currentPage: number) => void;
   onSelectionChange?: (selectedRowIds: string[]) => void;
   onBatchAction?: (selectedRowIds: string[]) => void;
-  // setFilter: (filter: CosQuery) => void;
+  filter: string | undefined;
+  setFilter: (filter: string) => void;
 }): React.ReactElement {
   const { classes } = useStyles();
   const { i18n, t } = useTranslation("task");
@@ -416,27 +426,31 @@ export default function LinkedRecordsTable({
   }, [linkedRecords.records]);
 
   return (
-    <DataGrid
-      rows={rows}
-      columns={columns}
-      paginationModel={paginationModel}
-      onPaginationModelChange={handlePaginationModelChange}
-      rowSelectionModel={rowSelectionModel}
-      onRowSelectionModelChange={handleSelectionModelChange}
-      pageSizeOptions={[10, 25, 50, 100]}
-      loading={false}
-      checkboxSelection
-      disableColumnFilter
-      disableRowSelectionOnClick
-      density="compact"
-      className={classes.dataGrid}
-      localeText={dataGridLocaleText}
-      slots={{
-        footer: CustomFooter,
-      }}
-      slotProps={{
-        footer: { onButtonClick: onBatchAction },
-      }}
-    />
+    <Box className={classes.container}>
+      <RecordTableFilter filter={filter} setFilter={setFilter} />
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        paginationModel={paginationModel}
+        onPaginationModelChange={handlePaginationModelChange}
+        rowSelectionModel={rowSelectionModel}
+        onRowSelectionModelChange={handleSelectionModelChange}
+        pageSizeOptions={[10, 25, 50, 100]}
+        loading={false}
+        checkboxSelection
+        disableColumnFilter
+        disableRowSelectionOnClick
+        disableVirtualization
+        density="compact"
+        className={classes.dataGrid}
+        localeText={dataGridLocaleText}
+        slots={{
+          footer: CustomFooter,
+        }}
+        slotProps={{
+          footer: { onButtonClick: onBatchAction },
+        }}
+      />
+    </Box>
   );
 }

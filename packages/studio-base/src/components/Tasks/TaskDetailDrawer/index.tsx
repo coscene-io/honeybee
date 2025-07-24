@@ -98,8 +98,8 @@ export default function TaskDetailDrawer(): React.ReactElement {
     setViewingTask(undefined);
   };
 
-  const [recordFilter, setRecordFilter] = useState<undefined | CosQuery>(undefined);
-  const [deviceFilter, setDeviceFilter] = useState<undefined | CosQuery>(undefined);
+  const [recordFilter, setRecordFilter] = useState<undefined | string>(undefined);
+  const [deviceFilter, setDeviceFilter] = useState<undefined | string>(undefined);
 
   const [recordPageSize, setRecordPageSize] = useState(10);
   const [recordCurrentPage, setRecordCurrentPage] = useState(0);
@@ -121,7 +121,9 @@ export default function TaskDetailDrawer(): React.ReactElement {
     const res = await consoleApi.listRecord({
       projectName,
       pageSize: 10,
-      filter: recordFilter.toQueryString(new SerializeOption(false)),
+      filter: CosQuery.Companion.deserialize(recordFilter).toQueryString(
+        new SerializeOption(false),
+      ),
       currentPage: 0,
     });
 
@@ -137,7 +139,7 @@ export default function TaskDetailDrawer(): React.ReactElement {
       return;
     }
     const res = await consoleApi.listProjectDevices({
-      filter: deviceFilter,
+      filter: CosQuery.Companion.deserialize(deviceFilter),
       pageSize: 10,
       currentPage: 0,
       warehouseId: baseInfo.value.warehouseId,
@@ -159,7 +161,8 @@ export default function TaskDetailDrawer(): React.ReactElement {
       [viewingTask.name.split("/").pop() ?? ""],
     );
 
-    setRecordFilter(defaultRecordFilter);
+    const recordFilterStr: string = defaultRecordFilter.serialize();
+    setRecordFilter(recordFilterStr);
 
     const defaultDeviceFilter = CosQuery.Companion.empty();
     defaultDeviceFilter.setField(
@@ -168,7 +171,8 @@ export default function TaskDetailDrawer(): React.ReactElement {
       [viewingTask.name.split("/").pop() ?? ""],
     );
 
-    setDeviceFilter(defaultDeviceFilter);
+    const deviceFilterStr: string = defaultDeviceFilter.serialize();
+    setDeviceFilter(deviceFilterStr);
   }, [viewingTask, setRecordFilter, setDeviceFilter]);
 
   return (
@@ -186,7 +190,6 @@ export default function TaskDetailDrawer(): React.ReactElement {
       <Box className={classes.content}>
         <Box className={classes.header}>
           <Stack direction="row" alignItems="center" gap={1}>
-            {/* <Typography variant="h6">任务详情</Typography> */}
             <Chip label={`#${viewingTask?.number}`} size="small" />
             <Typography variant="h6">{viewingTask?.title}</Typography>
           </Stack>
@@ -217,7 +220,8 @@ export default function TaskDetailDrawer(): React.ReactElement {
               currentPage={recordCurrentPage}
               setPageSize={setRecordPageSize}
               setCurrentPage={setRecordCurrentPage}
-              // setFilter={setRecordFilter}
+              setFilter={setRecordFilter}
+              filter={recordFilter}
             />
           )}
           {tabValue === 1 && linkedDevices.value && (
@@ -227,6 +231,7 @@ export default function TaskDetailDrawer(): React.ReactElement {
               currentPage={deviceCurrentPage}
               setPageSize={setDevicePageSize}
               setCurrentPage={setDeviceCurrentPage}
+              filter={deviceFilter}
               setFilter={setDeviceFilter}
             />
           )}

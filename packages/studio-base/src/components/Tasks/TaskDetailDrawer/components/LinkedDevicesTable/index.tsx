@@ -16,13 +16,15 @@ export default function LinkedDevicesTable({
   setPageSize,
   setCurrentPage,
   setFilter,
+  filter,
 }: {
   linkedDevices: ListProjectDevicesResponse;
   pageSize: number;
   currentPage: number;
   setPageSize: (pageSize: number) => void;
   setCurrentPage: (currentPage: number) => void;
-  setFilter: (filter: CosQuery) => void;
+  setFilter: (filter: string) => void;
+  filter: string | undefined;
 }): React.ReactElement {
   return <div>LinkedDevicesTable</div>;
 }

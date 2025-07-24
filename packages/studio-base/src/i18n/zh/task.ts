@@ -30,4 +30,5 @@ export const task: Partial<TypeOptions["resources"]["task"]> = {
   confirmVizTargetRecordDescription:
     "切换后，页面将打断当前的操作，进入{{recordTitle}}的数据回放，确认进入吗？",
   enterImmediately: "立即进入",
+  clearAllFilters: "清除所有过滤器",
 };
