@@ -15,4 +15,17 @@ export const task = {
   succeeded: "Succeeded",
   updateTaskStateSuccess: "Update task state successfully",
   updateTaskStateFailed: "Update task state failed",
+  selectedRowsCount: "Selected {{count}} rows",
+  batchOperation: "Batch Operation",
+  recordName: "Name",
+  labels: "Labels",
+  deviceId: "Device ID",
+  deviceName: "Device Name",
+  creator: "Creator",
+  createTime: "Create Time",
+  updateTime: "Update Time",
+  confirmVizTargetRecord: "Enter record playback",
+  confirmVizTargetRecordDescription:
+    "After switching, the current operation will be interrupted, and the data playback of {{recordTitle}} will be entered. Confirm to enter?",
+  enterImmediately: "Enter immediately",
 };

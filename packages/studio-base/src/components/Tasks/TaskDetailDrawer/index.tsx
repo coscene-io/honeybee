@@ -1,0 +1,237 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+// export { default as TaskDetailDrawer } from "./TaskDetailDrawer";
+
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import CloseIcon from "@mui/icons-material/Close";
+import { Drawer, Typography, IconButton, Box, Stack, Chip, Tabs, Tab } from "@mui/material";
+import React, { useEffect, useState } from "react";
+import { useAsync } from "react-use";
+import { makeStyles } from "tss-react/mui";
+
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
+import LinkedDevicesTable from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedDevicesTable";
+import LinkedRecordsTable from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
+import { CosQuery } from "@foxglove/studio-base/util/coscene";
+import { BinaryOperator, SerializeOption } from "@foxglove/studio-base/util/coscene/cosel";
+import { QueryFields } from "@foxglove/studio-base/util/queries";
+
+const selectPlay = (ctx: MessagePipelineContext) => ctx.startPlayback;
+const selectPause = (ctx: MessagePipelineContext) => ctx.pausePlayback;
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectEnableRepeat = (ctx: MessagePipelineContext) => ctx.enableRepeatPlayback;
+
+const useStyles = makeStyles<{ showPlaybackControls: boolean }>()(
+  (theme, { showPlaybackControls }) => ({
+    drawer: {
+      width: "73%",
+      boxSizing: "border-box",
+      top: 48, // AppBar height offset
+      height: showPlaybackControls
+        ? "calc(100% - 48px - 80px)" // Adjust height to account for AppBar and PlaybackControls
+        : "calc(100% - 48px)", // Only account for AppBar when PlaybackControls is not shown
+    },
+    content: {
+      padding: theme.spacing(2),
+      height: "100%",
+      display: "flex",
+      flexDirection: "column",
+    },
+    header: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: theme.spacing(2),
+      flexShrink: 0,
+    },
+    tabs: {
+      borderBottom: `1px solid ${theme.palette.divider}`,
+      flexShrink: 0,
+    },
+    tableContainer: {
+      flex: 1,
+      minHeight: 0,
+      marginTop: theme.spacing(1),
+    },
+  }),
+);
+
+const selectViewingTask = (store: TaskStore) => store.viewingTask;
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+
+export default function TaskDetailDrawer(): React.ReactElement {
+  // Check if PlaybackControls should be displayed based on the same conditions as in Workspace.tsx
+  const play = useMessagePipeline(selectPlay);
+  const pause = useMessagePipeline(selectPause);
+  const seek = useMessagePipeline(selectSeek);
+  const enableRepeat = useMessagePipeline(selectEnableRepeat);
+
+  const showPlaybackControls =
+    play != undefined && pause != undefined && seek != undefined && enableRepeat != undefined;
+
+  const { classes } = useStyles({ showPlaybackControls });
+  const viewingTask = useTasks(selectViewingTask);
+  const setViewingTask = useTasks((state) => state.setViewingTask);
+  const baseInfo = useBaseInfo(selectBaseInfo);
+  const [tabValue, setTabValue] = useState(0);
+
+  const consoleApi = useConsoleApi();
+
+  const handleClose = () => {
+    setViewingTask(undefined);
+  };
+
+  const [recordFilter, setRecordFilter] = useState<undefined | CosQuery>(undefined);
+  const [deviceFilter, setDeviceFilter] = useState<undefined | CosQuery>(undefined);
+
+  const [recordPageSize, setRecordPageSize] = useState(10);
+  const [recordCurrentPage, setRecordCurrentPage] = useState(0);
+
+  const [devicePageSize, setDevicePageSize] = useState(10);
+  const [deviceCurrentPage, setDeviceCurrentPage] = useState(0);
+
+  const linkedRecords = useAsync(async () => {
+    if (
+      recordFilter == undefined ||
+      baseInfo.value?.projectId == undefined ||
+      baseInfo.value.warehouseId == undefined
+    ) {
+      return;
+    }
+
+    const projectName = `warehouses/${baseInfo.value.warehouseId}/projects/${baseInfo.value.projectId}`;
+
+    const res = await consoleApi.listRecord({
+      projectName,
+      pageSize: 10,
+      filter: recordFilter.toQueryString(new SerializeOption(false)),
+      currentPage: 0,
+    });
+
+    return res;
+  }, [recordFilter, baseInfo.value?.projectId, baseInfo.value?.warehouseId, consoleApi]);
+
+  const linkedDevices = useAsync(async () => {
+    if (
+      deviceFilter == undefined ||
+      baseInfo.value?.projectId == undefined ||
+      baseInfo.value.warehouseId == undefined
+    ) {
+      return;
+    }
+    const res = await consoleApi.listProjectDevices({
+      filter: deviceFilter,
+      pageSize: 10,
+      currentPage: 0,
+      warehouseId: baseInfo.value.warehouseId,
+      projectId: baseInfo.value.projectId,
+    });
+
+    return res;
+  }, [deviceFilter, baseInfo.value?.projectId, baseInfo.value?.warehouseId, consoleApi]);
+
+  useEffect(() => {
+    if (viewingTask == undefined) {
+      return;
+    }
+
+    const defaultRecordFilter = CosQuery.Companion.empty();
+    defaultRecordFilter.setField(
+      QueryFields.TASK_ID,
+      [BinaryOperator.EQ],
+      [viewingTask.name.split("/").pop() ?? ""],
+    );
+
+    setRecordFilter(defaultRecordFilter);
+
+    const defaultDeviceFilter = CosQuery.Companion.empty();
+    defaultDeviceFilter.setField(
+      QueryFields.TASK_ID,
+      [BinaryOperator.EQ],
+      [viewingTask.name.split("/").pop() ?? ""],
+    );
+
+    setDeviceFilter(defaultDeviceFilter);
+  }, [viewingTask, setRecordFilter, setDeviceFilter]);
+
+  return (
+    <Drawer
+      variant="persistent"
+      anchor="right"
+      open={viewingTask != undefined}
+      hideBackdrop
+      slotProps={{
+        paper: {
+          className: classes.drawer,
+        },
+      }}
+    >
+      <Box className={classes.content}>
+        <Box className={classes.header}>
+          <Stack direction="row" alignItems="center" gap={1}>
+            {/* <Typography variant="h6">任务详情</Typography> */}
+            <Chip label={`#${viewingTask?.number}`} size="small" />
+            <Typography variant="h6">{viewingTask?.title}</Typography>
+          </Stack>
+          <IconButton onClick={handleClose}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        {viewingTask && (
+          <Box>
+            <Tabs
+              value={tabValue}
+              onChange={(_, value: number) => {
+                setTabValue(value);
+              }}
+              className={classes.tabs}
+            >
+              <Tab label={`关联记录(${linkedRecords.value?.totalSize})`} value={0} />
+              <Tab label={`关联设备(${linkedDevices.value?.totalSize})`} value={1} />
+            </Tabs>
+          </Box>
+        )}
+        <Box className={classes.tableContainer}>
+          {tabValue === 0 && linkedRecords.value && (
+            <LinkedRecordsTable
+              linkedRecords={linkedRecords.value}
+              pageSize={recordPageSize}
+              currentPage={recordCurrentPage}
+              setPageSize={setRecordPageSize}
+              setCurrentPage={setRecordCurrentPage}
+              // setFilter={setRecordFilter}
+            />
+          )}
+          {tabValue === 1 && linkedDevices.value && (
+            <LinkedDevicesTable
+              linkedDevices={linkedDevices.value}
+              pageSize={devicePageSize}
+              currentPage={deviceCurrentPage}
+              setPageSize={setDevicePageSize}
+              setCurrentPage={setDeviceCurrentPage}
+              setFilter={setDeviceFilter}
+            />
+          )}
+        </Box>
+      </Box>
+    </Drawer>
+  );
+}

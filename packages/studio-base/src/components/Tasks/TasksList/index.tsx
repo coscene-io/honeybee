@@ -23,7 +23,7 @@ import {
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 
-import TaskView from "./TaskView";
+import TaskView from "./components/TaskView";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -94,7 +94,6 @@ export function TasksList(): React.JSX.Element {
             handleAssigneeFilterChange(event.target.value as AssigneeFilterType);
           }}
           variant="filled"
-          style={{ minWidth: 140 }}
         >
           {assigneeOptions.map((option) => (
             <MenuItem key={option} value={option}>
@@ -128,7 +127,6 @@ export function TasksList(): React.JSX.Element {
               />
             ));
           }}
-          style={{ minWidth: 140 }}
           MenuProps={{
             slotProps: {
               list: {

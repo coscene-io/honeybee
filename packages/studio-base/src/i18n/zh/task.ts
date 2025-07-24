@@ -17,4 +17,17 @@ export const task: Partial<TypeOptions["resources"]["task"]> = {
   succeeded: "已完成",
   updateTaskStateSuccess: "更新任务状态成功",
   updateTaskStateFailed: "更新任务状态失败",
+  selectedRowsCount: "共选择了 {{count}} 行",
+  batchOperation: "批量操作",
+  recordName: "名称",
+  labels: "标签",
+  deviceId: "设备 ID",
+  deviceName: "设备名称",
+  creator: "创建者",
+  createTime: "创建时间",
+  updateTime: "更新时间",
+  confirmVizTargetRecord: "进入记录回放",
+  confirmVizTargetRecordDescription:
+    "切换后，页面将打断当前的操作，进入{{recordTitle}}的数据回放，确认进入吗？",
+  enterImmediately: "立即进入",
 };
