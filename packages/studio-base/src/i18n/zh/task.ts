@@ -28,7 +28,11 @@ export const task: Partial<TypeOptions["resources"]["task"]> = {
   updateTime: "更新时间",
   confirmVizTargetRecord: "进入记录回放",
   confirmVizTargetRecordDescription:
-    "切换后，页面将打断当前的操作，进入{{recordTitle}}的数据回放，确认进入吗？",
+    "切换后，页面将打断当前的操作，进入 {{recordTitle}} 的数据回放，确认进入吗？",
   enterImmediately: "立即进入",
   clearAllFilters: "清除所有过滤器",
+  confirmVizTargetDevice: "进入设备实时可视化",
+  confirmVizTargetDeviceDescription:
+    "切换后，页面将打断当前的操作，进入 {{deviceTitle}} 的设备实时可视化，确认进入吗？",
+  switchImmediately: "立即切换",
 };

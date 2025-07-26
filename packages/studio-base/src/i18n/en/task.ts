@@ -29,4 +29,8 @@ export const task = {
     "After switching, the current operation will be interrupted, and the data playback of {{recordTitle}} will be entered. Confirm to enter?",
   enterImmediately: "Enter immediately",
   clearAllFilters: "Clear All Filters",
+  confirmVizTargetDevice: "Enter device real-time visualization",
+  confirmVizTargetDeviceDescription:
+    "After switching, the current operation will be interrupted, and the device real-time visualization of {{deviceTitle}} will be entered. Confirm to enter?",
+  switchImmediately: "Switch immediately",
 };

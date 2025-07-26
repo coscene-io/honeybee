@@ -12,12 +12,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { ListProjectDevicesResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_pb";
 import type {
   Property,
   CustomFieldValue,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { Typography, Box, Button } from "@mui/material";
+import { Typography, Box, Button, Link } from "@mui/material";
 import {
   DataGrid,
   GridColDef,
@@ -181,7 +182,7 @@ export default function DevicesTable({
   currentPage,
   disableBatchAction,
   batchActionButtonText,
-  disableSwitchSource,
+  disableSwitchSource = false,
   setPageSize,
   setCurrentPage,
   onSelectionChange,
@@ -255,11 +256,11 @@ export default function DevicesTable({
   );
 
   const handleVizTargetRecord = useCallback(
-    ({ recordName, recordTitle }: { recordName: string; recordTitle: string }) => {
+    ({ device, deviceTitle }: { device: Device; deviceTitle: string }) => {
       void confirm({
-        title: t("confirmVizTargetRecord"),
-        prompt: t("confirmVizTargetRecordDescription", { recordTitle }),
-        ok: t("enterImmediately"),
+        title: t("confirmVizTargetDevice"),
+        prompt: t("confirmVizTargetDeviceDescription", { deviceTitle }),
+        ok: t("switchImmediately"),
         cancel: t("cancel", {
           ns: "cosGeneral",
         }),
@@ -269,11 +270,14 @@ export default function DevicesTable({
           void selectVizTargetSource({
             baseInfo: {
               ...baseInfo,
-              recordDisplayName: recordTitle,
-              recordId: recordName.split("/").pop() ?? "",
-              files: [{ recordName }],
+              recordDisplayName: undefined,
+              recordId: undefined,
+              files: undefined,
+              jobRunsDisplayName: undefined,
+              jobRunsId: undefined,
             },
             sourceId: "coscene-websocket",
+            device,
           });
         }
       });
@@ -294,7 +298,22 @@ export default function DevicesTable({
         field: "displayName",
         headerName: t("deviceName"),
         width: 250,
-        renderCell: (params) => <Typography variant="body2">{params.value ?? "-"}</Typography>,
+        // renderCell: (params) => <Typography variant="body2">{params.value ?? "-"}</Typography>,
+        renderCell: (params) =>
+          disableSwitchSource ? (
+            <Typography variant="body2">{params.row.title ?? "-"}</Typography>
+          ) : (
+            <Link
+              href="#"
+              underline="none"
+              variant="body2"
+              onClick={() => {
+                handleVizTargetRecord({ device: params.row, deviceTitle: params.row.title ?? "-" });
+              }}
+            >
+              {params.row.title ?? "-"}
+            </Link>
+          ),
       },
       {
         field: "createTime",
@@ -309,7 +328,7 @@ export default function DevicesTable({
         renderCell: (params) => <TimeCell params={params} />,
       },
     ],
-    [t],
+    [t, disableSwitchSource, handleVizTargetRecord],
   );
 
   // 动态生成自定义字段列
