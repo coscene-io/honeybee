@@ -1578,7 +1578,7 @@ class CoSceneConsoleApi {
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph3.ListTasks, this.#permissionList);
+        return checkUserPermission(EndpointDataplatformV1alph3.LinkTask, this.#permissionList);
       },
     },
   );
@@ -1587,6 +1587,11 @@ class CoSceneConsoleApi {
     async (payload: PartialMessage<UnlinkTaskRequest>): Promise<Empty> => {
       const req = new UnlinkTaskRequest(payload);
       return await getPromiseClient(TaskService).unlinkTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.UnlinkTask, this.#permissionList);
+      },
     },
   );
 
