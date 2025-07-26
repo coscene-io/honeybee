@@ -8,6 +8,7 @@
 import { ListRecordsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
 import { Stack, Box } from "@mui/material";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import LinkRecord from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable/components/LinkRecord";
@@ -50,6 +51,7 @@ export default function LinkedRecordsTable({
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
   const project = useBaseInfo(selectProject);
+  const { t } = useTranslation("task");
 
   const handleUnlinkRecord = useCallback(
     async (selectedRowIds: string[]) => {
@@ -80,7 +82,7 @@ export default function LinkedRecordsTable({
         setPageSize={setPageSize}
         setCurrentPage={setCurrentPage}
         onBatchAction={handleUnlinkRecord}
-        batchActionButtonText="取消关联"
+        batchActionButtonText={t("unlinkRecord")}
       />
     </Box>
   );

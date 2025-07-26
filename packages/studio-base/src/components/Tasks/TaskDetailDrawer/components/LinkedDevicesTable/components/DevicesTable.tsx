@@ -323,7 +323,7 @@ export default function DevicesTable({
               {params.row.displayName ?? "-"}
             </Link>
             {!disableSwitchSource && (
-              <Tooltip title="可视化设备" placement="top">
+              <Tooltip title={t("visualizeDevice")} placement="top">
                 <IconButton
                   size="small"
                   className={classes.playButton}

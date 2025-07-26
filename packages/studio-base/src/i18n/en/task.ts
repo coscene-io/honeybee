@@ -33,4 +33,18 @@ export const task = {
   confirmVizTargetDeviceDescription:
     "After switching, the current operation will be interrupted, and the device real-time visualization of {{deviceTitle}} will be entered. Confirm to enter?",
   switchImmediately: "Switch immediately",
+  linkedRecords: "Linked Records",
+  linkedDevices: "Linked Devices",
+  unlinkRecord: "Unlink",
+  playRecord: "Play record",
+  copyRecordId: "Copy record ID",
+  copySuccess: "Copy success",
+  addLinkedRecord: "Add linked record",
+  addLinkedRecordSuccess: "Add linked record successfully",
+  addLinkedRecordFailed: "Add linked record failed",
+  visualizeDevice: "Visualize device",
+  addLink: "Add link",
+  addLinkedDevice: "Add linked device",
+  addLinkedDeviceSuccess: "Add linked device successfully",
+  addLinkedDeviceFailed: "Add linked device failed",
 };

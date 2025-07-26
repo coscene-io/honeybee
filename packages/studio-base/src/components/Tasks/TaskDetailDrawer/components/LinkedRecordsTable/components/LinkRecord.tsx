@@ -47,6 +47,7 @@ export default function LinkRecord({
 }): React.ReactElement {
   const { classes } = useStyles();
   const { t } = useTranslation("task");
+  const { t: tGeneral } = useTranslation("cosGeneral");
   const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);
   const [filter, setFilter] = useState<string>("");
   const [pageSize, setPageSize] = useState<number>(25);
@@ -111,11 +112,11 @@ export default function LinkRecord({
         linkTasks,
       });
       await getLinkedRecords();
-      toast.success("添加关联记录成功");
+      toast.success(t("addLinkedRecordSuccess"));
       handleCloseDialog();
     } catch (error) {
       console.error(error);
-      toast.error("添加关联记录失败");
+      toast.error(t("addLinkedRecordFailed"));
     }
   }, [
     selectedRowIds,
@@ -124,12 +125,13 @@ export default function LinkRecord({
     project.value?.name,
     getLinkedRecords,
     handleCloseDialog,
+    t,
   ]);
 
   return (
     <>
       <Button variant="contained" color="primary" onClick={handleOpenDialog}>
-        添加关联
+        {t("addLink")}
       </Button>
 
       <Dialog
@@ -143,10 +145,7 @@ export default function LinkRecord({
           },
         }}
       >
-        <DialogTitle>
-          addLinkedRecord
-          {/* {t("addLinkedRecord")} */}
-        </DialogTitle>
+        <DialogTitle>{t("addLinkedRecord")}</DialogTitle>
         <DialogContent className={classes.dialogContent}>
           <RecordTableFilter filter={filter} setFilter={setFilter} />
           <Box className={classes.tableContainer}>
@@ -164,7 +163,7 @@ export default function LinkRecord({
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog} color="inherit">
-            {t("cancel", { ns: "cosGeneral" })}
+            {tGeneral("cancel")}
           </Button>
           <Button
             onClick={handleConfirm}
@@ -172,8 +171,7 @@ export default function LinkRecord({
             color="primary"
             disabled={selectedRowIds.length === 0}
           >
-            {selectedRowIds.length}
-            {/* {t("confirm", { ns: "cosGeneral" })} ({selectedRowIds.length}) */}
+            {tGeneral("ok")} ({selectedRowIds.length})
           </Button>
         </DialogActions>
       </Dialog>

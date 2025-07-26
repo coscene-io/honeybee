@@ -35,4 +35,18 @@ export const task: Partial<TypeOptions["resources"]["task"]> = {
   confirmVizTargetDeviceDescription:
     "切换后，页面将打断当前的操作，进入 {{deviceTitle}} 的设备实时可视化，确认进入吗？",
   switchImmediately: "立即切换",
+  linkedRecords: "关联记录",
+  linkedDevices: "关联设备",
+  unlinkRecord: "取消关联",
+  playRecord: "播放记录",
+  copyRecordId: "复制记录ID",
+  copySuccess: "复制成功",
+  addLinkedRecord: "添加关联记录",
+  addLinkedRecordSuccess: "添加关联记录成功",
+  addLinkedRecordFailed: "添加关联记录失败",
+  visualizeDevice: "可视化设备",
+  addLink: "添加关联",
+  addLinkedDevice: "添加关联设备",
+  addLinkedDeviceSuccess: "添加关联设备成功",
+  addLinkedDeviceFailed: "添加关联设备失败",
 };

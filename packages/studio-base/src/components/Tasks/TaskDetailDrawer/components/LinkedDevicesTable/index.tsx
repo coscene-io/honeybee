@@ -8,6 +8,7 @@
 import { ListProjectDevicesResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_pb";
 import { Box, Stack } from "@mui/material";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import DeviceTableFilter from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedDevicesTable/components/DeviceTableFilter";
@@ -57,6 +58,7 @@ export default function LinkedDevicesTable({
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
   const project = useBaseInfo(selectProject);
+  const { t } = useTranslation("task");
 
   const handleUnlinkDevice = useCallback(
     async (selectedRowIds: string[]) => {
@@ -87,7 +89,7 @@ export default function LinkedDevicesTable({
         setPageSize={setPageSize}
         setCurrentPage={setCurrentPage}
         onBatchAction={handleUnlinkDevice}
-        batchActionButtonText="取消关联"
+        batchActionButtonText={t("unlinkRecord")}
       />
     </Box>
   );

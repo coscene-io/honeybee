@@ -17,6 +17,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import { Drawer, Typography, IconButton, Box, Stack, Chip, Tabs, Tab } from "@mui/material";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
@@ -91,6 +92,7 @@ export default function TaskDetailDrawer(): React.ReactElement {
   const setViewingTask = useTasks((state) => state.setViewingTask);
   const baseInfo = useBaseInfo(selectBaseInfo);
   const [tabValue, setTabValue] = useState(0);
+  const { t } = useTranslation("task");
 
   const consoleApi = useConsoleApi();
 
@@ -210,8 +212,8 @@ export default function TaskDetailDrawer(): React.ReactElement {
               }}
               className={classes.tabs}
             >
-              <Tab label={`关联记录(${linkedRecords.value?.totalSize})`} value={0} />
-              <Tab label={`关联设备(${linkedDevices.value?.totalSize})`} value={1} />
+              <Tab label={`${t("linkedRecords")}(${linkedRecords.value?.totalSize})`} value={0} />
+              <Tab label={`${t("linkedDevices")}(${linkedDevices.value?.totalSize})`} value={1} />
             </Tabs>
           </Box>
         )}

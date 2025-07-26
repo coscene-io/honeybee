@@ -48,6 +48,7 @@ export default function LinkDevice({
 }): React.ReactElement {
   const { classes } = useStyles();
   const { t } = useTranslation("task");
+  const { t: tGeneral } = useTranslation("cosGeneral");
   const [addDeviceDialogOpen, setAddDeviceDialogOpen] = useState<boolean>(false);
   const [filter, setFilter] = useState<string>("");
   const [pageSize, setPageSize] = useState<number>(25);
@@ -121,11 +122,11 @@ export default function LinkDevice({
         linkTasks,
       });
       await getLinkedDevices();
-      toast.success("添加关联设备成功");
+      toast.success(t("addLinkedDeviceSuccess"));
       handleCloseDialog();
     } catch (error) {
       console.error(error);
-      toast.error("添加关联设备失败");
+      toast.error(t("addLinkedDeviceFailed"));
     }
   }, [
     selectedRowIds,
@@ -134,12 +135,13 @@ export default function LinkDevice({
     project.value?.name,
     getLinkedDevices,
     handleCloseDialog,
+    t,
   ]);
 
   return (
     <>
       <Button variant="contained" color="primary" onClick={handleOpenDialog}>
-        添加关联
+        {t("addLink")}
       </Button>
 
       <Dialog
@@ -153,10 +155,7 @@ export default function LinkDevice({
           },
         }}
       >
-        <DialogTitle>
-          addLinkedDevice
-          {/* {t("addLinkedDevice")} */}
-        </DialogTitle>
+        <DialogTitle>{t("addLinkedDevice")}</DialogTitle>
         <DialogContent className={classes.dialogContent}>
           <DeviceTableFilter filter={filter} setFilter={setFilter} />
           <Box className={classes.tableContainer}>
@@ -173,7 +172,7 @@ export default function LinkDevice({
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog} color="inherit">
-            {t("cancel", { ns: "cosGeneral" })}
+            {tGeneral("cancel")}
           </Button>
           <Button
             onClick={handleConfirm}
@@ -181,8 +180,7 @@ export default function LinkDevice({
             color="primary"
             disabled={selectedRowIds.length === 0}
           >
-            {selectedRowIds.length}
-            {/* {t("confirm", { ns: "cosGeneral" })} ({selectedRowIds.length}) */}
+            {tGeneral("ok")} ({selectedRowIds.length})
           </Button>
         </DialogActions>
       </Dialog>

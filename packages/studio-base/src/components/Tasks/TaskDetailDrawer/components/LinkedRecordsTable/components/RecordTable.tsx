@@ -381,7 +381,7 @@ export default function RecordTable({
               {params.row.title ?? "-"}
             </Link>
             {!disableSwitchSource && (
-              <Tooltip title="播放记录" placement="top">
+              <Tooltip title={t("playRecord")} placement="top">
                 <IconButton
                   size="small"
                   className={classes.playButton}
@@ -396,14 +396,14 @@ export default function RecordTable({
                 </IconButton>
               </Tooltip>
             )}
-            <Tooltip title="复制记录ID" placement="top">
+            <Tooltip title={t("copyRecordId")} placement="top">
               <IconButton
                 size="small"
                 className={classes.playButton}
                 onClick={(e) => {
                   e.stopPropagation();
                   void navigator.clipboard.writeText(String(params.row.name));
-                  toast.success("复制成功");
+                  toast.success(t("copySuccess"));
                 }}
               >
                 <ContentCopyOutlinedIcon fontSize="small" />
