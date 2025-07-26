@@ -16,10 +16,12 @@ export default function RecordLabelSelector({
   value,
   options,
   onChange,
+  placeholder,
 }: {
   value: string[];
   options: Label[];
   onChange: (event: React.SyntheticEvent, newValue: Label[]) => void;
+  placeholder?: string;
 }): ReactElement {
   const { t } = useTranslation("cosGeneral");
 
@@ -34,7 +36,7 @@ export default function RecordLabelSelector({
         getOptionLabel={(option) => option.displayName}
         isOptionEqualToValue={(option, value) => option.name === value.name}
         renderInput={(params) => (
-          <TextField {...params} variant="filled" placeholder={t("search")} />
+          <TextField {...params} variant="filled" placeholder={placeholder ?? t("search")} />
         )}
         renderValue={(value, getTagProps) =>
           value.map((option, index) => {
@@ -44,6 +46,13 @@ export default function RecordLabelSelector({
                 label={option.displayName}
                 size="small"
                 {...tagProps}
+                style={{
+                  marginRight: "0px",
+                  height: "16px",
+                  fontSize: "12px",
+                  transform: "scale(0.9)",
+                  transformOrigin: "left center",
+                }}
                 key={`${option.name}-${index}`}
               />
             );

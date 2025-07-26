@@ -49,4 +49,9 @@ export const dataCollection = {
     "Attempted to publish without a valid coScene WebSocket connection",
   triedToPublishOnTopicThatHasNotBeenAdvertisedBefore:
     "Tried to publish on topic '{{topic}}' that has not been advertised before.",
+  autoLinkedTask: "Auto-linked to task",
+  dataSaveLocation: "Data save location",
+  autoLinkToTask: "Auto-link to task",
+  clickTaskInPanel: "Please click to highlight a task in the My Tasks panel",
+  clearTaskLink: "Clear task link",
 };

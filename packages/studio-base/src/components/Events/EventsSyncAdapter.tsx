@@ -178,7 +178,7 @@ const selectSetCustomFieldSchema = (store: EventsStore) => store.setCustomFieldS
 /**
  * Syncs events from server and syncs hovered event with hovered time.
  */
-export function CoSceneEventsSyncAdapter(): React.JSX.Element {
+export function EventsSyncAdapter(): React.JSX.Element {
   const consoleApi = useConsoleApi();
   const setEvents = useEvents(selectSetEvents);
   const setEventsAtHoverValue = useTimelineInteractionState(selectSetEventsAtHoverValue);

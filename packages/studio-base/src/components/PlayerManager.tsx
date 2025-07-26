@@ -145,6 +145,9 @@ function useBeforeConnectionSource(): (
           await consoleApi.syncMedia({ key: params.key });
           break;
         case "coscene-websocket":
+          if (params.key) {
+            await syncBaseInfo(params.key);
+          }
           consoleApi.setType("realtime");
           break;
         default:
@@ -370,6 +373,7 @@ export default function PlayerManager(
               },
               consoleApi,
             });
+
             constructPlayers(newPlayer);
 
             if (args.params?.url || args.params?.key) {

@@ -87,7 +87,11 @@ export const webpackMainConfig =
           COSCENE_PRODUCT_VERSION: JSON.stringify(params.packageJson.version),
           COSCENE_PRODUCT_HOMEPAGE: JSON.stringify(params.packageJson.homepage),
         }),
-        new ForkTsCheckerWebpackPlugin(),
+        new ForkTsCheckerWebpackPlugin({
+          typescript: {
+            memoryLimit: 4096, // 增加内存限制到 4GB
+          },
+        }),
       ],
 
       resolve,

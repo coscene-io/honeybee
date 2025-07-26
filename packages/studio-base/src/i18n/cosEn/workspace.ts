@@ -10,4 +10,5 @@ export const cosWorkspace = {
   topics: "Topics",
   moment: "Moment",
   panel: "Panel",
+  tasks: "Tasks",
 };

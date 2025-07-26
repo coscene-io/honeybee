@@ -17,7 +17,8 @@ export type ChooserMode =
   | "select-files-from-record" // Project → Record → Files (select)
   | "select-record" // Project → Record (select)
   | "create-record" // Project → Record (create)
-  | "select-files-from-project"; // Project → Files (cross-record selection)
+  | "select-files-from-project" // Project → Files (cross-record selection)
+  | "select-record-from-target-project"; // Record (select from default project only)
 
 export interface SelectedFile {
   file: File;
@@ -60,7 +61,7 @@ export type ChooserDialogProps = BaseDialogProps & {
   dialogTitle?: string;
 } & (
     | {
-        mode: "select-record" | "create-record";
+        mode: "select-record" | "create-record" | "select-record-from-target-project";
         onConfirm: (record: Record, project: Project) => void;
         maxFilesNumber?: undefined;
       }

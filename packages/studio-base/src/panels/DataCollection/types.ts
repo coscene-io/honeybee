@@ -20,8 +20,6 @@ export type ButtonsState = {
 };
 
 export type Config = {
-  projectName?: string;
-  recordLabels?: string[];
   buttons: {
     [key in ButtonType]: {
       serviceName?: string;

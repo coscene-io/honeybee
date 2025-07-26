@@ -27,6 +27,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { UserSelect } from "@foxglove/studio-base/components/UserSelect";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 
 import { CreateTaskForm } from "../types";
 
@@ -38,6 +39,7 @@ const useStyles = makeStyles()((_theme) => ({
 }));
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectTaskCustomFieldSchema = (store: TaskStore) => store.customFieldSchema;
 
 const log = Logger.getLogger(__filename);
 
@@ -57,16 +59,7 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
   const baseInfo = asyncBaseInfo.value ?? {};
 
-  // Get task custom field schema
-  const taskCustomFieldSchema = useAsync(async () => {
-    if (!baseInfo.warehouseId || !baseInfo.projectId) {
-      return;
-    }
-
-    return await consoleApi.getTaskCustomFieldSchema(
-      `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`,
-    );
-  }, [consoleApi, baseInfo.warehouseId, baseInfo.projectId]);
+  const taskCustomFieldSchema = useTasks(selectTaskCustomFieldSchema);
 
   // Get sync task metadata
   const { value: syncedTask } = useAsync(async () => {
@@ -159,11 +152,11 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
         </FormControl>
       </Stack>
 
-      {taskCustomFieldSchema.value && (
+      {taskCustomFieldSchema && (
         <Stack paddingTop={2} gap={2}>
           <CustomFieldValuesForm
             form={form as unknown as FormWithCustomFieldValues}
-            properties={taskCustomFieldSchema.value.properties}
+            properties={taskCustomFieldSchema.properties}
           />
         </Stack>
       )}

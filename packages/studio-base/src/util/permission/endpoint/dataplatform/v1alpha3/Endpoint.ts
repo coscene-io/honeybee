@@ -32,6 +32,8 @@ enum Endpoint {
   SyncTask = "coscene.dataplatform.v1alpha3.services.TaskService.SyncTask",
   UpdateTask = "coscene.dataplatform.v1alpha3.services.TaskService.UpdateTask",
   UpsertAnnotationConfig = "coscene.dataplatform.v1alpha3.services.TaskService.UpsertAnnotationConfig",
+  LinkTask = "coscene.dataplatform.v1alpha3.services.TaskService.LinkTask",
+  UnlinkTask = "coscene.dataplatform.v1alpha3.services.TaskService.UnlinkTask",
 
   GetDiagnosisRuleSetsMetadata = "coscene.dataplatform.v1alpha3.services.DiagnosisRuleSetService.GetDiagnosisRuleSetsMetadata",
   ListDiagnosisRuleSets = "coscene.dataplatform.v1alpha3.services.DiagnosisRuleSetService.ListDiagnosisRuleSets",

@@ -12,4 +12,5 @@ export const cosWorkspace: Partial<TypeOptions["resources"]["cosWorkspace"]> = {
   topics: "主题",
   moment: "一刻",
   panel: "面板",
+  tasks: "任务",
 };

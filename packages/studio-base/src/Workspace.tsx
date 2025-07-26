@@ -23,12 +23,12 @@ import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { AppBarProps, AppBar } from "@foxglove/studio-base/components/AppBar";
 import { CustomWindowControlsProps } from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
-import { EventsList } from "@foxglove/studio-base/components/CoSceneEventsList";
 import {
   DataSourceDialog,
   DataSourceDialogItem,
 } from "@foxglove/studio-base/components/DataSourceDialog";
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
+import { EventsList } from "@foxglove/studio-base/components/Events/EventsList";
 import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
@@ -48,6 +48,8 @@ import { Sidebars, SidebarItem } from "@foxglove/studio-base/components/Sidebars
 import Stack from "@foxglove/studio-base/components/Stack";
 import { StudioLogsSettings } from "@foxglove/studio-base/components/StudioLogsSettings";
 import { SyncAdapters } from "@foxglove/studio-base/components/SyncAdapters";
+import TaskDetailDrawer from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer";
+import { TasksList } from "@foxglove/studio-base/components/Tasks/TasksList";
 import { TopicList } from "@foxglove/studio-base/components/TopicList";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
@@ -239,6 +241,13 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
           title: t("moment", { ns: "cosWorkspace" }),
           component: EventsList,
           hidden: enableList.event === "DISABLE",
+        },
+      ],
+      [
+        "tasks",
+        {
+          title: t("tasks", { ns: "cosWorkspace" }),
+          component: TasksList,
         },
       ],
       [
@@ -515,6 +524,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       {/* Splat to avoid requiring unique a `key` on each item in workspaceExtensions */}
       {...workspaceExtensions}
       <WorkspaceDialogs />
+      <TaskDetailDrawer />
     </PanelStateContextProvider>
   );
 }

@@ -81,6 +81,32 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
             );
           }
         }
+      } else if (mode === "select-record-from-target-project") {
+        // select-record-from-target-project mode: Record only (no project navigation)
+        if (project) {
+          if (!record) {
+            items.push(
+              <Typography key="project-name" color="text.primary">
+                {project.displayName}
+              </Typography>,
+            );
+          } else {
+            items.push(
+              <Link
+                underline="hover"
+                key="project-name-link"
+                color="inherit"
+                onClick={clearRecord}
+                style={{ cursor: "pointer" }}
+              >
+                {project.displayName}
+              </Link>,
+              <Typography key="record-title" color="text.primary">
+                {record.title}
+              </Typography>,
+            );
+          }
+        }
       } else if (mode === "select-record" || mode === "create-record") {
         // select-record and create-record modes: Project → Record
         if (!project) {

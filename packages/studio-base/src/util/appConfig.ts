@@ -51,6 +51,7 @@ declare global {
       };
       COSTUDIO_DOWNLOAD_URL?: string;
       OFFICIAL_WEB_URL?: string;
+      COORDINATOR_URL?: string;
     };
   }
 }
@@ -102,6 +103,8 @@ export const APP_CONFIG = {
     "https://download.coscene.cn/coStudio/packages",
 
   OFFICIAL_WEB_URL: cosConfig.OFFICIAL_WEB_URL ?? "https://www.coscene.cn",
+
+  COORDINATOR_URL: cosConfig.COORDINATOR_URL ?? "https://coordinator.dev.coscene.cn",
 };
 
 export function getDomainConfig(): DomainConfig {

@@ -107,6 +107,11 @@ import {
   SyncTaskRequest,
   CreateTaskRequest,
   GetTaskRequest,
+  ListTasksResponse,
+  ListTasksRequest,
+  UpdateTaskRequest,
+  LinkTaskRequest,
+  UnlinkTaskRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
 import { SecurityTokenService } from "@coscene-io/cosceneapis-es/coscene/datastorage/v1alpha1/services/security_token_connect";
 import {
@@ -122,7 +127,7 @@ import toast from "react-hot-toast";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
-import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import { BaseInfo, CoordinatorConfig } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
@@ -901,6 +906,7 @@ class CoSceneConsoleApi {
     },
   );
 
+  // user detail info only for current user
   public async getUser(userName: string): Promise<CoUser> {
     const request = new GetUserRequest({
       name: userName,
@@ -909,6 +915,7 @@ class CoSceneConsoleApi {
     return result;
   }
 
+  // no sensitive info, can get all users info
   public async batchGetUsers(userNames: string[]): Promise<BatchGetUsersResponse> {
     const request = new BatchGetUsersRequest({
       names: userNames,
@@ -1216,27 +1223,6 @@ class CoSceneConsoleApi {
 
     return { status: "conflict" };
   }
-
-  // public async getProjectUserRoles(projectName: string, userIds: string): Promise<UserRole> {
-  //   const req = new GetUserRoleRequest({
-  //     parent: projectName,
-  //     name: userIds,
-  //   });
-
-  //   const roleClient = getPromiseClient(RoleService);
-
-  //   return await roleClient.getUserRole(req);
-  // }
-
-  // public async getOrgUserRoles(userIds: string): Promise<UserRole> {
-  //   const req = new GetUserRoleRequest({
-  //     name: userIds,
-  //   });
-
-  //   const roleClient = getPromiseClient(RoleService);
-
-  //   return await roleClient.getUserRole(req);
-  // }
 
   public async deleteFile(payload: PartialMessage<DeleteFileRequest>): Promise<void> {
     const req = new DeleteFileRequest(payload);
@@ -1560,6 +1546,71 @@ class CoSceneConsoleApi {
       },
     },
   );
+
+  public listTasks = Object.assign(
+    async (payload: PartialMessage<ListTasksRequest>): Promise<ListTasksResponse> => {
+      const req = new ListTasksRequest(payload);
+      return await getPromiseClient(TaskService).listTasks(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.ListTasks, this.#permissionList);
+      },
+    },
+  );
+
+  public updateTask = Object.assign(
+    async (payload: PartialMessage<UpdateTaskRequest>): Promise<Task> => {
+      const req = new UpdateTaskRequest(payload);
+      return await getPromiseClient(TaskService).updateTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.UpdateTask, this.#permissionList);
+      },
+    },
+  );
+
+  public linkTasks = Object.assign(
+    async (payload: PartialMessage<LinkTaskRequest>): Promise<Empty> => {
+      const req = new LinkTaskRequest(payload);
+      return await getPromiseClient(TaskService).linkTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.LinkTask, this.#permissionList);
+      },
+    },
+  );
+
+  public unlinkTasks = Object.assign(
+    async (payload: PartialMessage<UnlinkTaskRequest>): Promise<Empty> => {
+      const req = new UnlinkTaskRequest(payload);
+      return await getPromiseClient(TaskService).unlinkTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.UnlinkTask, this.#permissionList);
+      },
+    },
+  );
+
+  public async getCoordinatorConfig({
+    currentOrganizationId,
+    coordinatorUrl,
+  }: {
+    currentOrganizationId: string;
+    coordinatorUrl: string;
+  }): Promise<CoordinatorConfig> {
+    if (!coordinatorUrl || !currentOrganizationId) {
+      throw new Error("Coordinator URL or current organization ID is not set");
+    }
+
+    const url = `${coordinatorUrl}/api/v1/networks/${currentOrganizationId}/config`;
+    const config = await this.#get<CoordinatorConfig>(url, undefined, true);
+
+    return config;
+  }
 }
 
 export type { Org, DeviceCodeResponse, Session, CoverageResponse };
