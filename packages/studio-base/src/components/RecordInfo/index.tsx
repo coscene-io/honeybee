@@ -115,6 +115,8 @@ export default function RecordInfo(): ReactElement {
     [consoleApi, refreshRecord],
   );
 
+  console.log(record.value?.labels);
+
   return (
     <>
       <Stack flex="auto" overflowX="auto" gap={2} padding={1}>

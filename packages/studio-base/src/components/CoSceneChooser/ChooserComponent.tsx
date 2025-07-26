@@ -9,7 +9,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 /**
- * ChooserComponent supports four selection modes:
+ * ChooserComponent supports five selection modes:
  *
  * 1. "select-files-from-record": Project → Record → Files
  *    - User first selects a project
@@ -31,6 +31,11 @@
  *    - User first selects a project
  *    - Then directly selects all files under that project (cross-record)
  *    - Suitable for scenarios requiring file selection from entire project
+ *
+ * 5. "select-record-from-target-project": Record (select from target project only)
+ *    - User selects a record from a pre-defined target project
+ *    - No project selection is allowed, only record selection
+ *    - Suitable for scenarios where the project is predetermined
  *
  * Usage examples:
  * ```tsx
@@ -55,6 +60,13 @@
  * // Mode 4: Select files from project (cross-record)
  * <ChooserComponent
  *   mode="select-files-from-project"
+ *   // ... other props
+ * />
+ *
+ * // Mode 5: Select record from target project
+ * <ChooserComponent
+ *   mode="select-record-from-target-project"
+ *   defaultProject={targetProject}
  *   // ... other props
  * />
  * ```
@@ -172,6 +184,13 @@ export function ChooserComponent({
   // 文件夹导航状态
   const [currentFolderPath, setCurrentFolderPath] = useState<readonly string[]>([]);
 
+  // Ensure project is set for select-record-from-target-project mode
+  useEffect(() => {
+    if (mode === "select-record-from-target-project" && defaultProject && !project) {
+      setProject(defaultProject);
+    }
+  }, [mode, defaultProject, project]);
+
   // Pagination hooks for different list types
   const projectsPagination = usePagination(20);
   const recordsPagination = usePagination(20);
@@ -179,6 +198,11 @@ export function ChooserComponent({
 
   // Determine current list type based on mode
   const listType = useMemo<ListType>(() => {
+    // select-record-from-target-project mode: show records directly from target project
+    if (mode === "select-record-from-target-project") {
+      return "records";
+    }
+
     if (!project) {
       return "projects";
     }
@@ -404,11 +428,16 @@ export function ChooserComponent({
   );
 
   const clearProject = useCallback(() => {
-    setProject(undefined);
+    // In select-record-from-target-project mode, don't clear the project
+    if (mode === "select-record-from-target-project") {
+      setProject(defaultProject);
+    } else {
+      setProject(undefined);
+    }
     setRecord(undefined);
     setCurrentFolderPath([]); // 重置文件夹路径
     resetAllPagination();
-  }, [resetAllPagination]);
+  }, [resetAllPagination, mode, defaultProject]);
 
   const clearRecord = useCallback(() => {
     setRecord(undefined);

@@ -110,6 +110,8 @@ import {
   ListTasksResponse,
   ListTasksRequest,
   UpdateTaskRequest,
+  LinkTaskRequest,
+  UnlinkTaskRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
 import { SecurityTokenService } from "@coscene-io/cosceneapis-es/coscene/datastorage/v1alpha1/services/security_token_connect";
 import {
@@ -125,7 +127,7 @@ import toast from "react-hot-toast";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
-import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import { BaseInfo, CoordinatorConfig } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
@@ -663,9 +665,9 @@ class CoSceneConsoleApi {
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
         if (!isDesktopApp()) {
-          window.location.href = `/login?redirectToPath=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`;
+          // window.location.href = `/login?redirectToPath=${encodeURIComponent(
+          //   window.location.pathname + window.location.search,
+          // )}`;
         } else {
           authBridge?.logout();
         }
@@ -1222,27 +1224,6 @@ class CoSceneConsoleApi {
     return { status: "conflict" };
   }
 
-  // public async getProjectUserRoles(projectName: string, userIds: string): Promise<UserRole> {
-  //   const req = new GetUserRoleRequest({
-  //     parent: projectName,
-  //     name: userIds,
-  //   });
-
-  //   const roleClient = getPromiseClient(RoleService);
-
-  //   return await roleClient.getUserRole(req);
-  // }
-
-  // public async getOrgUserRoles(userIds: string): Promise<UserRole> {
-  //   const req = new GetUserRoleRequest({
-  //     name: userIds,
-  //   });
-
-  //   const roleClient = getPromiseClient(RoleService);
-
-  //   return await roleClient.getUserRole(req);
-  // }
-
   public async deleteFile(payload: PartialMessage<DeleteFileRequest>): Promise<void> {
     const req = new DeleteFileRequest(payload);
     await getPromiseClient(FileService)
@@ -1589,6 +1570,42 @@ class CoSceneConsoleApi {
       },
     },
   );
+
+  public linkTasks = Object.assign(
+    async (payload: PartialMessage<LinkTaskRequest>): Promise<Empty> => {
+      const req = new LinkTaskRequest(payload);
+      return await getPromiseClient(TaskService).linkTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.ListTasks, this.#permissionList);
+      },
+    },
+  );
+
+  public unlinkTasks = Object.assign(
+    async (payload: PartialMessage<UnlinkTaskRequest>): Promise<Empty> => {
+      const req = new UnlinkTaskRequest(payload);
+      return await getPromiseClient(TaskService).unlinkTask(req);
+    },
+  );
+
+  public async getCoordinatorConfig({
+    currentOrganizationId,
+    coordinatorUrl,
+  }: {
+    currentOrganizationId: string;
+    coordinatorUrl: string;
+  }): Promise<CoordinatorConfig> {
+    if (!coordinatorUrl || !currentOrganizationId) {
+      throw new Error("Coordinator URL or current organization ID is not set");
+    }
+
+    const url = `${coordinatorUrl}/api/v1/networks/${currentOrganizationId}/config`;
+    const config = await this.#get<CoordinatorConfig>(url, undefined, true);
+
+    return config;
+  }
 }
 
 export type { Org, DeviceCodeResponse, Session, CoverageResponse };

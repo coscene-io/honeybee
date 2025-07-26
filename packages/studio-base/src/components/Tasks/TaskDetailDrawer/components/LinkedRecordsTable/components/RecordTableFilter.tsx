@@ -47,7 +47,7 @@ const useStyles = makeStyles()((theme) => ({
     marginBottom: theme.spacing(2),
   },
   filterBox: {
-    flex: "1 1 300px",
+    flex: "1 1 200px",
     minWidth: "200px",
   },
   searchIcon: {
@@ -105,7 +105,13 @@ export default function RecordTableFilter({
       projectId: baseInfo.value.projectId,
     });
 
-    return response.labels;
+    return response.labels.map(
+      (label) =>
+        new Label({
+          ...label,
+          name: label.name.split("/").pop() ?? "",
+        }),
+    );
   }, [consoleApi, baseInfo.value?.warehouseId, baseInfo.value?.projectId]);
 
   // 获取设备列表
@@ -163,22 +169,43 @@ export default function RecordTableFilter({
 
   // 生成过滤器字符串的函数
   const generateFilter = useCallback(
-    (searchQuery: string, selectedLabels: string[], selectedDevices: string[]): string => {
-      const query = CosQuery.Companion.empty();
+    (
+      searchQuery: string,
+      selectedLabels: string[],
+      selectedDevices: string[],
+      currentFilter?: string,
+    ): string => {
+      // 如果有当前过滤器，则基于它来修改，否则创建空查询
+      let query: CosQuery;
+      if (currentFilter) {
+        try {
+          query = CosQuery.Companion.deserialize(currentFilter);
+        } catch {
+          query = CosQuery.Companion.empty();
+        }
+      } else {
+        query = CosQuery.Companion.empty();
+      }
 
-      // 设置搜索查询
+      // 设置搜索查询（包括清空的情况）
       if (searchQuery.trim()) {
         query.setField(QueryFields.Q, [BinaryOperator.HAS], [searchQuery.trim()]);
+      } else {
+        query.setField(QueryFields.Q, [BinaryOperator.HAS], []);
       }
 
-      // 设置标签过滤
+      // 设置标签过滤（包括清空的情况）
       if (selectedLabels.length > 0) {
         query.setListField(QueryFields.LABELS, BinaryOperator.EQ, selectedLabels);
+      } else {
+        query.setListField(QueryFields.LABELS, BinaryOperator.EQ, []);
       }
 
-      // 设置设备过滤
+      // 设置设备过滤（包括清空的情况）
       if (selectedDevices.length > 0) {
         query.setListField(QueryFields.DEVICE_ID, BinaryOperator.EQ, selectedDevices);
+      } else {
+        query.setListField(QueryFields.DEVICE_ID, BinaryOperator.EQ, []);
       }
 
       return query.serialize();
@@ -192,12 +219,14 @@ export default function RecordTableFilter({
       debouncedSearchQuery,
       filterState.selectedLabels,
       filterState.selectedDevices,
+      filter,
     );
     setFilter(newFilter);
   }, [
     debouncedSearchQuery,
     filterState.selectedLabels,
     filterState.selectedDevices,
+    filter,
     generateFilter,
     setFilter,
   ]);
@@ -218,7 +247,7 @@ export default function RecordTableFilter({
     const labelNames = newValue.map((label) => label.name);
     setFilterState((prev) => ({
       ...prev,
-      selectedLabels: labelNames.map((label) => label.split("/").pop() ?? ""),
+      selectedLabels: labelNames,
     }));
   }, []);
 

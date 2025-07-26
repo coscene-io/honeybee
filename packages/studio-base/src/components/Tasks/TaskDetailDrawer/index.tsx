@@ -17,7 +17,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import { Drawer, Typography, IconButton, Box, Stack, Chip, Tabs, Tab } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { useAsync } from "react-use";
+import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import {
@@ -107,7 +107,7 @@ export default function TaskDetailDrawer(): React.ReactElement {
   const [devicePageSize, setDevicePageSize] = useState(10);
   const [deviceCurrentPage, setDeviceCurrentPage] = useState(0);
 
-  const linkedRecords = useAsync(async () => {
+  const [linkedRecords, getLinkedRecords] = useAsyncFn(async () => {
     if (
       recordFilter == undefined ||
       baseInfo.value?.projectId == undefined ||
@@ -130,7 +130,7 @@ export default function TaskDetailDrawer(): React.ReactElement {
     return res;
   }, [recordFilter, baseInfo.value?.projectId, baseInfo.value?.warehouseId, consoleApi]);
 
-  const linkedDevices = useAsync(async () => {
+  const [linkedDevices, getLinkedDevices] = useAsyncFn(async () => {
     if (
       deviceFilter == undefined ||
       baseInfo.value?.projectId == undefined ||
@@ -173,7 +173,10 @@ export default function TaskDetailDrawer(): React.ReactElement {
 
     const deviceFilterStr: string = defaultDeviceFilter.serialize();
     setDeviceFilter(deviceFilterStr);
-  }, [viewingTask, setRecordFilter, setDeviceFilter]);
+
+    void getLinkedRecords();
+    void getLinkedDevices();
+  }, [viewingTask, setRecordFilter, setDeviceFilter, getLinkedRecords, getLinkedDevices]);
 
   return (
     <Drawer
@@ -215,7 +218,9 @@ export default function TaskDetailDrawer(): React.ReactElement {
         <Box className={classes.tableContainer}>
           {tabValue === 0 && linkedRecords.value && (
             <LinkedRecordsTable
+              taskName={viewingTask?.name ?? ""}
               linkedRecords={linkedRecords.value}
+              getLinkedRecords={getLinkedRecords}
               pageSize={recordPageSize}
               currentPage={recordCurrentPage}
               setPageSize={setRecordPageSize}
@@ -226,7 +231,9 @@ export default function TaskDetailDrawer(): React.ReactElement {
           )}
           {tabValue === 1 && linkedDevices.value && (
             <LinkedDevicesTable
+              taskName={viewingTask?.name ?? ""}
               linkedDevices={linkedDevices.value}
+              getLinkedDevices={getLinkedDevices}
               pageSize={devicePageSize}
               currentPage={deviceCurrentPage}
               setPageSize={setDevicePageSize}

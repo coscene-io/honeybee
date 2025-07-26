@@ -13,6 +13,7 @@ import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 
 export type BaseInfo = {
   projectId?: string;
@@ -25,8 +26,17 @@ export type BaseInfo = {
   jobRunsId?: string;
   workflowRunsId?: string;
   files?: Array<ParamsFile>;
+  organizationId?: string;
   organizationSlug?: string;
   jobRunsSerialNumber?: string;
+};
+
+export type CoordinatorConfig = {
+  org_id: string;
+  enabled: boolean;
+  target_server: string;
+  proxy_server: string;
+  public_ip: string;
 };
 
 export type CoSceneBaseStore = {
@@ -39,6 +49,8 @@ export type CoSceneBaseStore = {
   recordCustomFieldSchema?: CustomFieldSchema;
   deviceCustomFieldSchema?: CustomFieldSchema;
   project: AsyncState<Project>;
+  coordinatorConfig?: CoordinatorConfig;
+  colinkApi?: ReturnType<typeof DevicesApiFactory>;
   setBaseInfo: (baseInfo: AsyncState<BaseInfo>) => void;
   setDataSource: (dataSource: { id: string; type: "connection" | "file" | "sample" }) => void;
   setRecord: (record: AsyncState<Record>) => void;
@@ -47,6 +59,8 @@ export type CoSceneBaseStore = {
   // schema
   setRecordCustomFieldSchema: (recordCustomFieldSchema: CustomFieldSchema) => void;
   setDeviceCustomFieldSchema: (deviceCustomFieldSchema: CustomFieldSchema) => void;
+  setCoordinatorConfig: (coordinatorConfig: CoordinatorConfig) => void;
+  setColinkApi: (colinkApi: ReturnType<typeof DevicesApiFactory>) => void;
 
   getEnableList: () => {
     event: "ENABLE" | "DISABLE";

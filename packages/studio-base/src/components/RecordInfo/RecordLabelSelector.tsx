@@ -46,6 +46,13 @@ export default function RecordLabelSelector({
                 label={option.displayName}
                 size="small"
                 {...tagProps}
+                style={{
+                  marginRight: "0px",
+                  height: "16px",
+                  fontSize: "12px",
+                  transform: "scale(0.9)",
+                  transformOrigin: "left center",
+                }}
                 key={`${option.name}-${index}`}
               />
             );

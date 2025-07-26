@@ -12,6 +12,8 @@ import Logger from "@foxglove/log";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { Configuration, DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger(__filename);
 
@@ -25,16 +27,24 @@ const selectSetRecordCustomFieldSchema = (state: CoSceneBaseStore) =>
 const selectSetDeviceCustomFieldSchema = (state: CoSceneBaseStore) =>
   state.setDeviceCustomFieldSchema;
 const selectLoginStatus = (state: UserStore) => state.loginStatus;
+const selectCoordinatorConfig = (state: CoSceneBaseStore) => state.coordinatorConfig;
+const selectSetCoordinatorConfig = (state: CoSceneBaseStore) => state.setCoordinatorConfig;
+const selectSetColinkApi = (state: CoSceneBaseStore) => state.setColinkApi;
 
 export function BaseSyncAdapter(): ReactNull {
   const baseInfo = useBaseInfo(selectBaseInfo);
-  const setProject = useBaseInfo(selectSetProjects);
-  const setRecord = useBaseInfo(selectSetRecord);
   const record = useBaseInfo(selectRecord);
   const project = useBaseInfo(selectProject);
+  const coordinatorConfig = useBaseInfo(selectCoordinatorConfig);
+
+  const loginStatus = useCurrentUser(selectLoginStatus);
+
+  const setProject = useBaseInfo(selectSetProjects);
+  const setRecord = useBaseInfo(selectSetRecord);
   const setRecordCustomFieldSchema = useBaseInfo(selectSetRecordCustomFieldSchema);
   const setDeviceCustomFieldSchema = useBaseInfo(selectSetDeviceCustomFieldSchema);
-  const loginStatus = useCurrentUser(selectLoginStatus);
+  const setCoordinatorConfig = useBaseInfo(selectSetCoordinatorConfig);
+  const setColinkApi = useBaseInfo(selectSetColinkApi);
 
   const consoleApi = useConsoleApi();
 
@@ -94,6 +104,40 @@ export function BaseSyncAdapter(): ReactNull {
     consoleApi,
     setRecordCustomFieldSchema,
   ]);
+
+  useAsync(async () => {
+    if (loginStatus === "alreadyLogin" && baseInfo.value?.organizationId) {
+      const coordinatorConfig = await consoleApi.getCoordinatorConfig({
+        currentOrganizationId: baseInfo.value.organizationId,
+        coordinatorUrl: APP_CONFIG.COORDINATOR_URL,
+      });
+
+      setCoordinatorConfig(coordinatorConfig);
+    }
+  }, [consoleApi, setCoordinatorConfig, loginStatus, baseInfo.value?.organizationId]);
+
+  useAsync(async () => {
+    const orgJwt = localStorage.getItem("coScene_org_jwt");
+    if (
+      coordinatorConfig == undefined ||
+      !coordinatorConfig.enabled ||
+      coordinatorConfig.target_server === "" ||
+      orgJwt == undefined
+    ) {
+      return;
+    }
+
+    const api = DevicesApiFactory(
+      new Configuration({
+        accessToken: () => {
+          return orgJwt;
+        },
+        basePath: `${coordinatorConfig.target_server}/api`,
+      }),
+    );
+
+    setColinkApi(api);
+  }, [coordinatorConfig, setColinkApi]);
 
   useAsync(async () => {
     if (loginStatus === "alreadyLogin") {
