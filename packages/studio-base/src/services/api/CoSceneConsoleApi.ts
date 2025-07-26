@@ -665,9 +665,9 @@ class CoSceneConsoleApi {
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
         if (!isDesktopApp()) {
-          // window.location.href = `/login?redirectToPath=${encodeURIComponent(
-          //   window.location.pathname + window.location.search,
-          // )}`;
+          window.location.href = `/login?redirectToPath=${encodeURIComponent(
+            window.location.pathname + window.location.search,
+          )}`;
         } else {
           authBridge?.logout();
         }
