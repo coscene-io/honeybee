@@ -10,7 +10,19 @@ import type {
   Property,
   CustomFieldValue,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { Avatar, Chip, Stack, Typography, Box, Button, Link } from "@mui/material";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
+import PlayCircleFilledWhiteOutlinedIcon from "@mui/icons-material/PlayCircleFilledWhiteOutlined";
+import {
+  Avatar,
+  Chip,
+  Stack,
+  Typography,
+  Box,
+  Button,
+  Link,
+  IconButton,
+  Tooltip,
+} from "@mui/material";
 import {
   DataGrid,
   GridColDef,
@@ -26,6 +38,7 @@ import {
 import { zhCN, jaJP } from "@mui/x-data-grid/locales";
 import dayjs from "dayjs";
 import { useMemo, useCallback, useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -35,6 +48,7 @@ import { useVizTargetSource } from "@foxglove/studio-base/components/Tasks/TaskD
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 // 扩展Footer组件的props接口
 declare module "@mui/x-data-grid" {
@@ -77,6 +91,14 @@ const useStyles = makeStyles()((theme) => ({
     display: "flex",
     alignItems: "center",
     gap: theme.spacing(1),
+  },
+  playButton: {
+    marginLeft: theme.spacing(1),
+    opacity: 0,
+    transition: "opacity 0.2s",
+    ".MuiDataGrid-row:hover &": {
+      opacity: 1,
+    },
   },
 }));
 
@@ -341,22 +363,54 @@ export default function RecordTable({
         field: "name",
         headerName: t("recordName"),
         width: 200,
-        renderCell: (params) =>
-          disableSwitchSource ? (
-            <Typography variant="body2">{params.row.title ?? "-"}</Typography>
-          ) : (
+        renderCell: (params) => (
+          <>
             <Link
               href="#"
               underline="none"
               variant="body2"
               onClick={() => {
-                const recordName = String(params.row.name ?? params.id);
-                handleVizTargetRecord({ recordName, recordTitle: params.row.title ?? "" });
+                window.open(
+                  `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${
+                    baseInfo.organizationSlug
+                  }/${baseInfo.projectSlug}/records/${params.row.name.split("/").pop()}`,
+                  "_blank",
+                );
               }}
             >
               {params.row.title ?? "-"}
             </Link>
-          ),
+            {!disableSwitchSource && (
+              <Tooltip title="播放记录" placement="top">
+                <IconButton
+                  size="small"
+                  className={classes.playButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+
+                    const recordName = String(params.row.name ?? params.id);
+                    handleVizTargetRecord({ recordName, recordTitle: params.row.title ?? "" });
+                  }}
+                >
+                  <PlayCircleFilledWhiteOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title="复制记录ID" placement="top">
+              <IconButton
+                size="small"
+                className={classes.playButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void navigator.clipboard.writeText(String(params.row.name));
+                  toast.success("复制成功");
+                }}
+              >
+                <ContentCopyOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </>
+        ),
       },
       {
         field: "labels",
@@ -398,7 +452,14 @@ export default function RecordTable({
         renderCell: (params) => <TimeCell params={params} />,
       },
     ],
-    [t, handleVizTargetRecord, disableSwitchSource],
+    [
+      t,
+      handleVizTargetRecord,
+      baseInfo.organizationSlug,
+      baseInfo.projectSlug,
+      classes.playButton,
+      disableSwitchSource,
+    ],
   );
 
   // 动态生成自定义字段列

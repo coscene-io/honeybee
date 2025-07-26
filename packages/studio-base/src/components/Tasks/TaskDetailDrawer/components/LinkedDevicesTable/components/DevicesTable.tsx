@@ -18,7 +18,8 @@ import type {
   Property,
   CustomFieldValue,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { Typography, Box, Button, Link } from "@mui/material";
+import PlayCircleFilledWhiteOutlinedIcon from "@mui/icons-material/PlayCircleFilledWhiteOutlined";
+import { Typography, Box, Button, Link, IconButton, Tooltip } from "@mui/material";
 import {
   DataGrid,
   GridColDef,
@@ -41,6 +42,7 @@ import { ConvertCustomFieldValue } from "@foxglove/studio-base/components/Custom
 import { useVizTargetSource } from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/useSelectSource";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 // 扩展Footer组件的props接口
 declare module "@mui/x-data-grid" {
@@ -83,6 +85,14 @@ const useStyles = makeStyles()((theme) => ({
     display: "flex",
     alignItems: "center",
     gap: theme.spacing(1),
+  },
+  playButton: {
+    marginLeft: theme.spacing(1),
+    opacity: 0,
+    transition: "opacity 0.2s",
+    ".MuiDataGrid-row:hover &": {
+      opacity: 1,
+    },
   },
 }));
 
@@ -255,7 +265,7 @@ export default function DevicesTable({
     [onSelectionChange],
   );
 
-  const handleVizTargetRecord = useCallback(
+  const handleVizTargetDevice = useCallback(
     ({ device, deviceTitle }: { device: Device; deviceTitle: string }) => {
       void confirm({
         title: t("confirmVizTargetDevice"),
@@ -289,32 +299,57 @@ export default function DevicesTable({
   const baseColumns: GridColDef[] = useMemo(
     () => [
       {
-        field: "serialNumber",
-        headerName: t("deviceId"),
-        width: 200,
-        renderCell: (params) => <Typography variant="body2">{params.value ?? "-"}</Typography>,
-      },
-      {
         field: "displayName",
         headerName: t("deviceName"),
         width: 250,
-        // renderCell: (params) => <Typography variant="body2">{params.value ?? "-"}</Typography>,
-        renderCell: (params) =>
-          disableSwitchSource ? (
-            <Typography variant="body2">{params.row.title ?? "-"}</Typography>
-          ) : (
+        renderCell: (params) => (
+          <>
             <Link
               href="#"
               underline="none"
               variant="body2"
               onClick={() => {
-                handleVizTargetRecord({ device: params.row, deviceTitle: params.row.title ?? "-" });
+                window.open(
+                  `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${
+                    baseInfo.organizationSlug
+                  }/${baseInfo.projectSlug}/devices/project-devices/${params.row.name
+                    .split("/")
+                    .pop()}`,
+
+                  "_blank",
+                );
               }}
             >
-              {params.row.title ?? "-"}
+              {params.row.displayName ?? "-"}
             </Link>
-          ),
+            {!disableSwitchSource && (
+              <Tooltip title="可视化设备" placement="top">
+                <IconButton
+                  size="small"
+                  className={classes.playButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+
+                    handleVizTargetDevice({
+                      device: params.row,
+                      deviceTitle: params.row.title ?? "-",
+                    });
+                  }}
+                >
+                  <PlayCircleFilledWhiteOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </>
+        ),
       },
+      {
+        field: "serialNumber",
+        headerName: t("deviceId"),
+        width: 200,
+        renderCell: (params) => <Typography variant="body2">{params.value ?? "-"}</Typography>,
+      },
+
       {
         field: "createTime",
         headerName: t("createTime"),
@@ -328,7 +363,14 @@ export default function DevicesTable({
         renderCell: (params) => <TimeCell params={params} />,
       },
     ],
-    [t, disableSwitchSource, handleVizTargetRecord],
+    [
+      t,
+      disableSwitchSource,
+      classes.playButton,
+      baseInfo.organizationSlug,
+      baseInfo.projectSlug,
+      handleVizTargetDevice,
+    ],
   );
 
   // 动态生成自定义字段列
