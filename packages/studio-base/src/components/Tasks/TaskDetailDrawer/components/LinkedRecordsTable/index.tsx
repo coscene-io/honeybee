@@ -73,7 +73,9 @@ export default function LinkedRecordsTable({
         <Stack direction="row" flex={1}>
           <RecordTableFilter filter={filter} setFilter={setFilter} />
         </Stack>
-        <LinkRecord taskName={taskName} getLinkedRecords={getLinkedRecords} />
+        {consoleApi.linkTasks.permission() && (
+          <LinkRecord taskName={taskName} getLinkedRecords={getLinkedRecords} />
+        )}
       </Stack>
       <RecordTable
         listRecordsResponse={linkedRecords}
@@ -83,6 +85,7 @@ export default function LinkedRecordsTable({
         setCurrentPage={setCurrentPage}
         onBatchAction={handleUnlinkRecord}
         batchActionButtonText={t("unlinkRecord")}
+        disableBatchAction={!consoleApi.unlinkTasks.permission()}
       />
     </Box>
   );

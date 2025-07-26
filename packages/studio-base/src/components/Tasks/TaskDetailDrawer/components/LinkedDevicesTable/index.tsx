@@ -80,7 +80,9 @@ export default function LinkedDevicesTable({
         <Stack direction="row" flex={1}>
           <DeviceTableFilter filter={filter} setFilter={setFilter} />
         </Stack>
-        <LinkDevice taskName={taskName} getLinkedDevices={getLinkedDevices} />
+        {consoleApi.linkTasks.permission() && (
+          <LinkDevice taskName={taskName} getLinkedDevices={getLinkedDevices} />
+        )}
       </Stack>
       <DevicesTable
         linkedDevicesResponse={linkedDevices}
@@ -90,6 +92,7 @@ export default function LinkedDevicesTable({
         setCurrentPage={setCurrentPage}
         onBatchAction={handleUnlinkDevice}
         batchActionButtonText={t("unlinkRecord")}
+        disableBatchAction={!consoleApi.unlinkTasks.permission()}
       />
     </Box>
   );
