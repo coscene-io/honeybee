@@ -1611,18 +1611,6 @@ class CoSceneConsoleApi {
 
     return config;
   }
-
-  public listOrgTasks = Object.assign(
-    async (payload: PartialMessage<ListTasksRequest>): Promise<ListTasksResponse> => {
-      const req = new ListTasksRequest(payload);
-      return await getPromiseClient(TaskService).listTasks(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph3.ListTasks, this.#permissionList);
-      },
-    },
-  );
 }
 
 export type { Org, DeviceCodeResponse, Session, CoverageResponse };
