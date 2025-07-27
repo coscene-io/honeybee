@@ -222,11 +222,11 @@ export default function RecordTableFilter({
       filter,
     );
     setFilter(newFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     debouncedSearchQuery,
     filterState.selectedLabels,
     filterState.selectedDevices,
-    filter,
     generateFilter,
     setFilter,
   ]);

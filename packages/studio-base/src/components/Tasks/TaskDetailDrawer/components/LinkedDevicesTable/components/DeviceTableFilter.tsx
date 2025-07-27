@@ -93,7 +93,8 @@ export default function DeviceTableFilter({
   useEffect(() => {
     const newFilter = generateFilter(debouncedSearchQuery, filter);
     setFilter(newFilter);
-  }, [debouncedSearchQuery, filter, generateFilter, setFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery, generateFilter, setFilter]);
 
   // 处理搜索输入变化
   const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {

@@ -478,7 +478,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
   return (
     <PanelStateContextProvider>
-      {dataSourceDialog.open && <DataSourceDialog />}
+      {/* {dataSourceDialog.open && <DataSourceDialog />} */}
+      <DataSourceDialog />
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
       <KeyListener global keyDownHandlers={keyDownHandlers} />

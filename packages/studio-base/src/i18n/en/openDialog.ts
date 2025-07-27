@@ -88,4 +88,6 @@ export const openDialog = {
   downloadCoBridge: "Download coBridge",
   remoteFileUrl: "Remote File URL",
   webSocketUrl: "WebSocket URL",
+  welcomeToCoStudio: "Welcome to coStudio,",
+  login: "Login",
 };
