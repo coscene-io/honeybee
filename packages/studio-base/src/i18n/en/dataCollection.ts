@@ -54,4 +54,5 @@ export const dataCollection = {
   autoLinkToTask: "Auto-link to task",
   clickTaskInPanel: "Please click to highlight a task in the My Tasks panel",
   clearTaskLink: "Clear task link",
+  taskLinkFailed: "Task link failed",
 };
