@@ -384,15 +384,25 @@ function DataCollectionContent(
         addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("startUpload")}`);
         addLog("+++++++++++++++++++++++++++");
 
-        await consoleApi.linkTasks({
-          project: taskInfoSnapshot?.project.name ?? "",
-          linkTasks: [
-            {
-              task: focusedTask?.name ?? "",
-              target: { value: response.name, case: "targetTask" },
-            },
-          ],
-        });
+        try {
+          await consoleApi.linkTasks({
+            project: taskInfoSnapshot?.project.name ?? "",
+            linkTasks: [
+              {
+                task: focusedTask?.name ?? "",
+                target: { value: response.name, case: "targetTask" },
+              },
+            ],
+          });
+        } catch (linkError) {
+          // 如果链接任务失败，记录错误但不阻止整个流程
+          console.error("Failed to link tasks:", linkError);
+          addLog(
+            `[WARNING] ${t("taskLinkFailed")}: ${
+              linkError instanceof Error ? linkError.message : String(linkError)
+            }`,
+          );
+        }
 
         addLog(
           `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("autoLinkedTask")}：https://${
@@ -405,9 +415,9 @@ function DataCollectionContent(
         addLog(
           `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("progressLink")}：https://${
             APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
-          }/${targetOrg.slug}/${
-            targetProject.slug
-          }/tasks/automated-data-collection-tasks/${response.name.split("/").pop()}`,
+          }/${targetOrg.slug}/${targetProject.slug}/devices/execution-history/${response.name
+            .split("/")
+            .pop()}`,
         );
 
         addLog(
