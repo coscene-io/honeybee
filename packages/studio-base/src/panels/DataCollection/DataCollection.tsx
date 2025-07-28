@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Timestamp } from "@bufbuild/protobuf";
+import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
@@ -21,7 +22,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Autocomplete,
   TextField,
   Box,
   SelectChangeEvent,
@@ -36,6 +36,7 @@ import { useImmer } from "use-immer";
 
 import Log from "@foxglove/log";
 import { PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
+import RecordLabelSelector from "@foxglove/studio-base/components/RecordInfo/RecordLabelSelector";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { ConsoleApi } from "@foxglove/studio-base/index";
 import { CallService } from "@foxglove/studio-base/panels/DataCollection/CallService";
@@ -186,9 +187,7 @@ function DataCollectionContent(
   const [recordLabels, setRecordLabels] = useState<string[]>([]);
   // const [taskRelation, setTaskRelation] = useState<string>("hello");
   const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
-  const [recordLabelOptions, setRecordLabelOptions] = useState<{ label: string; value: string }[]>(
-    [],
-  );
+  const [recordLabelOptions, setRecordLabelOptions] = useState<Label[]>([]);
   const [currentFocusedTask, setCurrentFocusedTask] = useState<Task | undefined>(undefined);
 
   const MAX_PROJECTS_PAGE_SIZE = 999;
@@ -222,11 +221,7 @@ function DataCollectionContent(
           pageSize: MAX_PROJECTS_PAGE_SIZE,
         });
         const labels = listLabelsResponse.labels;
-        const options = labels.map((label) => ({
-          label: label.displayName,
-          value: label.displayName,
-        }));
-        setRecordLabelOptions(options);
+        setRecordLabelOptions(labels);
         return listLabelsResponse;
       } catch (error) {
         console.error("error", error);
@@ -726,21 +721,17 @@ function DataCollectionContent(
 
           {/* recordLabels */}
           <Box minWidth={200}>
-            <Autocomplete
-              multiple
-              id="record-labels-autocomplete"
-              size="small"
-              options={recordLabelOptions}
-              value={recordLabelOptions.filter((option) => recordLabels.includes(option.value))}
-              onChange={(_, newValue) => {
-                setRecordLabels(newValue.map((option) => option.value));
-              }}
-              renderInput={(params) => (
-                <TextField {...params} label={t("recordLabels")} placeholder={t("recordLabels")} />
-              )}
-              getOptionLabel={(option) => option.label}
-              isOptionEqualToValue={(option, value) => option.value === value.value}
-            />
+            <FormControl fullWidth size="small">
+              <InputLabel id="record-labels-select-label">{t("recordLabels")}</InputLabel>
+              <RecordLabelSelector
+                value={recordLabels}
+                options={recordLabelOptions}
+                onChange={(_, newValue) => {
+                  setRecordLabels(newValue.map((option) => option.displayName));
+                }}
+                placeholder={t("recordLabels")}
+              />
+            </FormControl>
           </Box>
         </Box>
       </Stack>

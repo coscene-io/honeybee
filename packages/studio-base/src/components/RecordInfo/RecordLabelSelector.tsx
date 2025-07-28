@@ -52,6 +52,8 @@ export default function RecordLabelSelector({
                   fontSize: "12px",
                   transform: "scale(0.9)",
                   transformOrigin: "left center",
+                  marginTop: "-3px",
+                  marginBottom: "-3px",
                 }}
                 key={`${option.name}-${index}`}
               />
