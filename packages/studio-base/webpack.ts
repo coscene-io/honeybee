@@ -287,6 +287,7 @@ export function makeConfig(
               jsx: isDev ? "react-jsxdev" : "react-jsx",
             },
           },
+          memoryLimit: 8192, // 增加内存限制到 8GB
         },
       }),
     ],

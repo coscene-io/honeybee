@@ -78,4 +78,6 @@ export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   downloadCoBridge: "下载 coBridge",
   remoteFileUrl: "远程文件地址",
   webSocketUrl: "WebSocket 链接",
+  welcomeToCoStudio: "欢迎使用 coStudio,",
+  login: "登录",
 };

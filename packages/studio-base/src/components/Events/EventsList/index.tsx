@@ -28,7 +28,7 @@ import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
 import { fromDate, add, fromSec } from "@foxglove/rostime";
-import { positionEventMark } from "@foxglove/studio-base/components/CoSceneEventsSyncAdapter";
+import { positionEventMark } from "@foxglove/studio-base/components/Events/EventsSyncAdapter";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -48,7 +48,7 @@ import {
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
-import { EventView } from "./CoSceneEventView";
+import { EventView } from "./EventView";
 
 const log = Logger.getLogger(__filename);
 

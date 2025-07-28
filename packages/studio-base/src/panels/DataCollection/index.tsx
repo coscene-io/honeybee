@@ -19,27 +19,22 @@ import Panel from "@foxglove/studio-base/components/Panel";
 import { PanelExtensionAdapter } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import {
-  useCurrentUser,
-  User,
-  UserStore,
-} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { ConsoleApi } from "@foxglove/studio-base/index";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { DataCollection } from "./DataCollection";
+import { DataCollectionContextType, DataCollectionProvider } from "./DataCollectionContext";
 import { Config, PanelState } from "./types";
 
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
+const selectFocusedTask = (store: TaskStore) => store.focusedTask;
 
 function initPanel(
-  panelState: PanelState,
-  deviceLink: string,
-  userInfo: User,
-  consoleApi: ConsoleApi,
+  collectionParams: DataCollectionContextType,
   crash: ReturnType<typeof useCrash>,
   context: PanelExtensionContext,
 ) {
@@ -47,13 +42,9 @@ function initPanel(
   ReactDOM.render(
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
-        <DataCollection
-          panelState={panelState}
-          deviceLink={deviceLink}
-          context={context}
-          userInfo={userInfo}
-          consoleApi={consoleApi}
-        />
+        <DataCollectionProvider {...collectionParams}>
+          <DataCollection context={context} />
+        </DataCollectionProvider>
       </CaptureErrorBoundary>
     </StrictMode>,
     context.panelElement,
@@ -77,6 +68,7 @@ function DataCollectionPanelAdapter(props: Props) {
   const consoleApi = useConsoleApi();
   const urlState = useMessagePipeline(selectUrlState);
   const dataSource = useBaseInfo(selectDataSource);
+  const focusedTask = useTasks(selectFocusedTask);
 
   const deviceLink = urlState?.parameters?.deviceLink ?? "";
 
@@ -100,8 +92,17 @@ function DataCollectionPanelAdapter(props: Props) {
     if (userInfo == undefined) {
       return () => {};
     }
-    return initPanel.bind(undefined, panelState, deviceLink, userInfo, consoleApi, crash);
-  }, [crash, consoleApi, userInfo, deviceLink, panelState]);
+
+    const collectionParams: DataCollectionContextType = {
+      panelState,
+      deviceLink,
+      userInfo,
+      consoleApi,
+      focusedTask,
+    };
+
+    return initPanel.bind(undefined, collectionParams, crash);
+  }, [userInfo, crash, panelState, deviceLink, consoleApi, focusedTask]);
 
   return (
     <PanelExtensionAdapter

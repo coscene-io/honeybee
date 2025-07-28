@@ -16,7 +16,9 @@ import {
   CoSceneBaseStore,
   BaseInfo,
   CoSceneBaseContext,
+  CoordinatorConfig,
 } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 
 function CreateBaseStore() {
   return createStore<CoSceneBaseStore>((set, get) => ({
@@ -25,6 +27,8 @@ function CreateBaseStore() {
     // monitor loading param to refresh record/project info
     record: { loading: true, value: undefined },
     project: { loading: true, value: undefined },
+    coordinatorConfig: undefined,
+    colinkApi: undefined,
 
     setBaseInfo: (baseInfo: AsyncState<BaseInfo>) => {
       set({ baseInfo });
@@ -67,6 +71,15 @@ function CreateBaseStore() {
     },
     setRecordCustomFieldSchema: (recordCustomFieldSchema: CustomFieldSchema) => {
       set({ recordCustomFieldSchema });
+    },
+    setDeviceCustomFieldSchema: (deviceCustomFieldSchema: CustomFieldSchema) => {
+      set({ deviceCustomFieldSchema });
+    },
+    setCoordinatorConfig: (coordinatorConfig: CoordinatorConfig) => {
+      set({ coordinatorConfig });
+    },
+    setColinkApi: (colinkApi: ReturnType<typeof DevicesApiFactory>) => {
+      set({ colinkApi });
     },
   }));
 }
