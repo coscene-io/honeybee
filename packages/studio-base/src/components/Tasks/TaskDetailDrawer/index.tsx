@@ -175,10 +175,22 @@ export default function TaskDetailDrawer(): React.ReactElement {
 
     const deviceFilterStr: string = defaultDeviceFilter.serialize();
     setDeviceFilter(deviceFilterStr);
+  }, [viewingTask]);
 
-    void getLinkedRecords();
-    void getLinkedDevices();
-  }, [viewingTask, setRecordFilter, setDeviceFilter, getLinkedRecords, getLinkedDevices]);
+  // 当过滤器变化时自动获取数据
+  useEffect(() => {
+    if (recordFilter != undefined) {
+      void getLinkedRecords();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordFilter]); // 故意不包含 getLinkedRecords 以避免循环依赖
+
+  useEffect(() => {
+    if (deviceFilter != undefined) {
+      void getLinkedDevices();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceFilter]); // 故意不包含 getLinkedDevices 以避免循环依赖
 
   return (
     <Drawer
