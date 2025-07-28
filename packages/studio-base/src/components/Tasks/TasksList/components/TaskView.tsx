@@ -144,7 +144,16 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
               ))}
             </Select>
 
-            <Avatar userName={task.assignee} />
+            <Avatar
+              userName={task.assignee}
+              renderTitle={(userInfo) => {
+                return (
+                  <Stack>
+                    <Stack>{`${t("assignee")}: ${userInfo?.nickname}`}</Stack>
+                  </Stack>
+                );
+              }}
+            />
           </Stack>
 
           {/* <Divider />
