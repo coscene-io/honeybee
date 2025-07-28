@@ -13,22 +13,36 @@ import {
   Task,
   UploadTaskDetail,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
-import { Palette, Typography } from "@mui/material";
+import { Clear as ClearIcon } from "@mui/icons-material";
+import {
+  Palette,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Autocomplete,
+  TextField,
+  Box,
+  SelectChangeEvent,
+  IconButton,
+} from "@mui/material";
 import dayjs from "dayjs";
 import { TFunction } from "i18next";
 import { Dispatch, SetStateAction, useCallback, useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useAsyncFn } from "react-use";
 import { useImmer } from "use-immer";
 
 import Log from "@foxglove/log";
 import { PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { ConsoleApi } from "@foxglove/studio-base/index";
 import { CallService } from "@foxglove/studio-base/panels/DataCollection/CallService";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
+import { useDataCollectionContext } from "./DataCollectionContext";
 import { defaultConfig, settingsActionReducer, useSettingsTree } from "./settings";
 import {
   Config,
@@ -39,15 +53,10 @@ import {
   ButtonsState,
   CollectionStage,
   TaskInfoSnapshot,
-  PanelState,
 } from "./types";
 
 type Props = {
-  deviceLink: string;
   context: PanelExtensionContext;
-  userInfo: User;
-  consoleApi: ConsoleApi;
-  panelState?: PanelState;
 };
 
 const log = Log.getLogger(__dirname);
@@ -145,9 +154,10 @@ async function handleTaskProgress({
 }
 
 function DataCollectionContent(
-  props: Omit<Props, "panelState"> & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
+  props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
 ): React.JSX.Element {
-  const { context, setColorScheme, userInfo, consoleApi, deviceLink } = props;
+  const { context, setColorScheme } = props;
+  const { userInfo, consoleApi, deviceLink, focusedTask } = useDataCollectionContext();
 
   const { t } = useTranslation("dataCollection");
 
@@ -171,6 +181,106 @@ function DataCollectionContent(
   const logContainerRef = useRef<HTMLDivElement>(ReactNull);
   const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
 
+  // 独立的 projectName 和 recordLabels 状态
+  const [projectName, setProjectName] = useState<string>("");
+  const [recordLabels, setRecordLabels] = useState<string[]>([]);
+  // const [taskRelation, setTaskRelation] = useState<string>("hello");
+  const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
+  const [recordLabelOptions, setRecordLabelOptions] = useState<{ label: string; value: string }[]>(
+    [],
+  );
+  const [currentFocusedTask, setCurrentFocusedTask] = useState<Task | undefined>(undefined);
+
+  const MAX_PROJECTS_PAGE_SIZE = 999;
+
+  // 获取项目列表
+  const [, syncProjects] = useAsyncFn(async () => {
+    const userId = userInfo.userId;
+
+    if (userId) {
+      try {
+        return await consoleApi.listUserProjects({
+          userId,
+          pageSize: MAX_PROJECTS_PAGE_SIZE,
+          currentPage: 0,
+        });
+      } catch (error) {
+        console.error("error", error);
+      }
+    }
+
+    return undefined;
+  }, [consoleApi, userInfo.userId]);
+
+  // 获取标签列表
+  const [, syncRecordLabels] = useAsyncFn(async () => {
+    if (projectName) {
+      try {
+        const listLabelsResponse = await consoleApi.listLabels({
+          warehouseId: projectName.split("warehouses/")[1]?.split("/")[0] ?? "",
+          projectId: projectName.split("/").pop() ?? "",
+          pageSize: MAX_PROJECTS_PAGE_SIZE,
+        });
+        const labels = listLabelsResponse.labels;
+        const options = labels.map((label) => ({
+          label: label.displayName,
+          value: label.displayName,
+        }));
+        setRecordLabelOptions(options);
+        return listLabelsResponse;
+      } catch (error) {
+        console.error("error", error);
+      }
+    }
+
+    return undefined;
+  }, [consoleApi, projectName]);
+
+  // 初始化项目列表
+  useEffect(() => {
+    void syncProjects().then((listUserProjectsResponse) => {
+      if (listUserProjectsResponse) {
+        const userProjects = listUserProjectsResponse.userProjects;
+        const options = userProjects
+          .filter((project) => !project.isArchived)
+          .map((project) => ({
+            label: project.displayName,
+            value: project.name,
+          }));
+        setProjectOptions(options);
+      }
+    });
+  }, [syncProjects]);
+
+  // 当项目变化时获取标签列表
+  useEffect(() => {
+    setCurrentFocusedTask(undefined);
+    if (projectName) {
+      void syncRecordLabels();
+    } else {
+      setRecordLabelOptions([]);
+      setRecordLabels([]);
+    }
+  }, [syncRecordLabels, projectName]);
+
+  useEffect(() => {
+    if (currentCollectionStage === "collecting") {
+      return;
+    }
+
+    if (focusedTask) {
+      setCurrentFocusedTask(focusedTask);
+
+      const taskProjectName = focusedTask.name.split("/tasks/")[0];
+
+      if (taskProjectName) {
+        setProjectName(taskProjectName);
+      }
+    } else {
+      setCurrentFocusedTask(undefined);
+    }
+  }, [focusedTask, projectOptions, currentCollectionStage]);
+
   const addLog = useCallback(
     (newLog: string) => {
       setLogs((prevLogs) => [...prevLogs, newLog]);
@@ -185,7 +295,7 @@ function DataCollectionContent(
     [setConfig],
   );
 
-  const settingsTree = useSettingsTree(config, userInfo, consoleApi, settingsActionHandler);
+  const settingsTree = useSettingsTree(config);
 
   useEffect(() => {
     context.updatePanelSettingsEditor({
@@ -274,6 +384,24 @@ function DataCollectionContent(
         addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("startUpload")}`);
         addLog("+++++++++++++++++++++++++++");
 
+        await consoleApi.linkTasks({
+          project: taskInfoSnapshot?.project.name ?? "",
+          linkTasks: [
+            {
+              task: focusedTask?.name ?? "",
+              target: { value: response.name, case: "targetTask" },
+            },
+          ],
+        });
+
+        addLog(
+          `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("autoLinkedTask")}：https://${
+            APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+          }/${targetOrg.slug}/${targetProject.slug}/tasks/general-tasks/${currentFocusedTask?.name
+            .split("/")
+            .pop()}`,
+        );
+
         addLog(
           `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("progressLink")}：https://${
             APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
@@ -301,7 +429,16 @@ function DataCollectionContent(
         addLog(`[ERROR] ${t("uploadFileFail")}`);
       }
     },
-    [taskInfoSnapshot, consoleApi, deviceLink, addLog, t, userInfo.userId],
+    [
+      taskInfoSnapshot,
+      consoleApi,
+      userInfo.userId,
+      deviceLink,
+      addLog,
+      t,
+      focusedTask?.name,
+      currentFocusedTask?.name,
+    ],
   );
 
   const callServiceClicked = useCallback(
@@ -323,7 +460,7 @@ function DataCollectionContent(
 
       switch (buttonType) {
         case "startCollection": {
-          if (!config.projectName) {
+          if (!projectName) {
             addLog("[ERROR] " + t("projectNameNotSet"));
             return;
           }
@@ -332,7 +469,7 @@ function DataCollectionContent(
           addLog("+++++++++++++++++++++++++++");
 
           const project = await consoleApi.getProject({
-            projectName: config.projectName,
+            projectName,
           });
 
           await consoleApi.setApiBaseInfo({
@@ -349,7 +486,7 @@ function DataCollectionContent(
           setCurrentCollectionStage("collecting");
           setTaskInfoSnapshot({
             project,
-            recordLabels: config.recordLabels ?? [],
+            recordLabels,
             startTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           });
           break;
@@ -459,8 +596,8 @@ function DataCollectionContent(
       setButtonsState,
       addLog,
       t,
-      config.projectName,
-      config.recordLabels,
+      projectName,
+      recordLabels,
       config.buttons,
       consoleApi,
       createDataCollectionTask,
@@ -514,6 +651,89 @@ function DataCollectionContent(
 
   return (
     <Stack fullHeight>
+      <Stack flex="auto" gap={1} padding={1.5}>
+        <Typography variant="caption" noWrap>
+          {t("dataSaveLocation")}
+        </Typography>
+        <Box gap={1} display="flex" border="1px solid" overflow="auto" borderRadius={1} padding={1}>
+          {/* projectName */}
+          <Box minWidth={200}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="project-select-label" required>
+                {t("projectName")}
+              </InputLabel>
+              <Select
+                labelId="project-select-label"
+                id="project-select"
+                value={projectName}
+                label={t("projectName")}
+                onChange={(event: SelectChangeEvent) => {
+                  setProjectName(event.target.value);
+                }}
+              >
+                {projectOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+
+          {/* taskRelation */}
+          <Box minWidth={200}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="task-relation-select-label">{t("autoLinkToTask")}</InputLabel>
+              <TextField
+                id="task-relation-display"
+                size="small"
+                fullWidth
+                value={currentFocusedTask?.title ?? ""}
+                placeholder={t("clickTaskInPanel")}
+                slotProps={{
+                  input: {
+                    readOnly: true,
+                    endAdornment: currentFocusedTask ? (
+                      <IconButton
+                        aria-label={t("clearTaskLink")}
+                        onClick={() => {
+                          setCurrentFocusedTask(undefined);
+                        }}
+                        size="small"
+                        style={{ padding: 4 }}
+                      >
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
+                    ) : undefined,
+                    style: {
+                      color: currentFocusedTask?.title ? "inherit" : "#999",
+                    },
+                  },
+                }}
+              />
+            </FormControl>
+          </Box>
+
+          {/* recordLabels */}
+          <Box minWidth={200}>
+            <Autocomplete
+              multiple
+              id="record-labels-autocomplete"
+              size="small"
+              options={recordLabelOptions}
+              value={recordLabelOptions.filter((option) => recordLabels.includes(option.value))}
+              onChange={(_, newValue) => {
+                setRecordLabels(newValue.map((option) => option.value));
+              }}
+              renderInput={(params) => (
+                <TextField {...params} label={t("recordLabels")} placeholder={t("recordLabels")} />
+              )}
+              getOptionLabel={(option) => option.label}
+              isOptionEqualToValue={(option, value) => option.value === value.value}
+            />
+          </Box>
+        </Box>
+      </Stack>
       {/* call service button */}
       <Stack direction="row" gap={1}>
         {Object.entries(config.buttons).map(([key]) => (
@@ -587,15 +807,10 @@ function DataCollectionContent(
   );
 }
 
-export function DataCollection({
-  panelState,
-  deviceLink,
-  context,
-  userInfo,
-  consoleApi,
-}: Props): React.JSX.Element {
+export function DataCollection({ context }: Props): React.JSX.Element {
   const [colorScheme, setColorScheme] = useState<Palette["mode"]>("light");
   const { t } = useTranslation("dataCollection");
+  const { panelState } = useDataCollectionContext();
 
   // Wrapper component with ThemeProvider so useStyles in the panel receives the right theme.
   return (
@@ -616,13 +831,7 @@ export function DataCollection({
         </Stack>
       )}
       {panelState === "NOMAL" && (
-        <DataCollectionContent
-          deviceLink={deviceLink}
-          setColorScheme={setColorScheme}
-          context={context}
-          userInfo={userInfo}
-          consoleApi={consoleApi}
-        />
+        <DataCollectionContent setColorScheme={setColorScheme} context={context} />
       )}
     </ThemeProvider>
   );

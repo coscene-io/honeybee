@@ -29,13 +29,13 @@ import { makeStyles } from "tss-react/mui";
 
 import { add, fromSec, fromDate } from "@foxglove/rostime";
 import {
-  useGetPassingFile,
-  useTimeRange,
-} from "@foxglove/studio-base/components/CreateEventContainer/hooks";
-import {
   CustomFieldValuesForm,
   FormWithCustomFieldValues,
 } from "@foxglove/studio-base/components/CustomFieldProperty/form/CustomFieldValuesForm";
+import {
+  useGetPassingFile,
+  useTimeRange,
+} from "@foxglove/studio-base/components/Events/CreateEventContainer/hooks";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useEvents, EventsStore } from "@foxglove/studio-base/context/EventsContext";

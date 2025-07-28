@@ -89,6 +89,7 @@ export const webpackQuicklookConfig =
                 noUnusedParameters: !allowUnusedVariables,
               },
             },
+            memoryLimit: 4096, // 增加内存限制到 4GB
           },
         }),
         new HtmlWebpackPlugin({

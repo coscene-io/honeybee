@@ -17,7 +17,7 @@ export function CustomFieldValueFieldDisplay({
   customFieldValue: CustomFieldValue;
   variant?: "primary" | "secondary";
 }): React.ReactNode {
-  const value = ConvertCustomFieldValue(customFieldValue);
+  const value = ConvertCustomFieldValue({ customFieldValue });
 
   return (
     <FormControl>

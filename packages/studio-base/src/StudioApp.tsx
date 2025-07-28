@@ -15,6 +15,7 @@ import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
 import SubscriptionEntitlementProvider from "@foxglove/studio-base/providers/SubscriptionEntitlementProvider";
+import TasksProvider from "@foxglove/studio-base/providers/TasksProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import UploadFilesProvider from "@foxglove/studio-base/providers/UploadFilesProvider";
 
@@ -67,6 +68,7 @@ export function StudioApp(): React.JSX.Element {
     <ExtensionCatalogProvider loaders={extensionLoaders} />,
     <UploadFilesProvider />,
     <EventsProvider />,
+    <TasksProvider />,
     <SubscriptionEntitlementProvider />,
     <PlayerManager playerSources={dataSources} />,
     /* eslint-enable react/jsx-key */
