@@ -192,6 +192,14 @@ export function TasksList(): React.JSX.Element {
         {projectTasks.value?.map((task) => {
           return <TaskView key={task.name} task={task} />;
         })}
+
+        {projectTasks.value && projectTasks.value.length > 0 && (
+          <Stack flex="auto" padding={2} height="100%" alignItems="center" justifyContent="center">
+            <Typography align="center" color="text.secondary">
+              {t("allLoaded")}
+            </Typography>
+          </Stack>
+        )}
       </Stack>
     </Stack>
   );

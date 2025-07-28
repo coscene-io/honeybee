@@ -47,5 +47,6 @@ export const task = {
   addLinkedDevice: "Add linked device",
   addLinkedDeviceSuccess: "Add linked device successfully",
   addLinkedDeviceFailed: "Add linked device failed",
+  assignee: "Assignee",
   allLoaded: "All loaded",
 };

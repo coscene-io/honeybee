@@ -184,7 +184,7 @@ function DataCollectionContent(
 
   // 独立的 projectName 和 recordLabels 状态
   const [projectName, setProjectName] = useState<string>("");
-  const [recordLabels, setRecordLabels] = useState<string[]>([]);
+  const [recordLabels, setRecordLabels] = useState<Label[]>([]);
   // const [taskRelation, setTaskRelation] = useState<string>("hello");
   const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
   const [recordLabelOptions, setRecordLabelOptions] = useState<Label[]>([]);
@@ -491,7 +491,7 @@ function DataCollectionContent(
           setCurrentCollectionStage("collecting");
           setTaskInfoSnapshot({
             project,
-            recordLabels,
+            recordLabels: recordLabels.map((label) => label.displayName),
             startTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           });
           break;
@@ -693,7 +693,7 @@ function DataCollectionContent(
                 id="task-relation-display"
                 size="small"
                 fullWidth
-                value={currentFocusedTask?.title ?? ""}
+                value={String(`#${currentFocusedTask?.number ?? ""}`)}
                 placeholder={t("clickTaskInPanel")}
                 slotProps={{
                   input: {
@@ -724,10 +724,10 @@ function DataCollectionContent(
             <FormControl fullWidth size="small">
               <InputLabel id="record-labels-select-label">{t("recordLabels")}</InputLabel>
               <RecordLabelSelector
-                value={recordLabels}
+                value={recordLabels.map((label) => label.name)}
                 options={recordLabelOptions}
                 onChange={(_, newValue) => {
-                  setRecordLabels(newValue.map((option) => option.displayName));
+                  setRecordLabels(newValue);
                 }}
                 placeholder={t("recordLabels")}
               />

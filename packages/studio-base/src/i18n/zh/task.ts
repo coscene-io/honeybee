@@ -49,5 +49,6 @@ export const task: Partial<TypeOptions["resources"]["task"]> = {
   addLinkedDevice: "添加关联设备",
   addLinkedDeviceSuccess: "添加关联设备成功",
   addLinkedDeviceFailed: "添加关联设备失败",
-  allLoaded: "全部加载完成",
+  assignee: "经办人",
+  allLoaded: "已经加载全部",
 };
