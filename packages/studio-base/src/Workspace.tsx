@@ -137,6 +137,7 @@ const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 
 const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
 const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
+const selectBaseInfo = (state: CoSceneBaseStore) => state.baseInfo;
 
 function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
@@ -156,8 +157,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
 
   const enableList = useBaseInfo(selectEnableList);
-
   const dataSource = useBaseInfo(selectDataSource);
+  const baseInfo = useBaseInfo(selectBaseInfo);
 
   // coScene set demo layout in demo mode
 
@@ -248,6 +249,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         {
           title: t("tasks", { ns: "cosWorkspace" }),
           component: TasksList,
+          hidden: baseInfo.value?.projectId == undefined,
         },
       ],
       [
@@ -270,7 +272,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       items.filter(([, item]) => item.hidden == undefined || !item.hidden),
     );
     return cleanItems;
-  }, [enableList.event, enableList.playlist, playerProblems, t]);
+  }, [baseInfo.value?.projectId, enableList.event, enableList.playlist, playerProblems, t]);
 
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
