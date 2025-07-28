@@ -72,23 +72,21 @@ function DataCollectionPanelAdapter(props: Props) {
 
   const deviceLink = urlState?.parameters?.deviceLink ?? "";
 
-  const panelState = "NOMAL";
+  const panelState: PanelState = useMemo(() => {
+    if (dataSource?.id !== "coscene-websocket") {
+      return "SOURCE_TYPE_NOT_SUPPORTED";
+    }
 
-  // const panelState: PanelState = useMemo(() => {
-  //   if (dataSource?.id !== "coscene-websocket") {
-  //     return "SOURCE_TYPE_NOT_SUPPORTED";
-  //   }
+    if (loginStatus === "notLogin") {
+      return "NOT_LOGIN";
+    }
 
-  //   if (loginStatus === "notLogin") {
-  //     return "NOT_LOGIN";
-  //   }
+    if (userInfo == undefined) {
+      return "LOADING";
+    }
 
-  //   if (userInfo == undefined) {
-  //     return "LOADING";
-  //   }
-
-  //   return "NOMAL";
-  // }, [dataSource?.id, loginStatus, userInfo]);
+    return "NOMAL";
+  }, [dataSource?.id, loginStatus, userInfo]);
 
   const boundInitPanel = useMemo(() => {
     if (userInfo == undefined) {
