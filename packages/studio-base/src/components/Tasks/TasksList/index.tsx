@@ -161,30 +161,32 @@ export function TasksList(): React.JSX.Element {
         </Stack>
       )}
 
-      <Stack flexDirection="row">
-        <Stack
-          marginLeft={0}
-          marginRight={1.5}
-          gap={0.5}
-          width={12}
-          marginTop={0.5}
-          alignItems="center"
-        >
+      {projectTasks.value && projectTasks.value.length > 0 && (
+        <Stack flexDirection="row">
           <Stack
-            borderRadius="50%"
+            marginLeft={0}
+            marginRight={1.5}
+            gap={0.5}
             width={12}
-            height={12}
-            style={{
-              backgroundColor: "#3b82f6",
-            }}
-          />
-          <Stack width="1px" height="15px" className={classes.line} />
-        </Stack>
+            marginTop={0.5}
+            alignItems="center"
+          >
+            <Stack
+              borderRadius="50%"
+              width={12}
+              height={12}
+              style={{
+                backgroundColor: "#3b82f6",
+              }}
+            />
+            <Stack width="1px" height="15px" className={classes.line} />
+          </Stack>
 
-        <Typography variant="button" gutterBottom>
-          {t("generalTasks")}
-        </Typography>
-      </Stack>
+          <Typography variant="button" gutterBottom>
+            {t("generalTasks")}
+          </Typography>
+        </Stack>
+      )}
 
       <Stack paddingBottom={10} flex={1}>
         {projectTasks.value?.map((task) => {
