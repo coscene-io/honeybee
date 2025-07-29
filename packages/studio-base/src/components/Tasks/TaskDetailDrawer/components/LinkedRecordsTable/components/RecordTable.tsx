@@ -411,21 +411,22 @@ export default function RecordTable({
                     <PlayCircleFilledWhiteOutlinedIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
+
+                <Tooltip title={t("copyRecordId")} placement="top">
+                  <IconButton
+                    size="small"
+                    className={classes.playButton}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void navigator.clipboard.writeText(String(params.row.name));
+                      toast.success(t("copySuccess"));
+                    }}
+                  >
+                    <ContentCopyOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </div>
             )}
-            <Tooltip title={t("copyRecordId")} placement="top">
-              <IconButton
-                size="small"
-                className={classes.playButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void navigator.clipboard.writeText(String(params.row.name));
-                  toast.success(t("copySuccess"));
-                }}
-              >
-                <ContentCopyOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
           </div>
         ),
       },
