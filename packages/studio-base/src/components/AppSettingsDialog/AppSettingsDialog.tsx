@@ -237,7 +237,7 @@ export function AppSettingsDialog(
               [classes.tabPanelActive]: activeTab === "general",
             })}
           >
-            <Stack gap={2}>
+            <Stack gap={2} paddingBottom={2}>
               <ColorSchemeSettings />
               <TimezoneSettings />
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
