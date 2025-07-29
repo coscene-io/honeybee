@@ -55,4 +55,5 @@ export const dataCollection: Partial<TypeOptions["resources"]["dataCollection"]>
   clickTaskInPanel: "请在我的任务面板中点亮任务",
   clearTaskLink: "清空任务关联",
   taskLinkFailed: "任务关联失败",
+  recordLinkFailed: "记录关联失败",
 };
