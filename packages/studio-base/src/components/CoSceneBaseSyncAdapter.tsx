@@ -30,6 +30,7 @@ const selectLoginStatus = (state: UserStore) => state.loginStatus;
 const selectCoordinatorConfig = (state: CoSceneBaseStore) => state.coordinatorConfig;
 const selectSetCoordinatorConfig = (state: CoSceneBaseStore) => state.setCoordinatorConfig;
 const selectSetColinkApi = (state: CoSceneBaseStore) => state.setColinkApi;
+const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
 
 export function BaseSyncAdapter(): ReactNull {
   const baseInfo = useBaseInfo(selectBaseInfo);
@@ -39,6 +40,7 @@ export function BaseSyncAdapter(): ReactNull {
 
   const loginStatus = useCurrentUser(selectLoginStatus);
 
+  const setBaseInfo = useBaseInfo(selectSetBaseInfo);
   const setProject = useBaseInfo(selectSetProjects);
   const setRecord = useBaseInfo(selectSetRecord);
   const setRecordCustomFieldSchema = useBaseInfo(selectSetRecordCustomFieldSchema);
@@ -53,15 +55,18 @@ export function BaseSyncAdapter(): ReactNull {
       const projectName = `warehouses/${baseInfo.value.warehouseId}/projects/${baseInfo.value.projectId}`;
       const targetProject = await consoleApi.getProject({ projectName });
 
+      setBaseInfo({
+        loading: false,
+        value: {
+          ...baseInfo.value,
+          projectDisplayName: targetProject.displayName,
+          projectSlug: targetProject.slug,
+        },
+      });
+
       setProject({ loading: false, value: targetProject });
     }
-  }, [
-    consoleApi,
-    setProject,
-    baseInfo.value?.warehouseId,
-    baseInfo.value?.projectId,
-    project.loading,
-  ]);
+  }, [baseInfo.value, project.loading, consoleApi, setBaseInfo, setProject]);
 
   const [_record, syncRecord] = useAsyncFn(async () => {
     if (

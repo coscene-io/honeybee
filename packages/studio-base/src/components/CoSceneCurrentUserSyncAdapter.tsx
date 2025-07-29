@@ -32,6 +32,7 @@ const selectSetUserRole = (store: UserStore) => store.setRole;
 const selectSetUser = (store: UserStore) => store.setUser;
 
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectSetBaseInfo = (store: CoSceneBaseStore) => store.setBaseInfo;
 
 export function CoSceneCurrentUserSyncAdapter(): ReactNull {
   const loginStatus = useCurrentUser(selectLoginStatus);
@@ -43,6 +44,7 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
   const consoleApi = useConsoleApi();
 
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const setBaseInfo = useBaseInfo(selectSetBaseInfo);
   const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   const [_userRole, syncUserRole] = useAsyncFn(async () => {
@@ -67,6 +69,15 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
       const userInfo = await consoleApi.getUser("users/current");
       const currentOrg = await consoleApi.getOrg("organizations/current");
       const userId = userInfo.name.split("/").pop() ?? "";
+
+      setBaseInfo({
+        loading: false,
+        value: {
+          ...baseInfo,
+          organizationId: currentOrg.name.split("/")[1],
+          organizationSlug: currentOrg.slug,
+        },
+      });
       setUser({
         ...(currentUser ?? {}),
         avatarUrl: userInfo.avatar ?? "",
