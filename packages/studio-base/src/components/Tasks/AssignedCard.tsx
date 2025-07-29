@@ -15,6 +15,7 @@ import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 
@@ -92,6 +93,7 @@ export function AssignedCard({ task, project, onClick }: AssignedCardProps): Rea
 
   const baseInfo = useBaseInfo(selectBaseInfo);
   const setBaseInfo = useBaseInfo(selectSetBaseInfo);
+  const consoleApi = useConsoleApi();
 
   const setViewingTask = useTasks((store) => store.setViewingTask);
 
@@ -99,14 +101,16 @@ export function AssignedCard({ task, project, onClick }: AssignedCardProps): Rea
     if (onClick) {
       onClick();
     } else {
+      const newBaseInfo = {
+        ...baseInfo.value,
+        projectId: task.name.split("/")[3] ?? "",
+        warehouseId: task.name.split("/")[1] ?? "",
+      };
       setBaseInfo({
-        value: {
-          ...baseInfo.value,
-          projectId: task.name.split("/")[3] ?? "",
-          warehouseId: task.name.split("/")[1] ?? "",
-        },
+        value: newBaseInfo,
         loading: false,
       });
+      void consoleApi.setApiBaseInfo(newBaseInfo);
       setViewingTask(task);
       sidebarActions.left.selectItem("tasks");
       dialogActions.dataSource.close();
