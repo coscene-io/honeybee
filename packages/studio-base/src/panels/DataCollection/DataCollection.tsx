@@ -98,6 +98,29 @@ async function handleTaskProgress({
         APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
       }/${targetOrg.slug}/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
+
+    try {
+      await consoleApi.linkTasks({
+        project: targetProject.name,
+        linkTasks: [
+          {
+            task: taskName,
+            target: {
+              value: `${targetProject.name}/records/${task.tags.recordName.split("/").pop()}`,
+              case: "record",
+            },
+          },
+        ],
+      });
+    } catch (linkError) {
+      // 如果链接任务失败，记录错误但不阻止整个流程
+      console.error("Failed to link record:", linkError);
+      addLog(
+        `[WARNING] ${t("recordLinkFailed")}: ${
+          linkError instanceof Error ? linkError.message : String(linkError)
+        }`,
+      );
+    }
     needShowRecordLink = false;
   }
 

@@ -55,4 +55,5 @@ export const dataCollection = {
   clickTaskInPanel: "Please click to highlight a task in the My Tasks panel",
   clearTaskLink: "Clear task link",
   taskLinkFailed: "Task link failed",
+  recordLinkFailed: "Record link failed",
 };
