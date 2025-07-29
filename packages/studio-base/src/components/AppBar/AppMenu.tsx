@@ -65,7 +65,7 @@ export function AppMenu(props: AppMenuProps): React.JSX.Element {
             handleNestedMenuClose();
           }}
         >
-          {t("open")}
+          {t("openHomePage")}
         </MenuItem>
 
         <MenuItem
