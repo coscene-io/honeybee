@@ -166,6 +166,7 @@ export default function LinkDevice({
               setCurrentPage={setCurrentPage}
               onSelectionChange={handleSelectionChange}
               disableBatchAction={true}
+              disableSwitchSource={true}
             />
           </Box>
         </DialogContent>
