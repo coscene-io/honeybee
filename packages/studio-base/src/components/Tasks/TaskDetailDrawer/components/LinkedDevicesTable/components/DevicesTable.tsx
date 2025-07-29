@@ -93,6 +93,19 @@ const useStyles = makeStyles()((theme) => ({
     ".MuiDataGrid-row:hover &": {
       opacity: 1,
     },
+    backgroundColor: theme.palette.background.paper,
+  },
+  deviceId: {
+    position: "relative",
+    width: "100%",
+    overflow: "hidden",
+  },
+  vizButton: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    margin: "auto",
   },
 }));
 
@@ -299,11 +312,11 @@ export default function DevicesTable({
   const baseColumns: GridColDef[] = useMemo(
     () => [
       {
-        field: "displayName",
-        headerName: t("deviceName"),
-        width: 250,
+        field: "serialNumber",
+        headerName: t("deviceId"),
+        width: 200,
         renderCell: (params) => (
-          <>
+          <div className={classes.deviceId}>
             <Link
               href="#"
               underline="none"
@@ -320,36 +333,37 @@ export default function DevicesTable({
                 );
               }}
             >
-              {params.row.displayName ?? "-"}
+              {params.value ?? "-"}
             </Link>
             {!disableSwitchSource && (
-              <Tooltip title={t("visualizeDevice")} placement="top">
-                <IconButton
-                  size="small"
-                  className={classes.playButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
+              <div className={classes.vizButton}>
+                <Tooltip title={t("visualizeDevice")} placement="top">
+                  <IconButton
+                    size="small"
+                    className={classes.playButton}
+                    onClick={(e) => {
+                      e.stopPropagation();
 
-                    handleVizTargetDevice({
-                      device: params.row,
-                      deviceTitle: params.row.title ?? "-",
-                    });
-                  }}
-                >
-                  <PlayCircleFilledWhiteOutlinedIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
+                      handleVizTargetDevice({
+                        device: params.row,
+                        deviceTitle: params.row.title ?? "-",
+                      });
+                    }}
+                  >
+                    <PlayCircleFilledWhiteOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </div>
             )}
-          </>
+          </div>
         ),
       },
       {
-        field: "serialNumber",
-        headerName: t("deviceId"),
-        width: 200,
+        field: "displayName",
+        headerName: t("deviceName"),
+        width: 250,
         renderCell: (params) => <Typography variant="body2">{params.value ?? "-"}</Typography>,
       },
-
       {
         field: "createTime",
         headerName: t("createTime"),
@@ -365,8 +379,10 @@ export default function DevicesTable({
     ],
     [
       t,
-      disableSwitchSource,
+      classes.deviceId,
+      classes.vizButton,
       classes.playButton,
+      disableSwitchSource,
       baseInfo.organizationSlug,
       baseInfo.projectSlug,
       handleVizTargetDevice,

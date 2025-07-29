@@ -99,6 +99,19 @@ const useStyles = makeStyles()((theme) => ({
     ".MuiDataGrid-row:hover &": {
       opacity: 1,
     },
+    backgroundColor: theme.palette.background.paper,
+  },
+  deviceId: {
+    position: "relative",
+    width: "100%",
+    overflow: "hidden",
+  },
+  vizButton: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    margin: "auto",
   },
 }));
 
@@ -364,7 +377,7 @@ export default function RecordTable({
         headerName: t("recordName"),
         width: 200,
         renderCell: (params) => (
-          <>
+          <div className={classes.deviceId}>
             <Link
               href="#"
               underline="none"
@@ -381,20 +394,22 @@ export default function RecordTable({
               {params.row.title ?? "-"}
             </Link>
             {!disableSwitchSource && (
-              <Tooltip title={t("playRecord")} placement="top">
-                <IconButton
-                  size="small"
-                  className={classes.playButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
+              <div className={classes.vizButton}>
+                <Tooltip title={t("playRecord")} placement="top">
+                  <IconButton
+                    size="small"
+                    className={classes.playButton}
+                    onClick={(e) => {
+                      e.stopPropagation();
 
-                    const recordName = String(params.row.name ?? params.id);
-                    handleVizTargetRecord({ recordName, recordTitle: params.row.title ?? "" });
-                  }}
-                >
-                  <PlayCircleFilledWhiteOutlinedIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
+                      const recordName = String(params.row.name ?? params.id);
+                      handleVizTargetRecord({ recordName, recordTitle: params.row.title ?? "" });
+                    }}
+                  >
+                    <PlayCircleFilledWhiteOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </div>
             )}
             <Tooltip title={t("copyRecordId")} placement="top">
               <IconButton
@@ -409,7 +424,7 @@ export default function RecordTable({
                 <ContentCopyOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-          </>
+          </div>
         ),
       },
       {
@@ -454,11 +469,13 @@ export default function RecordTable({
     ],
     [
       t,
-      handleVizTargetRecord,
-      baseInfo.organizationSlug,
-      baseInfo.projectSlug,
+      classes.deviceId,
+      classes.vizButton,
       classes.playButton,
       disableSwitchSource,
+      baseInfo.organizationSlug,
+      baseInfo.projectSlug,
+      handleVizTargetRecord,
     ],
   );
 
