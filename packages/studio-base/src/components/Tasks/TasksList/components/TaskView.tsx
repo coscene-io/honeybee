@@ -211,7 +211,7 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
           {/* view detail */}
           <Stack>
             <Button
-              variant="contained"
+              variant="outlined"
               color="primary"
               onClick={(e) => {
                 e.stopPropagation();
