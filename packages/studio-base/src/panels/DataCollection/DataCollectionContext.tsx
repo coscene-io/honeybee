@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, ReactNode, useMemo } from "react";
 
 import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { ConsoleApi } from "@foxglove/studio-base/index";
@@ -35,18 +35,19 @@ export function DataCollectionProvider({
   consoleApi,
   focusedTask,
 }: DataCollectionProviderProps): React.JSX.Element {
+  const contextValue = useMemo(
+    () => ({
+      panelState,
+      deviceLink,
+      userInfo,
+      consoleApi,
+      focusedTask,
+    }),
+    [panelState, deviceLink, userInfo, consoleApi, focusedTask],
+  );
+
   return (
-    <DataCollectionContext.Provider
-      value={{
-        panelState,
-        deviceLink,
-        userInfo,
-        consoleApi,
-        focusedTask,
-      }}
-    >
-      {children}
-    </DataCollectionContext.Provider>
+    <DataCollectionContext.Provider value={contextValue}>{children}</DataCollectionContext.Provider>
   );
 }
 
