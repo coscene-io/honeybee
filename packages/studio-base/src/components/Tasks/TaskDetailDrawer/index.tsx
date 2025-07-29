@@ -168,6 +168,9 @@ export default function TaskDetailDrawer(): React.ReactElement {
 
   useEffect(() => {
     if (viewingTask == undefined) {
+      // 重置过滤器状态，确保下次选择任务时能触发数据获取
+      setRecordFilter(undefined);
+      setDeviceFilter(undefined);
       return;
     }
 
