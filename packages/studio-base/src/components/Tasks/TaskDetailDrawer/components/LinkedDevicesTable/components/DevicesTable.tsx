@@ -210,6 +210,7 @@ export default function DevicesTable({
   setCurrentPage,
   onSelectionChange,
   onBatchAction,
+  loading = false,
 }: {
   linkedDevicesResponse: ListProjectDevicesResponse;
   pageSize: number;
@@ -221,6 +222,7 @@ export default function DevicesTable({
   setCurrentPage: (currentPage: number) => void;
   onSelectionChange?: (selectedRowIds: string[]) => void;
   onBatchAction?: (selectedRowIds: string[]) => void;
+  loading?: boolean;
 }): React.ReactElement {
   const { classes } = useStyles();
   const { i18n, t } = useTranslation("task");
@@ -433,7 +435,9 @@ export default function DevicesTable({
       rowSelectionModel={rowSelectionModel}
       onRowSelectionModelChange={handleSelectionModelChange}
       pageSizeOptions={[10, 25, 50, 100]}
-      loading={false}
+      paginationMode="server"
+      rowCount={Number(linkedDevicesResponse.totalSize)}
+      loading={loading}
       checkboxSelection
       disableColumnFilter
       disableRowSelectionOnClick
