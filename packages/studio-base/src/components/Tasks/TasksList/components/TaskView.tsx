@@ -123,6 +123,7 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
           })}
           onClick={() => {
             setFocusedTask(task);
+            toast.success(t("taskFocused", { number: task.number }));
           }}
           gap={1.5}
         >
