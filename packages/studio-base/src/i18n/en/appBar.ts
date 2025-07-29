@@ -75,4 +75,5 @@ export const appBar = {
   networkConnection: "Network connection",
   colinkRemoteConnection: "coLink remote connection",
   localNetworkConnection: "local network connection",
+  openHomePage: "Open home page",
 };
