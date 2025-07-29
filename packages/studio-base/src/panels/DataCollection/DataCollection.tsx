@@ -71,6 +71,7 @@ async function handleTaskProgress({
   showRecordLink = true,
   targetOrg,
   targetProject,
+  focusedTask,
 }: {
   consoleApi: ConsoleApi;
   taskName: string;
@@ -80,6 +81,7 @@ async function handleTaskProgress({
   showRecordLink: boolean;
   targetOrg: Organization;
   targetProject: Project;
+  focusedTask?: Task;
 }): Promise<void> {
   const task = await consoleApi.getTask({ taskName });
 
@@ -99,28 +101,31 @@ async function handleTaskProgress({
       }/${targetOrg.slug}/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
 
-    try {
-      await consoleApi.linkTasks({
-        project: targetProject.name,
-        linkTasks: [
-          {
-            task: taskName,
-            target: {
-              value: `${targetProject.name}/records/${task.tags.recordName.split("/").pop()}`,
-              case: "record",
+    if (focusedTask?.name) {
+      try {
+        await consoleApi.linkTasks({
+          project: targetProject.name,
+          linkTasks: [
+            {
+              task: focusedTask.name,
+              target: {
+                value: `${targetProject.name}/records/${task.tags.recordName.split("/").pop()}`,
+                case: "record",
+              },
             },
-          },
-        ],
-      });
-    } catch (linkError) {
-      // 如果链接任务失败，记录错误但不阻止整个流程
-      console.error("Failed to link record:", linkError);
-      addLog(
-        `[WARNING] ${t("recordLinkFailed")}: ${
-          linkError instanceof Error ? linkError.message : String(linkError)
-        }`,
-      );
+          ],
+        });
+      } catch (linkError) {
+        // 如果链接任务失败，记录错误但不阻止整个流程
+        console.error("Failed to link record:", linkError);
+        addLog(
+          `[WARNING] ${t("recordLinkFailed")}: ${
+            linkError instanceof Error ? linkError.message : String(linkError)
+          }`,
+        );
+      }
     }
+
     needShowRecordLink = false;
   }
 
@@ -150,6 +155,7 @@ async function handleTaskProgress({
           showRecordLink: needShowRecordLink,
           targetOrg,
           targetProject,
+          focusedTask,
         });
       }, timeout);
       break;
@@ -166,6 +172,7 @@ async function handleTaskProgress({
           showRecordLink: needShowRecordLink,
           targetOrg,
           targetProject,
+          focusedTask,
         });
       }, timeout);
       break;
@@ -402,33 +409,35 @@ function DataCollectionContent(
         addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("startUpload")}`);
         addLog("+++++++++++++++++++++++++++");
 
-        try {
-          await consoleApi.linkTasks({
-            project: taskInfoSnapshot?.project.name ?? "",
-            linkTasks: [
-              {
-                task: focusedTask?.name ?? "",
-                target: { value: response.name, case: "targetTask" },
-              },
-            ],
-          });
-        } catch (linkError) {
-          // 如果链接任务失败，记录错误但不阻止整个流程
-          console.error("Failed to link tasks:", linkError);
+        if (focusedTask?.name) {
+          try {
+            await consoleApi.linkTasks({
+              project: taskInfoSnapshot?.project.name ?? "",
+              linkTasks: [
+                {
+                  task: focusedTask.name,
+                  target: { value: response.name, case: "targetTask" },
+                },
+              ],
+            });
+          } catch (linkError) {
+            // 如果链接任务失败，记录错误但不阻止整个流程
+            console.error("Failed to link tasks:", linkError);
+            addLog(
+              `[WARNING] ${t("taskLinkFailed")}: ${
+                linkError instanceof Error ? linkError.message : String(linkError)
+              }`,
+            );
+          }
+
           addLog(
-            `[WARNING] ${t("taskLinkFailed")}: ${
-              linkError instanceof Error ? linkError.message : String(linkError)
-            }`,
+            `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("autoLinkedTask")}：https://${
+              APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+            }/${targetOrg.slug}/${targetProject.slug}/tasks/general-tasks/${currentFocusedTask?.name
+              .split("/")
+              .pop()}`,
           );
         }
-
-        addLog(
-          `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("autoLinkedTask")}：https://${
-            APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
-          }/${targetOrg.slug}/${targetProject.slug}/tasks/general-tasks/${currentFocusedTask?.name
-            .split("/")
-            .pop()}`,
-        );
 
         addLog(
           `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("progressLink")}：https://${
@@ -451,6 +460,7 @@ function DataCollectionContent(
           showRecordLink: true,
           targetOrg,
           targetProject,
+          focusedTask,
         });
       } catch (err) {
         log.error(err);
@@ -464,7 +474,7 @@ function DataCollectionContent(
       deviceLink,
       addLog,
       t,
-      focusedTask?.name,
+      focusedTask,
       currentFocusedTask?.name,
     ],
   );
