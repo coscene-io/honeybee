@@ -97,7 +97,7 @@ export function AssignedCard({ task, project, onClick }: AssignedCardProps): Rea
 
   const setViewingTask = useTasks((store) => store.setViewingTask);
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (onClick) {
       onClick();
     } else {
@@ -110,7 +110,7 @@ export function AssignedCard({ task, project, onClick }: AssignedCardProps): Rea
         value: newBaseInfo,
         loading: false,
       });
-      void consoleApi.setApiBaseInfo(newBaseInfo);
+      await consoleApi.setApiBaseInfo(newBaseInfo);
       setViewingTask(task);
       sidebarActions.left.selectItem("tasks");
       dialogActions.dataSource.close();
