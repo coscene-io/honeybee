@@ -37,6 +37,7 @@ export default function LinkedRecordsTable({
   setCurrentPage,
   filter,
   setFilter,
+  loading = false,
 }: {
   taskName: string;
   linkedRecords: ListRecordsResponse;
@@ -47,6 +48,7 @@ export default function LinkedRecordsTable({
   setCurrentPage: (currentPage: number) => void;
   filter: string | undefined;
   setFilter: (filter: string) => void;
+  loading?: boolean;
 }): React.ReactElement {
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
@@ -86,6 +88,7 @@ export default function LinkedRecordsTable({
         onBatchAction={handleUnlinkRecord}
         batchActionButtonText={t("unlinkRecord")}
         disableBatchAction={!consoleApi.unlinkTasks.permission()}
+        loading={loading}
       />
     </Box>
   );
