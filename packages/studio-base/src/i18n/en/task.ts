@@ -49,4 +49,6 @@ export const task = {
   addLinkedDeviceFailed: "Add linked device failed",
   assignee: "Assignee",
   allLoaded: "All loaded",
+  taskFocused:
+    "The record uploaded from the data collection panel will be automatically linked to task #{{number}}",
 };
