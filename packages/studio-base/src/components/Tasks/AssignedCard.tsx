@@ -90,8 +90,6 @@ export function AssignedCard({ task, project, onClick }: AssignedCardProps): Rea
   const { classes, cx } = useStyles();
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
-  // "warehouses/65cc6c97-9839-4f4d-9041-b1de79a0e3a9/projects/34408940-64a1-433b-baf9-51afc9c1f0f7/tasks/396b3550-4551-43d8-bdf6-f847cedbfc25"
-
   const baseInfo = useBaseInfo(selectBaseInfo);
   const setBaseInfo = useBaseInfo(selectSetBaseInfo);
 

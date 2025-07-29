@@ -4,6 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { CustomFieldSchema } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
@@ -16,19 +17,17 @@ import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext
 import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 
 export type BaseInfo = {
-  projectId?: string;
-  projectSlug?: string;
-  projectDisplayName?: string;
-  recordDisplayName?: string;
+  warehouseId: string;
+  projectId: string;
   recordId?: string;
-  warehouseId?: string;
   jobRunsDisplayName?: string;
   jobRunsId?: string;
   workflowRunsId?: string;
   files?: Array<ParamsFile>;
-  organizationId?: string;
-  organizationSlug?: string;
   jobRunsSerialNumber?: string;
+
+  reloadProjectTrigger: number;
+  reloadRecordTrigger: number;
 };
 
 export type CoordinatorConfig = {
@@ -44,18 +43,28 @@ export type CoSceneBaseStore = {
     id: string;
     type: "connection" | "file" | "sample";
   };
-  baseInfo: AsyncState<BaseInfo>;
+  baseInfo?: BaseInfo;
+
+  organization: AsyncState<Organization>;
+  project: AsyncState<Project>;
   record: AsyncState<Record>;
+
   recordCustomFieldSchema?: CustomFieldSchema;
   deviceCustomFieldSchema?: CustomFieldSchema;
-  project: AsyncState<Project>;
   coordinatorConfig?: CoordinatorConfig;
   colinkApi?: ReturnType<typeof DevicesApiFactory>;
-  setBaseInfo: (baseInfo: AsyncState<BaseInfo>) => void;
+
+  reloadProjectTrigger: number;
+  reloadRecordTrigger: number;
+  setBaseInfo: (baseInfo: BaseInfo) => void;
   setDataSource: (dataSource: { id: string; type: "connection" | "file" | "sample" }) => void;
   setRecord: (record: AsyncState<Record>) => void;
   setProject: (project: AsyncState<Project>) => void;
+  setOrganization: (organization: AsyncState<Organization>) => void;
+
   refreshRecord: () => void;
+  refreshProject: () => void;
+
   // schema
   setRecordCustomFieldSchema: (recordCustomFieldSchema: CustomFieldSchema) => void;
   setDeviceCustomFieldSchema: (deviceCustomFieldSchema: CustomFieldSchema) => void;
