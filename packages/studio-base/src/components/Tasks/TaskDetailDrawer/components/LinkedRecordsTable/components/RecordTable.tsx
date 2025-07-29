@@ -274,6 +274,7 @@ export default function RecordTable({
   setCurrentPage,
   onSelectionChange,
   onBatchAction,
+  loading = false,
 }: {
   listRecordsResponse: ListRecordsResponse;
   pageSize: number;
@@ -281,6 +282,7 @@ export default function RecordTable({
   disableBatchAction?: boolean;
   batchActionButtonText?: string;
   disableSwitchSource?: boolean;
+  loading?: boolean;
   setPageSize: (pageSize: number) => void;
   setCurrentPage: (currentPage: number) => void;
   onSelectionChange?: (selectedRowIds: string[]) => void;
@@ -524,7 +526,9 @@ export default function RecordTable({
       rowSelectionModel={rowSelectionModel}
       onRowSelectionModelChange={handleSelectionModelChange}
       pageSizeOptions={[10, 25, 50, 100]}
-      loading={false}
+      paginationMode="server"
+      rowCount={Number(listRecordsResponse.totalSize)}
+      loading={loading}
       checkboxSelection
       disableColumnFilter
       disableRowSelectionOnClick

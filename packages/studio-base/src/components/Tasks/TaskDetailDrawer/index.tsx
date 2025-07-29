@@ -122,15 +122,22 @@ export default function TaskDetailDrawer(): React.ReactElement {
 
     const res = await consoleApi.listRecord({
       projectName,
-      pageSize: 10,
+      pageSize: recordPageSize,
       filter: CosQuery.Companion.deserialize(recordFilter).toQueryString(
         new SerializeOption(false),
       ),
-      currentPage: 0,
+      currentPage: recordCurrentPage,
     });
 
     return res;
-  }, [recordFilter, baseInfo.value?.projectId, baseInfo.value?.warehouseId, consoleApi]);
+  }, [
+    recordFilter,
+    baseInfo.value?.projectId,
+    baseInfo.value?.warehouseId,
+    consoleApi,
+    recordPageSize,
+    recordCurrentPage,
+  ]);
 
   const [linkedDevices, getLinkedDevices] = useAsyncFn(async () => {
     if (
@@ -140,16 +147,24 @@ export default function TaskDetailDrawer(): React.ReactElement {
     ) {
       return;
     }
+
     const res = await consoleApi.listProjectDevices({
       filter: CosQuery.Companion.deserialize(deviceFilter),
-      pageSize: 10,
-      currentPage: 0,
+      pageSize: devicePageSize,
+      currentPage: deviceCurrentPage,
       warehouseId: baseInfo.value.warehouseId,
       projectId: baseInfo.value.projectId,
     });
 
     return res;
-  }, [deviceFilter, baseInfo.value?.projectId, baseInfo.value?.warehouseId, consoleApi]);
+  }, [
+    deviceFilter,
+    baseInfo.value?.projectId,
+    baseInfo.value?.warehouseId,
+    consoleApi,
+    devicePageSize,
+    deviceCurrentPage,
+  ]);
 
   useEffect(() => {
     if (viewingTask == undefined) {
@@ -183,14 +198,14 @@ export default function TaskDetailDrawer(): React.ReactElement {
       void getLinkedRecords();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recordFilter]); // 故意不包含 getLinkedRecords 以避免循环依赖
+  }, [recordFilter, recordPageSize, recordCurrentPage]); // 故意不包含 getLinkedRecords 以避免循环依赖
 
   useEffect(() => {
     if (deviceFilter != undefined) {
       void getLinkedDevices();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deviceFilter]); // 故意不包含 getLinkedDevices 以避免循环依赖
+  }, [deviceFilter, devicePageSize, deviceCurrentPage]); // 故意不包含 getLinkedDevices 以避免循环依赖
 
   return (
     <Drawer
@@ -241,6 +256,7 @@ export default function TaskDetailDrawer(): React.ReactElement {
               setCurrentPage={setRecordCurrentPage}
               setFilter={setRecordFilter}
               filter={recordFilter}
+              loading={linkedRecords.loading}
             />
           )}
           {tabValue === 1 && linkedDevices.value && (
