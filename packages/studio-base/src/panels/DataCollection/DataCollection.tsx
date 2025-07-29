@@ -29,7 +29,7 @@ import {
 } from "@mui/material";
 import dayjs from "dayjs";
 import { TFunction } from "i18next";
-import { Dispatch, SetStateAction, useCallback, useEffect, useState, useRef } from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect, useState, useRef, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { useImmer } from "use-immer";
@@ -841,7 +841,7 @@ function DataCollectionContent(
   );
 }
 
-export function DataCollection({ context }: Props): React.JSX.Element {
+export const DataCollection = memo(function DataCollection({ context }: Props): React.JSX.Element {
   const [colorScheme, setColorScheme] = useState<Palette["mode"]>("light");
   const { t } = useTranslation("dataCollection");
   const { panelState } = useDataCollectionContext();
@@ -869,4 +869,4 @@ export function DataCollection({ context }: Props): React.JSX.Element {
       )}
     </ThemeProvider>
   );
-}
+});

@@ -137,6 +137,9 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
               }}
               variant="filled"
               style={{ minWidth: 120 }}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
             >
               {taskStateOptions.map((option) => (
                 <MenuItem key={option} value={option}>
