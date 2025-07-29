@@ -16,6 +16,7 @@ import {
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
@@ -36,6 +37,7 @@ function ipToHex(ip: string) {
 const selectColinkApi = (store: CoSceneBaseStore) => store.colinkApi;
 const selectCoordinatorConfig = (store: CoSceneBaseStore) => store.coordinatorConfig;
 const selectUser = (store: UserStore) => store.user;
+const selectSetViewingTask = (store: TaskStore) => store.setViewingTask;
 
 export function useVizTargetSource(): (
   params:
@@ -54,6 +56,7 @@ export function useVizTargetSource(): (
   const currentUser = useCurrentUser(selectUser);
   const coordinatorConfig = useBaseInfo(selectCoordinatorConfig);
   const colinkApi = useBaseInfo(selectColinkApi);
+  const setViewingTask = useTasks(selectSetViewingTask);
 
   return useCallback(
     async (
@@ -113,6 +116,8 @@ export function useVizTargetSource(): (
           deviceLink,
         };
       }
+
+      setViewingTask(undefined);
 
       updateUrl(updateUrlParams);
 

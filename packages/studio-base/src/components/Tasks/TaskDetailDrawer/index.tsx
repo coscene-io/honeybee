@@ -38,6 +38,9 @@ const selectPlay = (ctx: MessagePipelineContext) => ctx.startPlayback;
 const selectPause = (ctx: MessagePipelineContext) => ctx.pausePlayback;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectEnableRepeat = (ctx: MessagePipelineContext) => ctx.enableRepeatPlayback;
+const selectViewingTask = (store: TaskStore) => store.viewingTask;
+const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectSetViewingTask = (store: TaskStore) => store.setViewingTask;
 
 const useStyles = makeStyles<{ showPlaybackControls: boolean }>()(
   (theme, { showPlaybackControls }) => ({
@@ -74,9 +77,6 @@ const useStyles = makeStyles<{ showPlaybackControls: boolean }>()(
   }),
 );
 
-const selectViewingTask = (store: TaskStore) => store.viewingTask;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-
 export default function TaskDetailDrawer(): React.ReactElement {
   // Check if PlaybackControls should be displayed based on the same conditions as in Workspace.tsx
   const play = useMessagePipeline(selectPlay);
@@ -89,7 +89,7 @@ export default function TaskDetailDrawer(): React.ReactElement {
 
   const { classes } = useStyles({ showPlaybackControls });
   const viewingTask = useTasks(selectViewingTask);
-  const setViewingTask = useTasks((state) => state.setViewingTask);
+  const setViewingTask = useTasks(selectSetViewingTask);
   const baseInfo = useBaseInfo(selectBaseInfo);
   const [tabValue, setTabValue] = useState(0);
   const { t } = useTranslation("task");
