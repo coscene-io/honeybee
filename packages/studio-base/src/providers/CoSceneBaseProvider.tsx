@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { CustomFieldSchema } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
@@ -23,14 +24,17 @@ import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 function CreateBaseStore() {
   return createStore<CoSceneBaseStore>((set, get) => ({
     dataSource: undefined,
-    baseInfo: { loading: false, value: undefined },
+    baseInfo: undefined,
     // monitor loading param to refresh record/project info
+    organization: { loading: true, value: undefined },
     record: { loading: true, value: undefined },
     project: { loading: true, value: undefined },
     coordinatorConfig: undefined,
     colinkApi: undefined,
+    reloadProjectTrigger: 0,
+    reloadRecordTrigger: 0,
 
-    setBaseInfo: (baseInfo: AsyncState<BaseInfo>) => {
+    setBaseInfo: (baseInfo: BaseInfo) => {
       set({ baseInfo });
     },
     setDataSource: (dataSource: { id: string; type: "connection" | "file" | "sample" }) => {
@@ -57,24 +61,24 @@ function CreateBaseStore() {
     setProject: (project: AsyncState<Project>) => {
       set({ project });
     },
+    setOrganization: (organization: AsyncState<Organization>) => {
+      set({ organization });
+    },
+
     refreshRecord: () => {
-      const { record } = get();
-      if (record.value) {
-        set({ record: { loading: true, value: record.value } });
-      }
+      set({ reloadRecordTrigger: get().reloadRecordTrigger + 1 });
     },
     refreshProject: () => {
-      const { project } = get();
-      if (project.value) {
-        set({ project: { loading: true, value: project.value } });
-      }
+      set({ reloadProjectTrigger: get().reloadProjectTrigger + 1 });
     },
+
     setRecordCustomFieldSchema: (recordCustomFieldSchema: CustomFieldSchema) => {
       set({ recordCustomFieldSchema });
     },
     setDeviceCustomFieldSchema: (deviceCustomFieldSchema: CustomFieldSchema) => {
       set({ deviceCustomFieldSchema });
     },
+
     setCoordinatorConfig: (coordinatorConfig: CoordinatorConfig) => {
       set({ coordinatorConfig });
     },

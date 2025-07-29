@@ -25,12 +25,17 @@ const selectRecord = (store: CoSceneBaseStore) => store.record;
 const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
 const selectRefreshRecord = (store: CoSceneBaseStore) => store.refreshRecord;
 const selectRecordCustomFieldSchema = (store: CoSceneBaseStore) => store.recordCustomFieldSchema;
+const selectOrganization = (store: CoSceneBaseStore) => store.organization;
+const selectProject = (store: CoSceneBaseStore) => store.project;
 
 const log = Logger.getLogger(__filename);
 
 export default function RecordInfo(): ReactElement {
   const consoleApi = useConsoleApi();
   const record = useBaseInfo(selectRecord);
+  const organization = useBaseInfo(selectOrganization);
+  const project = useBaseInfo(selectProject);
+
   const baseInfo = useBaseInfo(selectBaseInfo);
   const recordCustomFieldSchema = useBaseInfo(selectRecordCustomFieldSchema);
 
@@ -63,16 +68,16 @@ export default function RecordInfo(): ReactElement {
   }, [consoleApi, record.value?.creator]);
 
   const [labels, getLabels] = useAsyncFn(async () => {
-    if (!baseInfo.value?.warehouseId || !baseInfo.value.projectId) {
+    if (!baseInfo?.warehouseId || !baseInfo.projectId) {
       return;
     }
 
     return await consoleApi.listLabels({
       pageSize: 100,
-      warehouseId: baseInfo.value.warehouseId,
-      projectId: baseInfo.value.projectId,
+      warehouseId: baseInfo.warehouseId,
+      projectId: baseInfo.projectId,
     });
-  }, [consoleApi, baseInfo.value?.warehouseId, baseInfo.value?.projectId]);
+  }, [consoleApi, baseInfo]);
 
   useEffect(() => {
     if (record.value?.device?.name) {
@@ -99,12 +104,12 @@ export default function RecordInfo(): ReactElement {
   }, [record.value?.creator, getCreator]);
 
   useEffect(() => {
-    if (baseInfo.value?.warehouseId && baseInfo.value.projectId) {
+    if (baseInfo?.warehouseId && baseInfo.projectId) {
       getLabels().catch((error: unknown) => {
         log.error(error);
       });
     }
-  }, [baseInfo.value?.warehouseId, baseInfo.value?.projectId, getLabels]);
+  }, [baseInfo, getLabels]);
 
   const updateRecord = useCallback(
     async (payload: PartialMessage<UpdateRecordRequest>) => {
@@ -131,7 +136,7 @@ export default function RecordInfo(): ReactElement {
               variant="body2"
               underline="hover"
               data-testid={deviceInfo.value?.serialNumber}
-              href={`/${baseInfo.value?.organizationSlug}/${baseInfo.value?.projectSlug}/${deviceInfo.value?.name}`}
+              href={`/${organization.value?.name}/${project.value?.name}/${deviceInfo.value?.name}`}
               target="_blank"
             >
               {deviceInfo.value?.serialNumber}

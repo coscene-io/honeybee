@@ -4,7 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useAsync } from "react-use";
 
 import { setDefaultFilter } from "@foxglove/studio-base/components/Tasks/TasksList/utils/taskFilterUtils";
@@ -28,9 +28,7 @@ const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 export function TasksSyncAdapter(): ReactNull {
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const baseInfo = useBaseInfo(selectBaseInfo);
 
   const consoleApi = useConsoleApi();
 
@@ -46,7 +44,7 @@ export function TasksSyncAdapter(): ReactNull {
   const reloadTrigger = useTasks(selectReloadTrigger);
 
   useAsync(async () => {
-    if (!baseInfo.warehouseId || !baseInfo.projectId) {
+    if (!baseInfo?.warehouseId || !baseInfo.projectId) {
       return;
     }
     // get task custom field schema
@@ -54,10 +52,10 @@ export function TasksSyncAdapter(): ReactNull {
       `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`,
     );
     setCustomFieldSchema(customFieldSchema);
-  }, [baseInfo.warehouseId, baseInfo.projectId, consoleApi, setCustomFieldSchema]);
+  }, [baseInfo, consoleApi, setCustomFieldSchema]);
 
   const projectTasks = useAsync(async () => {
-    if (!baseInfo.warehouseId || !baseInfo.projectId) {
+    if (!baseInfo?.warehouseId || !baseInfo.projectId) {
       return;
     }
     let defaultFilter = projectTasksFilter;
@@ -77,8 +75,7 @@ export function TasksSyncAdapter(): ReactNull {
     return projectTasks.tasks;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    baseInfo.warehouseId,
-    baseInfo.projectId,
+    baseInfo,
     projectTasksFilter,
     consoleApi,
     user?.userId,
