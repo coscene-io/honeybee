@@ -51,4 +51,5 @@ export const task: Partial<TypeOptions["resources"]["task"]> = {
   addLinkedDeviceFailed: "添加关联设备失败",
   assignee: "经办人",
   allLoaded: "已经加载全部",
+  taskFocused: "数据采集面板上传的记录将自动关联到任务 #{{number}}",
 };
