@@ -93,6 +93,12 @@ type PanelExtensionAdapterProps = {
   highestSupportedConfigVersion?: number;
   config: unknown;
   saveConfig: SaveConfig<unknown>;
+  /**
+   * Optional extension-specific data that will be available in renderState.extensionData
+   * extensionData change will call render function
+   * recommend use useMemo to stable extensionData object reference
+   */
+  extensionData?: Record<string, unknown>;
 };
 
 function selectContext(ctx: MessagePipelineContext) {
@@ -112,7 +118,7 @@ type RenderFn = NonNullable<PanelExtensionContext["onRender"]>;
 function PanelExtensionAdapter(
   props: React.PropsWithChildren<PanelExtensionAdapterProps>,
 ): React.JSX.Element {
-  const { initPanel, config, saveConfig, highestSupportedConfigVersion } = props;
+  const { initPanel, config, saveConfig, highestSupportedConfigVersion, extensionData } = props;
 
   // Unlike the react data flow, the config is only provided to the panel once on setup.
   // The panel is meant to manage the config and call saveConfig on its own.
@@ -245,6 +251,7 @@ function PanelExtensionAdapter(
       subscriptions: localSubscriptions,
       watchedFields,
       config: undefined,
+      extensionData,
     });
 
     if (!renderState) {
@@ -281,6 +288,7 @@ function PanelExtensionAdapter(
     appSettings,
     buildRenderState,
     colorScheme,
+    extensionData,
     globalVariables,
     hoverValue,
     localSubscriptions,

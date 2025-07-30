@@ -188,7 +188,7 @@ function DataCollectionContent(
   props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
 ): React.JSX.Element {
   const { context, setColorScheme } = props;
-  const { userInfo, consoleApi, deviceLink, focusedTask } = useDataCollectionContext();
+  const { userInfo, consoleApi, deviceLink } = useDataCollectionContext();
 
   const { t } = useTranslation("dataCollection");
 
@@ -215,7 +215,7 @@ function DataCollectionContent(
   // 独立的 projectName 和 recordLabels 状态
   const [projectName, setProjectName] = useState<string>("");
   const [recordLabels, setRecordLabels] = useState<Label[]>([]);
-  // const [taskRelation, setTaskRelation] = useState<string>("hello");
+
   const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
   const [recordLabelOptions, setRecordLabelOptions] = useState<Label[]>([]);
   const [currentFocusedTask, setCurrentFocusedTask] = useState<Task | undefined>(undefined);
@@ -279,7 +279,6 @@ function DataCollectionContent(
 
   // 当项目变化时获取标签列表
   useEffect(() => {
-    setCurrentFocusedTask(undefined);
     if (projectName) {
       void syncRecordLabels();
     } else {
@@ -293,18 +292,14 @@ function DataCollectionContent(
       return;
     }
 
-    if (focusedTask) {
-      setCurrentFocusedTask(focusedTask);
-
-      const taskProjectName = focusedTask.name.split("/tasks/")[0];
+    if (currentFocusedTask) {
+      const taskProjectName = currentFocusedTask.name.split("/tasks/")[0];
 
       if (taskProjectName) {
         setProjectName(taskProjectName);
       }
-    } else {
-      setCurrentFocusedTask(undefined);
     }
-  }, [focusedTask, projectOptions, currentCollectionStage]);
+  }, [currentFocusedTask, projectOptions, currentCollectionStage]);
 
   const addLog = useCallback(
     (newLog: string) => {
@@ -409,13 +404,13 @@ function DataCollectionContent(
         addLog(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("startUpload")}`);
         addLog("+++++++++++++++++++++++++++");
 
-        if (focusedTask?.name) {
+        if (currentFocusedTask?.name) {
           try {
             await consoleApi.linkTasks({
               project: taskInfoSnapshot?.project.name ?? "",
               linkTasks: [
                 {
-                  task: focusedTask.name,
+                  task: currentFocusedTask.name,
                   target: { value: response.name, case: "targetTask" },
                 },
               ],
@@ -433,7 +428,7 @@ function DataCollectionContent(
           addLog(
             `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] ${t("autoLinkedTask")}：https://${
               APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
-            }/${targetOrg.slug}/${targetProject.slug}/tasks/general-tasks/${currentFocusedTask?.name
+            }/${targetOrg.slug}/${targetProject.slug}/tasks/general-tasks/${currentFocusedTask.name
               .split("/")
               .pop()}`,
           );
@@ -460,23 +455,14 @@ function DataCollectionContent(
           showRecordLink: true,
           targetOrg,
           targetProject,
-          focusedTask,
+          focusedTask: currentFocusedTask,
         });
       } catch (err) {
         log.error(err);
         addLog(`[ERROR] ${t("uploadFileFail")}`);
       }
     },
-    [
-      taskInfoSnapshot,
-      consoleApi,
-      userInfo.userId,
-      deviceLink,
-      addLog,
-      t,
-      focusedTask,
-      currentFocusedTask?.name,
-    ],
+    [taskInfoSnapshot, consoleApi, userInfo.userId, deviceLink, addLog, t, currentFocusedTask],
   );
 
   const callServiceClicked = useCallback(
@@ -650,16 +636,23 @@ function DataCollectionContent(
 
   useEffect(() => {
     context.watch("colorScheme");
+    context.watch("extensionData");
 
     context.onRender = (renderState, done) => {
       setRenderDone(() => done);
       setColorScheme(renderState.colorScheme ?? "light");
+
+      // 从 extensionData 中获取 focusedTask
+      const { focusedTask: extensionFocusedTask } = renderState.extensionData ?? {};
+      if (extensionFocusedTask !== currentFocusedTask && currentCollectionStage !== "collecting") {
+        setCurrentFocusedTask(extensionFocusedTask as Task | undefined);
+      }
     };
 
     return () => {
       context.onRender = undefined;
     };
-  }, [context, setColorScheme]);
+  }, [context, setColorScheme, currentFocusedTask, currentCollectionStage]);
 
   // Indicate render is complete - the effect runs after the dom is updated
   useEffect(() => {
@@ -706,6 +699,7 @@ function DataCollectionContent(
                 value={projectName}
                 label={t("projectName")}
                 onChange={(event: SelectChangeEvent) => {
+                  setCurrentFocusedTask(undefined);
                   setProjectName(event.target.value);
                 }}
               >
@@ -734,6 +728,7 @@ function DataCollectionContent(
                     endAdornment: currentFocusedTask ? (
                       <IconButton
                         aria-label={t("clearTaskLink")}
+                        disabled={currentCollectionStage === "collecting"}
                         onClick={() => {
                           setCurrentFocusedTask(undefined);
                         }}
