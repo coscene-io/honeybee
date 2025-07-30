@@ -29,6 +29,7 @@ export type BaseInfo = {
   organizationId?: string;
   organizationSlug?: string;
   jobRunsSerialNumber?: string;
+  taskId?: string;
 };
 
 export type CoordinatorConfig = {
