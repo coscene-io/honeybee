@@ -242,8 +242,14 @@ export default function TaskDetailDrawer(): React.ReactElement {
               }}
               className={classes.tabs}
             >
-              <Tab label={`${t("linkedRecords")}(${linkedRecords.value?.totalSize})`} value={0} />
-              <Tab label={`${t("linkedDevices")}(${linkedDevices.value?.totalSize})`} value={1} />
+              <Tab
+                label={`${t("linkedRecords")}(${linkedRecords.value?.totalSize ?? 0})`}
+                value={0}
+              />
+              <Tab
+                label={`${t("linkedDevices")}(${linkedDevices.value?.totalSize ?? 0})`}
+                value={1}
+              />
             </Tabs>
           </Box>
         )}
