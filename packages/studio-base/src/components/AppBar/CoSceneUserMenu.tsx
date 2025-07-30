@@ -114,7 +114,7 @@ export function UserMenu({
       setUser(undefined);
       toast.success(t("signoutSuccess"));
     } else {
-      window.location.href = "/login";
+      // window.location.href = "/login";
     }
   }, [isDesktop, setLoginStatus, t, setUser]);
 
