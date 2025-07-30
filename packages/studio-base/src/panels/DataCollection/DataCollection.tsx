@@ -646,16 +646,16 @@ function DataCollectionContent(
       // 从 extensionData 中获取 focusedTask
       const { focusedTask: extensionFocusedTask } = renderState.extensionData ?? {};
       if (extensionFocusedTask !== currentFocusedTask && currentCollectionStage !== "collecting") {
-        // toast.success(t("taskFocused", { number: extensionFocusedTask?.number }));
-        toast.success("hello world");
-        setCurrentFocusedTask(extensionFocusedTask as Task | undefined);
+        const focusedTask = extensionFocusedTask as Task;
+        toast.success(t("taskFocused", { number: focusedTask.number, ns: "task" }));
+        setCurrentFocusedTask(focusedTask);
       }
     };
 
     return () => {
       context.onRender = undefined;
     };
-  }, [context, setColorScheme, currentFocusedTask, currentCollectionStage]);
+  }, [context, setColorScheme, currentFocusedTask, currentCollectionStage, t]);
 
   // Indicate render is complete - the effect runs after the dom is updated
   useEffect(() => {
