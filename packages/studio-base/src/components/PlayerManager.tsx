@@ -55,6 +55,7 @@ import PlayerSelectionContext, {
 // } from "@foxglove/studio-base/context/UserScriptStateContext";
 // import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { useEntitlementWithDialog } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
+import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 import {
   useAppConfigurationValue,
@@ -88,6 +89,7 @@ const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
 const selectSetDataSource = (state: CoSceneBaseStore) => state.setDataSource;
 const selectBaseInfo = (state: CoSceneBaseStore) => state.baseInfo;
 const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
+const selectSetFocusedTask = (state: TaskStore) => state.setFocusedTask;
 
 function useBeforeConnectionSource(): (
   sourceId: string,
@@ -95,6 +97,8 @@ function useBeforeConnectionSource(): (
 ) => Promise<boolean> {
   const consoleApi = useConsoleApi();
   const setBaseInfo = useBaseInfo(selectSetBaseInfo);
+  const setFocusedTask = useTasks(selectSetFocusedTask);
+
   const [entitlement, entitlementDialog] = useEntitlementWithDialog(
     PlanFeatureEnum_PlanFeature.OUTBOUND_TRAFFIC,
   );
@@ -111,6 +115,17 @@ function useBeforeConnectionSource(): (
         // because will get promise from setBaseInfo
         await consoleApi.setApiBaseInfo(baseInfoRes);
 
+        if (baseInfoRes.taskId) {
+          try {
+            const task = await consoleApi.getTask({
+              taskName: `warehouses/${baseInfoRes.warehouseId}/projects/${baseInfoRes.projectId}/tasks/${baseInfoRes.taskId}`,
+            });
+            setFocusedTask(task);
+          } catch (error) {
+            log.error("get task failed", error);
+          }
+        }
+
         setBaseInfo({ loading: false, value: baseInfoRes });
       } catch (error) {
         if (error instanceof HttpError) {
@@ -121,7 +136,7 @@ function useBeforeConnectionSource(): (
         setBaseInfo({ loading: false, error });
       }
     },
-    [consoleApi, setBaseInfo, t],
+    [consoleApi, setBaseInfo, setFocusedTask, t],
   );
 
   const beforeConnectionSource: (
