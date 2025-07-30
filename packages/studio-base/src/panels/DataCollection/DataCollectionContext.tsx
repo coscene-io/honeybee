@@ -5,8 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
-import { createContext, useContext, ReactNode, useMemo } from "react";
+import { createContext, useContext, ReactNode } from "react";
 
 import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { ConsoleApi } from "@foxglove/studio-base/index";
@@ -18,7 +17,6 @@ export interface DataCollectionContextType {
   deviceLink: string;
   userInfo: User;
   consoleApi: ConsoleApi;
-  focusedTask: Task | undefined;
 }
 
 const DataCollectionContext = createContext<DataCollectionContextType | undefined>(undefined);
@@ -33,7 +31,6 @@ export function DataCollectionProvider({
   deviceLink,
   userInfo,
   consoleApi,
-  focusedTask,
 }: DataCollectionProviderProps): React.JSX.Element {
   const contextValue = useMemo(
     () => ({

@@ -59,6 +59,7 @@ export type BuilderRenderStateInput = Immutable<{
   subscriptions: Subscription[];
   watchedFields: Set<string>;
   config?: RenderStateConfig | undefined;
+  extensionData?: Record<string, unknown> | undefined;
 }>;
 
 type BuildRenderStateFn = (input: BuilderRenderStateInput) => Immutable<RenderState> | undefined;
@@ -105,6 +106,7 @@ function initRenderStateBuilder(): BuildRenderStateFn {
       subscriptions,
       watchedFields,
       config,
+      extensionData,
     } = input;
 
     const topicToSchemaNameMap = _.mapValues(
@@ -356,6 +358,13 @@ function initRenderStateBuilder(): BuildRenderStateFn {
       if (renderState.appSettings !== appSettings) {
         shouldRender = true;
         renderState.appSettings = appSettings;
+      }
+    }
+
+    if (watchedFields.has("extensionData")) {
+      if (!_.isEqual(renderState.extensionData, extensionData)) {
+        shouldRender = true;
+        renderState.extensionData = extensionData;
       }
     }
 

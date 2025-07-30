@@ -98,11 +98,18 @@ function DataCollectionPanelAdapter(props: Props) {
       deviceLink,
       userInfo,
       consoleApi,
-      focusedTask,
     };
 
     return initPanel.bind(undefined, collectionParams, crash);
-  }, [userInfo, crash, panelState, deviceLink, consoleApi, focusedTask]);
+  }, [userInfo, crash, panelState, deviceLink, consoleApi]);
+
+  // 使用 useMemo 稳定 extensionData 对象引用
+  const extensionData = useMemo(
+    () => ({
+      focusedTask,
+    }),
+    [focusedTask],
+  );
 
   return (
     <PanelExtensionAdapter
@@ -110,6 +117,7 @@ function DataCollectionPanelAdapter(props: Props) {
       saveConfig={props.saveConfig}
       initPanel={boundInitPanel}
       highestSupportedConfigVersion={1}
+      extensionData={extensionData}
     />
   );
 }
