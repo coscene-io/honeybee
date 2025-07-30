@@ -281,10 +281,10 @@ export default function DevicesTable({
   );
 
   const handleVizTargetDevice = useCallback(
-    ({ device, deviceTitle }: { device: Device; deviceTitle: string }) => {
+    ({ device }: { device: Device }) => {
       void confirm({
         title: t("confirmVizTargetDevice"),
-        prompt: t("confirmVizTargetDeviceDescription", { deviceTitle }),
+        prompt: t("confirmVizTargetDeviceDescription", { deviceTitle: device.displayName }),
         ok: t("switchImmediately"),
         cancel: t("cancel", {
           ns: "cosGeneral",
@@ -348,7 +348,6 @@ export default function DevicesTable({
 
                       handleVizTargetDevice({
                         device: params.row,
-                        deviceTitle: params.row.title ?? "-",
                       });
                     }}
                   >
