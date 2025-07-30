@@ -168,7 +168,7 @@ export function TaskPanel(): React.JSX.Element {
       orderBy: "assigned_time desc",
       parent: "",
       filter,
-      pageSize: 0,
+      pageSize: 1000,
     });
 
     return response.tasks;
