@@ -215,7 +215,7 @@ function DataCollectionContent(
   // 独立的 projectName 和 recordLabels 状态
   const [projectName, setProjectName] = useState<string>("");
   const [recordLabels, setRecordLabels] = useState<Label[]>([]);
-  // const [taskRelation, setTaskRelation] = useState<string>("hello");
+
   const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
   const [recordLabelOptions, setRecordLabelOptions] = useState<Label[]>([]);
   const [currentFocusedTask, setCurrentFocusedTask] = useState<Task | undefined>(undefined);
@@ -279,7 +279,6 @@ function DataCollectionContent(
 
   // 当项目变化时获取标签列表
   useEffect(() => {
-    setCurrentFocusedTask(undefined);
     if (projectName) {
       void syncRecordLabels();
     } else {
@@ -645,7 +644,7 @@ function DataCollectionContent(
 
       // 从 extensionData 中获取 focusedTask
       const { focusedTask: extensionFocusedTask } = renderState.extensionData ?? {};
-      if (extensionFocusedTask !== currentFocusedTask) {
+      if (extensionFocusedTask !== currentFocusedTask && currentCollectionStage !== "collecting") {
         setCurrentFocusedTask(extensionFocusedTask as Task | undefined);
       }
     };
@@ -653,7 +652,7 @@ function DataCollectionContent(
     return () => {
       context.onRender = undefined;
     };
-  }, [context, setColorScheme, currentFocusedTask]);
+  }, [context, setColorScheme, currentFocusedTask, currentCollectionStage]);
 
   // Indicate render is complete - the effect runs after the dom is updated
   useEffect(() => {
@@ -700,6 +699,7 @@ function DataCollectionContent(
                 value={projectName}
                 label={t("projectName")}
                 onChange={(event: SelectChangeEvent) => {
+                  setCurrentFocusedTask(undefined);
                   setProjectName(event.target.value);
                 }}
               >
@@ -728,6 +728,7 @@ function DataCollectionContent(
                     endAdornment: currentFocusedTask ? (
                       <IconButton
                         aria-label={t("clearTaskLink")}
+                        disabled={currentCollectionStage === "collecting"}
                         onClick={() => {
                           setCurrentFocusedTask(undefined);
                         }}
