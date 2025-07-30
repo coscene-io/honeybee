@@ -7,6 +7,7 @@
 
 import { StrictMode, useMemo } from "react";
 import ReactDOM from "react-dom";
+import { Toaster } from "react-hot-toast";
 
 import { useCrash } from "@foxglove/hooks";
 import { PanelExtensionContext } from "@foxglove/studio";
@@ -43,6 +44,7 @@ function initPanel(
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
         <DataCollectionProvider {...collectionParams}>
+          <Toaster position="top-center" containerStyle={{ zIndex: 99999 }} />
           <DataCollection context={context} />
         </DataCollectionProvider>
       </CaptureErrorBoundary>

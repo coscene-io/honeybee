@@ -30,6 +30,7 @@ import {
 import dayjs from "dayjs";
 import { TFunction } from "i18next";
 import { Dispatch, SetStateAction, useCallback, useEffect, useState, useRef, memo } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { useImmer } from "use-immer";
@@ -645,6 +646,8 @@ function DataCollectionContent(
       // 从 extensionData 中获取 focusedTask
       const { focusedTask: extensionFocusedTask } = renderState.extensionData ?? {};
       if (extensionFocusedTask !== currentFocusedTask && currentCollectionStage !== "collecting") {
+        // toast.success(t("taskFocused", { number: extensionFocusedTask?.number }));
+        toast.success("hello world");
         setCurrentFocusedTask(extensionFocusedTask as Task | undefined);
       }
     };
