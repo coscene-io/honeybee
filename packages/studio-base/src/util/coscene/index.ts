@@ -66,9 +66,9 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
         if (isDesktopApp()) {
           authBridge?.logout();
         } else {
-          window.location.href = `/login?redirectToPath=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`;
+          // window.location.href = `/login?redirectToPath=${encodeURIComponent(
+          //   window.location.pathname + window.location.search,
+          // )}`;
         }
       }
     }

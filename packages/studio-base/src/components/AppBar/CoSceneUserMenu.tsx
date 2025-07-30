@@ -127,7 +127,7 @@ export function UserMenu({
       dialogActions.dataSource.open("start");
       toast.success(t("signoutSuccess"));
     } else {
-      window.location.href = "/login";
+      // window.location.href = "/login";
     }
   }, [
     isDesktop,
