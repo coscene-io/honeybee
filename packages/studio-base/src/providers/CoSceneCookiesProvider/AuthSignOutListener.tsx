@@ -20,9 +20,9 @@ function AuthSignOutListener(): React.JSX.Element {
 
   useEffect(() => {
     if (signOut && !isDesktopApp()) {
-      window.location.href = `/login?redirectToPath=${encodeURIComponent(
-        window.location.pathname + window.location.search,
-      )}`;
+      // window.location.href = `/login?redirectToPath=${encodeURIComponent(
+      //   window.location.pathname + window.location.search,
+      // )}`;
     }
   }, [signOut]);
 
