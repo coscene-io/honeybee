@@ -24,7 +24,8 @@ import { QueryFields } from "@foxglove/studio-base/util/queries";
 
 const useStyles = makeStyles()((theme) => ({
   panel: {
-    minWidth: 300,
+    minWidth: 350,
+    flex: 1,
     backgroundColor: theme.palette.background.paper,
     overflow: "hidden",
   },
@@ -167,7 +168,7 @@ export function TaskPanel(): React.JSX.Element {
       orderBy: "assigned_time desc",
       parent: "",
       filter,
-      pageSize: 100,
+      pageSize: 0,
     });
 
     return response.tasks;
@@ -262,7 +263,7 @@ export function TaskPanel(): React.JSX.Element {
   const hasData = processingTasks.length > 0 || pendingTasks.length > 0;
 
   return (
-    <Stack gap={1}>
+    <Stack gap={1} fullHeight>
       <Typography variant="h5" gutterBottom>
         {t("assignedToMe")}
       </Typography>

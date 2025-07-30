@@ -308,8 +308,8 @@ export default function Start(): React.JSX.Element {
               />
             ))}
           </Stack>
-          <Stack direction="row" gap={2} style={{ minWidth: 500 }}>
-            <Stack>
+          <Stack direction="row" gap={2} style={{ minWidth: 500, height: 500 }} fullWidth>
+            <Stack style={{ width: "350px" }}>
               <TaskPanel />
             </Stack>
             {recentSources.length > 0 && (
