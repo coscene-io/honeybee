@@ -121,7 +121,7 @@ export function handleTaskState({
   targetOrg: Organization;
   targetProject: Project;
   focusedTask?: Task;
-}) {
+}): void {
   switch (task.state) {
     case TaskStateEnum_TaskState.FAILED:
     case TaskStateEnum_TaskState.SUCCEEDED:

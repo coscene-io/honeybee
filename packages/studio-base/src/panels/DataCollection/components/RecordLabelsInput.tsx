@@ -5,8 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { FormControl, InputLabel, Box } from "@mui/material";
 import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
+import { FormControl, InputLabel, Box } from "@mui/material";
 import { TFunction } from "i18next";
 import { memo } from "react";
 
