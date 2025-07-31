@@ -38,6 +38,7 @@ export const RecordLabelsInput = memo(function RecordLabelsInput({
             onLabelsChange(newValue);
           }}
           placeholder={t("recordLabels")}
+          disabled={disabled}
         />
       </FormControl>
     </Box>
