@@ -317,11 +317,11 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
 
       <Stack paddingTop={2} gap={1}>
         <FormLabel>{t("photo")}</FormLabel>
-        {watchedValues.imageFile ? (
+        {watchedValues.imageFile && imageObjectUrl ? (
           <Stack>
             <img
               onClick={() => inputRef.current?.click()}
-              src={imageObjectUrl ?? URL.createObjectURL(watchedValues.imageFile)}
+              src={imageObjectUrl}
               style={{
                 maxHeight: "200px",
                 objectFit: "contain",
