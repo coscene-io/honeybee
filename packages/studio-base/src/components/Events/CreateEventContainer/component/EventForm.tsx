@@ -157,12 +157,34 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
   useEffect(() => {
     if (watchedValues.imageFile) {
       const reader = new FileReader();
+      let isActive = true;
+
       reader.onload = (e) => {
-        setImageObjectUrl(e.target?.result as string);
+        // 只有当前effect仍然有效时才更新状态，防止竞态条件
+        if (isActive) {
+          setImageObjectUrl(e.target?.result as string);
+        }
       };
+
+      reader.onerror = () => {
+        if (isActive) {
+          setImageObjectUrl(undefined);
+        }
+      };
+
       reader.readAsDataURL(watchedValues.imageFile);
+
+      // 清理函数：取消进行中的FileReader操作
+      return () => {
+        isActive = false;
+        if (reader.readyState === FileReader.LOADING) {
+          reader.abort();
+        }
+      };
     } else {
       setImageObjectUrl(undefined);
+      // 返回一个空的清理函数以保持代码路径一致
+      return () => {};
     }
   }, [watchedValues.imageFile]);
 
@@ -295,11 +317,11 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
 
       <Stack paddingTop={2} gap={1}>
         <FormLabel>{t("photo")}</FormLabel>
-        {watchedValues.imageFile && imageObjectUrl ? (
+        {watchedValues.imageFile ? (
           <Stack>
             <img
               onClick={() => inputRef.current?.click()}
-              src={imageObjectUrl}
+              src={imageObjectUrl ?? URL.createObjectURL(watchedValues.imageFile)}
               style={{
                 maxHeight: "200px",
                 objectFit: "contain",
