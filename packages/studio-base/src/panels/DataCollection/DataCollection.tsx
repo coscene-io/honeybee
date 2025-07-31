@@ -33,6 +33,7 @@ import { Dispatch, SetStateAction, useCallback, useEffect, useState, useRef, mem
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
+import { useDebouncedCallback } from "use-debounce";
 import { useImmer } from "use-immer";
 
 import Log from "@foxglove/log";
@@ -220,6 +221,10 @@ function DataCollectionContent(
   const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
   const [recordLabelOptions, setRecordLabelOptions] = useState<Label[]>([]);
   const [currentFocusedTask, setCurrentFocusedTask] = useState<Task | undefined>(undefined);
+
+  const debouncedTaskFocusedToast = useDebouncedCallback((focusedTask: Task) => {
+    toast.success(t("taskFocused", { number: focusedTask.number, ns: "task" }));
+  }, 500);
 
   const MAX_PROJECTS_PAGE_SIZE = 999;
 
@@ -645,9 +650,13 @@ function DataCollectionContent(
 
       // 从 extensionData 中获取 focusedTask
       const { focusedTask: extensionFocusedTask } = renderState.extensionData ?? {};
-      if (extensionFocusedTask !== currentFocusedTask && currentCollectionStage !== "collecting") {
+      if (
+        extensionFocusedTask !== currentFocusedTask &&
+        currentCollectionStage !== "collecting" &&
+        extensionFocusedTask !== currentFocusedTask
+      ) {
         const focusedTask = extensionFocusedTask as Task;
-        toast.success(t("taskFocused", { number: focusedTask.number, ns: "task" }));
+        debouncedTaskFocusedToast(focusedTask);
         setCurrentFocusedTask(focusedTask);
       }
     };
@@ -655,7 +664,13 @@ function DataCollectionContent(
     return () => {
       context.onRender = undefined;
     };
-  }, [context, setColorScheme, currentFocusedTask, currentCollectionStage, t]);
+  }, [
+    context,
+    setColorScheme,
+    currentFocusedTask,
+    currentCollectionStage,
+    debouncedTaskFocusedToast,
+  ]);
 
   // Indicate render is complete - the effect runs after the dom is updated
   useEffect(() => {
