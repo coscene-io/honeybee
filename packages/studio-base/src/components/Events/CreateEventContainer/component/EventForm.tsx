@@ -90,6 +90,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
   const toModifyEvent = useEvents(selectToModifyEvent);
   const { control, watch, setValue } = form;
   const watchedValues = watch();
+  const [imageObjectUrl, setImageObjectUrl] = useState<string | undefined>(undefined);
 
   const { startTime, duration } = useTimeRange(watchedValues.fileName);
 
@@ -151,6 +152,41 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
     setValue("startTime", startTime);
     setValue("duration", duration);
   }, [startTime, duration, setValue]);
+
+  // 管理图片URL的生命周期 - 使用data URL以符合CSP策略
+  useEffect(() => {
+    if (watchedValues.imageFile) {
+      const reader = new FileReader();
+      let isActive = true;
+
+      reader.onload = (e) => {
+        // 只有当前effect仍然有效时才更新状态，防止竞态条件
+        if (isActive) {
+          setImageObjectUrl(e.target?.result as string);
+        }
+      };
+
+      reader.onerror = () => {
+        if (isActive) {
+          setImageObjectUrl(undefined);
+        }
+      };
+
+      reader.readAsDataURL(watchedValues.imageFile);
+
+      // 清理函数：取消进行中的FileReader操作
+      return () => {
+        isActive = false;
+        if (reader.readyState === FileReader.LOADING) {
+          reader.abort();
+        }
+      };
+    } else {
+      setImageObjectUrl(undefined);
+      // 返回一个空的清理函数以保持代码路径一致
+      return () => {};
+    }
+  }, [watchedValues.imageFile]);
 
   // 自动添加新行的逻辑
   const handleAutoAppendRow = useCallback(
@@ -281,11 +317,11 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
 
       <Stack paddingTop={2} gap={1}>
         <FormLabel>{t("photo")}</FormLabel>
-        {watchedValues.imageFile ? (
+        {watchedValues.imageFile && imageObjectUrl ? (
           <Stack>
             <img
               onClick={() => inputRef.current?.click()}
-              src={URL.createObjectURL(watchedValues.imageFile)}
+              src={imageObjectUrl}
               style={{
                 maxHeight: "200px",
                 objectFit: "contain",
@@ -315,6 +351,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
           <Button
             className={classes.addFileButton}
             onClick={() => {
+              setImageObjectUrl(undefined);
               setValue("imgUrl", undefined);
               setValue("imageFile", undefined);
             }}
