@@ -13,7 +13,7 @@ import { Updater } from "use-immer";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 
-import { ButtonType, Config, ButtonsState } from "./types";
+import { ButtonType, Config, ButtonsState } from "../types";
 
 type Props = {
   type: ButtonType;
