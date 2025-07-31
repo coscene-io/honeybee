@@ -16,6 +16,7 @@ interface RecordLabelsInputProps {
   recordLabels: Label[];
   recordLabelOptions: Label[];
   onLabelsChange: (labels: Label[]) => void;
+  disabled?: boolean;
   t: TFunction<"dataCollection">;
 }
 
@@ -23,11 +24,12 @@ export const RecordLabelsInput = memo(function RecordLabelsInput({
   recordLabels,
   recordLabelOptions,
   onLabelsChange,
+  disabled = false,
   t,
 }: RecordLabelsInputProps) {
   return (
     <Box minWidth={200}>
-      <FormControl fullWidth size="small">
+      <FormControl fullWidth size="small" disabled={disabled}>
         <InputLabel id="record-labels-select-label">{t("recordLabels")}</InputLabel>
         <RecordLabelSelector
           value={recordLabels.map((label) => label.name)}

@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Timestamp } from "@bufbuild/protobuf";
-import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
 import {
   Task,
@@ -42,7 +41,8 @@ import {
   ButtonType,
   ButtonsState,
   CollectionStage,
-  TaskInfoSnapshot,
+  CreateDataCollectionTaskParams,
+  ProjectState,
 } from "./types";
 import {
   handleTaskProgress,
@@ -90,13 +90,13 @@ function DataCollectionContent(
     ...(context.initialState as Partial<Config>),
   }));
   const [currentCollectionStage, setCurrentCollectionStage] = useState<CollectionStage>("ready");
-  const [taskInfoSnapshot, setTaskInfoSnapshot] = useState<TaskInfoSnapshot | undefined>(undefined);
+  const [collectionStartTime, setCollectionStartTime] = useState<string | undefined>(undefined);
 
   // 项目相关状态
-  const [projectState, setProjectState] = useImmer({
+  const [projectState, setProjectState] = useImmer<ProjectState>({
     projectName: "",
-    recordLabels: [] as Label[],
-    currentFocusedTask: undefined as Task | undefined,
+    recordLabels: [],
+    currentFocusedTask: undefined,
   });
 
   // 初始化项目列表
@@ -160,13 +160,19 @@ function DataCollectionContent(
   }, [context, settingsActionHandler, settingsTree]);
 
   const createDataCollectionTask = useCallback(
-    async ({ endCollectionResponse }: { endCollectionResponse: EndCollectionResponse }) => {
+    async ({
+      endCollectionResponse,
+      recordLabels,
+      focusedTask,
+      projectName,
+    }: CreateDataCollectionTaskParams) => {
       try {
         const { files, record_name, tags } = endCollectionResponse;
-        const { recordLabels } = taskInfoSnapshot ?? {};
+
+        const labels = recordLabels.map((label) => label.displayName);
 
         const targetProject = await consoleApi.getProject({
-          projectName: taskInfoSnapshot?.project.name ?? "",
+          projectName,
         });
 
         const targetOrg = await consoleApi.getOrg("organizations/current");
@@ -178,7 +184,7 @@ function DataCollectionContent(
             deviceName: `devices/${deviceLink.split("/").pop()}`,
           });
 
-          task_title = `${targetDevice.serialNumber}-${taskInfoSnapshot?.startTime}`;
+          task_title = `${targetDevice.serialNumber}-${collectionStartTime}`;
         }
 
         const newTask = new Task({
@@ -192,50 +198,20 @@ function DataCollectionContent(
               scanFolders: files,
               endTime: Timestamp.fromDate(new Date()),
               startTime: Timestamp.fromDate(new Date()),
-              labels: Array.from(new Set([...tags, ...(recordLabels ?? [])])),
+              labels: Array.from(new Set([...tags, ...labels])),
             }),
           },
           title: task_title,
         });
 
         const response = await consoleApi.createTask_v2({
-          parent: taskInfoSnapshot?.project.name ?? "",
+          parent: projectName,
           task: newTask,
         });
 
         addLog("+++++++++++++++++++++++++++");
         addLog(`[${dayjs().format(LOG_TIMESTAMP_FORMAT)}] ${t("startUpload")}`);
         addLog("+++++++++++++++++++++++++++");
-
-        if (projectState.currentFocusedTask?.name) {
-          try {
-            await consoleApi.linkTasks({
-              project: taskInfoSnapshot?.project.name ?? "",
-              linkTasks: [
-                {
-                  task: projectState.currentFocusedTask.name,
-                  target: { value: response.name, case: "targetTask" },
-                },
-              ],
-            });
-          } catch (linkError) {
-            // 如果链接任务失败，记录错误但不阻止整个流程
-            console.error("Failed to link tasks:", linkError);
-            addLog(
-              `[WARNING] ${t("taskLinkFailed")}: ${
-                linkError instanceof Error ? linkError.message : String(linkError)
-              }`,
-            );
-          }
-
-          addLog(
-            `[${dayjs().format(LOG_TIMESTAMP_FORMAT)}] ${t("autoLinkedTask")}：https://${
-              APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
-            }/${targetOrg.slug}/${
-              targetProject.slug
-            }/tasks/general-tasks/${projectState.currentFocusedTask.name.split("/").pop()}`,
-          );
-        }
 
         addLog(
           `[${dayjs().format(LOG_TIMESTAMP_FORMAT)}] ${t("progressLink")}：https://${
@@ -258,14 +234,14 @@ function DataCollectionContent(
           showRecordLink: true,
           targetOrg,
           targetProject,
-          focusedTask: projectState.currentFocusedTask,
+          focusedTask,
         });
       } catch (err) {
         log.error(err);
         addLog(`[ERROR] ${t("uploadFileFail")}`);
       }
     },
-    [taskInfoSnapshot, consoleApi, userInfo.userId, deviceLink, addLog, t, projectState],
+    [collectionStartTime, consoleApi, userInfo.userId, deviceLink, addLog, t],
   );
 
   const callServiceClicked = useCallback(
@@ -290,9 +266,8 @@ function DataCollectionContent(
           addLog,
           t,
           consoleApi,
-          projectState.recordLabels,
           setCurrentCollectionStage,
-          setTaskInfoSnapshot,
+          setCollectionStartTime,
         );
 
         // 设置请求状态
@@ -333,6 +308,7 @@ function DataCollectionContent(
           stopTimer,
           setCurrentCollectionStage,
           createDataCollectionTask,
+          projectState,
         );
       } catch (err) {
         setButtonsState((draft) => {
@@ -351,17 +327,14 @@ function DataCollectionContent(
     [
       context,
       config,
-      setButtonsState,
       addLog,
       t,
-      projectState.projectName,
-      projectState.recordLabels,
+      setButtonsState,
+      projectState,
       consoleApi,
-      createDataCollectionTask,
       startTimer,
       stopTimer,
-      setCurrentCollectionStage,
-      setTaskInfoSnapshot,
+      createDataCollectionTask,
     ],
   );
 
@@ -418,6 +391,7 @@ function DataCollectionContent(
           <ProjectSelector
             projectName={projectState.projectName}
             projectOptions={projectOptions}
+            disabled={currentCollectionStage === "collecting"}
             onProjectChange={(projectName) => {
               setProjectState((draft) => {
                 draft.projectName = projectName;
@@ -445,6 +419,7 @@ function DataCollectionContent(
           <RecordLabelsInput
             recordLabels={projectState.recordLabels}
             recordLabelOptions={recordLabelOptions}
+            disabled={currentCollectionStage === "collecting"}
             onLabelsChange={(labels) => {
               setProjectState((draft) => {
                 draft.recordLabels = labels;

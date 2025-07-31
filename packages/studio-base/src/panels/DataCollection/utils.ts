@@ -4,8 +4,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-
-import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
@@ -25,7 +23,8 @@ import {
   CancelCollectionResponse,
   ButtonType,
   CollectionStage,
-  TaskInfoSnapshot,
+  CreateDataCollectionTaskParams,
+  ProjectState,
 } from "./types";
 
 // 工具函数：生成进度文本
@@ -258,9 +257,8 @@ export async function handleStartCollectionPreLogic(
   addLog: (log: string) => void,
   t: TFunction<"dataCollection">,
   consoleApi: ConsoleApi,
-  recordLabels: Label[],
   setCurrentCollectionStage: (stage: CollectionStage) => void,
-  setTaskInfoSnapshot: (snapshot: TaskInfoSnapshot) => void,
+  setCollectionStartTime: (startTime: string) => void,
 ): Promise<void> {
   switch (buttonType) {
     case "startCollection": {
@@ -286,11 +284,7 @@ export async function handleStartCollectionPreLogic(
         throw new Error("No permission to create task");
       }
       setCurrentCollectionStage("collecting");
-      setTaskInfoSnapshot({
-        project,
-        recordLabels: recordLabels.map((label) => label.displayName),
-        startTime: dayjs().format(LOG_TIMESTAMP_FORMAT),
-      });
+      setCollectionStartTime(dayjs().format(LOG_TIMESTAMP_FORMAT));
       break;
     }
 
@@ -316,7 +310,8 @@ export function handleServiceResponse(
   startTimer: () => void,
   stopTimer: () => void,
   setCurrentCollectionStage: (stage: CollectionStage) => void,
-  createDataCollectionTask: (params: { endCollectionResponse: EndCollectionResponse }) => void,
+  createDataCollectionTask: (params: CreateDataCollectionTaskParams) => void,
+  projectState: ProjectState,
 ): void {
   switch (buttonType) {
     case "startCollection":
@@ -335,6 +330,10 @@ export function handleServiceResponse(
         addLog("+++++++++++++++++++++++++++");
         addLog(`[${dayjs().format(LOG_TIMESTAMP_FORMAT)}] ${t("endCollectionSuccess")}`);
         addLog("+++++++++++++++++++++++++++");
+
+        // createDataCollectionTask 前保存 projectName, recordLabels, currentFocusedTask 的快照
+        // currentCollectionStage 为 ready 时，将可以修改这些参数
+        const { projectName, recordLabels, currentFocusedTask } = projectState;
         setCurrentCollectionStage("ready");
         stopTimer();
         if ("type" in response && response.type === "SKIP_CAPTURE") {
@@ -342,6 +341,9 @@ export function handleServiceResponse(
         }
         createDataCollectionTask({
           endCollectionResponse: response as EndCollectionResponse,
+          projectName,
+          recordLabels,
+          focusedTask: currentFocusedTask,
         });
       } else {
         addLog(`[ERROR] ${t("endCollectionFail")}: ${response.message}`);

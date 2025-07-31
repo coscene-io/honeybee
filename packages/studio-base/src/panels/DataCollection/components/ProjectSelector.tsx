@@ -14,6 +14,7 @@ interface ProjectSelectorProps {
   projectOptions: { label: string; value: string }[];
   onProjectChange: (projectName: string) => void;
   onClearFocusedTask: () => void;
+  disabled?: boolean;
   t: TFunction<"dataCollection">;
 }
 
@@ -22,6 +23,7 @@ export const ProjectSelector = memo(function ProjectSelector({
   projectOptions,
   onProjectChange,
   onClearFocusedTask,
+  disabled = false,
   t,
 }: ProjectSelectorProps) {
   return (
@@ -35,6 +37,7 @@ export const ProjectSelector = memo(function ProjectSelector({
           id="project-select"
           value={projectName}
           label={t("projectName")}
+          disabled={disabled}
           onChange={(event: SelectChangeEvent) => {
             onClearFocusedTask();
             onProjectChange(event.target.value);
