@@ -90,22 +90,15 @@ export function BaseSyncAdapter(): ReactNull {
   ]);
 
   const [_customFieldSchema, syncCustomFieldSchema] = useAsyncFn(async () => {
-    if (
-      baseInfo.value?.recordId &&
-      baseInfo.value.warehouseId &&
-      baseInfo.value.projectId &&
-      record.loading
-    ) {
+    if (baseInfo.value?.warehouseId && baseInfo.value.projectId) {
       const customFieldSchema = await consoleApi.getRecordCustomFieldSchema(
         `warehouses/${baseInfo.value.warehouseId}/projects/${baseInfo.value.projectId}`,
       );
       setRecordCustomFieldSchema(customFieldSchema);
     }
   }, [
-    baseInfo.value?.recordId,
     baseInfo.value?.warehouseId,
     baseInfo.value?.projectId,
-    record.loading,
     consoleApi,
     setRecordCustomFieldSchema,
   ]);
