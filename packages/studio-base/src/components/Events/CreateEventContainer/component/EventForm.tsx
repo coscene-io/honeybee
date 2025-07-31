@@ -90,6 +90,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
   const toModifyEvent = useEvents(selectToModifyEvent);
   const { control, watch, setValue } = form;
   const watchedValues = watch();
+  const [imageObjectUrl, setImageObjectUrl] = useState<string | undefined>(undefined);
 
   const { startTime, duration } = useTimeRange(watchedValues.fileName);
 
@@ -151,6 +152,19 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
     setValue("startTime", startTime);
     setValue("duration", duration);
   }, [startTime, duration, setValue]);
+
+  // 管理图片URL的生命周期 - 使用data URL以符合CSP策略
+  useEffect(() => {
+    if (watchedValues.imageFile) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImageObjectUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(watchedValues.imageFile);
+    } else {
+      setImageObjectUrl(undefined);
+    }
+  }, [watchedValues.imageFile]);
 
   // 自动添加新行的逻辑
   const handleAutoAppendRow = useCallback(
@@ -281,11 +295,11 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
 
       <Stack paddingTop={2} gap={1}>
         <FormLabel>{t("photo")}</FormLabel>
-        {watchedValues.imageFile ? (
+        {watchedValues.imageFile && imageObjectUrl ? (
           <Stack>
             <img
               onClick={() => inputRef.current?.click()}
-              src={URL.createObjectURL(watchedValues.imageFile)}
+              src={imageObjectUrl}
               style={{
                 maxHeight: "200px",
                 objectFit: "contain",
@@ -315,6 +329,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
           <Button
             className={classes.addFileButton}
             onClick={() => {
+              setImageObjectUrl(undefined);
               setValue("imgUrl", undefined);
               setValue("imageFile", undefined);
             }}
