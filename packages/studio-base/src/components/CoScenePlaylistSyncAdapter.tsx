@@ -17,6 +17,7 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoScenePlaylistStore,
@@ -130,6 +131,7 @@ const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activ
 const selectSetBagsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setBagsAtHoverValue;
 const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
+const selectDataSource = (ctx: CoSceneBaseStore) => ctx.dataSource;
 
 export function PlaylistSyncAdapter(): ReactNull {
   const setBagFiles = usePlaylist(selectSetBagFiles);
@@ -145,6 +147,8 @@ export function PlaylistSyncAdapter(): ReactNull {
   const [hoverComponentId] = useState<string>(() => uuidv4());
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
+
+  const dataSource = useBaseInfo(selectDataSource);
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
@@ -315,11 +319,14 @@ export function PlaylistSyncAdapter(): ReactNull {
   ]);
 
   useEffect(() => {
+    if (dataSource?.id !== "coscene-data-platform") {
+      return;
+    }
     syncPlaylist().catch((error: unknown) => {
       log.error(error);
       setBagFiles({ loading: false, error: error as Error });
     });
-  }, [setBagFiles, syncPlaylist]);
+  }, [dataSource?.id, setBagFiles, syncPlaylist]);
 
   useEffect(() => {
     syncRecords().catch((error: unknown) => {
