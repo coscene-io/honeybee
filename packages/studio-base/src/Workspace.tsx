@@ -408,6 +408,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
     if (loginStatus === "notLogin" && unappliedSourceArgs.ds === "coscene-data-platform") {
       debouncedPleaseLoginFirstToast();
+      setUnappliedSourceArgs(undefined);
       return;
     }
 
