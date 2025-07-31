@@ -6,8 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
-import { useCallback, useEffect, useState, useRef } from "react";
-import ReactNull from "react";
+import { ListLabelsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/label_pb";
+import { ListUserProjectsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useAsyncFn } from "react-use";
 
 import { ConsoleApi } from "@foxglove/studio-base/index";
@@ -15,7 +16,12 @@ import { ConsoleApi } from "@foxglove/studio-base/index";
 import { MAX_PROJECTS_PAGE_SIZE, SCROLL_TOLERANCE } from "./constants";
 
 // Timer hook
-export function useTimer() {
+export function useTimer(): {
+  elapsedTime: number;
+  formatElapsedTime: (seconds: number) => string;
+  startTimer: () => void;
+  stopTimer: () => void;
+} {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const timerRef = useRef<NodeJS.Timeout>();
 
@@ -60,7 +66,12 @@ export function useTimer() {
 }
 
 // Log management hook
-export function useLogManager() {
+export function useLogManager(): {
+  logs: string[];
+  logContainerRef: React.RefObject<HTMLDivElement>;
+  addLog: (newLog: string) => void;
+  handleScroll: () => void;
+} {
   const [logs, setLogs] = useState<string[]>([]);
   const logContainerRef = useRef<HTMLDivElement>(ReactNull);
   const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
@@ -102,7 +113,17 @@ export function useLogManager() {
 }
 
 // Project data management hook
-export function useProjectData(consoleApi: ConsoleApi, userInfo: { userId: string }) {
+export function useProjectData(
+  consoleApi: ConsoleApi,
+  userInfo: { userId: string },
+): {
+  projectOptions: { label: string; value: string }[];
+  setProjectOptions: (options: { label: string; value: string }[]) => void;
+  recordLabelOptions: Label[];
+  setRecordLabelOptions: (labels: Label[]) => void;
+  syncProjects: () => Promise<ListUserProjectsResponse | undefined>;
+  syncRecordLabels: (projectName: string) => Promise<ListLabelsResponse | undefined>;
+} {
   const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
   const [recordLabelOptions, setRecordLabelOptions] = useState<Label[]>([]);
 
