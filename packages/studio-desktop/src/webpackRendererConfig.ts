@@ -26,6 +26,9 @@ export const webpackRendererConfig =
 
     const allowUnusedVariables = isDev;
 
+    // 在webpack配置阶段生成构建时间，确保HTML模板和DefinePlugin使用相同的值
+    const buildTime = new Date().toISOString();
+
     const plugins: WebpackPluginInstance[] = [];
 
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
@@ -83,7 +86,7 @@ export const webpackRendererConfig =
           ? './cos-config.js'
           : '/cos-config.js';
         const script = document.createElement('script');
-        script.src = configPath + '?t=${process.env.LAST_BUILD_TIME ?? "local"}';
+        script.src = configPath + '?t=${buildTime}';
         script.type = 'text/javascript';
         document.head.appendChild(script);
       </script>
