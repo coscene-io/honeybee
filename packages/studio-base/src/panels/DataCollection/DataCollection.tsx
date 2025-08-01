@@ -15,6 +15,7 @@ import dayjs from "dayjs";
 import { Dispatch, SetStateAction, useCallback, useEffect, useState, memo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { useDebouncedCallback } from "use-debounce";
 import { useImmer } from "use-immer";
 
 import Log from "@foxglove/log";
@@ -117,7 +118,7 @@ function DataCollectionContent(
 
   // 当项目变化时获取标签列表
   useEffect(() => {
-    if (projectState.projectName) {
+    if (projectState.projectName !== "") {
       void syncRecordLabels(projectState.projectName);
     } else {
       setRecordLabelOptions([]);
@@ -342,6 +343,10 @@ function DataCollectionContent(
     context.saveState(config);
   }, [config, context]);
 
+  const debouncedTaskFocusedToast = useDebouncedCallback((focusedTask: Task) => {
+    toast.success(t("taskFocused", { number: focusedTask.number, ns: "task" }));
+  }, 500);
+
   useEffect(() => {
     context.watch("colorScheme");
     context.watch("extensionData");
@@ -357,7 +362,7 @@ function DataCollectionContent(
         currentCollectionStage !== "collecting"
       ) {
         const focusedTask = extensionFocusedTask as Task;
-        toast.success(t("taskFocused", { number: focusedTask.number, ns: "task" }));
+        debouncedTaskFocusedToast(focusedTask);
         setProjectState((draft) => {
           draft.currentFocusedTask = focusedTask;
         });
@@ -374,6 +379,7 @@ function DataCollectionContent(
     currentCollectionStage,
     t,
     setProjectState,
+    debouncedTaskFocusedToast,
   ]);
 
   // Indicate render is complete - the effect runs after the dom is updated
