@@ -17,11 +17,13 @@ export default function RecordLabelSelector({
   options,
   onChange,
   placeholder,
+  disabled,
 }: {
   value: string[];
   options: Label[];
   onChange: (event: React.SyntheticEvent, newValue: Label[]) => void;
   placeholder?: string;
+  disabled?: boolean;
 }): ReactElement {
   const { t } = useTranslation("cosGeneral");
 
@@ -38,6 +40,7 @@ export default function RecordLabelSelector({
         renderInput={(params) => (
           <TextField {...params} variant="filled" placeholder={placeholder ?? t("search")} />
         )}
+        disabled={disabled}
         renderValue={(value, getTagProps) =>
           value.map((option, index) => {
             const { key: _key, ...tagProps } = getTagProps({ index });
