@@ -392,6 +392,9 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const debouncedPleaseLoginFirstToast = React.useMemo(() => {
     return _.debounce(() => {
       toast.error(t("pleaseLoginFirst", { ns: "openDialog" }));
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 500);
     }, 1000);
   }, [t]);
 
@@ -408,7 +411,6 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     if (loginStatus === "notLogin" && unappliedSourceArgs.ds === "coscene-data-platform") {
       debouncedPleaseLoginFirstToast();
       setUnappliedSourceArgs(undefined);
-      window.location.href = "/login";
       return;
     }
 
