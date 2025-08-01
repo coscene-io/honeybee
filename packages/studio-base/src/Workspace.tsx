@@ -161,7 +161,6 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const baseInfo = useBaseInfo(selectBaseInfo);
 
   // coScene set demo layout in demo mode
-
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
   const { t } = useTranslation("workspace");
@@ -409,6 +408,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     if (loginStatus === "notLogin" && unappliedSourceArgs.ds === "coscene-data-platform") {
       debouncedPleaseLoginFirstToast();
       setUnappliedSourceArgs(undefined);
+      window.location.href = "/login";
       return;
     }
 
