@@ -32,6 +32,7 @@ export default function CoSceneLayoutManagerProvider({
   const layoutStorage = useLayoutStorage();
   const remoteLayoutStorage = useRemoteLayoutStorage();
   const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  // todo: use core data enable list
   const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
 
   const layoutManager = useMemo(
