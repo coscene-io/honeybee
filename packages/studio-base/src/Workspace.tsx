@@ -393,7 +393,14 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     return _.debounce(() => {
       toast.error(t("pleaseLoginFirst", { ns: "openDialog" }));
       setTimeout(() => {
-        window.location.href = "/login";
+        if (isDesktopApp()) {
+          window.open(`https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/studio/login`);
+        } else {
+          // In web environment, navigate to login page with redirect
+          window.location.href = `/login?redirectToPath=${encodeURIComponent(
+            window.location.pathname + window.location.search,
+          )}`;
+        }
       }, 500);
     }, 1000);
   }, [t]);
