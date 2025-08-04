@@ -4,7 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { CircularProgress, Stack, Typography, Select, MenuItem, Chip } from "@mui/material";
+import { CircularProgress, Stack, Typography, Select, MenuItem } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -17,13 +17,11 @@ import {
   getTaskStateFilter,
   setTaskStateFilter,
   TaskStateType,
-  taskStateOptions,
-  getTaskStateDisplayName,
 } from "@foxglove/studio-base/components/Tasks/TasksList/utils/taskFilterUtils";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 
-import TaskView from "./components/TaskView";
+import TaskView, { TaskStateOptionsRender, TaskStateValueRender } from "./components/TaskView";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -112,20 +110,9 @@ export function TasksList(): React.JSX.Element {
           variant="filled"
           renderValue={(selected) => {
             const selectedArray = Array.isArray(selected) ? selected : [selected];
-            return selectedArray.map((option, index) => (
-              <Chip
-                label={getTaskStateDisplayName(option, t)}
-                size="small"
-                key={`${option}-${index}`}
-                style={{
-                  marginRight: "0px",
-                  height: "16px",
-                  fontSize: "12px",
-                  transform: "scale(0.9)",
-                  transformOrigin: "left center",
-                }}
-              />
-            ));
+            return selectedArray.map((option, index) => {
+              return <TaskStateValueRender key={`${option}-${index}`} value={option} />;
+            });
           }}
           MenuProps={{
             slotProps: {
@@ -141,11 +128,7 @@ export function TasksList(): React.JSX.Element {
             },
           }}
         >
-          {taskStateOptions.map((option) => (
-            <MenuItem key={option} value={option}>
-              {getTaskStateDisplayName(option, t)}
-            </MenuItem>
-          ))}
+          <TaskStateOptionsRender />
         </Select>
       </Stack>
       {projectTasks.loading && (
