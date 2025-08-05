@@ -11,8 +11,8 @@ import { useAsync } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import CoSceneChooser from "@foxglove/studio-base/components/CoSceneChooser";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 
 const useStyles = makeStyles()((theme) => ({
   styledButton: {
@@ -41,7 +41,7 @@ interface CommonSourceSelecterProps {
   onChange: (value?: string) => void;
 }
 
-const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectProject = (store: CoreDataStore) => store.project;
 
 export default function CommonResourceSelecter({
   value,
@@ -51,7 +51,7 @@ export default function CommonResourceSelecter({
   const { classes } = useStyles();
   const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);
   const consoleApi = useConsoleApi();
-  const project = useBaseInfo(selectProject);
+  const project = useCoreData(selectProject);
 
   const { value: file } = useAsync(async () => {
     if (!value) {

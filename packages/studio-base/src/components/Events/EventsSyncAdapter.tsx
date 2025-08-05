@@ -19,13 +19,13 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoScenePlaylistStore,
   usePlaylist,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   EventsStore,
   TimelinePositionedEvent,
@@ -172,7 +172,7 @@ const selectPause = (ctx: MessagePipelineContext) => ctx.pausePlayback;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
 const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectSetCustomFieldSchema = (store: EventsStore) => store.setCustomFieldSchema;
 
 /**
@@ -201,28 +201,32 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   const [, getMomentCustomFieldValues] = useAsyncFn(async () => {
-    if (!baseInfo.warehouseId || !baseInfo.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
       return;
     }
 
     const customFieldSchema = await consoleApi.getMomentCustomFieldSchema(
-      `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`,
+      `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`,
     );
 
     setCustomFieldSchema(customFieldSchema);
-  }, [consoleApi, baseInfo.warehouseId, baseInfo.projectId, setCustomFieldSchema]);
+  }, [
+    consoleApi,
+    externalInitConfig?.warehouseId,
+    externalInitConfig?.projectId,
+    setCustomFieldSchema,
+  ]);
 
   useEffect(() => {
-    if (baseInfo.warehouseId && baseInfo.projectId) {
+    if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       getMomentCustomFieldValues().catch((error: unknown) => {
         log.error(error);
       });
     }
-  }, [baseInfo.warehouseId, baseInfo.projectId, getMomentCustomFieldValues]);
+  }, [externalInitConfig?.warehouseId, externalInitConfig?.projectId, getMomentCustomFieldValues]);
 
   useEffect(() => {
     if (loopedEvent != undefined && currentTime != undefined && seek != undefined) {

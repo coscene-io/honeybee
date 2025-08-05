@@ -14,8 +14,8 @@ import { makeStyles } from "tss-react/mui";
 import DeviceTableFilter from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedDevicesTable/components/DeviceTableFilter";
 import DevicesTable from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedDevicesTable/components/DevicesTable";
 import LinkDevice from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedDevicesTable/components/LinkDevice";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 
 // 扩展Footer组件的props接口
 declare module "@mui/x-data-grid" {
@@ -32,7 +32,7 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectProject = (store: CoreDataStore) => store.project;
 
 export default function LinkedDevicesTable({
   taskName,
@@ -57,7 +57,7 @@ export default function LinkedDevicesTable({
 }): React.ReactElement {
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
-  const project = useBaseInfo(selectProject);
+  const project = useCoreData(selectProject);
   const { t } = useTranslation("task");
 
   const handleUnlinkDevice = useCallback(

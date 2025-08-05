@@ -10,11 +10,11 @@ import { useNetworkState } from "react-use";
 
 import { useVisibilityState } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import LayoutManagerContext from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useLayoutStorage } from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
 import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import LayoutManager from "@foxglove/studio-base/services/LayoutManager/CoSceneLayoutManager";
 import delay from "@foxglove/studio-base/util/delay";
 
@@ -23,7 +23,7 @@ const log = Logger.getLogger(__filename);
 const SYNC_INTERVAL_BASE_MS = 30_000;
 const SYNC_INTERVAL_MAX_MS = 3 * 60_000;
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 export default function CoSceneLayoutManagerProvider({
@@ -31,8 +31,8 @@ export default function CoSceneLayoutManagerProvider({
 }: React.PropsWithChildren): React.JSX.Element {
   const layoutStorage = useLayoutStorage();
   const remoteLayoutStorage = useRemoteLayoutStorage();
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  // todo: use core data enable list
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
+
   const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
 
   const layoutManager = useMemo(
@@ -52,11 +52,12 @@ export default function CoSceneLayoutManagerProvider({
     remoteLayoutStorage != undefined &&
     online &&
     visibilityState === "visible" &&
-    currentUserLoginStatus === "alreadyLogin";
+    currentUserLoginStatus === "alreadyLogin" &&
+    externalInitConfig?.warehouseId != undefined;
 
   useEffect(() => {
     // if base info is loaded, resync layouts
-    if (!enableSyncing || asyncBaseInfo.loading) {
+    if (!enableSyncing) {
       return;
     }
     const controller = new AbortController();
@@ -82,7 +83,7 @@ export default function CoSceneLayoutManagerProvider({
       log.debug("Canceling layout sync due to effect cleanup callback");
       controller.abort();
     };
-  }, [enableSyncing, layoutManager, asyncBaseInfo.loading]);
+  }, [enableSyncing, layoutManager]);
 
   return (
     <LayoutManagerContext.Provider value={layoutManager}>{children}</LayoutManagerContext.Provider>

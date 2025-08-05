@@ -22,7 +22,7 @@ import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 export type ExternalInitConfig = {
   files?: Array<ParamsFile>;
   // must
-  warehouseId: string;
+  warehouseId?: string;
   projectId?: string;
   // recordId is avaliable when viz record
   recordId?: string;

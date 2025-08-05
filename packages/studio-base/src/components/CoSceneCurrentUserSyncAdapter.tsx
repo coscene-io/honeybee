@@ -6,11 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Role } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useAsyncFn } from "react-use";
 
 import Logger from "@foxglove/log";
-import { useBaseInfo, CoSceneBaseStore } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   useCurrentUser,
@@ -21,6 +20,7 @@ import {
   ProjectRoleWeight,
   User,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger(__filename);
@@ -31,8 +31,7 @@ const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectSetUserRole = (store: UserStore) => store.setRole;
 const selectSetUser = (store: UserStore) => store.setUser;
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectSetBaseInfo = (store: CoSceneBaseStore) => store.setBaseInfo;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 
 export function CoSceneCurrentUserSyncAdapter(): ReactNull {
   const loginStatus = useCurrentUser(selectLoginStatus);
@@ -41,11 +40,9 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
   const setUserRole = useCurrentUser(selectSetUserRole);
   const setUser = useCurrentUser(selectSetUser);
 
-  const consoleApi = useConsoleApi();
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const setBaseInfo = useBaseInfo(selectSetBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const consoleApi = useConsoleApi();
 
   const [_userRole, syncUserRole] = useAsyncFn(async () => {
     if (currentUser != undefined) {
@@ -67,26 +64,14 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
   const [_userInfo, syncUserInfo] = useAsyncFn(async () => {
     if (loginStatus === "alreadyLogin") {
       const userInfo = await consoleApi.getUser("users/current");
-      const currentOrg = await consoleApi.getOrg("organizations/current");
       const userId = userInfo.name.split("/").pop() ?? "";
 
-      setBaseInfo({
-        loading: false,
-        value: {
-          ...baseInfo,
-          organizationId: currentOrg.name.split("/")[1],
-          organizationSlug: currentOrg.slug,
-        },
-      });
       setUser({
         ...(currentUser ?? {}),
         avatarUrl: userInfo.avatar ?? "",
         email: userInfo.email,
         nickName: userInfo.nickname,
         phoneNumber: userInfo.phoneNumber,
-        orgDisplayName: currentOrg.displayName,
-        orgId: currentOrg.name.split("/")[1],
-        orgSlug: currentOrg.slug,
         targetSite: `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}`,
         userId,
       } as User);
@@ -95,12 +80,12 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
   }, [consoleApi, loginStatus, setUser]);
 
   useEffect(() => {
-    if (baseInfo.projectId != undefined && baseInfo.warehouseId != undefined) {
+    if (externalInitConfig?.projectId != undefined && externalInitConfig.warehouseId != undefined) {
       syncUserRole().catch((err: unknown) => {
         log.error("syncUserRole", err);
       });
     }
-  }, [syncUserRole, baseInfo]);
+  }, [syncUserRole, externalInitConfig]);
 
   useEffect(() => {
     syncUserInfo().catch((err: unknown) => {

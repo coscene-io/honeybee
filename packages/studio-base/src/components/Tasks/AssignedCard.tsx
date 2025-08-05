@@ -13,9 +13,8 @@ import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { useSetExternalInitConfig } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 
@@ -83,17 +82,12 @@ function getTaskStateColor(state: TaskStateEnum_TaskState): string {
   }
 }
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectSetBaseInfo = (store: CoSceneBaseStore) => store.setBaseInfo;
-
 export function AssignedCard({ task, project, onClick }: AssignedCardProps): React.JSX.Element {
   const { t } = useTranslation("task");
   const { classes, cx } = useStyles();
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
-  const baseInfo = useBaseInfo(selectBaseInfo);
-  const setBaseInfo = useBaseInfo(selectSetBaseInfo);
-  const consoleApi = useConsoleApi();
+  const setExternalInitConfig = useSetExternalInitConfig();
 
   const setViewingTask = useTasks((store) => store.setViewingTask);
 
@@ -101,16 +95,11 @@ export function AssignedCard({ task, project, onClick }: AssignedCardProps): Rea
     if (onClick) {
       onClick();
     } else {
-      const newBaseInfo = {
-        ...baseInfo.value,
+      const newExternalInitConfig = {
         projectId: task.name.split("/")[3] ?? "",
         warehouseId: task.name.split("/")[1] ?? "",
       };
-      setBaseInfo({
-        value: newBaseInfo,
-        loading: false,
-      });
-      await consoleApi.setApiBaseInfo(newBaseInfo);
+      void setExternalInitConfig(newExternalInitConfig);
       setViewingTask(task);
       sidebarActions.left.selectItem("tasks");
       dialogActions.dataSource.close();

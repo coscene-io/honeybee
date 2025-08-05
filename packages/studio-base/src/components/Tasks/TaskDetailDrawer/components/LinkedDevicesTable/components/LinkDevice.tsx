@@ -14,15 +14,15 @@ import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { CosQuery } from "@foxglove/studio-base/util/coscene";
 
 import DeviceTableFilter from "./DeviceTableFilter";
 import DevicesTable from "./DevicesTable";
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
+const selectProject = (store: CoreDataStore) => store.project;
 
 const useStyles = makeStyles()((theme) => ({
   dialogContent: {
@@ -54,19 +54,19 @@ export default function LinkDevice({
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
 
-  const baseInfo = useBaseInfo(selectBaseInfo);
-  const project = useBaseInfo(selectProject);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
+  const project = useCoreData(selectProject);
   const consoleApi = useConsoleApi();
 
   // 获取设备列表
   const [listDevicesState, getDevices] = useAsyncFn(async () => {
-    if (!baseInfo.value?.warehouseId || !baseInfo.value.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
       return new ListProjectDevicesResponse();
     }
 
     const response = await consoleApi.listProjectDevices({
-      warehouseId: baseInfo.value.warehouseId,
-      projectId: baseInfo.value.projectId,
+      warehouseId: externalInitConfig.warehouseId,
+      projectId: externalInitConfig.projectId,
       filter: CosQuery.Companion.deserialize(filter),
       pageSize,
       currentPage,
@@ -74,9 +74,9 @@ export default function LinkDevice({
 
     return response;
   }, [
+    externalInitConfig?.warehouseId,
+    externalInitConfig?.projectId,
     consoleApi,
-    baseInfo.value?.warehouseId,
-    baseInfo.value?.projectId,
     filter,
     pageSize,
     currentPage,

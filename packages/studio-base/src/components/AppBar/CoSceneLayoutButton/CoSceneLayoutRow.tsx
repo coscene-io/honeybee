@@ -39,7 +39,6 @@ import { useMountedState } from "react-use";
 
 // import { withStyles } from "tss-react/mui";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import {
   ProjectRoleEnum,
   ProjectRoleWeight,
@@ -47,6 +46,7 @@ import {
   useCurrentUser,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
@@ -143,7 +143,8 @@ export type LayoutActionMenuItem =
     };
 
 const selectUserRole = (store: UserStore) => store.role;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectProject = (state: CoreDataStore) => state.project;
+const selectRecord = (state: CoreDataStore) => state.record;
 
 export default React.memo(function LayoutRow({
   layout,
@@ -199,8 +200,8 @@ export default React.memo(function LayoutRow({
   const hasModifications = layout.working != undefined && onOverwrite != undefined;
   const multiSelection = multiSelectedIds.length > 1;
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const project = useCoreData(selectProject);
+  const record = useCoreData(selectRecord);
 
   useLayoutEffect(() => {
     const onlineListener = () => {
@@ -391,7 +392,7 @@ export default React.memo(function LayoutRow({
       onRecommendedToProjectLayout != undefined &&
       !layout.isRecordRecommended &&
       currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN] &&
-      baseInfo.projectId != undefined && {
+      project.value != undefined && {
         type: "item",
         key: "recommendedToProjectLayout",
         text: layout.isProjectRecommended
@@ -403,7 +404,7 @@ export default React.memo(function LayoutRow({
     onCopyToRecordDefaultLayout != undefined &&
       !layout.isRecordRecommended &&
       currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER] &&
-      baseInfo.recordId != undefined && {
+      record.value != undefined && {
         type: "item",
         key: "copyToRecordDefaultLayout",
         text: t("copyToRecordDefaultLayoutTitle"),

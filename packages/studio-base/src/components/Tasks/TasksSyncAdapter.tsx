@@ -4,17 +4,17 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useAsync } from "react-use";
 
 import { setDefaultFilter } from "@foxglove/studio-base/components/Tasks/TasksList/utils/taskFilterUtils";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene/cosel";
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 
 const selectSetCustomFieldSchema = (store: TaskStore) => store.setCustomFieldSchema;
 const selectSetOrgTasks = (store: TaskStore) => store.setOrgTasks;
@@ -28,9 +28,7 @@ const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 export function TasksSyncAdapter(): ReactNull {
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   const consoleApi = useConsoleApi();
 
@@ -46,18 +44,18 @@ export function TasksSyncAdapter(): ReactNull {
   const reloadTrigger = useTasks(selectReloadTrigger);
 
   useAsync(async () => {
-    if (!baseInfo.warehouseId || !baseInfo.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
       return;
     }
     // get task custom field schema
     const customFieldSchema = await consoleApi.getTaskCustomFieldSchema(
-      `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`,
+      `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`,
     );
     setCustomFieldSchema(customFieldSchema);
-  }, [baseInfo.warehouseId, baseInfo.projectId, consoleApi, setCustomFieldSchema]);
+  }, [externalInitConfig, consoleApi, setCustomFieldSchema]);
 
   const projectTasks = useAsync(async () => {
-    if (!baseInfo.warehouseId || !baseInfo.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
       return;
     }
     let defaultFilter = projectTasksFilter;
@@ -68,7 +66,7 @@ export function TasksSyncAdapter(): ReactNull {
     }
     const projectTasks = await consoleApi.listTasks({
       orderBy: "create_time DESC",
-      parent: `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`,
+      parent: `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`,
       filter: CosQuery.Companion.deserialize(defaultFilter).toQueryString(
         new SerializeOption(false),
       ),
@@ -77,8 +75,8 @@ export function TasksSyncAdapter(): ReactNull {
     return projectTasks.tasks;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    baseInfo.warehouseId,
-    baseInfo.projectId,
+    externalInitConfig?.warehouseId,
+    externalInitConfig?.projectId,
     projectTasksFilter,
     consoleApi,
     user?.userId,

@@ -5,9 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
-import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import EditIcon from "@mui/icons-material/EditOutlined";
@@ -29,8 +27,8 @@ import {
   useMessagePipeline,
   MessagePipelineContext,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   TimelinePositionedEvent,
   EventsStore,
@@ -90,10 +88,10 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
-const selectRecord = (store: CoSceneBaseStore) => store.record;
+const selectRecord = (store: CoreDataStore) => store.record;
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectProject = (store: CoreDataStore) => store.project;
+const selectOrganization = (store: CoreDataStore) => store.organization;
 
 const log = Logger.getLogger(__filename);
 
@@ -138,13 +136,14 @@ function EventViewComponent(params: {
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const projectInfo = useBaseInfo(selectProject);
-  const recordInfo = useBaseInfo(selectRecord);
+  const project = useCoreData(selectProject);
+  const record = useCoreData(selectRecord);
+  const organization = useCoreData(selectOrganization);
 
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
-  const project: Project | undefined = useMemo(() => projectInfo.value ?? undefined, [projectInfo]);
-  const record: Record | undefined = useMemo(() => recordInfo.value ?? undefined, [recordInfo]);
+  const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
+  const projectSlug = useMemo(() => project.value?.slug, [project]);
+  const projectIsArchived = useMemo(() => project.value?.isArchived, [project]);
+  const recordIsArchived = useMemo(() => record.value?.isArchived, [record]);
 
   const seek = useMessagePipeline(selectSeek);
 
@@ -293,20 +292,20 @@ function EventViewComponent(params: {
       diagnosisRule.rules.find((r) => r.id === rule.id),
     );
 
-    const address = `/${baseInfo.organizationSlug}/${baseInfo.projectSlug}/data-collection-diagnosis/${ruleIndex}/${rule.id}`;
+    const address = `/${organizationSlug}/${projectSlug}/data-collection-diagnosis/${ruleIndex}/${rule.id}`;
 
     return (
       <Link href={address} target="_blank">
         <Typography noWrap>{event.event.rule.name}</Typography>
       </Link>
     );
-  }, [diagnosisRuleData, event.event.rule, baseInfo]);
+  }, [diagnosisRuleData, event.event.rule, organizationSlug, projectSlug]);
 
   const deviceCreator = useMemo(() => {
     if (event.event.device?.name && event.event.device.name.length > 0) {
-      const deviceNavAddress = `/${baseInfo.organizationSlug}/${
-        baseInfo.projectSlug
-      }/devices/${event.event.device.name.split("/").pop()}`;
+      const deviceNavAddress = `/${organizationSlug}/${projectSlug}/devices/${event.event.device.name
+        .split("/")
+        .pop()}`;
 
       return (
         <Link href={deviceNavAddress} target="_blank">
@@ -315,7 +314,7 @@ function EventViewComponent(params: {
       );
     }
     return undefined;
-  }, [baseInfo.organizationSlug, baseInfo.projectSlug, event.event.device]);
+  }, [organizationSlug, projectSlug, event.event.device]);
 
   const [humanCreator, getHumanCreator] = useAsyncFn(async () => {
     const users = await consoleApi.batchGetUsers([event.event.creator]);
@@ -364,8 +363,8 @@ function EventViewComponent(params: {
             </IconButton>
 
             {consoleApi.updateEvent.permission() &&
-              project?.isArchived === false &&
-              record?.isArchived === false && (
+              projectIsArchived === false &&
+              recordIsArchived === false && (
                 <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
                   <EditIcon fontSize="small" />
                 </IconButton>
@@ -376,8 +375,8 @@ function EventViewComponent(params: {
             </IconButton>
 
             {consoleApi.updateEvent.permission() &&
-              project?.isArchived === false &&
-              record?.isArchived === false && (
+              projectIsArchived === false &&
+              recordIsArchived === false && (
                 <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
                   <DeleteIcon fontSize="small" />
                 </IconButton>
