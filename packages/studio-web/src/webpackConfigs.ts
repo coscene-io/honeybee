@@ -133,9 +133,12 @@ export const mainConfig =
 
     const allowUnusedVariables = isDev;
 
+    // 在webpack配置阶段生成构建时间，确保HTML模板和DefinePlugin使用相同的值
+    const buildTime = new Date().toISOString();
+
     const plugins: WebpackPluginInstance[] = [
       new DefinePlugin({
-        "process.env.LAST_BUILD_TIME": JSON.stringify(new Date().toISOString()),
+        "process.env.LAST_BUILD_TIME": JSON.stringify(buildTime),
         "process.env.IMAGE_TAG": JSON.stringify(process.env.IMAGE_TAG),
         "process.env.GITHUB_SHA": JSON.stringify(process.env.GITHUB_SHA),
       }),
@@ -209,9 +212,7 @@ export const mainConfig =
               <meta property="og:title" content="coScene"/>
               <meta property="og:description" content="visualization and debugging tool for robotics"/>
               <meta property="og:type" content="website"/>
-              <script src="/viz/cos-config.js?t=${
-                process.env.LAST_BUILD_TIME ?? "local"
-              }" type="text/javascript"></script>
+              <script src="/viz/cos-config.js?t=${buildTime}" type="text/javascript"></script>
               <title>coScene</title>
               <style type="text/css" id="loading-styles">
                 body {
