@@ -4,11 +4,12 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { CircularProgress, Stack, Typography, Select, MenuItem, Chip } from "@mui/material";
+import { CircularProgress, Stack, Typography, Select, MenuItem } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { TaskStateItem } from "@foxglove/studio-base/components/Tasks/TasksList/components/TaskStateItem";
 import {
   AssigneeFilterType,
   getAssigneeFilter,
@@ -18,15 +19,11 @@ import {
   setTaskStateFilter,
   TaskStateType,
   taskStateOptions,
-  getTaskStateDisplayName,
 } from "@foxglove/studio-base/components/Tasks/TasksList/utils/taskFilterUtils";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
+
 import TaskView from "./components/TaskView";
-import {
-  TaskStateChipMap,
-  TaskStateValueRender,
-} from "@foxglove/studio-base/components/Tasks/TasksList/components/TaskStateItem";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -34,6 +31,12 @@ const useStyles = makeStyles()((theme) => ({
   },
   line: {
     backgroundColor: theme.palette.divider,
+  },
+  taskStateSelector: {
+    "& .MuiSelect-select": {
+      paddingBottom: "4px",
+      paddingTop: "4px",
+    },
   },
 }));
 
@@ -75,7 +78,7 @@ export function TasksList(): React.JSX.Element {
   // 准备选项数据
   const assigneeOptions: AssigneeFilterType[] = ["assignedToMe", "assignerIsMe"];
 
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
 
   return (
     <Stack className={classes.root} overflow="auto" paddingX={2}>
@@ -116,15 +119,10 @@ export function TasksList(): React.JSX.Element {
           renderValue={(selected) => {
             const selectedArray = Array.isArray(selected) ? selected : [selected];
             return selectedArray.map((option, index) => {
-              return <TaskStateValueRender key={`${option}-${index}`} value={option} />;
+              return <TaskStateItem key={`${option}-${index}`} state={option} />;
             });
           }}
-          sx={{
-            "& .MuiSelect-select": {
-              paddingBottom: "4px",
-              paddingTop: "4px",
-            },
-          }}
+          className={cx(currentTaskStateFilter.length > 0 && classes.taskStateSelector)}
           MenuProps={{
             slotProps: {
               list: {
@@ -139,23 +137,11 @@ export function TasksList(): React.JSX.Element {
             },
           }}
         >
-          {taskStateOptions.map((option) => {
-            const chipProps = TaskStateChipMap[option] || {};
-            return (
-              <MenuItem key={option} value={option}>
-                <Chip
-                  label={getTaskStateDisplayName(option, t)}
-                  size="small"
-                  icon={chipProps.icon}
-                  color={chipProps.color || "default"}
-                  sx={{
-                    borderRadius: "4px",
-                    mr: 0.5,
-                  }}
-                />
-              </MenuItem>
-            );
-          })}
+          {taskStateOptions.map((option) => (
+            <MenuItem key={option} value={option}>
+              <TaskStateItem state={option} />
+            </MenuItem>
+          ))}
         </Select>
       </Stack>
       {projectTasks.loading && (

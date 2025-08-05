@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
-import { alpha, Stack, Select, MenuItem, Button, Chip } from "@mui/material";
+import { alpha, Stack, Select, MenuItem, Button } from "@mui/material";
 import { useRef } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -13,17 +13,13 @@ import { makeStyles } from "tss-react/mui";
 
 import Avatar from "@foxglove/studio-base/components/Avatar";
 import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
+import { TaskStateItem } from "@foxglove/studio-base/components/Tasks/TasksList/components/TaskStateItem";
 import {
-  getTaskStateDisplayName,
   taskStateOptions,
   TaskStateType,
 } from "@foxglove/studio-base/components/Tasks/TasksList/utils/taskFilterUtils";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
-import {
-  TaskStateChipMap,
-  TaskStateValueRender,
-} from "@foxglove/studio-base/components/Tasks/TasksList/components/TaskStateItem";
 
 const useStyles = makeStyles<void, "taskSelected">()((theme, _params) => ({
   line: {
@@ -57,6 +53,12 @@ const useStyles = makeStyles<void, "taskSelected">()((theme, _params) => ({
   taskSelected: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.activatedOpacity),
     boxShadow: `0 0 0 1px ${theme.palette.info.main}`,
+  },
+  taskStateSelector: {
+    "& .MuiSelect-select": {
+      paddingBottom: "4px",
+      paddingTop: "4px",
+    },
   },
 }));
 
@@ -144,32 +146,15 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
                 e.stopPropagation();
               }}
               renderValue={(selected) => (
-                <TaskStateValueRender key={selected} value={selected as TaskStateType} />
+                <TaskStateItem key={selected} state={selected as TaskStateType} />
               )}
-              sx={{
-                "& .MuiSelect-select": {
-                  paddingBottom: "4px",
-                  paddingTop: "4px",
-                },
-              }}
+              className={classes.taskStateSelector}
             >
-              {taskStateOptions.map((option) => {
-                const chipProps = TaskStateChipMap[option] || {};
-                return (
-                  <MenuItem key={option} value={option}>
-                    <Chip
-                      label={getTaskStateDisplayName(option, t)}
-                      size="small"
-                      icon={chipProps.icon}
-                      color={chipProps.color || "default"}
-                      sx={{
-                        borderRadius: "4px",
-                        mr: 0.5,
-                      }}
-                    />
-                  </MenuItem>
-                );
-              })}
+              {taskStateOptions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  <TaskStateItem state={option} />
+                </MenuItem>
+              ))}
             </Select>
 
             <Avatar
