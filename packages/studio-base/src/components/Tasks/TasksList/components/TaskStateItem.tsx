@@ -3,10 +3,9 @@ import {
   getTaskStateDisplayName,
   TaskStateType,
 } from "@foxglove/studio-base/components/Tasks/TasksList/utils/taskFilterUtils";
-import { AccessTime, Autorenew } from "@mui/icons-material";
+import { AccessTime, Autorenew, CheckCircleOutline } from "@mui/icons-material";
 import { Chip } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
 const TaskStateChipMap: Record<
   TaskStateType,
@@ -25,7 +24,7 @@ const TaskStateChipMap: Record<
   },
   [TaskStateEnum_TaskState.SUCCEEDED]: {
     color: "success",
-    icon: <CheckCircleOutlineIcon style={{ fontSize: "14px" }} />,
+    icon: <CheckCircleOutline style={{ fontSize: "14px" }} />,
   },
 };
 
