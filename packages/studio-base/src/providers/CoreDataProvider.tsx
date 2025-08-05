@@ -18,17 +18,18 @@ import { ReactNode, useState } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
 
-import { CoordinatorConfig } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import {
   CoreDataContext,
   CoreDataStore,
   DataSource,
   ExternalInitConfig,
+  CoordinatorConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
 import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 
 function CreateCoreDataStore() {
   return createStore<CoreDataStore>((set, get) => ({
+    showtUrlKey: undefined,
     externalInitConfig: undefined,
     dataSource: undefined,
 
@@ -53,8 +54,9 @@ function CreateCoreDataStore() {
     reloadDeviceCustomFieldSchemaTrigger: 0,
     reloadOrganizationTrigger: 0,
 
-    isConsoleApiInfoReady: "NOT_READY",
-
+    setShowtUrlKey: (showtUrlKey: string) => {
+      set({ showtUrlKey });
+    },
     setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => {
       set({ externalInitConfig });
     },
@@ -88,9 +90,6 @@ function CreateCoreDataStore() {
     setColinkApi: (colinkApi: ReturnType<typeof DevicesApiFactory>) => {
       set({ colinkApi });
     },
-    setIsConsoleApiInfoReady: (isConsoleApiInfoReady: "NOT_READY" | "READY") => {
-      set({ isConsoleApiInfoReady });
-    },
 
     refreshOrganization: () => {
       set({ reloadOrganizationTrigger: get().reloadOrganizationTrigger + 1 });
@@ -115,7 +114,7 @@ function CreateCoreDataStore() {
     },
 
     getEnableList: () => {
-      const { dataSource, project, isConsoleApiInfoReady } = get();
+      const { dataSource, project, externalInitConfig } = get();
 
       return {
         event:
@@ -128,7 +127,12 @@ function CreateCoreDataStore() {
             : "DISABLE",
         uploadLocalFile: dataSource?.type === "file" ? "ENABLE" : "DISABLE",
         task: project.value != undefined ? "ENABLE" : "DISABLE",
-        layoutSync: isConsoleApiInfoReady === "READY" ? "ENABLE" : "DISABLE",
+        layoutSync:
+          externalInitConfig?.warehouseId && externalInitConfig.projectId ? "ENABLE" : "DISABLE",
+        recordInfo:
+          dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
+            ? "ENABLE"
+            : "DISABLE",
       };
     },
   }));

@@ -16,7 +16,6 @@ import { AsyncState } from "react-use/lib/useAsyncFn";
 import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
-import { CoordinatorConfig } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 
@@ -24,7 +23,7 @@ export type ExternalInitConfig = {
   files?: Array<ParamsFile>;
   // must
   warehouseId: string;
-  projectId: string;
+  projectId?: string;
   // recordId is avaliable when viz record
   recordId?: string;
   // jobRunsId is avaliable when shadow mode
@@ -41,8 +40,18 @@ export type DataSource = {
   type: "connection" | "file" | "sample";
 };
 
+export type CoordinatorConfig = {
+  org_id: string;
+  enabled: boolean;
+  target_server: string;
+  proxy_server: string;
+  public_ip: string;
+};
+
 // project core data, all data depend
 export type CoreDataStore = {
+  showtUrlKey?: string;
+
   externalInitConfig?: ExternalInitConfig;
 
   dataSource?: DataSource;
@@ -68,8 +77,8 @@ export type CoreDataStore = {
   reloadDeviceCustomFieldSchemaTrigger: number;
   reloadOrganizationTrigger: number;
 
-  isConsoleApiInfoReady: "NOT_READY" | "READY";
-
+  // @deprecated 不推荐直接使用此函数，请使用 CoreDataSyncAdapter 中的 useSetShowtUrlKey
+  setShowtUrlKey: (showtUrlKey: string) => void;
   setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => void;
   setDataSource: (dataSource: DataSource) => void;
   setRecord: (record: AsyncState<Record>) => void;
@@ -90,14 +99,13 @@ export type CoreDataStore = {
   refreshDeviceCustomFieldSchema: () => void;
   refreshOrganization: () => void;
 
-  setIsConsoleApiInfoReady: (isConsoleApiInfoReady: "NOT_READY" | "READY") => void;
-
   getEnableList: () => {
     event: "ENABLE" | "DISABLE";
     playlist: "ENABLE" | "DISABLE";
     task: "ENABLE" | "DISABLE";
     uploadLocalFile: "ENABLE" | "DISABLE";
     layoutSync: "ENABLE" | "DISABLE";
+    recordInfo: "ENABLE" | "DISABLE";
   };
 };
 

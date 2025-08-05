@@ -127,7 +127,10 @@ import toast from "react-hot-toast";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
-import { BaseInfo, CoordinatorConfig } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import {
+  CoordinatorConfig,
+  ExternalInitConfig,
+} from "@foxglove/studio-base/context/CoreDataContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
@@ -344,6 +347,12 @@ export type GetEventsResponse = {
   }[];
 };
 
+export type ApiBaseInfo = {
+  projectId?: string;
+  warehouseId?: string;
+  recordId?: string;
+};
+
 export type GetFileStatusResponse = { filename: string; status: MediaStatus }[];
 
 function permissionListFromRole(role: Role | undefined) {
@@ -385,7 +394,7 @@ class CoSceneConsoleApi {
   #addTopicPrefix: "false" | "true" = "false";
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
-  #baseInfo: BaseInfo = {};
+  #baseInfo: ApiBaseInfo = {};
   #type?: "realtime" | "playback" | "other";
   #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
   #permissionList: {
@@ -421,12 +430,12 @@ class CoSceneConsoleApi {
     return this.#playbackQualityLevel;
   }
 
-  public async setApiBaseInfo(baseInfo: BaseInfo): Promise<void> {
+  public async setApiBaseInfo(baseInfo: ApiBaseInfo): Promise<void> {
     this.#baseInfo = baseInfo;
     await this.#getPermissionList();
   }
 
-  public getApiBaseInfo(): BaseInfo {
+  public getApiBaseInfo(): ApiBaseInfo {
     return this.#baseInfo;
   }
 
@@ -1190,17 +1199,21 @@ class CoSceneConsoleApi {
     return await jobRunClient.getJobRun(req);
   }
 
-  public async getBaseInfo(key: string): Promise<BaseInfo> {
-    const baseInfoString: BaseInfo = await this.#get<BaseInfo>(`/bff/shortenUrl/${key}`);
+  // getBaseInfo
+  public async getExternalInitConfig(key: string): Promise<ExternalInitConfig> {
+    const externalInitConfig: ExternalInitConfig = await this.#get<ExternalInitConfig>(
+      `/bff/shortenUrl/${key}`,
+    );
 
-    return baseInfoString;
+    return externalInitConfig;
   }
 
-  public async setBaseInfo(baseInfo: BaseInfo): Promise<string> {
-    const baseInfoString: string = JSON.stringify(baseInfo) ?? "";
+  // setBaseInfo
+  public async setExternalInitConfig(externalInitConfig: ExternalInitConfig): Promise<string> {
+    const externalInitConfigString: string = JSON.stringify(externalInitConfig) ?? "";
 
     const key = await this.#post<{ id: string }>("/bff/shortenUrl", {
-      url: baseInfoString,
+      url: externalInitConfigString,
     });
 
     return key.id;
