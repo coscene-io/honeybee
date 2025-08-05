@@ -681,6 +681,7 @@ class CoSceneConsoleApi {
           authBridge?.logout();
         }
       } else if (res.status === 403) {
+        toast.error(t("unauthorized", { ns: "cosError" }));
         throw new HttpError(
           403,
           "Unauthorized. Please check if you are logged in and have permission to access.",
