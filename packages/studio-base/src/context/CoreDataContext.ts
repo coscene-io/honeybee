@@ -52,6 +52,18 @@ export type CoordinatorConfig = {
 export type CoreDataStore = {
   showtUrlKey?: string;
 
+  /**
+   * @description
+   * all request about dataplatform is effect and use externalInitConfig
+   * if externalInitConfig is set, all request will be enabled
+   * so we need be careful when set externalInitConfig
+   * 1. make sure user is logged
+   * 2. set related data to consoleApi - setApiBaseInfo, this function will init user permission List
+   * 3. then you can safely set externalInitConfig
+   *
+   * useSetExternalInitConfig in CoreDataSyncAdapter is package for this logic
+   * so use useSetExternalInitConfig to set externalInitConfig
+   */
   externalInitConfig?: ExternalInitConfig;
 
   dataSource?: DataSource;
@@ -77,9 +89,11 @@ export type CoreDataStore = {
   reloadDeviceCustomFieldSchemaTrigger: number;
   reloadOrganizationTrigger: number;
 
-  // @deprecated 不推荐直接使用此函数，请使用 CoreDataSyncAdapter 中的 useSetShowtUrlKey
+  // @deprecated don't use this function, use useSetShowtUrlKey in CoreDataSyncAdapter instead
   setShowtUrlKey: (showtUrlKey: string) => void;
+  // @deprecated don't use this function, use useSetExternalInitConfig in CoreDataSyncAdapter instead
   setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => void;
+
   setDataSource: (dataSource: DataSource) => void;
   setRecord: (record: AsyncState<Record>) => void;
   setDevice: (device: AsyncState<Device>) => void;

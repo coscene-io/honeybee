@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { posthog } from "posthog-js";
 
 import Logger from "@foxglove/log";
@@ -70,20 +71,20 @@ export class AmplitudeAnalytics implements IAnalytics {
     }
   }
 
-  public setUser(user: User): void {
+  public setUser(user: User, organization: Organization): void {
     // log this user
     posthog.identify(user.userId, {
       nick_name: user.nickName,
       email: user.email,
       phone: user.phoneNumber,
-      org_id: user.orgId,
-      org_display_name: user.orgDisplayName,
+      org_id: organization.name.split("/").pop(),
+      org_display_name: organization.displayName,
       environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
     });
 
     posthog.register({
-      org_id: user.orgId,
-      org_display_name: user.orgDisplayName,
+      org_id: organization.name.split("/").pop(),
+      org_display_name: organization.displayName,
     });
   }
 }
