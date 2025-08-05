@@ -14,8 +14,8 @@ import { makeStyles } from "tss-react/mui";
 import LinkRecord from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable/components/LinkRecord";
 import RecordTable from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable/components/RecordTable";
 import RecordTableFilter from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable/components/RecordTableFilter";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -25,7 +25,7 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectProject = (store: CoreDataStore) => store.project;
 
 export default function LinkedRecordsTable({
   taskName,
@@ -52,7 +52,7 @@ export default function LinkedRecordsTable({
 }): React.ReactElement {
   const { classes } = useStyles();
   const consoleApi = useConsoleApi();
-  const project = useBaseInfo(selectProject);
+  const project = useCoreData(selectProject);
   const { t } = useTranslation("task");
 
   const handleUnlinkRecord = useCallback(

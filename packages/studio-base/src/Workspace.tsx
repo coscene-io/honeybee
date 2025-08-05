@@ -54,8 +54,8 @@ import { TopicList } from "@foxglove/studio-base/components/TopicList";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import {
   DataSourceArgs,
@@ -135,9 +135,8 @@ const selectWorkspaceRightSidebarSize = (store: WorkspaceContextStore) => store.
 const selectUser = (store: UserStore) => store.user;
 const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 
-const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
-const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
-const selectBaseInfo = (state: CoSceneBaseStore) => state.baseInfo;
+const selectEnableList = (store: CoreDataStore) => store.getEnableList();
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
@@ -156,9 +155,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const rightSidebarOpen = useWorkspaceStore(selectWorkspaceRightSidebarOpen);
   const rightSidebarSize = useWorkspaceStore(selectWorkspaceRightSidebarSize);
 
-  const enableList = useBaseInfo(selectEnableList);
-  const dataSource = useBaseInfo(selectDataSource);
-  const baseInfo = useBaseInfo(selectBaseInfo);
+  const enableList = useCoreData(selectEnableList);
+  const dataSource = useCoreData(selectDataSource);
 
   // coScene set demo layout in demo mode
   const { dialogActions, sidebarActions } = useWorkspaceActions();
@@ -248,7 +246,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         {
           title: t("tasks", { ns: "cosWorkspace" }),
           component: TasksList,
-          hidden: baseInfo.value?.projectId == undefined,
+          hidden: enableList.task === "DISABLE",
         },
       ],
       [
@@ -271,7 +269,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       items.filter(([, item]) => item.hidden == undefined || !item.hidden),
     );
     return cleanItems;
-  }, [baseInfo.value?.projectId, enableList.event, enableList.playlist, playerProblems, t]);
+  }, [enableList.event, enableList.playlist, enableList.task, playerProblems, t]);
 
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([

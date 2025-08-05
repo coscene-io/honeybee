@@ -17,7 +17,6 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoScenePlaylistStore,
@@ -25,6 +24,7 @@ import {
   BagFileInfo,
   PlaylistMediaStatues,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   TimelineInteractionStateStore,
   useHoverValue,
@@ -131,7 +131,7 @@ const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activ
 const selectSetBagsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setBagsAtHoverValue;
 const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
-const selectDataSource = (ctx: CoSceneBaseStore) => ctx.dataSource;
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 export function PlaylistSyncAdapter(): ReactNull {
   const setBagFiles = usePlaylist(selectSetBagFiles);
@@ -148,7 +148,7 @@ export function PlaylistSyncAdapter(): ReactNull {
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
 
-  const dataSource = useBaseInfo(selectDataSource);
+  const dataSource = useCoreData(selectDataSource);
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";

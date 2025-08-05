@@ -24,8 +24,8 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useBaseInfo, CoSceneBaseStore } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   useClearHoverValue,
   useSetHoverValue,
@@ -66,7 +66,7 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
 const selectRanges = (ctx: MessagePipelineContext) =>
   ctx.playerState.progress.fullyLoadedFractionRanges;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
-const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
+const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 
 type Props = {
   onSeek: (seekTo: Time) => void;
@@ -87,7 +87,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const presence = useMessagePipeline(selectPresence);
   const ranges = useMessagePipeline(selectRanges);
 
-  const enableList = useBaseInfo(selectEnableList);
+  const enableList = useCoreData(selectEnableList);
 
   const setHoverValue = useSetHoverValue();
 

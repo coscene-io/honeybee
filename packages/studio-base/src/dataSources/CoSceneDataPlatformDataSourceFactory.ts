@@ -96,7 +96,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
           timeMode,
           auth,
         },
-        params: { ...args.params, ...baseInfo, files: JSON.stringify(baseInfo.files) },
+        params: { ...args.params, ...baseInfo },
       },
     });
 

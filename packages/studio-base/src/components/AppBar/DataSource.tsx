@@ -30,7 +30,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
@@ -117,10 +117,12 @@ const selectPlayerProblems = (ctx: MessagePipelineContext) => ctx.playerState.pr
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
-const selectProject = (store: CoSceneBaseStore) => store.project;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
-const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
+const selectProject = (state: CoreDataStore) => state.project;
+const selectRecord = (state: CoreDataStore) => state.record;
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
+const selectEnableList = (state: CoreDataStore) => state.getEnableList();
+const selectOrganization = (state: CoreDataStore) => state.organization;
+const selectJobRun = (state: CoreDataStore) => state.jobRun;
 
 const UploadFileComponent = () => {
   const playerPresence = useMessagePipeline(selectPlayerPresence);
@@ -301,18 +303,25 @@ const RealTimeVizDataSource = () => {
 const CommonDataSource = () => {
   const { classes } = useStyles();
 
-  const project = useBaseInfo(selectProject);
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const enableList = useBaseInfo(selectEnableList);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
-  const dataSource = useBaseInfo(selectDataSource);
+  const project = useCoreData(selectProject);
+  const record = useCoreData(selectRecord);
+  const enableList = useCoreData(selectEnableList);
+  const dataSource = useCoreData(selectDataSource);
+  const organization = useCoreData(selectOrganization);
+  const jobRun = useCoreData(selectJobRun);
+
+  const recordId = useMemo(() => record.value?.name.split("/").pop(), [record]);
+  const recordDisplayName = useMemo(() => record.value?.title, [record]);
+  const projectSlug = useMemo(() => project.value?.slug, [project]);
+  const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
+  const jobRunDisplayName = useMemo(() => jobRun.value?.spec?.spec?.name, [jobRun]);
 
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://dev.coscene.cn/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`
-      : `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${baseInfo.organizationSlug}/${baseInfo.projectSlug}`;
+      ? `https://dev.coscene.cn/${organizationSlug}/${projectSlug}`
+      : `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${organizationSlug}/${projectSlug}`;
 
-  const secondaryHref = `${projectHref}/records/${baseInfo.recordId}`;
+  const secondaryHref = `${projectHref}/records/${recordId}`;
 
   const breadcrumbs = [
     <Link
@@ -333,7 +342,7 @@ const CommonDataSource = () => {
       color="inherit"
       className={classes.breadcrumbs}
     >
-      {baseInfo.jobRunsDisplayName ?? baseInfo.recordDisplayName}
+      {jobRunDisplayName ?? recordDisplayName}
     </Link>,
   ];
 
@@ -345,9 +354,7 @@ const CommonDataSource = () => {
         ) : (
           <Stack direction="row" alignItems="center" gap={2}>
             <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
-              {baseInfo.projectSlug && dataSource?.id === "coscene-data-platform"
-                ? breadcrumbs
-                : ""}
+              {projectSlug && dataSource?.id === "coscene-data-platform" ? breadcrumbs : ""}
             </Breadcrumbs>
           </Stack>
         )}

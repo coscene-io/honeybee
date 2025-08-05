@@ -9,7 +9,7 @@ import { PartialMessage } from "@bufbuild/protobuf";
 import { UpdateRecordRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
 import { FormLabel, Link, Avatar, Typography } from "@mui/material";
 import dayjs from "dayjs";
-import { ReactElement, useCallback, useEffect } from "react";
+import { ReactElement, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 
@@ -18,23 +18,30 @@ import { CustomFieldValuesFields } from "@foxglove/studio-base/components/Custom
 import ProjectDeviceSelector from "@foxglove/studio-base/components/RecordInfo/ProjectDeviceSelector";
 import RecordLabelSelector from "@foxglove/studio-base/components/RecordInfo/RecordLabelSelector";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 
-const selectRecord = (store: CoSceneBaseStore) => store.record;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectRefreshRecord = (store: CoSceneBaseStore) => store.refreshRecord;
-const selectRecordCustomFieldSchema = (store: CoSceneBaseStore) => store.recordCustomFieldSchema;
+const selectRecord = (store: CoreDataStore) => store.record;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
+const selectRefreshRecord = (store: CoreDataStore) => store.refreshRecord;
+const selectRecordCustomFieldSchema = (store: CoreDataStore) => store.recordCustomFieldSchema;
+const selectOrganization = (store: CoreDataStore) => store.organization;
+const selectProject = (store: CoreDataStore) => store.project;
 
 const log = Logger.getLogger(__filename);
 
 export default function RecordInfo(): ReactElement {
   const consoleApi = useConsoleApi();
-  const record = useBaseInfo(selectRecord);
-  const baseInfo = useBaseInfo(selectBaseInfo);
-  const recordCustomFieldSchema = useBaseInfo(selectRecordCustomFieldSchema);
+  const record = useCoreData(selectRecord);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
+  const recordCustomFieldSchema = useCoreData(selectRecordCustomFieldSchema);
+  const organization = useCoreData(selectOrganization);
+  const project = useCoreData(selectProject);
 
-  const refreshRecord = useBaseInfo(selectRefreshRecord);
+  const refreshRecord = useCoreData(selectRefreshRecord);
+
+  const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
+  const projectSlug = useMemo(() => project.value?.slug, [project]);
 
   const { t } = useTranslation("recordInfo");
 
@@ -63,16 +70,16 @@ export default function RecordInfo(): ReactElement {
   }, [consoleApi, record.value?.creator]);
 
   const [labels, getLabels] = useAsyncFn(async () => {
-    if (!baseInfo.value?.warehouseId || !baseInfo.value.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
       return;
     }
 
     return await consoleApi.listLabels({
       pageSize: 100,
-      warehouseId: baseInfo.value.warehouseId,
-      projectId: baseInfo.value.projectId,
+      warehouseId: externalInitConfig.warehouseId,
+      projectId: externalInitConfig.projectId,
     });
-  }, [consoleApi, baseInfo.value?.warehouseId, baseInfo.value?.projectId]);
+  }, [consoleApi, externalInitConfig?.warehouseId, externalInitConfig?.projectId]);
 
   useEffect(() => {
     if (record.value?.device?.name) {
@@ -99,12 +106,12 @@ export default function RecordInfo(): ReactElement {
   }, [record.value?.creator, getCreator]);
 
   useEffect(() => {
-    if (baseInfo.value?.warehouseId && baseInfo.value.projectId) {
+    if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       getLabels().catch((error: unknown) => {
         log.error(error);
       });
     }
-  }, [baseInfo.value?.warehouseId, baseInfo.value?.projectId, getLabels]);
+  }, [externalInitConfig?.warehouseId, externalInitConfig?.projectId, getLabels]);
 
   const updateRecord = useCallback(
     async (payload: PartialMessage<UpdateRecordRequest>) => {
@@ -131,7 +138,7 @@ export default function RecordInfo(): ReactElement {
               variant="body2"
               underline="hover"
               data-testid={deviceInfo.value?.serialNumber}
-              href={`/${baseInfo.value?.organizationSlug}/${baseInfo.value?.projectSlug}/${deviceInfo.value?.name}`}
+              href={`/${organizationSlug}/${projectSlug}/${deviceInfo.value?.name}`}
               target="_blank"
             >
               {deviceInfo.value?.serialNumber}

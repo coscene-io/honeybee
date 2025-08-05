@@ -11,7 +11,6 @@ import * as _ from "lodash-es";
 import Logger from "@foxglove/log";
 import { parseChannel } from "@foxglove/mcap-support";
 import { clampTime, fromRFC3339String, add as addTime, compare, Time } from "@foxglove/rostime";
-import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import {
   PlayerProblem,
   Topic,
@@ -374,9 +373,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   }
 
   const projectId = params.projectId;
-  const projectSlug = params.projectSlug;
   const warehouseId = params.warehouseId;
-  const userId = params.userId;
   const key = params.key;
 
   const addTopicPrefix = params.addTopicPrefix;
@@ -387,35 +384,13 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     throw new Error("projectId is required for data platform source");
   }
 
-  if (!projectSlug) {
-    throw new Error("projectSlug is required for data platform source");
-  }
-
   if (!warehouseId) {
     throw new Error("warehouseId is required for data platform source");
-  }
-
-  if (!userId) {
-    throw new Error("user id is undefined");
   }
 
   if (!key) {
     throw new Error("key is undefined");
   }
-
-  const files: ParamsFile[] = JSON.parse(params.files ?? "[]");
-  const jobRuns: string[] = [];
-  const fileNames: string[] = [];
-
-  files.forEach((file) => {
-    if ("filename" in file) {
-      fileNames.push(file.filename);
-    }
-
-    if ("jobRunsName" in file) {
-      jobRuns.push(file.jobRunsName);
-    }
-  });
 
   const dpSourceParams: DataPlatformSourceParameters = {
     key,

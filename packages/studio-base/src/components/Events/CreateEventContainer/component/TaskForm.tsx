@@ -25,8 +25,8 @@ import {
 } from "@foxglove/studio-base/components/CustomFieldProperty/form/CustomFieldValuesForm";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { UserSelect } from "@foxglove/studio-base/components/UserSelect";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 
 import { CreateTaskForm } from "../types";
@@ -38,7 +38,7 @@ const useStyles = makeStyles()((_theme) => ({
   },
 }));
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 const selectTaskCustomFieldSchema = (store: TaskStore) => store.customFieldSchema;
 
 const log = Logger.getLogger(__filename);
@@ -56,18 +56,17 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
   const { control, watch } = form;
   const watchedValues = watch();
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = asyncBaseInfo.value ?? {};
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   const taskCustomFieldSchema = useTasks(selectTaskCustomFieldSchema);
 
   // Get sync task metadata
   const { value: syncedTask } = useAsync(async () => {
-    if (!baseInfo.warehouseId || !baseInfo.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
       return { enabled: false };
     }
 
-    const parent = `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}/ticketSystem`;
+    const parent = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/ticketSystem`;
 
     try {
       const result = await consoleApi.getTicketSystemMetadata({ parent });
@@ -79,7 +78,7 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
       log.error(error);
       return { enabled: false };
     }
-  }, [baseInfo.warehouseId, baseInfo.projectId, consoleApi]);
+  }, [externalInitConfig?.warehouseId, externalInitConfig?.projectId, consoleApi]);
 
   return (
     <Stack>

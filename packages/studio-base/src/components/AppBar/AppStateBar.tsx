@@ -20,13 +20,13 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
   CoScenePlaylistStore,
   usePlaylist,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
@@ -72,7 +72,7 @@ const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const selectUser = (store: UserStore) => store.user;
-const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 const disableTimeoutSetting = localStorage.getItem("disable_timeout") === "true";
 
@@ -85,7 +85,7 @@ export function AppStateBar(): React.JSX.Element {
   const urlState = useMessagePipeline(selectUrlState);
 
   const linkType = urlState?.parameters?.linkType ?? "";
-  const dataSource = useBaseInfo(selectDataSource);
+  const dataSource = useCoreData(selectDataSource);
   const isDisableTimeout =
     disableTimeoutSetting || dataSource?.id !== "coscene-websocket" || linkType !== "coLink";
 

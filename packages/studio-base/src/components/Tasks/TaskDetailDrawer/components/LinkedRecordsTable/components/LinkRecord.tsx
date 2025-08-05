@@ -14,14 +14,14 @@ import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
 
 import RecordTable from "./RecordTable";
 import RecordTableFilter from "./RecordTableFilter";
 
-const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectProject = (store: CoreDataStore) => store.project;
 
 const useStyles = makeStyles()((theme) => ({
   dialogContent: {
@@ -53,7 +53,7 @@ export default function LinkRecord({
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
 
-  const project = useBaseInfo(selectProject);
+  const project = useCoreData(selectProject);
   const consoleApi = useConsoleApi();
 
   // 获取记录列表

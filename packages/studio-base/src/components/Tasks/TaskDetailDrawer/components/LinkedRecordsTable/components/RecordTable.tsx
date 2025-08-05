@@ -45,8 +45,8 @@ import { makeStyles } from "tss-react/mui";
 
 import { ConvertCustomFieldValue } from "@foxglove/studio-base/components/CustomFieldProperty/utils/convertCustomFieldValue";
 import { useVizTargetSource } from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/useSelectSource";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
@@ -59,7 +59,7 @@ declare module "@mui/x-data-grid" {
   }
 }
 
-const selectRecordCustomFieldSchema = (store: CoSceneBaseStore) => store.recordCustomFieldSchema;
+const selectRecordCustomFieldSchema = (store: CoreDataStore) => store.recordCustomFieldSchema;
 
 const useStyles = makeStyles()((theme) => ({
   dataGrid: {
@@ -261,7 +261,9 @@ function CustomFieldCell({
   return <Typography variant="body2">{displayValue ?? "-"}</Typography>;
 }
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
+const selectOrganization = (store: CoreDataStore) => store.organization;
+const selectProject = (store: CoreDataStore) => store.project;
 
 export default function RecordTable({
   listRecordsResponse,
@@ -290,12 +292,16 @@ export default function RecordTable({
 }): React.ReactElement {
   const { classes } = useStyles();
   const { i18n, t } = useTranslation("task");
-  const recordCustomFieldSchema = useBaseInfo(selectRecordCustomFieldSchema);
+  const recordCustomFieldSchema = useCoreData(selectRecordCustomFieldSchema);
   const confirm = useConfirm();
   const selectVizTargetSource = useVizTargetSource();
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const organization = useCoreData(selectOrganization);
+  const project = useCoreData(selectProject);
+  const organizationSlug = useMemo(() => organization.value?.slug ?? "", [organization.value]);
+  const projectSlug = useMemo(() => project.value?.slug ?? "", [project.value]);
+
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   // 选择状态管理
   const [rowSelectionModel, setRowSelectionModel] = useState<GridRowSelectionModel>([]);
@@ -357,9 +363,8 @@ export default function RecordTable({
       }).then((response) => {
         if (response === "ok") {
           void selectVizTargetSource({
-            baseInfo: {
-              ...baseInfo,
-              recordDisplayName: recordTitle,
+            externalInitConfig: {
+              ...externalInitConfig,
               recordId: recordName.split("/").pop() ?? "",
               files: [{ recordName }],
             },
@@ -368,7 +373,7 @@ export default function RecordTable({
         }
       });
     },
-    [confirm, t, selectVizTargetSource, baseInfo],
+    [confirm, t, selectVizTargetSource, externalInitConfig],
   );
 
   // 定义基础列结构
@@ -386,9 +391,10 @@ export default function RecordTable({
               variant="body2"
               onClick={() => {
                 window.open(
-                  `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${
-                    baseInfo.organizationSlug
-                  }/${baseInfo.projectSlug}/records/${params.row.name.split("/").pop()}`,
+                  `https://${APP_CONFIG.DOMAIN_CONFIG.default
+                    ?.webDomain}/${organizationSlug}/${projectSlug}/records/${params.row.name
+                    .split("/")
+                    .pop()}`,
                   "_blank",
                 );
               }}
@@ -476,8 +482,8 @@ export default function RecordTable({
       classes.vizButton,
       classes.playButton,
       disableSwitchSource,
-      baseInfo.organizationSlug,
-      baseInfo.projectSlug,
+      organizationSlug,
+      projectSlug,
       handleVizTargetRecord,
     ],
   );
