@@ -122,7 +122,7 @@ export function TasksList(): React.JSX.Element {
               return <TaskStateItem key={`${option}-${index}`} state={option} />;
             });
           }}
-          className={cx(currentTaskStateFilter.length > 0 && classes.taskStateSelector)}
+          className={cx({ [classes.taskStateSelector]: currentTaskStateFilter.length > 0 })}
           MenuProps={{
             slotProps: {
               list: {
