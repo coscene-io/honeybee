@@ -29,7 +29,6 @@ import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoScen
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   ProjectRoleEnum,
@@ -38,6 +37,7 @@ import {
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
@@ -62,7 +62,7 @@ import SelectLayoutTemplateModal from "./SelectLayoutTemplateModal";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectUserRole = (store: UserStore) => store.role;
 
 const useStyles = makeStyles()((theme) => {
@@ -117,8 +117,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const consoleApi = useConsoleApi();
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
   const currentUserRole = useCurrentUser(selectUserRole);
 
   const [layouts, reloadLayouts] = useAsyncFn(
@@ -516,7 +515,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onRecommendedToProjectLayout = useCallbackWithToast(
     async (item: Layout) => {
-      const currentProjectId = baseInfo.projectId;
+      const currentProjectId = externalInitConfig?.projectId;
       const currentRecommendedLayouts = layouts.value?.shared
         .filter((layout) => layout.isProjectRecommended)
         .map((layout) => layout.id);
@@ -532,7 +531,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         await layoutManager.updateLayout({ id: item.id, name: item.name });
       }
     },
-    [baseInfo.projectId, consoleApi, layoutManager, layouts.value?.shared],
+    [externalInitConfig?.projectId, consoleApi, layoutManager, layouts.value?.shared],
   );
 
   const onCopyToRecordDefaultLayout = useCallbackWithToast(

@@ -27,8 +27,8 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import LinkedDevicesTable from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedDevicesTable";
 import LinkedRecordsTable from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { CosQuery } from "@foxglove/studio-base/util/coscene";
 import { BinaryOperator, SerializeOption } from "@foxglove/studio-base/util/coscene/cosel";
@@ -39,7 +39,7 @@ const selectPause = (ctx: MessagePipelineContext) => ctx.pausePlayback;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectEnableRepeat = (ctx: MessagePipelineContext) => ctx.enableRepeatPlayback;
 const selectViewingTask = (store: TaskStore) => store.viewingTask;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 const selectSetViewingTask = (store: TaskStore) => store.setViewingTask;
 
 const useStyles = makeStyles<{ showPlaybackControls: boolean }>()(
@@ -90,7 +90,7 @@ export default function TaskDetailDrawer(): React.ReactElement {
   const { classes } = useStyles({ showPlaybackControls });
   const viewingTask = useTasks(selectViewingTask);
   const setViewingTask = useTasks(selectSetViewingTask);
-  const baseInfo = useBaseInfo(selectBaseInfo);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
   const [tabValue, setTabValue] = useState(0);
   const { t } = useTranslation("task");
 
@@ -112,13 +112,13 @@ export default function TaskDetailDrawer(): React.ReactElement {
   const [linkedRecords, getLinkedRecords] = useAsyncFn(async () => {
     if (
       recordFilter == undefined ||
-      baseInfo.value?.projectId == undefined ||
-      baseInfo.value.warehouseId == undefined
+      externalInitConfig?.projectId == undefined ||
+      externalInitConfig.warehouseId == undefined
     ) {
       return;
     }
 
-    const projectName = `warehouses/${baseInfo.value.warehouseId}/projects/${baseInfo.value.projectId}`;
+    const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
 
     const res = await consoleApi.listRecord({
       projectName,
@@ -132,8 +132,8 @@ export default function TaskDetailDrawer(): React.ReactElement {
     return res;
   }, [
     recordFilter,
-    baseInfo.value?.projectId,
-    baseInfo.value?.warehouseId,
+    externalInitConfig?.projectId,
+    externalInitConfig?.warehouseId,
     consoleApi,
     recordPageSize,
     recordCurrentPage,
@@ -142,8 +142,8 @@ export default function TaskDetailDrawer(): React.ReactElement {
   const [linkedDevices, getLinkedDevices] = useAsyncFn(async () => {
     if (
       deviceFilter == undefined ||
-      baseInfo.value?.projectId == undefined ||
-      baseInfo.value.warehouseId == undefined
+      externalInitConfig?.projectId == undefined ||
+      externalInitConfig.warehouseId == undefined
     ) {
       return;
     }
@@ -152,15 +152,15 @@ export default function TaskDetailDrawer(): React.ReactElement {
       filter: CosQuery.Companion.deserialize(deviceFilter),
       pageSize: devicePageSize,
       currentPage: deviceCurrentPage,
-      warehouseId: baseInfo.value.warehouseId,
-      projectId: baseInfo.value.projectId,
+      warehouseId: externalInitConfig.warehouseId,
+      projectId: externalInitConfig.projectId,
     });
 
     return res;
   }, [
     deviceFilter,
-    baseInfo.value?.projectId,
-    baseInfo.value?.warehouseId,
+    externalInitConfig?.projectId,
+    externalInitConfig?.warehouseId,
     consoleApi,
     devicePageSize,
     deviceCurrentPage,

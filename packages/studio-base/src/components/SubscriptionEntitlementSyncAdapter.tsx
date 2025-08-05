@@ -5,12 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAsyncFn } from "react-use";
 
 import Logger from "@foxglove/log";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   useSubscriptionEntitlement,
   SubscriptionEntitlementStore,
@@ -19,23 +19,24 @@ import {
 const log = Logger.getLogger(__filename);
 
 const selectSetSubscription = (store: SubscriptionEntitlementStore) => store.setSubscription;
-const selectUser = (store: UserStore) => store.user;
+const selectOrganization = (store: CoreDataStore) => store.organization;
 
 export function SubscriptionEntitlementSyncAdapter(): ReactNull {
   const setSubscription = useSubscriptionEntitlement(selectSetSubscription);
   const consoleApi = useConsoleApi();
+  const organization = useCoreData(selectOrganization);
 
-  const currentUser = useCurrentUser(selectUser);
+  const orgId = useMemo(() => organization.value?.name.split("/").pop(), [organization]);
 
   const [, syncSubscription] = useAsyncFn(async () => {
     const subscriptions = await consoleApi.listOrganizationSubscriptions({
-      parent: `organizations/${currentUser?.orgId}`,
+      parent: `organizations/${orgId}`,
       pageSize: 1000,
     });
     const subscription = subscriptions.subscriptions.find((s) => s.active);
 
     setSubscription(subscription);
-  }, [consoleApi, currentUser, setSubscription]);
+  }, [consoleApi, orgId, setSubscription]);
 
   useEffect(() => {
     syncSubscription().catch((err: unknown) => {

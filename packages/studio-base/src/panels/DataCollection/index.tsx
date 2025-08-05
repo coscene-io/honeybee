@@ -17,9 +17,9 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { PanelExtensionAdapter } from "@foxglove/studio-base/components/PanelExtensionAdapter";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
@@ -30,7 +30,7 @@ import { Config, PanelState } from "./types";
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
-const selectDataSource = (state: CoSceneBaseStore) => state.dataSource;
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 const selectFocusedTask = (store: TaskStore) => store.focusedTask;
 
 function initPanel(
@@ -67,7 +67,7 @@ function DataCollectionPanelAdapter(props: Props) {
 
   const consoleApi = useConsoleApi();
   const urlState = useMessagePipeline(selectUrlState);
-  const dataSource = useBaseInfo(selectDataSource);
+  const dataSource = useCoreData(selectDataSource);
   const focusedTask = useTasks(selectFocusedTask);
 
   const deviceLink = urlState?.parameters?.deviceLink ?? "";

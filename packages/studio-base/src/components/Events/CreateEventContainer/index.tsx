@@ -15,7 +15,7 @@ import {
   FormControlLabel,
   Link,
 } from "@mui/material";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -26,8 +26,8 @@ import { EventForm } from "@foxglove/studio-base/components/Events/CreateEventCo
 import { TaskForm } from "@foxglove/studio-base/components/Events/CreateEventContainer/component/TaskForm";
 import { useDefaultEventForm } from "@foxglove/studio-base/components/Events/CreateEventContainer/hooks";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
@@ -36,7 +36,9 @@ import { CreateEventForm, CreateTaskForm } from "./types";
 
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
+const selectProject = (store: CoreDataStore) => store.project;
+const selectOrganization = (store: CoreDataStore) => store.organization;
 
 function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.ReactNode {
   const { t } = useTranslation("cosEvent");
@@ -61,11 +63,15 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
   const consoleApi = useConsoleApi();
 
-  const baseInfo = useBaseInfo(selectBaseInfo);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
+  const project = useCoreData(selectProject);
+  const organization = useCoreData(selectOrganization);
+  const projectSlug = useMemo(() => project.value?.slug, [project]);
+  const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
 
-  const projectName = `warehouses/${baseInfo.value?.warehouseId}/projects/${baseInfo.value?.projectId}`;
-  const recordName = `warehouses/${baseInfo.value?.warehouseId}/projects/${baseInfo.value?.projectId}/records/${baseInfo.value?.recordId}`;
-  const fieldConfigurationUrl = `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/${baseInfo.value?.organizationSlug}/${baseInfo.value?.projectSlug}/manage/advanced-settings/custom-field/moment-custom-field`;
+  const projectName = `warehouses/${externalInitConfig?.warehouseId}/projects/${externalInitConfig?.projectId}`;
+  const recordName = `warehouses/${externalInitConfig?.warehouseId}/projects/${externalInitConfig?.projectId}/records/${externalInitConfig?.recordId}`;
+  const fieldConfigurationUrl = `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/${organizationSlug}/${projectSlug}/manage/advanced-settings/custom-field/moment-custom-field`;
 
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
 
@@ -176,8 +182,9 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         },
         event,
       });
-      const targetUrl = `${window.location.origin}/${baseInfo.value?.organizationSlug}/${baseInfo
-        .value?.projectSlug}/tasks/general-tasks/${newTask.name.split("/").pop()}`;
+      const targetUrl = `${
+        window.location.origin
+      }/${organizationSlug}/${projectSlug}/tasks/general-tasks/${newTask.name.split("/").pop()}`;
 
       toast.success(<CreateTaskSuccessToast targetUrl={targetUrl} />);
       if (task.needSyncTask) {

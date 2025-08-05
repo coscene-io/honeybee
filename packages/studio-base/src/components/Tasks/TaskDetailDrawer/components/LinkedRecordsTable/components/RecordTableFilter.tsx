@@ -26,12 +26,12 @@ import { useDebounce } from "use-debounce";
 
 import RecordLabelSelector from "@foxglove/studio-base/components/RecordInfo/RecordLabelSelector";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene";
 import { QueryFields } from "@foxglove/studio-base/util/queries";
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 
 interface FilterState {
   searchQuery: string;
@@ -81,7 +81,7 @@ export default function RecordTableFilter({
   const { t } = useTranslation("task");
   const { t: tGeneral } = useTranslation("cosGeneral");
   const consoleApi = useConsoleApi();
-  const baseInfo = useBaseInfo(selectBaseInfo);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   // 内部维护的过滤状态
   const [filterState, setFilterState] = useState<FilterState>({
@@ -95,14 +95,14 @@ export default function RecordTableFilter({
 
   // 获取标签列表
   const [labels, getLabels] = useAsyncFn(async () => {
-    if (!baseInfo.value?.warehouseId || !baseInfo.value.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
       return [];
     }
 
     const response = await consoleApi.listLabels({
       pageSize: 1000,
-      warehouseId: baseInfo.value.warehouseId,
-      projectId: baseInfo.value.projectId,
+      warehouseId: externalInitConfig.warehouseId,
+      projectId: externalInitConfig.projectId,
     });
 
     return response.labels.map(
@@ -112,11 +112,11 @@ export default function RecordTableFilter({
           name: label.name.split("/").pop() ?? "",
         }),
     );
-  }, [consoleApi, baseInfo.value?.warehouseId, baseInfo.value?.projectId]);
+  }, [externalInitConfig?.warehouseId, externalInitConfig?.projectId, consoleApi]);
 
   // 获取设备列表
   const [devices, getDevices] = useAsyncFn(async () => {
-    if (!baseInfo.value?.warehouseId || !baseInfo.value.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
       return [];
     }
 
@@ -125,12 +125,12 @@ export default function RecordTableFilter({
       filter: emptyFilter,
       pageSize: 1000,
       currentPage: 0,
-      warehouseId: baseInfo.value.warehouseId,
-      projectId: baseInfo.value.projectId,
+      warehouseId: externalInitConfig.warehouseId,
+      projectId: externalInitConfig.projectId,
     });
 
     return response.projectDevices;
-  }, [consoleApi, baseInfo.value?.warehouseId, baseInfo.value?.projectId]);
+  }, [consoleApi, externalInitConfig?.warehouseId, externalInitConfig?.projectId]);
 
   // 加载数据
   useEffect(() => {

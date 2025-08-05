@@ -274,8 +274,6 @@ export async function handleStartCollectionPreLogic(
 
       await consoleApi.setApiBaseInfo({
         projectId: project.name.split("/").pop(),
-        projectSlug: project.slug,
-        projectDisplayName: project.displayName,
         warehouseId: project.name.split("warehouses/")[1]?.split("/")[0],
       });
 

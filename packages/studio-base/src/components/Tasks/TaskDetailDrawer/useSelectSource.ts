@@ -6,15 +6,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
-import {
-  BaseInfo,
-  CoSceneBaseStore,
-  useBaseInfo,
-} from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
+  CoreDataStore,
+  ExternalInitConfig,
+  useCoreData,
+} from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
@@ -34,19 +34,24 @@ function ipToHex(ip: string) {
     .join("");
 }
 
-const selectColinkApi = (store: CoSceneBaseStore) => store.colinkApi;
-const selectCoordinatorConfig = (store: CoSceneBaseStore) => store.coordinatorConfig;
+const selectColinkApi = (store: CoreDataStore) => store.colinkApi;
+const selectCoordinatorConfig = (store: CoreDataStore) => store.coordinatorConfig;
+const selectOrganization = (store: CoreDataStore) => store.organization;
+const selectProject = (store: CoreDataStore) => store.project;
+
 const selectUser = (store: UserStore) => store.user;
 const selectSetViewingTask = (store: TaskStore) => store.setViewingTask;
 
+// only support select current project source
+// deppend on project slug and organization info
 export function useVizTargetSource(): (
   params:
     | {
-        baseInfo: BaseInfo;
+        externalInitConfig: ExternalInitConfig;
         sourceId: "coscene-data-platform";
       }
     | {
-        baseInfo: BaseInfo;
+        externalInitConfig: ExternalInitConfig;
         sourceId: "coscene-websocket";
         device: Device;
       },
@@ -54,26 +59,37 @@ export function useVizTargetSource(): (
   const { selectSource } = usePlayerSelection();
   const consoleApi = useConsoleApi();
   const currentUser = useCurrentUser(selectUser);
-  const coordinatorConfig = useBaseInfo(selectCoordinatorConfig);
-  const colinkApi = useBaseInfo(selectColinkApi);
+  const coordinatorConfig = useCoreData(selectCoordinatorConfig);
+  const colinkApi = useCoreData(selectColinkApi);
   const setViewingTask = useTasks(selectSetViewingTask);
+  const organization = useCoreData(selectOrganization);
+  const project = useCoreData(selectProject);
+
+  const projectSlug = useMemo(() => project.value?.slug ?? "", [project.value]);
+
+  const organizationId = useMemo(
+    () => organization.value?.name.split("/").pop() ?? "",
+    [organization.value],
+  );
+
+  const organizationSlug = useMemo(() => organization.value?.slug ?? "", [organization.value]);
 
   return useCallback(
     async (
       params:
         | {
-            baseInfo: BaseInfo;
+            externalInitConfig: ExternalInitConfig;
             sourceId: "coscene-data-platform";
           }
         | {
-            baseInfo: BaseInfo;
+            externalInitConfig: ExternalInitConfig;
             sourceId: "coscene-websocket";
             device: Device;
           },
     ) => {
-      const { baseInfo, sourceId } = params;
+      const { externalInitConfig, sourceId } = params;
 
-      const key = await consoleApi.setBaseInfo(baseInfo);
+      const key = await consoleApi.setExternalInitConfig(externalInitConfig);
 
       const updateUrlParams: AppURLState = {
         ds: sourceId,
@@ -96,7 +112,7 @@ export function useVizTargetSource(): (
           coordinatorConfig?.enabled === true ? coordinatorConfig.proxy_server : "";
 
         const deviceColinkInfo = (
-          await colinkApi?.deviceApiControllerGetDevice(baseInfo.organizationId ?? "", public_key)
+          await colinkApi?.deviceApiControllerGetDevice(organizationId, public_key)
         )?.data;
 
         const wsUrl = `wss://${deviceColinkInfo?.network_id}-${ipToHex(
@@ -105,9 +121,10 @@ export function useVizTargetSource(): (
 
         const fullName = targetDevice.displayName;
 
-        const deviceLink = `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${
-          baseInfo.organizationSlug
-        }/${baseInfo.projectSlug}/devices/project-devices/${targetDevice.name.split("/").pop()}`;
+        const deviceLink = `https://${APP_CONFIG.DOMAIN_CONFIG.default
+          ?.webDomain}/${organizationSlug}/${projectSlug}/devices/project-devices/${targetDevice.name
+          .split("/")
+          .pop()}`;
 
         updateUrlParams.dsParams = {
           ...updateUrlParams.dsParams,

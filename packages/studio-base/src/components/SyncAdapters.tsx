@@ -7,10 +7,10 @@
 
 import { useMemo } from "react";
 
-import { BaseSyncAdapter } from "@foxglove/studio-base/components/CoSceneBaseSyncAdapter";
 import { CurrentLayoutSyncAdapter } from "@foxglove/studio-base/components/CoSceneCurrentLayoutSyncAdapter";
 import { CoSceneCurrentUserSyncAdapter } from "@foxglove/studio-base/components/CoSceneCurrentUserSyncAdapter";
 import { PlaylistSyncAdapter } from "@foxglove/studio-base/components/CoScenePlaylistSyncAdapter";
+import { CoreDataSyncAdapter } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import { EventsSyncAdapter } from "@foxglove/studio-base/components/Events/EventsSyncAdapter";
 import { SubscriptionEntitlementSyncAdapter } from "@foxglove/studio-base/components/SubscriptionEntitlementSyncAdapter";
 import { TasksSyncAdapter } from "@foxglove/studio-base/components/Tasks/TasksSyncAdapter";
@@ -35,7 +35,7 @@ export function SyncAdapters(): React.JSX.Element {
         <PlaylistSyncAdapter />
         <URLStateSyncAdapter />
         <CurrentLayoutSyncAdapter />
-        <BaseSyncAdapter />
+        <CoreDataSyncAdapter />
         <SubscriptionEntitlementSyncAdapter />
         {/* <UpdateChecker /> */}
       </>

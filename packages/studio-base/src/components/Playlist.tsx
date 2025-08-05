@@ -34,7 +34,6 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
@@ -43,6 +42,7 @@ import {
   BagFileInfo,
   ParamsFile,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   TimelineInteractionStateStore,
@@ -60,8 +60,8 @@ const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBa
 const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHoveredBag;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
+const selectProject = (state: CoreDataStore) => state.project;
 const selectUser = (store: UserStore) => store.user;
 
 const useStyles = makeStyles()((theme) => ({
@@ -157,8 +157,8 @@ export function Playlist(): React.JSX.Element {
   const hoveredBag = useTimelineInteractionState(selectHoverBag);
   const setHoveredBag = useTimelineInteractionState(selectSetHoverBag);
   const urlState = useMessagePipeline(selectUrlState);
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const project = useBaseInfo(selectProject);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
+  const project = useCoreData(selectProject);
 
   const currentUser = useCurrentUser(selectUser);
   const { selectSource } = usePlayerSelection();
@@ -191,8 +191,6 @@ export function Playlist(): React.JSX.Element {
     return serialisationBags;
   }, [bagFiles]);
 
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
-
   const clearFilter = useCallback(() => {
     setFilterText("");
   }, [setFilterText]);
@@ -218,7 +216,7 @@ export function Playlist(): React.JSX.Element {
   );
 
   const handleAddFiles = (selectedFiles: { filename: string; sha256: string }[]) => {
-    const files: readonly ParamsFile[] = baseInfo.files ?? [];
+    const files: readonly ParamsFile[] = externalInitConfig?.files ?? [];
     const fileNamesSet = new Set<{ filename: string; sha256: string }>();
 
     selectedFiles.forEach((file) => {
@@ -251,8 +249,8 @@ export function Playlist(): React.JSX.Element {
     });
 
     consoleApi
-      .setBaseInfo({
-        ...baseInfo,
+      .setExternalInitConfig({
+        ...externalInitConfig,
         files: newFiles,
       })
       .then((key) => {
