@@ -20,8 +20,10 @@ import {
 } from "@foxglove/studio-base/components/Tasks/TasksList/utils/taskFilterUtils";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
-import { AccessTime, Autorenew, CheckCircle } from "@mui/icons-material";
-import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
+import {
+  TaskStateChipMap,
+  TaskStateValueRender,
+} from "@foxglove/studio-base/components/Tasks/TasksList/components/TaskStateItem";
 
 const useStyles = makeStyles<void, "taskSelected">()((theme, _params) => ({
   line: {
@@ -63,66 +65,6 @@ const selectSetFocusedTask = (store: TaskStore) => store.setFocusedTask;
 const selectSetViewingTask = (store: TaskStore) => store.setViewingTask;
 const selectReloadProjectTasks = (store: TaskStore) => store.reloadProjectTasks;
 const selectCustomFieldSchema = (store: TaskStore) => store.customFieldSchema;
-export const TaskStateChipMap: Record<
-  TaskStateType,
-  {
-    color: "default" | "primary" | "success" | "warning";
-    icon: React.ReactElement;
-  }
-> = {
-  [TaskStateEnum_TaskState.PENDING]: {
-    color: "default",
-    icon: <AccessTime sx={{ fontSize: 12 }} />,
-  },
-  [TaskStateEnum_TaskState.PROCESSING]: {
-    color: "primary",
-    icon: <Autorenew sx={{ fontSize: 12 }} />,
-  },
-  [TaskStateEnum_TaskState.SUCCEEDED]: {
-    color: "success",
-    icon: <CheckCircle sx={{ fontSize: 12 }} />,
-  },
-};
-
-export function TaskStateValueRender({ value }: { value: TaskStateType }) {
-  const { t } = useTranslation("task");
-  return (
-    <Chip
-      label={getTaskStateDisplayName(value, t)}
-      size="small"
-      icon={TaskStateChipMap[value].icon}
-      color={TaskStateChipMap[value].color || "default"}
-      style={{
-        marginRight: "0px",
-        height: "16px",
-        fontSize: "12px",
-        transform: "scale(0.9)",
-        transformOrigin: "left center",
-      }}
-    />
-  );
-}
-
-export function TaskStateOptionsRender() {
-  const { t } = useTranslation("task");
-  return taskStateOptions.map((option) => {
-    const chipProps = TaskStateChipMap[option] || {};
-    return (
-      <MenuItem key={option} value={option}>
-        <Chip
-          label={getTaskStateDisplayName(option, t)}
-          size="small"
-          icon={chipProps.icon}
-          color={chipProps.color || "default"}
-          sx={{
-            borderRadius: "4px",
-            mr: 0.5,
-          }}
-        />
-      </MenuItem>
-    );
-  });
-}
 
 export default function TaskView(params: { task: Task }): React.JSX.Element {
   const { t } = useTranslation("task");
@@ -192,7 +134,7 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
           <Stack flexDirection="row" justifyContent="space-between" alignItems="center">
             <Select
               size="small"
-              value={task.state as TaskStateType}
+              value={task.state}
               onChange={(event) => {
                 void handleUpdateTaskState(event.target.value as TaskStateType);
               }}
@@ -201,11 +143,33 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
               onClick={(e) => {
                 e.stopPropagation();
               }}
-              renderValue={(selected: TaskStateType) => (
-                <TaskStateValueRender key={selected} value={selected} />
+              renderValue={(selected) => (
+                <TaskStateValueRender key={selected} value={selected as TaskStateType} />
               )}
+              sx={{
+                "& .MuiSelect-select": {
+                  paddingBottom: "4px",
+                  paddingTop: "4px",
+                },
+              }}
             >
-              <TaskStateOptionsRender />
+              {taskStateOptions.map((option) => {
+                const chipProps = TaskStateChipMap[option] || {};
+                return (
+                  <MenuItem key={option} value={option}>
+                    <Chip
+                      label={getTaskStateDisplayName(option, t)}
+                      size="small"
+                      icon={chipProps.icon}
+                      color={chipProps.color || "default"}
+                      sx={{
+                        borderRadius: "4px",
+                        mr: 0.5,
+                      }}
+                    />
+                  </MenuItem>
+                );
+              })}
             </Select>
 
             <Avatar

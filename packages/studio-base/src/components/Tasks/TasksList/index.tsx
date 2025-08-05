@@ -4,7 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { CircularProgress, Stack, Typography, Select, MenuItem } from "@mui/material";
+import { CircularProgress, Stack, Typography, Select, MenuItem, Chip } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -17,11 +17,16 @@ import {
   getTaskStateFilter,
   setTaskStateFilter,
   TaskStateType,
+  taskStateOptions,
+  getTaskStateDisplayName,
 } from "@foxglove/studio-base/components/Tasks/TasksList/utils/taskFilterUtils";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
-
-import TaskView, { TaskStateOptionsRender, TaskStateValueRender } from "./components/TaskView";
+import TaskView from "./components/TaskView";
+import {
+  TaskStateChipMap,
+  TaskStateValueRender,
+} from "@foxglove/studio-base/components/Tasks/TasksList/components/TaskStateItem";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -114,6 +119,12 @@ export function TasksList(): React.JSX.Element {
               return <TaskStateValueRender key={`${option}-${index}`} value={option} />;
             });
           }}
+          sx={{
+            "& .MuiSelect-select": {
+              paddingBottom: "4px",
+              paddingTop: "4px",
+            },
+          }}
           MenuProps={{
             slotProps: {
               list: {
@@ -128,7 +139,23 @@ export function TasksList(): React.JSX.Element {
             },
           }}
         >
-          <TaskStateOptionsRender />
+          {taskStateOptions.map((option) => {
+            const chipProps = TaskStateChipMap[option] || {};
+            return (
+              <MenuItem key={option} value={option}>
+                <Chip
+                  label={getTaskStateDisplayName(option, t)}
+                  size="small"
+                  icon={chipProps.icon}
+                  color={chipProps.color || "default"}
+                  sx={{
+                    borderRadius: "4px",
+                    mr: 0.5,
+                  }}
+                />
+              </MenuItem>
+            );
+          })}
         </Select>
       </Stack>
       {projectTasks.loading && (
