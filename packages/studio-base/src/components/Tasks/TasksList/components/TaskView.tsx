@@ -13,8 +13,8 @@ import { makeStyles } from "tss-react/mui";
 
 import Avatar from "@foxglove/studio-base/components/Avatar";
 import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
+import { TaskStateItem } from "@foxglove/studio-base/components/Tasks/TasksList/components/TaskStateItem";
 import {
-  getTaskStateDisplayName,
   taskStateOptions,
   TaskStateType,
 } from "@foxglove/studio-base/components/Tasks/TasksList/utils/taskFilterUtils";
@@ -53,6 +53,12 @@ const useStyles = makeStyles<void, "taskSelected">()((theme, _params) => ({
   taskSelected: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.activatedOpacity),
     boxShadow: `0 0 0 1px ${theme.palette.info.main}`,
+  },
+  taskStateSelector: {
+    "& .MuiSelect-select": {
+      paddingBottom: "4px",
+      paddingTop: "4px",
+    },
   },
 }));
 
@@ -139,10 +145,14 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
               onClick={(e) => {
                 e.stopPropagation();
               }}
+              renderValue={(selected) => (
+                <TaskStateItem key={selected} state={selected as TaskStateType} />
+              )}
+              className={classes.taskStateSelector}
             >
               {taskStateOptions.map((option) => (
                 <MenuItem key={option} value={option}>
-                  {getTaskStateDisplayName(option, t)}
+                  <TaskStateItem state={option} />
                 </MenuItem>
               ))}
             </Select>
