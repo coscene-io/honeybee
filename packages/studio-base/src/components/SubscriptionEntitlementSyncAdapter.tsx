@@ -39,10 +39,12 @@ export function SubscriptionEntitlementSyncAdapter(): ReactNull {
   }, [consoleApi, orgId, setSubscription]);
 
   useEffect(() => {
-    syncSubscription().catch((err: unknown) => {
-      log.error("syncSubscription", err);
-    });
-  }, [syncSubscription]);
+    if (orgId) {
+      syncSubscription().catch((err: unknown) => {
+        log.error("syncSubscription", err);
+      });
+    }
+  }, [orgId, syncSubscription]);
 
   return ReactNull;
 }

@@ -46,4 +46,7 @@ export enum AppSetting {
 
   // TF Compatibility Mode
   TF_COMPATIBILITY_MODE = "tfCompatibilityMode",
+
+  // Timeout
+  TIMEOUT = "timeout",
 }

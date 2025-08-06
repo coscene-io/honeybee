@@ -7,8 +7,5 @@
 
 // These are exported from here to avoid circular imports via studio-base/index.
 
-export {
-  useAppConfigurationValue,
-  useTopicPrefixConfigurationValue,
-} from "./useAppConfigurationValue";
+export { useAppConfigurationValue } from "./useAppConfigurationValue";
 export { useAppTimeFormat } from "./useAppTimeFormat";
