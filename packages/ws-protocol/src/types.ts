@@ -278,6 +278,29 @@ export type Kicked = {
   message: string;
 };
 
+export type ServerSyncTime = {
+  op: "syncTime";
+  serverTime: number;
+};
+
+export type ClientSyncTime = {
+  op: "syncTime";
+  serverTime: number;
+  clientTime: number;
+};
+
+export type NetworkStatus = {
+  op: "networkStatus";
+  cur_speed: number; // KiB/s
+  dropped_msgs: number; // count of messages dropped by server
+  package_loss: string; // rate of package, caculated by bytes, not message count
+};
+
+export type TimeOffset = {
+  op: "timeOffset";
+  timeOffset: number;
+};
+
 export type ServerMessage =
   | ServerInfo
   | StatusMessage
@@ -294,7 +317,10 @@ export type ServerMessage =
   | FetchAssetResponse
   | ServiceCallFailure
   | ServerLogin
-  | Kicked;
+  | Kicked
+  | ServerSyncTime
+  | NetworkStatus
+  | TimeOffset;
 
 export type ClientMessage =
   | Subscribe
@@ -310,7 +336,8 @@ export type ClientMessage =
   | SubscribeConnectionGraph
   | UnsubscribeConnectionGraph
   | FetchAsset
-  | ClientLogin;
+  | ClientLogin
+  | ClientSyncTime;
 
 /**
  * Abstraction that supports both browser and Node WebSocket clients.

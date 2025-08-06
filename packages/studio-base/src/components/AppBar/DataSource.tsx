@@ -115,6 +115,8 @@ const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlayerProblems = (ctx: MessagePipelineContext) => ctx.playerState.problems;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectNetworkStatus = (ctx: MessagePipelineContext) =>
+  ctx.playerState.activeData?.networkStatus;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const selectProject = (state: CoreDataStore) => state.project;
@@ -184,6 +186,7 @@ const RealTimeVizLinkState = () => {
   const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>(undefined);
   const urlState = useMessagePipeline(selectUrlState);
+  const networkStatus = useMessagePipeline(selectNetworkStatus);
   const { t } = useTranslation("appBar");
 
   const linkType = urlState?.parameters?.linkType ?? "";
@@ -246,6 +249,34 @@ const RealTimeVizLinkState = () => {
               </>
             )}
           </Typography>
+
+          {networkStatus && (
+            <Box sx={{ mt: 1, pt: 1, borderTop: 1, borderColor: "divider" }}>
+              <Typography variant="body2" fontWeight="medium" gutterBottom>
+                网络状态
+              </Typography>
+              {networkStatus.timeOffset != undefined && (
+                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                  延迟: {networkStatus.timeOffset}ms
+                </Typography>
+              )}
+              {networkStatus.curSpeed != undefined && (
+                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                  速度: {networkStatus.curSpeed} KiB/s
+                </Typography>
+              )}
+              {networkStatus.droppedMsgs != undefined && (
+                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                  丢弃消息: {networkStatus.droppedMsgs}
+                </Typography>
+              )}
+              {networkStatus.packageLoss != undefined && (
+                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                  包丢失率: {networkStatus.packageLoss}
+                </Typography>
+              )}
+            </Box>
+          )}
         </Paper>
       </Popover>
     </>

@@ -36,6 +36,9 @@ import {
   MessageData,
   ServerInfo,
   StatusMessage,
+  ServerSyncTime,
+  TimeOffset,
+  NetworkStatus,
 } from "./types";
 
 type EventTypes = {
@@ -59,6 +62,9 @@ type EventTypes = {
   serviceCallFailure: (event: ServiceCallFailure) => void;
   login: (event: ServerLogin) => void;
   kicked: (event: Kicked) => void;
+  syncTime: (event: ServerSyncTime) => void;
+  timeOffset: (event: TimeOffset) => void;
+  networkStatus: (event: NetworkStatus) => void;
 };
 
 const textEncoder = new TextEncoder();
@@ -277,6 +283,10 @@ export default class FoxgloveClient {
 
   public login(userId: string, username: string): void {
     this.#send({ op: "login", userId, username });
+  }
+
+  public clientSyncTime(serverTime: number, clientTime: number): void {
+    this.#send({ op: "syncTime", serverTime, clientTime });
   }
 
   /**

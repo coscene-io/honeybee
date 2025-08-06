@@ -144,6 +144,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #resolvedSubscriptionsByTopic = new Map<string, SubscriptionId>();
   #resolvedSubscriptionsById = new Map<SubscriptionId, ResolvedChannel>();
   #channelsByTopic = new Map<string, ResolvedChannel>();
+
+  // Network status tracking
+  #networkStatus: {
+    timeOffset?: number;
+    curSpeed?: number;
+    droppedMsgs?: number;
+    packageLoss?: string;
+  } = {};
   #channelsById = new Map<ChannelId, ResolvedChannel>();
   #unsupportedChannelIds = new Set<ChannelId>();
   #recentlyCanceledSubscriptions = new Set<SubscriptionId>();
@@ -295,6 +303,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
       this.#emitState();
 
+      // if message.userId is not undefined, is some one connecting to the same device
       if (message.userId) {
         void this.#confirm({
           title: t("cosWebsocket:note"),
@@ -1015,6 +1024,23 @@ export default class FoxgloveWebSocketPlayer implements Player {
       responseCallback(response);
       this.#serviceResponseCbs.delete(response.requestId);
     });
+
+    this.#client.on("syncTime", ({ serverTime }) => {
+      this.#client?.clientSyncTime(serverTime, Date.now());
+    });
+
+    // delay of client to server
+    this.#client.on("timeOffset", ({ timeOffset }) => {
+      this.#networkStatus.timeOffset = timeOffset;
+      this.#emitState();
+    });
+
+    this.#client.on("networkStatus", ({ cur_speed, dropped_msgs, package_loss }) => {
+      this.#networkStatus.curSpeed = cur_speed;
+      this.#networkStatus.droppedMsgs = dropped_msgs;
+      this.#networkStatus.packageLoss = package_loss;
+      this.#emitState();
+    });
   };
 
   #updateTopicsAndDatatypes() {
@@ -1103,6 +1129,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         publishedTopics: this.#publishedTopics,
         subscribedTopics: this.#subscribedTopics,
         services: this.#advertisedServices,
+        networkStatus: this.#networkStatus,
       },
     });
   });
@@ -1571,10 +1598,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
       throw new Error("FoxgloveWebSocketPlayer: client is undefined");
     }
 
-    this.#client.login(this.#userId, this.#username);
-
     // only desktop app can check lan reachable
     if (!isDesktopApp() || linkType !== "colink") {
+      this.#client.login(this.#userId, this.#username);
       return;
     }
 
@@ -1640,18 +1666,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
           if (result === "ok") {
             await this.#reconnectWithNewUrl(reachableResult.candidate);
+            return;
           }
-          return;
         }
       } catch (error) {
         log.debug("Error during concurrent address checking:", error);
       }
-
-      // 如果所有候选地址都无法连接或MAC地址不匹配，则使用原始连接
-      this.#client.login(this.#userId, this.#username);
-    } else {
-      this.#client.login(this.#userId, this.#username);
     }
+
+    // 如果所有候选地址都无法连接或MAC地址不匹配，则使用原始连接
+    this.#client.login(this.#userId, this.#username);
   }
 
   // 检查指定IP和端口的设备MAC地址
