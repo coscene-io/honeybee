@@ -27,6 +27,7 @@ import {
   usePlaylist,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
@@ -66,6 +67,7 @@ const useStyles = makeStyles()((theme) => ({
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 const selectUser = (store: UserStore) => store.user;
 
@@ -76,12 +78,13 @@ export function AppStateBar(): React.JSX.Element {
   const presence = useMessagePipeline(selectPresence);
   const confirm = useConfirm();
   const [timeoutMinutes] = useAppConfigurationValue<number>(AppSetting.TIMEOUT);
+  const dataSource = useCoreData(selectDataSource);
 
   const remainingTime = useAutoDisconnection({
     confirm,
     foregroundTimeout: timeoutMinutes ?? DEFAULT_TIMEOUT,
     backgroundTimeout: timeoutMinutes ?? DEFAULT_TIMEOUT,
-    disableTimeout: false,
+    disableTimeout: dataSource?.id !== "coscene-websocket",
   });
 
   const [showLoadingStatus, setShowLoadingStatus] = useState(false);
