@@ -42,6 +42,8 @@ export function WebRoot(props: {
       new LocalStorageAppConfiguration({
         defaults: {
           [AppSetting.SHOW_DEBUG_PANELS]: isDevelopment,
+          [AppSetting.ADD_TOPIC_PREFIX]:
+            APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ?? "false",
         },
       }),
     [],

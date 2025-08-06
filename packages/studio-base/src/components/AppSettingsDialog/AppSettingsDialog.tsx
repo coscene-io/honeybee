@@ -47,6 +47,7 @@ import {
   AddTopicPrefix,
   CompatibilityMode,
   RosPackagePath,
+  InactivityTimeout,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -244,6 +245,7 @@ export function AppSettingsDialog(
               <AddTopicPrefix />
               <CompatibilityMode />
               <MessageFramerate />
+              <InactivityTimeout />
               {showLanguageOptions && <LanguageSettings />}
               {supportsAppUpdates && <AutoUpdate />}
               {/* CoScene */}

@@ -50,4 +50,8 @@ export const appSettings = {
   off: "Off",
   tfCompatibilityModeHelp:
     "Once this mode is enabled, the coordinate system names will have the '/' prefix removed for compatibility with tf2's coordinate system names. <Link>More details</Link>",
+  inactivityTimeout: "Real-time visualization inactivity timeout",
+  inactivityTimeoutDescription: "Set the timeout for inactivity of the real-time visualization",
+  minutes: "minutes",
+  neverDisconnect: "Never disconnect",
 };
