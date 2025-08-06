@@ -172,6 +172,18 @@ export default class FoxgloveClient {
           this.#emitter.emit("kicked", message);
           return;
 
+        case "syncTime":
+          this.#emitter.emit("syncTime", message);
+          return;
+
+        case "timeOffset":
+          this.#emitter.emit("timeOffset", message);
+          return;
+
+        case "networkStatus":
+          this.#emitter.emit("networkStatus", message);
+          return;
+
         case BinaryOpcode.MESSAGE_DATA:
           this.#emitter.emit("message", message);
           return;
