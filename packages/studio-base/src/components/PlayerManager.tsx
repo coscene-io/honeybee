@@ -38,10 +38,7 @@ import PlayerSelectionContext, {
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useEntitlementWithDialog } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
-import {
-  useAppConfigurationValue,
-  useTopicPrefixConfigurationValue,
-} from "@foxglove/studio-base/hooks";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
@@ -241,7 +238,7 @@ export default function PlayerManager(
 
   const setDataSource = useCoreData(selectSetDataSource);
 
-  const addTopicPrefix = useTopicPrefixConfigurationValue();
+  const [addTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";

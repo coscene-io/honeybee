@@ -18,6 +18,8 @@ async function main() {
     {
       defaults: {
         [AppSetting.SHOW_DEBUG_PANELS]: isDevelopment,
+        // for suport, but no studio version for supor
+        [AppSetting.ADD_TOPIC_PREFIX]: "false",
       },
     },
   );

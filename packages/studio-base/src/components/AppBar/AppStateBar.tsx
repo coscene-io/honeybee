@@ -15,6 +15,7 @@ import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -26,9 +27,9 @@ import {
   usePlaylist,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
-import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
@@ -36,12 +37,8 @@ import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { useAutoDisconnection } from "./hooks/useAutoDisconnection";
 
-// 页面在活跃状态下，连续 30 分钟没有任何操作，则自动断开
-const TIMEOUT_CONFIG = {
-  foreground: 1000 * 60 * 30, // 前台30分钟
-  background: 1000 * 60 * 30, // 后台30分钟
-  warning: 1000 * 60 * 5, // 提前5分钟警告
-};
+const DEFAULT_TIMEOUT = 1000 * 60 * 30; // 30 minutes
+const DEFAULT_WARNING_TIMEOUT = 1000 * 60 * 5; // 5 minutes
 
 const useStyles = makeStyles()((theme) => ({
   mediaGenerationStatusBar: {
@@ -69,12 +66,8 @@ const useStyles = makeStyles()((theme) => ({
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
-const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const selectUser = (store: UserStore) => store.user;
-const selectDataSource = (state: CoreDataStore) => state.dataSource;
-
-const disableTimeoutSetting = localStorage.getItem("disable_timeout") === "true";
 
 export function AppStateBar(): React.JSX.Element {
   const bagFiles = usePlaylist(selectBagFiles);
@@ -82,18 +75,13 @@ export function AppStateBar(): React.JSX.Element {
   const { t } = useTranslation("appBar");
   const presence = useMessagePipeline(selectPresence);
   const confirm = useConfirm();
-  const urlState = useMessagePipeline(selectUrlState);
-
-  const linkType = urlState?.parameters?.linkType ?? "";
-  const dataSource = useCoreData(selectDataSource);
-  const isDisableTimeout =
-    disableTimeoutSetting || dataSource?.id !== "coscene-websocket" || linkType !== "coLink";
+  const [timeoutMinutes] = useAppConfigurationValue<number>(AppSetting.TIMEOUT);
 
   const remainingTime = useAutoDisconnection({
     confirm,
-    foregroundTimeout: TIMEOUT_CONFIG.foreground,
-    backgroundTimeout: TIMEOUT_CONFIG.background,
-    disableTimeout: isDisableTimeout,
+    foregroundTimeout: timeoutMinutes ?? DEFAULT_TIMEOUT,
+    backgroundTimeout: timeoutMinutes ?? DEFAULT_TIMEOUT,
+    disableTimeout: false,
   });
 
   const [showLoadingStatus, setShowLoadingStatus] = useState(false);
@@ -259,7 +247,7 @@ export function AppStateBar(): React.JSX.Element {
 
   return (
     <>
-      {remainingTime < TIMEOUT_CONFIG.warning && !isDisableTimeout && (
+      {remainingTime < DEFAULT_WARNING_TIMEOUT && (
         <Stack
           direction="row"
           alignItems="center"
