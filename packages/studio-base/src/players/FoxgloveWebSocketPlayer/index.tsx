@@ -787,6 +787,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
         }
         stats.numMessages++;
         this.#topicsStats = topicStats;
+
+        const messageHeaderTime = getTimestampForMessage(deserializedMessage);
+
+        this.#networkStatus = {
+          ...this.#networkStatus,
+          networkDelay: Date.now() - toMillis(messageHeaderTime ?? receiveTime) + this.#timeOffset,
+        };
       } catch (error) {
         this.#problems.addProblem(`message:${chanInfo.channel.topic}`, {
           severity: "error",
@@ -1049,6 +1056,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         packageLoss,
         curSpeed,
       };
+
+      this.#emitState();
     });
   };
 
@@ -1139,10 +1148,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         publishedTopics: this.#publishedTopics,
         subscribedTopics: this.#subscribedTopics,
         services: this.#advertisedServices,
-        networkStatus: {
-          ...this.#networkStatus,
-          networkDelay: Date.now() - toMillis(this.#endTime) - this.#timeOffset,
-        },
+        networkStatus: this.#networkStatus,
       },
     });
   });
