@@ -226,8 +226,8 @@ export type PlayerStateActiveData = {
     curSpeed?: number;
     /** Number of dropped messages */
     droppedMsgs?: number;
-    /** Package loss rate calculated by bytes */
-    packageLoss?: string;
+    /** rate of package, caculated by bytes, not message count */
+    packageLoss?: number;
   };
 };
 

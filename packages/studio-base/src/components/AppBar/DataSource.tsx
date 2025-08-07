@@ -109,6 +109,12 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
   fluentIconPrimary: {
     color: theme.palette.primary.main,
   },
+  networkStatus: {
+    marginTop: theme.spacing(1),
+    paddingTop: theme.spacing(1),
+    borderTop: 1,
+    borderColor: "divider",
+  },
 }));
 
 const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
@@ -189,6 +195,17 @@ const RealTimeVizLinkState = () => {
   const networkStatus = useMessagePipeline(selectNetworkStatus);
   const { t } = useTranslation("appBar");
 
+  // 格式化网络速度
+  const formatSpeed = (speedKiBs: number): string => {
+    if (speedKiBs < 1) {
+      return `${(speedKiBs * 1024).toFixed(2)} B/s`;
+    } else if (speedKiBs < 1024) {
+      return `${speedKiBs.toFixed(2)} KiB/s`;
+    } else {
+      return `${(speedKiBs / 1024).toFixed(2)} MiB/s`;
+    }
+  };
+
   const linkType = urlState?.parameters?.linkType ?? "";
   const url = urlState?.parameters?.url ?? "";
   const open = Boolean(anchorEl);
@@ -252,28 +269,40 @@ const RealTimeVizLinkState = () => {
           </Typography>
 
           {networkStatus && (
-            <Box sx={{ mt: 1, pt: 1, borderTop: 1, borderColor: "divider" }}>
+            <Box className={classes.networkStatus}>
               <Typography variant="body2" fontWeight="medium" gutterBottom>
-                网络状态
+                {t("networkStatus")}
               </Typography>
               {networkStatus.networkDelay != undefined && (
                 <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                  延迟: {networkStatus.networkDelay}ms
+                  <Stack direction="row" justifyContent="space-between">
+                    <span>{t("networkDelay")}:</span>
+                    <span>{networkStatus.networkDelay.toFixed(2)}ms</span>
+                  </Stack>
                 </Typography>
               )}
               {networkStatus.curSpeed != undefined && (
                 <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                  速度: {networkStatus.curSpeed} KiB/s
+                  <Stack direction="row" justifyContent="space-between">
+                    <span>{t("networkSpeed")}:</span>
+                    <span>{formatSpeed(networkStatus.curSpeed)}</span>
+                  </Stack>
                 </Typography>
               )}
               {networkStatus.droppedMsgs != undefined && (
                 <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                  丢弃消息: {networkStatus.droppedMsgs}
+                  <Stack direction="row" justifyContent="space-between">
+                    <span>{t("droppedMessages")}:</span>
+                    <span>{networkStatus.droppedMsgs}</span>
+                  </Stack>
                 </Typography>
               )}
               {networkStatus.packageLoss != undefined && (
                 <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                  包丢失率: {networkStatus.packageLoss}
+                  <Stack direction="row" justifyContent="space-between">
+                    <span>{t("packetLoss")}:</span>
+                    <span>{(networkStatus.packageLoss * 100).toFixed(2)}%</span>
+                  </Stack>
                 </Typography>
               )}
             </Box>

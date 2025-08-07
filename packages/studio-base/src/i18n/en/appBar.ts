@@ -76,4 +76,9 @@ export const appBar = {
   colinkRemoteConnection: "coLink remote connection",
   localNetworkConnection: "local network connection",
   openHomePage: "Open home page",
+  networkStatus: "Network Status",
+  networkDelay: "Delay",
+  networkSpeed: "Speed",
+  droppedMessages: "Dropped Messages",
+  packetLoss: "Packet Loss",
 };
