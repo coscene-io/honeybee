@@ -157,7 +157,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     networkDelay?: number;
     curSpeed?: number;
     droppedMsgs?: number;
-    packageLoss?: string;
+    packageLoss?: number;
   } = {};
   #timeOffset: number = 0;
   #channelsById = new Map<ChannelId, ResolvedChannel>();

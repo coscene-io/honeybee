@@ -293,7 +293,7 @@ export type NetworkStatistics = {
   op: "networkStatistics";
   curSpeed: number; // KiB/s
   droppedMsgs: number; // count of messages dropped by server
-  packageLoss: string; // rate of package, caculated by bytes, not message count
+  packageLoss: number; // rate of package, caculated by bytes, not message count
 };
 
 export type TimeOffset = {
