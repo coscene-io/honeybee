@@ -28,6 +28,8 @@ export enum ServerCapability {
   services = "services",
   connectionGraph = "connectionGraph",
   assets = "assets",
+  // if the server supports messageTime, the client can use timestamp in message header to control the clock time
+  messageTime = "messageTime",
 }
 export enum FetchAssetStatus {
   SUCCESS = 0,
