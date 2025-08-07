@@ -214,6 +214,7 @@ const RealTimeVizLinkState = () => {
           <LinkMultipleFilled fontSize={20} />
         )}
       </AppBarIconButton>
+
       <Popover
         id="network-status-popover"
         open={open}
@@ -255,9 +256,9 @@ const RealTimeVizLinkState = () => {
               <Typography variant="body2" fontWeight="medium" gutterBottom>
                 网络状态
               </Typography>
-              {networkStatus.timeOffset != undefined && (
+              {networkStatus.networkDelay != undefined && (
                 <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                  延迟: {networkStatus.timeOffset}ms
+                  延迟: {networkStatus.networkDelay}ms
                 </Typography>
               )}
               {networkStatus.curSpeed != undefined && (

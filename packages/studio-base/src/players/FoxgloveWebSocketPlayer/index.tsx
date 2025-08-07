@@ -20,7 +20,14 @@ import { MessageDefinition, isMsgDefEqual } from "@foxglove/message-definition";
 import CommonRosTypes from "@foxglove/rosmsg-msgs-common";
 import { MessageWriter as Ros1MessageWriter } from "@foxglove/rosmsg-serialization";
 import { MessageWriter as Ros2MessageWriter } from "@foxglove/rosmsg2-serialization";
-import { fromMillis, fromNanoSec, isGreaterThan, isLessThan, Time } from "@foxglove/rostime";
+import {
+  fromMillis,
+  fromNanoSec,
+  isGreaterThan,
+  isLessThan,
+  Time,
+  toMillis,
+} from "@foxglove/rostime";
 import { ParameterValue } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
@@ -147,11 +154,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
   // Network status tracking
   #networkStatus: {
-    timeOffset?: number;
+    networkDelay?: number;
     curSpeed?: number;
     droppedMsgs?: number;
     packageLoss?: string;
   } = {};
+  #timeOffset: number = 0;
   #channelsById = new Map<ChannelId, ResolvedChannel>();
   #unsupportedChannelIds = new Set<ChannelId>();
   #recentlyCanceledSubscriptions = new Set<SubscriptionId>();
@@ -1031,15 +1039,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     // delay of client to server
     this.#client.on("timeOffset", ({ timeOffset }) => {
-      this.#networkStatus.timeOffset = timeOffset;
-      this.#emitState();
+      this.#timeOffset = timeOffset;
     });
 
-    this.#client.on("networkStatus", ({ cur_speed, dropped_msgs, package_loss }) => {
-      this.#networkStatus.curSpeed = cur_speed;
-      this.#networkStatus.droppedMsgs = dropped_msgs;
-      this.#networkStatus.packageLoss = package_loss;
-      this.#emitState();
+    this.#client.on("networkStatistics", ({ droppedMsgs, packageLoss, curSpeed }) => {
+      this.#networkStatus = {
+        ...this.#networkStatus,
+        droppedMsgs,
+        packageLoss,
+        curSpeed,
+      };
     });
   };
 
@@ -1102,6 +1111,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     const messages = this.#parsedMessages;
     this.#parsedMessages = [];
     this.#parsedMessagesBytes = 0;
+
     return this.#listener({
       name: this.#name,
       presence: this.#presence,
@@ -1129,7 +1139,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
         publishedTopics: this.#publishedTopics,
         subscribedTopics: this.#subscribedTopics,
         services: this.#advertisedServices,
-        networkStatus: this.#networkStatus,
+        networkStatus: {
+          ...this.#networkStatus,
+          networkDelay: Date.now() - toMillis(this.#endTime) - this.#timeOffset,
+        },
       },
     });
   });

@@ -220,8 +220,8 @@ export type PlayerStateActiveData = {
 
   // Network status information for real-time connections
   networkStatus?: {
-    /** Time offset between client and server */
-    timeOffset?: number;
+    /** Network delay between client and server */
+    networkDelay?: number;
     /** Current network speed in KiB/s */
     curSpeed?: number;
     /** Number of dropped messages */

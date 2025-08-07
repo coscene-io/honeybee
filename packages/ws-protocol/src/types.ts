@@ -289,11 +289,11 @@ export type ClientSyncTime = {
   clientTime: number;
 };
 
-export type NetworkStatus = {
-  op: "networkStatus";
-  cur_speed: number; // KiB/s
-  dropped_msgs: number; // count of messages dropped by server
-  package_loss: string; // rate of package, caculated by bytes, not message count
+export type NetworkStatistics = {
+  op: "networkStatistics";
+  curSpeed: number; // KiB/s
+  droppedMsgs: number; // count of messages dropped by server
+  packageLoss: string; // rate of package, caculated by bytes, not message count
 };
 
 export type TimeOffset = {
@@ -319,7 +319,7 @@ export type ServerMessage =
   | ServerLogin
   | Kicked
   | ServerSyncTime
-  | NetworkStatus
+  | NetworkStatistics
   | TimeOffset;
 
 export type ClientMessage =
