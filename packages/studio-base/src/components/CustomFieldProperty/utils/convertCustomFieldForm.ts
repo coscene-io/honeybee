@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -21,9 +21,9 @@ export function convertCustomFieldValuesToMap(
 }
 
 export function convertCustomFieldValuesMapToArray(
-  customFieldValuesMap: Record<string, CustomFieldValue>,
+  customFieldValuesMap: Record<string, CustomFieldValue | undefined>,
 ): CustomFieldValue[] {
   return Object.entries(customFieldValuesMap)
     .map(([, value]) => value)
-    .filter((item) => item.value.value);
+    .filter((item): item is CustomFieldValue => item?.value.value != undefined);
 }

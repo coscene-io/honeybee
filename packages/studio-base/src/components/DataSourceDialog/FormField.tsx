@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -44,17 +44,21 @@ export function FormField(props: Props): React.JSX.Element {
         label={field.label}
         error={error != undefined}
         helperText={error}
-        FormHelperTextProps={{
-          variant: "standard",
-        }}
         placeholder={field.placeholder}
         defaultValue={field.defaultValue}
         onChange={onChange}
         variant="outlined"
-        InputProps={{
-          notched: false,
+        slotProps={{
+          input: {
+            notched: false,
+          },
+
+          inputLabel: { shrink: true },
+
+          formHelperText: {
+            variant: "standard",
+          },
         }}
-        InputLabelProps={{ shrink: true }}
       />
       <FormHelperText>{field.description}</FormHelperText>
     </div>

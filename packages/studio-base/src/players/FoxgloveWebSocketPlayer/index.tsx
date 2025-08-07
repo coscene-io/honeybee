@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -311,6 +311,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
               }}
             />
           ),
+          disableEscapeKeyDown: true,
+          disableBackdropClick: true,
           ok: t("cosWebsocket:confirm"),
           cancel: t("cosWebsocket:exitAndClosePage"),
           variant: "danger",
@@ -354,6 +356,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
             }}
           />
         ),
+        disableEscapeKeyDown: true,
+        disableBackdropClick: true,
         ok: t("cosWebsocket:reconnect"),
         cancel: t("cosWebsocket:exitAndClosePage"),
         variant: "danger",

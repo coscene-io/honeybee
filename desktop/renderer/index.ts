@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -18,6 +18,8 @@ async function main() {
     {
       defaults: {
         [AppSetting.SHOW_DEBUG_PANELS]: isDevelopment,
+        // for suport, but no studio version for supor
+        [AppSetting.ADD_TOPIC_PREFIX]: "false",
       },
     },
   );

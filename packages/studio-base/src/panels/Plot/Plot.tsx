@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -337,10 +337,18 @@ export function Plot(props: Props): React.JSX.Element {
     canvasDiv.appendChild(canvas);
 
     const offscreenCanvas = canvas.transferControlToOffscreen();
-    setRenderer(new OffscreenCanvasRenderer(offscreenCanvas, theme, { handleWorkerError }));
+    const newRenderer = new OffscreenCanvasRenderer(offscreenCanvas, theme, { handleWorkerError });
+    setRenderer(newRenderer);
 
     return () => {
+      // Explicitly destroy the renderer to ensure worker cleanup
+      newRenderer.destroy();
       canvasDiv.removeChild(canvas);
+
+      // Debug logging to verify cleanup
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[Plot] Canvas cleanup completed - renderer destroyed and canvas removed");
+      }
     };
   }, [canvasDiv, theme, handleWorkerError]);
 
@@ -374,6 +382,15 @@ export function Plot(props: Props): React.JSX.Element {
     return () => {
       resizeObserver.disconnect();
       plotCoordinator.destroy();
+      // Also explicitly destroy renderer if it hasn't been destroyed yet
+      if (!renderer.isDestroyed()) {
+        renderer.destroy();
+      }
+
+      // Debug logging to verify cleanup
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[Plot] Cleanup completed - coordinator and renderer destroyed");
+      }
     };
   }, [canvasDiv, datasetsBuilder, renderer]);
 
@@ -821,8 +838,12 @@ export function Plot(props: Props): React.JSX.Element {
           title={tooltipContent ?? <></>}
           disableInteractive
           followCursor
-          TransitionComponent={Fade}
-          TransitionProps={{ timeout: 0 }}
+          slots={{
+            transition: Fade,
+          }}
+          slotProps={{
+            transition: { timeout: 0 },
+          }}
         >
           <div className={classes.verticalBarWrapper}>
             <div

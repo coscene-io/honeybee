@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -51,9 +51,6 @@ export function CustomFieldStringEditor({
       disabled={disabled}
       placeholder={customFieldValue.property?.description}
       onChange={(event) => {
-        if (customFieldValue.property?.required === true && event.target.value === "") {
-          return;
-        }
         setValue(event.target.value);
         onSave(event.target.value);
       }}

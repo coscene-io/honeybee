@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -25,4 +25,5 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   pleaseEnter: "请输入",
   clearButtonLabel: "清除",
   okButtonLabel: "确定",
+  unknownField: "未知字段",
 };

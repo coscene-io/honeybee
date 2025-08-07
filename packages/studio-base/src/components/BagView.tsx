@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -22,7 +22,6 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
@@ -30,6 +29,7 @@ import {
   CoScenePlaylistStore,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
@@ -164,7 +164,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
 }));
 
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 
 const checkIsLogFile = (bag: BagFileInfo) => bag.displayName.endsWith(".log");
 
@@ -199,8 +199,7 @@ function BagViewComponent(params: {
   const [boxIsHovered, setBoxIsHovered] = useState<boolean>(false);
   const urlState = useMessagePipeline(selectUrlState);
   const consoleApi = useConsoleApi();
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   const currentUser = useCurrentUser(selectUser);
   const { selectSource } = usePlayerSelection();
@@ -210,8 +209,8 @@ function BagViewComponent(params: {
   const isLogFile = checkIsLogFile(bag);
 
   const files = useMemo(() => {
-    return baseInfo.files ?? [];
-  }, [baseInfo.files]);
+    return externalInitConfig?.files ?? [];
+  }, [externalInitConfig?.files]);
 
   /**
    *  - cannot delete shadow mode files
@@ -246,8 +245,8 @@ function BagViewComponent(params: {
 
     if (urlState != undefined) {
       consoleApi
-        .setBaseInfo({
-          ...baseInfo,
+        .setExternalInitConfig({
+          ...externalInitConfig,
           files: newFiles,
         })
         .then((key) => {
@@ -268,16 +267,16 @@ function BagViewComponent(params: {
         });
     }
   }, [
-    bag.name,
-    bagFiles.value,
-    baseInfo,
-    consoleApi,
     files,
-    t,
-    updateUrl,
+    bagFiles.value,
     urlState,
-    currentUser,
+    bag.name,
+    consoleApi,
+    externalInitConfig,
+    updateUrl,
     selectSource,
+    currentUser,
+    t,
   ]);
 
   const onDeleteBag = useCallback(async () => {

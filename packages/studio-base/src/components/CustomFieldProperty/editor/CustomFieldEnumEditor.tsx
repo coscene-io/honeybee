@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -45,11 +45,19 @@ export function CustomFieldEnumEditor({
   }, [property]);
 
   if (property?.type.case === "enums" && property.type.value.multiple) {
+    const value =
+      customFieldValue.value.case === "enums"
+        ? options.filter((option) =>
+            (customFieldValue.value.value as EnumValue).ids.includes(option.value),
+          )
+        : [];
+
     return (
       <Autocomplete
         multiple
         size="small"
         disableClearable={allowClear === false}
+        disableCloseOnSelect={true}
         onChange={(_, newValue) => {
           customFieldValue.value = {
             case: "enums",
@@ -60,16 +68,10 @@ export function CustomFieldEnumEditor({
         options={options}
         getOptionLabel={(option) => option.keyword}
         isOptionEqualToValue={(option, value) => option.value === value.value}
-        value={
-          customFieldValue.value.case === "enums"
-            ? options.filter((option) =>
-                (customFieldValue.value.value as EnumValue).ids.includes(option.value),
-              )
-            : []
-        }
+        value={value}
         disabled={disabled}
         noOptionsText={t("noMatchingItemsFound")}
-        renderTags={(value, getTagProps) =>
+        renderValue={(value, getTagProps) =>
           value.map((option, index) => {
             const { key: _key, ...tagProps } = getTagProps({ index });
             return (
@@ -87,10 +89,12 @@ export function CustomFieldEnumEditor({
             {...params}
             error={error}
             variant="filled"
-            placeholder={property.description || t("pleaseSelect")}
-            inputProps={{
-              ...params.inputProps,
-              "aria-label": property.description || t("pleaseSelect"),
+            placeholder={value.length > 0 ? undefined : property.description || t("pleaseSelect")}
+            slotProps={{
+              htmlInput: {
+                ...params.inputProps,
+                "aria-label": property.description || t("pleaseSelect"),
+              },
             }}
           />
         )}
@@ -126,9 +130,11 @@ export function CustomFieldEnumEditor({
           error={error}
           variant="filled"
           placeholder={property?.description ?? t("pleaseSelect")}
-          inputProps={{
-            ...params.inputProps,
-            "aria-label": property?.description ?? t("pleaseSelect"),
+          slotProps={{
+            htmlInput: {
+              ...params.inputProps,
+              "aria-label": property?.description ?? t("pleaseSelect"),
+            },
           }}
         />
       )}

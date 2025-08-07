@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -808,8 +808,12 @@ export default function CoSceneDeduplicatedTimeBasedChart(props: Props): React.J
         title={tooltipContent ?? <></>}
         disableInteractive
         followCursor
-        TransitionComponent={Fade}
-        TransitionProps={{ timeout: 0 }}
+        slots={{
+          transition: Fade,
+        }}
+        slotProps={{
+          transition: { timeout: 0 },
+        }}
       >
         <Stack direction="row" style={{ width }}>
           <div className={classes.root} onDoubleClick={onResetZoom}>

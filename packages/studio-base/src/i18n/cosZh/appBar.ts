@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -18,4 +18,5 @@ export const cosAppBar: Partial<TypeOptions["resources"]["cosAppBar"]> = {
   menu: "菜单",
   signoutSuccess: "登出成功",
   downloadLatestStudio: "下载 coStudio",
+  userFeedback: "用户反馈",
 };

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,14 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import CancelIcon from "@mui/icons-material/Cancel";
 import SearchIcon from "@mui/icons-material/Search";
-import {
-  Menu,
-  PaperProps,
-  Divider,
-  MenuItem as MuiMenuItem,
-  IconButton,
-  TextField,
-} from "@mui/material";
+import { Menu, Divider, MenuItem as MuiMenuItem, IconButton, TextField } from "@mui/material";
 import * as _ from "lodash-es";
 import moment from "moment";
 import { useSnackbar } from "notistack";
@@ -36,7 +29,6 @@ import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoScen
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   ProjectRoleEnum,
@@ -45,6 +37,7 @@ import {
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
@@ -69,7 +62,7 @@ import SelectLayoutTemplateModal from "./SelectLayoutTemplateModal";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectUserRole = (store: UserStore) => store.role;
 
 const useStyles = makeStyles()((theme) => {
@@ -118,14 +111,13 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const { setSelectedLayoutId } = useCurrentLayoutActions();
   const analytics = useAnalytics();
   const [prompt, promptModal] = usePrompt();
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const [selectLayoutTemplateModalOpen, setSelectLayoutTemplateModalOpen] = useState(false);
   const layoutManager = useLayoutManager();
 
   const consoleApi = useConsoleApi();
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
   const currentUserRole = useCurrentUser(selectUserRole);
 
   const [layouts, reloadLayouts] = useAsyncFn(
@@ -523,7 +515,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onRecommendedToProjectLayout = useCallbackWithToast(
     async (item: Layout) => {
-      const currentProjectId = baseInfo.projectId;
+      const currentProjectId = externalInitConfig?.projectId;
       const currentRecommendedLayouts = layouts.value?.shared
         .filter((layout) => layout.isProjectRecommended)
         .map((layout) => layout.id);
@@ -539,7 +531,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         await layoutManager.updateLayout({ id: item.id, name: item.name });
       }
     },
-    [baseInfo.projectId, consoleApi, layoutManager, layouts.value?.shared],
+    [externalInitConfig?.projectId, consoleApi, layoutManager, layouts.value?.shared],
   );
 
   const onCopyToRecordDefaultLayout = useCallbackWithToast(
@@ -653,7 +645,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         ref={anchorEl}
       />
       {promptModal}
-      {confirmModal}
       {unsavedChangesPrompt}
       {layoutActions.unsavedChangesPrompt}
       <Menu
@@ -663,12 +654,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         onClose={() => {
           setMenuOpen(false);
         }}
-        MenuListProps={{
-          dense: true,
-          disablePadding: true,
-          "aria-labelledby": "add-panel-button",
-          className: classes.menuList,
-        }}
         anchorOrigin={{
           horizontal: "right",
           vertical: "bottom",
@@ -677,10 +662,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           vertical: "top",
           horizontal: "right",
         }}
+        aria-labelledby="add-panel-menu"
+        data-tourid="add-panel-menu"
         slotProps={{
-          paper: {
-            "data-tourid": "add-panel-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>,
+          list: {
+            className: classes.menuList,
+            dense: true,
+            disablePadding: true,
+          },
         }}
       >
         <div className={cx(classes.toolbar, classes.toolbarMenu)}>
@@ -695,19 +684,21 @@ export function CoSceneLayoutButton(): React.JSX.Element {
             }}
             autoFocus
             data-testid="panel-list-textfield"
-            InputProps={{
-              startAdornment: <SearchIcon fontSize="small" />,
-              endAdornment: searchQuery && (
-                <IconButton
-                  size="small"
-                  edge="end"
-                  onClick={() => {
-                    setSearchQuery("");
-                  }}
-                >
-                  <CancelIcon fontSize="small" />
-                </IconButton>
-              ),
+            slotProps={{
+              input: {
+                startAdornment: <SearchIcon fontSize="small" />,
+                endAdornment: searchQuery && (
+                  <IconButton
+                    size="small"
+                    edge="end"
+                    onClick={() => {
+                      setSearchQuery("");
+                    }}
+                  >
+                    <CancelIcon fontSize="small" />
+                  </IconButton>
+                ),
+              },
             }}
           />
         </div>

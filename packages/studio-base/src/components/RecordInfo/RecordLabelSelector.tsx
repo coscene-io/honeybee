@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -16,10 +16,14 @@ export default function RecordLabelSelector({
   value,
   options,
   onChange,
+  placeholder,
+  disabled,
 }: {
   value: string[];
   options: Label[];
   onChange: (event: React.SyntheticEvent, newValue: Label[]) => void;
+  placeholder?: string;
+  disabled?: boolean;
 }): ReactElement {
   const { t } = useTranslation("cosGeneral");
 
@@ -34,9 +38,10 @@ export default function RecordLabelSelector({
         getOptionLabel={(option) => option.displayName}
         isOptionEqualToValue={(option, value) => option.name === value.name}
         renderInput={(params) => (
-          <TextField {...params} variant="filled" placeholder={t("search")} />
+          <TextField {...params} variant="filled" placeholder={placeholder ?? t("search")} />
         )}
-        renderTags={(value, getTagProps) =>
+        disabled={disabled}
+        renderValue={(value, getTagProps) =>
           value.map((option, index) => {
             const { key: _key, ...tagProps } = getTagProps({ index });
             return (
@@ -44,6 +49,15 @@ export default function RecordLabelSelector({
                 label={option.displayName}
                 size="small"
                 {...tagProps}
+                style={{
+                  marginRight: "0px",
+                  height: "16px",
+                  fontSize: "12px",
+                  transform: "scale(0.9)",
+                  transformOrigin: "left center",
+                  marginTop: "-3px",
+                  marginBottom: "-3px",
+                }}
                 key={`${option.name}-${index}`}
               />
             );

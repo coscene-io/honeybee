@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -87,7 +87,11 @@ export const webpackMainConfig =
           COSCENE_PRODUCT_VERSION: JSON.stringify(params.packageJson.version),
           COSCENE_PRODUCT_HOMEPAGE: JSON.stringify(params.packageJson.homepage),
         }),
-        new ForkTsCheckerWebpackPlugin(),
+        new ForkTsCheckerWebpackPlugin({
+          typescript: {
+            memoryLimit: 4096, // 增加内存限制到 4GB
+          },
+        }),
       ],
 
       resolve,

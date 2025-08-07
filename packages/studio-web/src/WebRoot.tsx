@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -20,7 +20,6 @@ import {
   SharedProviders,
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
-import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { useCoSceneInit } from "./CoSceneInit";
@@ -38,15 +37,13 @@ export function WebRoot(props: {
 
   useCoSceneInit();
 
-  // if has many sources need to set confirm
-  // recommand set confirm to message pipeline
-  const [confirm, confirmModal] = useConfirm();
-
   const appConfiguration = useMemo(
     () =>
       new LocalStorageAppConfiguration({
         defaults: {
           [AppSetting.SHOW_DEBUG_PANELS]: isDevelopment,
+          [AppSetting.ADD_TOPIC_PREFIX]:
+            APP_CONFIG.DEFAULT_TOPIC_PREFIX_OPEN[window.location.hostname] ?? "false",
         },
       }),
     [],
@@ -60,11 +57,11 @@ export function WebRoot(props: {
   const dataSources = useMemo(() => {
     const sources = [
       new CoSceneDataPlatformDataSourceFactory(),
-      new FoxgloveWebSocketDataSourceFactory({ confirm }),
+      new FoxgloveWebSocketDataSourceFactory(),
     ];
 
     return props.dataSources ?? sources;
-  }, [props.dataSources, confirm]);
+  }, [props.dataSources]);
 
   const consoleApi = useMemo(
     () => new ConsoleApi(baseUrl, APP_CONFIG.VITE_APP_BFF_URL, jwt),
@@ -96,7 +93,6 @@ export function WebRoot(props: {
         <StudioApp />
       </SharedRoot>
       <Toaster />
-      {confirmModal}
     </>
   );
 }

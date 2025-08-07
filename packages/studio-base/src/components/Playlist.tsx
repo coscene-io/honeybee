@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -34,7 +34,6 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
@@ -43,6 +42,7 @@ import {
   BagFileInfo,
   ParamsFile,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   TimelineInteractionStateStore,
@@ -60,7 +60,8 @@ const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBa
 const selectSetHoverBag = (store: TimelineInteractionStateStore) => store.setHoveredBag;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
+const selectProject = (state: CoreDataStore) => state.project;
 const selectUser = (store: UserStore) => store.user;
 
 const useStyles = makeStyles()((theme) => ({
@@ -149,14 +150,15 @@ export function Playlist(): React.JSX.Element {
   const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
   const { t } = useTranslation("cosPlaylist");
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const consoleApi = useConsoleApi();
 
   const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);
   const hoveredBag = useTimelineInteractionState(selectHoverBag);
   const setHoveredBag = useTimelineInteractionState(selectSetHoverBag);
   const urlState = useMessagePipeline(selectUrlState);
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
+  const project = useCoreData(selectProject);
 
   const currentUser = useCurrentUser(selectUser);
   const { selectSource } = usePlayerSelection();
@@ -189,8 +191,6 @@ export function Playlist(): React.JSX.Element {
     return serialisationBags;
   }, [bagFiles]);
 
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
-
   const clearFilter = useCallback(() => {
     setFilterText("");
   }, [setFilterText]);
@@ -216,7 +216,7 @@ export function Playlist(): React.JSX.Element {
   );
 
   const handleAddFiles = (selectedFiles: { filename: string; sha256: string }[]) => {
-    const files: readonly ParamsFile[] = baseInfo.files ?? [];
+    const files: readonly ParamsFile[] = externalInitConfig?.files ?? [];
     const fileNamesSet = new Set<{ filename: string; sha256: string }>();
 
     selectedFiles.forEach((file) => {
@@ -249,8 +249,8 @@ export function Playlist(): React.JSX.Element {
     });
 
     consoleApi
-      .setBaseInfo({
-        ...baseInfo,
+      .setExternalInitConfig({
+        ...externalInitConfig,
         files: newFiles,
       })
       .then((key) => {
@@ -287,13 +287,15 @@ export function Playlist(): React.JSX.Element {
           }}
           size="small"
           placeholder={t("searchByNameTime")}
-          InputProps={{
-            startAdornment: <SearchIcon fontSize="small" />,
-            endAdornment: filterText !== "" && (
-              <IconButton edge="end" onClick={clearFilter} size="small">
-                <ClearIcon fontSize="small" />
-              </IconButton>
-            ),
+          slotProps={{
+            input: {
+              startAdornment: <SearchIcon fontSize="small" />,
+              endAdornment: filterText !== "" && (
+                <IconButton edge="end" onClick={clearFilter} size="small">
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              ),
+            },
           }}
         />
         {urlState != undefined && (
@@ -393,6 +395,7 @@ export function Playlist(): React.JSX.Element {
       </div>
       <CoSceneChooser
         open={addFileDialogOpen}
+        defaultProject={project.value}
         closeDialog={() => {
           setAddFileDialogOpen(false);
         }}
@@ -406,7 +409,6 @@ export function Playlist(): React.JSX.Element {
         }}
         mode="select-files-from-record"
       />
-      {confirmModal}
     </Stack>
   );
 }

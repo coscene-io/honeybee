@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -265,6 +265,12 @@ export type RenderState = {
 
   /** Application settings. This will only contain subscribed application setting key/values */
   appSettings?: Map<string, AppSettingValue>;
+
+  /**
+   * Extension-specific data that can be provided by panel adapters.
+   * This allows panels to receive custom data through the optimized renderState mechanism.
+   */
+  extensionData?: Record<string, unknown>;
 };
 
 export type PanelExtensionContext = {

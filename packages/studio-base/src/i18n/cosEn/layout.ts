@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -19,7 +19,7 @@ export const cosLayout = {
   createBlankLayout: "Create blank layout",
   addLayoutToGetStart: "Add a new layout to get started!",
   importFromFile: "import from file...",
-  noLayouts: "No layouts found",
+  noLayouts: "No layout",
   theseLayoutsHaveUnsavedChanges: "These layouts have unsaved changes",
   thisLayoutHasUnsavedChanges: "This layout has unsaved changes",
   rename: "Rename",
@@ -54,15 +54,15 @@ export const cosLayout = {
   unavailableWhileOffline: "(unavailable while offline)",
   saveAPersonalCopy: "Save a personal copy",
   discardTip: "Your changes will be permantly deleted. This cannot be undone.",
-  projectRecommandedLayout: "Project recommended layout",
-  recordDefaultLayout: "Record default layout",
-  removeProjectRecommendedLayout: "Remove project recommended layout",
-  removeRecordRecommendedLayout: "Remove record recommended layout",
-  markAsProjectRecommendedLayout: "Mark as project recommended layout",
-  markAsRecordRecommendedLayout: "Mark as record recommended layout",
-  copyToRecordDefaultLayoutTitle: "Copy as Record Default Layout",
+  projectRecommandedLayout: "Project preferred",
+  recordDefaultLayout: "Record preferred",
+  removeProjectRecommendedLayout: "Remove project preferred",
+  removeRecordRecommendedLayout: "Remove preferred",
+  markAsProjectRecommendedLayout: "Mark as project preferred",
+  markAsRecordRecommendedLayout: "Mark as preferred",
+  copyToRecordDefaultLayoutTitle: "Copy as record preferred",
   copyToRecordDefaultLayoutDesc:
-    "Copies the current layout as the default layout for the record, which is automatically loaded when the visualisation is subsequently accessed from the current record.",
+    "Copies the current layout as the preferred for the record, which is automatically loaded when the visualisation is subsequently accessed from the current record.",
   update: "Update",
   updateRemoteLayoutConfirm:
     "Your changes will overwrite this layout for all organization members. This cannot be undone.",

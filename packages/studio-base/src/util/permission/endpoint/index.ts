@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -44,33 +44,37 @@ const checkPermissionList = (permissionCode: Endpoints, permissionList: string[]
 };
 
 function checkUserPermission(
-  permissionCode: Endpoints,
+  permissionCode: Endpoints | undefined,
   allPermissionList: {
     orgPermissionList: string[];
     projectPermissionList: string[];
     orgDenyList: string[];
     projectDenyList: string[];
   },
-  permissionType: "org" | "project" | "max" = "project",
+  permissionType: "org" | "project" | "max" | "noCheck" = "project",
 ): boolean {
+  if (permissionCode == undefined) {
+    return true;
+  }
+
+  const { orgPermissionList, projectPermissionList, orgDenyList, projectDenyList } =
+    allPermissionList;
+
   let permissionList: string[] = [];
   let denyList: string[] = [];
   switch (permissionType) {
     case "org":
-      permissionList = allPermissionList.orgPermissionList;
-      denyList = allPermissionList.orgDenyList;
+      permissionList = orgPermissionList;
+      denyList = orgDenyList;
       break;
     case "project":
-      permissionList = allPermissionList.projectPermissionList;
-      denyList = allPermissionList.projectDenyList;
+      permissionList = projectPermissionList;
+      denyList = projectDenyList;
       break;
-    case "max":
-    default:
-      permissionList = allPermissionList.orgPermissionList.concat(
-        allPermissionList.projectPermissionList,
-      );
-      denyList = allPermissionList.orgDenyList.concat(allPermissionList.projectDenyList);
-      break;
+  }
+
+  if (permissionType === "noCheck") {
+    return true;
   }
 
   return (

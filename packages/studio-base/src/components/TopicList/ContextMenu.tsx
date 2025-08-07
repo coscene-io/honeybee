@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -59,9 +59,9 @@ export function ContextMenu(props: {
       onClose={onClose}
       anchorReference="anchorPosition"
       anchorPosition={anchorPosition}
-      MenuListProps={{
-        dense: true,
-      }}
+      data-tourid="topic-context-menu"
+      aria-labelledby="topic-context-menu"
+      slotProps={{ list: { dense: true } }}
     >
       {menuItems.map((item, index) => (
         <MenuItem key={index} {...item} />

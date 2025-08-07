@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { vec3 } from "gl-matrix";
-import i18next from "i18next";
 import * as _ from "lodash-es";
 import * as THREE from "three";
 import { v4 as uuidv4 } from "uuid";
@@ -22,6 +21,7 @@ import {
   SettingsTreeFields,
 } from "@foxglove/studio";
 import { makeRgba, stringToRgba } from "@foxglove/studio-base/panels/ThreeDeeRender/color";
+import { t3D } from "@foxglove/studio-base/panels/ThreeDeeRender/t3D";
 import { eulerToQuaternion } from "@foxglove/studio-base/util/geometry";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -192,7 +192,7 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
     renderer.on("parametersChange", this.#handleParametersChange);
     renderer.addCustomLayerAction({
       layerId: LAYER_ID,
-      label: i18next.t("threeDee:addURDF"),
+      label: t3D("addURDF"),
       icon: "PrecisionManufacturing",
       handler: this.#handleAddUrdf,
     });
@@ -241,27 +241,27 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
     const entries: SettingsTreeEntry[] = [];
 
     const baseDisplayModeField: SettingsTreeField = {
-      label: "Display mode",
+      label: t3D("displayMode"),
       input: "select",
       options: [
         {
-          label: "Auto",
+          label: t3D("auto"),
           value: "auto",
         },
         {
-          label: "Visual",
+          label: t3D("visual"),
           value: "visual",
         },
         {
-          label: "Collision",
+          label: t3D("collision"),
           value: "collision",
         },
       ],
     };
 
     const baseFallbackColorField: SettingsTreeField = {
-      label: "Color",
-      help: "Fallback color used in case a link does not specify any color itself",
+      label: t3D("color"),
+      help: t3D("fallbackColorHelp"),
       input: "rgb",
     };
 
@@ -336,29 +336,29 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
 
         const fields: SettingsTreeFields = {
           sourceType: {
-            label: "Source",
+            label: t3D("source"),
             input: "select",
             value: config.sourceType ?? DEFAULT_CUSTOM_SETTINGS.sourceType,
             options: [
               {
-                label: "URL",
+                label: t3D("url"),
                 value: "url",
               },
               {
-                label: "File path (Desktop only)",
+                label: t3D("filePathDesktopOnly"),
                 value: "filePath",
                 disabled: !isDesktopApp(),
               },
               {
-                label: "Parameter",
+                label: t3D("parameter"),
                 value: "param",
               },
               {
-                label: "Topic",
+                label: t3D("topic"),
                 value: "topic",
               },
               {
-                label: "Project General Resource",
+                label: t3D("projectGeneralResource"),
                 value: "commonResource",
               },
             ],
@@ -366,19 +366,19 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
           url:
             (config.sourceType ?? DEFAULT_CUSTOM_SETTINGS.sourceType) === "url"
               ? {
-                  label: "URL",
+                  label: t3D("url"),
                   input: "string",
                   placeholder: "package://",
-                  help: "package:// URL or http(s) URL pointing to a Unified Robot Description Format (URDF) XML file",
+                  help: t3D("urlHelp"),
                   value: config.url ?? DEFAULT_CUSTOM_SETTINGS.url,
                 }
               : undefined,
           filePath:
             config.sourceType === "filePath"
               ? {
-                  label: "File path",
+                  label: t3D("filePath"),
                   input: "string",
-                  help: "Absolute file path (desktop app only)",
+                  help: t3D("filePathHelp"),
                   value: config.filePath ?? DEFAULT_CUSTOM_SETTINGS.filePath,
                   disabled: !isDesktopApp(),
                 }
@@ -386,7 +386,7 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
           topic:
             config.sourceType === "topic"
               ? {
-                  label: "Topic",
+                  label: t3D("topic"),
                   input: "autocomplete",
                   value: config.topic ?? DEFAULT_CUSTOM_SETTINGS.topic,
                   items: filterMap(this.renderer.topics ?? [], (_topic) =>
@@ -397,7 +397,7 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
           parameter:
             config.sourceType === "param"
               ? {
-                  label: "Parameter",
+                  label: t3D("parameter"),
                   input: "autocomplete",
                   value: config.parameter ?? DEFAULT_CUSTOM_SETTINGS.parameter,
                   items: filterMap(this.renderer.parameters ?? [], ([paramName, value]) =>
@@ -408,21 +408,21 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
           commonResource:
             config.sourceType === "commonResource"
               ? {
-                  label: "Project General Resource",
+                  label: t3D("projectGeneralResource"),
                   input: "commonResourceSelector",
                   value: config.commonResource ?? DEFAULT_CUSTOM_SETTINGS.commonResource,
                 }
               : undefined,
           label: {
-            label: "Label",
+            label: t3D("label"),
             input: "string",
             value: config.label ?? DEFAULT_CUSTOM_SETTINGS.label,
           },
           framePrefix: {
-            label: "Frame prefix",
+            label: t3D("framePrefix"),
             input: "string",
-            help: "Prefix to apply to all frame names (also often called tfPrefix)",
-            placeholder: "Frame prefix",
+            help: t3D("framePrefixHelp"),
+            placeholder: t3D("framePrefix"),
             value: config.framePrefix ?? "",
           },
           displayMode: {
@@ -438,13 +438,13 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
         entries.push({
           path: ["layers", instanceId],
           node: {
-            label: config.label ?? "Grid",
+            label: config.label ?? t3D("grid"),
             icon: "PrecisionManufacturing",
             fields,
             visible: config.visible ?? DEFAULT_CUSTOM_SETTINGS.visible,
             actions: [
-              { type: "action", id: "duplicate", label: "Duplicate" },
-              { type: "action", id: "delete", label: "Delete" },
+              { type: "action", id: "duplicate", label: t3D("duplicate") },
+              { type: "action", id: "delete", label: t3D("delete") },
             ],
             order: layerConfig.order,
             handler: this.#handleLayerSettingsAction,
@@ -1226,7 +1226,7 @@ function urdfChildren(
     const { x: aX, y: aY, z: aZ } = joint.axis;
     const fields: SettingsTreeFields = {};
     fields.jointType = {
-      label: "Type",
+      label: t3D("type"),
       input: "string",
       readonly: true,
       value: joint.jointType,
@@ -1250,7 +1250,7 @@ function urdfChildren(
         }
 
         fields.manual = {
-          label: "Manual angle",
+          label: t3D("manualAngle"),
           input: "number",
           precision: PRECISION_DEGREES,
           step: 1,
@@ -1261,7 +1261,7 @@ function urdfChildren(
 
         if (jointStateRadians != undefined) {
           fields.jointState = {
-            label: "JointState angle",
+            label: t3D("jointStateAngle"),
             input: "number",
             precision: PRECISION_DEGREES,
             min,
@@ -1281,7 +1281,7 @@ function urdfChildren(
         const jointStatePosition = jointStates.get(joint.name)?.position;
 
         fields.manual = {
-          label: "Manual position",
+          label: t3D("manualPosition"),
           input: "number",
           precision: PRECISION_DISTANCE,
           step: 0.01,
@@ -1291,7 +1291,7 @@ function urdfChildren(
         };
         if (jointStatePosition != undefined) {
           fields.jointState = {
-            label: "JointState position",
+            label: t3D("jointStatePosition"),
             input: "number",
             precision: PRECISION_DISTANCE,
             min,
@@ -1309,7 +1309,7 @@ function urdfChildren(
     }
 
     fields.position = {
-      label: "Position",
+      label: t3D("position"),
       input: "vec3",
       labels: XYZ_LABEL,
       precision: PRECISION_DISTANCE,
@@ -1317,7 +1317,7 @@ function urdfChildren(
       value: [x, y, z],
     };
     fields.rotation = {
-      label: "Rotation",
+      label: t3D("rotation"),
       input: "vec3",
       labels: RPY_LABEL,
       precision: PRECISION_DEGREES,
@@ -1325,20 +1325,20 @@ function urdfChildren(
       value: [roll * RAD2DEG, pitch * RAD2DEG, yaw * RAD2DEG],
     };
     fields.parent = {
-      label: "Parent",
+      label: t3D("parent"),
       input: "string",
       readonly: true,
       value: joint.parent,
     };
     fields.child = {
-      label: "Child",
+      label: t3D("child"),
       input: "string",
       readonly: true,
       value: joint.child,
     };
     if (joint.jointType !== "fixed") {
       fields.axis = {
-        label: "Axis",
+        label: t3D("axis"),
         input: "vec3",
         labels: XYZ_LABEL,
         precision: PRECISION_DISTANCE,
@@ -1349,7 +1349,7 @@ function urdfChildren(
     if (joint.calibration) {
       const { rising, falling } = joint.calibration;
       fields.calibration = {
-        label: "Calibration",
+        label: t3D("calibration"),
         input: "vec2",
         labels: ["↑", "↓"],
         readonly: true,
@@ -1359,14 +1359,14 @@ function urdfChildren(
     if (joint.dynamics) {
       const { damping, friction } = joint.dynamics;
       fields.damping = {
-        label: "Damping",
+        label: t3D("damping"),
         input: "number",
         precision: PRECISION_DISTANCE,
         readonly: true,
         value: damping,
       };
       fields.friction = {
-        label: "Friction",
+        label: t3D("friction"),
         input: "number",
         precision: PRECISION_DISTANCE,
         readonly: true,
@@ -1381,7 +1381,7 @@ function urdfChildren(
         const upperValue = isAngular ? upper * RAD2DEG : upper;
         const lowerValue = isAngular ? lower * RAD2DEG : lower;
         fields.limit = {
-          label: "Limit",
+          label: t3D("limit"),
           input: "vec2",
           labels: ["↑", "↓"],
           readonly: true,
@@ -1390,14 +1390,14 @@ function urdfChildren(
         };
       }
       fields.effort = {
-        label: "Limit effort",
+        label: t3D("limitEffort"),
         input: "number",
         precision: PRECISION_DISTANCE,
         readonly: true,
         value: effort,
       };
       fields.velocity = {
-        label: "Limit velocity",
+        label: t3D("limitVelocity"),
         input: "number",
         precision: PRECISION_DISTANCE,
         readonly: true,
@@ -1407,20 +1407,20 @@ function urdfChildren(
     if (joint.mimic) {
       const { joint: mimicJoint, multiplier, offset } = joint.mimic;
       fields.mimicJoint = {
-        label: "Mimic joint",
+        label: t3D("mimicJoint"),
         input: "string",
         readonly: true,
         value: mimicJoint,
       };
       fields.mimicMultiplier = {
-        label: "Mimic multiplier",
+        label: t3D("mimicMultiplier"),
         input: "number",
         precision: PRECISION_DISTANCE,
         readonly: true,
         value: multiplier,
       };
       fields.mimicOffset = {
-        label: "Mimic offset",
+        label: t3D("mimicOffset"),
         input: "number",
         precision: PRECISION_DISTANCE,
         readonly: true,
@@ -1430,21 +1430,21 @@ function urdfChildren(
     if (joint.safetyController) {
       const { softUpperLimit, softLowerLimit, kPosition, kVelocity } = joint.safetyController;
       fields.softLimit = {
-        label: "Soft limit",
+        label: t3D("softLimit"),
         input: "vec2",
         labels: ["↑", "↓"],
         readonly: true,
         value: [softUpperLimit, softLowerLimit],
       };
       fields.kPosition = {
-        label: "k_position",
+        label: t3D("kPosition"),
         input: "number",
         precision: PRECISION_DISTANCE,
         readonly: true,
         value: kPosition,
       };
       fields.kVelocity = {
-        label: "k_velocity",
+        label: t3D("kVelocity"),
         input: "number",
         precision: PRECISION_DISTANCE,
         readonly: true,
@@ -1456,7 +1456,7 @@ function urdfChildren(
 
   const children: SettingsTreeChildren = {
     joints: {
-      label: "Joints",
+      label: t3D("joints"),
       defaultExpansionState: "collapsed",
       children: jointChildren,
     },

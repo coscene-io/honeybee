@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -35,7 +35,7 @@ type DataSourceDialogProps = {
 
 const useStyles = makeStyles()((theme) => ({
   paper: {
-    maxWidth: `calc(min(${theme.breakpoints.values.md}px, 100% - ${theme.spacing(4)}))`,
+    maxWidth: `calc(min(1100px, 100% - ${theme.spacing(4)}))`,
   },
   closeButton: {
     position: "absolute",
@@ -134,11 +134,11 @@ export function DataSourceDialog(props: DataSourceDialogProps): React.JSX.Elemen
       maxWidth="lg"
       slotProps={{
         backdrop: { children: backdrop },
-      }}
-      PaperProps={{
-        square: false,
-        elevation: 4,
-        className: classes.paper,
+        paper: {
+          className: classes.paper,
+          square: false,
+          elevation: 4,
+        },
       }}
     >
       <IconButton className={classes.closeButton} onClick={onModalClose} edge="end">

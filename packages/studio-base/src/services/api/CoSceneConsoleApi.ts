@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -9,6 +9,7 @@ import { PartialMessage, Empty, FieldMask } from "@bufbuild/protobuf";
 import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+import type { Role } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
 import { Policy_Effect } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
 import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
 import { LabelService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/label_connect";
@@ -29,11 +30,14 @@ import {
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
 import { RoleService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_connect";
 import {
-  ListRolesRequest,
-  ListRolesResponse,
-  GetUserRoleRequest,
-  UserRole,
+  ListUserRolesResponse,
+  ListUserRolesRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_pb";
+import { SubscriptionService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/subscription_connect";
+import {
+  ListOrganizationSubscriptionsRequest,
+  ListOrganizationSubscriptionsResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/subscription_pb";
 import { UserService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_connect";
 import {
   GetUserRequest,
@@ -103,6 +107,11 @@ import {
   SyncTaskRequest,
   CreateTaskRequest,
   GetTaskRequest,
+  ListTasksResponse,
+  ListTasksRequest,
+  UpdateTaskRequest,
+  LinkTaskRequest,
+  UnlinkTaskRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
 import { SecurityTokenService } from "@coscene-io/cosceneapis-es/coscene/datastorage/v1alpha1/services/security_token_connect";
 import {
@@ -118,7 +127,10 @@ import toast from "react-hot-toast";
 
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
-import { BaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import {
+  CoordinatorConfig,
+  ExternalInitConfig,
+} from "@foxglove/studio-base/context/CoreDataContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
@@ -138,7 +150,6 @@ import { Auth } from "@foxglove/studio-desktop/src/common/types";
 import { HttpError } from "./HttpError";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
-const MAX_PAGE_SIZE = 999;
 
 export type User = {
   id: string;
@@ -336,7 +347,44 @@ export type GetEventsResponse = {
   }[];
 };
 
+export type ApiBaseInfo = {
+  projectId?: string;
+  warehouseId?: string;
+  recordId?: string;
+};
+
 export type GetFileStatusResponse = { filename: string; status: MediaStatus }[];
+
+function permissionListFromRole(role: Role | undefined) {
+  if (!role?.policy?.statements) {
+    return { permissionList: [], denyList: [] };
+  }
+
+  return role.policy.statements.reduce(
+    (acc, statement) => {
+      const actions = statement.actions;
+      if (statement.effect === Policy_Effect.DENY) {
+        acc.denyList.push(...actions);
+      } else if (statement.effect === Policy_Effect.ALLOW) {
+        acc.permissionList.push(...actions);
+      }
+      return acc;
+    },
+    { permissionList: [] as string[], denyList: [] as string[] },
+  );
+}
+
+function mergePermissionList(targetRole: Role, mergeRole: Role) {
+  const { permissionList: targetPermissionList, denyList: targetDenyList } =
+    permissionListFromRole(targetRole);
+  const { permissionList: mergePermissionList, denyList: mergeDenyList } =
+    permissionListFromRole(mergeRole);
+
+  return {
+    permissionList: [...new Set([...targetPermissionList, ...mergePermissionList])],
+    denyList: [...new Set([...targetDenyList, ...mergeDenyList])],
+  };
+}
 
 class CoSceneConsoleApi {
   #baseUrl: string;
@@ -346,7 +394,7 @@ class CoSceneConsoleApi {
   #addTopicPrefix: "false" | "true" = "false";
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
-  #baseInfo: BaseInfo = {};
+  #baseInfo: ApiBaseInfo = {};
   #type?: "realtime" | "playback" | "other";
   #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
   #permissionList: {
@@ -382,12 +430,12 @@ class CoSceneConsoleApi {
     return this.#playbackQualityLevel;
   }
 
-  public async setApiBaseInfo(baseInfo: BaseInfo): Promise<void> {
+  public async setApiBaseInfo(baseInfo: ApiBaseInfo): Promise<void> {
     this.#baseInfo = baseInfo;
     await this.#getPermissionList();
   }
 
-  public getApiBaseInfo(): BaseInfo {
+  public getApiBaseInfo(): ApiBaseInfo {
     return this.#baseInfo;
   }
 
@@ -633,6 +681,7 @@ class CoSceneConsoleApi {
           authBridge?.logout();
         }
       } else if (res.status === 403) {
+        toast.error(t("unauthorized", { ns: "cosError" }));
         throw new HttpError(
           403,
           "Unauthorized. Please check if you are logged in and have permission to access.",
@@ -867,6 +916,7 @@ class CoSceneConsoleApi {
     },
   );
 
+  // user detail info only for current user
   public async getUser(userName: string): Promise<CoUser> {
     const request = new GetUserRequest({
       name: userName,
@@ -875,6 +925,7 @@ class CoSceneConsoleApi {
     return result;
   }
 
+  // no sensitive info, can get all users info
   public async batchGetUsers(userNames: string[]): Promise<BatchGetUsersResponse> {
     const request = new BatchGetUsersRequest({
       names: userNames,
@@ -1062,7 +1113,7 @@ class CoSceneConsoleApi {
   }: {
     parent: string;
     pageSize: number;
-    filter: string;
+    filter?: string;
     currentPage: number;
   }): Promise<ListFilesResponse> {
     const req = new ListFilesRequest({
@@ -1149,17 +1200,21 @@ class CoSceneConsoleApi {
     return await jobRunClient.getJobRun(req);
   }
 
-  public async getBaseInfo(key: string): Promise<BaseInfo> {
-    const baseInfoString: BaseInfo = await this.#get<BaseInfo>(`/bff/shortenUrl/${key}`);
+  // getBaseInfo
+  public async getExternalInitConfig(key: string): Promise<ExternalInitConfig> {
+    const externalInitConfig: ExternalInitConfig = await this.#get<ExternalInitConfig>(
+      `/bff/shortenUrl/${key}`,
+    );
 
-    return baseInfoString;
+    return externalInitConfig;
   }
 
-  public async setBaseInfo(baseInfo: BaseInfo): Promise<string> {
-    const baseInfoString: string = JSON.stringify(baseInfo) ?? "";
+  // setBaseInfo
+  public async setExternalInitConfig(externalInitConfig: ExternalInitConfig): Promise<string> {
+    const externalInitConfigString: string = JSON.stringify(externalInitConfig) ?? "";
 
     const key = await this.#post<{ id: string }>("/bff/shortenUrl", {
-      url: baseInfoString,
+      url: externalInitConfigString,
     });
 
     return key.id;
@@ -1181,35 +1236,6 @@ class CoSceneConsoleApi {
     }
 
     return { status: "conflict" };
-  }
-
-  public async getRoleLists(): Promise<ListRolesResponse> {
-    const req = new ListRolesRequest({ pageSize: MAX_PAGE_SIZE });
-
-    const roleClient = getPromiseClient(RoleService);
-
-    return await roleClient.listRoles(req);
-  }
-
-  public async getProjectUserRoles(projectName: string, userIds: string): Promise<UserRole> {
-    const req = new GetUserRoleRequest({
-      parent: projectName,
-      name: userIds,
-    });
-
-    const roleClient = getPromiseClient(RoleService);
-
-    return await roleClient.getUserRole(req);
-  }
-
-  public async getOrgUserRoles(userIds: string): Promise<UserRole> {
-    const req = new GetUserRoleRequest({
-      name: userIds,
-    });
-
-    const roleClient = getPromiseClient(RoleService);
-
-    return await roleClient.getUserRole(req);
   }
 
   public async deleteFile(payload: PartialMessage<DeleteFileRequest>): Promise<void> {
@@ -1255,74 +1281,44 @@ class CoSceneConsoleApi {
     await this.#patch("/v1/data/sync", { id: key });
   }
 
-  async #listRoles(): Promise<ListRolesResponse> {
-    const req = new ListRolesRequest({ pageSize: MAX_PAGE_SIZE });
-
-    return await getPromiseClient(RoleService).listRoles(req);
-  }
-
-  async #getUserRole({ isProject = false }: { isProject?: boolean }): Promise<UserRole> {
-    const parent = isProject
+  public async listUserRoles({
+    isProjectRole,
+  }: {
+    isProjectRole: boolean;
+  }): Promise<ListUserRolesResponse> {
+    const parent = isProjectRole
       ? `warehouses/${this.#baseInfo.warehouseId}/projects/${this.#baseInfo.projectId}`
       : undefined;
-    const name = "users/current";
 
-    const req = new GetUserRoleRequest({ name, parent });
-
-    return await getPromiseClient(RoleService).getUserRole(req);
+    const req = new ListUserRolesRequest({ parent });
+    return await getPromiseClient(RoleService).listUserRoles(req);
   }
 
   async #getPermissionList(): Promise<void> {
-    const roles = await this.#listRoles();
+    const userOrgRole = await this.listUserRoles({ isProjectRole: false });
+    const userProjectRole = await this.listUserRoles({ isProjectRole: true });
 
-    const userOrgRole = await this.#getUserRole({ isProject: false });
-    const userProjectRole = await this.#getUserRole({ isProject: true });
+    const orgRole: Role | undefined = userOrgRole.userRoles[0];
+    const projectRole: Role | undefined = userProjectRole.userRoles[0];
 
-    const orgRole = roles.roles.find((r) => r.name === userOrgRole.role);
-    const projectRole = roles.roles.find((r) => r.name === userProjectRole.role);
+    const { permissionList: orgPermissionList, denyList: orgDenyList } =
+      permissionListFromRole(orgRole);
 
-    const orgPermissionList = new Set<string>();
-    const orgDenyList = new Set<string>();
+    let projectPermissionList: string[] = [];
+    let projectDenyList: string[] = [];
 
-    const projectPermissionList = new Set<string>();
-    const projectDenyList = new Set<string>();
-
-    if (orgRole) {
-      orgRole.policy?.statements.forEach((statement) => {
-        if (statement.effect === Policy_Effect.DENY) {
-          for (const action of statement.actions) {
-            orgDenyList.add(action);
-          }
-        }
-        if (statement.effect === Policy_Effect.ALLOW) {
-          for (const action of statement.actions) {
-            orgPermissionList.add(action);
-          }
-        }
-      });
-
-      if (projectRole) {
-        projectRole.policy?.statements.forEach((statement) => {
-          if (statement.effect === Policy_Effect.DENY) {
-            for (const action of statement.actions) {
-              projectDenyList.add(action);
-            }
-          }
-          if (statement.effect === Policy_Effect.ALLOW) {
-            for (const action of statement.actions) {
-              projectPermissionList.add(action);
-            }
-          }
-        });
-      }
-
-      this.#permissionList = {
-        orgPermissionList: [...orgPermissionList],
-        orgDenyList: [...orgDenyList],
-        projectPermissionList: [...projectPermissionList],
-        projectDenyList: [...projectDenyList],
-      };
+    if (projectRole && orgRole) {
+      const { permissionList, denyList } = mergePermissionList(projectRole, orgRole);
+      projectPermissionList = permissionList;
+      projectDenyList = denyList;
     }
+
+    this.#permissionList = {
+      orgPermissionList,
+      orgDenyList,
+      projectPermissionList,
+      projectDenyList,
+    };
   }
 
   public listProjectDevices = Object.assign(
@@ -1459,6 +1455,23 @@ class CoSceneConsoleApi {
     },
   );
 
+  public listOrganizationSubscriptions = Object.assign(
+    async (
+      payload: PartialMessage<ListOrganizationSubscriptionsRequest>,
+    ): Promise<ListOrganizationSubscriptionsResponse> => {
+      const req = new ListOrganizationSubscriptionsRequest(payload);
+      return await getPromiseClient(SubscriptionService).listOrganizationSubscriptions(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph1.ListOrganizationSubscriptions,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
   public getRecordCustomFieldSchema = Object.assign(
     async (project: string): Promise<CustomFieldSchema> => {
       const req = new GetRecordCustomFieldSchemaRequest({ project });
@@ -1547,6 +1560,71 @@ class CoSceneConsoleApi {
       },
     },
   );
+
+  public listTasks = Object.assign(
+    async (payload: PartialMessage<ListTasksRequest>): Promise<ListTasksResponse> => {
+      const req = new ListTasksRequest(payload);
+      return await getPromiseClient(TaskService).listTasks(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.ListTasks, this.#permissionList);
+      },
+    },
+  );
+
+  public updateTask = Object.assign(
+    async (payload: PartialMessage<UpdateTaskRequest>): Promise<Task> => {
+      const req = new UpdateTaskRequest(payload);
+      return await getPromiseClient(TaskService).updateTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.UpdateTask, this.#permissionList);
+      },
+    },
+  );
+
+  public linkTasks = Object.assign(
+    async (payload: PartialMessage<LinkTaskRequest>): Promise<Empty> => {
+      const req = new LinkTaskRequest(payload);
+      return await getPromiseClient(TaskService).linkTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.LinkTask, this.#permissionList);
+      },
+    },
+  );
+
+  public unlinkTasks = Object.assign(
+    async (payload: PartialMessage<UnlinkTaskRequest>): Promise<Empty> => {
+      const req = new UnlinkTaskRequest(payload);
+      return await getPromiseClient(TaskService).unlinkTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.UnlinkTask, this.#permissionList);
+      },
+    },
+  );
+
+  public async getCoordinatorConfig({
+    currentOrganizationId,
+    coordinatorUrl,
+  }: {
+    currentOrganizationId: string;
+    coordinatorUrl: string;
+  }): Promise<CoordinatorConfig> {
+    if (!coordinatorUrl || !currentOrganizationId) {
+      throw new Error("Coordinator URL or current organization ID is not set");
+    }
+
+    const url = `${coordinatorUrl}/api/v1/networks/${currentOrganizationId}/config`;
+    const config = await this.#get<CoordinatorConfig>(url, undefined, true);
+
+    return config;
+  }
 }
 
 export type { Org, DeviceCodeResponse, Session, CoverageResponse };

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -78,15 +78,11 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
           {timeModeText}
         </Button>
       </Tooltip>
-
       <Menu
         id="playback-quality-menu"
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          "aria-labelledby": "playback-quality-button",
-        }}
         anchorOrigin={{
           vertical: "top",
           horizontal: "left",
@@ -95,6 +91,9 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
           vertical: "bottom",
           horizontal: "left",
         }}
+        data-tourid="playback-time-mode"
+        aria-labelledby="playback-quality-button"
+        slotProps={{ list: { dense: true } }}
       >
         <MenuItem
           selected={timeMode === ABSOLUTE_TIME}
@@ -110,7 +109,11 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
           <ListItemText
             inset={timeMode !== ABSOLUTE_TIME}
             primary={t(ABSOLUTE_TIME)}
-            primaryTypographyProps={{ variant: "body2" }}
+            slotProps={{
+              primary: {
+                variant: "body2",
+              },
+            }}
           />
         </MenuItem>
         <MenuItem
@@ -127,7 +130,11 @@ function CoScenePlabackTimeMode(): React.JSX.Element {
           <ListItemText
             inset={timeMode !== RELATATIVE_TIME}
             primary={t(RELATATIVE_TIME)}
-            primaryTypographyProps={{ variant: "body2" }}
+            slotProps={{
+              primary: {
+                variant: "body2",
+              },
+            }}
           />
         </MenuItem>
       </Menu>

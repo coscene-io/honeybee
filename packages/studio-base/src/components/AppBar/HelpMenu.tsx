@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -88,12 +88,14 @@ export function HelpMenu(props: HelpMenuProps): React.JSX.Element {
       open={open}
       onClose={handleClose}
       transformOrigin={transformOrigin}
-      MenuListProps={{
-        "aria-labelledby": "help-button",
+      slotProps={{
+        list: {
+          "aria-labelledby": "help-button",
+          dense: true,
+        },
       }}
     >
       <ListSubheader className={classes.subheader}>Documentation</ListSubheader>
-
       <MenuItem
         href={getDocsLink("/viz/about-viz")}
         className={classes.menuItem}
@@ -111,7 +113,11 @@ export function HelpMenu(props: HelpMenuProps): React.JSX.Element {
         <ListItemText
           primary={t("dataVisualization", { ns: "cosHelp" })}
           secondary={t("visualizeMachineDataAndAnalysis", { ns: "cosHelp" })}
-          secondaryTypographyProps={{ className: classes.menuText }}
+          slotProps={{
+            secondary: {
+              className: classes.menuText,
+            },
+          }}
         />
       </MenuItem>
       {/* <MenuItem

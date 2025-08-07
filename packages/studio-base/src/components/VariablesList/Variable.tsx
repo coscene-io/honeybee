@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -195,10 +195,9 @@ export default function Variable(props: {
               anchorEl={anchorEl}
               open={menuOpen}
               onClose={handleClose}
-              MenuListProps={{
-                "aria-labelledby": "variable-action-button",
-                dense: true,
-              }}
+              data-tourid="variable-actions-menu"
+              aria-labelledby="variable-action-button"
+              slotProps={{ list: { dense: true } }}
             >
               <MenuItem onClick={deleteVariable}>
                 <Typography color="error.main" variant="inherit">
@@ -255,10 +254,12 @@ export default function Variable(props: {
                 />
               </Stack>
             }
-            primaryTypographyProps={{
-              component: "div",
-              fontWeight: 600,
-              variant: "body2",
+            slotProps={{
+              primary: {
+                component: "div",
+                fontWeight: 600,
+                variant: "body2",
+              },
             }}
           />
         </ListItemButton>

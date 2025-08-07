@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -212,9 +212,12 @@ function PanelActionsDropdownComponent({ isUnknownPanel }: Props): React.JSX.Ele
         open={menuOpen}
         onClose={handleMenuClose}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        MenuListProps={{
-          "aria-labelledby": "panel-menu-button",
-          dense: true,
+        aria-labelledby="panel-menu-button"
+        data-tourid="panel-actions-dropdown"
+        slotProps={{
+          list: {
+            dense: true,
+          },
         }}
       >
         <MenuItem

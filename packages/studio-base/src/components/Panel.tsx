@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -459,7 +459,12 @@ export default function Panel<
       // We have to lie to TypeScript with "as PanelProps" because the "PanelProps extends {...}"
       // constraint technically allows the panel to require the types of config/saveConfig be more
       // specific types that aren't satisfied by the functions we pass in
-      () => ({ config: panelComponentConfig, saveConfig, ...otherPanelProps }) as PanelProps,
+      () =>
+        ({
+          config: panelComponentConfig,
+          saveConfig,
+          ...otherPanelProps,
+        }) as PanelProps,
       [otherPanelProps, panelComponentConfig, saveConfig],
     );
     const child = useMemo(() => <PanelComponent {...childProps} />, [childProps]);

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -28,6 +28,7 @@ import {
   subtract as subtractTimes,
   toSec,
 } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { ChartDefaultView } from "@foxglove/studio-base/components/CoSceneDeduplicatedTimeBasedChart";
 import {
   MessagePipelineContext,
@@ -49,7 +50,7 @@ import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useTopicPrefixConfigurationValue } from "@foxglove/studio-base/hooks";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { OnClickArg as OnChartClickArgs } from "@foxglove/studio-base/src/components/Chart";
 import { OpenSiblingPanel, PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
@@ -137,7 +138,8 @@ function Plot(props: Props) {
     y1MultiplicationFactor,
     y2MultiplicationFactor,
   } = config;
-  const addTopicPrefix = useTopicPrefixConfigurationValue();
+
+  const [addTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
 
   const yAxesInfo: YAxesInfo = {
     yAxis: {

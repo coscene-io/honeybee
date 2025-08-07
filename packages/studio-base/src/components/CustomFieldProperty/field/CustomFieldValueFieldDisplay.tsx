@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,13 +17,11 @@ export function CustomFieldValueFieldDisplay({
   customFieldValue: CustomFieldValue;
   variant?: "primary" | "secondary";
 }): React.ReactNode {
-  const value = ConvertCustomFieldValue(customFieldValue);
+  const value = ConvertCustomFieldValue({ customFieldValue });
 
   return (
     <FormControl>
-      <FormLabel required={customFieldValue.property?.required} color={variant}>
-        {customFieldValue.property?.name}
-      </FormLabel>
+      <FormLabel color={variant}>{customFieldValue.property?.name}</FormLabel>
       {value ?? "-"}
     </FormControl>
   );

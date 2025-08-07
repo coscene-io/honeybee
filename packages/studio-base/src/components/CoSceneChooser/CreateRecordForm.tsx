@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -21,16 +21,16 @@ const useStyles = makeStyles()(() => ({
 export function CreateRecordForm({
   parent,
   onCreated,
-  defaultRecordName,
+  defaultRecordDisplayName,
   createRecordConfirmText,
 }: {
   parent: string;
   onCreated: (record: Record_es) => void;
-  defaultRecordName?: string;
+  defaultRecordDisplayName?: string;
   createRecordConfirmText?: string;
 }): React.JSX.Element {
   const cosceneApi = useConsoleApi();
-  const [recordName, setRecordName] = useState(defaultRecordName ?? "");
+  const [recordName, setRecordName] = useState(defaultRecordDisplayName ?? "");
   const [recordDescription, setRecordDescription] = useState("");
   const { classes } = useStyles();
 

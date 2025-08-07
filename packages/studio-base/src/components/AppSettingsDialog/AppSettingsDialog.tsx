@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -47,6 +47,7 @@ import {
   AddTopicPrefix,
   CompatibilityMode,
   RosPackagePath,
+  InactivityTimeout,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -106,7 +107,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const CONTACT_EMAIL = "contact@coscene.io";
+const CONTACT_EMAIL = "hi@coscene.io";
 const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
 
 const showLanguageOptions = APP_CONFIG.LANGUAGE.options.length > 1;
@@ -237,13 +238,14 @@ export function AppSettingsDialog(
               [classes.tabPanelActive]: activeTab === "general",
             })}
           >
-            <Stack gap={2}>
+            <Stack gap={2} paddingBottom={2}>
               <ColorSchemeSettings />
               <TimezoneSettings />
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
               <AddTopicPrefix />
               <CompatibilityMode />
               <MessageFramerate />
+              <InactivityTimeout />
               {showLanguageOptions && <LanguageSettings />}
               {supportsAppUpdates && <AutoUpdate />}
               {/* CoScene */}

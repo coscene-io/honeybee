@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -19,19 +19,22 @@ export const SidebarHeader = ({
 }): React.JSX.Element => (
   <CardHeader
     title={title}
-    titleTypographyProps={{
-      variant: "subtitle1",
-      fontWeight: "600",
-    }}
     subheader={subheader}
-    subheaderTypographyProps={{
-      variant: "body2",
-      color: "text.secondary",
-    }}
     action={
       <IconButton size="small" onClick={onClose} title="Collapse">
         <Dismiss20Filled />
       </IconButton>
     }
+    slotProps={{
+      title: {
+        variant: "subtitle1",
+        fontWeight: "600",
+      },
+
+      subheader: {
+        variant: "body2",
+        color: "text.secondary",
+      },
+    }}
   />
 );

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -18,10 +18,10 @@ export const MuiInputBase: OverrideComponentReturn<"MuiInputBase"> = {
       [`&.${inputBaseClasses.adornedEnd}`]: {
         paddingInlineEnd: theme.spacing(1.25),
       },
-      [`.${inputBaseClasses.inputAdornedStart}`]: {
+      [`&.${inputBaseClasses.adornedStart} > .${inputBaseClasses.input}`]: {
         paddingInlineStart: theme.spacing(1),
       },
-      [`.${inputBaseClasses.inputAdornedEnd}`]: {
+      [`&.${inputBaseClasses.adornedEnd} > .${inputBaseClasses.input}`]: {
         paddingInlineEnd: theme.spacing(1),
       },
     }),
@@ -32,10 +32,10 @@ export const MuiInputBase: OverrideComponentReturn<"MuiInputBase"> = {
       [`&.${inputBaseClasses.adornedEnd}`]: {
         paddingInlineEnd: theme.spacing(1),
       },
-      [`.${inputBaseClasses.inputAdornedStart}`]: {
+      [`&.${inputBaseClasses.adornedStart} > .${inputBaseClasses.input}`]: {
         paddingInlineStart: theme.spacing(0.75),
       },
-      [`.${inputBaseClasses.inputAdornedEnd}`]: {
+      [`&.${inputBaseClasses.adornedEnd} > .${inputBaseClasses.input}`]: {
         paddingInlineEnd: theme.spacing(0.75),
       },
     }),

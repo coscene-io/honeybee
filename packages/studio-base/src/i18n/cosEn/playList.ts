@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -27,4 +27,8 @@ export const cosPlaylist = {
   generateMediaFailed: "Media generation failed, please check the file",
   generateMediaProcessing: "Media generation in progress, you can play it later",
   projectFrom: "From {{projectName}}",
+  selectOrCreateRecord: "Select or create record",
+  selectRecord: "Select record",
+  createRecord: "Create record",
+  selectRecordFromProjectResources: "Select project resources",
 };

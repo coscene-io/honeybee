@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -62,7 +62,7 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   labelScale: "标签比例",
   labelScaleHelp: "应用于所有标签的比例因子",
   meshUpAxis: "网格上轴",
-  meshUpAxisHelp: "加载缺少方向信息的网格（STL 和 OBJ）时使用的“上”方向",
+  meshUpAxisHelp: '加载缺少方向信息的网格（STL 和 OBJ）时使用的"上"方向',
   renderStats: "渲染统计",
   scene: "场景",
   takeEffectAfterReboot: "此设置需要重新启动以生效",
@@ -160,4 +160,41 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   yDeviation: "Y 偏差",
   yDeviationHelp: "与姿势估计值一起发布的 Y 标准偏差",
   waitingForImages: "等待图片信息中...",
+
+  // URDF
+  displayMode: "显示模式",
+  auto: "自动",
+  visual: "可视化",
+  collision: "碰撞",
+  fallbackColorHelp: "当链接本身未指定任何颜色时使用的回退颜色",
+  source: "来源",
+  url: "URL",
+  urlHelp: "指向统一机器人描述格式 (URDF) XML 文件的 package:// URL 或 http(s) URL",
+  filePathDesktopOnly: "文件路径（仅限桌面版）",
+  filePath: "文件路径",
+  filePathHelp: "绝对文件路径（仅限桌面应用）",
+  parameter: "参数",
+  projectGeneralResource: "项目通用资源",
+  label: "标签",
+  framePrefix: "坐标系前缀",
+  framePrefixHelp: "应用于所有坐标系名称的前缀（通常也称为 tfPrefix）",
+  duplicate: "复制",
+  joints: "关节",
+  manualAngle: "手动角度",
+  jointStateAngle: "关节状态角度",
+  manualPosition: "手动位置",
+  jointStatePosition: "关节状态位置",
+  child: "子坐标系",
+  axis: "轴",
+  damping: "阻尼",
+  friction: "摩擦",
+  limit: "限制",
+  limitEffort: "限制力",
+  limitVelocity: "限制速度",
+  mimicJoint: "模拟关节",
+  mimicMultiplier: "模拟倍数",
+  mimicOffset: "模拟偏移",
+  softLimit: "软限制",
+  kPosition: "位置常数",
+  kVelocity: "速度常数",
 };

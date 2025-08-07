@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -8,6 +8,7 @@
 import { createContext, useContext } from "react";
 
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import { Player } from "@foxglove/studio-base/players/types";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
@@ -19,6 +20,7 @@ export type DataSourceFactoryInitializeArgs = {
   files?: File[];
   params?: Record<string, string | undefined>;
   consoleApi?: ConsoleApi;
+  confirm?: confirmTypes;
 };
 
 export type DataSourceFactoryType = "file" | "connection" | "sample";

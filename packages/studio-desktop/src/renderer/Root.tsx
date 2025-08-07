@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -33,7 +33,6 @@ import {
 } from "@foxglove/studio-base";
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
-import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
@@ -58,10 +57,6 @@ export default function Root(props: {
   const { appConfiguration } = props;
 
   const { t } = useTranslation("appBar");
-
-  // if has many sources need to set confirm
-  // recommand set confirm to message pipeline
-  const [confirm, confirmModal] = useConfirm();
 
   // notify user login status change
   const [loginStatusKey, setLoginStatusKey] = useState(0);
@@ -136,7 +131,7 @@ export default function Root(props: {
     }
 
     const sources = [
-      new FoxgloveWebSocketDataSourceFactory({ confirm }),
+      new FoxgloveWebSocketDataSourceFactory(),
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
       new CoSceneDataPlatformDataSourceFactory(),
@@ -150,7 +145,7 @@ export default function Root(props: {
     ];
 
     return sources;
-  }, [confirm, props.dataSources]);
+  }, [props.dataSources]);
 
   // App url state in window.location will represent the user's current session state
   // better than the initial deep link so we prioritize the current window.location
@@ -240,7 +235,6 @@ export default function Root(props: {
       >
         <StudioApp />
       </SharedRoot>
-      {confirmModal}
       <Toaster />
     </>
   );

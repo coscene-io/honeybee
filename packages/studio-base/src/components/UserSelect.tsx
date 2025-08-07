@@ -1,15 +1,16 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 import { User } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
-import { Autocomplete, Box, TextField, Chip } from "@mui/material";
+import PersonIcon from "@mui/icons-material/Person";
+import { Autocomplete, Box, TextField, Chip, Avatar } from "@mui/material";
 import PinyinMatch from "pinyin-match";
 import { useEffect } from "react";
 import { useAsyncFn } from "react-use";
@@ -26,6 +27,28 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
+interface BaseUserSelectProps {
+  allowClear?: boolean;
+  value: string | string[];
+  onMetaDataKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
+  disabled?: boolean;
+  error?: boolean;
+  placeholder?: string;
+}
+
+interface SingleUserSelectProps extends BaseUserSelectProps {
+  multiple?: false;
+  onChange: (value: User) => void;
+}
+
+interface MultipleUserSelectProps extends BaseUserSelectProps {
+  multiple: true;
+  onChange: (value: User[]) => void;
+}
+
+// union type
+type UserSelectProps = SingleUserSelectProps | MultipleUserSelectProps;
+
 export function UserSelect({
   value,
   onChange,
@@ -34,15 +57,8 @@ export function UserSelect({
   disabled,
   error,
   multiple,
-}: {
-  allowClear?: boolean;
-  value: string | string[];
-  onChange: (value: User | User[]) => void;
-  onMetaDataKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
-  disabled?: boolean;
-  error?: boolean;
-  multiple?: boolean;
-}): React.ReactNode {
+  placeholder,
+}: UserSelectProps): React.ReactNode {
   const consoleApi = useConsoleApi();
   const { classes } = useStyles();
 
@@ -74,18 +90,30 @@ export function UserSelect({
         disabled={disabled}
         disableClearable={allowClear === false}
         multiple
+        disableCloseOnSelect={true}
         options={activatedUsers}
         getOptionLabel={(option) => option.nickname ?? ""}
-        renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            variant="filled"
+            error={error}
+            placeholder={selectedUsers.length > 0 ? undefined : placeholder}
+          />
+        )}
         renderOption={(optionProps, option) => (
           <Box component="li" {...optionProps} key={option.name}>
-            <img className={classes.avatar} src={option.avatar} />
+            <Avatar src={option.avatar} className={classes.avatar} variant="rounded">
+              {(option.avatar == undefined || option.avatar === "") && (
+                <PersonIcon color="secondary" />
+              )}
+            </Avatar>
             {option.nickname}
           </Box>
         )}
         value={selectedUsers}
         isOptionEqualToValue={(option, value) => option.name === value.name}
-        renderTags={(value, getTagProps) =>
+        renderValue={(value, getTagProps) =>
           value.map((option, index) => {
             const { key: _key, ...tagProps } = getTagProps({ index });
             return (
@@ -125,10 +153,16 @@ export function UserSelect({
         disableClearable={allowClear === false}
         options={activatedUsers}
         getOptionLabel={(option) => option.nickname ?? ""}
-        renderInput={(params) => <TextField {...params} variant="filled" error={error} />}
+        renderInput={(params) => (
+          <TextField {...params} variant="filled" error={error} placeholder={placeholder} />
+        )}
         renderOption={(optionProps, option) => (
           <Box component="li" {...optionProps} key={option.name}>
-            <img className={classes.avatar} src={option.avatar} />
+            <Avatar src={option.avatar} className={classes.avatar} variant="rounded">
+              {(option.avatar == undefined || option.avatar === "") && (
+                <PersonIcon color="secondary" />
+              )}
+            </Avatar>
             {option.nickname}
           </Box>
         )}

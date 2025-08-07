@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -40,10 +40,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-import {
-  useAppConfigurationValue,
-  useTopicPrefixConfigurationValue,
-} from "@foxglove/studio-base/hooks/useAppConfigurationValue";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
@@ -54,6 +51,8 @@ import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
+const TIMEOUT_MINUTES = [10, 20, 30, 60, 120, Infinity];
+
 let LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
   { key: "en", value: "English" },
   { key: "zh", value: "中文" },
@@ -208,7 +207,9 @@ export function TimezoneSettings(): React.ReactElement {
         renderInput={(params) => (
           <TextField
             {...params}
-            inputProps={{ ...params.inputProps, className: classes.autocompleteInput }}
+            slotProps={{
+              htmlInput: { ...params.inputProps, className: classes.autocompleteInput },
+            }}
           />
         )}
         onChange={(_event, value) => void setTimezone(value?.data)}
@@ -309,7 +310,7 @@ export function MessageFramerate(): React.ReactElement {
       <Select
         value={messageRate ?? 60}
         fullWidth
-        onChange={(event) => void setMessageRate(event.target.value as number)}
+        onChange={(event) => void setMessageRate(event.target.value)}
       >
         {options.map((option) => (
           <MenuItem key={option.key} value={option.key}>
@@ -376,7 +377,7 @@ export function LanguageSettings(): React.ReactElement {
 
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {
-      const lang = event.target.value as Language;
+      const lang = event.target.value;
 
       void setSelectedLanguage(lang);
       await i18n.changeLanguage(lang).catch((error: unknown) => {
@@ -413,8 +414,9 @@ export function LanguageSettings(): React.ReactElement {
 }
 
 export function AddTopicPrefix(): React.ReactElement {
-  const [, setAddTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
-  const addTopicPrefix = useTopicPrefixConfigurationValue();
+  const [addTopicPrefix, setAddTopicPrefix] = useAppConfigurationValue<string>(
+    AppSetting.ADD_TOPIC_PREFIX,
+  );
   const { reloadCurrentSource } = usePlayerSelection();
   const consoleApi = useConsoleApi();
 
@@ -496,6 +498,44 @@ export function CompatibilityMode(): React.ReactElement {
           {t("on")}
         </ToggleButton>
       </ToggleButtonGroup>
+    </Stack>
+  );
+}
+
+export function InactivityTimeout(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [timeoutMinutes, setTimeoutMinutes] = useAppConfigurationValue<number>(AppSetting.TIMEOUT);
+  const options = useMemo(
+    () =>
+      TIMEOUT_MINUTES.map((minutes) => ({
+        key: minutes,
+        text: minutes === Infinity ? t("neverDisconnect") : `${minutes}`,
+        data: minutes,
+      })),
+    [t],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("inactivityTimeout")} ({t("minutes")}):
+          <Tooltip title={t("inactivityTimeoutDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <Select
+        value={timeoutMinutes ?? 30}
+        fullWidth
+        onChange={(event) => void setTimeoutMinutes(event.target.value)}
+      >
+        {options.map((option) => (
+          <MenuItem key={option.key} value={option.key}>
+            {option.text}
+          </MenuItem>
+        ))}
+      </Select>
     </Stack>
   );
 }

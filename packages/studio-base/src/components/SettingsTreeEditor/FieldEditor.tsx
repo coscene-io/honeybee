@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -11,7 +11,6 @@ import {
   Autocomplete,
   MenuItem,
   MenuList,
-  MenuListProps,
   Select,
   TextField,
   ToggleButton,
@@ -130,19 +129,11 @@ function FieldInput({
           value={field.value}
           disabled={field.disabled}
           readOnly={field.readonly}
-          ListboxComponent={MenuList}
-          ListboxProps={{ dense: true } as Partial<MenuListProps>}
           renderOption={(props, option, { selected }) => (
             <MenuItem selected={selected} {...props}>
               {option}
             </MenuItem>
           )}
-          componentsProps={{
-            clearIndicator: {
-              size: "small",
-              className: classes.clearIndicator,
-            },
-          }}
           clearIcon={<CancelIcon fontSize="small" />}
           renderInput={(params) => (
             <TextField {...params} variant="filled" size="small" placeholder={field.placeholder} />
@@ -159,6 +150,16 @@ function FieldInput({
             });
           }}
           options={field.items}
+          slots={{
+            listbox: (props) => <MenuList {...props} dense />,
+          }}
+          slotProps={{
+            clearIndicator: {
+              size: "small",
+              className: classes.clearIndicator,
+            },
+            listbox: {},
+          }}
         />
       );
     case "number":
@@ -221,14 +222,16 @@ function FieldInput({
           disabled={field.disabled}
           value={field.value ?? ""}
           placeholder={field.placeholder}
-          InputProps={{
-            readOnly: field.readonly,
-          }}
           onChange={(event) => {
             actionHandler({
               action: "update",
               payload: { path, input: "string", value: event.target.value },
             });
+          }}
+          slotProps={{
+            input: {
+              readOnly: field.readonly,
+            },
           }}
         />
       );
@@ -381,7 +384,19 @@ function FieldInput({
               },
             });
           }}
-          MenuProps={{ MenuListProps: { dense: true } }}
+          MenuProps={{
+            slotProps: {
+              list: {
+                dense: true,
+              },
+              paper: {
+                style: {
+                  maxHeight: 240,
+                  overflow: "auto",
+                },
+              },
+            },
+          }}
         >
           {field.options.map(({ label, value = UNDEFINED_SENTINEL_VALUE, disabled }) => (
             <MenuItem key={value} value={value} disabled={disabled}>
@@ -415,7 +430,6 @@ function FieldInput({
           variant="filled"
           value={selectValue}
           multiple
-          placeholder={field.placeholder}
           onChange={(event) => {
             actionHandler({
               action: "update",
@@ -429,7 +443,27 @@ function FieldInput({
               },
             });
           }}
-          MenuProps={{ MenuListProps: { dense: true } }}
+          // Select + multiple is not supported placeholder
+          // so we need to use renderValue to show the placeholder
+          renderValue={(selected) => {
+            if (selected.length === 0) {
+              return <Typography style={{ color: "#999" }}>{field.placeholder ?? ""}</Typography>;
+            }
+            return Array.isArray(selected) ? selected.join(", ") : selected;
+          }}
+          MenuProps={{
+            slotProps: {
+              list: {
+                dense: true,
+              },
+              paper: {
+                style: {
+                  maxHeight: 240,
+                  overflow: "auto",
+                },
+              },
+            },
+          }}
         >
           {field.options.map(({ label, value, disabled }) => (
             <MenuItem key={value} value={value} disabled={disabled}>
@@ -440,6 +474,7 @@ function FieldInput({
         </Select>
       );
     }
+
     case "gradient":
       return (
         <ColorGradientInput

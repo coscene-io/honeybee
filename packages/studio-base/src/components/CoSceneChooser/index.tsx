@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -50,6 +50,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
     mode,
     onConfirm,
     maxFilesNumber,
+    defaultProject,
   } = props;
 
   const { classes } = useStyles();
@@ -124,11 +125,18 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
   }, [mode, selectedFiles.length, targetRecord, targetProject]);
 
   const dialogTitle = useMemo(() => {
-    const isFileMode = mode === "select-files-from-record" || mode === "select-files-from-project";
-
-    return isFileMode
-      ? t("selecteFilesFromRecord")
-      : t("selectRecordToSaveTheMoment", { ns: "cosEvent" });
+    switch (mode) {
+      case "select-record":
+        return t("selectRecord");
+      case "create-record":
+        return t("createRecord");
+      case "select-files-from-record":
+        return t("selecteFilesFromRecord");
+      case "select-files-from-project":
+        return t("selectRecordFromProjectResources");
+      default:
+        return "";
+    }
   }, [mode, t]);
 
   const showFilesList = mode === "select-files-from-record" || mode === "select-files-from-project";
@@ -142,16 +150,15 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
       maxWidth="lg"
       slotProps={{
         backdrop: { children: backdrop },
-      }}
-      PaperProps={{
-        square: false,
-        elevation: 4,
+        paper: {
+          square: false,
+          elevation: 4,
+        },
       }}
     >
       <IconButton className={classes.closeButton} onClick={handleModalClose} edge="end">
         <CloseIcon />
       </IconButton>
-
       <Stack flexGrow={1} fullHeight justifyContent="space-between" className={classes.main}>
         <Typography variant="h3" gutterBottom>
           {dialogTitle}
@@ -164,6 +171,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
             setFiles={setSelectedFiles}
             mode={mode}
             checkFileSupportedFunc={checkFileSupportedFunc ?? checkBagFileSupported}
+            defaultProject={defaultProject}
           />
           {showFilesList && <FilesList files={selectedFiles} setFiles={setSelectedFiles} />}
         </Stack>

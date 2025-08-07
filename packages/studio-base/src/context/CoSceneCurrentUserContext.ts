@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -50,9 +50,6 @@ export type User = {
   agreedAgreement: string;
   role: string;
   email: string;
-  orgDisplayName: string;
-  orgId: string;
-  orgSlug: string;
   // for studio login from this site
   targetSite: string;
 };

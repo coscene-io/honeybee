@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -28,7 +28,7 @@ import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
 import { fromDate, add, fromSec } from "@foxglove/rostime";
-import { positionEventMark } from "@foxglove/studio-base/components/CoSceneEventsSyncAdapter";
+import { positionEventMark } from "@foxglove/studio-base/components/Events/EventsSyncAdapter";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -48,7 +48,7 @@ import {
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
-import { EventView } from "./CoSceneEventView";
+import { EventView } from "./EventView";
 
 const log = Logger.getLogger(__filename);
 
@@ -156,7 +156,7 @@ export function EventsList(): React.JSX.Element {
   const [momentVariant, setMomentVariant] = useState<"small" | "learge">("learge");
 
   const { t } = useTranslation("cosEvent");
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
 
   const setToModifyEvent = useEvents(selectSetToModifyEvent);
   const setEventMarks = useEvents(selectSetEventMarks);
@@ -245,14 +245,16 @@ export function EventsList(): React.JSX.Element {
             setFilter(event.currentTarget.value);
           }}
           placeholder={t("searchByKV")}
-          InputProps={{
-            size: "small",
-            startAdornment: <SearchIcon fontSize="small" />,
-            endAdornment: filter !== "" && (
-              <IconButton edge="end" onClick={clearFilter} size="small">
-                <ClearIcon fontSize="small" />
-              </IconButton>
-            ),
+          slotProps={{
+            input: {
+              size: "small",
+              startAdornment: <SearchIcon fontSize="small" />,
+              endAdornment: filter !== "" && (
+                <IconButton edge="end" onClick={clearFilter} size="small">
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              ),
+            },
           }}
         />
         <Select
@@ -399,7 +401,6 @@ export function EventsList(): React.JSX.Element {
           );
         })}
       </div>
-      {confirmModal}
     </Stack>
   );
 }

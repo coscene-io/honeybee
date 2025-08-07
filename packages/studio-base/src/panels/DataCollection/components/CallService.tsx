@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -13,7 +13,7 @@ import { Updater } from "use-immer";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 
-import { ButtonType, Config, ButtonsState } from "./types";
+import { ButtonType, Config, ButtonsState } from "../types";
 
 type Props = {
   type: ButtonType;
@@ -113,11 +113,22 @@ export function CallService(props: Props): React.JSX.Element {
     [requestPayload],
   );
 
+  // Check if endCollection or cancelCollection button is requesting
+  const isEndOrCancelRequesting = useMemo(() => {
+    return (
+      buttonsState.endCollection?.status === "requesting" ||
+      buttonsState.cancelCollection?.status === "requesting"
+    );
+  }, [buttonsState]);
+
   const canCallService = Boolean(
     supportCallService &&
       requestPayload &&
       parsedObject != undefined &&
-      state?.status !== "requesting",
+      state?.status !== "requesting" &&
+      // If endCollection or cancelCollection is requesting, disable both of them
+      // startCollection is not affected by this restriction
+      !(isEndOrCancelRequesting && (type === "endCollection" || type === "cancelCollection")),
   );
 
   return (

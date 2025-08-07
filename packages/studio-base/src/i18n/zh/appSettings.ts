@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -46,4 +46,8 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   off: "关",
   tfCompatibilityModeHelp:
     "启用此模式后，坐标系名称将删除 '/' 前缀，以兼容 tf2 的坐标系名称。 <Link>详细信息</Link>",
+  inactivityTimeout: "实时可视化自动断连时长",
+  inactivityTimeoutDescription: "设置实时可视化在页面无操作后的自动断连时长",
+  minutes: "分钟",
+  neverDisconnect: "永不断连",
 };

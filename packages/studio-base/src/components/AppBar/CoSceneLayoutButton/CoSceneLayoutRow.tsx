@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,6 +7,7 @@
 
 import ErrorIcon from "@mui/icons-material/Error";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ThumbUpOffAltIcon from "@mui/icons-material/ThumbUpOffAlt";
 import {
   ListItem,
   ListItemButton,
@@ -22,6 +23,7 @@ import {
   styled as muiStyled,
   Chip,
   Stack,
+  Tooltip,
 } from "@mui/material";
 import {
   useCallback,
@@ -37,16 +39,14 @@ import { useMountedState } from "react-use";
 
 // import { withStyles } from "tss-react/mui";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import {
-  OrganizationRoleEnum,
-  OrganizationRoleWeight,
   ProjectRoleEnum,
   ProjectRoleWeight,
   UserStore,
   useCurrentUser,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
@@ -110,6 +110,15 @@ const StyledMenuItem = muiStyled(MenuItem, {
   }),
 }));
 
+const StyledChip = muiStyled(Chip)(() => ({
+  "& .MuiChip-label": {
+    display: "flex",
+    alignItems: "center",
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+}));
+
 export type LayoutActionMenuItem =
   | {
       type: "item";
@@ -134,7 +143,8 @@ export type LayoutActionMenuItem =
     };
 
 const selectUserRole = (store: UserStore) => store.role;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectProject = (state: CoreDataStore) => state.project;
+const selectRecord = (state: CoreDataStore) => state.record;
 
 export default React.memo(function LayoutRow({
   layout,
@@ -172,7 +182,7 @@ export default React.memo(function LayoutRow({
   onCopyToRecordDefaultLayout?: (item: Layout) => void;
 }): React.JSX.Element {
   const isMounted = useMountedState();
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const layoutManager = useLayoutManager();
   const { t } = useTranslation("cosLayout");
   const currentUserRole = useCurrentUser(selectUserRole);
@@ -190,8 +200,8 @@ export default React.memo(function LayoutRow({
   const hasModifications = layout.working != undefined && onOverwrite != undefined;
   const multiSelection = multiSelectedIds.length > 1;
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const project = useCoreData(selectProject);
+  const record = useCoreData(selectRecord);
 
   useLayoutEffect(() => {
     const onlineListener = () => {
@@ -292,6 +302,7 @@ export default React.memo(function LayoutRow({
   );
 
   const onTextFieldKeyDown = useCallback((event: React.KeyboardEvent) => {
+    event.stopPropagation();
     if (event.key === "Escape") {
       setEditingName(false);
     }
@@ -380,10 +391,8 @@ export default React.memo(function LayoutRow({
     layoutIsShared(layout) &&
       onRecommendedToProjectLayout != undefined &&
       !layout.isRecordRecommended &&
-      ((currentUserRole.organizationRole >=
-        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_ADMIN] &&
-        currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) ||
-        currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN]) && {
+      currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN] &&
+      project.value != undefined && {
         type: "item",
         key: "recommendedToProjectLayout",
         text: layout.isProjectRecommended
@@ -394,11 +403,8 @@ export default React.memo(function LayoutRow({
       },
     onCopyToRecordDefaultLayout != undefined &&
       !layout.isRecordRecommended &&
-      ((currentUserRole.organizationRole >=
-        OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_READER] &&
-        currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) ||
-        currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER]) &&
-      baseInfo.recordId != undefined && {
+      currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER] &&
+      record.value != undefined && {
         type: "item",
         key: "copyToRecordDefaultLayout",
         text: t("copyToRecordDefaultLayoutTitle"),
@@ -534,7 +540,6 @@ export default React.memo(function LayoutRow({
         </IconButton>
       }
     >
-      {confirmModal}
       <ListItemButton
         data-testid="layout-list-item"
         selected={selected || multiSelectedIds.includes(layout.id)}
@@ -567,14 +572,47 @@ export default React.memo(function LayoutRow({
             noWrap
             style={{ display: editingName ? "none" : "block" }}
           >
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
               <HighlightedText text={layout.name} highlight={searchQuery} />
-              {layout.isProjectRecommended && (
-                <Chip label={t("projectRecommandedLayout")} color="success" size="small" />
-              )}
-              {layout.isRecordRecommended && (
-                <Chip label={t("recordDefaultLayout")} color="success" size="small" />
-              )}
+              <Stack marginTop={0.5}>
+                {layout.isProjectRecommended && (
+                  <StyledChip
+                    label={
+                      <Tooltip title={t("projectRecommandedLayout")} placement="top">
+                        <ThumbUpOffAltIcon
+                          fontSize="small"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            lineHeight: 1,
+                          }}
+                        />
+                      </Tooltip>
+                    }
+                    color="success"
+                    size="small"
+                  />
+                )}
+                {layout.isRecordRecommended && (
+                  <StyledChip
+                    label={
+                      <Tooltip title={t("recordDefaultLayout")} placement="top">
+                        <ThumbUpOffAltIcon
+                          fontSize="small"
+                          style={{
+                            color: "white",
+                            display: "flex",
+                            alignItems: "center",
+                            lineHeight: 1,
+                          }}
+                        />
+                      </Tooltip>
+                    }
+                    color="info"
+                    size="small"
+                  />
+                )}
+              </Stack>
             </Stack>
           </Typography>
         </ListItemText>
@@ -592,9 +630,12 @@ export default React.memo(function LayoutRow({
         }
         anchorEl={contextMenuTarget?.element}
         onClose={handleClose}
-        MenuListProps={{
-          "aria-labelledby": "layout-actions",
-          dense: true,
+        aria-labelledby="layout-actions"
+        data-tourid="layout-actions"
+        slotProps={{
+          list: {
+            dense: true,
+          },
         }}
       >
         {filteredItems.map((item) => {

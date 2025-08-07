@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -15,7 +15,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import { toSec, add, fromSec } from "@foxglove/rostime";
-import { CoSceneCreateEventContainer } from "@foxglove/studio-base/components/CoSceneCreateEventContainer";
+import { CreateEventContainer } from "@foxglove/studio-base/components/Events/CreateEventContainer/index";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -170,19 +170,21 @@ function EventMark({
     <div>
       <Tooltip
         title={t("startPoint")}
-        PopperProps={{
-          modifiers: [
-            {
-              name: "offset",
-              options: {
-                // Offset popper to hug the track better.
-                offset: [0, 4],
-              },
-            },
-          ],
-        }}
         placement="top"
         open={marks.length === 1}
+        slotProps={{
+          popper: {
+            modifiers: [
+              {
+                name: "offset",
+                options: {
+                  // Offset popper to hug the track better.
+                  offset: [0, 4],
+                },
+              },
+            ],
+          },
+        }}
       >
         <div
           ref={leftMarkRef}
@@ -233,7 +235,7 @@ function EventMark({
         {({ TransitionProps }) => (
           <Fade {...TransitionProps}>
             <div className={classes.creatEventContainer}>
-              <CoSceneCreateEventContainer
+              <CreateEventContainer
                 onClose={() => {
                   setOpen(false);
                   setTimeout(() => {

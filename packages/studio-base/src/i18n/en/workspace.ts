@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -16,4 +16,12 @@ export const workspace = {
   extensions: "Extensions",
   invalidDomain: "Only support playback of {{domain}} data",
   recordInfo: "Record Info",
+  outboundTrafficLimitReached: "Organization Outbound Traffic Exhausted",
+  outboundTrafficLimitReachedDesc:
+    "The organization has exhausted its traffic usage. To continue using the service, please purchase additional traffic or upgrade your subscription plan.",
+  storageLimitReached: "Organization Storage Exhausted",
+  storageLimitReachedDesc:
+    "The organization has exhausted its storage usage. To continue using the service, please purchase additional storage or upgrade your subscription plan.",
+  iKnow: "I know",
+  upgradeSubscriptionPlan: "Upgrade Subscription Plan",
 };

@@ -1,13 +1,16 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import * as Sentry from "@sentry/browser";
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
+import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
@@ -25,7 +28,11 @@ import AppConfigurationContext from "./context/AppConfigurationContext";
 
 const log = Logger.getLogger(__filename);
 
-if (APP_CONFIG.POSTHOG.token && APP_CONFIG.POSTHOG.api_host) {
+if (
+  APP_CONFIG.VITE_APP_PROJECT_ENV !== "aws" &&
+  APP_CONFIG.POSTHOG.token &&
+  APP_CONFIG.POSTHOG.api_host
+) {
   posthog.init(APP_CONFIG.POSTHOG.token, {
     api_host: APP_CONFIG.POSTHOG.api_host,
     person_profiles: "always",
@@ -54,7 +61,13 @@ export function SharedRoot(
     extraProviders,
     extensionLoaders,
   } = props;
-  if (APP_CONFIG.VITE_APP_PROJECT_ENV !== "local" && APP_CONFIG.SENTRY_ENABLED) {
+  const { i18n } = useTranslation();
+
+  if (
+    APP_CONFIG.VITE_APP_PROJECT_ENV !== "local" &&
+    APP_CONFIG.VITE_APP_PROJECT_ENV !== "aws" &&
+    APP_CONFIG.SENTRY_ENABLED
+  ) {
     log.info("initializing Sentry");
     Sentry.init({
       dsn: APP_CONFIG.SENTRY_HONEYBEE_DSN,
@@ -79,6 +92,8 @@ export function SharedRoot(
     });
   }
 
+  const adapterLocale = i18n.language === "zh" ? "zh-cn" : i18n.language === "ja" ? "ja" : "en";
+
   return (
     <AppConfigurationContext.Provider value={appConfiguration}>
       <PostHogProvider client={posthog}>
@@ -86,22 +101,24 @@ export function SharedRoot(
           {enableGlobalCss && <GlobalCss />}
           <CssBaseline>
             <ErrorBoundary>
-              <SharedRootContext.Provider
-                value={{
-                  appBarLeftInset,
-                  AppBarComponent,
-                  appConfiguration,
-                  customWindowControlProps,
-                  dataSources,
-                  deepLinks,
-                  enableLaunchPreferenceScreen,
-                  extensionLoaders,
-                  extraProviders,
-                  onAppBarDoubleClick,
-                }}
-              >
-                {children}
-              </SharedRootContext.Provider>
+              <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={adapterLocale}>
+                <SharedRootContext.Provider
+                  value={{
+                    appBarLeftInset,
+                    AppBarComponent,
+                    appConfiguration,
+                    customWindowControlProps,
+                    dataSources,
+                    deepLinks,
+                    enableLaunchPreferenceScreen,
+                    extensionLoaders,
+                    extraProviders,
+                    onAppBarDoubleClick,
+                  }}
+                >
+                  {children}
+                </SharedRootContext.Provider>
+              </LocalizationProvider>
             </ErrorBoundary>
           </CssBaseline>
         </ColorSchemeThemeProvider>

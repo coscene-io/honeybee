@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,11 +7,13 @@
 
 import { useMemo } from "react";
 
-import { BaseSyncAdapter } from "@foxglove/studio-base/components/CoSceneBaseSyncAdapter";
 import { CurrentLayoutSyncAdapter } from "@foxglove/studio-base/components/CoSceneCurrentLayoutSyncAdapter";
 import { CoSceneCurrentUserSyncAdapter } from "@foxglove/studio-base/components/CoSceneCurrentUserSyncAdapter";
-import { CoSceneEventsSyncAdapter } from "@foxglove/studio-base/components/CoSceneEventsSyncAdapter";
 import { PlaylistSyncAdapter } from "@foxglove/studio-base/components/CoScenePlaylistSyncAdapter";
+import { CoreDataSyncAdapter } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
+import { EventsSyncAdapter } from "@foxglove/studio-base/components/Events/EventsSyncAdapter";
+import { SubscriptionEntitlementSyncAdapter } from "@foxglove/studio-base/components/SubscriptionEntitlementSyncAdapter";
+import { TasksSyncAdapter } from "@foxglove/studio-base/components/Tasks/TasksSyncAdapter";
 import { URLStateSyncAdapter } from "@foxglove/studio-base/components/URLStateSyncAdapter";
 // import { UpdateChecker } from "@foxglove/studio-base/components/UpdateChecker";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
@@ -28,11 +30,13 @@ export function SyncAdapters(): React.JSX.Element {
     return (
       <>
         <CoSceneCurrentUserSyncAdapter />
-        <CoSceneEventsSyncAdapter />
+        <EventsSyncAdapter />
+        <TasksSyncAdapter />
         <PlaylistSyncAdapter />
         <URLStateSyncAdapter />
         <CurrentLayoutSyncAdapter />
-        <BaseSyncAdapter />
+        <CoreDataSyncAdapter />
+        <SubscriptionEntitlementSyncAdapter />
         {/* <UpdateChecker /> */}
       </>
     );

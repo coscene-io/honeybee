@@ -1,10 +1,15 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
+import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 
 export type ButtonType = "startCollection" | "endCollection" | "cancelCollection";
 
@@ -20,8 +25,6 @@ export type ButtonsState = {
 };
 
 export type Config = {
-  projectName?: string;
-  recordLabels?: string[];
   buttons: {
     [key in ButtonType]: {
       serviceName?: string;
@@ -52,10 +55,17 @@ export type CancelCollectionResponse = {
   message: string;
 };
 
-export type TaskInfoSnapshot = {
-  project: Project;
-  recordLabels: string[];
-  startTime: string;
+export type PanelState = "SOURCE_TYPE_NOT_SUPPORTED" | "NOT_LOGIN" | "LOADING" | "NOMAL";
+
+export type ProjectState = {
+  projectName: string;
+  recordLabels: Label[];
+  currentFocusedTask: Task | undefined;
 };
 
-export type PanelState = "SOURCE_TYPE_NOT_SUPPORTED" | "NOT_LOGIN" | "LOADING" | "NOMAL";
+export type CreateDataCollectionTaskParams = {
+  endCollectionResponse: EndCollectionResponse;
+  recordLabels: Label[];
+  focusedTask: Task | undefined;
+  projectName: string;
+};

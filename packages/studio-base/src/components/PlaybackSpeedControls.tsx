@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -84,10 +84,6 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          "aria-labelledby": "playback-speed-button",
-          dense: true,
-        }}
         anchorOrigin={{
           vertical: "top",
           horizontal: "left",
@@ -95,6 +91,13 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
         transformOrigin={{
           vertical: "bottom",
           horizontal: "left",
+        }}
+        data-tourid="playback-speed-controls"
+        aria-labelledby="playback-speed-button"
+        slotProps={{
+          list: {
+            dense: true,
+          },
         }}
       >
         {SPEED_OPTIONS.map((option) => (
@@ -114,7 +117,11 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
             <ListItemText
               inset={speed !== option}
               primary={formatSpeed(option)}
-              primaryTypographyProps={{ variant: "inherit" }}
+              slotProps={{
+                primary: {
+                  variant: "inherit",
+                },
+              }}
             />
           </MenuItem>
         ))}

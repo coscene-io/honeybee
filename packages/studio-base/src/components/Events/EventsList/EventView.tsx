@@ -1,13 +1,11 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
-import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import EditIcon from "@mui/icons-material/EditOutlined";
@@ -29,8 +27,8 @@ import {
   useMessagePipeline,
   MessagePipelineContext,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   TimelinePositionedEvent,
   EventsStore,
@@ -90,10 +88,10 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
-const selectRecord = (store: CoSceneBaseStore) => store.record;
+const selectRecord = (store: CoreDataStore) => store.record;
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectProject = (store: CoSceneBaseStore) => store.project;
+const selectProject = (store: CoreDataStore) => store.project;
+const selectOrganization = (store: CoreDataStore) => store.organization;
 
 const log = Logger.getLogger(__filename);
 
@@ -138,13 +136,14 @@ function EventViewComponent(params: {
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("cosEvent");
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const projectInfo = useBaseInfo(selectProject);
-  const recordInfo = useBaseInfo(selectRecord);
+  const project = useCoreData(selectProject);
+  const record = useCoreData(selectRecord);
+  const organization = useCoreData(selectOrganization);
 
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
-  const project: Project | undefined = useMemo(() => projectInfo.value ?? undefined, [projectInfo]);
-  const record: Record | undefined = useMemo(() => recordInfo.value ?? undefined, [recordInfo]);
+  const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
+  const projectSlug = useMemo(() => project.value?.slug, [project]);
+  const projectIsArchived = useMemo(() => project.value?.isArchived, [project]);
+  const recordIsArchived = useMemo(() => record.value?.isArchived, [record]);
 
   const seek = useMessagePipeline(selectSeek);
 
@@ -293,20 +292,20 @@ function EventViewComponent(params: {
       diagnosisRule.rules.find((r) => r.id === rule.id),
     );
 
-    const address = `/${baseInfo.organizationSlug}/${baseInfo.projectSlug}/data-collection-diagnosis/${ruleIndex}/${rule.id}`;
+    const address = `/${organizationSlug}/${projectSlug}/data-collection-diagnosis/${ruleIndex}/${rule.id}`;
 
     return (
       <Link href={address} target="_blank">
         <Typography noWrap>{event.event.rule.name}</Typography>
       </Link>
     );
-  }, [diagnosisRuleData, event.event.rule, baseInfo]);
+  }, [diagnosisRuleData, event.event.rule, organizationSlug, projectSlug]);
 
   const deviceCreator = useMemo(() => {
     if (event.event.device?.name && event.event.device.name.length > 0) {
-      const deviceNavAddress = `/${baseInfo.organizationSlug}/${
-        baseInfo.projectSlug
-      }/devices/${event.event.device.name.split("/").pop()}`;
+      const deviceNavAddress = `/${organizationSlug}/${projectSlug}/devices/${event.event.device.name
+        .split("/")
+        .pop()}`;
 
       return (
         <Link href={deviceNavAddress} target="_blank">
@@ -315,7 +314,7 @@ function EventViewComponent(params: {
       );
     }
     return undefined;
-  }, [baseInfo.organizationSlug, baseInfo.projectSlug, event.event.device]);
+  }, [organizationSlug, projectSlug, event.event.device]);
 
   const [humanCreator, getHumanCreator] = useAsyncFn(async () => {
     const users = await consoleApi.batchGetUsers([event.event.creator]);
@@ -364,8 +363,8 @@ function EventViewComponent(params: {
             </IconButton>
 
             {consoleApi.updateEvent.permission() &&
-              project?.isArchived === false &&
-              record?.isArchived === false && (
+              projectIsArchived === false &&
+              recordIsArchived === false && (
                 <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
                   <EditIcon fontSize="small" />
                 </IconButton>
@@ -376,8 +375,8 @@ function EventViewComponent(params: {
             </IconButton>
 
             {consoleApi.updateEvent.permission() &&
-              project?.isArchived === false &&
-              record?.isArchived === false && (
+              projectIsArchived === false &&
+              recordIsArchived === false && (
                 <IconButton size="small" onClick={confirmDelete} title={t("delete")}>
                   <DeleteIcon fontSize="small" />
                 </IconButton>
@@ -418,86 +417,93 @@ function EventViewComponent(params: {
           </Stack>
 
           {variant === "learge" && (
-            <Stack
-              gap={1}
-              fontSize="12px"
-              color={theme.palette.text.secondary}
-              marginTop={description || imgUrl || metadataMap.length > 0 ? "8px" : undefined}
-            >
-              {description && (
-                <Stack lineHeight="1.5">
-                  <HighlightedText text={description} highlight={filter} />
+            <>
+              <Stack
+                gap={1}
+                fontSize="12px"
+                color={theme.palette.text.secondary}
+                marginTop={description || imgUrl || metadataMap.length > 0 ? "8px" : undefined}
+              >
+                {description && (
+                  <Stack lineHeight="1.5">
+                    <HighlightedText text={description} highlight={filter} />
+                  </Stack>
+                )}
+                {imgUrl && (
+                  <Fragment key="img">
+                    <img src={imgUrl} className={classes.eventImg} />
+                  </Fragment>
+                )}
+                <Stack gap={1}>
+                  {metadataMap.map(([key, value]: string[], index) => (
+                    <Stack key={index} alignItems="center" flexDirection="row">
+                      <Stack flexDirection="row" alignItems="center" gap={0.5}>
+                        <Stack
+                          width="4px"
+                          height="4px"
+                          minWidth="4px"
+                          minHeight="4px"
+                          borderRadius="100%"
+                          style={{ backgroundColor: theme.palette.text.secondary }}
+                        />
+                        <span>
+                          <HighlightedText text={key ?? ""} highlight={filter} />
+                        </span>
+                      </Stack>
+                      <Stack marginRight={1}>:</Stack>
+                      <Stack>
+                        <HighlightedText text={value ?? ""} highlight={filter} />
+                      </Stack>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Stack>
+
+              {ruleNavAddress != undefined && (
+                <Stack
+                  flexDirection="row"
+                  gap={1}
+                  fontSize="12px"
+                  color={theme.palette.text.secondary}
+                >
+                  <Stack justifyContent="center">{t("rule")}:</Stack>
+                  <Stack
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    {ruleNavAddress}
+                  </Stack>
                 </Stack>
               )}
-              {imgUrl && (
-                <Fragment key="img">
-                  <img src={imgUrl} className={classes.eventImg} />
-                </Fragment>
-              )}
-              <Stack gap={1}>
-                {metadataMap.map(([key, value]: string[], index) => (
-                  <Stack key={index} alignItems="center" flexDirection="row">
-                    <Stack flexDirection="row" alignItems="center" gap={0.5}>
-                      <Stack
-                        width="4px"
-                        height="4px"
-                        minWidth="4px"
-                        minHeight="4px"
-                        borderRadius="100%"
-                        style={{ backgroundColor: theme.palette.text.secondary }}
-                      />
-                      <span>
-                        <HighlightedText text={key ?? ""} highlight={filter} />
-                      </span>
-                    </Stack>
-                    <Stack marginRight={1}>:</Stack>
-                    <Stack>
-                      <HighlightedText text={value ?? ""} highlight={filter} />
-                    </Stack>
-                  </Stack>
-                ))}
-              </Stack>
-            </Stack>
-          )}
 
-          {ruleNavAddress != undefined && (
-            <Stack flexDirection="row" gap={1} fontSize="12px" color={theme.palette.text.secondary}>
-              <Stack justifyContent="center">{t("rule")}:</Stack>
               <Stack
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
+                alignItems="center"
+                flexDirection="row"
+                fontSize="12px"
+                color={theme.palette.text.secondary}
               >
-                {ruleNavAddress}
+                <Stack flexDirection="row" alignItems="center" gap={0.5}>
+                  <Stack justifyContent="center">{t("creater")}</Stack>
+                </Stack>
+                <Stack marginRight={1}>:</Stack>
+                <Stack>
+                  <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
+                </Stack>
               </Stack>
-            </Stack>
+
+              <Stack paddingTop={2} gap={2}>
+                {/* custom field */}
+                <CustomFieldValuesFields
+                  variant="secondary"
+                  properties={customFieldSchema?.properties ?? []}
+                  customFieldValues={event.event.customFieldValues}
+                  readonly
+                  ignoreProperties
+                />
+              </Stack>
+            </>
           )}
-
-          <Stack
-            alignItems="center"
-            flexDirection="row"
-            fontSize="12px"
-            color={theme.palette.text.secondary}
-          >
-            <Stack flexDirection="row" alignItems="center" gap={0.5}>
-              <Stack justifyContent="center">{t("creater")}</Stack>
-            </Stack>
-            <Stack marginRight={1}>:</Stack>
-            <Stack>
-              <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
-            </Stack>
-          </Stack>
-
-          <Stack paddingTop={2} gap={2}>
-            {/* custom field */}
-            <CustomFieldValuesFields
-              variant="secondary"
-              properties={customFieldSchema?.properties ?? []}
-              customFieldValues={event.event.customFieldValues}
-              readonly
-              ignoreProperties
-            />
-          </Stack>
         </div>
       </Stack>
     </Stack>

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,14 +7,11 @@
 
 import { produce } from "immer";
 import * as _ from "lodash-es";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useAsyncFn } from "react-use";
 
 import { useShallowMemo } from "@foxglove/hooks";
 import { SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
-import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { ConsoleApi } from "@foxglove/studio-base/index";
 
 import { Config } from "./types";
 
@@ -47,7 +44,6 @@ export const defaultConfig: Config = {
     },
   },
   displayCollectionLog: true,
-  recordLabels: [],
 };
 
 function serviceError(serviceName?: string) {
@@ -72,115 +68,11 @@ export function settingsActionReducer(prevConfig: Config, action: SettingsTreeAc
   return ret;
 }
 
-const MAX_PROJECTS_PAGE_SIZE = 999;
-
-export function useSettingsTree(
-  config: Config,
-  userInfo: User,
-  consoleApi: ConsoleApi,
-  settingsActionHandler: (action: SettingsTreeAction) => void,
-): SettingsTreeNodes {
-  const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
-  const [recordLabels, setRecordLabels] = useState<{ label: string; value: string }[]>([]);
+export function useSettingsTree(config: Config): SettingsTreeNodes {
   const { t } = useTranslation("dataCollection");
-
-  const [, syncProjects] = useAsyncFn(async () => {
-    const userId = userInfo.userId;
-
-    if (userId) {
-      try {
-        return await consoleApi.listUserProjects({
-          userId,
-          pageSize: MAX_PROJECTS_PAGE_SIZE,
-          currentPage: 0,
-        });
-      } catch (error) {
-        console.error("error", error);
-      }
-    }
-
-    return undefined;
-  }, [consoleApi, userInfo.userId]);
-
-  const [, syncRecordLabels] = useAsyncFn(async () => {
-    if (config.projectName) {
-      try {
-        const listLabelsResponse = await consoleApi.listLabels({
-          warehouseId: config.projectName.split("warehouses/")[1]?.split("/")[0] ?? "",
-          projectId: config.projectName.split("/").pop() ?? "",
-          pageSize: MAX_PROJECTS_PAGE_SIZE,
-        });
-        const labels = listLabelsResponse.labels;
-        const options = labels.map((label) => ({
-          label: label.displayName,
-          value: label.displayName,
-        }));
-        setRecordLabels(options);
-        settingsActionHandler({
-          action: "update",
-          payload: {
-            path: ["general", "recordLabels"],
-            input: "select",
-            value: undefined,
-          },
-        });
-        return listLabelsResponse;
-      } catch (error) {
-        console.error("error", error);
-      }
-    }
-
-    return undefined;
-  }, [consoleApi, config.projectName]);
-
-  useEffect(() => {
-    void syncProjects().then((listUserProjectsResponse) => {
-      if (listUserProjectsResponse) {
-        const userProjects = listUserProjectsResponse.userProjects;
-        const options = userProjects
-          .filter((project) => !project.isArchived)
-          .map((project) => ({
-            label: project.displayName,
-            value: project.name,
-          }));
-        const targetProject = options.find((option) => option.value === config.projectName);
-        if (targetProject == undefined) {
-          settingsActionHandler({
-            action: "update",
-            payload: {
-              path: ["general", "projectName"],
-              input: "select",
-              value: undefined,
-            },
-          });
-        }
-        setProjectOptions(options);
-      }
-    });
-  }, [syncProjects, settingsActionHandler]);
-
-  useEffect(() => {
-    void syncRecordLabels();
-  }, [syncRecordLabels]);
 
   const settings = useMemo(
     (): SettingsTreeNodes => ({
-      general: {
-        fields: {
-          projectName: {
-            label: t("projectName"),
-            input: "select",
-            value: config.projectName ?? "",
-            options: projectOptions,
-          },
-          recordLabels: {
-            label: t("recordLabels"),
-            input: "multipleSelect",
-            options: recordLabels,
-            value: config.recordLabels ?? defaultConfig.recordLabels,
-          },
-        },
-      },
       buttons: {
         label: t("buttons"),
         children: {
@@ -250,7 +142,7 @@ export function useSettingsTree(
         },
       },
     }),
-    [config, projectOptions, recordLabels],
+    [config, t],
   );
   return useShallowMemo(settings);
 }

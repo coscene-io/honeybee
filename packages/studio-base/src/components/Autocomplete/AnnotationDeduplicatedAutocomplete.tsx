@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -263,9 +263,6 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
   return (
     <MuiAutocomplete
       className={className}
-      componentsProps={{
-        paper: { elevation: 8 },
-      }}
       disableCloseOnSelect
       disabled={disabled}
       freeSolo
@@ -277,7 +274,6 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
         return getItemValue(item.item);
       }}
       filterOptions={filterOptions}
-      ListboxComponent={ReactWindowListboxAdapter}
       onChange={onSelect}
       onInputChange={onChange}
       openOnFocus
@@ -317,6 +313,12 @@ export default React.forwardRef(function Autocomplete<T = unknown>(
       selectOnFocus={selectOnFocus}
       size="small"
       value={value ?? ReactNull}
+      slotProps={{
+        paper: { elevation: 8 },
+      }}
+      slots={{
+        listbox: ReactWindowListboxAdapter,
+      }}
     />
   );
 }) as <T>(props: AutocompleteProps<T> & React.RefAttributes<IAutocomplete>) => React.JSX.Element; // https://stackoverflow.com/a/58473012/23649

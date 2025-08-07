@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -13,16 +13,16 @@ import { useAsyncFn } from "react-use";
 
 import Logger from "@foxglove/log";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene";
 import { QueryFields } from "@foxglove/studio-base/util/queries";
 
 export const MAX_DEVICE_LIST_LENGTH = 99999;
 const log = Logger.getLogger(__filename);
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-const selectRecord = (store: CoSceneBaseStore) => store.record;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
+const selectRecord = (store: CoreDataStore) => store.record;
 
 export default function ProjectDeviceSelector({
   updateRecord,
@@ -30,8 +30,8 @@ export default function ProjectDeviceSelector({
   updateRecord: (payload: PartialMessage<UpdateRecordRequest>) => Promise<void>;
 }): ReactElement {
   const consoleApi = useConsoleApi();
-  const baseInfo = useBaseInfo(selectBaseInfo);
-  const record = useBaseInfo(selectRecord);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
+  const record = useCoreData(selectRecord);
 
   const disabled =
     !consoleApi.updateRecord.permission() || !consoleApi.listProjectDevices.permission();
@@ -43,7 +43,7 @@ export default function ProjectDeviceSelector({
   }, []);
 
   const [projectDevices, getProjectDevices] = useAsyncFn(async () => {
-    if (!baseInfo.value?.warehouseId || !baseInfo.value.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
       return [];
     }
 
@@ -51,11 +51,16 @@ export default function ProjectDeviceSelector({
       pageSize: MAX_DEVICE_LIST_LENGTH,
       filter: authorizedDeviceFilter,
       currentPage: 0,
-      warehouseId: baseInfo.value.warehouseId,
-      projectId: baseInfo.value.projectId,
+      warehouseId: externalInitConfig.warehouseId,
+      projectId: externalInitConfig.projectId,
     });
     return devices.projectDevices;
-  }, [consoleApi, baseInfo.value?.warehouseId, baseInfo.value?.projectId, authorizedDeviceFilter]);
+  }, [
+    consoleApi,
+    externalInitConfig?.warehouseId,
+    externalInitConfig?.projectId,
+    authorizedDeviceFilter,
+  ]);
 
   useEffect(() => {
     getProjectDevices().catch((error: unknown) => {

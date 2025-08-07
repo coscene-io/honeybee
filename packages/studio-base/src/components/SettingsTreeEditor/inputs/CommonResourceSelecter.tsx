@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -12,6 +12,7 @@ import { makeStyles } from "tss-react/mui";
 
 import CoSceneChooser from "@foxglove/studio-base/components/CoSceneChooser";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 
 const useStyles = makeStyles()((theme) => ({
   styledButton: {
@@ -20,7 +21,7 @@ const useStyles = makeStyles()((theme) => ({
     border: "none",
     color: theme.palette.text.primary,
     textTransform: "none",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     paddingTop: theme.spacing(0.5),
     paddingBottom: theme.spacing(0.5),
     overflow: "hidden",
@@ -40,6 +41,8 @@ interface CommonSourceSelecterProps {
   onChange: (value?: string) => void;
 }
 
+const selectProject = (store: CoreDataStore) => store.project;
+
 export default function CommonResourceSelecter({
   value,
   onChange,
@@ -48,6 +51,7 @@ export default function CommonResourceSelecter({
   const { classes } = useStyles();
   const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);
   const consoleApi = useConsoleApi();
+  const project = useCoreData(selectProject);
 
   const { value: file } = useAsync(async () => {
     if (!value) {
@@ -73,6 +77,7 @@ export default function CommonResourceSelecter({
         checkFileSupportedFunc={(file) => {
           return file.name.endsWith(".urdf");
         }}
+        defaultProject={project.value}
       />
       <Button
         className={classes.styledButton}
@@ -82,7 +87,7 @@ export default function CommonResourceSelecter({
           setAddFileDialogOpen(true);
         }}
       >
-        {file ? file.filename.split("/").pop() : t("selectCommonSource")}
+        {file ? file.filename.split("/").pop() : t("selectProjectSources")}
       </Button>
     </>
   );

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,8 +17,10 @@ export const MuiFilledInput: OverrideComponentReturn<"MuiFilledInput"> = {
     input: ({ theme }) => ({
       padding: theme.spacing(1, 1.125),
     }),
-    inputSizeSmall: ({ theme }) => ({
-      padding: theme.spacing(0.75, 1),
+    sizeSmall: ({ theme }) => ({
+      [`& .${filledInputClasses.input}`]: {
+        padding: theme.spacing(0.75, 1),
+      },
     }),
     root: ({ theme }) => ({
       borderRadius: theme.shape.borderRadius,

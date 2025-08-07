@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -97,7 +97,7 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
   select: {
-    [`.${inputBaseClasses.input}.${selectClasses.select}.${inputBaseClasses.inputSizeSmall}`]: {
+    [`.${inputBaseClasses.input}.${selectClasses.select}.${inputBaseClasses.sizeSmall}`]: {
       paddingTop: 0,
       paddingBottom: 0,
       minWidth: 40,
@@ -139,10 +139,12 @@ const NodeRow = React.memo(function NodeRow(props: NodeRowProps) {
         <ListItemText
           primary={info.displayName}
           secondary={info.status.message}
-          secondaryTypographyProps={{
-            color: MESSAGE_COLORS[levelName ?? "stale"],
-          }}
           style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          slotProps={{
+            secondary: {
+              color: MESSAGE_COLORS[levelName ?? "stale"],
+            },
+          }}
         />
       </ListItemButton>
     </ListItem>
@@ -335,9 +337,15 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
             color="secondary"
             size="small"
             onChange={(event) => {
-              saveConfig({ minLevel: event.target.value as number });
+              saveConfig({ minLevel: Number(event.target.value) });
             }}
-            MenuProps={{ MenuListProps: { dense: true } }}
+            MenuProps={{
+              slotProps: {
+                list: {
+                  dense: true,
+                },
+              },
+            }}
           >
             {KNOWN_LEVELS.map((level) => (
               <MenuItem key={level} value={level}>

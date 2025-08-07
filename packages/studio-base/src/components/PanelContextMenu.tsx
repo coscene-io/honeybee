@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -108,8 +108,12 @@ function PanelContextMenuComponent(props: PanelContextMenuProps): React.JSX.Elem
         onClose={handleClose}
         anchorReference="anchorPosition"
         anchorPosition={position ? { top: position.y, left: position.x } : undefined}
-        MenuListProps={{
-          dense: true,
+        aria-labelledby="panel-context-menu"
+        data-tourid="panel-context-menu"
+        slotProps={{
+          list: {
+            dense: true,
+          },
         }}
       >
         {items.map((item, index) => {

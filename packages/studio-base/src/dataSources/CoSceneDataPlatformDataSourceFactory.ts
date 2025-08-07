@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { t } from "i18next";
-// import toast from "react-hot-toast";
 
 import {
   IDataSourceFactory,
@@ -97,7 +96,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
           timeMode,
           auth,
         },
-        params: { ...args.params, ...baseInfo, files: JSON.stringify(baseInfo.files) },
+        params: { ...args.params, ...baseInfo },
       },
     });
 

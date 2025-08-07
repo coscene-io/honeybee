@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -65,7 +65,7 @@ const useStyles = makeStyles()((theme) => ({
   filterStartAdornment: {
     display: "flex",
   },
-  skeletonText: {
+  listItemText: {
     marginTop: theme.spacing(0.5),
     marginBottom: theme.spacing(0.5),
   },
@@ -215,9 +215,11 @@ export function TopicList(): React.JSX.Element {
             variant="filled"
             fullWidth
             placeholder={t("waitingForData")}
-            InputProps={{
-              size: "small",
-              startAdornment: <SearchIcon fontSize="small" />,
+            slotProps={{
+              input: {
+                size: "small",
+                startAdornment: <SearchIcon fontSize="small" />,
+              },
             }}
           />
         </header>
@@ -225,10 +227,14 @@ export function TopicList(): React.JSX.Element {
           {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => (
             <ListItem divider key={i}>
               <ListItemText
-                className={classes.skeletonText}
+                className={classes.listItemText}
                 primary={<Skeleton animation={false} width="20%" />}
                 secondary={<Skeleton animation="wave" width="55%" />}
-                secondaryTypographyProps={{ variant: "caption" }}
+                slotProps={{
+                  secondary: {
+                    variant: "caption",
+                  },
+                }}
               />
             </ListItem>
           ))}
@@ -251,26 +257,28 @@ export function TopicList(): React.JSX.Element {
             value={undebouncedFilterText}
             fullWidth
             placeholder={t("searchBarPlaceholder")}
-            InputProps={{
-              inputProps: { "data-testid": "topic-filter" },
-              size: "small",
-              startAdornment: (
-                <label className={classes.filterStartAdornment} htmlFor="topic-filter">
-                  <SearchIcon fontSize="small" />
-                </label>
-              ),
-              endAdornment: undebouncedFilterText && (
-                <IconButton
-                  size="small"
-                  title={t("clearFilter")}
-                  onClick={() => {
-                    setFilterText("");
-                  }}
-                  edge="end"
-                >
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              ),
+            slotProps={{
+              input: {
+                inputProps: { "data-testid": "topic-filter" },
+                size: "small",
+                startAdornment: (
+                  <label className={classes.filterStartAdornment} htmlFor="topic-filter">
+                    <SearchIcon fontSize="small" />
+                  </label>
+                ),
+                endAdornment: undebouncedFilterText && (
+                  <IconButton
+                    size="small"
+                    title={t("clearFilter")}
+                    onClick={() => {
+                      setFilterText("");
+                    }}
+                    edge="end"
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                ),
+              },
             }}
           />
         </header>

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -24,8 +24,8 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useBaseInfo, CoSceneBaseStore } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   useClearHoverValue,
   useSetHoverValue,
@@ -66,7 +66,7 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
 const selectRanges = (ctx: MessagePipelineContext) =>
   ctx.playerState.progress.fullyLoadedFractionRanges;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
-const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
+const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 
 type Props = {
   onSeek: (seekTo: Time) => void;
@@ -87,7 +87,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const presence = useMessagePipeline(selectPresence);
   const ranges = useMessagePipeline(selectRanges);
 
-  const enableList = useBaseInfo(selectEnableList);
+  const enableList = useCoreData(selectEnableList);
 
   const setHoverValue = useSetHoverValue();
 
@@ -214,9 +214,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
       }
       placement="top"
       disableInteractive
-      TransitionComponent={Fade}
-      TransitionProps={{ timeout: 0 }}
-      PopperProps={popperProps}
+      slotProps={{
+        popper: popperProps,
+        transition: { timeout: 0 },
+      }}
+      slots={{
+        transition: Fade,
+      }}
     >
       <Stack
         direction="row"

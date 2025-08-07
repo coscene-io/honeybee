@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -155,4 +155,41 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   xDeviationHelp: "ポーズ推定で公開するXの標準偏差",
   yDeviation: "Y偏差",
   yDeviationHelp: "ポーズ推定で公開するYの標準偏差",
+
+  // URDF
+  displayMode: "表示モード",
+  auto: "自動",
+  visual: "ビジュアル",
+  collision: "コリジョン",
+  fallbackColorHelp: "リンクが色を指定していない場合に使用されるフォールバック色",
+  source: "ソース",
+  url: "URL",
+  urlHelp: "統一ロボット記述形式（URDF）XMLファイルを指すpackage:// URLまたはhttp(s) URL",
+  filePathDesktopOnly: "ファイルパス（デスクトップのみ）",
+  filePath: "ファイルパス",
+  filePathHelp: "絶対ファイルパス（デスクトップアプリのみ）",
+  parameter: "パラメータ",
+  projectGeneralResource: "プロジェクト共通リソース",
+  label: "ラベル",
+  framePrefix: "フレームプレフィックス",
+  framePrefixHelp: "すべてのフレーム名に適用するプレフィックス（tfPrefixとも呼ばれる）",
+  duplicate: "複製",
+  joints: "ジョイント",
+  manualAngle: "手動角度",
+  jointStateAngle: "ジョイント状態角度",
+  manualPosition: "手動位置",
+  jointStatePosition: "ジョイント状態位置",
+  child: "子",
+  axis: "軸",
+  damping: "ダンピング",
+  friction: "摩擦",
+  limit: "制限",
+  limitEffort: "制限力",
+  limitVelocity: "制限速度",
+  mimicJoint: "模倣ジョイント",
+  mimicMultiplier: "模倣倍率",
+  mimicOffset: "模倣オフセット",
+  softLimit: "ソフト制限",
+  kPosition: "位置定数",
+  kVelocity: "速度定数",
 };

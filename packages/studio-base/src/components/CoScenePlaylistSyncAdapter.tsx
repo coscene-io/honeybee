@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -24,6 +24,7 @@ import {
   BagFileInfo,
   PlaylistMediaStatues,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   TimelineInteractionStateStore,
   useHoverValue,
@@ -130,6 +131,7 @@ const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activ
 const selectSetBagsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setBagsAtHoverValue;
 const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 export function PlaylistSyncAdapter(): ReactNull {
   const setBagFiles = usePlaylist(selectSetBagFiles);
@@ -145,6 +147,8 @@ export function PlaylistSyncAdapter(): ReactNull {
   const [hoverComponentId] = useState<string>(() => uuidv4());
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
+
+  const dataSource = useCoreData(selectDataSource);
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
@@ -315,11 +319,14 @@ export function PlaylistSyncAdapter(): ReactNull {
   ]);
 
   useEffect(() => {
+    if (dataSource?.id !== "coscene-data-platform") {
+      return;
+    }
     syncPlaylist().catch((error: unknown) => {
       log.error(error);
       setBagFiles({ loading: false, error: error as Error });
     });
-  }, [setBagFiles, syncPlaylist]);
+  }, [dataSource?.id, setBagFiles, syncPlaylist]);
 
   useEffect(() => {
     syncRecords().catch((error: unknown) => {

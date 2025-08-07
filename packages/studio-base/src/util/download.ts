@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -16,6 +16,7 @@
 
 // extra boundary added for jest testing, since jsdom's Blob doesn't support .text()
 import getArch from "arch";
+import i18next from "i18next";
 
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
@@ -98,15 +99,26 @@ export async function getCoStudioVersion(): Promise<string> {
     if (versionMatch?.[1]) {
       return versionMatch[1].trim();
     } else {
-      throw new Error("未找到版本信息");
+      throw new Error("not found version");
     }
   } catch (error) {
-    console.error("获取版本信息失败:", error);
-    throw error;
+    console.error("get version info failed:", error);
+    return "0.0.0";
   }
 }
 
 // first check current platform is not desktop, then check APP_CONFIG.COSTUDIO_DOWNLOAD_URL is not empty
 export function checkSupportCoStudioDownload(): boolean {
   return !isDesktopApp() && !!APP_CONFIG.COSTUDIO_DOWNLOAD_URL;
+}
+
+export function openUserFeedback(): void {
+  const url =
+    APP_CONFIG.VITE_APP_PROJECT_ENV === "aws"
+      ? "https://form.typeform.com/to/mEjmjcNJ"
+      : i18next.language === "zh"
+      ? "https://coscene0.feishu.cn/share/base/form/shrcnlWpp89ToqBDtXhwa8dCrgh"
+      : "https://coscene0.feishu.cn/share/base/form/shrcnWeMYQ3872PQYD5x73EJIYc";
+
+  window.open(url, "_blank");
 }

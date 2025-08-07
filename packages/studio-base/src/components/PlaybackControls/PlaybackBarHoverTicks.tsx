@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -119,9 +119,11 @@ export default function PlaybackBarHoverTicks(props: Props): React.JSX.Element {
             disableHoverListener
             disableTouchListener
             disableInteractive
-            TransitionProps={{ timeout: 0 }}
             open={displayHoverTime}
             title={<div className={classes.time}>{hoverTimeDisplay}</div>}
+            slotProps={{
+              transition: { timeout: 0 },
+            }}
           >
             <div className={classes.tick} />
           </Tooltip>

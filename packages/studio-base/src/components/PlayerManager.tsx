@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -14,17 +14,9 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
 import { useSnackbar } from "notistack";
-import {
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  // useLayoutEffect,
-  useMemo,
-  useState,
-  useContext,
-} from "react";
-import toast from "react-hot-toast";
+import { PropsWithChildren, useCallback, useEffect, useMemo, useState, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 
@@ -32,97 +24,78 @@ import { useWarnImmediateReRender } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { Immutable } from "@foxglove/studio";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { useSetShowtUrlKey } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-// import {
-//   LayoutState,
-//   useCurrentLayoutSelector,
-// } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { ExtensionCatalogContext } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import PlayerSelectionContext, {
   DataSourceArgs,
   IDataSourceFactory,
   PlayerSelection,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-// import { usePerformance } from "@foxglove/studio-base/context/PerformanceContext";
-// import {
-//   UserScriptStore,
-//   useUserScriptState,
-// } from "@foxglove/studio-base/context/UserScriptStateContext";
-// import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
+import { useEntitlementWithDialog } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
-import {
-  useAppConfigurationValue,
-  useTopicPrefixConfigurationValue,
-} from "@foxglove/studio-base/hooks";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import {
   TopicAliasFunctions,
   TopicAliasingPlayer,
 } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
-// import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
-import { HttpError } from "@foxglove/studio-base/services/api/HttpError";
-// import { UserScripts } from "@foxglove/studio-base/types/panels";
 
 const log = Logger.getLogger(__filename);
-
-// const EMPTY_USER_NODES: UserScripts = Object.freeze({});
 
 type PlayerManagerProps = {
   playerSources: readonly IDataSourceFactory[];
 };
 
-// const userScriptsSelector = (state: LayoutState) =>
-//   state.selectedLayout?.data?.userNodes ?? EMPTY_USER_NODES;
-
-// const selectUserScriptActions = (store: UserScriptStore) => store.actions;
-const selectSetBaseInfo = (state: CoSceneBaseStore) => state.setBaseInfo;
-const selectSetDataSource = (state: CoSceneBaseStore) => state.setDataSource;
-const selectBaseInfo = (state: CoSceneBaseStore) => state.baseInfo;
 const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
+const selectSetDataSource = (store: CoreDataStore) => store.setDataSource;
+
+const selectRecord = (store: CoreDataStore) => store.record;
+const selectProject = (store: CoreDataStore) => store.project;
+const selectJobRun = (store: CoreDataStore) => store.jobRun;
 
 function useBeforeConnectionSource(): (
   sourceId: string,
   params: Record<string, string | undefined>,
-) => Promise<void> {
+) => Promise<boolean> {
   const consoleApi = useConsoleApi();
-  const setBaseInfo = useBaseInfo(selectSetBaseInfo);
-  const { t } = useTranslation("cosError");
+  const setShowtUrlKey = useSetShowtUrlKey();
+
+  const [entitlement, entitlementDialog] = useEntitlementWithDialog(
+    PlanFeatureEnum_PlanFeature.OUTBOUND_TRAFFIC,
+  );
 
   const syncBaseInfo = useCallback(
     async (baseInfoKey: string) => {
       consoleApi.setType("playback");
       try {
-        setBaseInfo({ loading: true, value: {} });
-        const baseInfoRes = await consoleApi.getBaseInfo(baseInfoKey);
-
-        // consoleApi.setApiBaseInfo should be called before setBaseInfo
-        // because will get promise from setBaseInfo
-        await consoleApi.setApiBaseInfo(baseInfoRes);
-
-        setBaseInfo({ loading: false, value: baseInfoRes });
+        await setShowtUrlKey(baseInfoKey);
       } catch (error) {
-        if (error instanceof HttpError) {
-          if (error.status === 403) {
-            toast.error(t("unauthorized"));
-          }
-        }
-        setBaseInfo({ loading: false, error });
+        log.error("setShowtUrlKey failed", error);
       }
     },
-    [consoleApi, setBaseInfo, t],
+    [consoleApi, setShowtUrlKey],
   );
 
-  const beforeConnectionSource = useCallback(
+  const beforeConnectionSource: (
+    sourceId: string,
+    params: Record<string, string | undefined>,
+  ) => Promise<boolean> = useCallback(
     async (sourceId: string, params: Record<string, string | undefined>) => {
       switch (sourceId) {
         case "coscene-data-platform":
           consoleApi.setType("playback");
+          if (entitlement != undefined && entitlement.usage > entitlement.maxQuota) {
+            entitlementDialog();
+            return false;
+          }
           if (!params.key) {
             throw new Error("coscene-data-platform params.key is required");
           }
@@ -132,14 +105,19 @@ function useBeforeConnectionSource(): (
           await consoleApi.syncMedia({ key: params.key });
           break;
         case "coscene-websocket":
+          if (params.key) {
+            await syncBaseInfo(params.key);
+          }
           consoleApi.setType("realtime");
           break;
         default:
           consoleApi.setType(undefined);
           break;
       }
+
+      return true;
     },
-    [syncBaseInfo, consoleApi],
+    [consoleApi, entitlement, syncBaseInfo, entitlementDialog],
   );
 
   return beforeConnectionSource;
@@ -154,17 +132,14 @@ export default function PlayerManager(
   const [currentSourceId, setCurrentSourceId] = useState<string | undefined>();
   const analytics = useAnalytics();
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
-
   const beforeConnectionSource = useBeforeConnectionSource();
   const setCurrentFile = useUploadFiles(selectSetCurrentFile);
+
+  const confirm = useConfirm();
 
   const { t } = useTranslation("general");
 
   useWarnImmediateReRender();
-
-  // const userScriptActions = useUserScriptState(selectUserScriptActions);
 
   const { wrapPlayer } = useAppContext();
 
@@ -183,10 +158,6 @@ export default function PlayerManager(
   const [playerInstances, setPlayerInstances] = useState<
     { topicAliasPlayer: TopicAliasingPlayer; player: Player } | undefined
   >();
-
-  // const { globalVariables } = useGlobalVariables();
-
-  // const userScripts = useCurrentLayoutSelector(userScriptsSelector);
 
   const { recents, addRecent } = useIndexedDbRecents();
 
@@ -227,6 +198,20 @@ export default function PlayerManager(
     });
   }, [extensionCatalogContext, playerInstances?.topicAliasPlayer]);
 
+  const recordState = useCoreData(selectRecord);
+  const projectState = useCoreData(selectProject);
+  const jobRunState = useCoreData(selectJobRun);
+
+  const recordDisplayName = useMemo(() => {
+    return recordState.value?.title ?? "";
+  }, [recordState]);
+  const projectDisplayName = useMemo(() => {
+    return projectState.value?.displayName ?? "";
+  }, [projectState]);
+  const jobRunsName = useMemo(() => {
+    return jobRunState.value?.spec?.spec?.name ?? "";
+  }, [jobRunState]);
+
   // handle page title
   useEffect(() => {
     if (currentSourceArgs?.type === "connection" && currentSourceId) {
@@ -235,12 +220,8 @@ export default function PlayerManager(
         const deviceName = currentSourceArgs.params?.hostName;
         title = `${t("realtimeViz")} - ${deviceName}`;
       } else if (currentSourceId === "coscene-data-platform") {
-        const recordDisplayName = baseInfo.recordDisplayName;
-        const projectDisplayName = baseInfo.projectDisplayName;
-        const jobRunsSerialNumber = baseInfo.jobRunsSerialNumber;
-
-        if (jobRunsSerialNumber) {
-          title = `${t("shadowMode")} - #${jobRunsSerialNumber} - ${t("testing")}`;
+        if (jobRunsName) {
+          title = `${t("shadowMode")} - #${jobRunsName} - ${t("testing")}`;
         } else {
           title = `${t("viz")} - ${recordDisplayName} - ${projectDisplayName}`;
         }
@@ -249,31 +230,15 @@ export default function PlayerManager(
         document.title = title;
       }
     }
-  }, [currentSourceArgs, currentSourceId, t, baseInfo]);
-
-  // const player = useMemo(() => {
-  //   if (!playerInstances?.topicAliasPlayer) {
-  //     return undefined;
-  //   }
-
-  //   const userScriptPlayer = new UserScriptPlayer(
-  //     playerInstances.topicAliasPlayer,
-  //     userScriptActions,
-  //     perfRegistry,
-  //   );
-  //   userScriptPlayer.setGlobalVariables(globalVariables);
-  //   return userScriptPlayer;
-  // }, [playerInstances?.topicAliasPlayer, userScriptActions, perfRegistry, globalVariables]);
-
-  // useLayoutEffect(() => void player?.setUserScripts(userScripts), [player, userScripts]);
+  }, [currentSourceArgs, currentSourceId, t, jobRunsName, recordDisplayName, projectDisplayName]);
 
   const { enqueueSnackbar } = useSnackbar();
 
   const [selectedSource, setSelectedSource] = useState<IDataSourceFactory | undefined>();
 
-  const setDataSource = useBaseInfo(selectSetDataSource);
+  const setDataSource = useCoreData(selectSetDataSource);
 
-  const addTopicPrefix = useTopicPrefixConfigurationValue();
+  const [addTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
@@ -335,11 +300,16 @@ export default function PlayerManager(
               ...args.params,
             };
 
-            await beforeConnectionSource(sourceId, args.params ?? {});
             setCurrentSourceParams({ sourceId, args: { type: "connection", params } });
+
+            const isReady = await beforeConnectionSource(sourceId, args.params ?? {});
+            if (!isReady) {
+              return;
+            }
 
             const newPlayer = foundSource.initialize({
               metricsCollector,
+              confirm,
               params: {
                 addTopicPrefix,
                 timeMode,
@@ -348,6 +318,7 @@ export default function PlayerManager(
               },
               consoleApi,
             });
+
             constructPlayers(newPlayer);
 
             if (args.params?.url || args.params?.key) {
@@ -443,6 +414,7 @@ export default function PlayerManager(
       setDataSource,
       constructPlayers,
       beforeConnectionSource,
+      confirm,
       addTopicPrefix,
       timeMode,
       playbackQualityLevel,

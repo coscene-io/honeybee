@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -32,6 +32,8 @@ enum Endpoint {
   SyncTask = "coscene.dataplatform.v1alpha3.services.TaskService.SyncTask",
   UpdateTask = "coscene.dataplatform.v1alpha3.services.TaskService.UpdateTask",
   UpsertAnnotationConfig = "coscene.dataplatform.v1alpha3.services.TaskService.UpsertAnnotationConfig",
+  LinkTask = "coscene.dataplatform.v1alpha3.services.TaskService.LinkTask",
+  UnlinkTask = "coscene.dataplatform.v1alpha3.services.TaskService.UnlinkTask",
 
   GetDiagnosisRuleSetsMetadata = "coscene.dataplatform.v1alpha3.services.DiagnosisRuleSetService.GetDiagnosisRuleSetsMetadata",
   ListDiagnosisRuleSets = "coscene.dataplatform.v1alpha3.services.DiagnosisRuleSetService.ListDiagnosisRuleSets",

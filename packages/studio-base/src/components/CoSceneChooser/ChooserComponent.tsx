@@ -1,15 +1,15 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 /**
- * ChooserComponent supports four selection modes:
+ * ChooserComponent supports five selection modes:
  *
  * 1. "select-files-from-record": Project → Record → Files
  *    - User first selects a project
@@ -31,6 +31,11 @@
  *    - User first selects a project
  *    - Then directly selects all files under that project (cross-record)
  *    - Suitable for scenarios requiring file selection from entire project
+ *
+ * 5. "select-record-from-target-project": Record (select from target project only)
+ *    - User selects a record from a pre-defined target project
+ *    - No project selection is allowed, only record selection
+ *    - Suitable for scenarios where the project is predetermined
  *
  * Usage examples:
  * ```tsx
@@ -57,6 +62,13 @@
  *   mode="select-files-from-project"
  *   // ... other props
  * />
+ *
+ * // Mode 5: Select record from target project
+ * <ChooserComponent
+ *   mode="select-record-from-target-project"
+ *   defaultProject={targetProject}
+ *   // ... other props
+ * />
  * ```
  */
 
@@ -67,20 +79,15 @@ import { ListRecordsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplat
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { ListFilesResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
 import ClearIcon from "@mui/icons-material/Clear";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   List,
   ListItem,
-  ListItemIcon,
   ListItemButton,
-  Checkbox,
   TextField,
-  Typography,
   IconButton,
   ListItemText,
   TablePagination,
-  Tooltip,
 } from "@mui/material";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -99,6 +106,7 @@ import {
 import { QueryFields } from "@foxglove/studio-base/util/queries";
 
 import { CustomBreadcrumbs } from "./CustomBreadcrumbs";
+import { SelectFilesList } from "./SelectFilesList";
 import { usePagination } from "./hooks/usePagination";
 import { BaseChooserProps, ListType, SelectedFile } from "./types";
 
@@ -153,78 +161,14 @@ const RecordsList = ({ records, selectedRecord, onRecordSelect }: RecordsListPro
   </List>
 );
 
-interface FilesListProps {
-  files: File[];
-  selectedFiles: SelectedFile[];
-  onFileToggle: (file: File) => void;
-  checkFileSupportedFunc: (file: File) => boolean;
-}
-
-const FilesList = ({
-  files,
-  selectedFiles,
-  onFileToggle,
-  checkFileSupportedFunc,
-}: FilesListProps) => {
-  const { t } = useTranslation("cosPlaylist");
-
-  return (
-    <List>
-      {files.map((file) => {
-        const supportedImport = checkFileSupportedFunc(file);
-        const isSelected = selectedFiles.some((f) => f.file.name === file.name);
-        const repeatFile = selectedFiles.find(
-          (f) => f.file.sha256 === file.sha256 && f.file.name !== file.name,
-        );
-
-        return (
-          <ListItem key={file.name} disablePadding>
-            <ListItemButton
-              disabled={!supportedImport || repeatFile != undefined}
-              role={undefined}
-              onClick={() => {
-                onFileToggle(file);
-              }}
-              dense
-            >
-              <ListItemIcon>
-                <Checkbox
-                  edge="start"
-                  checked={isSelected}
-                  disabled={!supportedImport}
-                  tabIndex={-1}
-                  disableRipple
-                  inputProps={{ "aria-labelledby": file.filename }}
-                />
-              </ListItemIcon>
-              <ListItemText id={file.name} primary={file.filename.split("/").pop()} />
-            </ListItemButton>
-            {repeatFile && (
-              <Typography color="error">
-                <Tooltip
-                  title={t("duplicateFile", {
-                    ns: "cosPlaylist",
-                    filename: repeatFile.file.filename,
-                  })}
-                >
-                  <HelpOutlineIcon fontSize="small" />
-                </Tooltip>
-              </Typography>
-            )}
-          </ListItem>
-        );
-      })}
-    </List>
-  );
-};
-
 export function ChooserComponent({
   setTargetInfo,
   mode,
   files,
   setFiles,
   checkFileSupportedFunc,
-  defaultRecordName,
+  defaultRecordDisplayName,
+  defaultProject,
   createRecordConfirmText,
 }: BaseChooserProps): React.JSX.Element {
   const { t } = useTranslation("cosGeneral");
@@ -234,8 +178,18 @@ export function ChooserComponent({
   const [recordType, setRecordType] = useState<"create" | "select">(
     mode === "create-record" ? "create" : "select",
   );
-  const [project, setProject] = useState<Project | undefined>(undefined);
+  const [project, setProject] = useState<Project | undefined>(defaultProject);
   const [record, setRecord] = useState<Record | undefined>(undefined);
+
+  // 文件夹导航状态
+  const [currentFolderPath, setCurrentFolderPath] = useState<readonly string[]>([]);
+
+  // Ensure project is set for select-record-from-target-project mode
+  useEffect(() => {
+    if (mode === "select-record-from-target-project" && defaultProject && !project) {
+      setProject(defaultProject);
+    }
+  }, [mode, defaultProject, project]);
 
   // Pagination hooks for different list types
   const projectsPagination = usePagination(20);
@@ -244,6 +198,11 @@ export function ChooserComponent({
 
   // Determine current list type based on mode
   const listType = useMemo<ListType>(() => {
+    // select-record-from-target-project mode: show records directly from target project
+    if (mode === "select-record-from-target-project") {
+      return "records";
+    }
+
     if (!project) {
       return "projects";
     }
@@ -348,13 +307,19 @@ export function ChooserComponent({
       return new ListFilesResponse();
     }
 
+    const filter = CosQuery.Companion.empty();
+
+    if (filesPagination.debouncedFilter.length > 0) {
+      filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesPagination.debouncedFilter]);
+    }
+
+    if (currentFolderPath.length > 0) {
+      filter.setField(QueryFields.DIR, [BinaryOperator.EQ], [currentFolderPath.join("/")]);
+    }
+
     // select-files-from-project mode: get files directly from project
     // Note: This requires using all records under the project to get files, or using specific project file API
     if (mode === "select-files-from-project" && project) {
-      const filter = CosQuery.Companion.empty();
-      filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesPagination.debouncedFilter]);
-      filter.setField("recursive", [BinaryOperator.EQ], ["true"]);
-
       return await consoleApi.listFiles({
         parent: project.name,
         pageSize: filesPagination.pageSize,
@@ -365,10 +330,6 @@ export function ChooserComponent({
 
     // select-files-from-record mode: get files from record
     if (record) {
-      const filter = CosQuery.Companion.empty();
-      filter.setField(QueryFields.PATH, [BinaryOperator.EQ], [filesPagination.debouncedFilter]);
-      filter.setField("recursive", [BinaryOperator.EQ], ["true"]);
-
       return await consoleApi.listFiles({
         parent: record.name,
         pageSize: filesPagination.pageSize,
@@ -387,6 +348,7 @@ export function ChooserComponent({
     record,
     project,
     mode,
+    currentFolderPath,
   ]);
 
   // Sync data when list type or pagination changes
@@ -428,6 +390,7 @@ export function ChooserComponent({
     (selectedProject: Project) => {
       resetAllPagination();
       setProject(selectedProject);
+      setCurrentFolderPath([]); // 重置文件夹路径
 
       // In select-files-from-project mode, no need to select record after project selection
       if (mode === "select-files-from-project") {
@@ -441,6 +404,7 @@ export function ChooserComponent({
     (selectedRecord: Record) => {
       resetAllPagination();
       setRecord(selectedRecord);
+      setCurrentFolderPath([]); // 重置文件夹路径
     },
     [resetAllPagination],
   );
@@ -464,13 +428,20 @@ export function ChooserComponent({
   );
 
   const clearProject = useCallback(() => {
-    setProject(undefined);
+    // In select-record-from-target-project mode, don't clear the project
+    if (mode === "select-record-from-target-project") {
+      setProject(defaultProject);
+    } else {
+      setProject(undefined);
+    }
     setRecord(undefined);
+    setCurrentFolderPath([]); // 重置文件夹路径
     resetAllPagination();
-  }, [resetAllPagination]);
+  }, [resetAllPagination, mode, defaultProject]);
 
   const clearRecord = useCallback(() => {
     setRecord(undefined);
+    setCurrentFolderPath([]); // reset folder path
     resetAllPagination();
   }, [resetAllPagination]);
 
@@ -486,8 +457,10 @@ export function ChooserComponent({
         clearProject={clearProject}
         clearRecord={clearRecord}
         setRecordType={setRecordType}
+        currentFolderPath={currentFolderPath}
+        onNavigateToFolder={setCurrentFolderPath}
+        listType={listType}
       />
-
       {showSearchField && (
         <TextField
           variant="filled"
@@ -497,23 +470,24 @@ export function ChooserComponent({
           }}
           size="small"
           placeholder={t("search")}
-          InputProps={{
-            startAdornment: <SearchIcon fontSize="small" />,
-            endAdornment: currentPagination.filter && (
-              <IconButton
-                edge="end"
-                onClick={() => {
-                  currentPagination.setFilter("");
-                }}
-                size="small"
-              >
-                <ClearIcon fontSize="small" />
-              </IconButton>
-            ),
+          slotProps={{
+            input: {
+              startAdornment: <SearchIcon fontSize="small" />,
+              endAdornment: currentPagination.filter && (
+                <IconButton
+                  edge="end"
+                  onClick={() => {
+                    currentPagination.setFilter("");
+                  }}
+                  size="small"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              ),
+            },
           }}
         />
       )}
-
       <Stack flex={1} fullWidth overflow="hidden">
         <Stack fullHeight overflowY="scroll" overflow="hidden">
           {listType === "projects" && (
@@ -537,17 +511,19 @@ export function ChooserComponent({
               onCreated={(targetRecord: Record) => {
                 setTargetInfo({ record: targetRecord, project, isCreating: true });
               }}
-              defaultRecordName={defaultRecordName}
+              defaultRecordDisplayName={defaultRecordDisplayName}
               createRecordConfirmText={createRecordConfirmText}
             />
           )}
 
           {listType === "files" && (
-            <FilesList
-              files={filesList.value?.files.filter((file) => !file.name.endsWith("/")) ?? []}
+            <SelectFilesList
+              files={filesList.value?.files ?? []}
               selectedFiles={files}
               onFileToggle={handleFileToggle}
               checkFileSupportedFunc={checkFileSupportedFunc ?? checkBagFileSupported}
+              currentFolderPath={currentFolderPath}
+              onNavigateToFolder={setCurrentFolderPath}
             />
           )}
         </Stack>

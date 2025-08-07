@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -49,4 +49,11 @@ export const dataCollection: Partial<TypeOptions["resources"]["dataCollection"]>
   attemptedToPublishWithoutValidCoSceneWebSocketConnection:
     "尝试在没有有效的 coScene WebSocket 连接的情况下发布",
   triedToPublishOnTopicThatHasNotBeenAdvertisedBefore: "尝试在未被广告的主题 '{{topic}}' 上发布",
+  autoLinkedTask: "已自动关联到任务",
+  dataSaveLocation: "数据保存位置",
+  autoLinkToTask: "自动关联到任务",
+  clickTaskInPanel: "请在我的任务面板中点亮任务",
+  clearTaskLink: "清空任务关联",
+  taskLinkFailed: "任务关联失败",
+  recordLinkFailed: "记录关联失败",
 };

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -8,7 +8,6 @@
 import {
   Menu,
   MenuItem,
-  PaperProps,
   PopoverPosition,
   PopoverReference,
   Stack,
@@ -35,6 +34,7 @@ import {
   downloadLatestStudio,
   getCoStudioVersion,
   checkSupportCoStudioDownload,
+  openUserFeedback,
 } from "@foxglove/studio-base/util/download";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
@@ -70,7 +70,7 @@ export function UserMenu({
   const { classes } = useStyles();
   const currentUserType = useCurrentUserType();
   const analytics = useAnalytics();
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const { t } = useTranslation("cosAppBar");
   const [latestVersion, setLatestVersion] = useState("");
   const setUser = useCoSceneCurrentUser(selectSetUser);
@@ -144,11 +144,12 @@ export function UserMenu({
         open={open}
         onClose={handleClose}
         onClick={handleClose}
-        MenuListProps={{ className: classes.menuList, dense: true }}
+        data-tourid="user-menu"
         slotProps={{
-          paper: {
-            "data-tourid": "user-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>,
+          list: {
+            className: classes.menuList,
+            dense: true,
+          },
         }}
       >
         {loginStatus === "alreadyLogin" && (
@@ -181,6 +182,8 @@ export function UserMenu({
           </MenuItem>
         )}
 
+        <MenuItem onClick={openUserFeedback}>{t("userFeedback")}</MenuItem>
+
         {(isDesktop || loginStatus === "alreadyLogin") && (
           <MenuItem
             onClick={() => {
@@ -197,7 +200,6 @@ export function UserMenu({
           </MenuItem>
         )}
       </Menu>
-      {confirmModal}
     </>
   );
 }

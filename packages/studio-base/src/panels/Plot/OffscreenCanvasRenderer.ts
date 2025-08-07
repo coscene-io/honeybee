@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -24,6 +24,8 @@ const registry = new FinalizationRegistry<() => void>((dispose) => {
 export class OffscreenCanvasRenderer {
   #canvas: OffscreenCanvas;
   #remote: Promise<Comlink.RemoteObject<ChartRenderer>>;
+  #dispose?: () => void;
+  #destroyed = false;
 
   #theme: Theme;
 
@@ -47,6 +49,9 @@ export class OffscreenCanvasRenderer {
 
     const { remote, dispose } = ComlinkWrap<Service<Comlink.RemoteObject<ChartRenderer>>>(worker);
 
+    // Store dispose function for explicit cleanup
+    this.#dispose = dispose;
+
     // Set the promise without await so init creates only one instance of renderer even if called
     // twice.
     this.#remote = remote.init(
@@ -65,14 +70,39 @@ export class OffscreenCanvasRenderer {
   }
 
   public async update(action: Immutable<UpdateAction>): Promise<Bounds | undefined> {
+    if (this.#destroyed) {
+      return undefined;
+    }
     return await (await this.#remote).update(action);
   }
 
   public async getElementsAtPixel(pixel: { x: number; y: number }): Promise<HoverElement[]> {
+    if (this.#destroyed) {
+      return [];
+    }
     return await (await this.#remote).getElementsAtPixel(pixel);
   }
 
   public async updateDatasets(datasets: Dataset[]): Promise<Scale | undefined> {
+    if (this.#destroyed) {
+      return undefined;
+    }
     return await (await this.#remote).updateDatasets(datasets);
+  }
+
+  public destroy(): void {
+    if (this.#destroyed) {
+      return;
+    }
+
+    this.#destroyed = true;
+
+    // Immediately dispose of the worker to prevent further operations
+    this.#dispose?.();
+    this.#dispose = undefined;
+  }
+
+  public isDestroyed(): boolean {
+    return this.#destroyed;
   }
 }

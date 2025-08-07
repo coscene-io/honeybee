@@ -1,11 +1,11 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
@@ -17,7 +17,8 @@ export type ChooserMode =
   | "select-files-from-record" // Project → Record → Files (select)
   | "select-record" // Project → Record (select)
   | "create-record" // Project → Record (create)
-  | "select-files-from-project"; // Project → Files (cross-record selection)
+  | "select-files-from-project" // Project → Files (cross-record selection)
+  | "select-record-from-target-project"; // Record (select from default project only)
 
 export interface SelectedFile {
   file: File;
@@ -41,7 +42,8 @@ export interface BaseChooserProps {
   files: SelectedFile[];
   setFiles: (files: SelectedFile[]) => void;
   checkFileSupportedFunc?: (file: File) => boolean;
-  defaultRecordName?: string;
+  defaultRecordDisplayName?: string;
+  defaultProject?: Project;
   createRecordConfirmText?: string;
 }
 
@@ -55,9 +57,11 @@ interface BaseDialogProps {
 // Dialog properties - internal properties are optional, managed by dialog internally
 export type ChooserDialogProps = BaseDialogProps & {
   checkFileSupportedFunc?: (file: File) => boolean;
+  defaultProject?: Project;
+  dialogTitle?: string;
 } & (
     | {
-        mode: "select-record" | "create-record";
+        mode: "select-record" | "create-record" | "select-record-from-target-project";
         onConfirm: (record: Record, project: Project) => void;
         maxFilesNumber?: undefined;
       }
@@ -76,4 +80,8 @@ export interface CustomBreadcrumbsProps {
   clearRecord: () => void;
   mode: ChooserMode;
   setRecordType: (type: "create" | "select") => void;
+  // expand breadcrumb to support folder navigation
+  currentFolderPath?: readonly string[];
+  onNavigateToFolder?: (path: readonly string[]) => void;
+  listType: ListType;
 }
