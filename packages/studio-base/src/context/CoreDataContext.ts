@@ -28,11 +28,13 @@ export type ExternalInitConfig = {
   recordId?: string;
   // jobRunsId is avaliable when shadow mode
   jobRunsId?: string;
-  workflowRunId?: string;
+  workflowRunsId?: string;
   // deviceId is avaliable when realtime viz
   deviceId?: string;
   // taskId is avaliable when useing task as an entry point
   taskId?: string;
+  // if has targetFileName, set seek to the target file
+  targetFileName?: string;
 };
 
 export type DataSource = {
