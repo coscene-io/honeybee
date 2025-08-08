@@ -128,10 +128,13 @@ const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+
 const selectSetBagsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setBagsAtHoverValue;
 const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 
 export function PlaylistSyncAdapter(): ReactNull {
   const setBagFiles = usePlaylist(selectSetBagFiles);
@@ -144,11 +147,14 @@ export function PlaylistSyncAdapter(): ReactNull {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const currentTime = useMessagePipeline(selectCurrentTime);
+  const seek = useMessagePipeline(selectSeek);
+
   const [hoverComponentId] = useState<string>(() => uuidv4());
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
 
   const dataSource = useCoreData(selectDataSource);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
@@ -241,6 +247,15 @@ export function PlaylistSyncAdapter(): ReactNull {
 
         setBagFiles({ loading: false, value: recordBagFiles });
 
+        if (externalInitConfig?.targetFileName) {
+          const targetFile = recordBagFiles.find(
+            (ele) => ele.name === externalInitConfig.targetFileName,
+          );
+          if (targetFile?.startTime != undefined && seek) {
+            seek(targetFile.startTime);
+          }
+        }
+
         if (hasNoMediaFile && baseInfoKey) {
           consoleApi
             .getFilesStatus(baseInfoKey)
@@ -312,8 +327,10 @@ export function PlaylistSyncAdapter(): ReactNull {
     startTime,
     endTime,
     setBagFiles,
+    externalInitConfig?.targetFileName,
     baseInfoKey,
     timeMode,
+    seek,
     consoleApi,
     updateBagFiles,
   ]);
