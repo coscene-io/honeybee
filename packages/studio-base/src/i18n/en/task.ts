@@ -36,6 +36,11 @@ export const task = {
   linkedRecords: "Linked Records",
   linkedDevices: "Linked Devices",
   unlinkRecord: "Unlink",
+  unlinkRecordConfirm:
+    "Are you sure you want to unlink {{count}} record(s)? This action cannot be undone.",
+  unlinkDevice: "Unlink Device",
+  unlinkDeviceConfirm:
+    "Are you sure you want to unlink {{count}} device(s)? This action cannot be undone.",
   playRecord: "Play record",
   copyRecordId: "Copy record ID",
   copySuccess: "Copy success",
