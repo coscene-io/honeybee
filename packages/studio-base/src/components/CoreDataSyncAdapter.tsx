@@ -166,14 +166,14 @@ export function CoreDataSyncAdapter(): ReactNull {
       externalInitConfig.jobRunsId
     ) {
       setJobRun({ loading: true, value: undefined });
-      const jobRunName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/workflowRuns/${externalInitConfig.workflowRunId}/jobRuns/${externalInitConfig.jobRunsId}`;
+      const jobRunName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/workflowRuns/${externalInitConfig.workflowRunsId}/jobRuns/${externalInitConfig.jobRunsId}`;
       const targetJobRun = await consoleApi.getJobRun(jobRunName);
 
       setJobRun({ loading: false, value: targetJobRun });
     }
   }, [
     externalInitConfig?.jobRunsId,
-    externalInitConfig?.workflowRunId,
+    externalInitConfig?.workflowRunsId,
     externalInitConfig?.warehouseId,
     externalInitConfig?.projectId,
     setJobRun,
