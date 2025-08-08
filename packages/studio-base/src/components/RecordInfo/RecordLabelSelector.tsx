@@ -66,8 +66,12 @@ export default function RecordLabelSelector({
   return (
     <Stack fullWidth>
       <Autocomplete
-        onOpen={() => setOpen(true)}
-        onClose={() => setOpen(false)}
+        onOpen={() => {
+          setOpen(true);
+        }}
+        onClose={() => {
+          setOpen(false);
+        }}
         multiple
         size="small"
         options={options}
