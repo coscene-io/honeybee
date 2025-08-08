@@ -61,7 +61,7 @@ const useStyles = makeStyles<{ showPlaybackControls: boolean }>()(
     header: {
       display: "flex",
       justifyContent: "space-between",
-      alignItems: "center",
+      alignItems: "flex-start",
       marginBottom: theme.spacing(2),
       flexShrink: 0,
     },
@@ -224,7 +224,7 @@ export default function TaskDetailDrawer(): React.ReactElement {
     >
       <Box className={classes.content}>
         <Box className={classes.header}>
-          <Stack direction="row" alignItems="center" gap={1}>
+          <Stack direction="row" alignItems="flex-start" gap={1}>
             <Chip label={`#${viewingTask?.number}`} size="small" />
             <Typography variant="h6">{viewingTask?.title}</Typography>
           </Stack>

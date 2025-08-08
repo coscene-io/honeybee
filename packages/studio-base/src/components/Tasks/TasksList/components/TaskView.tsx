@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
-import { alpha, Stack, Select, MenuItem, Button } from "@mui/material";
+import { alpha, Stack, Select, MenuItem, Button, Tooltip } from "@mui/material";
 import { useRef } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -49,6 +49,14 @@ const useStyles = makeStyles<void, "taskSelected">()((theme, _params) => ({
     "&:has(button:hover), &:has(.MuiSelect-root:hover)": {
       backgroundColor: theme.palette.background.default,
     },
+  },
+  taskTitleClamp: {
+    display: "-webkit-box",
+    WebkitLineClamp: 3,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    wordBreak: "break-word",
   },
   taskSelected: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.activatedOpacity),
@@ -132,7 +140,9 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
           }}
           gap={1.5}
         >
-          <Stack>{task.title}</Stack>
+          <Tooltip title={task.title} placement="bottom-end" arrow>
+            <Stack className={classes.taskTitleClamp}>{task.title}</Stack>
+          </Tooltip>
           <Stack flexDirection="row" justifyContent="space-between" alignItems="center">
             <Select
               size="small"
