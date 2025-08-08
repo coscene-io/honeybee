@@ -62,7 +62,7 @@ const useStyles = makeStyles<{ showPlaybackControls: boolean }>()(
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: theme.spacing(2),
+      marginBottom: theme.spacing(0.5),
       flexShrink: 0,
     },
     tabs: {

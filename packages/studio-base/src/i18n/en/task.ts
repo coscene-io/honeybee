@@ -56,4 +56,7 @@ export const task = {
   allLoaded: "All loaded",
   taskFocused:
     "The record uploaded from the data collection panel will be automatically linked to task #{{number}}",
+  searchRecordName: "Search record name",
+  searchRecordLabel: "Search record label",
+  searchDeviceName: "Search device name",
 };

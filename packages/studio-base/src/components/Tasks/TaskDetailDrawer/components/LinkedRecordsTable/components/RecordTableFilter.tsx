@@ -41,10 +41,11 @@ interface FilterState {
 
 const useStyles = makeStyles()((theme) => ({
   container: {
-    padding: theme.spacing(2),
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1),
     backgroundColor: theme.palette.background.paper,
     borderRadius: theme.spacing(1),
-    marginBottom: theme.spacing(2),
+    marginBottom: theme.spacing(1),
   },
   filterBox: {
     flex: "1 1 200px",
@@ -79,7 +80,6 @@ export default function RecordTableFilter({
 }): React.ReactElement {
   const { classes } = useStyles();
   const { t } = useTranslation("task");
-  const { t: tGeneral } = useTranslation("cosGeneral");
   const consoleApi = useConsoleApi();
   const externalInitConfig = useCoreData(selectExternalInitConfig);
 
@@ -271,7 +271,7 @@ export default function RecordTableFilter({
 
   return (
     <Box className={classes.container}>
-      <Stack direction="row" gap={2} flexWrap="wrap">
+      <Stack direction="row" gap={1} flexWrap="wrap">
         {/* 搜索输入框 */}
         <Box className={classes.filterBox}>
           <FormControl fullWidth>
@@ -279,7 +279,7 @@ export default function RecordTableFilter({
               size="small"
               value={filterState.searchQuery}
               onChange={handleSearchChange}
-              placeholder={tGeneral("search")}
+              placeholder={t("searchRecordName")}
               slotProps={{
                 input: {
                   startAdornment: <SearchIcon fontSize="small" className={classes.searchIcon} />,
@@ -306,7 +306,7 @@ export default function RecordTableFilter({
               value={filterState.selectedLabels}
               options={labels.value ?? []}
               onChange={handleLabelsChange}
-              placeholder={t("labels")}
+              placeholder={t("searchRecordLabel")}
             />
           </FormControl>
         </Box>
