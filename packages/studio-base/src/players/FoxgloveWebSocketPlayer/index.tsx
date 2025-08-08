@@ -20,7 +20,14 @@ import { MessageDefinition, isMsgDefEqual } from "@foxglove/message-definition";
 import CommonRosTypes from "@foxglove/rosmsg-msgs-common";
 import { MessageWriter as Ros1MessageWriter } from "@foxglove/rosmsg-serialization";
 import { MessageWriter as Ros2MessageWriter } from "@foxglove/rosmsg2-serialization";
-import { fromMillis, fromNanoSec, isGreaterThan, isLessThan, Time } from "@foxglove/rostime";
+import {
+  fromMillis,
+  fromNanoSec,
+  isGreaterThan,
+  isLessThan,
+  Time,
+  toMillis,
+} from "@foxglove/rostime";
 import { ParameterValue } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
@@ -144,6 +151,15 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #resolvedSubscriptionsByTopic = new Map<string, SubscriptionId>();
   #resolvedSubscriptionsById = new Map<SubscriptionId, ResolvedChannel>();
   #channelsByTopic = new Map<string, ResolvedChannel>();
+
+  // Network status tracking
+  #networkStatus: {
+    networkDelay?: number;
+    curSpeed?: number;
+    droppedMsgs?: number;
+    packageLoss?: number;
+  } = {};
+  #timeOffset: number = 0;
   #channelsById = new Map<ChannelId, ResolvedChannel>();
   #unsupportedChannelIds = new Set<ChannelId>();
   #recentlyCanceledSubscriptions = new Set<SubscriptionId>();
@@ -295,6 +311,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
       this.#emitState();
 
+      // if message.userId is not undefined, is some one connecting to the same device
       if (message.userId) {
         void this.#confirm({
           title: t("cosWebsocket:note"),
@@ -770,6 +787,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
         }
         stats.numMessages++;
         this.#topicsStats = topicStats;
+
+        const messageHeaderTime = getTimestampForMessage(deserializedMessage);
+
+        this.#networkStatus = {
+          ...this.#networkStatus,
+          networkDelay: Date.now() - toMillis(messageHeaderTime ?? receiveTime) + this.#timeOffset,
+        };
       } catch (error) {
         this.#problems.addProblem(`message:${chanInfo.channel.topic}`, {
           severity: "error",
@@ -1015,6 +1039,26 @@ export default class FoxgloveWebSocketPlayer implements Player {
       responseCallback(response);
       this.#serviceResponseCbs.delete(response.requestId);
     });
+
+    this.#client.on("syncTime", ({ serverTime }) => {
+      this.#client?.clientSyncTime(serverTime, Date.now());
+    });
+
+    // delay of client to server
+    this.#client.on("timeOffset", ({ timeOffset }) => {
+      this.#timeOffset = timeOffset;
+    });
+
+    this.#client.on("networkStatistics", ({ droppedMsgs, packageLoss, curSpeed }) => {
+      this.#networkStatus = {
+        ...this.#networkStatus,
+        droppedMsgs,
+        packageLoss,
+        curSpeed,
+      };
+
+      this.#emitState();
+    });
   };
 
   #updateTopicsAndDatatypes() {
@@ -1076,6 +1120,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     const messages = this.#parsedMessages;
     this.#parsedMessages = [];
     this.#parsedMessagesBytes = 0;
+
     return this.#listener({
       name: this.#name,
       presence: this.#presence,
@@ -1103,6 +1148,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         publishedTopics: this.#publishedTopics,
         subscribedTopics: this.#subscribedTopics,
         services: this.#advertisedServices,
+        networkStatus: this.#networkStatus,
       },
     });
   });
@@ -1571,10 +1617,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
       throw new Error("FoxgloveWebSocketPlayer: client is undefined");
     }
 
-    this.#client.login(this.#userId, this.#username);
-
     // only desktop app can check lan reachable
     if (!isDesktopApp() || linkType !== "colink") {
+      this.#client.login(this.#userId, this.#username);
       return;
     }
 
@@ -1640,18 +1685,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
           if (result === "ok") {
             await this.#reconnectWithNewUrl(reachableResult.candidate);
+            return;
           }
-          return;
         }
       } catch (error) {
         log.debug("Error during concurrent address checking:", error);
       }
-
-      // 如果所有候选地址都无法连接或MAC地址不匹配，则使用原始连接
-      this.#client.login(this.#userId, this.#username);
-    } else {
-      this.#client.login(this.#userId, this.#username);
     }
+
+    // 如果所有候选地址都无法连接或MAC地址不匹配，则使用原始连接
+    this.#client.login(this.#userId, this.#username);
   }
 
   // 检查指定IP和端口的设备MAC地址

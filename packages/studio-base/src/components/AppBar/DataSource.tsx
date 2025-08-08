@@ -109,12 +109,20 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
   fluentIconPrimary: {
     color: theme.palette.primary.main,
   },
+  networkStatus: {
+    marginTop: theme.spacing(1),
+    paddingTop: theme.spacing(1),
+    borderTop: 1,
+    borderColor: "divider",
+  },
 }));
 
 const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlayerProblems = (ctx: MessagePipelineContext) => ctx.playerState.problems;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectNetworkStatus = (ctx: MessagePipelineContext) =>
+  ctx.playerState.activeData?.networkStatus;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const selectProject = (state: CoreDataStore) => state.project;
@@ -184,7 +192,19 @@ const RealTimeVizLinkState = () => {
   const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>(undefined);
   const urlState = useMessagePipeline(selectUrlState);
+  const networkStatus = useMessagePipeline(selectNetworkStatus);
   const { t } = useTranslation("appBar");
+
+  // 格式化网络速度
+  const formatSpeed = (speedKiBs: number): string => {
+    if (speedKiBs < 1) {
+      return `${(speedKiBs * 1024).toFixed(2)} B/s`;
+    } else if (speedKiBs < 1024) {
+      return `${speedKiBs.toFixed(2)} KiB/s`;
+    } else {
+      return `${(speedKiBs / 1024).toFixed(2)} MiB/s`;
+    }
+  };
 
   const linkType = urlState?.parameters?.linkType ?? "";
   const url = urlState?.parameters?.url ?? "";
@@ -211,6 +231,7 @@ const RealTimeVizLinkState = () => {
           <LinkMultipleFilled fontSize={20} />
         )}
       </AppBarIconButton>
+
       <Popover
         id="network-status-popover"
         open={open}
@@ -246,6 +267,46 @@ const RealTimeVizLinkState = () => {
               </>
             )}
           </Typography>
+
+          {networkStatus && (
+            <Box className={classes.networkStatus}>
+              <Typography variant="body2" fontWeight="medium" gutterBottom>
+                {t("networkStatus")}
+              </Typography>
+              {networkStatus.networkDelay != undefined && (
+                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                  <Stack direction="row" justifyContent="space-between">
+                    <span>{t("networkDelay")}:</span>
+                    <span>{networkStatus.networkDelay.toFixed(2)}ms</span>
+                  </Stack>
+                </Typography>
+              )}
+              {networkStatus.curSpeed != undefined && (
+                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                  <Stack direction="row" justifyContent="space-between">
+                    <span>{t("networkSpeed")}:</span>
+                    <span>{formatSpeed(networkStatus.curSpeed)}</span>
+                  </Stack>
+                </Typography>
+              )}
+              {networkStatus.droppedMsgs != undefined && (
+                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                  <Stack direction="row" justifyContent="space-between">
+                    <span>{t("droppedMessages")}:</span>
+                    <span>{networkStatus.droppedMsgs}</span>
+                  </Stack>
+                </Typography>
+              )}
+              {networkStatus.packageLoss != undefined && (
+                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                  <Stack direction="row" justifyContent="space-between">
+                    <span>{t("packetLoss")}:</span>
+                    <span>{(networkStatus.packageLoss * 100).toFixed(2)}%</span>
+                  </Stack>
+                </Typography>
+              )}
+            </Box>
+          )}
         </Paper>
       </Popover>
     </>

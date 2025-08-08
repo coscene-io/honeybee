@@ -74,4 +74,9 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   localNetworkConnection: "局域网连接",
   colinkRemoteConnection: "coLink 远程连接",
   openHomePage: "打开首页",
+  networkStatus: "网络状态",
+  networkDelay: "延迟",
+  networkSpeed: "速度",
+  droppedMessages: "丢弃消息",
+  packetLoss: "包丢失率",
 };
