@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
@@ -247,15 +247,6 @@ export function PlaylistSyncAdapter(): ReactNull {
 
         setBagFiles({ loading: false, value: recordBagFiles });
 
-        if (externalInitConfig?.targetFileName) {
-          const targetFile = recordBagFiles.find(
-            (ele) => ele.name === externalInitConfig.targetFileName,
-          );
-          if (targetFile?.startTime != undefined && seek) {
-            seek(targetFile.startTime);
-          }
-        }
-
         if (hasNoMediaFile && baseInfoKey) {
           consoleApi
             .getFilesStatus(baseInfoKey)
@@ -327,10 +318,8 @@ export function PlaylistSyncAdapter(): ReactNull {
     startTime,
     endTime,
     setBagFiles,
-    externalInitConfig?.targetFileName,
     baseInfoKey,
     timeMode,
-    seek,
     consoleApi,
     updateBagFiles,
   ]);
@@ -350,6 +339,24 @@ export function PlaylistSyncAdapter(): ReactNull {
       log.error(error);
     });
   }, [syncRecords]);
+
+  // Seek to target file once upon initial load (or when files become available)
+  const hasSoughtToTargetFileRef = useRef(false);
+
+  useEffect(() => {
+    if (hasSoughtToTargetFileRef.current) {
+      return;
+    }
+    const target = externalInitConfig?.targetFileName ?? "";
+
+    if (target !== "" && bagFiles.value && seek) {
+      const targetFile = bagFiles.value.find((ele) => ele.name === target);
+      if (targetFile?.startTime != undefined) {
+        seek(targetFile.startTime);
+        hasSoughtToTargetFileRef.current = true;
+      }
+    }
+  }, [bagFiles.value, externalInitConfig?.targetFileName, seek]);
 
   // Sync hovered value and hovered bagFiles.
   useEffect(() => {
