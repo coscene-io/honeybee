@@ -22,6 +22,7 @@ import {
   Link,
   IconButton,
   Tooltip,
+  alpha,
 } from "@mui/material";
 import {
   DataGrid,
@@ -100,6 +101,9 @@ const useStyles = makeStyles()((theme) => ({
       opacity: 1,
     },
     backgroundColor: theme.palette.background.paper,
+    "&:hover": {
+      backgroundColor: alpha(theme.palette.background.paper, 0.8),
+    },
   },
   deviceId: {
     position: "relative",

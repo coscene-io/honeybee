@@ -19,7 +19,7 @@ import type {
   CustomFieldValue,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import PlayCircleFilledWhiteOutlinedIcon from "@mui/icons-material/PlayCircleFilledWhiteOutlined";
-import { Typography, Box, Button, Link, IconButton, Tooltip } from "@mui/material";
+import { Typography, Box, Button, Link, IconButton, Tooltip, alpha } from "@mui/material";
 import {
   DataGrid,
   GridColDef,
@@ -94,6 +94,9 @@ const useStyles = makeStyles()((theme) => ({
       opacity: 1,
     },
     backgroundColor: theme.palette.background.paper,
+    "&:hover": {
+      backgroundColor: alpha(theme.palette.background.paper, 0.8),
+    },
   },
   deviceId: {
     position: "relative",
