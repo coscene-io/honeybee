@@ -217,6 +217,18 @@ export type PlayerStateActiveData = {
    * without a seek or backfill occurring.
    */
   messagesRecomputed?: boolean;
+
+  // Network status information for real-time connections
+  networkStatus?: {
+    /** Network delay between client and server */
+    networkDelay?: number;
+    /** Current network speed in KiB/s */
+    curSpeed?: number;
+    /** Number of dropped messages */
+    droppedMsgs?: number;
+    /** rate of package, caculated by bytes, not message count */
+    packageLoss?: number;
+  };
 };
 
 // Represents a ROS topic, though the actual data does not need to come from a ROS system.
