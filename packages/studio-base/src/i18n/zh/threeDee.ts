@@ -61,7 +61,7 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   ignoreColladaUpAxisHelp: "通过忽略 COLLADA 文件中的 <up_axis> 标记，匹配 rviz 的行为",
   labelScale: "标签比例",
   labelScaleHelp: "应用于所有标签的比例因子",
-  meshUpAxis: "网格上轴",
+  meshUpAxis: "mesh 模型的上轴",
   meshUpAxisHelp: '加载缺少方向信息的网格（STL 和 OBJ）时使用的"上"方向',
   renderStats: "渲染统计",
   scene: "场景",
