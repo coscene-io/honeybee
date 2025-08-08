@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
@@ -128,10 +128,13 @@ const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+
 const selectSetBagsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setBagsAtHoverValue;
 const selectHoverBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 
 export function PlaylistSyncAdapter(): ReactNull {
   const setBagFiles = usePlaylist(selectSetBagFiles);
@@ -144,11 +147,14 @@ export function PlaylistSyncAdapter(): ReactNull {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const currentTime = useMessagePipeline(selectCurrentTime);
+  const seek = useMessagePipeline(selectSeek);
+
   const [hoverComponentId] = useState<string>(() => uuidv4());
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const bagFiles = usePlaylist(selectBagFiles);
 
   const dataSource = useCoreData(selectDataSource);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
@@ -333,6 +339,24 @@ export function PlaylistSyncAdapter(): ReactNull {
       log.error(error);
     });
   }, [syncRecords]);
+
+  // Seek to target file once upon initial load (or when files become available)
+  const hasSoughtToTargetFileRef = useRef(false);
+
+  useEffect(() => {
+    if (hasSoughtToTargetFileRef.current) {
+      return;
+    }
+    const target = externalInitConfig?.targetFileName ?? "";
+
+    if (target !== "" && bagFiles.value && seek) {
+      const targetFile = bagFiles.value.find((ele) => ele.name === target);
+      if (targetFile?.startTime != undefined) {
+        seek(targetFile.startTime);
+        hasSoughtToTargetFileRef.current = true;
+      }
+    }
+  }, [bagFiles.value, externalInitConfig?.targetFileName, seek]);
 
   // Sync hovered value and hovered bagFiles.
   useEffect(() => {
