@@ -15,7 +15,17 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import CloseIcon from "@mui/icons-material/Close";
-import { Drawer, Typography, IconButton, Box, Stack, Chip, Tabs, Tab } from "@mui/material";
+import {
+  Drawer,
+  Typography,
+  IconButton,
+  Box,
+  Stack,
+  Chip,
+  Tabs,
+  Tab,
+  Tooltip,
+} from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
@@ -73,6 +83,13 @@ const useStyles = makeStyles<{ showPlaybackControls: boolean }>()(
       flex: 1,
       minHeight: 0,
       marginTop: theme.spacing(1),
+    },
+    taskTitleContainer: {
+      minWidth: 0,
+    },
+    taskTitle: {
+      minWidth: 0,
+      maxWidth: "100%",
     },
   }),
 );
@@ -224,9 +241,13 @@ export default function TaskDetailDrawer(): React.ReactElement {
     >
       <Box className={classes.content}>
         <Box className={classes.header}>
-          <Stack direction="row" alignItems="center" gap={1}>
+          <Stack direction="row" alignItems="center" gap={1} className={classes.taskTitleContainer}>
             <Chip label={`#${viewingTask?.number}`} size="small" />
-            <Typography variant="h6">{viewingTask?.title}</Typography>
+            <Tooltip title={viewingTask?.title} placement="bottom-start" arrow>
+              <Typography variant="h6" noWrap component="div" className={classes.taskTitle}>
+                {viewingTask?.title}
+              </Typography>
+            </Tooltip>
           </Stack>
           <IconButton onClick={handleClose}>
             <CloseIcon />
