@@ -16,6 +16,7 @@ import DevicesTable from "@foxglove/studio-base/components/Tasks/TaskDetailDrawe
 import LinkDevice from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedDevicesTable/components/LinkDevice";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 // 扩展Footer组件的props接口
 declare module "@mui/x-data-grid" {
@@ -59,19 +60,30 @@ export default function LinkedDevicesTable({
   const consoleApi = useConsoleApi();
   const project = useCoreData(selectProject);
   const { t } = useTranslation("task");
+  const confirm = useConfirm();
 
   const handleUnlinkDevice = useCallback(
     async (selectedRowIds: string[]) => {
-      await consoleApi.unlinkTasks({
-        project: project.value?.name,
-        unlinkTasks: selectedRowIds.map((id) => ({
-          task: taskName,
-          target: { value: id, case: "device" },
-        })),
+      const result = await confirm({
+        title: t("unlinkDevice"),
+        prompt: t("unlinkDeviceConfirm", { count: selectedRowIds.length }),
+        ok: t("unlinkDevice"),
+        cancel: t("cancel", { ns: "cosGeneral" }),
+        variant: "danger",
       });
-      await getLinkedDevices();
+
+      if (result === "ok") {
+        await consoleApi.unlinkTasks({
+          project: project.value?.name,
+          unlinkTasks: selectedRowIds.map((id) => ({
+            task: taskName,
+            target: { value: id, case: "device" },
+          })),
+        });
+        await getLinkedDevices();
+      }
     },
-    [consoleApi, project.value?.name, taskName, getLinkedDevices],
+    [consoleApi, project.value?.name, taskName, getLinkedDevices, confirm, t],
   );
 
   return (
