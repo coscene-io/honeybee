@@ -27,8 +27,11 @@ const useStyles = makeStyles()((theme) => ({
   dialogContent: {
     display: "flex",
     flexDirection: "column",
-    gap: theme.spacing(2),
-    padding: theme.spacing(2),
+    gap: theme.spacing(1),
+    paddingLeft: theme.spacing(2),
+    paddingRight: theme.spacing(2),
+    paddingBottom: theme.spacing(1),
+    paddingTop: theme.spacing(1),
     width: "100%",
   },
   tableContainer: {
