@@ -16,6 +16,7 @@ import RecordTable from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer
 import RecordTableFilter from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable/components/RecordTableFilter";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -54,19 +55,30 @@ export default function LinkedRecordsTable({
   const consoleApi = useConsoleApi();
   const project = useCoreData(selectProject);
   const { t } = useTranslation("task");
+  const confirm = useConfirm();
 
   const handleUnlinkRecord = useCallback(
     async (selectedRowIds: string[]) => {
-      await consoleApi.unlinkTasks({
-        project: project.value?.name,
-        unlinkTasks: selectedRowIds.map((id) => ({
-          task: taskName,
-          target: { value: id, case: "record" },
-        })),
+      const result = await confirm({
+        title: t("unlinkRecord"),
+        prompt: t("unlinkRecordConfirm", { count: selectedRowIds.length }),
+        ok: t("unlinkRecord"),
+        cancel: t("cancel", { ns: "cosGeneral" }),
+        variant: "danger",
       });
-      await getLinkedRecords();
+
+      if (result === "ok") {
+        await consoleApi.unlinkTasks({
+          project: project.value?.name,
+          unlinkTasks: selectedRowIds.map((id) => ({
+            task: taskName,
+            target: { value: id, case: "record" },
+          })),
+        });
+        await getLinkedRecords();
+      }
     },
-    [consoleApi, project.value?.name, taskName, getLinkedRecords],
+    [consoleApi, project.value?.name, taskName, getLinkedRecords, confirm, t],
   );
 
   return (
