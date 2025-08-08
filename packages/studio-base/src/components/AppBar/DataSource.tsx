@@ -127,6 +127,7 @@ const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState
 
 const selectProject = (state: CoreDataStore) => state.project;
 const selectRecord = (state: CoreDataStore) => state.record;
+const selectDevice = (state: CoreDataStore) => state.device;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
 const selectEnableList = (state: CoreDataStore) => state.getEnableList();
 const selectOrganization = (state: CoreDataStore) => state.organization;
@@ -322,8 +323,18 @@ const RealTimeVizDataSource = () => {
   const urlState = useMessagePipeline(selectUrlState);
   const playerName = useMessagePipeline(selectPlayerName);
 
+  const project = useCoreData(selectProject);
+  const projectSlug = useMemo(() => project.value?.slug, [project]);
+  const organization = useCoreData(selectOrganization);
+  const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
+  const device = useCoreData(selectDevice);
+  const deviceId = useMemo(() => device.value?.name.split("/").pop(), [device]);
+
   const hostName = urlState?.parameters?.hostName;
-  const deviceLink = urlState?.parameters?.deviceLink ?? "";
+
+  const deviceLink =
+    urlState?.parameters?.deviceLink ??
+    `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
 
   const initializing = playerPresence === PlayerPresence.INITIALIZING;
 
