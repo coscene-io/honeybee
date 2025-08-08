@@ -30,7 +30,12 @@ import { Config, PanelState } from "./types";
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+
+const selectOrganization = (state: CoreDataStore) => state.organization;
+const selectProject = (state: CoreDataStore) => state.project;
+const selectDevice = (state: CoreDataStore) => state.device;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
+
 const selectFocusedTask = (store: TaskStore) => store.focusedTask;
 
 function initPanel(
@@ -70,7 +75,16 @@ function DataCollectionPanelAdapter(props: Props) {
   const dataSource = useCoreData(selectDataSource);
   const focusedTask = useTasks(selectFocusedTask);
 
-  const deviceLink = urlState?.parameters?.deviceLink ?? "";
+  const project = useCoreData(selectProject);
+  const projectSlug = useMemo(() => project.value?.slug, [project]);
+  const organization = useCoreData(selectOrganization);
+  const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
+  const device = useCoreData(selectDevice);
+  const deviceId = useMemo(() => device.value?.name.split("/").pop(), [device]);
+
+  const deviceLink =
+    urlState?.parameters?.deviceLink ??
+    `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
 
   const panelState: PanelState = useMemo(() => {
     if (dataSource?.id !== "coscene-websocket") {
