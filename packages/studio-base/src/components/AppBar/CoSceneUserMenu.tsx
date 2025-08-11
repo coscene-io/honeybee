@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
+  Chip,
   Menu,
   MenuItem,
   PopoverPosition,
@@ -58,6 +59,19 @@ const selectUser = (store: UserStore) => store.user;
 const selectSetUser = (store: UserStore) => store.setUser;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectSetLoginStatus = (store: UserStore) => store.setLoginStatus;
+
+function CoStudioEnvBadge() {
+  const projectEnv = APP_CONFIG.VITE_APP_PROJECT_ENV;
+
+  switch (projectEnv) {
+    case "aws":
+      return <Chip label="portal" size="small" />;
+    case "gcp":
+      return <Chip label="io" size="small" />;
+  }
+
+  return ReactNull;
+}
 
 export function UserMenu({
   anchorEl,
@@ -178,6 +192,7 @@ export function UserMenu({
               <Typography variant="caption" color="text.secondary">
                 {latestVersion ? `v${latestVersion}` : "latest"}
               </Typography>
+              <CoStudioEnvBadge />
             </Stack>
           </MenuItem>
         )}
