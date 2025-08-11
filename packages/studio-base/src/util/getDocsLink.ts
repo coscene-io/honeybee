@@ -13,7 +13,7 @@ export function getDocsLink(path?: string): string {
 
   const env = APP_CONFIG.VITE_APP_PROJECT_ENV;
 
-  const langPrefix = env === "aws" || lang === "zh" ? "" : lang;
+  const langPrefix = env === "aws" || env === "gcp" || lang === "zh" ? "" : lang;
 
   if (!path) {
     return `${APP_CONFIG.DOC_BASE_URL}/${langPrefix}`;

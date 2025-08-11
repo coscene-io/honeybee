@@ -114,7 +114,7 @@ export function checkSupportCoStudioDownload(): boolean {
 
 export function openUserFeedback(): void {
   const url =
-    APP_CONFIG.VITE_APP_PROJECT_ENV === "aws"
+    APP_CONFIG.VITE_APP_PROJECT_ENV === "aws" || APP_CONFIG.VITE_APP_PROJECT_ENV === "gcp"
       ? "https://form.typeform.com/to/mEjmjcNJ"
       : i18next.language === "zh"
       ? "https://coscene0.feishu.cn/share/base/form/shrcnlWpp89ToqBDtXhwa8dCrgh"
