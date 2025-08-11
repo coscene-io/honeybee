@@ -48,8 +48,9 @@ const useStyles = makeStyles()((theme) => ({
     marginBottom: theme.spacing(1),
   },
   filterBox: {
-    flex: "1 1 200px",
+    flex: "0 0 auto",
     minWidth: "200px",
+    maxWidth: "300px",
   },
   searchIcon: {
     marginRight: theme.spacing(1),
@@ -68,6 +69,9 @@ const useStyles = makeStyles()((theme) => ({
   },
   clearAllText: {
     marginLeft: theme.spacing(0.5),
+  },
+  formControl: {
+    width: "250px",
   },
 }));
 
@@ -274,7 +278,7 @@ export default function RecordTableFilter({
       <Stack direction="row" gap={1} flexWrap="wrap">
         {/* 搜索输入框 */}
         <Box className={classes.filterBox}>
-          <FormControl fullWidth>
+          <FormControl className={classes.formControl}>
             <TextField
               size="small"
               value={filterState.searchQuery}
@@ -301,7 +305,7 @@ export default function RecordTableFilter({
 
         {/* 标签选择器 */}
         <Box className={classes.filterBox}>
-          <FormControl fullWidth>
+          <FormControl className={classes.formControl}>
             <RecordLabelSelector
               value={filterState.selectedLabels}
               options={labels.value ?? []}
@@ -313,7 +317,7 @@ export default function RecordTableFilter({
 
         {/* 设备选择器 */}
         <Box className={classes.filterBox}>
-          <FormControl fullWidth>
+          <FormControl className={classes.formControl}>
             <Select
               multiple
               size="small"
