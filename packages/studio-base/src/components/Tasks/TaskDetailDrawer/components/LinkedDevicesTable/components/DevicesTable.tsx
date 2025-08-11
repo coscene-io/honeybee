@@ -95,7 +95,7 @@ const useStyles = makeStyles()((theme) => ({
     },
     backgroundColor: theme.palette.background.paper,
     "&:hover": {
-      backgroundColor: alpha(theme.palette.background.paper, 0.8),
+      backgroundColor: alpha(theme.palette.grey[400], 0.8),
     },
   },
   deviceId: {
