@@ -41,14 +41,15 @@ interface FilterState {
 
 const useStyles = makeStyles()((theme) => ({
   container: {
-    padding: theme.spacing(2),
+    padding: theme.spacing(0.5, 0),
     backgroundColor: theme.palette.background.paper,
     borderRadius: theme.spacing(1),
-    marginBottom: theme.spacing(2),
+    marginBottom: theme.spacing(1),
   },
   filterBox: {
-    flex: "1 1 200px",
+    flex: "0 0 auto",
     minWidth: "200px",
+    maxWidth: "300px",
   },
   searchIcon: {
     marginRight: theme.spacing(1),
@@ -68,6 +69,9 @@ const useStyles = makeStyles()((theme) => ({
   clearAllText: {
     marginLeft: theme.spacing(0.5),
   },
+  formControl: {
+    width: "250px",
+  },
 }));
 
 export default function RecordTableFilter({
@@ -79,7 +83,6 @@ export default function RecordTableFilter({
 }): React.ReactElement {
   const { classes } = useStyles();
   const { t } = useTranslation("task");
-  const { t: tGeneral } = useTranslation("cosGeneral");
   const consoleApi = useConsoleApi();
   const externalInitConfig = useCoreData(selectExternalInitConfig);
 
@@ -271,15 +274,15 @@ export default function RecordTableFilter({
 
   return (
     <Box className={classes.container}>
-      <Stack direction="row" gap={2} flexWrap="wrap">
+      <Stack direction="row" gap={1} flexWrap="wrap">
         {/* 搜索输入框 */}
         <Box className={classes.filterBox}>
-          <FormControl fullWidth>
+          <FormControl className={classes.formControl}>
             <TextField
               size="small"
               value={filterState.searchQuery}
               onChange={handleSearchChange}
-              placeholder={tGeneral("search")}
+              placeholder={t("searchRecordName")}
               slotProps={{
                 input: {
                   startAdornment: <SearchIcon fontSize="small" className={classes.searchIcon} />,
@@ -301,19 +304,19 @@ export default function RecordTableFilter({
 
         {/* 标签选择器 */}
         <Box className={classes.filterBox}>
-          <FormControl fullWidth>
+          <FormControl className={classes.formControl}>
             <RecordLabelSelector
               value={filterState.selectedLabels}
               options={labels.value ?? []}
               onChange={handleLabelsChange}
-              placeholder={t("labels")}
+              placeholder={t("searchRecordLabel")}
             />
           </FormControl>
         </Box>
 
         {/* 设备选择器 */}
         <Box className={classes.filterBox}>
-          <FormControl fullWidth>
+          <FormControl className={classes.formControl}>
             <Select
               multiple
               size="small"

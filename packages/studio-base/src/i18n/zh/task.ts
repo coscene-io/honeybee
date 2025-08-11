@@ -55,4 +55,7 @@ export const task: Partial<TypeOptions["resources"]["task"]> = {
   assignee: "经办人",
   allLoaded: "已经加载全部",
   taskFocused: "数据采集面板上传的记录将自动关联到任务 #{{number}}",
+  searchRecordName: "搜索记录名称",
+  searchRecordLabel: "搜索记录标签",
+  searchDeviceName: "搜索设备名称",
 };
