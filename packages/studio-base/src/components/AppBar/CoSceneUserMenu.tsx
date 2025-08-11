@@ -69,6 +69,8 @@ function CoStudioEnvBadge() {
     case "gcp":
       return <Chip label="io" size="small" color="primary" />;
   }
+
+  return ReactNull;
 }
 
 export function UserMenu({
