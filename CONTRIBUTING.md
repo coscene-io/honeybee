@@ -1,10 +1,10 @@
-# Contributing to Foxglove Studio
+# Contributing to Honeybee
 
 **Supported development environments:** Linux, Windows, macOS
 
 **Dependencies:**
 
-- [Node.js](https://nodejs.org/en/) v16.10+
+- [Node.js](https://nodejs.org/en/) v20.0.0+
 - [Git LFS](https://git-lfs.github.com/)
 
 ## Getting started
@@ -18,9 +18,6 @@
 ```sh
 # To launch the app:
 $ yarn web:serve
-
-# To launch the storybook:
-$ yarn storybook
 ```
 
 ### Other useful commands
@@ -34,7 +31,7 @@ $ yarn test:watch   # run tests on changed files
 
 ## Localization
 
-At this time, first-class support for Foxglove Studio is provided in English only. Localization into other languages is available on a best-effort basis, with translations provided by community volunteers. Current community supported-languages are:
+At this time, first-class support for Honeybee is provided in English only. Localization into other languages is available on a best-effort basis, with translations provided by community volunteers. Current community supported-languages are:
 
 - Chinese
 - Japanese
@@ -48,7 +45,7 @@ Translation support is implemented using [`react-i18next`](https://react.i18next
 
 ### Add translations to the `i18n` directory
 
-The [`i18n` directory](packages/studio-base/src/i18n) contains translated (localized) strings for all languages supported by Foxglove Studio.
+The [`i18n` directory](packages/studio-base/src/i18n) contains translated (localized) strings for all languages supported by Honeybee.
 
 Translated strings are organized into _namespaces_ — e.g. [`i18n/[language]/appSettings.ts`](packages/studio-base/src/i18n/en/appSettings.ts) contains translations for the app's Settings tab.
 
