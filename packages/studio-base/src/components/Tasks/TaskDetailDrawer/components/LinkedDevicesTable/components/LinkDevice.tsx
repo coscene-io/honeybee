@@ -38,6 +38,7 @@ const useStyles = makeStyles()((theme) => ({
   tableContainer: {
     flex: 1,
     minHeight: "400px",
+    marginTop: theme.spacing(-1),
   },
 }));
 

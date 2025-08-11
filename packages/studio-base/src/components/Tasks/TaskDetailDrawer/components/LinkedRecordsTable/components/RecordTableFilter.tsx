@@ -41,8 +41,7 @@ interface FilterState {
 
 const useStyles = makeStyles()((theme) => ({
   container: {
-    paddingTop: theme.spacing(1),
-    paddingBottom: theme.spacing(1),
+    padding: theme.spacing(0.5, 0),
     backgroundColor: theme.palette.background.paper,
     borderRadius: theme.spacing(1),
     marginBottom: theme.spacing(1),
