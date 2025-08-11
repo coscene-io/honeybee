@@ -18,10 +18,10 @@ import { QueryFields } from "@foxglove/studio-base/util/queries";
 
 const useStyles = makeStyles()((theme) => ({
   container: {
-    padding: theme.spacing(2),
+    padding: theme.spacing(0.5, 0),
     backgroundColor: theme.palette.background.paper,
     borderRadius: theme.spacing(1),
-    marginBottom: theme.spacing(2),
+    marginBottom: theme.spacing(1),
   },
   searchIcon: {
     marginRight: theme.spacing(1),
@@ -29,6 +29,9 @@ const useStyles = makeStyles()((theme) => ({
   },
   clearButton: {
     marginRight: theme.spacing(-0.5),
+  },
+  formControl: {
+    minWidth: "30%",
   },
 }));
 
@@ -40,7 +43,7 @@ export default function DeviceTableFilter({
   setFilter: (filter: string) => void;
 }): React.ReactElement {
   const { classes } = useStyles();
-  const { t } = useTranslation("cosGeneral");
+  const { t } = useTranslation("task");
 
   // 内部维护的搜索查询状态
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -109,12 +112,12 @@ export default function DeviceTableFilter({
 
   return (
     <Box className={classes.container}>
-      <FormControl fullWidth>
+      <FormControl className={classes.formControl}>
         <TextField
           size="small"
           value={searchQuery}
           onChange={handleSearchChange}
-          placeholder={t("search")}
+          placeholder={t("searchDeviceName")}
           slotProps={{
             input: {
               startAdornment: <SearchIcon fontSize="small" className={classes.searchIcon} />,

@@ -84,13 +84,12 @@ export function TasksList(): React.JSX.Element {
     <Stack className={classes.root} overflow="auto" paddingX={2}>
       <Stack
         style={{
-          minHeight: 50,
           position: "sticky",
           top: 0,
           padding: "8px 0",
         }}
         flexDirection="row"
-        gap={2}
+        gap={1}
         alignItems="center"
       >
         <Select
