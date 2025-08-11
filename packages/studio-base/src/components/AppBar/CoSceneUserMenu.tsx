@@ -65,12 +65,10 @@ function CoStudioEnvBadge() {
 
   switch (projectEnv) {
     case "aws":
-      return <Chip label="portal" size="small" />;
+      return <Chip label="portal" size="small" color="primary" />;
     case "gcp":
-      return <Chip label="io" size="small" />;
+      return <Chip label="io" size="small" color="primary" />;
   }
-
-  return ReactNull;
 }
 
 export function UserMenu({
@@ -186,7 +184,7 @@ export function UserMenu({
               justifyContent="space-between"
               alignItems="center"
               width="100%"
-              gap={1}
+              gap={0.5}
             >
               <span>{t("downloadLatestStudio")}</span>
               <Typography variant="caption" color="text.secondary">
