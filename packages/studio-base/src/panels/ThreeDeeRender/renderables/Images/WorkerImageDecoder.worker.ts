@@ -41,6 +41,7 @@ function convertToBinaryArray(uint8Array: Uint8Array) {
   }, []);
 }
 
+// TODO: need check H264 nalu type (AUD)
 function isKeyFrame(frame: Uint8Array): "key" | "delta" | "b frame" | "unknow frame" {
   if (frame.length < 5) {
     return "unknow frame"; // 帧太短，无法判断
