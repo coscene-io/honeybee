@@ -195,20 +195,23 @@ function parseNalUnit(
     log.debug(`Found SEI/Filler (type ${nalType}), looking for next NAL unit...`);
     return undefined;
   } else if (nalType === 1 || nalType === 2 || nalType === 3 || nalType === 4) {
-    // Non-IDR coded slices, need to parse slice header to determine specific type
+    // Non-IDR coded slices - these are never true key frames even if they contain I slices
+    // Only IDR frames (NAL type 5) are true random access points for decoder initialization
     const sliceType = parseSliceType(frame.subarray(nalStart));
 
     if (sliceType == undefined) {
       return "unknown frame";
     }
 
-    // Determine slice type
+    // Determine slice type - but note that non-IDR slices are never "key" frames
     switch (sliceType) {
       case H264SliceType.I:
       case H264SliceType.I_IDR:
       case H264SliceType.SI:
       case H264SliceType.SI_IDR:
-        return "key"; // I and SI frames are key frames
+        // Non-IDR I and SI slices can still depend on previous frames
+        // They should not be used as decoder initialization points
+        return "delta";
 
       case H264SliceType.B:
       case H264SliceType.B_IDR:
