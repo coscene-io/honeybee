@@ -28,109 +28,249 @@ function decode(image: RosImage | RawImage, options: Partial<RawImageOptions>): 
   return Comlink.transfer(result, [result.data.buffer]);
 }
 
-function convertToBinaryArray(uint8Array: Uint8Array) {
-  return uint8Array.reduce((acc: number[], num) => {
-    // 将每个数字转换为8位二进制字符串
-    const binaryString = num.toString(2).padStart(8, "0");
+// H.264 NALU type constants (for documentation)
+// 0: Unspecified, 1: Non-IDR coded slice, 2-4: Data partition slices, 5: IDR coded slice
+// 6: SEI, 7: SPS, 8: PPS, 9: AUD, 10: End of sequence, 11: End of stream, 12: Filler data
 
-    // 将二进制字符串分割成单个位，并转换为数字
-    const binaryDigits = binaryString.split("").map(Number);
-
-    // 将转换后的二进制数字添加到结果数组中
-    return acc.concat(binaryDigits);
-  }, []);
+// H.264 Slice type enumeration
+enum H264SliceType {
+  P = 0, // P slice
+  B = 1, // B slice
+  I = 2, // I slice
+  SP = 3, // SP slice
+  SI = 4, // SI slice
+  P_IDR = 5, // P slice (IDR)
+  B_IDR = 6, // B slice (IDR)
+  I_IDR = 7, // I slice (IDR)
+  SP_IDR = 8, // SP slice (IDR)
+  SI_IDR = 9, // SI slice (IDR)
 }
 
-// TODO: need check H264 nalu type (AUD)
-function isKeyFrame(frame: Uint8Array): "key" | "delta" | "b frame" | "unknow frame" {
-  if (frame.length < 5) {
-    return "unknow frame"; // 帧太短，无法判断
+/**
+ * Parse unsigned integer in UE(v) format (Exponential Golomb encoding)
+ * @param data Data buffer
+ * @param bitOffset Bit offset
+ * @returns {value: number, bitsRead: number}
+ */
+function parseUEV(data: Uint8Array, bitOffset: number): { value: number; bitsRead: number } {
+  let leadingZeros = 0;
+  let currentBit = bitOffset;
+
+  // Count the number of leading zeros
+  while (currentBit < data.length * 8) {
+    const byteIndex = Math.floor(currentBit / 8);
+    const bitIndex = 7 - (currentBit % 8);
+    const bit = (data[byteIndex]! >> bitIndex) & 1;
+
+    if (bit === 1) {
+      break;
+    }
+    leadingZeros++;
+    currentBit++;
   }
 
-  // 查找 NAL 单元的起始位置
-  let nalStart: number = 0;
-  if (frame[0] === 0 && frame[1] === 0 && frame[2] === 0 && frame[3] === 1) {
-    nalStart = 4; // 4 字节起始码
-  } else if (frame[0] === 0 && frame[1] === 0 && frame[2] === 1) {
-    nalStart = 3; // 3 字节起始码
+  if (currentBit >= data.length * 8) {
+    return { value: 0, bitsRead: currentBit - bitOffset };
   }
 
+  // Skip the identifier bit 1
+  currentBit++;
+
+  // Read data bits
+  let value = 0;
+  for (let i = 0; i < leadingZeros; i++) {
+    if (currentBit >= data.length * 8) {
+      break;
+    }
+
+    const byteIndex = Math.floor(currentBit / 8);
+    const bitIndex = 7 - (currentBit % 8);
+    const bit = (data[byteIndex]! >> bitIndex) & 1;
+
+    value = (value << 1) | bit;
+    currentBit++;
+  }
+
+  return {
+    value: (1 << leadingZeros) - 1 + value,
+    bitsRead: currentBit - bitOffset,
+  };
+}
+
+/**
+ * Parse slice type from H.264 slice header
+ * @param data NAL unit data (excluding start code)
+ * @returns Slice type or undefined (if parsing failed)
+ */
+function parseSliceType(data: Uint8Array): H264SliceType | undefined {
+  if (data.length < 2) {
+    return undefined;
+  }
+
+  // Skip NAL header (1 byte)
+  let bitOffset = 8;
+
+  try {
+    // Parse first_mb_in_slice (UE(v))
+    const firstMb = parseUEV(data, bitOffset);
+    bitOffset += firstMb.bitsRead;
+
+    // Parse slice_type (UE(v))
+    const sliceTypeResult = parseUEV(data, bitOffset);
+    const sliceType = sliceTypeResult.value;
+
+    // slice_type value might be greater than 9, need to take modulo
+    const normalizedSliceType = sliceType % 5;
+
+    // Map slice_type to corresponding enum value
+    switch (normalizedSliceType) {
+      case 0:
+        return sliceType >= 5 ? H264SliceType.P_IDR : H264SliceType.P;
+      case 1:
+        return sliceType >= 5 ? H264SliceType.B_IDR : H264SliceType.B;
+      case 2:
+        return sliceType >= 5 ? H264SliceType.I_IDR : H264SliceType.I;
+      case 3:
+        return sliceType >= 5 ? H264SliceType.SP_IDR : H264SliceType.SP;
+      case 4:
+        return sliceType >= 5 ? H264SliceType.SI_IDR : H264SliceType.SI;
+      default:
+        return undefined;
+    }
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Find the start position of the next NAL unit
+ * @param data Data buffer
+ * @param startPos Position to start searching from
+ * @returns Start position of next NAL unit, returns -1 if not found
+ */
+function findNextNalStart(data: Uint8Array, startPos: number): number {
+  for (let i = startPos; i <= data.length - 4; i++) {
+    if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0 && data[i + 3] === 1) {
+      return i + 4; // 4-byte start code
+    }
+    if (i <= data.length - 3 && data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 1) {
+      return i + 3; // 3-byte start code
+    }
+  }
+  return -1;
+}
+
+/**
+ * Parse the type of a single NAL unit
+ * @param frame Complete frame data
+ * @param nalStart NAL unit start position
+ * @returns Frame type or undefined (if need to check next NAL unit)
+ */
+function parseNalUnit(
+  frame: Uint8Array,
+  nalStart: number,
+): "key" | "delta" | "b frame" | "unknown frame" | undefined {
   if (nalStart >= frame.length) {
-    return "unknow frame"; // NAL 单元起始位置无效
+    return "unknown frame";
   }
 
-  // 获取 NAL 单元类型
+  // Get NAL unit type (lower 5 bits)
   const nalType = frame[nalStart]! & 0x1f;
 
-  // IDR 帧 (type 5) 始终是关键帧
-  // SPS (type 7) 和 PPS (type 8) 也被视为关键帧，因为它们对解码至关重要
-  if (nalType === 5 || nalType === 7 || nalType === 8) {
+  log.debug(`NAL Type: ${nalType} at position: ${nalStart}`);
+
+  // Determine based on NAL unit type
+  if (nalType === 5) {
+    // IDR frames are always key frames
     return "key";
+  } else if (nalType === 7 || nalType === 8) {
+    // SPS and PPS are crucial for decoding, treated as key frames
+    return "key";
+  } else if (nalType === 9) {
+    // Access Unit Delimiter, need to check subsequent NAL units
+    log.debug("Found AUD (Access Unit Delimiter), looking for next NAL unit...");
+    return undefined; // Return undefined to indicate need to check next NAL unit
+  } else if (nalType === 6 || nalType === 12) {
+    // SEI and filler data are not image data, need to check subsequent NAL units
+    log.debug(`Found SEI/Filler (type ${nalType}), looking for next NAL unit...`);
+    return undefined;
+  } else if (nalType === 1 || nalType === 2 || nalType === 3 || nalType === 4) {
+    // Non-IDR coded slices, need to parse slice header to determine specific type
+    const sliceType = parseSliceType(frame.subarray(nalStart));
+
+    if (sliceType == undefined) {
+      return "unknown frame";
+    }
+
+    // Determine slice type
+    switch (sliceType) {
+      case H264SliceType.I:
+      case H264SliceType.I_IDR:
+      case H264SliceType.SI:
+      case H264SliceType.SI_IDR:
+        return "key"; // I and SI frames are key frames
+
+      case H264SliceType.B:
+      case H264SliceType.B_IDR:
+        return "b frame"; // B frames
+
+      case H264SliceType.P:
+      case H264SliceType.P_IDR:
+      case H264SliceType.SP:
+      case H264SliceType.SP_IDR:
+        return "delta"; // P and SP frames are predictive frames
+
+      default:
+        return "unknown frame";
+    }
+  } else if (nalType === 10 || nalType === 11) {
+    // End of sequence and end of stream markers
+    return "unknown frame";
+  } else {
+    // Unknown or reserved NAL unit type, continue to check next one
+    log.debug(`Unknown NAL type: ${nalType}, looking for next NAL unit...`);
+    return undefined;
+  }
+}
+
+/**
+ * Determine H.264 frame type
+ * @param frame Complete H.264 frame data
+ * @returns Frame type: "key"(key frame), "delta"(non-key frame), "b frame"(B frame), "unknown frame"(unknown)
+ */
+function isKeyFrame(frame: Uint8Array): "key" | "delta" | "b frame" | "unknown frame" {
+  if (frame.length < 5) {
+    return "unknown frame"; // Frame too short to determine
   }
 
-  // 00 00 01 65 01 92 22
-  // 0110 0101 0000 0001 1001 0010 0010 0010
-  // forbidden_zero_bit:
-  // 0
-  // nal_ref_idc:
-  // 11
-  // nal_unit_type:
-  // 00101
-  // first_mb_in_slice:
-  // 0000 000 1 1001 001 -> 2^7 -1 + 73 = 200
-  // slice_type:
-  // 0 0010 00 -> 2^3 -1 + 0 = 7
-  // first_mb_in_slice start
+  let nalStart = 0;
 
-  // 跳过 forbidden_zero_bit 和 nal_ref_idc 以及 nal_unit_type 正好是八位二进制 跳过第一个 数字
-  const first_mb_in_slice = nalStart + 1;
-
-  if (
-    frame[first_mb_in_slice] == undefined ||
-    frame[first_mb_in_slice + 1] == undefined ||
-    frame[first_mb_in_slice + 2] == undefined
-  ) {
-    return "unknow frame";
+  // Find the first NAL unit start code
+  if (frame[0] === 0 && frame[1] === 0 && frame[2] === 0 && frame[3] === 1) {
+    nalStart = 4; // 4-byte start code 0x00000001
+  } else if (frame[0] === 0 && frame[1] === 0 && frame[2] === 1) {
+    nalStart = 3; // 3-byte start code 0x000001
+  } else {
+    // May not have start code, start from beginning
+    nalStart = 0;
   }
 
-  //将 first_mb_in_slice 后面三位数转换为 2 进制数组
-  const binaryArray = convertToBinaryArray(
-    frame.subarray(first_mb_in_slice, first_mb_in_slice + 3),
-  );
+  // Traverse all NAL units
+  while (nalStart >= 0 && nalStart < frame.length) {
+    const result = parseNalUnit(frame, nalStart);
 
-  // 找到第一个 1
-  const firstMbOneIndex = binaryArray.findIndex((value) => value === 1);
+    if (result != undefined) {
+      // Found definitive frame type
+      return result;
+    }
 
-  // 1 前面有多少位也跳过 1 后面多少位，找到 slice_type 的起始位
-  const sliceTypeArray = binaryArray.slice(firstMbOneIndex * 2 + 1);
-
-  const firstSliceTypeOneIndex = sliceTypeArray.findIndex((value) => value === 1);
-
-  // 2 ^ firstSliceTypeOneIndex - 1 + (1前有多少位就向后计算多少位的十进制)
-  const sliceType =
-    2 ** firstSliceTypeOneIndex -
-    1 +
-    parseInt(
-      sliceTypeArray.slice(firstSliceTypeOneIndex + 1, 2 * firstSliceTypeOneIndex + 1).join(""),
-      2,
-    );
-
-  // 0: P slice
-  // 1: B slice
-  // 2: I slice
-  // 3: SP slice
-  // 4: SI slice
-  // 5: P slice (IDR)
-  // 6: B slice (IDR)
-  // 7: I slice (IDR)
-  // 8: SP slice (IDR)
-  // 9: SI slice (IDR)
-  // 不支持 b frame
-  if (sliceType === 1 || sliceType === 6) {
-    return "b frame";
+    // Need to check next NAL unit
+    nalStart = findNextNalStart(frame, nalStart + 1);
+    log.debug(`Next NAL start at: ${nalStart}`);
   }
 
-  return "delta";
+  // Traversed all NAL units without finding definitive frame type
+  return "unknown frame";
 }
 
 function getH264Decoder(): VideoDecoder {
@@ -165,9 +305,11 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void 
 
   lastDecodeTime = receiveTime;
 
-  let type: "delta" | "key" | "unknow frame" | "b frame" = "delta";
+  let type: "delta" | "key" | "unknown frame" | "b frame" = "delta";
   if (data.length > 4) {
     type = isKeyFrame(data as Uint8Array);
+    log.debug("Frame data:", data.slice(0, 10)); // Only log first 10 bytes
+    log.debug("Detected frame type:", type);
   }
 
   if (type === "key" && !foundKeyFrame) {
