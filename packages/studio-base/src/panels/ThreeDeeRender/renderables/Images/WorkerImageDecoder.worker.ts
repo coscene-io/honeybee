@@ -169,27 +169,15 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void 
     type = isKeyFrame(data as Uint8Array);
   }
 
-  if (type === "b frame") {
-    type = "delta";
-  }
-
-  if (type === "unknow frame") {
-    return;
-  }
-
   if (type === "key" && !foundKeyFrame) {
     foundKeyFrame = true;
-  }
-
-  if (!foundKeyFrame) {
-    return;
   }
 
   const decoder = getH264Decoder();
 
   const chunk = new EncodedVideoChunk({
     timestamp: toMicroSec(receiveTime),
-    type,
+    type: type === "key" ? "key" : "delta",
     data,
   });
   try {
