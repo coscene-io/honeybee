@@ -41,6 +41,7 @@ function convertToBinaryArray(uint8Array: Uint8Array) {
   }, []);
 }
 
+// TODO: need check H264 nalu type (AUD)
 function isKeyFrame(frame: Uint8Array): "key" | "delta" | "b frame" | "unknow frame" {
   if (frame.length < 5) {
     return "unknow frame"; // 帧太短，无法判断
@@ -169,14 +170,6 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void 
     type = isKeyFrame(data as Uint8Array);
   }
 
-  if (type === "b frame") {
-    type = "delta";
-  }
-
-  if (type === "unknow frame") {
-    return;
-  }
-
   if (type === "key" && !foundKeyFrame) {
     foundKeyFrame = true;
   }
@@ -189,7 +182,7 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void 
 
   const chunk = new EncodedVideoChunk({
     timestamp: toMicroSec(receiveTime),
-    type,
+    type: type === "key" ? "key" : "delta",
     data,
   });
   try {
