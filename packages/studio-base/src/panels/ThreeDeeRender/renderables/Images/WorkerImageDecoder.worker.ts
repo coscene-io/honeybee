@@ -174,6 +174,10 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void 
     foundKeyFrame = true;
   }
 
+  if (!foundKeyFrame) {
+    return;
+  }
+
   const decoder = getH264Decoder();
 
   const chunk = new EncodedVideoChunk({
