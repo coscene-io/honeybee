@@ -244,6 +244,8 @@ function isKeyFrame(frame: Uint8Array): "key" | "delta" | "b frame" | "unknown f
   }
 
   let nalStart = 0;
+  let searchAttempts = 0;
+  const MAX_NAL_SEARCH_ATTEMPTS = 10; // Safety limit to prevent infinite loops
 
   // Find the first NAL unit start code
   if (frame[0] === 0 && frame[1] === 0 && frame[2] === 0 && frame[3] === 1) {
@@ -255,21 +257,31 @@ function isKeyFrame(frame: Uint8Array): "key" | "delta" | "b frame" | "unknown f
     nalStart = 0;
   }
 
-  // Traverse all NAL units
-  while (nalStart >= 0 && nalStart < frame.length) {
+  // Traverse NAL units with safety limit
+  while (nalStart >= 0 && nalStart < frame.length && searchAttempts < MAX_NAL_SEARCH_ATTEMPTS) {
+    searchAttempts++;
     const result = parseNalUnit(frame, nalStart);
 
     if (result != undefined) {
       // Found definitive frame type
+      log.debug(`Frame type determined after ${searchAttempts} NAL unit(s)`);
       return result;
     }
 
     // Need to check next NAL unit
     nalStart = findNextNalStart(frame, nalStart + 1);
-    log.debug(`Next NAL start at: ${nalStart}`);
+    log.debug(
+      `Next NAL start at: ${nalStart} (attempt ${searchAttempts}/${MAX_NAL_SEARCH_ATTEMPTS})`,
+    );
   }
 
-  // Traversed all NAL units without finding definitive frame type
+  // Safety mechanism triggered or traversed all NAL units without finding definitive frame type
+  if (searchAttempts >= MAX_NAL_SEARCH_ATTEMPTS) {
+    log.warn(
+      `Reached maximum NAL search attempts (${MAX_NAL_SEARCH_ATTEMPTS}), defaulting to unknown frame`,
+    );
+  }
+
   return "unknown frame";
 }
 
