@@ -42,7 +42,7 @@ export const appBar = {
   mediaSuccessfulGeneration:
     "All media files have been generated, refresh page to play all files ({{count}}/{{count}})",
   mediaGenerationError:
-    "There are media files that failed to generate, please delete the corresponding files and try again",
+    "There are files in the playlist that cannot be indexed, please check the file contents",
   loadingTips: "Loading playback data at full speed, please wait...",
   layoutGuideliens:
     "Create a new 'layout' to customize your visualization view, or use the organization's shared layout directly",
