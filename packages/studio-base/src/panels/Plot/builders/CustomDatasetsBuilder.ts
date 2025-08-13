@@ -57,6 +57,9 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
   #xCurrentBounds?: Bounds1D;
   #xFullBounds?: Bounds1D;
 
+  #dispose?: () => void;
+  #destroyed = false;
+
   public constructor({ handleWorkerError }: { handleWorkerError?: (event: Event) => void } = {}) {
     const worker = new Worker(
       // foxglove-depcheck-used: babel-plugin-transform-import-meta
@@ -71,8 +74,20 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
     const { remote, dispose } =
       ComlinkWrap<Comlink.RemoteObject<CustomDatasetsBuilderImpl>>(worker);
 
+    this.#dispose = dispose;
     this.#datasetsBuilderRemote = remote;
-    registry.register(this, dispose);
+    registry.register(this, () => {
+      this.#dispose?.();
+    });
+  }
+
+  public destroy(): void {
+    if (this.#destroyed) {
+      return;
+    }
+    this.#destroyed = true;
+    this.#dispose?.();
+    this.#dispose = undefined;
   }
 
   public handlePlayerState(state: Immutable<PlayerState>): Bounds1D | undefined {

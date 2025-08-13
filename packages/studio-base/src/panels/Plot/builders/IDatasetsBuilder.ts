@@ -103,6 +103,12 @@ interface IDatasetsBuilder {
   getViewportDatasets(viewport: Immutable<Viewport>): Promise<GetViewportDatasetsResult>;
 
   getCsvData(): Promise<CsvDataset[]>;
+
+  /**
+   * Optional explicit destroy hook for releasing resources (e.g., workers) immediately
+   * instead of relying on GC/FinalizationRegistry.
+   */
+  destroy?(): void;
 }
 
 export type { IDatasetsBuilder };
