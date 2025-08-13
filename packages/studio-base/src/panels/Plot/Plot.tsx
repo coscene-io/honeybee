@@ -64,6 +64,7 @@ import { PlotCoordinator } from "./PlotCoordinator";
 import { PlotLegend } from "./PlotLegend";
 import { CurrentCustomDatasetsBuilder } from "./builders/CurrentCustomDatasetsBuilder";
 import { CustomDatasetsBuilder } from "./builders/CustomDatasetsBuilder";
+import { IDatasetsBuilder } from "./builders/IDatasetsBuilder";
 import { IndexDatasetsBuilder } from "./builders/IndexDatasetsBuilder";
 import { TimestampDatasetsBuilder } from "./builders/TimestampDatasetsBuilder";
 import { isReferenceLinePlotPathType, PlotConfig } from "./config";
@@ -284,20 +285,31 @@ export function Plot(props: Props): React.JSX.Element {
     }, []),
   );
 
-  const datasetsBuilder = useMemo(() => {
+  const [datasetsBuilder, setDatasetsBuilder] = useState<IDatasetsBuilder | undefined>(undefined);
+
+  useEffect(() => {
+    let builder: IDatasetsBuilder;
     switch (xAxisMode) {
       case "timestamp":
       case "partialTimestamp":
-        return new TimestampDatasetsBuilder({ handleWorkerError, xAxisMode });
+        builder = new TimestampDatasetsBuilder({ handleWorkerError, xAxisMode });
+        break;
       case "index":
-        return new IndexDatasetsBuilder();
+        builder = new IndexDatasetsBuilder();
+        break;
       case "custom":
-        return new CustomDatasetsBuilder({ handleWorkerError });
+        builder = new CustomDatasetsBuilder({ handleWorkerError });
+        break;
       case "currentCustom":
-        return new CurrentCustomDatasetsBuilder();
+        builder = new CurrentCustomDatasetsBuilder();
+        break;
       default:
         throw new Error(`unsupported mode: ${xAxisMode}`);
     }
+    setDatasetsBuilder(builder);
+    return () => {
+      builder.destroy?.();
+    };
   }, [handleWorkerError, xAxisMode]);
 
   useEffect(() => {
@@ -353,7 +365,7 @@ export function Plot(props: Props): React.JSX.Element {
   }, [canvasDiv, theme, handleWorkerError]);
 
   useEffect(() => {
-    if (!renderer || !canvasDiv) {
+    if (!renderer || !canvasDiv || !datasetsBuilder) {
       return;
     }
 

@@ -76,7 +76,9 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
 
     this.#dispose = dispose;
     this.#datasetsBuilderRemote = remote;
-    registry.register(this, dispose);
+    registry.register(this, () => {
+      this.#dispose?.();
+    });
   }
 
   public destroy(): void {

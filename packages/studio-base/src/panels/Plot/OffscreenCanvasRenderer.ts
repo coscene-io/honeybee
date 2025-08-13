@@ -66,7 +66,9 @@ export class OffscreenCanvasRenderer {
       ),
     );
 
-    registry.register(this, dispose);
+    registry.register(this, () => {
+      this.#dispose?.();
+    });
   }
 
   public async update(action: Immutable<UpdateAction>): Promise<Bounds | undefined> {

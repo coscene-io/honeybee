@@ -93,7 +93,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     // Keep dispose for explicit cleanup; also register GC fallback
     this.#dispose = dispose;
     registry.register(this, () => {
-      dispose();
+      this.#dispose?.();
     });
   }
 
