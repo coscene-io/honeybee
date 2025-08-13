@@ -63,6 +63,9 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
 
   #xAxisMode: "timestamp" | "partialTimestamp";
 
+  #dispose?: () => void;
+  #destroyed = false;
+
   public constructor(
     {
       handleWorkerError,
@@ -87,7 +90,20 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       ComlinkWrap<Comlink.RemoteObject<TimestampDatasetsBuilderImpl>>(worker);
     this.#datasetsBuilderRemote = remote;
 
-    registry.register(this, dispose);
+    // Keep dispose for explicit cleanup; also register GC fallback
+    this.#dispose = dispose;
+    registry.register(this, () => {
+      dispose();
+    });
+  }
+
+  public destroy(): void {
+    if (this.#destroyed) {
+      return;
+    }
+    this.#destroyed = true;
+    this.#dispose?.();
+    this.#dispose = undefined;
   }
 
   public handlePlayerState(state: Immutable<PlayerState>): Bounds1D | undefined {

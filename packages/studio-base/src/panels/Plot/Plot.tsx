@@ -298,7 +298,7 @@ export function Plot(props: Props): React.JSX.Element {
       default:
         throw new Error(`unsupported mode: ${xAxisMode}`);
     }
-  }, [xAxisMode, handleWorkerError]);
+  }, [handleWorkerError, xAxisMode]);
 
   useEffect(() => {
     if (
@@ -360,6 +360,7 @@ export function Plot(props: Props): React.JSX.Element {
     const contentRect = canvasDiv.getBoundingClientRect();
 
     const plotCoordinator = new PlotCoordinator(renderer, datasetsBuilder);
+
     setCoordinator(plotCoordinator);
 
     plotCoordinator.setSize({

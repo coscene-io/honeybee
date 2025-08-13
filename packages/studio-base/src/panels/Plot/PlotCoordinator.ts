@@ -112,6 +112,8 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
   /** Stop the coordinator from sending any future updates to the renderer. */
   public destroy(): void {
     this.#destroyed = true;
+    // Explicitly destroy datasets builder if it supports explicit cleanup
+    this.#datasetsBuilder.destroy?.();
   }
 
   public isDestroyed(): boolean {
