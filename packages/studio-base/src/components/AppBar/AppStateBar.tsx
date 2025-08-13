@@ -38,8 +38,9 @@ import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { useAutoDisconnection } from "./hooks/useAutoDisconnection";
 
-const DEFAULT_TIMEOUT = 1000 * 60 * 30; // 30 minutes
-const DEFAULT_WARNING_TIMEOUT = 1000 * 60 * 5; // 5 minutes
+const MINUTE_MS = 60 * 1000;
+const DEFAULT_TIMEOUT = 30 * MINUTE_MS; // 30 minutes
+const DEFAULT_WARNING_TIMEOUT = 5 * MINUTE_MS; // 5 minutes
 
 const useStyles = makeStyles()((theme) => ({
   mediaGenerationStatusBar: {
@@ -80,10 +81,12 @@ export function AppStateBar(): React.JSX.Element {
   const [timeoutMinutes] = useAppConfigurationValue<number>(AppSetting.TIMEOUT);
   const dataSource = useCoreData(selectDataSource);
 
+  const timeoutMs = timeoutMinutes != undefined ? timeoutMinutes * MINUTE_MS : DEFAULT_TIMEOUT;
+
   const remainingTime = useAutoDisconnection({
     confirm,
-    foregroundTimeout: timeoutMinutes ?? DEFAULT_TIMEOUT,
-    backgroundTimeout: timeoutMinutes ?? DEFAULT_TIMEOUT,
+    foregroundTimeout: timeoutMs,
+    backgroundTimeout: timeoutMs,
     disableTimeout: dataSource?.id !== "coscene-websocket",
   });
 
