@@ -53,7 +53,9 @@
     "release:bump-nightly-version": "node -r ts-node/register ./ci/bump-nightly-version.ts",
     "storybook": "storybook dev --port 9009 --config-dir .storybook",
     "storybook:build": "storybook build --config-dir .storybook --webpack-stats-json",
-    "version:all": "yarn workspaces foreach version"
+    "version:all": "yarn workspaces foreach version",
+    "codemod:lodash-imports": "ts-node ci/transform-lodash-imports.ts",
+    "codemod:lodash-imports:node": "node ci/transform-lodash-imports.js"
   },
   "workspaces": {
     "packages": [
