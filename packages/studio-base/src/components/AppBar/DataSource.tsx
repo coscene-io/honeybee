@@ -18,6 +18,7 @@ import {
   Box,
   Paper,
 } from "@mui/material";
+import * as _ from "lodash-es";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -269,7 +270,7 @@ const RealTimeVizLinkState = () => {
             )}
           </Typography>
 
-          {networkStatus && (
+          {networkStatus && !_.isEmpty(networkStatus) && (
             <Box className={classes.networkStatus}>
               <Typography variant="body2" fontWeight="medium" gutterBottom>
                 {t("networkStatus")}
