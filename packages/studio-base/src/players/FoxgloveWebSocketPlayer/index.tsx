@@ -1044,6 +1044,17 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#serviceResponseCbs.delete(response.requestId);
     });
 
+    this.#client.on("preFetchAssetResponse", (response) => {
+      const responseCallback = this.#preFetchAssetRequests.get(response.requestId);
+      if (!responseCallback) {
+        throw Error(
+          `Received a response for a pre-fetch asset request for which no callback was registered`,
+        );
+      }
+      responseCallback(response);
+      this.#preFetchAssetRequests.delete(response.requestId);
+    });
+
     this.#client.on("syncTime", ({ serverTime }) => {
       this.#client?.clientSyncTime(serverTime, Date.now());
     });
@@ -1438,7 +1449,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
               response.data.byteOffset,
               response.data.byteLength,
             ),
-            etag: response.etag,
           };
           resolve(newAsset);
         } else {
@@ -1613,6 +1623,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#problems.clear();
     this.#parameters = new Map();
     this.#fetchedAssets.clear();
+    this.#preFetchedAssets.clear();
     for (const [requestId, callback] of this.#fetchAssetRequests) {
       callback({
         op: BinaryOpcode.FETCH_ASSET_RESPONSE,
@@ -1621,7 +1632,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
         error: "WebSocket connection reset",
       });
     }
+    for (const [requestId, callback] of this.#preFetchAssetRequests) {
+      callback({
+        op: BinaryOpcode.PRE_FETCH_ASSET_RESPONSE,
+        status: FetchAssetStatus.ERROR,
+        requestId,
+        error: "WebSocket connection reset",
+      });
+    }
     this.#fetchAssetRequests.clear();
+    this.#preFetchAssetRequests.clear();
     this.#parameterTypeByName.clear();
     this.#messageSizeEstimateByTopic = {};
   }
