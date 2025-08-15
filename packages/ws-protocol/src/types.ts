@@ -10,6 +10,7 @@ export enum BinaryOpcode {
   TIME = 2,
   SERVICE_CALL_RESPONSE = 3,
   FETCH_ASSET_RESPONSE = 4,
+  PRE_FETCH_ASSET_RESPONSE = 5,
 }
 export enum ClientBinaryOpcode {
   MESSAGE_DATA = 1,
@@ -225,6 +226,7 @@ export type FetchAssetSuccessResponse = {
   requestId: number;
   status: FetchAssetStatus.SUCCESS;
   data: DataView;
+  etag?: string;
 };
 export type FetchAssetErrorResponse = {
   op: BinaryOpcode.FETCH_ASSET_RESPONSE;
@@ -233,6 +235,19 @@ export type FetchAssetErrorResponse = {
   error: string;
 };
 export type FetchAssetResponse = FetchAssetSuccessResponse | FetchAssetErrorResponse;
+export type PreFetchAssetSuccessResponse = {
+  op: BinaryOpcode.PRE_FETCH_ASSET_RESPONSE;
+  requestId: number;
+  status: FetchAssetStatus.SUCCESS;
+  etag?: string;
+};
+export type PreFetchAssetErrorResponse = {
+  op: BinaryOpcode.PRE_FETCH_ASSET_RESPONSE;
+  requestId: number;
+  status: FetchAssetStatus.ERROR;
+  error: string;
+};
+export type PreFetchAssetResponse = PreFetchAssetSuccessResponse | PreFetchAssetErrorResponse;
 export type ServiceCallFailure = {
   op: "serviceCallFailure";
   serviceId: number;
@@ -289,6 +304,12 @@ export type ClientSyncTime = {
   clientTime: number;
 };
 
+export type PreFetchAsset = {
+  op: "preFetchAsset";
+  uri: string;
+  requestId: number;
+};
+
 export type NetworkStatistics = {
   op: "networkStatistics";
   curSpeed: number; // KiB/s
@@ -315,6 +336,7 @@ export type ServerMessage =
   | ParameterValues
   | ConnectionGraphUpdate
   | FetchAssetResponse
+  | PreFetchAssetResponse
   | ServiceCallFailure
   | ServerLogin
   | Kicked
@@ -336,6 +358,7 @@ export type ClientMessage =
   | SubscribeConnectionGraph
   | UnsubscribeConnectionGraph
   | FetchAsset
+  | PreFetchAsset
   | ClientLogin
   | ClientSyncTime;
 

@@ -7,6 +7,7 @@
 
 export interface IUrdfStorage {
   checkUriNeedsCache(uri: string): boolean;
-  get(uri: string): Promise<Uint8Array | undefined>;
-  set(url: string, content: Uint8Array): Promise<void>;
+  getEtag(url: string): Promise<string | undefined>;
+  getFile(url: string): Promise<Uint8Array | undefined>;
+  set(url: string, etag: string, content: Uint8Array): Promise<void>;
 }
