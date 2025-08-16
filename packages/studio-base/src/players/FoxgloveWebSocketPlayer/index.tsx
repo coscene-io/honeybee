@@ -1406,12 +1406,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
     const nextPreFetchAssetRequestId = ++this.#nextPreFetchAssetRequestId;
 
     promise = new Promise<string>((resolve, reject) => {
-      const preFetchedAsset = this.#preFetchedAssets.get(uri);
-      if (preFetchedAsset) {
-        resolve(preFetchedAsset);
-        return;
-      }
-
       this.#preFetchAssetRequests.set(nextPreFetchAssetRequestId, (response) => {
         if (response.status === FetchAssetStatus.SUCCESS) {
           resolve(response.etag ?? "");
@@ -1419,10 +1413,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
           reject(new Error(`Failed to pre-fetch asset: ${response.error}`));
         }
       });
+
+      this.#client?.preFetchAsset(uri, nextPreFetchAssetRequestId);
     });
 
-    this.#client?.preFetchAsset(uri, nextPreFetchAssetRequestId);
-
+    this.#preFetchedAssets.set(uri, promise);
     return await promise;
   }
 
