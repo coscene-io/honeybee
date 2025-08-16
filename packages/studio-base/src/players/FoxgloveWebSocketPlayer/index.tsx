@@ -1041,7 +1041,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         );
       }
       responseCallback(response);
-      this.#serviceResponseCbs.delete(response.requestId);
+      this.#fetchAssetRequests.delete(response.requestId);
     });
 
     this.#client.on("preFetchAssetResponse", (response) => {
