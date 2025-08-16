@@ -17,6 +17,8 @@ export type Asset = {
   data: Uint8Array;
   /** Asset type. */
   mediaType?: string;
+  /** ETag of the asset. */
+  etag?: string;
 };
 
 export type DraggedMessagePath = {

@@ -12,6 +12,11 @@ import { IUrdfStorage } from "@foxglove/studio-base";
 
 const log = Log.getLogger(__filename);
 
+type StoredUrdfItem = {
+  etag: string;
+  content: Uint8Array;
+};
+
 export class IdbUrdfStorage implements IUrdfStorage {
   #db = idbCreateStore("coScene-urdf", "urdf");
   #cacheFileExtensions = ["dae", "stl", "urdf", "xacro", "xml"];
@@ -21,17 +26,28 @@ export class IdbUrdfStorage implements IUrdfStorage {
     return extension != undefined && this.#cacheFileExtensions.includes(extension);
   }
 
-  public async set(uri: string, content: Uint8Array): Promise<void> {
+  public async set(url: string, etag: string, content: Uint8Array): Promise<void> {
     try {
-      await idbSet(uri, content, this.#db);
+      const item: StoredUrdfItem = { etag, content };
+      await idbSet(url, item, this.#db);
     } catch (err) {
       log.error(err);
     }
   }
 
-  public async get(uri: string): Promise<Uint8Array | undefined> {
+  public async getEtag(url: string): Promise<string | undefined> {
     try {
-      return await idbGet<Uint8Array>(uri, this.#db);
+      const item = await idbGet<StoredUrdfItem>(url, this.#db);
+      return item?.etag;
+    } catch {
+      return undefined;
+    }
+  }
+
+  public async getFile(url: string): Promise<Uint8Array | undefined> {
+    try {
+      const item = await idbGet<StoredUrdfItem>(url, this.#db);
+      return item?.content;
     } catch (err) {
       log.error(err);
     }

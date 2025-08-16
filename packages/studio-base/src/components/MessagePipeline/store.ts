@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import * as _ from "lodash-es";
 import { MutableRefObject } from "react";
 import shallowequal from "shallowequal";
@@ -26,7 +26,7 @@ import {
   PlayerState,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
-import { IUrdfStorage } from "@foxglove/studio-base/services/UrdfStorage";
+import { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { FramePromise } from "./pauseFrameForPromise";
@@ -180,22 +180,9 @@ export function createMessagePipelineStore({
         const { player, lastCapabilities } = get();
 
         const cachedFetchAsset = async (fileUri: string, opts?: { signal?: AbortSignal }) => {
-          const storagedData = await urdfStorage.get(fileUri);
-
-          if (storagedData) {
-            return {
-              uri: fileUri,
-              data: storagedData,
-              mediaType: undefined,
-            };
-          }
-
           const fetchedUrdfFile = fileUri.startsWith("s3://")
-            ? await builtinS3Fetch(fileUri, consoleApi, opts)
-            : await builtinFetch(fileUri, opts);
-          if (urdfStorage.checkUriNeedsCache(fileUri)) {
-            await urdfStorage.set(fileUri, fetchedUrdfFile.data);
-          }
+            ? await builtinS3Fetch(fileUri, consoleApi, urdfStorage, opts)
+            : await builtinFetch(fileUri, urdfStorage, opts);
 
           return fetchedUrdfFile;
         };
@@ -216,19 +203,22 @@ export function createMessagePipelineStore({
 
           if (lastCapabilities.includes(PlayerCapabilities.assets) && player?.fetchAsset) {
             try {
-              const storagedData = await urdfStorage.get(uri);
+              const etag = await urdfStorage.getEtag(uri);
 
-              if (storagedData) {
+              // if etag is same as fetchedUrdfFile.etag, return empty file
+              const fetchedUrdfFile = await player.fetchAsset(uri, etag);
+
+              if (etag && etag === fetchedUrdfFile.etag) {
+                const cachedFile = await urdfStorage.getFile(uri);
                 return {
                   uri,
-                  data: storagedData,
+                  data: cachedFile ?? new Uint8Array(),
                   mediaType: undefined,
                 };
               }
 
-              const fetchedUrdfFile = await player.fetchAsset(uri);
               if (urdfStorage.checkUriNeedsCache(uri)) {
-                await urdfStorage.set(uri, fetchedUrdfFile.data);
+                await urdfStorage.set(uri, fetchedUrdfFile.etag ?? "", fetchedUrdfFile.data);
               }
 
               return fetchedUrdfFile;
@@ -503,15 +493,58 @@ export function reducer(
   }
 }
 
-async function builtinFetch(url: string, opts?: { signal?: AbortSignal }) {
+async function fetchETag(url: string): Promise<string | undefined> {
+  const res = await fetch(url, {
+    method: "HEAD",
+    mode: "cors",
+  });
+  if (!res.ok) {
+    throw new Error(`HEAD ${res.status}`);
+  }
+  const etag = res.headers.get("etag");
+  return etag ? etag : undefined;
+}
+
+async function builtinFetch(
+  url: string,
+  urdfStorage: IUrdfStorage,
+  opts?: { signal?: AbortSignal },
+) {
+  let fetchedEtag: string | undefined;
+
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    try {
+      fetchedEtag = await fetchETag(url);
+      const cachedEtag = await urdfStorage.getEtag(url);
+
+      if (cachedEtag && fetchedEtag && fetchedEtag === cachedEtag) {
+        const cachedFile = await urdfStorage.getFile(url);
+        return {
+          uri: url,
+          data: cachedFile ?? new Uint8Array(),
+          mediaType: undefined,
+        };
+      }
+    } catch {
+      // Do nothing here as the fallback method below might work.
+    }
+  }
+
   const response = await fetch(url, opts);
   if (!response.ok) {
     const errMsg = response.statusText;
     throw new Error(`Error ${response.status}${errMsg ? ` (${errMsg})` : ``}`);
   }
+
+  const data = new Uint8Array(await response.arrayBuffer());
+
+  if (fetchedEtag) {
+    await urdfStorage.set(url, fetchedEtag, data);
+  }
+
   return {
     uri: url,
-    data: new Uint8Array(await response.arrayBuffer()),
+    data,
     mediaType: response.headers.get("content-type") ?? undefined,
   };
 }
@@ -521,6 +554,7 @@ let s3Client: { key: string; client: S3Client } | undefined;
 async function builtinS3Fetch(
   url: string,
   consoleApi: ConsoleApi,
+  urdfStorage: IUrdfStorage,
   opts?: { signal?: AbortSignal },
 ) {
   const pkgPath = url.slice("s3://".length);
@@ -549,6 +583,34 @@ async function builtinS3Fetch(
 
   const fileKey = `project${pkgPath.split("project").pop()}`;
 
+  let fetchedEtag: string | undefined;
+  try {
+    const headCommand = new HeadObjectCommand({
+      Bucket: "default",
+      Key: fileKey,
+    });
+
+    const headResponse = await s3Client.client.send(headCommand, {
+      abortSignal: opts?.signal,
+    });
+
+    const cachedEtag = await urdfStorage.getEtag(url);
+
+    fetchedEtag = headResponse.LastModified?.toISOString();
+
+    if (fetchedEtag && cachedEtag && fetchedEtag === cachedEtag) {
+      const cachedFile = await urdfStorage.getFile(url);
+
+      return {
+        uri: url,
+        data: cachedFile ?? new Uint8Array(),
+        mediaType: undefined,
+      };
+    }
+  } catch (e) {
+    console.error("get s3 file head error", e);
+  }
+
   const command = new GetObjectCommand({
     Bucket: "default",
     Key: fileKey,
@@ -564,9 +626,15 @@ async function builtinS3Fetch(
 
   const bodyBytes = await response.Body.transformToByteArray();
 
+  const data = new Uint8Array(bodyBytes);
+
+  if (fetchedEtag) {
+    await urdfStorage.set(url, fetchedEtag, data);
+  }
+
   return {
     uri: url,
-    data: new Uint8Array(bodyBytes),
+    data,
     mediaType: undefined,
   };
 }

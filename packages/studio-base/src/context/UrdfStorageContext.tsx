@@ -7,7 +7,7 @@
 
 import { createContext, useContext } from "react";
 
-import { IUrdfStorage } from "@foxglove/studio-base/services/UrdfStorage";
+import { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
 
 const UrdfStorageContext = createContext<IUrdfStorage | undefined>(undefined);
 UrdfStorageContext.displayName = "UrdfStorageContext";
