@@ -39,6 +39,7 @@ import {
   ServerSyncTime,
   TimeOffset,
   NetworkStatistics,
+  PreFetchAssetResponse,
 } from "./types";
 
 type EventTypes = {
@@ -59,6 +60,7 @@ type EventTypes = {
   serviceCallResponse: (event: ServiceCallResponse) => void;
   connectionGraphUpdate: (event: ConnectionGraphUpdate) => void;
   fetchAssetResponse: (event: FetchAssetResponse) => void;
+  preFetchAssetResponse: (event: PreFetchAssetResponse) => void;
   serviceCallFailure: (event: ServiceCallFailure) => void;
   login: (event: ServerLogin) => void;
   kicked: (event: Kicked) => void;
@@ -199,6 +201,10 @@ export default class FoxgloveClient {
         case BinaryOpcode.FETCH_ASSET_RESPONSE:
           this.#emitter.emit("fetchAssetResponse", message);
           return;
+
+        case BinaryOpcode.PRE_FETCH_ASSET_RESPONSE:
+          this.#emitter.emit("preFetchAssetResponse", message);
+          return;
       }
     };
     this.#ws.onclose = (event: CloseEvent) => {
@@ -287,6 +293,10 @@ export default class FoxgloveClient {
 
   public unsubscribeConnectionGraph(): void {
     this.#send({ op: "unsubscribeConnectionGraph" });
+  }
+
+  public preFetchAsset(uri: string, requestId: number): void {
+    this.#send({ op: "preFetchAsset", uri, requestId });
   }
 
   public fetchAsset(uri: string, requestId: number): void {

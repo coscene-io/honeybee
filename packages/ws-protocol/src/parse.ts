@@ -69,6 +69,34 @@ export function parseServerMessage(buffer: ArrayBuffer): ServerMessage {
           throw new Error(`Unrecognized fetch asset status: ${status as number}`);
       }
     }
+    case BinaryOpcode.PRE_FETCH_ASSET_RESPONSE: {
+      const requestId = view.getUint32(offset, true);
+      offset += 4;
+      const status = view.getUint8(offset) as FetchAssetStatus;
+      offset += 1;
+      const errorMsgLength = view.getUint32(offset, true);
+      offset += 4;
+      const error = textDecoder.decode(new DataView(buffer, offset, errorMsgLength));
+      offset += errorMsgLength;
+
+      switch (status) {
+        case FetchAssetStatus.SUCCESS: {
+          // Parse etag length and value
+          const etagLength = view.getUint32(offset, true);
+          offset += 4;
+          const etag =
+            etagLength > 0
+              ? textDecoder.decode(new DataView(buffer, offset, etagLength))
+              : undefined;
+
+          return { op, requestId, status, etag };
+        }
+        case FetchAssetStatus.ERROR:
+          return { op, requestId, status, error };
+        default:
+          throw new Error(`Unrecognized pre-fetch asset status: ${status as number}`);
+      }
+    }
   }
 }
 

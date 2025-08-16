@@ -66,6 +66,7 @@ import {
   FetchAssetStatus,
   FetchAssetResponse,
   BinaryOpcode,
+  PreFetchAssetResponse,
 } from "@foxglove/ws-protocol";
 
 import { JsonMessageWriter } from "./JsonMessageWriter";
@@ -180,8 +181,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #advertisedServices?: Map<string, Set<string>>;
   #nextServiceCallId = 0;
   #nextAssetRequestId = 0;
+  #nextPreFetchAssetRequestId = 0;
   #fetchAssetRequests = new Map<number, (response: FetchAssetResponse) => void>();
   #fetchedAssets = new Map<string, Promise<Asset>>();
+  #preFetchAssetRequests = new Map<number, (response: PreFetchAssetResponse) => void>();
+  #preFetchedAssets = new Map<string, Promise<string>>();
   #parameterTypeByName = new Map<string, Parameter["type"]>();
   #messageSizeEstimateByTopic: Record<string, number> = {};
   #confirm: confirmTypes;
@@ -1037,7 +1041,18 @@ export default class FoxgloveWebSocketPlayer implements Player {
         );
       }
       responseCallback(response);
-      this.#serviceResponseCbs.delete(response.requestId);
+      this.#fetchAssetRequests.delete(response.requestId);
+    });
+
+    this.#client.on("preFetchAssetResponse", (response) => {
+      const responseCallback = this.#preFetchAssetRequests.get(response.requestId);
+      if (!responseCallback) {
+        throw Error(
+          `Received a response for a pre-fetch asset request for which no callback was registered`,
+        );
+      }
+      responseCallback(response);
+      this.#preFetchAssetRequests.delete(response.requestId);
     });
 
     this.#client.on("syncTime", ({ serverTime }) => {
@@ -1382,15 +1397,31 @@ export default class FoxgloveWebSocketPlayer implements Player {
     });
   }
 
-  public async fetchAsset(uri: string): Promise<Asset> {
-    if (!this.#client) {
-      throw new Error(
-        `Attempted to fetch assset ${uri} without a valid coScene WebSocket connection.`,
-      );
-    } else if (!this.#serverCapabilities.includes(ServerCapability.assets)) {
-      throw new Error(`Fetching assets (${uri}) is not supported for coSceneWebSocketPlayer`);
+  async #preFetchAsset(uri: string): Promise<string> {
+    let promise = this.#preFetchedAssets.get(uri);
+    if (promise) {
+      return await promise;
     }
 
+    const nextPreFetchAssetRequestId = ++this.#nextPreFetchAssetRequestId;
+
+    promise = new Promise<string>((resolve, reject) => {
+      this.#preFetchAssetRequests.set(nextPreFetchAssetRequestId, (response) => {
+        if (response.status === FetchAssetStatus.SUCCESS) {
+          resolve(response.etag ?? "");
+        } else {
+          reject(new Error(`Failed to pre-fetch asset: ${response.error}`));
+        }
+      });
+
+      this.#client?.preFetchAsset(uri, nextPreFetchAssetRequestId);
+    });
+
+    this.#preFetchedAssets.set(uri, promise);
+    return await promise;
+  }
+
+  async #fetchAssetContent(uri: string): Promise<Asset> {
     let promise = this.#fetchedAssets.get(uri);
     if (promise) {
       return await promise;
@@ -1419,11 +1450,40 @@ export default class FoxgloveWebSocketPlayer implements Player {
           reject(new Error(`Failed to fetch asset: ${response.error}`));
         }
       });
+
       this.#client?.fetchAsset(uri, assetRequestId);
     });
 
     this.#fetchedAssets.set(uri, promise);
     return await promise;
+  }
+
+  /**
+   * get target file by ws, if has cached file, will take etag,
+   * if parameter has etag, we will send a preFetchAsset request to ws,
+   * if ws return etag is same as parameter etag, we will not return asset data
+   */
+  public async fetchAsset(uri: string, etag?: string): Promise<Asset> {
+    if (!this.#client) {
+      throw new Error(
+        `Attempted to fetch assset ${uri} without a valid coScene WebSocket connection.`,
+      );
+    } else if (!this.#serverCapabilities.includes(ServerCapability.assets)) {
+      throw new Error(`Fetching assets (${uri}) is not supported for coSceneWebSocketPlayer`);
+    }
+
+    if (etag) {
+      const assetEtag = await this.#preFetchAsset(uri);
+      if (etag === assetEtag) {
+        return {
+          uri,
+          data: new Uint8Array(),
+          etag,
+        };
+      }
+    }
+
+    return await this.#fetchAssetContent(uri);
   }
 
   public setGlobalVariables(): void {}
@@ -1558,6 +1618,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#problems.clear();
     this.#parameters = new Map();
     this.#fetchedAssets.clear();
+    this.#preFetchedAssets.clear();
     for (const [requestId, callback] of this.#fetchAssetRequests) {
       callback({
         op: BinaryOpcode.FETCH_ASSET_RESPONSE,
@@ -1566,7 +1627,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
         error: "WebSocket connection reset",
       });
     }
+    for (const [requestId, callback] of this.#preFetchAssetRequests) {
+      callback({
+        op: BinaryOpcode.PRE_FETCH_ASSET_RESPONSE,
+        status: FetchAssetStatus.ERROR,
+        requestId,
+        error: "WebSocket connection reset",
+      });
+    }
     this.#fetchAssetRequests.clear();
+    this.#preFetchAssetRequests.clear();
     this.#parameterTypeByName.clear();
     this.#messageSizeEstimateByTopic = {};
   }
