@@ -596,7 +596,7 @@ async function builtinS3Fetch(
 
     const cachedEtag = await urdfStorage.getEtag(url);
 
-    fetchedEtag = headResponse.ETag;
+    fetchedEtag = headResponse.LastModified?.toISOString();
 
     if (fetchedEtag && cachedEtag && fetchedEtag === cachedEtag) {
       const cachedFile = await urdfStorage.getFile(url);
