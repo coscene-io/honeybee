@@ -9,6 +9,7 @@ import { Button, TextField, Typography, inputBaseClasses } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
+import { useDebouncedCallback } from "use-debounce";
 import { Updater } from "use-immer";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -121,6 +122,10 @@ export function CallService(props: Props): React.JSX.Element {
     );
   }, [buttonsState]);
 
+  const debouncedCallServiceClicked = useDebouncedCallback(async () => {
+    await callServiceClicked(type);
+  }, 500);
+
   const canCallService = Boolean(
     supportCallService &&
       requestPayload &&
@@ -174,9 +179,7 @@ export function CallService(props: Props): React.JSX.Element {
             className={classes.button}
             variant="contained"
             disabled={!canCallService}
-            onClick={async () => {
-              await callServiceClicked(type);
-            }}
+            onClick={debouncedCallServiceClicked}
             data-testid="call-service-button"
           >
             {elapsedTime ? `${t(type)} (${elapsedTime})` : t(type)}
