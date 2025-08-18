@@ -79,4 +79,5 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   networkSpeed: "速度",
   droppedMessages: "丢弃消息",
   packetLoss: "包丢失率",
+  networkStatusHelp: "仅通过 coLink 连接，且 coBridge ≥ v1.2.0 版本可展示网络状态信息",
 };

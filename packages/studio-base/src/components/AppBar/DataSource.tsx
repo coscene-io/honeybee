@@ -271,12 +271,15 @@ const RealTimeVizLinkState = () => {
           </Typography>
 
           <Box className={classes.networkStatus}>
-            <Typography variant="body2" fontWeight="medium" gutterBottom>
-              {t("networkStatus")}
-              <Tooltip title="networkStatusHelp">
+            <Stack direction="row" alignItems="center" gap={0.5} paddingBottom={0.5}>
+              <Typography variant="subtitle2" fontWeight="medium">
+                {t("networkStatus")}
+              </Typography>
+              <Tooltip title={t("networkStatusHelp")}>
                 <HelpIcon fontSize="small" />
               </Tooltip>
-            </Typography>
+            </Stack>
+
             <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
               <Stack direction="row" justifyContent="space-between">
                 <span>{t("networkDelay")}:</span>
@@ -351,11 +354,9 @@ const RealTimeVizDataSource = () => {
   const playerDisplayName =
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
-  const linkType = urlState?.parameters?.linkType ?? "";
-
   return (
     <>
-      {linkType !== "unknown" && <RealTimeVizLinkState />}
+      <RealTimeVizLinkState />
       <div className={classes.textTruncate}>
         <Stack direction="row" alignItems="center" gap={2}>
           <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
