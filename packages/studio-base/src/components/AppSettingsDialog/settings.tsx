@@ -50,8 +50,9 @@ import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
+const INFINITY_TIME = 1000 * 60 * 60 * 24 * 365 * 100;
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
-const TIMEOUT_MINUTES = [10, 20, 30, 60, 120, Infinity];
+const TIMEOUT_MINUTES = [10, 20, 30, 60, 120, INFINITY_TIME];
 
 let LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
   { key: "en", value: "English" },
@@ -509,7 +510,7 @@ export function InactivityTimeout(): React.ReactElement {
     () =>
       TIMEOUT_MINUTES.map((minutes) => ({
         key: minutes,
-        text: minutes === Infinity ? t("neverDisconnect") : `${minutes}`,
+        text: minutes === INFINITY_TIME ? t("neverDisconnect") : `${minutes}`,
         data: minutes,
       })),
     [t],
