@@ -19,7 +19,7 @@
     "@bufbuild/connect-web": "0.13.0",
     "@bufbuild/protobuf": "1.3.0",
     "@coscene-io/comlink": "4.4.1",
-    "@coscene-io/cosceneapis-es": "0.0.376",
+    "@coscene-io/cosceneapis-es": "0.0.394",
     "@coscene-io/cosel": "24.14.0",
     "@emotion/cache": "11.14.0",
     "@emotion/react": "11.14.0",
