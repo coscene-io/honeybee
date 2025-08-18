@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ErrorCircle16Filled, LinkMultipleFilled } from "@fluentui/react-icons";
+import HelpIcon from "@mui/icons-material/HelpOutlined";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import SignalCellularAltIcon from "@mui/icons-material/SignalCellularAlt";
 import {
@@ -17,8 +18,8 @@ import {
   Typography,
   Box,
   Paper,
+  Tooltip,
 } from "@mui/material";
-import * as _ from "lodash-es";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -261,54 +262,62 @@ const RealTimeVizLinkState = () => {
           </Box>
 
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            {linkType === "colink" ? (
-              <>{t("colinkRemoteConnection")}</>
-            ) : (
+            {linkType === "colink" && <>{t("colinkRemoteConnection")}</>}
+            {linkType === "other" && (
               <>
                 {t("localNetworkConnection")} {url && new URL(url).hostname}
               </>
             )}
           </Typography>
 
-          {networkStatus && !_.isEmpty(networkStatus) && (
-            <Box className={classes.networkStatus}>
-              <Typography variant="body2" fontWeight="medium" gutterBottom>
-                {t("networkStatus")}
-              </Typography>
-              {networkStatus.networkDelay != undefined && (
-                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                  <Stack direction="row" justifyContent="space-between">
-                    <span>{t("networkDelay")}:</span>
-                    <span>{networkStatus.networkDelay.toFixed(2)}ms</span>
-                  </Stack>
-                </Typography>
-              )}
-              {networkStatus.curSpeed != undefined && (
-                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                  <Stack direction="row" justifyContent="space-between">
-                    <span>{t("networkSpeed")}:</span>
-                    <span>{formatSpeed(networkStatus.curSpeed)}</span>
-                  </Stack>
-                </Typography>
-              )}
-              {networkStatus.droppedMsgs != undefined && (
-                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                  <Stack direction="row" justifyContent="space-between">
-                    <span>{t("droppedMessages")}:</span>
-                    <span>{networkStatus.droppedMsgs}</span>
-                  </Stack>
-                </Typography>
-              )}
-              {networkStatus.packageLoss != undefined && (
-                <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                  <Stack direction="row" justifyContent="space-between">
-                    <span>{t("packetLoss")}:</span>
-                    <span>{(networkStatus.packageLoss * 100).toFixed(2)}%</span>
-                  </Stack>
-                </Typography>
-              )}
-            </Box>
-          )}
+          <Box className={classes.networkStatus}>
+            <Typography variant="body2" fontWeight="medium" gutterBottom>
+              {t("networkStatus")}
+              <Tooltip title="networkStatusHelp">
+                <HelpIcon fontSize="small" />
+              </Tooltip>
+            </Typography>
+            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+              <Stack direction="row" justifyContent="space-between">
+                <span>{t("networkDelay")}:</span>
+                {networkStatus?.networkDelay != undefined ? (
+                  <span>{networkStatus.networkDelay.toFixed(2)}ms</span>
+                ) : (
+                  <span>-</span>
+                )}
+              </Stack>
+            </Typography>
+            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+              <Stack direction="row" justifyContent="space-between">
+                <span>{t("networkSpeed")}:</span>
+                {networkStatus?.curSpeed != undefined ? (
+                  <span>{formatSpeed(networkStatus.curSpeed)}</span>
+                ) : (
+                  <span>-</span>
+                )}
+              </Stack>
+            </Typography>
+            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+              <Stack direction="row" justifyContent="space-between">
+                <span>{t("droppedMessages")}:</span>
+                {networkStatus?.droppedMsgs != undefined ? (
+                  <span>{networkStatus.droppedMsgs}</span>
+                ) : (
+                  <span>-</span>
+                )}
+              </Stack>
+            </Typography>
+            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+              <Stack direction="row" justifyContent="space-between">
+                <span>{t("packetLoss")}:</span>
+                {networkStatus?.packageLoss != undefined ? (
+                  <span>{(networkStatus.packageLoss * 100).toFixed(2)}%</span>
+                ) : (
+                  <span>-</span>
+                )}
+              </Stack>
+            </Typography>
+          </Box>
         </Paper>
       </Popover>
     </>

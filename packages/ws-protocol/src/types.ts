@@ -277,7 +277,7 @@ export type ServerLogin = {
   infoPort: string;
   macAddr: string;
   lanCandidates: string[];
-  linkType: "other" | "colink";
+  linkType?: "other" | "colink";
 };
 
 export type ClientLogin = {
