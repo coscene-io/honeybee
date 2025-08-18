@@ -119,7 +119,7 @@ export function useAutoDisconnection({
     return () => {
       clearTimeout(timer);
     };
-  }, [lastActivityTime, inactiveTimeout]);
+  }, [lastActivityTime, inactiveTimeout, disableTimeout]);
 
   const throttledResetTimer = useMemo(() => _.throttle(resetTimer, 1000), [resetTimer]);
 
@@ -149,7 +149,7 @@ export function useAutoDisconnection({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, []);
+  }, [disableTimeout]);
 
   return remainingTime;
 }
