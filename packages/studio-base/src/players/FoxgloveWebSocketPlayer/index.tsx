@@ -159,7 +159,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     droppedMsgs?: number;
     packageLoss?: number;
   } = {};
-  #timeOffset: number = 0;
+  #timeOffset?: number;
   #channelsById = new Map<ChannelId, ResolvedChannel>();
   #unsupportedChannelIds = new Set<ChannelId>();
   #recentlyCanceledSubscriptions = new Set<SubscriptionId>();
@@ -306,7 +306,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
       this.#urlState = {
         sourceId: this.#sourceId,
-        parameters: { ...this.#urlState?.parameters, linkType: message.linkType },
+        parameters: {
+          ...this.#urlState?.parameters,
+          linkType: message.linkType ?? "unknown",
+        },
       };
 
       this.#emitState();
@@ -339,7 +342,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
               message.lanCandidates,
               message.infoPort,
               message.macAddr,
-              message.linkType,
+              message.linkType ?? "unknown",
             );
           }
           if (result === "cancel") {
@@ -351,7 +354,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           message.lanCandidates,
           message.infoPort,
           message.macAddr,
-          message.linkType,
+          message.linkType ?? "unknown",
         );
       }
     });
@@ -790,10 +793,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
         const messageHeaderTime = getTimestampForMessage(deserializedMessage);
 
-        this.#networkStatus = {
-          ...this.#networkStatus,
-          networkDelay: Date.now() - toMillis(messageHeaderTime ?? receiveTime) + this.#timeOffset,
-        };
+        if (messageHeaderTime && this.#timeOffset != undefined) {
+          this.#networkStatus = {
+            ...this.#networkStatus,
+            networkDelay: Date.now() - toMillis(messageHeaderTime) + this.#timeOffset,
+          };
+        }
       } catch (error) {
         this.#problems.addProblem(`message:${chanInfo.channel.topic}`, {
           severity: "error",
