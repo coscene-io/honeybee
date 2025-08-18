@@ -88,7 +88,7 @@ export function AppStateBar(): React.JSX.Element {
     foregroundTimeout: timeoutMs,
     backgroundTimeout: timeoutMs,
     // Disable auto-disconnect when not websocket, or when user selected "never"
-    disableTimeout: dataSource?.id !== "coscene-websocket" || timeoutMinutes === Infinity,
+    disableTimeout: dataSource?.id != undefined && dataSource.id !== "coscene-websocket",
   });
 
   const [showLoadingStatus, setShowLoadingStatus] = useState(false);

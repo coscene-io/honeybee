@@ -76,7 +76,7 @@ export function useAutoDisconnection({
         removeEventListener();
         void confirm({
           title: t("vizIsDisconnected"),
-          prompt: t("inactivePageDescription", { time: remainingTime / 1000 / 60 }),
+          prompt: t("inactivePageDescription", { time: inactiveTimeout / 1000 / 60 }),
           ok: t("reconnect"),
           cancel: t("exitAndClosePage"),
         })
