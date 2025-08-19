@@ -12,6 +12,7 @@ import shallowequal from "shallowequal";
 import { createStore, StoreApi } from "zustand";
 
 import { Condvar } from "@foxglove/den/async";
+import Log from "@foxglove/log";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import {
   makeSubscriptionMemoizer,
@@ -31,6 +32,8 @@ import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { FramePromise } from "./pauseFrameForPromise";
 import { MessagePipelineContext } from "./types";
+
+const log = Log.getLogger(__filename);
 
 export function defaultPlayerState(player?: Player): PlayerState {
   return {
@@ -277,7 +280,18 @@ export function createMessagePipelineStore({
       },
 
       close() {
-        get().player?.close();
+        const state = get();
+        const player = state.player;
+
+        if (player) {
+          try {
+            player.close();
+          } catch (error) {
+            log.error("Error calling player.close():", error);
+          }
+        } else {
+          log.debug("No player available to close - player may have already been disconnected");
+        }
       },
 
       reOpen() {
