@@ -23,7 +23,6 @@ build:
         buildArgs:
           CURRENT_IMAGE_TAG: "{{.IMAGE_TAG}}"
           GITHUB_SHA: "{{.GITHUB_SHA}}"
-          BUF_BUILD_TOKEN: "{{.BUF_BUILD_TOKEN}}"
           GH_PACKAGES_ORG_TOKEN: "{{.GH_PACKAGES_ORG_TOKEN}}"
           SENTRY_AUTH_TOKEN: "{{.SENTRY_AUTH_TOKEN}}"
   local:
