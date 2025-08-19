@@ -116,7 +116,16 @@ export function useAutoDisconnection({
 
     // 更新 ref 的值
     timeoutRef.current = inactiveTimeoutId;
-  }, [inactiveTimeout, close, confirm, t, reOpen, playerState.presence]);
+  }, [
+    inactiveTimeout,
+    close,
+    confirm,
+    t,
+    reOpen,
+    playerState.presence,
+    foregroundTimeout,
+    backgroundTimeout,
+  ]);
 
   // 使用 useEffect 处理倒计时更新
   useEffect(() => {
