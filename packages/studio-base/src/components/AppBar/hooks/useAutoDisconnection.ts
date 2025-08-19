@@ -9,11 +9,15 @@ import * as _ from "lodash-es";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
+import Log from "@foxglove/log";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
+import { PlayerPresence } from "@foxglove/studio-base/players/types";
+
+const log = Log.getLogger(__filename);
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
@@ -35,6 +39,7 @@ const ACTIVITY_EVENTS = [
 
 const selectClose = (ctx: MessagePipelineContext) => ctx.close;
 const selectReOpen = (ctx: MessagePipelineContext) => ctx.reOpen;
+const selectPlayer = (ctx: MessagePipelineContext) => ctx.playerState;
 
 export function useAutoDisconnection({
   confirm,
@@ -57,6 +62,7 @@ export function useAutoDisconnection({
   const { t } = useTranslation("cosWebsocket");
   const close = useMessagePipeline(selectClose);
   const reOpen = useMessagePipeline(selectReOpen);
+  const playerState = useMessagePipeline(selectPlayer);
 
   const resetTimer = useCallback(() => {
     // 清除旧的 timeout
@@ -72,7 +78,19 @@ export function useAutoDisconnection({
 
     const inactiveTimeoutId = setTimeout(() => {
       try {
-        close();
+        log.debug("close connection start");
+
+        // check is player presence is not present, if not present, skip close call
+        if (playerState.presence === PlayerPresence.NOT_PRESENT) {
+          log.debug("Player already disconnected, skipping close call");
+          return;
+        }
+
+        if (typeof close === "function") {
+          close();
+        } else {
+          log.error("close is not a function:", close);
+        }
         removeEventListener();
         void confirm({
           title: t("vizIsDisconnected"),
@@ -89,16 +107,16 @@ export function useAutoDisconnection({
             }
           })
           .catch((error: unknown) => {
-            console.error("Error during confirmation:", error);
+            log.error("Error during confirmation:", error);
           });
       } catch (error) {
-        console.error("Error during disconnection:", error);
+        log.error("Error during disconnection:", error);
       }
     }, timeout);
 
     // 更新 ref 的值
     timeoutRef.current = inactiveTimeoutId;
-  }, [inactiveTimeout, close, confirm, t, reOpen]);
+  }, [inactiveTimeout, close, confirm, t, reOpen, playerState.presence]);
 
   // 使用 useEffect 处理倒计时更新
   useEffect(() => {
@@ -127,13 +145,13 @@ export function useAutoDisconnection({
     ACTIVITY_EVENTS.forEach((event) => {
       window.addEventListener(event, throttledResetTimer);
     });
-  }, []);
+  }, [throttledResetTimer]);
 
   const removeEventListener = useCallback(() => {
     ACTIVITY_EVENTS.forEach((event) => {
       window.removeEventListener(event, throttledResetTimer);
     });
-  }, []);
+  }, [throttledResetTimer]);
 
   useEffect(() => {
     if (disableTimeout) {
@@ -147,9 +165,19 @@ export function useAutoDisconnection({
       removeEventListener();
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = undefined;
       }
     };
-  }, [disableTimeout]);
+  }, [disableTimeout, addEventListener, removeEventListener, throttledResetTimer]);
+
+  // 当 player 状态改变时，如果变为 NOT_PRESENT，清除当前的 timeout
+  useEffect(() => {
+    if (playerState.presence === PlayerPresence.NOT_PRESENT && timeoutRef.current) {
+      log.debug("Player disconnected, clearing auto-disconnect timeout");
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = undefined;
+    }
+  }, [playerState.presence]);
 
   return remainingTime;
 }

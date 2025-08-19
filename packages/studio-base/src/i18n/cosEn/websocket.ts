@@ -24,7 +24,7 @@ export const cosWebsocket = {
   IKnow: "I know",
   vizIsDisconnected: "The real-time visualisation has been disconnected",
   inactivePageDescription:
-    "The page has been inactive for a long time, the connection has been disconnected, whether to reconnect?",
+    "You have been inactive for {{time}} minutes without any operation on this real-time visualisation, the connection has been automatically disconnected to save device traffic. You can adjust the disconnection duration in the settings.",
   exitAndClosePage: "Exit and close the page",
   lanAvailable: "LAN Available",
   lanConnectionPrompt:
