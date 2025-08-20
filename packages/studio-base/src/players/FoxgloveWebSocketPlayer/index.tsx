@@ -31,6 +31,8 @@ import {
 import { ParameterValue } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
+import { IndexedDbMessageStore } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
+import type { PersistentMessageCache } from "@foxglove/studio-base/persistence/PersistentMessageCache";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { estimateObjectSize } from "@foxglove/studio-base/players/messageMemoryEstimation";
 import {
@@ -199,6 +201,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
   /** Whether to use message header stamps as clock time */
   #serverPublishesMessageTime = false;
 
+  /** Persistent message cache for 5-minute historical data */
+  #persistentCache?: PersistentMessageCache;
+  /** Whether to enable persistent caching */
+  #enablePersistentCache: boolean = true;
+
   public constructor({
     url,
     metricsCollector,
@@ -209,6 +216,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     username,
     deviceName,
     authHeader,
+    enablePersistentCache,
   }: {
     url: string;
     metricsCollector: PlayerMetricsCollectorInterface;
@@ -219,6 +227,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     username: string;
     deviceName: string;
     authHeader: string;
+    enablePersistentCache?: boolean;
   }) {
     this.#metricsCollector = metricsCollector;
     this.#url = url;
@@ -234,6 +243,25 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#username = username;
     this.#deviceName = deviceName;
     this.#authHeader = authHeader;
+    this.#enablePersistentCache = enablePersistentCache ?? true;
+
+    // Initialize persistent cache if enabled
+    if (this.#enablePersistentCache) {
+      try {
+        this.#persistentCache = new IndexedDbMessageStore({
+          retentionWindowMs: 5 * 60 * 1000, // 5 minutes
+          autoClearOnInit: true,
+          sessionId: `websocket-${this.#id}`,
+        });
+        void this.#persistentCache.init().catch((error: unknown) => {
+          log.warn("Failed to initialize persistent cache:", error);
+          this.#persistentCache = undefined;
+        });
+      } catch (error) {
+        log.warn("Failed to create persistent cache:", error);
+        this.#persistentCache = undefined;
+      }
+    }
 
     this.#open();
   }
@@ -755,13 +783,23 @@ export default class FoxgloveWebSocketPlayer implements Player {
         }
 
         const sizeInBytes = Math.max(data.byteLength, msgSizeEstimate);
-        this.#parsedMessages.push({
+        const messageEvent: MessageEvent = {
           topic,
           receiveTime: messageStamp ?? receiveTime, // Use message stamp if available, otherwise fallback to current time
           message: deserializedMessage,
           sizeInBytes,
           schemaName: chanInfo.channel.schemaName,
-        });
+        };
+
+        this.#parsedMessages.push(messageEvent);
+
+        // Persist message to cache asynchronously (non-blocking)
+        if (this.#persistentCache) {
+          void this.#persistentCache.append([messageEvent]).catch((error: unknown) => {
+            // Don't let cache errors affect real-time visualization
+            log.debug("Failed to persist message to cache:", error);
+          });
+        }
         this.#parsedMessagesBytes += sizeInBytes;
         if (this.#parsedMessagesBytes > CURRENT_FRAME_MAXIMUM_SIZE_BYTES) {
           this.#problems.addProblem(`webSocketPlayer:parsedMessageCacheFull`, {
@@ -1191,6 +1229,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
       clearInterval(this.#getParameterInterval);
       this.#getParameterInterval = undefined;
     }
+
+    // Clean up persistent cache
+    void this.#persistentCache?.close().catch((error: unknown) => {
+      log.debug("Error closing persistent cache:", error);
+    });
   }
 
   public reOpen(): void {
@@ -1644,6 +1687,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#preFetchAssetRequests.clear();
     this.#parameterTypeByName.clear();
     this.#messageSizeEstimateByTopic = {};
+
+    // Clear persistent cache on session reset
+    if (this.#persistentCache) {
+      void this.#persistentCache.clear().catch((error: unknown) => {
+        log.debug("Failed to clear persistent cache:", error);
+      });
+    }
   }
 
   #updateDataTypes(datatypes: MessageDefinitionMap): void {

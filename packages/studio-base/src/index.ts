@@ -39,6 +39,7 @@ export { default as VelodyneDataSourceFactory } from "./dataSources/VelodyneData
 export { default as RemoteDataSourceFactory } from "./dataSources/RemoteDataSourceFactory";
 export { default as McapLocalDataSourceFactory } from "./dataSources/McapLocalDataSourceFactory";
 export { default as SampleNuscenesDataSourceFactory } from "./dataSources/SampleNuscenesDataSourceFactory";
+export { default as PersistentCacheDataSourceFactory } from "./dataSources/PersistentCacheDataSourceFactory";
 export { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 export { reportError, setReportErrorHandler } from "./reportError";
 export { makeWorkspaceContextInitialState } from "./providers/WorkspaceContextProvider";
@@ -59,3 +60,10 @@ export type { AppBarProps } from "./components/AppBar";
 // desktop
 export type { INativeWindow, NativeWindowEvent } from "./context/NativeWindowContext";
 export type { INativeAppMenu, NativeAppMenuEvent } from "./context/NativeAppMenuContext";
+
+// Persistence
+export type {
+  PersistentMessageCache,
+  PersistenceSessionId,
+} from "./persistence/PersistentMessageCache";
+export { IndexedDbMessageStore } from "./persistence/IndexedDbMessageStore";
