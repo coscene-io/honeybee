@@ -96,7 +96,7 @@ export type CoreDataStore = {
   // @deprecated don't use this function, use useSetExternalInitConfig in CoreDataSyncAdapter instead
   setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => void;
 
-  setDataSource: (dataSource: DataSource) => void;
+  setDataSource: (dataSource: DataSource | undefined) => void;
   setRecord: (record: AsyncState<Record>) => void;
   setDevice: (device: AsyncState<Device>) => void;
   setJobRun: (jobRun: AsyncState<JobRun>) => void;
@@ -114,6 +114,8 @@ export type CoreDataStore = {
   refreshRecordCustomFieldSchema: () => void;
   refreshDeviceCustomFieldSchema: () => void;
   refreshOrganization: () => void;
+
+  resetCoreDataStore: () => void;
 
   getEnableList: () => {
     event: "ENABLE" | "DISABLE";
