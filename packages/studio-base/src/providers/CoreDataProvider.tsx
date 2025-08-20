@@ -27,32 +27,35 @@ import {
 } from "@foxglove/studio-base/context/CoreDataContext";
 import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 
+const defaultCoreDataStore = {
+  showtUrlKey: undefined,
+  externalInitConfig: undefined,
+  dataSource: undefined,
+
+  organization: { loading: true, value: undefined },
+  project: { loading: true, value: undefined },
+  device: { loading: true, value: undefined },
+  record: { loading: true, value: undefined },
+  jobRun: { loading: true, value: undefined },
+
+  recordCustomFieldSchema: undefined,
+  deviceCustomFieldSchema: undefined,
+
+  coordinatorConfig: undefined,
+  colinkApi: undefined,
+
+  reloadRecordTrigger: 0,
+  reloadProjectTrigger: 0,
+  reloadDeviceTrigger: 0,
+  reloadJobRunTrigger: 0,
+  reloadRecordCustomFieldSchemaTrigger: 0,
+  reloadDeviceCustomFieldSchemaTrigger: 0,
+  reloadOrganizationTrigger: 0,
+};
+
 function CreateCoreDataStore() {
   return createStore<CoreDataStore>((set, get) => ({
-    showtUrlKey: undefined,
-    externalInitConfig: undefined,
-    dataSource: undefined,
-
-    organization: { loading: true, value: undefined },
-    project: { loading: true, value: undefined },
-    device: { loading: true, value: undefined },
-    record: { loading: true, value: undefined },
-    jobRun: { loading: true, value: undefined },
-
-    recordCustomFieldSchema: undefined,
-    deviceCustomFieldSchema: undefined,
-
-    // coLink config
-    coordinatorConfig: undefined,
-    colinkApi: undefined,
-
-    reloadRecordTrigger: 0,
-    reloadProjectTrigger: 0,
-    reloadDeviceTrigger: 0,
-    reloadJobRunTrigger: 0,
-    reloadRecordCustomFieldSchemaTrigger: 0,
-    reloadDeviceCustomFieldSchemaTrigger: 0,
-    reloadOrganizationTrigger: 0,
+    ...defaultCoreDataStore,
 
     setShowtUrlKey: (showtUrlKey: string) => {
       set({ showtUrlKey });
@@ -60,7 +63,7 @@ function CreateCoreDataStore() {
     setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => {
       set({ externalInitConfig });
     },
-    setDataSource: (dataSource: DataSource) => {
+    setDataSource: (dataSource: DataSource | undefined) => {
       set({ dataSource });
     },
     setOrganization: (organization: AsyncState<Organization>) => {
@@ -111,6 +114,10 @@ function CreateCoreDataStore() {
     },
     refreshDeviceCustomFieldSchema: () => {
       set({ reloadDeviceCustomFieldSchemaTrigger: get().reloadDeviceCustomFieldSchemaTrigger + 1 });
+    },
+
+    resetCoreDataStore: () => {
+      set(defaultCoreDataStore);
     },
 
     getEnableList: () => {

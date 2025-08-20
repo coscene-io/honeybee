@@ -252,8 +252,19 @@ export default function PlayerManager(
   >();
 
   const selectSource = useCallback(
-    async (sourceId: string, args?: DataSourceArgs) => {
+    async (sourceId: string | undefined, args?: DataSourceArgs) => {
       log.debug(`Select Source: ${sourceId}`);
+
+      // If sourceId is undefined, clear the current source selection
+      if (sourceId == undefined) {
+        setCurrentSourceId(undefined);
+        setSelectedSource(undefined);
+        setCurrentSourceArgs(undefined);
+        setCurrentSourceParams(undefined);
+        constructPlayers(undefined);
+        setDataSource(undefined);
+        return;
+      }
 
       setCurrentSourceId(sourceId);
 
@@ -501,7 +512,7 @@ export default function PlayerManager(
  */
 function createSelectRecentCallback(
   recents: RecentRecord[],
-  selectSource: (sourceId: string, dataSourceArgs: DataSourceArgs) => Promise<void>,
+  selectSource: (sourceId: string | undefined, dataSourceArgs?: DataSourceArgs) => Promise<void>,
   enqueueSnackbar: ReturnType<typeof useSnackbar>["enqueueSnackbar"],
 ) {
   return (recentId: string) => {
