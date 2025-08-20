@@ -26,7 +26,9 @@ import {
   useCurrentUser as useCoSceneCurrentUser,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useCurrentUserType } from "@foxglove/studio-base/context/CurrentUserContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
@@ -59,6 +61,7 @@ const selectUser = (store: UserStore) => store.user;
 const selectSetUser = (store: UserStore) => store.setUser;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectSetLoginStatus = (store: UserStore) => store.setLoginStatus;
+const selectResetCoreDataStore = (store: CoreDataStore) => store.resetCoreDataStore;
 
 function CoStudioEnvBadge() {
   const projectEnv = APP_CONFIG.VITE_APP_PROJECT_ENV;
@@ -88,6 +91,7 @@ export function UserMenu({
   const { t } = useTranslation("cosAppBar");
   const [latestVersion, setLatestVersion] = useState("");
   const setUser = useCoSceneCurrentUser(selectSetUser);
+  const resetCoreDataStore = useCoreData(selectResetCoreDataStore);
 
   useEffect(() => {
     if (APP_CONFIG.COSTUDIO_DOWNLOAD_URL) {
@@ -98,6 +102,7 @@ export function UserMenu({
   }, []);
 
   const { dialogActions } = useWorkspaceActions();
+  const { selectSource } = usePlayerSelection();
 
   const isDesktop = isDesktopApp();
 
@@ -112,11 +117,22 @@ export function UserMenu({
       localStorage.removeItem("coScene_org_jwt");
       setLoginStatus("notLogin");
       setUser(undefined);
+      resetCoreDataStore();
+      selectSource(undefined);
+      dialogActions.dataSource.open("start");
       toast.success(t("signoutSuccess"));
     } else {
       window.location.href = "/login";
     }
-  }, [isDesktop, setLoginStatus, t, setUser]);
+  }, [
+    isDesktop,
+    setLoginStatus,
+    setUser,
+    resetCoreDataStore,
+    selectSource,
+    dialogActions.dataSource,
+    t,
+  ]);
 
   const onSignoutClick = useCallback(() => {
     void confirm({
