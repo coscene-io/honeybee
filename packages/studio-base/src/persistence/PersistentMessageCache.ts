@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import type { MessageEvent, Time } from "@foxglove/studio";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 /** @deprecated Use separate PersistentMessageCache instances for session isolation */
 export type PersistenceSessionId = string;
@@ -69,4 +70,10 @@ export interface PersistentMessageCache {
     latest?: Time;
     approximateSizeBytes?: number;
   }>;
+
+  /** Store datatypes information for this session (optional, may not be supported by all implementations). */
+  storeDatatypes?(datatypes: RosDatatypes): Promise<void>;
+
+  /** Retrieve datatypes information for this session (optional, may not be supported by all implementations). */
+  getDatatypes?(): Promise<RosDatatypes | undefined>;
 }

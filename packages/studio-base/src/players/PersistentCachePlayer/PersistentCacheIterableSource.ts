@@ -8,6 +8,7 @@
 import { compare, Time } from "@foxglove/rostime";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 
+import { IndexedDbMessageStore } from "../../persistence/IndexedDbMessageStore";
 import type { PersistentMessageCache } from "../../persistence/PersistentMessageCache";
 import {
   GetBackfillMessagesArgs,
@@ -77,12 +78,21 @@ export class PersistentCacheIterableSource implements IDeserializedIterableSourc
       }
     }
 
+    // Try to get cached datatypes if the cache is an IndexedDbMessageStore
+    let datatypes = new Map();
+    if (this.#cache instanceof IndexedDbMessageStore) {
+      const cachedDatatypes = await this.#cache.getDatatypes();
+      if (cachedDatatypes != undefined) {
+        datatypes = cachedDatatypes;
+      }
+    }
+
     return {
       start: stats.earliest,
       end: stats.latest,
       topics: Array.from(topicsMap.values()),
       topicStats,
-      datatypes: new Map(), // We don't have datatype definitions in the cache
+      datatypes,
       profile: undefined,
       name: this.#name ?? `Persistent Cache (${stats.count} messages)`,
       publishersByTopic: new Map(),

@@ -10,6 +10,7 @@ import * as IDB from "idb";
 import Log from "@foxglove/log";
 import { isGreaterThan } from "@foxglove/rostime";
 import type { MessageEvent, Time } from "@foxglove/studio";
+import { OptionalMessageDefinition, RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import type { PersistentMessageCache } from "./PersistentMessageCache";
 
@@ -17,6 +18,7 @@ const log = Log.getLogger(__filename);
 
 const DB_NAME = "studio-realtime-cache";
 const STORE = "messages";
+const DATATYPES_STORE = "datatypes";
 
 type StoredMessageEvent = Omit<MessageEvent, "originalMessageEvent"> & {
   // internal fields for indexing and tiebreak
@@ -32,6 +34,14 @@ interface MessagesDB extends IDB.DBSchema {
       bySessionTime: [sessionId: string, sec: number, nsec: number];
       bySessionTopicTime: [sessionId: string, topic: string, sec: number, nsec: number];
       bySession: string;
+    };
+  };
+  [DATATYPES_STORE]: {
+    key: string; // sessionId
+    value: {
+      sessionId: string;
+      datatypes: Record<string, OptionalMessageDefinition>;
+      timestamp: number;
     };
   };
 }
@@ -86,6 +96,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           "receiveTime.nsec",
         ]);
         store.createIndex("bySession", "sessionId");
+        db.createObjectStore(DATATYPES_STORE, {
+          keyPath: "sessionId",
+        });
       },
     });
 
@@ -433,5 +446,51 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
    */
   public setPruneInterval(intervalMs: number): void {
     this.#pruneIntervalMs = Math.max(1000, intervalMs); // Minimum 1 second
+  }
+
+  /**
+   * Store datatypes information for this session
+   */
+  public async storeDatatypes(datatypes: RosDatatypes): Promise<void> {
+    const db = await this.#dbPromise;
+    const tx = db.transaction(DATATYPES_STORE, "readwrite");
+    const store = tx.objectStore(DATATYPES_STORE);
+
+    // Convert Map to plain object for storage
+    const datatypesObj: Record<string, OptionalMessageDefinition> = {};
+    for (const [key, value] of datatypes) {
+      datatypesObj[key] = value;
+    }
+
+    await store.put({
+      sessionId: this.#currentSessionId,
+      datatypes: datatypesObj,
+      timestamp: Date.now(),
+    });
+    await tx.done;
+  }
+
+  /**
+   * Retrieve datatypes information for this session
+   */
+  public async getDatatypes(): Promise<RosDatatypes | undefined> {
+    const db = await this.#dbPromise;
+    const tx = db.transaction(DATATYPES_STORE, "readonly");
+    const store = tx.objectStore(DATATYPES_STORE);
+
+    const result = await store.get(this.#currentSessionId);
+    await tx.done;
+
+    if (!result) {
+      return undefined;
+    }
+
+    // Convert plain object back to Map
+    const datatypes = new Map<string, OptionalMessageDefinition>();
+    for (const [key, value] of Object.entries(result.datatypes)) {
+      datatypes.set(key, value);
+    }
+
+    return datatypes;
   }
 }

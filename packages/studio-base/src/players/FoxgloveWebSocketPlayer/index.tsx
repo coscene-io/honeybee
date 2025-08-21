@@ -1728,6 +1728,17 @@ export default class FoxgloveWebSocketPlayer implements Player {
     }
     if (updatedDatatypes != undefined) {
       this.#datatypes = updatedDatatypes; // Signal that datatypes changed.
+
+      // Store updated datatypes to persistent cache
+      if (
+        this.#persistentCache != undefined &&
+        "storeDatatypes" in this.#persistentCache &&
+        this.#persistentCache.storeDatatypes != undefined
+      ) {
+        void this.#persistentCache.storeDatatypes(updatedDatatypes).catch((error: unknown) => {
+          log.debug("Failed to store datatypes to cache:", error);
+        });
+      }
     }
   }
 
