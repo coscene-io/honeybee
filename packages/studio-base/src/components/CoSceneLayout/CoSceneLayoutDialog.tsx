@@ -5,14 +5,32 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Dialog, DialogProps, DialogTitle } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { Dialog, DialogProps, DialogTitle, IconButton } from "@mui/material";
 
-export function CoSceneLayoutDialog(props: DialogProps): React.JSX.Element {
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+
+export function CoSceneLayoutDialog(
+  props: DialogProps & {
+    onClose: () => void;
+  },
+): React.JSX.Element {
   const { open, onClose } = props;
+  const consoleApi = useConsoleApi();
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>CoScene Layout</DialogTitle>
+      <DialogTitle>
+        CoScene Layout
+        <IconButton
+          component="button"
+          onClick={() => {
+            onClose();
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
     </Dialog>
   );
 }
