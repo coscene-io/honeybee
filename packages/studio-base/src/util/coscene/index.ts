@@ -11,7 +11,7 @@ import { createGrpcWebTransport } from "@bufbuild/connect-web";
 import { ServiceType, Timestamp, Value, JsonObject } from "@bufbuild/protobuf";
 import {
   Layout,
-  LayoutDetail,
+  // LayoutDetail,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
@@ -129,22 +129,37 @@ export const getCoSceneLayout = (layout: {
   data: Record<string, unknown> | undefined;
   userId: string;
 }): Layout => {
-  const newLayout = new Layout();
+  // todo
+  const newLayout = new Layout(
+    {
+      // id: layout.id ?? "",
+      name: layout.name ?? "",
+      // permission: layout.permission ?? "",
+      createTime: Timestamp.fromDate(new Date()),
+      updateTime: Timestamp.fromDate(new Date()),
+      data: layout.data ? Value.fromJson(replaceUndefinedWithNull(layout.data) as JsonObject).toJsonString() : undefined,
+      modifyTime: Timestamp.fromDate(new Date()),
+      creator: layout.userId,
+      modifier: layout.userId,
+      // saveTime: Timestamp.fromDate(new Date(layout.savedAt ?? "")),
+      // data: Value.fromJson(replaceUndefinedWithNull(layout.data ?? {}) as JsonObject),
+    }
+  );
   newLayout.name =
     layout.permission === "CREATOR_WRITE"
       ? `users/${layout.userId}/layouts/${layout.id}`
       : "layouts/" + (layout.id ?? "");
-  const layoutDetail = new LayoutDetail();
+  // const layoutDetail = new LayoutDetail();
 
-  layoutDetail.name = layout.name ?? "";
-  layoutDetail.permission = layout.permission ?? "";
-  layoutDetail.createTime = Timestamp.fromDate(new Date());
-  layoutDetail.updateTime = Timestamp.fromDate(new Date());
-  layoutDetail.saveTime = Timestamp.fromDate(new Date(layout.savedAt ?? ""));
+  // layoutDetail.name = layout.name ?? "";
+  // layoutDetail.permission = layout.permission ?? "";
+  // layoutDetail.createTime = Timestamp.fromDate(new Date());
+  // layoutDetail.updateTime = Timestamp.fromDate(new Date());
+  // layoutDetail.saveTime = Timestamp.fromDate(new Date(layout.savedAt ?? ""));
 
-  layoutDetail.data = Value.fromJson(replaceUndefinedWithNull(layout.data ?? {}) as JsonObject);
+  // layoutDetail.data = Value.fromJson(replaceUndefinedWithNull(layout.data ?? {}) as JsonObject);
 
-  newLayout.value = layoutDetail;
+  // newLayout.value = }
 
   return newLayout;
 };
