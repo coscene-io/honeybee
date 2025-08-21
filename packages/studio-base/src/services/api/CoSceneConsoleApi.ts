@@ -48,6 +48,7 @@ import {
 import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { DeviceService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_connect";
 import {
@@ -62,6 +63,15 @@ import {
   DeleteEventRequest,
   UpdateEventRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_pb";
+import { LayoutService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_connect";
+import {
+  GetLayoutRequest,
+  CreateLayoutRequest,
+  UpdateLayoutRequest,
+  DeleteLayoutRequest,
+  ListLayoutsRequest,
+  ListLayoutsResponse,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
   GetRecordRequest,
@@ -400,11 +410,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-    orgPermissionList: [],
-    projectPermissionList: [],
-    orgDenyList: [],
-    projectDenyList: [],
-  };
+      orgPermissionList: [],
+      projectPermissionList: [],
+      orgDenyList: [],
+      projectDenyList: [],
+    };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -593,6 +603,94 @@ class CoSceneConsoleApi {
     return (await this.#delete(`/bff/honeybee/layout/v2/layouts/${id}`)).status === 200;
   }
 
+  // gRPC Layout methods using protobuf interfaces
+  public getLayoutGrpc = Object.assign(
+    async ({ name }: { name: string }): Promise<Layout> => {
+      const req = new GetLayoutRequest({ name });
+      return await getPromiseClient(LayoutService).getLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.GetLayout, this.#permissionList);
+      },
+    },
+  );
+
+  public listLayoutsGrpc = Object.assign(
+    async ({
+      parent,
+      filter,
+    }: {
+      parent: string;
+      filter?: string;
+    }): Promise<ListLayoutsResponse> => {
+      const req = new ListLayoutsRequest({
+        parent,
+        filter,
+      });
+      return await getPromiseClient(LayoutService).listLayouts(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.ListLayouts, this.#permissionList);
+      },
+    },
+  );
+
+  public createLayoutGrpc = Object.assign(
+    async ({
+      parent,
+      layout,
+    }: {
+      parent: string;
+      layout: Layout;
+    }): Promise<Layout> => {
+      const req = new CreateLayoutRequest({
+        parent,
+        layout,
+      });
+      return await getPromiseClient(LayoutService).createLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.CreateLayout, this.#permissionList);
+      },
+    },
+  );
+
+  public updateLayoutGrpc = Object.assign(
+    async ({
+      layout,
+      updateMask,
+    }: {
+      layout: Layout;
+      updateMask?: FieldMask;
+    }): Promise<Layout> => {
+      const req = new UpdateLayoutRequest({
+        layout,
+        updateMask,
+      });
+      return await getPromiseClient(LayoutService).updateLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.UpdateLayout, this.#permissionList);
+      },
+    },
+  );
+
+  public deleteLayoutGrpc = Object.assign(
+    async ({ name }: { name: string }): Promise<Empty> => {
+      const req = new DeleteLayoutRequest({ name });
+      return await getPromiseClient(LayoutService).deleteLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.DeleteLayout, this.#permissionList);
+      },
+    },
+  );
+
   public getRequectConfig(
     url: string,
     config?: RequestInit,
@@ -603,8 +701,8 @@ class CoSceneConsoleApi {
       customHost != undefined && customHost
         ? url
         : url.startsWith("/bff")
-        ? `${this.#bffUrl}${url}`
-        : `${this.#baseUrl}${url}`;
+          ? `${this.#bffUrl}${url}`
+          : `${this.#baseUrl}${url}`;
 
     const fullConfig: RequestInit = {
       ...config,
