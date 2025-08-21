@@ -5,6 +5,27 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { useState } from "react";
+
+import { CoSceneLayoutDialog } from "./CoSceneLayoutDialog";
+
 export function CoSceneLayoutButton(): React.JSX.Element {
-  return <div>CoSceneLayoutButton</div>;
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <div
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        CoSceneLayoutButton
+      </div>
+      <CoSceneLayoutDialog
+        open={open}
+        onClose={() => {
+          setOpen(false);
+        }}
+      />
+    </div>
+  );
 }
