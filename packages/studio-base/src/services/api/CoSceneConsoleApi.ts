@@ -135,6 +135,7 @@ import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import toast from "react-hot-toast";
 
+import Log from "@foxglove/log";
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
 import {
@@ -158,6 +159,8 @@ import { timestampToTime } from "@foxglove/studio-base/util/time";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 import { HttpError } from "./HttpError";
+
+const log = Log.getLogger(__filename);
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 
@@ -308,17 +311,7 @@ export type LayoutID = string & { __brand: "LayoutID" };
 export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
 export type Permission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
 
-export type ConsoleApiLayout = {
-  id: LayoutID;
-  name: string;
-  createdAt: ISO8601Timestamp;
-  updatedAt: ISO8601Timestamp;
-  savedAt?: ISO8601Timestamp;
-  permission: Permission;
-  data?: Record<string, unknown>;
-  isProjectRecommended: boolean;
-  isRecordRecommended: boolean;
-};
+
 
 export enum MetricType {
   RecordPlaysTotal = "honeybee_record_plays_total",
@@ -530,81 +523,10 @@ class CoSceneConsoleApi {
     return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
   }
 
-  public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
-    return await this.#get<ConsoleApiLayout[]>("/bff/honeybee/layout/v2/layouts", {
-      includeData: options.includeData ? "true" : "false",
-      projectId: this.#baseInfo.projectId,
-      recordId: this.#baseInfo.recordId,
-    });
-  }
 
-  public async getLayout(
-    id: LayoutID,
-    options: { includeData: boolean },
-  ): Promise<ConsoleApiLayout | undefined> {
-    // if layout not found, return empty object
-    const res = await this.#get<ConsoleApiLayout>(`/bff/honeybee/layout/v2/layouts/${id}`, {
-      includeData: options.includeData ? "true" : "false",
-      projectId: this.#baseInfo.projectId,
-      recordId: this.#baseInfo.recordId,
-    });
 
-    if (Object.keys(res).length === 0) {
-      return undefined;
-    }
-
-    return res;
-  }
-
-  public async createLayout(layout: {
-    id: LayoutID | undefined;
-    savedAt: ISO8601Timestamp | undefined;
-    name: string | undefined;
-    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
-    data: Record<string, unknown> | undefined;
-  }): Promise<ConsoleApiLayout> {
-    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v2/layouts", {
-      ...layout,
-    });
-  }
-
-  public async createRecordLayout(layout: {
-    id: LayoutID | undefined;
-    savedAt: ISO8601Timestamp | undefined;
-    name: string | undefined;
-    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
-    data: Record<string, unknown> | undefined;
-  }): Promise<ConsoleApiLayout> {
-    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v2/recordLayout", {
-      ...layout,
-      recordId: this.#baseInfo.recordId,
-    });
-  }
-
-  public async updateLayout(layout: {
-    id: LayoutID;
-    savedAt: ISO8601Timestamp;
-    name: string | undefined;
-    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
-    data: Record<string, unknown> | undefined;
-  }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
-    const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
-      `/bff/honeybee/layout/v2/layouts/${layout.id}`,
-      { ...layout, projectId: this.#baseInfo.projectId },
-    );
-    if (status === 200) {
-      return { status: "success", newLayout };
-    } else {
-      return { status: "conflict" };
-    }
-  }
-
-  public async deleteLayout(id: LayoutID): Promise<boolean> {
-    return (await this.#delete(`/bff/honeybee/layout/v2/layouts/${id}`)).status === 200;
-  }
-
-  // gRPC v2 Layout methods using protobuf interfaces
-  public getLayoutV2 = Object.assign(
+  // gRPC Layout methods using protobuf interfaces
+  public getLayout = Object.assign(
     async ({ name }: { name: string }): Promise<Layout> => {
       const req = new GetLayoutRequest({ name });
       return await getPromiseClient(LayoutService).getLayout(req);
@@ -616,7 +538,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public listLayoutsV2 = Object.assign(
+  public listLayouts = Object.assign(
     async ({
       parent,
       filter,
@@ -637,7 +559,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public createLayoutV2 = Object.assign(
+  public createLayout = Object.assign(
     async ({
       parent,
       layout,
@@ -658,7 +580,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public updateLayoutV2 = Object.assign(
+  public updateLayout = Object.assign(
     async ({
       layout,
       updateMask,
@@ -679,7 +601,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public deleteLayoutV2 = Object.assign(
+  public deleteLayout = Object.assign(
     async ({ name }: { name: string }): Promise<Empty> => {
       const req = new DeleteLayoutRequest({ name });
       return await getPromiseClient(LayoutService).deleteLayout(req);
@@ -812,13 +734,6 @@ class CoSceneConsoleApi {
     );
   }
 
-  async #delete<T>(apiPath: string, query?: Record<string, string>): Promise<ApiResponse<T>> {
-    return await this.#request<T>(
-      query == undefined ? apiPath : `${apiPath}?${new URLSearchParams(query).toString()}`,
-      { method: "DELETE" },
-      { allowedStatuses: [404] },
-    );
-  }
 
   // coScene-----------------------------------------------------------
 
