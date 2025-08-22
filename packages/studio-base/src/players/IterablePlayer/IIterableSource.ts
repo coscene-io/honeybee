@@ -231,6 +231,8 @@ export type IterableSourceInitializeArgs = {
   url?: string;
   files?: File[];
   params?: Record<string, string | undefined>;
+  // for persistent cache source
+  sessionId?: string;
 
   api?: {
     baseUrl: string;

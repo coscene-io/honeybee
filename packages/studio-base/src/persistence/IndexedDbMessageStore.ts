@@ -48,10 +48,8 @@ interface MessagesDB extends IDB.DBSchema {
 
 function sanitizeEvent(sessionId: string, seq: number, event: MessageEvent): StoredMessageEvent {
   // Drop potential cycles
-  const { originalMessageEvent: _drop, ...rest } = event as MessageEvent & {
-    originalMessageEvent?: MessageEvent | undefined;
-  };
-  return { ...rest, sessionId, seq } as StoredMessageEvent;
+  const { originalMessageEvent: _drop, ...rest } = event;
+  return { ...rest, sessionId, seq };
 }
 
 interface IndexedDbMessageStoreOptions {

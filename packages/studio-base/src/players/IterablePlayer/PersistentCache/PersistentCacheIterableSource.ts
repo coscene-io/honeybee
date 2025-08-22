@@ -5,35 +5,39 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+import Logger from "@foxglove/log";
 import { compare, Time } from "@foxglove/rostime";
 import { Immutable, MessageEvent } from "@foxglove/studio";
+import { IndexedDbMessageStore } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 
-import { IndexedDbMessageStore } from "../../persistence/IndexedDbMessageStore";
-import type { PersistentMessageCache } from "../../persistence/PersistentMessageCache";
+import type { PersistentMessageCache } from "../../../persistence/PersistentMessageCache";
 import {
-  GetBackfillMessagesArgs,
-  IDeserializedIterableSource,
+  IIterableSource,
   Initalization,
-  IteratorResult,
   MessageIteratorArgs,
-} from "../IterablePlayer/IIterableSource";
+  IteratorResult,
+  GetBackfillMessagesArgs,
+  IterableSourceInitializeArgs,
+} from "../IIterableSource";
 
-/**
- * Adapts a PersistentMessageCache to work as an IDeserializedIterableSource
- * for use with IterablePlayer, enabling playback of cached real-time data.
- */
-export class PersistentCacheIterableSource implements IDeserializedIterableSource {
-  public readonly sourceType = "deserialized";
+const log = Logger.getLogger(__filename);
 
-  #cache: PersistentMessageCache;
-  #name?: string;
+export class PersistentCacheIterableSource implements IIterableSource {
+  #cache?: PersistentMessageCache;
+  #sessionId: string;
 
-  public constructor({ cache, name }: { cache: PersistentMessageCache; name?: string }) {
-    this.#cache = cache;
-    this.#name = name;
+  public constructor({ sessionId }: { sessionId: string }) {
+    this.#sessionId = sessionId;
   }
 
   public async initialize(): Promise<Initalization> {
+    this.#cache = new IndexedDbMessageStore({
+      autoClearOnInit: false,
+      sessionId: this.#sessionId,
+    });
+
     await this.#cache.init();
 
     const stats = await this.#cache.stats();
@@ -47,7 +51,6 @@ export class PersistentCacheIterableSource implements IDeserializedIterableSourc
         topicStats: new Map(),
         datatypes: new Map(),
         profile: undefined,
-        name: this.#name ?? "Persistent Cache",
         publishersByTopic: new Map(),
         problems: [],
       };
@@ -94,7 +97,6 @@ export class PersistentCacheIterableSource implements IDeserializedIterableSourc
       topicStats,
       datatypes,
       profile: undefined,
-      name: this.#name ?? `Persistent Cache (${stats.count} messages)`,
       publishersByTopic: new Map(),
       problems: [],
     };
@@ -107,6 +109,10 @@ export class PersistentCacheIterableSource implements IDeserializedIterableSourc
 
     if (topics.size === 0) {
       return;
+    }
+
+    if (!this.#cache) {
+      throw new Error("PersistentCacheIterableSource not initialized");
     }
 
     const topicList = Array.from(topics.keys());
@@ -186,6 +192,10 @@ export class PersistentCacheIterableSource implements IDeserializedIterableSourc
       return [];
     }
 
+    if (!this.#cache) {
+      throw new Error("PersistentCacheIterableSource not initialized");
+    }
+
     const topicList = Array.from(topics.keys());
     const messages = await this.#cache.getBackfillMessages({
       time,
@@ -195,6 +205,26 @@ export class PersistentCacheIterableSource implements IDeserializedIterableSourc
   }
 
   public async terminate(): Promise<void> {
+    console.log("terminate");
+    if (!this.#cache) {
+      throw new Error("PersistentCacheIterableSource not initialized");
+    }
+
     await this.#cache.close();
   }
+}
+
+export function initialize(args: IterableSourceInitializeArgs): PersistentCacheIterableSource {
+  const { sessionId } = args;
+
+  if (!sessionId) {
+    throw new Error("sessionId is required for persistent cache source");
+  }
+
+  log.info(`Initializing persistent cache source for session ${sessionId}`);
+
+  // Create the persistent cache iterable source
+  return new PersistentCacheIterableSource({
+    sessionId,
+  });
 }
