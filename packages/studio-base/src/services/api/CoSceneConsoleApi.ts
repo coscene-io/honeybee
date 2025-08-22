@@ -603,8 +603,8 @@ class CoSceneConsoleApi {
     return (await this.#delete(`/bff/honeybee/layout/v2/layouts/${id}`)).status === 200;
   }
 
-  // gRPC Layout methods using protobuf interfaces
-  public getLayoutGrpc = Object.assign(
+  // gRPC v2 Layout methods using protobuf interfaces
+  public getLayoutV2 = Object.assign(
     async ({ name }: { name: string }): Promise<Layout> => {
       const req = new GetLayoutRequest({ name });
       return await getPromiseClient(LayoutService).getLayout(req);
@@ -616,7 +616,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public listLayoutsGrpc = Object.assign(
+  public listLayoutsV2 = Object.assign(
     async ({
       parent,
       filter,
@@ -637,7 +637,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public createLayoutGrpc = Object.assign(
+  public createLayoutV2 = Object.assign(
     async ({
       parent,
       layout,
@@ -658,7 +658,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public updateLayoutGrpc = Object.assign(
+  public updateLayoutV2 = Object.assign(
     async ({
       layout,
       updateMask,
@@ -679,7 +679,7 @@ class CoSceneConsoleApi {
     },
   );
 
-  public deleteLayoutGrpc = Object.assign(
+  public deleteLayoutV2 = Object.assign(
     async ({ name }: { name: string }): Promise<Empty> => {
       const req = new DeleteLayoutRequest({ name });
       return await getPromiseClient(LayoutService).deleteLayout(req);
