@@ -23,5 +23,4 @@ coverage/
 *.coe
 
 # Cursor
-.cursorignore
-.cursorrules
+.cursor/rules/
