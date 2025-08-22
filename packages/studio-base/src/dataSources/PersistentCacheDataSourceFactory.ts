@@ -15,30 +15,24 @@ import { Player } from "@foxglove/studio-base/players/types";
 class PersistentCacheDataSourceFactory implements IDataSourceFactory {
   public id = "persistent-cache";
   public type: IDataSourceFactory["type"] = "connection";
-  public displayName = "缓存数据回放";
+  public displayName = "test persistent cache";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
-  public description = "播放存储在本地IndexedDB中的实时数据缓存";
+  public description = "just for test persistent cache, not for production use";
 
   public formConfig = {
     fields: [
       {
         id: "sessionId",
-        label: "会话ID (可选)",
-        placeholder: "留空自动选择最新会话",
+        label: "sessionId",
+        placeholder: "sessionId",
         validate: (newValue: string): Error | undefined => {
           // Session ID validation - can be empty or a valid session ID format
           if (newValue && !/^[a-zA-Z0-9\-_]+$/.test(newValue)) {
-            return new Error("会话ID只能包含字母、数字、连字符和下划线");
+            return new Error("only letters, numbers, hyphens and underscores are allowed");
           }
           return undefined;
         },
-      },
-      {
-        id: "name",
-        label: "播放器名称 (可选)",
-        placeholder: "缓存数据回放",
-        validate: undefined,
       },
     ],
   };

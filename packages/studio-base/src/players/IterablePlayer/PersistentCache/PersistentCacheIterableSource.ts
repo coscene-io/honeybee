@@ -205,7 +205,6 @@ export class PersistentCacheIterableSource implements IIterableSource {
   }
 
   public async terminate(): Promise<void> {
-    console.log("terminate");
     if (!this.#cache) {
       throw new Error("PersistentCacheIterableSource not initialized");
     }

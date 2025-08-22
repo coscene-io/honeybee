@@ -81,6 +81,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#retentionWindowMs = retentionWindowMs;
     this.#currentSessionId = sessionId;
 
+    console.debug("debug open db", DB_NAME, sessionId);
     this.#dbPromise = IDB.openDB<MessagesDB>(DB_NAME, 1, {
       upgrade(db) {
         const store = db.createObjectStore(STORE, {
@@ -198,6 +199,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     await tx.done;
   }
 
+  // rm data before cutoff
   async #pruneBefore(
     sessionId: string,
     cutoff: Time,
@@ -318,6 +320,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
   public async close(): Promise<void> {
     const db = await this.#dbPromise;
+    console.debug("debug close db", DB_NAME, this.#currentSessionId);
     db.close();
   }
 
