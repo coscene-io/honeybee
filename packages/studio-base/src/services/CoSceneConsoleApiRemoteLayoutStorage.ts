@@ -52,8 +52,9 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
     permission,
     data,
     savedAt: layout.updateTime?.toDate().toISOString() as ISO8601Timestamp,
-    isProjectRecommended: layout.name.startsWith('projects/'),
-    isRecordRecommended: false, // gRPC v2 doesn't have record-specific layouts
+    // isProjectRecommended: layout.name.startsWith('projects/'),
+    isProjectRecommended: false, // deprecated
+    isRecordRecommended: false, // deprecated, gRPC v2 doesn't have record-specific layouts
   };
 }
 
