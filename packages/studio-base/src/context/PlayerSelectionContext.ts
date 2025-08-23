@@ -115,7 +115,7 @@ export type DataSourceArgs =
  * PlayerSelectionContext exposes the available data sources and a function to set the current data source
  */
 export interface PlayerSelection {
-  selectSource: (sourceId: string, args?: DataSourceArgs) => void;
+  selectSource: (sourceId: string | undefined, args?: DataSourceArgs) => void;
   selectRecent: (recentId: string) => void;
   reloadCurrentSource: (params?: Record<string, string | undefined>) => Promise<void>;
 
