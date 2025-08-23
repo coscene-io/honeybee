@@ -19,6 +19,7 @@ import { useSnackbar } from "notistack";
 import { PropsWithChildren, useCallback, useEffect, useMemo, useState, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
+import { v4 as uuidv4 } from "uuid";
 
 import { useWarnImmediateReRender } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
@@ -60,6 +61,7 @@ const selectSetDataSource = (store: CoreDataStore) => store.setDataSource;
 const selectRecord = (store: CoreDataStore) => store.record;
 const selectProject = (store: CoreDataStore) => store.project;
 const selectJobRun = (store: CoreDataStore) => store.jobRun;
+const selectDataSource = (store: CoreDataStore) => store.dataSource;
 
 function useBeforeConnectionSource(): (
   sourceId: string,
@@ -201,6 +203,7 @@ export default function PlayerManager(
   const recordState = useCoreData(selectRecord);
   const projectState = useCoreData(selectProject);
   const jobRunState = useCoreData(selectJobRun);
+  const dataSourceState = useCoreData(selectDataSource);
 
   const recordDisplayName = useMemo(() => {
     return recordState.value?.title ?? "";
@@ -242,6 +245,8 @@ export default function PlayerManager(
 
   const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
   const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
+
+  const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
 
   const [playbackQualityLevel] = useAppConfigurationValue<string>(
     AppSetting.PLAYBACK_QUALITY_LEVEL,
@@ -292,7 +297,8 @@ export default function PlayerManager(
       try {
         switch (args.type) {
           case "connection": {
-            setDataSource({ id: sourceId, type: "connection" });
+            const sessionId = uuidv4();
+            setDataSource({ id: sourceId, type: "connection", sessionId });
             const params: Record<string, string | undefined> = {
               addTopicPrefix,
               timeMode,
@@ -317,6 +323,8 @@ export default function PlayerManager(
                 ...args.params,
               },
               consoleApi,
+              sessionId,
+              retentionWindowMs,
             });
 
             constructPlayers(newPlayer);
@@ -331,6 +339,34 @@ export default function PlayerManager(
               });
             }
 
+            return;
+          }
+
+          case "persistent-cache": {
+            if (!dataSourceState?.sessionId) {
+              enqueueSnackbar("sessionId is required for persistent cache source", {
+                variant: "error",
+              });
+              return;
+            }
+
+            setDataSource({
+              id: sourceId,
+              type: "connection",
+              sessionId: dataSourceState.sessionId,
+            });
+            const newPlayer = foundSource.initialize({
+              metricsCollector,
+              confirm,
+              params: {
+                ...args.params,
+              },
+              consoleApi,
+              sessionId: dataSourceState.sessionId,
+              retentionWindowMs,
+            });
+
+            constructPlayers(newPlayer);
             return;
           }
 
@@ -401,8 +437,6 @@ export default function PlayerManager(
             }
           }
         }
-
-        enqueueSnackbar("Unable to initialize player", { variant: "error" });
       } catch (error) {
         enqueueSnackbar((error as Error).message, { variant: "error" });
       }
@@ -413,16 +447,18 @@ export default function PlayerManager(
       enqueueSnackbar,
       setDataSource,
       constructPlayers,
-      beforeConnectionSource,
-      confirm,
       addTopicPrefix,
       timeMode,
       playbackQualityLevel,
+      beforeConnectionSource,
+      confirm,
       consoleApi,
+      retentionWindowMs,
       addRecent,
+      t,
+      dataSourceState?.sessionId,
       setCurrentFile,
       isMounted,
-      t,
     ],
   );
 

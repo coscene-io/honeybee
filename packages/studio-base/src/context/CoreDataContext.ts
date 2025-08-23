@@ -40,6 +40,8 @@ export type ExternalInitConfig = {
 export type DataSource = {
   id: string;
   type: "connection" | "file" | "sample";
+  // sessionId is avaliable when useing persistent cache, use same sessionId to get same cache data
+  sessionId?: string;
 };
 
 export type CoordinatorConfig = {

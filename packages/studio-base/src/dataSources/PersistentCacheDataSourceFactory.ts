@@ -14,7 +14,7 @@ import { Player } from "@foxglove/studio-base/players/types";
 
 class PersistentCacheDataSourceFactory implements IDataSourceFactory {
   public id = "persistent-cache";
-  public type: IDataSourceFactory["type"] = "connection";
+  public type: IDataSourceFactory["type"] = "persistent-cache";
   public displayName = "test persistent cache";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
   public hidden = false;
@@ -40,7 +40,9 @@ class PersistentCacheDataSourceFactory implements IDataSourceFactory {
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     try {
       // Extract parameters
-      const sessionId = args.params?.sessionId;
+      const sessionId = args.params?.sessionId ?? args.sessionId;
+      const retentionWindowMs = args.retentionWindowMs;
+      const maxCacheSize = args.maxCacheSize;
 
       if (sessionId == undefined) {
         console.error("sessionId is required for persistent cache source");
@@ -59,6 +61,8 @@ class PersistentCacheDataSourceFactory implements IDataSourceFactory {
         },
         initArgs: {
           sessionId,
+          retentionWindowMs,
+          maxCacheSize,
         },
       });
 

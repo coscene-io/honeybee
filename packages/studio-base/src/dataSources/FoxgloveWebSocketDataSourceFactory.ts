@@ -85,6 +85,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       username: this.#username,
       deviceName: this.#deviceName,
       authHeader: args.consoleApi?.getAuthHeader() ?? "",
+      retentionWindowMs: args.retentionWindowMs,
     });
   }
 }

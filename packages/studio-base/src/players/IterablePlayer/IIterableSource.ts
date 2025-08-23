@@ -226,7 +226,7 @@ export interface IIterableSource<MessageType = unknown> {
   terminate?: () => Promise<void>;
 }
 
-type PersistentCacheSourceInitializeArgs = {
+export type PersistentCacheSourceInitializeArgs = {
   sessionId?: string;
   retentionWindowMs?: number;
   maxCacheSize?: number;

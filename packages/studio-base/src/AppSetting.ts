@@ -49,4 +49,7 @@ export enum AppSetting {
 
   // Timeout
   TIMEOUT = "timeout",
+
+  // Retention Window
+  RETENTION_WINDOW_MS = "retentionWindowMs",
 }

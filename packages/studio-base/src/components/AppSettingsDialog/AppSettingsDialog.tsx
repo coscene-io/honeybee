@@ -48,6 +48,7 @@ import {
   CompatibilityMode,
   RosPackagePath,
   InactivityTimeout,
+  RetentionWindowMs,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -244,6 +245,7 @@ export function AppSettingsDialog(
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
               <AddTopicPrefix />
               <CompatibilityMode />
+              <RetentionWindowMs />
               <MessageFramerate />
               <InactivityTimeout />
               {showLanguageOptions && <LanguageSettings />}

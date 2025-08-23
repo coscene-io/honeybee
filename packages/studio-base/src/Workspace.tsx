@@ -38,7 +38,9 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import PanelLayout from "@foxglove/studio-base/components/PanelLayout";
 import PanelSettings from "@foxglove/studio-base/components/PanelSettings";
-import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls";
+import PlaybackControls, {
+  RealtimeVizPlaybackControls,
+} from "@foxglove/studio-base/components/PlaybackControls";
 import { Playlist } from "@foxglove/studio-base/components/Playlist";
 import { ProblemsList } from "@foxglove/studio-base/components/ProblemsList";
 import RecordInfo from "@foxglove/studio-base/components/RecordInfo";
@@ -530,6 +532,11 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
               />
             </div>
           )}
+        {dataSource?.id === "coscene-websocket" && (
+          <div style={{ flexShrink: 0 }}>
+            <RealtimeVizPlaybackControls />
+          </div>
+        )}
       </div>
       {/* Splat to avoid requiring unique a `key` on each item in workspaceExtensions */}
       {...workspaceExtensions}

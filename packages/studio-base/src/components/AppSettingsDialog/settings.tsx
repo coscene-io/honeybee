@@ -53,6 +53,16 @@ import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 const INFINITY_TIME = 1000 * 60 * 60 * 24 * 365 * 100;
 const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
 const TIMEOUT_MINUTES = [10, 20, 30, 60, 120, INFINITY_TIME];
+const RETENTION_WINDOW_MS = [
+  0,
+  10 * 1000,
+  20 * 1000,
+  30 * 1000,
+  1 * 60 * 1000,
+  2 * 60 * 1000,
+  3 * 60 * 1000,
+  5 * 60 * 1000,
+];
 
 let LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
   { key: "en", value: "English" },
@@ -530,6 +540,72 @@ export function InactivityTimeout(): React.ReactElement {
         value={timeoutMinutes ?? 30}
         fullWidth
         onChange={(event) => void setTimeoutMinutes(event.target.value)}
+      >
+        {options.map((option) => (
+          <MenuItem key={option.key} value={option.key}>
+            {option.text}
+          </MenuItem>
+        ))}
+      </Select>
+    </Stack>
+  );
+}
+
+export function RetentionWindowMs(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [retentionWindowMs, setRetentionWindowMs] = useAppConfigurationValue<number>(
+    AppSetting.RETENTION_WINDOW_MS,
+  );
+
+  const getDurationText = useCallback(
+    (ms: number) => {
+      switch (ms) {
+        case 0:
+          return t("noCache");
+        case 10 * 1000:
+          return `10 ${t("seconds")}`;
+        case 20 * 1000:
+          return `20 ${t("seconds")}`;
+        case 30 * 1000:
+          return `30 ${t("seconds")}`;
+        case 60 * 1000:
+          return `1 ${t("minutes")}`;
+        case 1 * 60 * 1000:
+          return `1 ${t("minutes")}`;
+        case 2 * 60 * 1000:
+          return `2 ${t("minutes")}`;
+        case 3 * 60 * 1000:
+          return `3 ${t("minutes")}`;
+        case 5 * 60 * 1000:
+          return `5 ${t("minutes")}`;
+        default:
+          return "";
+      }
+    },
+    [t],
+  );
+
+  const options = useMemo(
+    () =>
+      RETENTION_WINDOW_MS.map((ms) => ({
+        key: ms,
+        text: getDurationText(ms),
+        data: ms,
+      })),
+    [getDurationText],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("retentionWindowMs")}:
+        </Stack>
+      </FormLabel>
+      <Select
+        value={retentionWindowMs ?? 30 * 1000}
+        fullWidth
+        onChange={(event) => void setRetentionWindowMs(event.target.value)}
       >
         {options.map((option) => (
           <MenuItem key={option.key} value={option.key}>

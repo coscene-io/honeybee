@@ -31,4 +31,7 @@ export const cosWebsocket = {
     "Detected that you and the current device are on the same LAN, you can use LAN connection to improve network speed",
   switchNow: "Switch Now",
   keepCurrent: "Keep Current",
+  switchToPlayback: "Switch to Playback",
+  switchToPlaybackDesc:
+    "Playback the data that has been played, up to {{duration}} of data. Want to play more time? <ToSettings>Go to Settings</ToSettings>",
 };

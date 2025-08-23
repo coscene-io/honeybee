@@ -216,7 +216,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
     username,
     deviceName,
     authHeader,
+    sessionId,
     enablePersistentCache,
+    retentionWindowMs,
   }: {
     url: string;
     metricsCollector: PlayerMetricsCollectorInterface;
@@ -227,7 +229,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
     username: string;
     deviceName: string;
     authHeader: string;
+    sessionId?: string;
     enablePersistentCache?: boolean;
+    retentionWindowMs?: number;
   }) {
     this.#metricsCollector = metricsCollector;
     this.#url = url;
@@ -249,8 +253,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
     if (this.#enablePersistentCache) {
       try {
         this.#persistentCache = new IndexedDbMessageStore({
-          retentionWindowMs: 5 * 60 * 1000, // 5 minutes
-          sessionId: `websocket-${this.#id}`,
+          retentionWindowMs: retentionWindowMs ?? 5 * 60 * 1000, // 5 minutes
+          sessionId: sessionId ?? `websocket-${this.#id}`,
         });
         void this.#persistentCache.init().catch((error: unknown) => {
           log.warn("Failed to initialize persistent cache:", error);
