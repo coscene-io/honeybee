@@ -25,17 +25,30 @@ import {
 const log = Logger.getLogger(__filename);
 
 export class PersistentCacheIterableSource implements IIterableSource {
+  #retentionWindowMs?: number;
+  #maxCacheSize?: number;
   #cache?: PersistentMessageCache;
   #sessionId: string;
 
-  public constructor({ sessionId }: { sessionId: string }) {
+  public constructor({
+    sessionId,
+    retentionWindowMs,
+    maxCacheSize,
+  }: {
+    sessionId: string;
+    retentionWindowMs?: number;
+    maxCacheSize?: number;
+  }) {
     this.#sessionId = sessionId;
+    this.#retentionWindowMs = retentionWindowMs;
+    this.#maxCacheSize = maxCacheSize;
   }
 
   public async initialize(): Promise<Initalization> {
     this.#cache = new IndexedDbMessageStore({
-      autoClearOnInit: false,
       sessionId: this.#sessionId,
+      retentionWindowMs: this.#retentionWindowMs,
+      maxCacheSize: this.#maxCacheSize,
     });
 
     await this.#cache.init();
@@ -209,21 +222,27 @@ export class PersistentCacheIterableSource implements IIterableSource {
       throw new Error("PersistentCacheIterableSource not initialized");
     }
 
+    // clear current session data
+    await this.#cache.clear();
     await this.#cache.close();
   }
 }
 
 export function initialize(args: IterableSourceInitializeArgs): PersistentCacheIterableSource {
-  const { sessionId } = args;
+  const { sessionId, retentionWindowMs, maxCacheSize } = args;
 
   if (!sessionId) {
     throw new Error("sessionId is required for persistent cache source");
   }
 
-  log.info(`Initializing persistent cache source for session ${sessionId}`);
+  log.info(
+    `Initializing persistent cache source for session ${sessionId}, retentionWindowMs: ${retentionWindowMs}, maxCacheSize: ${maxCacheSize}`,
+  );
 
   // Create the persistent cache iterable source
   return new PersistentCacheIterableSource({
     sessionId,
+    retentionWindowMs,
+    maxCacheSize,
   });
 }

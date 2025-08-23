@@ -250,7 +250,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
       try {
         this.#persistentCache = new IndexedDbMessageStore({
           retentionWindowMs: 5 * 60 * 1000, // 5 minutes
-          autoClearOnInit: true,
           sessionId: `websocket-${this.#id}`,
         });
         void this.#persistentCache.init().catch((error: unknown) => {

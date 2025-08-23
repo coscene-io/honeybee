@@ -226,13 +226,17 @@ export interface IIterableSource<MessageType = unknown> {
   terminate?: () => Promise<void>;
 }
 
+type PersistentCacheSourceInitializeArgs = {
+  sessionId?: string;
+  retentionWindowMs?: number;
+  maxCacheSize?: number;
+};
+
 export type IterableSourceInitializeArgs = {
   file?: File;
   url?: string;
   files?: File[];
   params?: Record<string, string | undefined>;
-  // for persistent cache source
-  sessionId?: string;
 
   api?: {
     baseUrl: string;
@@ -241,7 +245,7 @@ export type IterableSourceInitializeArgs = {
     timeMode: "relativeTime" | "absoluteTime";
     auth?: string;
   };
-};
+} & PersistentCacheSourceInitializeArgs;
 
 /**
  * Interface for a raw iterable source where messages are in their serialized byte form (Uint8Arrays).
