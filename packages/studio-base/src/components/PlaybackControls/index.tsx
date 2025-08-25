@@ -29,12 +29,13 @@ import {
 } from "@fluentui/react-icons";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import ShieldTwoToneIcon from "@mui/icons-material/ShieldTwoTone";
-import { Tooltip, Typography } from "@mui/material";
+import { IconButton, Tooltip, Typography, Link } from "@mui/material";
 import { useCallback, useMemo, useEffect } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { Time, compare } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
@@ -42,17 +43,17 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import CoScenePlabackTimeMode from "@foxglove/studio-base/components/PlaybackControls/CoScenePlabackTimeMode";
-import PlaybackQualityControls from "@foxglove/studio-base/components/PlaybackControls/PlaybackQualityControls";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
@@ -89,6 +90,7 @@ const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
+const selectDataSource = (store: CoreDataStore) => store.dataSource;
 
 function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
@@ -149,6 +151,9 @@ export default function PlaybackControls(props: {
   const enableList = useCoreData(selectEnableList);
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
+
+  const dataSource = useCoreData(selectDataSource);
+  const { selectRecent } = usePlayerSelection();
 
   const projectIsArchived = useMemo(() => project.value?.isArchived, [project]);
   const recordIsArchived = useMemo(() => record.value?.isArchived, [record]);
@@ -279,6 +284,22 @@ export default function PlaybackControls(props: {
               />
             </Tooltip>
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
+            {dataSource?.type === "persistent-cache" &&
+              dataSource.previousRecentId != undefined && (
+                <IconButton
+                  component="button"
+                  size="small"
+                  onClick={() => {
+                    if (dataSource.previousRecentId != undefined) {
+                      selectRecent(dataSource.previousRecentId);
+                    }
+                  }}
+                >
+                  <Typography variant="body2" marginLeft="4px">
+                    {t("switchToRealTime", { ns: "cosWebsocket" })}
+                  </Typography>
+                </IconButton>
+              )}
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
             <HoverableIconButton
@@ -341,11 +362,89 @@ export default function PlaybackControls(props: {
               icon={repeat ? <ArrowRepeatAll20Regular /> : <ArrowRepeatAllOff20Regular />}
             />
             <PlaybackSpeedControls />
-            <PlaybackQualityControls />
-            <CoScenePlabackTimeMode />
           </Stack>
         </Stack>
       </div>
     </>
+  );
+}
+
+export function RealtimeVizPlaybackControls(): React.JSX.Element {
+  const { classes } = useStyles();
+  const { t } = useTranslation("cosWebsocket");
+  const { dialogActions } = useWorkspaceActions();
+  const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
+  const { selectSource } = usePlayerSelection();
+
+  const getDurationText = useCallback(
+    (ms: number) => {
+      switch (ms) {
+        case 0:
+          return t("noCache", { ns: "appSettings" });
+        case 10 * 1000:
+          return `10 ${t("seconds", { ns: "appSettings" })}`;
+        case 20 * 1000:
+          return `20 ${t("seconds", { ns: "appSettings" })}`;
+        case 30 * 1000:
+          return `30 ${t("seconds", { ns: "appSettings" })}`;
+        case 60 * 1000:
+          return `1 ${t("minutes", { ns: "appSettings" })}`;
+        case 1 * 60 * 1000:
+          return `1 ${t("minutes", { ns: "appSettings" })}`;
+        case 2 * 60 * 1000:
+          return `2 ${t("minutes", { ns: "appSettings" })}`;
+        case 3 * 60 * 1000:
+          return `3 ${t("minutes", { ns: "appSettings" })}`;
+        case 5 * 60 * 1000:
+          return `5 ${t("minutes", { ns: "appSettings" })}`;
+        default:
+          return "";
+      }
+    },
+    [t],
+  );
+
+  return (
+    <div className={classes.root}>
+      <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto" paddingTop={0.5}>
+        <Stack direction="row" flex={1} gap={0.5}>
+          <PlaybackTimeDisplay onSeek={() => {}} onPause={() => {}} />
+
+          <Tooltip
+            title={
+              <Trans
+                i18nKey="switchToPlaybackDesc"
+                ns="cosWebsocket"
+                values={{ duration: getDurationText(retentionWindowMs ?? 30 * 1000) }}
+                components={{
+                  ToSettings: (
+                    <Link
+                      href="#"
+                      onClick={() => {
+                        dialogActions.preferences.open("general");
+                      }}
+                    />
+                  ),
+                }}
+              />
+            }
+          >
+            <IconButton
+              component="button"
+              size="small"
+              onClick={() => {
+                selectSource("persistent-cache", {
+                  type: "persistent-cache",
+                });
+              }}
+            >
+              <Typography variant="body2" marginLeft="4px">
+                {t("switchToPlayback")}
+              </Typography>
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Stack>
+    </div>
   );
 }

@@ -10,6 +10,7 @@ import { createContext, useContext } from "react";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
+import { PersistentCacheSourceInitializeArgs } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
 import { Player } from "@foxglove/studio-base/players/types";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
@@ -21,9 +22,9 @@ export type DataSourceFactoryInitializeArgs = {
   params?: Record<string, string | undefined>;
   consoleApi?: ConsoleApi;
   confirm?: confirmTypes;
-};
+} & PersistentCacheSourceInitializeArgs;
 
-export type DataSourceFactoryType = "file" | "connection" | "sample";
+export type DataSourceFactoryType = "file" | "connection" | "sample" | "persistent-cache";
 
 export type Field = {
   id: string;
@@ -100,7 +101,15 @@ type ConnectionDataSourceArgs = {
   params?: Record<string, string | undefined>;
 };
 
-export type DataSourceArgs = FileDataSourceArgs | ConnectionDataSourceArgs;
+type PersistentCacheDataSourceArgs = {
+  type: "persistent-cache";
+  params?: Record<string, string | undefined>;
+};
+
+export type DataSourceArgs =
+  | FileDataSourceArgs
+  | ConnectionDataSourceArgs
+  | PersistentCacheDataSourceArgs;
 
 /**
  * PlayerSelectionContext exposes the available data sources and a function to set the current data source

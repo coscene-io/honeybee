@@ -37,8 +37,6 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
-import { EndTimestamp } from "./EndTimestamp";
-
 const ICON_SIZE = 18;
 
 const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes) => ({
@@ -122,7 +120,6 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
 const selectPlayerName = (ctx: MessagePipelineContext) => ctx.playerState.name;
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlayerProblems = (ctx: MessagePipelineContext) => ctx.playerState.problems;
-const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectNetworkStatus = (ctx: MessagePipelineContext) =>
   ctx.playerState.activeData?.networkStatus;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
@@ -337,6 +334,7 @@ const RealTimeVizDataSource = () => {
   const playerName = useMessagePipeline(selectPlayerName);
 
   const project = useCoreData(selectProject);
+  const projectDisplayName = useMemo(() => project.value?.displayName, [project]);
   const projectSlug = useMemo(() => project.value?.slug, [project]);
   const organization = useCoreData(selectOrganization);
   const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
@@ -359,6 +357,31 @@ const RealTimeVizDataSource = () => {
       <RealTimeVizLinkState />
       <div className={classes.textTruncate}>
         <Stack direction="row" alignItems="center" gap={2}>
+          {projectDisplayName && (
+            <>
+              <Breadcrumbs
+                separator={<NavigateNextIcon fontSize="small" />}
+                aria-label="breadcrumb"
+              >
+                <Link
+                  href={
+                    APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
+                      ? `https://${APP_CONFIG.DOMAIN_CONFIG.default.webDomain}/${projectSlug}`
+                      : "#"
+                  }
+                  target="_blank"
+                  underline="hover"
+                  key="1"
+                  color="inherit"
+                  className={classes.breadcrumbs}
+                >
+                  {projectDisplayName}
+                </Link>
+              </Breadcrumbs>
+
+              <span>/</span>
+            </>
+          )}
           <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
             <Link
               href={
@@ -377,8 +400,6 @@ const RealTimeVizDataSource = () => {
           </Breadcrumbs>
         </Stack>
       </div>
-      <span>/</span>
-      <EndTimestamp />
     </>
   );
 };
@@ -452,10 +473,7 @@ export function DataSource(): React.JSX.Element {
 
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
-  const seek = useMessagePipeline(selectSeek);
-
-  // A crude but correct proxy (for our current architecture) for whether a connection is live
-  const isLiveConnection = seek == undefined;
+  const dataSource = useCoreData(selectDataSource);
 
   if (playerPresence === PlayerPresence.NOT_PRESENT) {
     return <div className={classes.sourceName}>{t("noDataSource")}</div>;
@@ -466,7 +484,13 @@ export function DataSource(): React.JSX.Element {
       <WssErrorModal playerProblems={playerProblems} />
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
-          {isLiveConnection ? <RealTimeVizDataSource /> : <CommonDataSource />}
+          {dataSource?.type === "connection" ? (
+            <RealTimeVizDataSource />
+          ) : dataSource?.type === "persistent-cache" ? (
+            <>{t("realTimeVizPlayback", { ns: "cosWebsocket" })}</>
+          ) : (
+            <CommonDataSource />
+          )}
         </div>
         <Adornment />
       </Stack>

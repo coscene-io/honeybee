@@ -44,7 +44,6 @@ class Logger {
       case "error":
         return this.error !== noop;
     }
-    return false;
   }
 
   /**

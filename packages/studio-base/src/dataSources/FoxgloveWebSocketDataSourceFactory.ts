@@ -68,6 +68,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const url = args.params?.url;
+    const sessionId = args.sessionId;
     if (!url) {
       return;
     }
@@ -85,6 +86,8 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       username: this.#username,
       deviceName: this.#deviceName,
       authHeader: args.consoleApi?.getAuthHeader() ?? "",
+      retentionWindowMs: args.retentionWindowMs,
+      sessionId,
     });
   }
 }
