@@ -226,6 +226,7 @@ export type FetchAssetSuccessResponse = {
   requestId: number;
   status: FetchAssetStatus.SUCCESS;
   data: DataView;
+  etag?: string;
 };
 export type FetchAssetErrorResponse = {
   op: BinaryOpcode.FETCH_ASSET_RESPONSE;
