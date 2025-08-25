@@ -43,8 +43,6 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import CoScenePlabackTimeMode from "@foxglove/studio-base/components/PlaybackControls/CoScenePlabackTimeMode";
-import PlaybackQualityControls from "@foxglove/studio-base/components/PlaybackControls/PlaybackQualityControls";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -92,6 +90,7 @@ const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
+const selectDataSource = (store: CoreDataStore) => store.dataSource;
 
 function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
@@ -152,6 +151,9 @@ export default function PlaybackControls(props: {
   const enableList = useCoreData(selectEnableList);
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
+
+  const dataSource = useCoreData(selectDataSource);
+  const { selectRecent } = usePlayerSelection();
 
   const projectIsArchived = useMemo(() => project.value?.isArchived, [project]);
   const recordIsArchived = useMemo(() => record.value?.isArchived, [record]);
@@ -282,6 +284,22 @@ export default function PlaybackControls(props: {
               />
             </Tooltip>
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
+            {dataSource?.type === "persistent-cache" &&
+              dataSource.previousRecentId != undefined && (
+                <IconButton
+                  component="button"
+                  size="small"
+                  onClick={() => {
+                    if (dataSource.previousRecentId != undefined) {
+                      selectRecent(dataSource.previousRecentId);
+                    }
+                  }}
+                >
+                  <Typography variant="body2" marginLeft="4px">
+                    {t("switchToRealTime", { ns: "cosWebsocket" })}
+                  </Typography>
+                </IconButton>
+              )}
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
             <HoverableIconButton
@@ -344,8 +362,6 @@ export default function PlaybackControls(props: {
               icon={repeat ? <ArrowRepeatAll20Regular /> : <ArrowRepeatAllOff20Regular />}
             />
             <PlaybackSpeedControls />
-            <PlaybackQualityControls />
-            <CoScenePlabackTimeMode />
           </Stack>
         </Stack>
       </div>

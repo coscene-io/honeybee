@@ -308,14 +308,14 @@ export default function PlayerManager(
       try {
         switch (args.type) {
           case "connection": {
-            const sessionId = uuidv4();
-            setDataSource({ id: sourceId, type: "connection", sessionId });
             const params: Record<string, string | undefined> = {
               addTopicPrefix,
               timeMode,
               playbackQualityLevel,
               ...args.params,
             };
+
+            const sessionId = uuidv4();
 
             setCurrentSourceParams({ sourceId, args: { type: "connection", params } });
 
@@ -340,8 +340,9 @@ export default function PlayerManager(
 
             constructPlayers(newPlayer);
 
+            let recentId = undefined;
             if (args.params?.url || args.params?.key) {
-              addRecent({
+              recentId = addRecent({
                 type: "connection",
                 sourceId: foundSource.id,
                 title: args.params.url ?? t("onlineData"),
@@ -349,6 +350,13 @@ export default function PlayerManager(
                 extra: args.params,
               });
             }
+
+            setDataSource({
+              id: sourceId,
+              type: "connection",
+              sessionId,
+              recentId,
+            });
 
             return;
           }
@@ -363,8 +371,9 @@ export default function PlayerManager(
 
             setDataSource({
               id: sourceId,
-              type: "connection",
+              type: "persistent-cache",
               sessionId: dataSourceState.sessionId,
+              previousRecentId: dataSourceState.recentId,
             });
             const newPlayer = foundSource.initialize({
               metricsCollector,
@@ -382,12 +391,12 @@ export default function PlayerManager(
           }
 
           case "file": {
-            setDataSource({ id: sourceId, type: "file" });
             setCurrentSourceParams({ sourceId, args });
 
             const handle = args.handle;
             const files = args.files;
 
+            let recentId = undefined;
             // files we can try loading immediately
             // We do not add these to recents entries because putting File in indexedb results in
             // the entire file being stored in the database.
@@ -437,7 +446,7 @@ export default function PlayerManager(
               });
 
               constructPlayers(newPlayer);
-              addRecent({
+              recentId = addRecent({
                 type: "file",
                 title: handle.name,
                 sourceId: foundSource.id,
@@ -446,6 +455,8 @@ export default function PlayerManager(
 
               return;
             }
+
+            setDataSource({ id: sourceId, type: "file", recentId });
           }
         }
 
@@ -457,9 +468,9 @@ export default function PlayerManager(
     [
       playerSources,
       metricsCollector,
-      enqueueSnackbar,
-      setDataSource,
       constructPlayers,
+      setDataSource,
+      enqueueSnackbar,
       addTopicPrefix,
       timeMode,
       playbackQualityLevel,
@@ -470,6 +481,7 @@ export default function PlayerManager(
       addRecent,
       t,
       dataSourceState?.sessionId,
+      dataSourceState?.recentId,
       setCurrentFile,
       isMounted,
     ],

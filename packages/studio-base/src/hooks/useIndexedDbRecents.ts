@@ -52,7 +52,7 @@ interface IRecentsStore {
   recents: RecentRecord[];
 
   // Add a new recent
-  addRecent: (newRecent: UnsavedRecentRecord) => void;
+  addRecent: (newRecent: UnsavedRecentRecord) => string;
 
   // Save changes
   save: () => Promise<void>;
@@ -142,13 +142,16 @@ function useIndexedDbRecents(): IRecentsStore {
   }, [loading, initialRecents, save]);
 
   const addRecent = useCallback(
-    (record: UnsavedRecentRecord) => {
+    (record: UnsavedRecentRecord): string => {
+      const id = uuid();
       const fullRecord: RecentRecord = {
-        id: uuid(),
+        id,
         ...record,
       };
       newRecentsRef.current.unshift(fullRecord);
       void save();
+
+      return id;
     },
     [save],
   );
