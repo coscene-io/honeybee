@@ -24,8 +24,8 @@ export type Layout = {
   id: LayoutID;
   name: string;
   permission: LayoutPermission;
-  isProjectRecommended: boolean;
-  isRecordRecommended: boolean;
+  isProjectRecommended: boolean; // deprecated
+  isRecordRecommended: boolean; // deprecated
 
   /** @deprecated old field name, migrated to working/baseline */
   data?: LayoutData;
@@ -42,20 +42,20 @@ export type Layout = {
    * The working copy of this layout, if it has been edited since the last explicit save.
    */
   working:
-    | {
-        data: LayoutData;
-        savedAt: ISO8601Timestamp | undefined;
-      }
-    | undefined;
+  | {
+    data: LayoutData;
+    savedAt: ISO8601Timestamp | undefined;
+  }
+  | undefined;
 
   /** Info about this layout from remote storage. */
   syncInfo:
-    | {
-        status: LayoutSyncStatus;
-        /** The last savedAt time returned by the server. */
-        lastRemoteSavedAt: ISO8601Timestamp | undefined;
-      }
-    | undefined;
+  | {
+    status: LayoutSyncStatus;
+    /** The last savedAt time returned by the server. */
+    lastRemoteSavedAt: ISO8601Timestamp | undefined;
+  }
+  | undefined;
 };
 
 export interface ILayoutStorage {
