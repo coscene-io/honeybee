@@ -1511,7 +1511,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   }
 
   /**
-   * get target file by ws, if has cached file, will take hetag,
+   * get target file by ws, if has cached file, will take etag,
    * if parameter has etag, we will send a preFetchAsset request to ws,
    * if ws return etag is same as parameter etag, we will not return asset data
    */
