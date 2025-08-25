@@ -21,6 +21,8 @@ import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const log = Logger.getLogger(__filename);
 
+type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+
 // Convert gRPC Layout to RemoteLayout
 function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
   if (!layout.data) {
@@ -39,7 +41,7 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
   const id = nameParts[nameParts.length - 1] as LayoutID;
 
   // Determine permission based on resource name pattern
-  let permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" = "CREATOR_WRITE";
+  let permission: LayoutPermission = "CREATOR_WRITE";
   if (layout.name.startsWith('projects/')) {
     permission = "ORG_WRITE"; // Project layouts are typically org-writable
   } else if (layout.name.startsWith('users/')) {
@@ -71,7 +73,7 @@ function convertRemoteLayoutToGrpcLayout({
   id?: LayoutID;
   name: string;
   data: LayoutData;
-  permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+  permission: LayoutPermission;
   savedAt: ISO8601Timestamp;
   userId: string;
   projectId?: string;
@@ -176,7 +178,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     id: LayoutID | undefined;
     name: string;
     data: LayoutData;
-    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+    permission: LayoutPermission;
     savedAt: ISO8601Timestamp;
   }): Promise<RemoteLayout> {
     const layout = convertRemoteLayoutToGrpcLayout({
@@ -207,7 +209,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     id: LayoutID | undefined;
     name: string;
     data: LayoutData;
-    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+    permission: LayoutPermission;
     savedAt: ISO8601Timestamp;
   }): Promise<RemoteLayout> {
     // In gRPC v2, we treat record default layouts as project layouts
@@ -231,7 +233,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     id: LayoutID;
     name?: string;
     data?: LayoutData;
-    permission?: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+    permission?: LayoutPermission;
     savedAt: ISO8601Timestamp;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
     try {
