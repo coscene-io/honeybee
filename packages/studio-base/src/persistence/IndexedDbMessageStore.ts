@@ -107,7 +107,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#currentSessionId = sessionId;
 
     console.debug("debug open db", DB_NAME, sessionId);
-    this.#dbPromise = IDB.openDB<MessagesDB>(DB_NAME, 0, {
+    this.#dbPromise = IDB.openDB<MessagesDB>(DB_NAME, 1, {
       upgrade(db) {
         const store = db.createObjectStore(STORE, {
           keyPath: ["sessionId", "receiveTime.sec", "receiveTime.nsec", "seq"],

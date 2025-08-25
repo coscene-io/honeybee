@@ -17,7 +17,7 @@ class PersistentCacheDataSourceFactory implements IDataSourceFactory {
   public type: IDataSourceFactory["type"] = "persistent-cache";
   public displayName = "test persistent cache";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
-  public hidden = false;
+  public hidden = true;
   public description = "just for test persistent cache, not for production use";
 
   public formConfig = {

@@ -448,6 +448,8 @@ export default function PlayerManager(
             }
           }
         }
+
+        enqueueSnackbar("Unable to initialize player", { variant: "error" });
       } catch (error) {
         enqueueSnackbar((error as Error).message, { variant: "error" });
       }
