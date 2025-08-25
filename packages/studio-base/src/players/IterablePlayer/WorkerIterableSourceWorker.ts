@@ -57,6 +57,10 @@ export class WorkerIterableSourceWorker implements IIterableSource {
     const cursor = new IteratorCursor(iter, abort);
     return Comlink.proxy(cursor);
   }
+
+  public async terminate(): Promise<void> {
+    await this._source.terminate?.();
+  }
 }
 
 Comlink.transferHandlers.set("abortsignal", abortSignalTransferHandler);

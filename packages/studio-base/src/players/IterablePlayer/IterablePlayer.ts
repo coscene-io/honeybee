@@ -413,6 +413,12 @@ export class IterablePlayer implements Player {
   }
 
   public close(): void {
+    try {
+      void this.#iterableSource.terminate?.();
+    } catch (e) {
+      console.error("error to close iterable player", e);
+    }
+
     this.#setState("close");
   }
 

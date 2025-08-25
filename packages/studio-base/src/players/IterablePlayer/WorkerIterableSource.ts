@@ -137,6 +137,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
   }
 
   public async terminate(): Promise<void> {
+    await this.#sourceWorkerRemote?.terminate();
     this.#disposeRemote?.();
     // shouldn't normally have to do this, but if `initialize` is called after again we don't want
     // to reuse the old remote

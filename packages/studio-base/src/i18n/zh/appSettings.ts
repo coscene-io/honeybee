@@ -48,6 +48,9 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
     "启用此模式后，坐标系名称将删除 '/' 前缀，以兼容 tf2 的坐标系名称。 <Link>详细信息</Link>",
   inactivityTimeout: "实时可视化自动断连时长",
   inactivityTimeoutDescription: "设置实时可视化在页面无操作后的自动断连时长",
+  seconds: "秒",
   minutes: "分钟",
   neverDisconnect: "永不断连",
+  retentionWindowMs: "实时可视化缓存时长",
+  noCache: "不缓存",
 };

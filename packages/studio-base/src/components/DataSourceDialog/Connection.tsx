@@ -113,7 +113,10 @@ export default function Connection(): React.JSX.Element {
   // connectionSources is the list of availableSources supporting "connections"
   const connectionSources = useMemo(() => {
     return availableSources.filter((source) => {
-      return source.type === "connection" && source.hidden !== true;
+      return (
+        (source.type === "connection" || source.type === "persistent-cache") &&
+        source.hidden !== true
+      );
     });
   }, [availableSources]);
 
