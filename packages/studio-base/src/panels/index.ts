@@ -31,6 +31,8 @@ import topicGraphThumbnail from "./TopicGraph/thumbnail.png";
 import variableSliderThumbnail from "./VariableSlider/thumbnail.png";
 import diagnosticStatusThumbnail from "./diagnostics/thumbnails/diagnostic-status.png";
 import diagnosticSummaryThumbnail from "./diagnostics/thumbnails/diagnostic-summary.png";
+import faultRecordThumbnail from "./FaultRecord/thumbnail.png";
+import fileUploadThumbnail from "./FileUpload/thumbnail.png";
 
 export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
   {
@@ -217,5 +219,19 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     description: t("dataCollectionDescription"),
     thumbnail: dataCollectionThumbnail,
     module: async () => await import("./DataCollection"),
+  },
+  {
+    title: "故障记录",
+    type: "FaultRecord",
+    description: "记录故障点、异常和维护信息的面板",
+    thumbnail: faultRecordThumbnail,
+    module: async () => await import("./FaultRecord"),
+  },
+  {
+    title: "文件上传",
+    type: "FileUpload",
+    description: "上传测试文件到coScene平台的面板",
+    thumbnail: fileUploadThumbnail,
+    module: async () => await import("./FileUpload"),
   },
 ];
