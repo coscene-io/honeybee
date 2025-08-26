@@ -9,8 +9,8 @@ import { useMemo } from "react";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import RemoteLayoutStorageContext from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import ConsoleApiRemoteLayoutStorage from "@foxglove/studio-base/services/CoSceneConsoleApiRemoteLayoutStorage";
 
 const selectUser = (store: UserStore) => store.user;
