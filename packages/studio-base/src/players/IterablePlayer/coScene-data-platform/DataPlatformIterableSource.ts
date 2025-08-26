@@ -14,13 +14,19 @@ import { clampTime, fromRFC3339String, add as addTime, compare, Time } from "@fo
 import {
   PlayerProblem,
   Topic,
-  MessageEvent,
   TopicStats,
+  type MessageEvent,
 } from "@foxglove/studio-base/players/types";
 import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
-import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";
+import {
+  streamMessages,
+  ParsedChannelAndEncodings,
+  StreamParams,
+  isProblem,
+  isMessageEvent,
+} from "./streamMessages";
 import {
   IIterableSource,
   Initalization,
@@ -250,7 +256,12 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       for await (const messages of stream) {
         for (const message of messages) {
-          yield { type: "message-event", msgEvent: message };
+          if (isProblem(message)) {
+            // This is a Problem
+            yield { type: "problem", problem: message.problem, connectionId: 0 };
+          } else {
+            yield { type: "message-event", msgEvent: message };
+          }
         }
       }
 
@@ -282,7 +293,13 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       for await (const messages of stream) {
         for (const message of messages) {
-          yield { type: "message-event", msgEvent: message };
+          if (isProblem(message)) {
+            // This is a Problem
+            yield { type: "problem", problem: message.problem, connectionId: 0 };
+          } else {
+            // This is a MessageEvent
+            yield { type: "message-event", msgEvent: message };
+          }
         }
       }
 
@@ -356,8 +373,22 @@ export class DataPlatformIterableSource implements IIterableSource {
       signal: abortSignal,
       params: streamByParams,
     })) {
-      messages.push(...block);
+      for (const message of block) {
+        if (isMessageEvent(message)) {
+          messages.push(message);
+        }
+
+        if (isProblem(message)) {
+          log.warn(`Problem during backfill: ${message.problem.message}`, {
+            severity: message.problem.severity,
+            tip: message.problem.tip,
+            topics: Array.from(topics.keys()),
+            time,
+          });
+        }
+      }
     }
+
     return messages;
   }
 }
