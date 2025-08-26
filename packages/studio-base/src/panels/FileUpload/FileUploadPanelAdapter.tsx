@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { StrictMode, useMemo } from "react";
+import { StrictMode, useMemo, useCallback, useEffect } from "react";
 import ReactDOM from "react-dom";
 
 import { useCrash } from "@foxglove/hooks";
@@ -20,10 +20,10 @@ import { PanelExtensionAdapter } from "@foxglove/studio-base/components/PanelExt
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
-import { SaveConfig } from "@foxglove/studio-base/types/panels";
+import { PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { FileUploadPanel } from "./components/FileUploadPanel";
-import { Config } from "./config/types";
+import { Config, defaultConfig, useFileUploadPanelSettings } from "./config/settings";
 
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
@@ -34,31 +34,14 @@ const selectProject = (state: CoreDataStore) => state.project;
 const selectDevice = (state: CoreDataStore) => state.device;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
-function initPanel(
-  crash: ReturnType<typeof useCrash>,
-  context: PanelExtensionContext,
-) {
-  // eslint-disable-next-line react/no-deprecated
-  ReactDOM.render(
-    <StrictMode>
-      <CaptureErrorBoundary onError={crash}>
-        <FileUploadPanel context={context} />
-      </CaptureErrorBoundary>
-    </StrictMode>,
-    context.panelElement,
-  );
-
-  return () => {
-    ReactDOM.unmountComponentAtNode(context.panelElement);
-  };
-}
+// initPanel函数将在PanelExtensionAdapter内部创建
 
 type Props = {
-  config: Config;
-  saveConfig: SaveConfig<Config>;
+  config: PanelConfig;
+  saveConfig: SaveConfig<PanelConfig>;
 };
 
-function FileUploadPanelAdapter(props: Props) {
+function FileUploadPanelAdapter({ config, saveConfig }: Props) {
   const crash = useCrash();
   const userInfo = useCurrentUser(selectUser);
   const loginStatus = useCurrentUser(selectLoginStatus);
@@ -78,9 +61,46 @@ function FileUploadPanelAdapter(props: Props) {
     urlState?.parameters?.deviceLink ??
     `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
 
+  // 将PanelConfig转换为Config类型
+  const fileUploadConfig: Config = {
+    ...defaultConfig,
+    ...config
+  };
+
+  // 设置面板设置树
+  useFileUploadPanelSettings(fileUploadConfig, saveConfig as SaveConfig<Config>);
+  
+  // 从配置中提取service设置
+  const serviceSettings = {
+    getBagListService: "mock", // 固定使用mock服务
+    submitFilesService: "mock" // 固定使用mock服务
+  };
+  
+  // 刷新按钮服务配置
+  const refreshButtonServiceName = fileUploadConfig.refreshButtonService?.serviceName || "/api/test/end_and_get_candidates";
+
   const boundInitPanel = useMemo(() => {
-    return initPanel.bind(undefined, crash);
-  }, [crash]);
+    return (context: PanelExtensionContext) => {
+      // eslint-disable-next-line react/no-deprecated
+      ReactDOM.render(
+        <StrictMode>
+          <CaptureErrorBoundary onError={crash}>
+            <FileUploadPanel 
+              config={fileUploadConfig} 
+              context={context} 
+              serviceSettings={serviceSettings}
+              refreshButtonServiceName={refreshButtonServiceName}
+            />
+          </CaptureErrorBoundary>
+        </StrictMode>,
+        context.panelElement,
+      );
+
+      return () => {
+        ReactDOM.unmountComponentAtNode(context.panelElement);
+      };
+    };
+  }, [crash, fileUploadConfig, serviceSettings]);
 
   // 使用 useMemo 稳定 extensionData 对象引用
   const extensionData = useMemo(
@@ -99,8 +119,8 @@ function FileUploadPanelAdapter(props: Props) {
 
   return (
     <PanelExtensionAdapter
-      config={props.config}
-      saveConfig={props.saveConfig}
+      config={fileUploadConfig}
+      saveConfig={saveConfig as SaveConfig<Config>}
       initPanel={boundInitPanel}
       highestSupportedConfigVersion={1}
       extensionData={extensionData}
@@ -109,11 +129,6 @@ function FileUploadPanelAdapter(props: Props) {
 }
 
 FileUploadPanelAdapter.panelType = "FileUpload";
-const defaultConfig: Config = {
-  rosServiceUrl: "http://localhost:9090",
-  coSceneApiUrl: "https://api.coscene.cn",
-};
-
 FileUploadPanelAdapter.defaultConfig = defaultConfig;
 
 export default Panel(FileUploadPanelAdapter);

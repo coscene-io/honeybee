@@ -11,6 +11,8 @@ import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 
 import dataCollectionThumbnail from "./DataCollection/thumbnail.png";
 import dataSourceInfoThumbnail from "./DataSourceInfo/thumbnail.png";
+import faultRecordThumbnail from "./FaultRecord/thumbnail.png";
+import fileUploadThumbnail from "./FileUpload/thumbnail.png";
 import gaugeThumbnail from "./Gauge/thumbnail.png";
 import imageThumbnail from "./Image/thumbnail.png";
 import indicatorThumbnail from "./Indicator/thumbnail.png";
@@ -31,8 +33,6 @@ import topicGraphThumbnail from "./TopicGraph/thumbnail.png";
 import variableSliderThumbnail from "./VariableSlider/thumbnail.png";
 import diagnosticStatusThumbnail from "./diagnostics/thumbnails/diagnostic-status.png";
 import diagnosticSummaryThumbnail from "./diagnostics/thumbnails/diagnostic-summary.png";
-import faultRecordThumbnail from "./FaultRecord/thumbnail.png";
-import fileUploadThumbnail from "./FileUpload/thumbnail.png";
 
 export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
   {
@@ -221,17 +221,17 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     module: async () => await import("./DataCollection"),
   },
   {
-    title: "故障记录",
+    title: t("faultRecord"),
     type: "FaultRecord",
-    description: "记录故障点、异常和维护信息的面板",
+    description: t("faultRecordDescription"),
     thumbnail: faultRecordThumbnail,
-    module: async () => await import("./FaultRecord"),
+    module: async () => await import("./FaultRecord/index"),
   },
   {
-    title: "文件上传",
+    title: t("fileUpload"),
     type: "FileUpload",
-    description: "上传测试文件到coScene平台的面板",
+    description: t("fileUploadDescription"),
     thumbnail: fileUploadThumbnail,
-    module: async () => await import("./FileUpload"),
+    module: async () => await import("./FileUpload/index"),
   },
 ];

@@ -1,3 +1,10 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 import React from "react";
 
 export function Section({ title, right, children }: { title: string; right?: React.ReactNode; children?: React.ReactNode }) {
@@ -106,7 +113,7 @@ export function Button({ variant = "primary", size = "medium", children, ...prop
 export function Checkbox({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
     <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-      <input type="checkbox" className="h-4 w-4" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" className="h-4 w-4" checked={checked} onChange={(e) => { onChange(e.target.checked); }} />
       {label && <span>{label}</span>}
     </label>
   );

@@ -1,4 +1,12 @@
-import React, { useEffect, useState, useCallback } from "react";
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import { useEffect, useState, useCallback } from "react";
+
 import { Section, Checkbox } from "./ui";
 import type { CoSceneClient, UploadConfig } from "../types";
 
@@ -38,13 +46,13 @@ export function ProjectAndTagPicker({
       setLoadingTags(true);
       try {
         const tags = await client.listTags(value.projectId);
-        if (mounted) setAvailableTags(tags);
+        if (mounted) {setAvailableTags(tags);}
         if (mounted && value.tags.length > 0) {
           const filtered = value.tags.filter((t) => tags.includes(t));
-          if (filtered.length !== value.tags.length) onChange({ ...value, tags: filtered });
+          if (filtered.length !== value.tags.length) {onChange({ ...value, tags: filtered });}
         }
       } finally {
-        if (mounted) setLoadingTags(false);
+        if (mounted) {setLoadingTags(false);}
       }
     }
     fetchTags();
@@ -55,7 +63,7 @@ export function ProjectAndTagPicker({
 
   const toggleTag = useCallback(
     (t: string) => {
-      if (!value.addTags) return;
+      if (!value.addTags) {return;}
       const set = new Set(value.tags);
       set.has(t) ? set.delete(t) : set.add(t);
       onChange({ ...value, tags: Array.from(set) });
@@ -78,7 +86,7 @@ export function ProjectAndTagPicker({
           <select
             className="border rounded-lg px-2 py-1 text-sm"
             value={value.projectId || ""}
-            onChange={(e) => onChange({ ...value, projectId: e.target.value || null })}
+            onChange={(e) => { onChange({ ...value, projectId: e.target.value || null }); }}
           >
             <option value="">请选择项目</option>
             {projects.map((p) => (
@@ -93,7 +101,7 @@ export function ProjectAndTagPicker({
           <label className="text-sm w-24 text-gray-600">标签</label>
           <Checkbox
             checked={value.addTags}
-            onChange={(v) => onChange({ ...value, addTags: v, tags: v ? value.tags : [] })}
+            onChange={(v) => { onChange({ ...value, addTags: v, tags: v ? value.tags : [] }); }}
             label="为上传文件添加标签"
           />
         </div>
@@ -112,7 +120,7 @@ export function ProjectAndTagPicker({
               <div className="flex flex-wrap gap-2">
                 {availableTags.map((t) => (
                   <label key={t} className="text-xs bg-gray-50 border px-2 py-1 rounded-xl inline-flex items-center gap-2">
-                    <input type="checkbox" checked={value.tags.includes(t)} onChange={() => toggleTag(t)} />
+                    <input type="checkbox" checked={value.tags.includes(t)} onChange={() => { toggleTag(t); }} />
                     <span>{t}</span>
                   </label>
                 ))}

@@ -1,6 +1,13 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 import type { RosService } from "../types";
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = async (ms: number) => await new Promise(resolve => setTimeout(resolve, ms));
 
 /** Mock 版本：专门用于故障点记录 */
 export class MockRosService implements RosService {

@@ -1,3 +1,10 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 export type FileCandidate = {
   id: string;
   name: string;
@@ -7,16 +14,51 @@ export type FileCandidate = {
   note?: string;               // 记录故障点时的备注（recorded 才会带）
 };
 
+// 新增：Bag文件信息
+export type BagFile = {
+  mode: string;                // "imd" | "signal" | ""
+  action_name: string;         // action名称，可能为空
+  path: string;                // 文件路径
+};
+
+// 新增：获取Bag列表的请求
+export type GetBagListReq = {
+  mode: string;                // "" | "imd" | "signal"
+  action_name: string;         // "" 或具体的action名称
+};
+
+// 新增：获取Bag列表的响应
+export type GetBagListRsp = {
+  code: number;
+  msg: string;
+  bags: BagFile[];
+};
+
+// 新增：提交文件的请求
+export type SubmitFilesReq = {
+  paths: string[];
+};
+
+// 新增：通用响应
+export type CommonRsp = {
+  code: number;
+  msg: string;
+};
+
 export type UploadConfig = {
   projectId: string | null;
   addTags: boolean;
   tags: string[];
 };
 
-export type LogLine = { ts: string; level: "info" | "warn" | "error"; msg: string };
+export type LogLine = { id: string; ts: string; level: "info" | "warn" | "error"; msg: string };
 
 export interface RosService {
   endTestAndCollect(): Promise<{ recorded: FileCandidate[]; others: FileCandidate[] }>;
+  // 新增：获取Bag文件列表
+  getBagList(req: GetBagListReq): Promise<GetBagListRsp>;
+  // 新增：提交选中的文件
+  submitFiles(req: SubmitFilesReq): Promise<CommonRsp>;
 }
 
 export interface CoSceneClient {

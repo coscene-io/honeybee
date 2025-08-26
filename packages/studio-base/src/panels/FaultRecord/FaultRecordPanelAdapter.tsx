@@ -23,7 +23,7 @@ import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDa
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import FaultRecordPanel from "./FaultRecordPanel";
-import { Config } from "./config/types";
+import { defaultConfig, useFaultRecordPanelSettings, type FaultRecordConfig } from "./settings";
 
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
@@ -36,6 +36,8 @@ const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 function initPanel(
   crash: ReturnType<typeof useCrash>,
+  config: FaultRecordConfig,
+  saveConfig: SaveConfig<FaultRecordConfig>,
   context: PanelExtensionContext,
 ) {
   // eslint-disable-next-line react/no-deprecated
@@ -54,11 +56,11 @@ function initPanel(
 }
 
 type Props = {
-  config: Config;
-  saveConfig: SaveConfig<Config>;
+  config: FaultRecordConfig;
+  saveConfig: SaveConfig<FaultRecordConfig>;
 };
 
-function FaultRecordPanelAdapter(props: Props) {
+function FaultRecordPanelAdapter({ config, saveConfig }: Props) {
   const crash = useCrash();
   const userInfo = useCurrentUser(selectUser);
   const loginStatus = useCurrentUser(selectLoginStatus);
@@ -78,9 +80,15 @@ function FaultRecordPanelAdapter(props: Props) {
     urlState?.parameters?.deviceLink ??
     `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
 
-  const boundInitPanel = useMemo(() => {
-    return initPanel.bind(undefined, crash);
-  }, [crash]);
+  // 使用设置钩子来处理面板设置
+  const mergedConfig = { ...defaultConfig, ...config };
+  useFaultRecordPanelSettings(mergedConfig, saveConfig);
+
+  const boundInitPanel = useMemo(
+    () =>
+      initPanel.bind(undefined, crash, mergedConfig, saveConfig),
+    [crash, mergedConfig, saveConfig],
+  );
 
   // 使用 useMemo 稳定 extensionData 对象引用
   const extensionData = useMemo(
@@ -99,8 +107,8 @@ function FaultRecordPanelAdapter(props: Props) {
 
   return (
     <PanelExtensionAdapter
-      config={props.config}
-      saveConfig={props.saveConfig}
+      config={config}
+      saveConfig={saveConfig}
       initPanel={boundInitPanel}
       highestSupportedConfigVersion={1}
       extensionData={extensionData}
@@ -109,12 +117,7 @@ function FaultRecordPanelAdapter(props: Props) {
 }
 
 FaultRecordPanelAdapter.panelType = "FaultRecord";
-FaultRecordPanelAdapter.defaultConfig = {
-  services: [
-    { displayName: "故障点1", serviceName: "/mark_fault_1" },
-    { displayName: "故障点2", serviceName: "/mark_fault_2" },
-    { displayName: "故障点3", serviceName: "/mark_fault_3" },
-  ],
-};
 
-export default Panel(FaultRecordPanelAdapter);
+FaultRecordPanelAdapter.defaultConfig = defaultConfig;
+
+export default Panel<FaultRecordConfig, Props>(FaultRecordPanelAdapter);

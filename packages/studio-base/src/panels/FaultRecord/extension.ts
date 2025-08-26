@@ -1,44 +1,33 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import type { ExtensionContext, PanelExtensionContext } from "@foxglove/studio";
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import type { ExtensionContext, PanelExtensionContext, SettingsTreeAction } from "@coscene/extension";
+
 import FaultRecordPanel from "./FaultRecordPanel";
-import type { Config } from "./config/types";
-import { defaultConfig, useSettingsNodes, settingsActionReducer } from "./config/settings";
+import { defaultConfig } from "./settings";
+import type { FaultRecordConfig } from "./settings";
 
 export function activate(context: ExtensionContext) {
   context.registerPanel({
     name: "Fault Record",
 
     initPanel(panelCtx: PanelExtensionContext) {
-      // 1) 配置：先用默认值
-      let cfg: Config = { ...defaultConfig };
-
-      // 2) React 渲染
       const root = createRoot(panelCtx.panelElement);
-      const render = () => root.render(React.createElement(FaultRecordPanel, { config: cfg, context: panelCtx }));
-
-      // 3) 左侧设置：使用 updatePanelSettingsEditor
-      const actionHandler = (action: SettingsTreeAction) => {
-        if (action.action !== "update") return;
-        cfg = settingsActionReducer(cfg, action);
-        // 更新左侧与面板
-        applySettingsEditor();
-        render();
+      const render = () => { 
+        root.render(React.createElement(FaultRecordPanel, {
+          context: panelCtx
+        })); 
       };
-      
-      const applySettingsEditor = () => {
-        panelCtx.updatePanelSettingsEditor?.({
-          nodes: useSettingsNodes(cfg, actionHandler),
-          actionHandler,
-        });
-      };
-      applySettingsEditor();
 
-      // 4) 首次渲染
       render();
 
-      // 5) 清理
-      return () => root.unmount();
+      return () => { root.unmount(); };
     },
   });
 }
