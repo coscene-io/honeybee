@@ -53,6 +53,9 @@ export function parseServerMessage(buffer: ArrayBuffer): ServerMessage {
       offset += 4;
       const status = view.getUint8(offset) as FetchAssetStatus;
       offset += 1;
+      // 8 * getUint8 but we just need file hash do not need to decode it
+      const etag = view.getBigUint64(offset, true);
+      offset += 8;
       const errorMsgLength = view.getUint32(offset, true);
       offset += 4;
       const error = textDecoder.decode(new DataView(buffer, offset, errorMsgLength));
@@ -61,7 +64,7 @@ export function parseServerMessage(buffer: ArrayBuffer): ServerMessage {
       switch (status) {
         case FetchAssetStatus.SUCCESS: {
           const data = new DataView(buffer, offset, buffer.byteLength - offset);
-          return { op, requestId, status, data };
+          return { op, requestId, status, data, etag: etag.toString() };
         }
         case FetchAssetStatus.ERROR:
           return { op, requestId, status, error };
@@ -74,6 +77,9 @@ export function parseServerMessage(buffer: ArrayBuffer): ServerMessage {
       offset += 4;
       const status = view.getUint8(offset) as FetchAssetStatus;
       offset += 1;
+      // 8 * getUint8 but we just need file hash do not need to decode it
+      const etag = view.getBigUint64(offset, true);
+      offset += 8;
       const errorMsgLength = view.getUint32(offset, true);
       offset += 4;
       const error = textDecoder.decode(new DataView(buffer, offset, errorMsgLength));
@@ -81,15 +87,7 @@ export function parseServerMessage(buffer: ArrayBuffer): ServerMessage {
 
       switch (status) {
         case FetchAssetStatus.SUCCESS: {
-          // Parse etag length and value
-          const etagLength = view.getUint32(offset, true);
-          offset += 4;
-          const etag =
-            etagLength > 0
-              ? textDecoder.decode(new DataView(buffer, offset, etagLength))
-              : undefined;
-
-          return { op, requestId, status, etag };
+          return { op, requestId, status, etag: etag.toString() };
         }
         case FetchAssetStatus.ERROR:
           return { op, requestId, status, error };
