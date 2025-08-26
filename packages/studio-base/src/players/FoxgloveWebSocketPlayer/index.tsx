@@ -1495,6 +1495,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
               response.data.byteOffset,
               response.data.byteLength,
             ),
+            etag: response.etag,
           };
           resolve(newAsset);
         } else {
