@@ -19,11 +19,11 @@ export type SyncOperation =
   | { local: false; type: "upload-new"; localLayout: Layout }
   | { local: false; type: "upload-updated"; localLayout: Layout }
   | {
-      local: true;
-      type: "update-baseline";
-      localLayout: Layout & { syncInfo: NonNullable<Layout["syncInfo"]> };
-      remoteLayout: RemoteLayout;
-    };
+    local: true;
+    type: "update-baseline";
+    localLayout: Layout & { syncInfo: NonNullable<Layout["syncInfo"]> };
+    remoteLayout: RemoteLayout;
+  };
 
 export default function coSceneComputeLayoutSyncOperations(
   localLayouts: readonly Layout[],
