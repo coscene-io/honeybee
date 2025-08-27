@@ -125,6 +125,7 @@ export type ServiceCallRequest = ServiceCallPayload & {
 };
 export type ServerInfo = {
   op: "serverInfo";
+  receiveTime: number;
   name: string;
   capabilities: string[];
   supportedEncodings?: string[];
@@ -133,24 +134,29 @@ export type ServerInfo = {
 };
 export type StatusMessage = {
   op: "status";
+  receiveTime: number;
   level: StatusLevel;
   message: string;
   id?: string;
 };
 export type RemoveStatusMessages = {
   op: "removeStatus";
+  receiveTime: number;
   statusIds: string[];
 };
 export type Advertise = {
   op: "advertise";
+  receiveTime: number;
   channels: Channel[];
 };
 export type Unadvertise = {
   op: "unadvertise";
+  receiveTime: number;
   channelIds: ChannelId[];
 };
 export type ParameterValues = {
   op: "parameterValues";
+  receiveTime: number;
   parameters: Parameter[];
   id?: string;
 };
@@ -174,10 +180,12 @@ export type UnsubscribeParameterUpdates = {
 };
 export type AdvertiseServices = {
   op: "advertiseServices";
+  receiveTime: number;
   services: Service[];
 };
 export type UnadvertiseServices = {
   op: "unadvertiseServices";
+  receiveTime: number;
   serviceIds: ServiceId[];
 };
 export type SubscribeConnectionGraph = {
@@ -193,6 +201,7 @@ export type FetchAsset = {
 };
 export type ConnectionGraphUpdate = {
   op: "connectionGraphUpdate";
+  receiveTime: number;
   publishedTopics: {
     name: string;
     publisherIds: string[];
@@ -210,6 +219,7 @@ export type ConnectionGraphUpdate = {
 };
 export type MessageData = {
   op: BinaryOpcode.MESSAGE_DATA;
+  receiveTime: number;
   subscriptionId: SubscriptionId;
   timestamp: bigint;
   data: DataView;
@@ -217,12 +227,15 @@ export type MessageData = {
 export type Time = {
   op: BinaryOpcode.TIME;
   timestamp: bigint;
+  receiveTime: number;
 };
 export type ServiceCallResponse = ServiceCallPayload & {
   op: BinaryOpcode.SERVICE_CALL_RESPONSE;
+  receiveTime: number;
 };
 export type FetchAssetSuccessResponse = {
   op: BinaryOpcode.FETCH_ASSET_RESPONSE;
+  receiveTime: number;
   requestId: number;
   status: FetchAssetStatus.SUCCESS;
   data: DataView;
@@ -230,6 +243,7 @@ export type FetchAssetSuccessResponse = {
 };
 export type FetchAssetErrorResponse = {
   op: BinaryOpcode.FETCH_ASSET_RESPONSE;
+  receiveTime: number;
   requestId: number;
   status: FetchAssetStatus.ERROR;
   error: string;
@@ -237,12 +251,14 @@ export type FetchAssetErrorResponse = {
 export type FetchAssetResponse = FetchAssetSuccessResponse | FetchAssetErrorResponse;
 export type PreFetchAssetSuccessResponse = {
   op: BinaryOpcode.PRE_FETCH_ASSET_RESPONSE;
+  receiveTime: number;
   requestId: number;
   status: FetchAssetStatus.SUCCESS;
   etag?: string;
 };
 export type PreFetchAssetErrorResponse = {
   op: BinaryOpcode.PRE_FETCH_ASSET_RESPONSE;
+  receiveTime: number;
   requestId: number;
   status: FetchAssetStatus.ERROR;
   error: string;
@@ -250,6 +266,7 @@ export type PreFetchAssetErrorResponse = {
 export type PreFetchAssetResponse = PreFetchAssetSuccessResponse | PreFetchAssetErrorResponse;
 export type ServiceCallFailure = {
   op: "serviceCallFailure";
+  receiveTime: number;
   serviceId: number;
   callId: number;
   message: string;
@@ -273,6 +290,7 @@ export type Parameter = {
 
 export type ServerLogin = {
   op: "login";
+  receiveTime: number;
   userId: string;
   username: string;
   infoPort: string;
@@ -288,6 +306,7 @@ export type ClientLogin = {
 };
 export type Kicked = {
   op: "kicked";
+  receiveTime: number;
   userId: string;
   username: string;
   message: string;
@@ -295,11 +314,13 @@ export type Kicked = {
 
 export type ServerSyncTime = {
   op: "syncTime";
+  receiveTime: number;
   serverTime: number;
 };
 
 export type ClientSyncTime = {
   op: "syncTime";
+  delayTime: number;
   serverTime: number;
   clientTime: number;
 };
@@ -312,6 +333,7 @@ export type PreFetchAsset = {
 
 export type NetworkStatistics = {
   op: "networkStatistics";
+  receiveTime: number;
   curSpeed: number; // KiB/s
   droppedMsgs: number; // count of messages dropped by server
   packageLoss: number; // rate of package, caculated by bytes, not message count
@@ -319,6 +341,7 @@ export type NetworkStatistics = {
 
 export type TimeOffset = {
   op: "timeOffset";
+  receiveTime: number;
   timeOffset: number;
 };
 
