@@ -24,7 +24,6 @@ export type Layout = {
   id: LayoutID;
   name: string;
   permission: LayoutPermission;
-
   parent: string;
 
   /** @deprecated old field name, migrated to working/baseline */
