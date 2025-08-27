@@ -20,13 +20,7 @@ import {
 import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
-import {
-  streamMessages,
-  ParsedChannelAndEncodings,
-  StreamParams,
-  isProblem,
-  isMessageEvent,
-} from "./streamMessages";
+import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";
 import {
   IIterableSource,
   Initalization,
@@ -256,12 +250,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       for await (const messages of stream) {
         for (const message of messages) {
-          if (isProblem(message)) {
-            // This is a Problem
-            yield { type: "problem", problem: message.problem, connectionId: 0 };
-          } else {
-            yield { type: "message-event", msgEvent: message };
-          }
+          yield message;
         }
       }
 
@@ -293,13 +282,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       for await (const messages of stream) {
         for (const message of messages) {
-          if (isProblem(message)) {
-            // This is a Problem
-            yield { type: "problem", problem: message.problem, connectionId: 0 };
-          } else {
-            // This is a MessageEvent
-            yield { type: "message-event", msgEvent: message };
-          }
+          yield message;
         }
       }
 
@@ -374,11 +357,11 @@ export class DataPlatformIterableSource implements IIterableSource {
       params: streamByParams,
     })) {
       for (const message of block) {
-        if (isMessageEvent(message)) {
-          messages.push(message);
+        if (message.type === "message-event") {
+          messages.push(message.msgEvent);
         }
 
-        if (isProblem(message)) {
+        if (message.type === "problem") {
           log.warn(`Problem during backfill: ${message.problem.message}`, {
             severity: message.problem.severity,
             tip: message.problem.tip,

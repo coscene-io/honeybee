@@ -12,8 +12,9 @@ import * as _ from "lodash-es";
 import Logger from "@foxglove/log";
 import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/mcap-support";
 import { fromNanoSec, Time, toMillis } from "@foxglove/rostime";
-import { MessageEvent, PlayerProblem } from "@foxglove/studio-base/players/types";
 import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+
+import { IteratorResult } from "../IIterableSource";
 
 const log = Logger.getLogger(__filename);
 
@@ -50,17 +51,19 @@ interface StreamMessageApi {
   getStreams: CoSceneConsoleApi["getStreams"];
 }
 
-type Problem = { type: "problem"; problem: PlayerProblem };
-type StreamResult = MessageEvent | Problem;
+// type Problem = { type: "problem"; connectionId: number; problem: PlayerProblem };
+// type StreamResult = MessageEvent | Problem;
 
 // type guard
-export function isProblem(result: StreamResult): result is Problem {
-  return "type" in result;
-}
+// export function isProblem(result: StreamResult): result is Problem {
+//   return "type" in result;
+// }
 
-export function isMessageEvent(result: StreamResult): result is MessageEvent {
-  return "topic" in result;
-}
+// export function isMessageEvent(result: StreamResult): result is MessageEvent {
+//   return "topic" in result;
+// }
+
+const connectionIdByTopic: Record<string, number> = {};
 
 export async function* streamMessages({
   api,
@@ -85,7 +88,7 @@ export async function* streamMessages({
    * parsedChannelsByTopic (thus mutating parsedChannelsByTopic).
    */
   parsedChannelsByTopic: Map<string, ParsedChannelAndEncodings[]>;
-}): AsyncGenerator<StreamResult[]> {
+}): AsyncGenerator<IteratorResult[]> {
   const controller = new AbortController();
   const abortHandler = () => {
     log.debug("Manual abort of streamMessages", params);
@@ -102,7 +105,7 @@ export async function* streamMessages({
   }
 
   let totalMessages = 0;
-  let results: StreamResult[] = [];
+  let results: IteratorResult[] = [];
   const schemasById = new Map<number, McapTypes.TypedMcapRecords["Schema"]>();
   const channelInfoById = new Map<
     number,
@@ -193,11 +196,14 @@ export async function* streamMessages({
         try {
           const deserializedMessage = info.parsedChannel.deserialize(record.data);
           results.push({
-            topic: info.channel.topic,
-            receiveTime,
-            message: deserializedMessage,
-            sizeInBytes: record.data.byteLength,
-            schemaName: info.schemaName,
+            type: "message-event",
+            msgEvent: {
+              topic: info.channel.topic,
+              receiveTime,
+              message: deserializedMessage,
+              sizeInBytes: record.data.byteLength,
+              schemaName: info.schemaName,
+            },
           });
         } catch (err) {
           // Similar to DeserializingIterableSource error handling - create a problem for the main thread
@@ -211,22 +217,20 @@ export async function* streamMessages({
             },
           });
 
-          const errorTime = new Date(receiveTime.sec * 1000 + receiveTime.nsec / 1e6);
+          if (connectionIdByTopic[info.channel.topic] == undefined) {
+            connectionIdByTopic[info.channel.topic] = 0;
+          }
+          const connectionId = connectionIdByTopic[info.channel.topic] ?? 0;
+
           results.push({
             type: "problem",
+            connectionId,
             problem: {
               severity: "error",
-              message: `Failed to deserialize message on topic '${
+              message: `Failed to deserialize message on topic ${
                 info.channel.topic
-              }' at ${errorTime.toISOString()}. Schema: '${info.schemaName}', Size: ${
-                record.data.byteLength
-              } bytes, Channel: ${record.channelId}. Error: ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-              tip: `Check that the message schema is correct and the data is not corrupted. This occurred at timestamp ${
-                receiveTime.sec
-              }.${String(receiveTime.nsec).padStart(9, "0")}.`,
-              error: err instanceof Error ? err : new Error(String(err)),
+              }. ${err.toString()}`,
+              tip: `Check that your input file is not corrupted.`,
             },
           });
         }
