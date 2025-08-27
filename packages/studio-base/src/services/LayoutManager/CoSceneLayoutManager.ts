@@ -312,7 +312,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           baseline: { data, savedAt: new Date().toISOString() as ISO8601Timestamp },
           working: undefined,
           syncInfo: this.#remote ? { status: "new", lastRemoteSavedAt: undefined } : undefined,
-          parent: '',
+          parent,
         }),
     );
     this.#notifyChangeListeners({ type: "change", updatedLayout: newLayout });
