@@ -44,14 +44,6 @@ export interface IRemoteLayoutStorage {
     savedAt: ISO8601Timestamp;
   }) => Promise<RemoteLayout>;
 
-  saveAsRecordDefaultLayout: (params: {
-    id: LayoutID | undefined;
-    name: string;
-    data: LayoutData;
-    permission: LayoutPermission;
-    savedAt: ISO8601Timestamp;
-  }) => Promise<RemoteLayout>;
-
   updateLayout: (params: {
     id: LayoutID;
     name?: string;
