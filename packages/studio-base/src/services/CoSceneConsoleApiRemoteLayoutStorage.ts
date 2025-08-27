@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Timestamp, FieldMask, Struct, JsonObject } from "@bufbuild/protobuf";
+import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
 import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 
 import { filterMap } from "@foxglove/den/collection";
@@ -79,30 +80,19 @@ function convertRemoteLayoutToGrpcLayout({
   userId: string;
   projectId?: string;
 }): Layout {
-  const layout = new Layout();
-
-  // Set resource name based on permission
-  if (permission === "CREATOR_WRITE") {
-    layout.name = `users/${userId}/layouts/${id ?? ""}`;
-  } else if (projectId != undefined) {
-    layout.name = `projects/${projectId}/layouts/${id ?? ""}`;
-  } else {
-    throw new Error("Project ID required for non-personal layouts");
-  }
-
-  if (name) {
-    layout.displayName = name;
-  }
-  layout.data = Struct.fromJson(data as JsonObject);
-  layout.creator = userId;
-  layout.modifier = userId;
-
-  const timestamp = Timestamp.fromDate(new Date(savedAt));
-  layout.createTime = timestamp;
-  layout.updateTime = timestamp;
-  layout.modifyTime = timestamp;
-
-  return layout;
+  return new Layout(
+    {
+      name: permission === "CREATOR_WRITE" ? `users/${userId}/layouts/${id ?? ""}` : `projects/${projectId}/layouts/${id ?? ""}`, // todo
+      displayName: name,
+      data: Struct.fromJson(data as JsonObject),
+      // creator: userId,
+      // modifier: userId,
+      scope: permission === "CREATOR_WRITE" ? LayoutScopeEnum_LayoutScope.PERSONAL : LayoutScopeEnum_LayoutScope.PROJECT,
+      // createTime: Timestamp.fromDate(new Date(savedAt)),
+      // updateTime: Timestamp.fromDate(new Date(savedAt)),
+      modifyTime: Timestamp.fromDate(new Date(savedAt)),
+    }
+  );
 }
 
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {
@@ -192,11 +182,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       projectId: this.projectId,
     });
 
-    const parent = permission === "CREATOR_WRITE"
-      ? `users/${this.userId}`
-      : `projects/${this.projectId}`;
+    // const parent = permission === "CREATOR_WRITE"
+    //   ? `users/${this.userId}`
+    //   : `projects/${this.projectId}`;
 
+    const parent = 'users/0853b5aa-ad8f-4419-aad5-0996f24ff96f'
     const result = await this.api.createLayout({ parent, layout });
+
+    console.log("saveNewLayout", result);
     return convertGrpcLayoutToRemoteLayout(result);
   }
 
