@@ -193,30 +193,6 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     return convertGrpcLayoutToRemoteLayout(result);
   }
 
-  public async saveAsRecordDefaultLayout({
-    id,
-    name,
-    data,
-    permission,
-    savedAt,
-  }: {
-    id: LayoutID | undefined;
-    name: string;
-    data: LayoutData;
-    permission: LayoutPermission;
-    savedAt: ISO8601Timestamp;
-  }): Promise<RemoteLayout> {
-    // In gRPC v2, we treat record default layouts as project layouts
-    const adjustedPermission = permission === "CREATOR_WRITE" ? "ORG_WRITE" : permission;
-    return await this.saveNewLayout({
-      id,
-      name: `${name} (Record Default)`,
-      data,
-      permission: adjustedPermission,
-      savedAt,
-    });
-  }
-
   public async updateLayout({
     id,
     name,

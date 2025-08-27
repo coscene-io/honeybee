@@ -260,12 +260,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     name,
     data: unmigratedData,
     permission,
-    isRecordDefaultLayout = false,
   }: {
     name: string;
     data: LayoutData;
     permission: LayoutPermission;
-    isRecordDefaultLayout?: boolean;
+    isRecordDefaultLayout?: boolean; // todo: delete
   }): Promise<Layout> {
     const data = migratePanelsState(unmigratedData);
     if (layoutPermissionIsShared(permission)) {
@@ -275,25 +274,15 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       if (!this.isOnline) {
         throw new Error("Cannot share a layout while offline");
       }
-      let newLayout: RemoteLayout;
 
-      if (isRecordDefaultLayout) {
-        newLayout = await this.#remote.saveAsRecordDefaultLayout({
-          id: uuidv4() as LayoutID,
-          name,
-          data,
-          permission,
-          savedAt: new Date().toISOString() as ISO8601Timestamp,
-        });
-      } else {
-        newLayout = await this.#remote.saveNewLayout({
-          id: uuidv4() as LayoutID,
-          name,
-          data,
-          permission,
-          savedAt: new Date().toISOString() as ISO8601Timestamp,
-        });
-      }
+      const newLayout = await this.#remote.saveNewLayout({
+        id: uuidv4() as LayoutID,
+        name,
+        data,
+        permission,
+        savedAt: new Date().toISOString() as ISO8601Timestamp,
+      });
+
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
@@ -352,8 +341,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       data == undefined
         ? localLayout.working
         : isLayoutEqual(localLayout.baseline.data, data)
-        ? undefined
-        : { data, savedAt: now };
+          ? undefined
+          : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
     if (name != undefined && layoutIsShared(localLayout)) {
