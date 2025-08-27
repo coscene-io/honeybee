@@ -51,8 +51,6 @@ interface StreamMessageApi {
   getStreams: CoSceneConsoleApi["getStreams"];
 }
 
-const connectionIdByTopic: Record<string, number> = {};
-
 export async function* streamMessages({
   api,
   signal,
@@ -77,6 +75,10 @@ export async function* streamMessages({
    */
   parsedChannelsByTopic: Map<string, ParsedChannelAndEncodings[]>;
 }): AsyncGenerator<IteratorResult[]> {
+  // Local connection ID management for this streaming session
+  const connectionIdByTopic: Record<string, number> = {};
+  let nextConnectionId = 0;
+
   const controller = new AbortController();
   const abortHandler = () => {
     log.debug("Manual abort of streamMessages", params);
@@ -205,10 +207,11 @@ export async function* streamMessages({
             },
           });
 
+          // Assign a unique connection ID for each topic in this streaming session
           if (connectionIdByTopic[info.channel.topic] == undefined) {
-            connectionIdByTopic[info.channel.topic] = 0;
+            connectionIdByTopic[info.channel.topic] = nextConnectionId++;
           }
-          const connectionId = connectionIdByTopic[info.channel.topic] ?? 0;
+          const connectionId = connectionIdByTopic[info.channel.topic]!;
 
           results.push({
             type: "problem",
