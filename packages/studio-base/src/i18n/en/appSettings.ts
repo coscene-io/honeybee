@@ -57,4 +57,6 @@ export const appSettings = {
   neverDisconnect: "Never disconnect",
   retentionWindowMs: "Real-time visualization cache duration",
   noCache: "No cache",
+  retentionWindowNextEffectiveNotice:
+    "Setting updated, will take effect on next connection <Link>Reconnect now</Link>",
 };

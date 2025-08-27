@@ -53,4 +53,5 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   neverDisconnect: "永不断连",
   retentionWindowMs: "实时可视化缓存时长",
   noCache: "不缓存",
+  retentionWindowNextEffectiveNotice: "设置已更新，将在下次连接时生效 <Link>立即重连</Link>",
 };
