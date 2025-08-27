@@ -51,18 +51,6 @@ interface StreamMessageApi {
   getStreams: CoSceneConsoleApi["getStreams"];
 }
 
-// type Problem = { type: "problem"; connectionId: number; problem: PlayerProblem };
-// type StreamResult = MessageEvent | Problem;
-
-// type guard
-// export function isProblem(result: StreamResult): result is Problem {
-//   return "type" in result;
-// }
-
-// export function isMessageEvent(result: StreamResult): result is MessageEvent {
-//   return "topic" in result;
-// }
-
 const connectionIdByTopic: Record<string, number> = {};
 
 export async function* streamMessages({
