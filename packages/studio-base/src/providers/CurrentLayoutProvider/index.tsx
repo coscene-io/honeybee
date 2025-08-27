@@ -256,8 +256,7 @@ export default function CurrentLayoutProvider({
       if (event.layoutId === layoutStateRef.current.selectedLayout.id) {
         // 删除后选择拥有的第一个layout
         const layouts = await layoutManager.getLayouts();
-        const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
-        await setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
+        await setSelectedLayoutId(layouts[0]?.id);
       }
     };
 
@@ -287,8 +286,7 @@ export default function CurrentLayoutProvider({
         await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
       } else {
         const layouts = await layoutManager.getLayouts();
-        const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
-        await setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
+        await setSelectedLayoutId(layouts[0]?.id);
       }
     } catch (error) {
       console.error(error);

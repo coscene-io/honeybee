@@ -21,8 +21,7 @@ export type RemoteLayout = {
   permission: LayoutPermission;
   data: LayoutData;
   savedAt: ISO8601Timestamp | undefined;
-  isProjectRecommended: boolean; // deprecated
-  isRecordRecommended: boolean; // deprecated
+  parent: string;
 };
 
 export interface IRemoteLayoutStorage {
@@ -42,6 +41,7 @@ export interface IRemoteLayoutStorage {
     data: LayoutData;
     permission: LayoutPermission;
     savedAt: ISO8601Timestamp;
+    parent: string;
   }) => Promise<RemoteLayout>;
 
   updateLayout: (params: {
