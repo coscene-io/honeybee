@@ -7,7 +7,6 @@
 
 import ErrorIcon from "@mui/icons-material/Error";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import ThumbUpOffAltIcon from "@mui/icons-material/ThumbUpOffAlt";
 import {
   ListItem,
   ListItemButton,
@@ -21,9 +20,7 @@ import {
   TextField,
   // eslint-disable-next-line
   styled as muiStyled,
-  Chip,
   Stack,
-  Tooltip,
 } from "@mui/material";
 import {
   useCallback,
@@ -108,15 +105,6 @@ const StyledMenuItem = muiStyled(MenuItem, {
       ].join(",")})`,
     },
   }),
-}));
-
-const StyledChip = muiStyled(Chip)(() => ({
-  "& .MuiChip-label": {
-    display: "flex",
-    alignItems: "center",
-    paddingTop: 0,
-    paddingBottom: 0,
-  },
 }));
 
 export type LayoutActionMenuItem =
@@ -271,17 +259,17 @@ export default React.memo(function LayoutRow({
     onExport(layout);
   }, [layout, onExport]);
 
-  const recommendedToProjectAction = useCallback(() => {
-    if (onRecommendedToProjectLayout) {
-      onRecommendedToProjectLayout(layout);
-    }
-  }, [layout, onRecommendedToProjectLayout]);
+  // const recommendedToProjectAction = useCallback(() => {
+  //   if (onRecommendedToProjectLayout) {
+  //     onRecommendedToProjectLayout(layout);
+  //   }
+  // }, [layout, onRecommendedToProjectLayout]);
 
-  const copyToRecordDefaultAction = useCallback(() => {
-    if (onCopyToRecordDefaultLayout) {
-      onCopyToRecordDefaultLayout(layout);
-    }
-  }, [layout, onCopyToRecordDefaultLayout]);
+  // const copyToRecordDefaultAction = useCallback(() => {
+  //   if (onCopyToRecordDefaultLayout) {
+  //     onCopyToRecordDefaultLayout(layout);
+  //   }
+  // }, [layout, onCopyToRecordDefaultLayout]);
 
   const onSubmit = useCallback(
     (event: React.FormEvent) => {
@@ -388,29 +376,30 @@ export default React.memo(function LayoutRow({
       onClick: duplicateAction,
       "data-testid": "duplicate-layout",
     },
-    layoutIsShared(layout) &&
-      onRecommendedToProjectLayout != undefined &&
-      !layout.isRecordRecommended &&
-      currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN] &&
-      project.value != undefined && {
-        type: "item",
-        key: "recommendedToProjectLayout",
-        text: layout.isProjectRecommended
-          ? t("removeProjectRecommendedLayout")
-          : t("markAsProjectRecommendedLayout"),
-        onClick: recommendedToProjectAction,
-        "data-testid": "recommended-project-layout",
-      },
-    onCopyToRecordDefaultLayout != undefined &&
-      !layout.isRecordRecommended &&
-      currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER] &&
-      record.value != undefined && {
-        type: "item",
-        key: "copyToRecordDefaultLayout",
-        text: t("copyToRecordDefaultLayoutTitle"),
-        onClick: copyToRecordDefaultAction,
-        "data-testid": "copy-to-record-default-layout",
-      },
+    // todo: check
+    // layoutIsShared(layout) &&
+    //   onRecommendedToProjectLayout != undefined &&
+    //   !layout.isRecordRecommended &&
+    //   currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN] &&
+    //   project.value != undefined && {
+    //     type: "item",
+    //     key: "recommendedToProjectLayout",
+    //     text: layout.isProjectRecommended
+    //       ? t("removeProjectRecommendedLayout")
+    //       : t("markAsProjectRecommendedLayout"),
+    //     onClick: recommendedToProjectAction,
+    //     "data-testid": "recommended-project-layout",
+    //   },
+    // onCopyToRecordDefaultLayout != undefined &&
+    //   !layout.isRecordRecommended &&
+    //   currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER] &&
+    //   record.value != undefined && {
+    //     type: "item",
+    //     key: "copyToRecordDefaultLayout",
+    //     text: t("copyToRecordDefaultLayoutTitle"),
+    //     onClick: copyToRecordDefaultAction,
+    //     "data-testid": "copy-to-record-default-layout",
+    //   },
     layoutManager.supportsSharing &&
       !layoutIsShared(layout) && {
         type: "item",
@@ -574,45 +563,6 @@ export default React.memo(function LayoutRow({
           >
             <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
               <HighlightedText text={layout.name} highlight={searchQuery} />
-              <Stack marginTop={0.5}>
-                {layout.isProjectRecommended && (
-                  <StyledChip
-                    label={
-                      <Tooltip title={t("projectRecommandedLayout")} placement="top">
-                        <ThumbUpOffAltIcon
-                          fontSize="small"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            lineHeight: 1,
-                          }}
-                        />
-                      </Tooltip>
-                    }
-                    color="success"
-                    size="small"
-                  />
-                )}
-                {layout.isRecordRecommended && (
-                  <StyledChip
-                    label={
-                      <Tooltip title={t("recordDefaultLayout")} placement="top">
-                        <ThumbUpOffAltIcon
-                          fontSize="small"
-                          style={{
-                            color: "white",
-                            display: "flex",
-                            alignItems: "center",
-                            lineHeight: 1,
-                          }}
-                        />
-                      </Tooltip>
-                    }
-                    color="info"
-                    size="small"
-                  />
-                )}
-              </Stack>
             </Stack>
           </Typography>
         </ListItemText>

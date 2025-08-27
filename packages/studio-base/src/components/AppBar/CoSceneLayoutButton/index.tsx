@@ -515,23 +515,24 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onRecommendedToProjectLayout = useCallbackWithToast(
     async (item: Layout) => {
-      const currentProjectId = externalInitConfig?.projectId;
-      const currentRecommendedLayouts = layouts.value?.shared
-        .filter((layout) => layout.isProjectRecommended)
-        .map((layout) => layout.id);
-      if (currentRecommendedLayouts != undefined && currentProjectId != undefined) {
-        if (item.isProjectRecommended) {
-          const nextRecommendedLayouts = currentRecommendedLayouts.filter((id) => id !== item.id);
-          await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
-        } else {
-          const nextRecommendedLayouts = [...currentRecommendedLayouts, item.id];
-          await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
-        }
-
-        await layoutManager.updateLayout({ id: item.id, name: item.name });
-      }
+      // todo: delete
+      // const currentProjectId = externalInitConfig?.projectId;
+      // const currentRecommendedLayouts = layouts.value?.shared
+      //   .filter((layout) => layout.isProjectRecommended)
+      //   .map((layout) => layout.id);
+      // if (currentRecommendedLayouts != undefined && currentProjectId != undefined) {
+      //   if (item.isProjectRecommended) {
+      //     const nextRecommendedLayouts = currentRecommendedLayouts.filter((id) => id !== item.id);
+      //     await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
+      //   } else {
+      //     const nextRecommendedLayouts = [...currentRecommendedLayouts, item.id];
+      //     await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
+      //   }
+      //   await layoutManager.updateLayout({ id: item.id, name: item.name });
+      // }
     },
-    [externalInitConfig?.projectId, consoleApi, layoutManager, layouts.value?.shared],
+    [],
+    // [externalInitConfig?.projectId, consoleApi, layoutManager, layouts.value?.shared],
   );
 
   const onCopyToRecordDefaultLayout = useCallbackWithToast(
@@ -603,14 +604,15 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   };
 
   const sortedRemoteLayouts = useMemo(() => {
-    return layouts.value?.shared.sort((a, b) => {
-      // 计算优先级分数：isRecordRecommended 权重为 2，isProjectRecommended 权重为 1
-      const priorityA = (a.isRecordRecommended ? 2 : 0) + (a.isProjectRecommended ? 1 : 0);
-      const priorityB = (b.isRecordRecommended ? 2 : 0) + (b.isProjectRecommended ? 1 : 0);
+    // return layouts.value?.shared.sort((a, b) => {
+    //   // 计算优先级分数：isRecordRecommended 权重为 2，isProjectRecommended 权重为 1
+    //   const priorityA = (a.isRecordRecommended ? 2 : 0) + (a.isProjectRecommended ? 1 : 0);
+    //   const priorityB = (b.isRecordRecommended ? 2 : 0) + (b.isProjectRecommended ? 1 : 0);
 
-      // 优先级高的排在前面
-      return priorityB - priorityA;
-    });
+    //   // 优先级高的排在前面
+    //   return priorityB - priorityA;
+    // });
+    return layouts.value?.shared;
   }, [layouts.value?.shared]);
 
   // if current user project role is AUTHENTICATED_USER, all record and project recommended layouts is from public org
@@ -619,18 +621,20 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       return sortedRemoteLayouts;
     }
 
-    return sortedRemoteLayouts?.filter(
-      (layout) => !layout.isProjectRecommended && !layout.isRecordRecommended,
-    );
+    return sortedRemoteLayouts; // todo: check
+    // return sortedRemoteLayouts?.filter(
+    //   (layout) => !layout.isProjectRecommended && !layout.isRecordRecommended,
+    // );
   }, [currentUserRole.projectRole, sortedRemoteLayouts]);
 
   const publicLayouts = useMemo(() => {
     if (currentUserRole.projectRole !== ProjectRoleWeight[ProjectRoleEnum.AUTHENTICATED_USER]) {
       return [];
     }
-    return sortedRemoteLayouts?.filter(
-      (layout) => layout.isProjectRecommended || layout.isRecordRecommended,
-    );
+    // return sortedRemoteLayouts?.filter(
+    //   (layout) => layout.isProjectRecommended || layout.isRecordRecommended,
+    // );
+    return sortedRemoteLayouts; // todo: check
   }, [currentUserRole.projectRole, sortedRemoteLayouts]);
 
   return (

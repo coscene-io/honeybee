@@ -202,17 +202,19 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       if (layoutAppearsDeleted(existingLocal)) {
         return undefined;
       }
+
+      // todo: check
       // record recommended layout only show on single record page
       // so we need to check this record is in this record
-      if (existingLocal.isRecordRecommended) {
-        const remoteLayout = await this.#remote?.getLayout(id);
+      // if (existingLocal.isRecordRecommended) {
+      //   const remoteLayout = await this.#remote?.getLayout(id);
 
-        if (remoteLayout) {
-          return existingLocal;
-        }
+      //   if (remoteLayout) {
+      //     return existingLocal;
+      //   }
 
-        return undefined;
-      }
+      //   return undefined;
+      // }
       return existingLocal;
     }
 
@@ -249,8 +251,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
         working: undefined,
         syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
-        isProjectRecommended: remoteLayout.isProjectRecommended,
-        isRecordRecommended: remoteLayout.isRecordRecommended,
+        parent: remoteLayout.parent,
       });
     });
   }
@@ -266,6 +267,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     permission: LayoutPermission;
     isRecordDefaultLayout?: boolean; // todo: delete
   }): Promise<Layout> {
+    const parent = 'users/0853b5aa-ad8f-4419-aad5-0996f24ff96f' // todo: check get parent
+
     const data = migratePanelsState(unmigratedData);
     if (layoutPermissionIsShared(permission)) {
       if (!this.#remote) {
@@ -281,6 +284,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         data,
         permission,
         savedAt: new Date().toISOString() as ISO8601Timestamp,
+        parent,
       });
 
       const result = await this.#local.runExclusive(
@@ -292,8 +296,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             baseline: { data: newLayout.data, savedAt: newLayout.savedAt },
             working: undefined,
             syncInfo: { status: "tracked", lastRemoteSavedAt: newLayout.savedAt },
-            isProjectRecommended: newLayout.isProjectRecommended,
-            isRecordRecommended: newLayout.isRecordRecommended,
+            parent: newLayout.parent,
           }),
       );
       this.#notifyChangeListeners({ type: "change", updatedLayout: undefined });
@@ -309,8 +312,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           baseline: { data, savedAt: new Date().toISOString() as ISO8601Timestamp },
           working: undefined,
           syncInfo: this.#remote ? { status: "new", lastRemoteSavedAt: undefined } : undefined,
-          isProjectRecommended: false,
-          isRecordRecommended: false,
+          parent: '',
         }),
     );
     this.#notifyChangeListeners({ type: "change", updatedLayout: newLayout });
@@ -361,8 +363,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             baseline: { data: updatedBaseline.data, savedAt: updatedBaseline.savedAt },
             working: newWorking,
             syncInfo: { status: "tracked", lastRemoteSavedAt: updatedBaseline.savedAt },
-            isProjectRecommended: updatedBaseline.isProjectRecommended,
-            isRecordRecommended: updatedBaseline.isRecordRecommended,
+            parent: updatedBaseline.parent,
           }),
       );
       // 当 busyCount > 1 时，代表着有多个更新 layout 的任务在排队，这时不应该触发 change 事件，否则会导致 layout 跳回上一个版本
@@ -515,8 +516,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         baseline: { data: layout.working?.data ?? layout.baseline.data, savedAt: now },
         working: undefined,
         syncInfo: { status: "new", lastRemoteSavedAt: now },
-        isProjectRecommended: false,
-        isRecordRecommended: false,
+        parent: '', // todo: get parent
       });
       await local.put({ ...layout, working: undefined });
       return newLayout;
@@ -595,15 +595,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         switch (operation.type) {
           case "mark-deleted": {
             const { localLayout } = operation;
-            if (localLayout.isRecordRecommended) {
-              await local.delete(localLayout.id);
-            } else {
-              log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
-              await local.put({
-                ...localLayout,
-                syncInfo: { status: "remotely-deleted", lastRemoteSavedAt: undefined },
-              });
-            }
+            log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
+            await local.put({
+              ...localLayout,
+              syncInfo: { status: "remotely-deleted", lastRemoteSavedAt: undefined },
+            });
             break;
           }
 
@@ -625,8 +621,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
               working: undefined,
               syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
-              isProjectRecommended: remoteLayout.isProjectRecommended,
-              isRecordRecommended: remoteLayout.isRecordRecommended,
+              parent: remoteLayout.parent,
             });
             break;
           }
@@ -644,8 +639,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 status: localLayout.syncInfo.status,
                 lastRemoteSavedAt: remoteLayout.savedAt,
               },
-              isProjectRecommended: remoteLayout.isProjectRecommended,
-              isRecordRecommended: remoteLayout.isRecordRecommended,
+              parent: remoteLayout.parent,
             });
             break;
           }
@@ -694,6 +688,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               permission: localLayout.permission,
               savedAt:
                 localLayout.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
+              parent: localLayout.parent,
             });
             return async (local) => {
               // Don't check abortSignal; we need the cache to be updated to show the layout is tracked
@@ -755,15 +750,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         switch (operation.type) {
           case "mark-deleted": {
             const { localLayout } = operation;
-            if (localLayout.isRecordRecommended) {
-              await local.delete(localLayout.id);
-            } else {
-              log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
-              await local.put({
-                ...localLayout,
-                syncInfo: { status: "remotely-deleted", lastRemoteSavedAt: undefined },
-              });
-            }
+            log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
+            await local.put({
+              ...localLayout,
+              syncInfo: { status: "remotely-deleted", lastRemoteSavedAt: undefined },
+            });
             break;
           }
 
@@ -788,8 +779,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
                 working: undefined,
                 syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
-                isProjectRecommended: remoteLayout.isProjectRecommended,
-                isRecordRecommended: remoteLayout.isRecordRecommended,
+                parent: remoteLayout.parent,
               });
             }
             break;
@@ -811,8 +801,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                   status: localLayout.syncInfo.status,
                   lastRemoteSavedAt: remoteLayout.savedAt,
                 },
-                isProjectRecommended: remoteLayout.isProjectRecommended,
-                isRecordRecommended: remoteLayout.isRecordRecommended,
+                parent: remoteLayout.parent,
               });
             }
             break;
