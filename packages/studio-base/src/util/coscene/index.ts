@@ -8,11 +8,8 @@
 // coScene custom tools
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { ServiceType, Timestamp, Value, JsonObject } from "@bufbuild/protobuf";
-import {
-  Layout,
-  // LayoutDetail,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import { ServiceType, Timestamp, JsonObject, Struct } from "@bufbuild/protobuf";
+import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
@@ -110,7 +107,7 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
 }
 
 // protobuf => JsonObject is not support undefind type so we need to replace undefined with null
-function replaceUndefinedWithNull(obj: Record<string, unknown>) {
+export function replaceUndefinedWithNull(obj: Record<string, unknown>): Record<string, unknown> {
   Object.keys(obj).forEach((key) => {
     if (obj[key] != undefined && typeof obj[key] === "object") {
       replaceUndefinedWithNull(obj[key] as Record<string, unknown>);
@@ -137,7 +134,8 @@ export const getCoSceneLayout = (layout: {
       // permission: layout.permission ?? "",
       createTime: Timestamp.fromDate(new Date()),
       updateTime: Timestamp.fromDate(new Date()),
-      data: layout.data ? Value.fromJson(replaceUndefinedWithNull(layout.data) as JsonObject).toJsonString() : undefined,
+      // todo:  replaceUndefinedWithNull 是否必须
+      data: layout.data ? Struct.fromJson(replaceUndefinedWithNull(layout.data) as JsonObject) : undefined,
       modifyTime: Timestamp.fromDate(new Date()),
       creator: layout.userId,
       modifier: layout.userId,

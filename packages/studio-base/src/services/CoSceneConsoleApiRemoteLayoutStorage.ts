@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Timestamp, FieldMask } from "@bufbuild/protobuf";
+import { Timestamp, FieldMask, Struct, JsonObject } from "@bufbuild/protobuf";
 import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 
 import { filterMap } from "@foxglove/den/collection";
@@ -18,6 +18,7 @@ import {
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import { replaceUndefinedWithNull } from "@foxglove/studio-base/util/coscene";
 
 const log = Logger.getLogger(__filename);
 
@@ -31,7 +32,7 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
 
   let data: LayoutData;
   try {
-    data = JSON.parse(layout.data) as LayoutData;
+    data = layout.data.toJson() as LayoutData;
   } catch (err) {
     throw new Error(`Invalid layout data for ${layout.displayName}: ${err}`);
   }
@@ -92,7 +93,7 @@ function convertRemoteLayoutToGrpcLayout({
   if (name) {
     layout.displayName = name;
   }
-  layout.data = JSON.stringify(data)!;
+  layout.data = Struct.fromJson(data as JsonObject);
   layout.creator = userId;
   layout.modifier = userId;
 
@@ -261,7 +262,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         updatedLayout.displayName = name;
       }
       if (data != undefined) {
-        updatedLayout.data = JSON.stringify(data)!;
+        // todo:  replaceUndefinedWithNull 是否必须
+        updatedLayout.data = Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject);
       }
 
       updatedLayout.modifier = this.userId;
