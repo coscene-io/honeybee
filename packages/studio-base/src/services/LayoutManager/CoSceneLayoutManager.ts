@@ -354,7 +354,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       if (!this.isOnline) {
         throw new Error("Cannot update a shared layout while offline");
       }
-      const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, name, savedAt: now });
+      const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, name, savedAt: now, parent: localLayout.parent });
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
@@ -452,6 +452,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         id,
         data: localLayout.working?.data ?? localLayout.baseline.data,
         savedAt: now,
+        parent: localLayout.parent,
       });
       const result = await this.#local.runExclusive(
         async (local) =>
@@ -709,6 +710,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               data: localLayout.baseline.data,
               savedAt:
                 localLayout.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
+              parent: localLayout.parent,
             });
             return async (local) => {
               // Don't check abortSignal; we need the cache to be updated to show the layout is tracked

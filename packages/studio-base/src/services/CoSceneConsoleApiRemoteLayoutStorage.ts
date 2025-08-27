@@ -60,45 +60,12 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
   };
 }
 
-// Convert RemoteLayout data to gRPC Layout for creation/update
-function convertRemoteLayoutToGrpcLayout({
-  id,
-  name,
-  data,
-  permission,
-  savedAt,
-  userId,
-  projectId,
-}: {
-  id?: LayoutID;
-  name: string;
-  data: LayoutData;
-  permission: LayoutPermission;
-  savedAt: ISO8601Timestamp;
-  userId: string;
-  projectId?: string;
-}): Layout {
-  return new Layout(
-    {
-      name: permission === "CREATOR_WRITE" ? `users/${userId}/layouts/${id ?? ""}` : `projects/${projectId}/layouts/${id ?? ""}`, // todo
-      displayName: name,
-      data: Struct.fromJson(data as JsonObject),
-      // creator: userId,
-      // modifier: userId,
-      scope: permission === "CREATOR_WRITE" ? LayoutScopeEnum_LayoutScope.PERSONAL : LayoutScopeEnum_LayoutScope.PROJECT,
-      // createTime: Timestamp.fromDate(new Date(savedAt)),
-      // updateTime: Timestamp.fromDate(new Date(savedAt)),
-      modifyTime: Timestamp.fromDate(new Date(savedAt)),
-    }
-  );
-}
-
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {
   public constructor(
     public readonly namespace: string,
     private api: ConsoleApi,
     private userId: string,
-    private projectId?: string,
+    private projectName?: string,
   ) { }
 
   public async getLayouts(): Promise<readonly RemoteLayout[]> {
@@ -108,9 +75,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       const userLayouts = await this.api.listLayouts({ parent: userParent });
 
       let projectLayouts: Layout[] = [];
-      if (this.projectId) {
-        const projectParent = `projects/${this.projectId}`;
-        const projectResponse = await this.api.listLayouts({ parent: projectParent });
+      if (this.projectName) {
+        const projectResponse = await this.api.listLayouts({ parent: this.projectName });
         projectLayouts = projectResponse.layouts;
       }
 
@@ -139,8 +105,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         return convertGrpcLayoutToRemoteLayout(layout);
       } catch {
         // If not found in user layouts and project ID exists, try project layouts
-        if (this.projectId != undefined) {
-          layoutName = `projects/${this.projectId}/layouts/${id}`;
+        if (this.projectName != undefined) {
+          layoutName = `${this.projectName}/layouts/${id}`;
           try {
             const layout = await this.api.getLayout({ name: layoutName });
             return convertGrpcLayoutToRemoteLayout(layout);
@@ -170,21 +136,22 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     permission: LayoutPermission;
     savedAt: ISO8601Timestamp;
   }): Promise<RemoteLayout> {
-    const layout = convertRemoteLayoutToGrpcLayout({
-      id,
-      name,
-      data,
-      permission,
-      savedAt,
-      userId: this.userId,
-      projectId: this.projectId,
-    });
 
-    // const parent = permission === "CREATOR_WRITE"
-    //   ? `users/${this.userId}`
-    //   : `projects/${this.projectId}`;
+    const parent = permission === "CREATOR_WRITE"
+      ? `users/${this.userId}`
+      : this.projectName ?? '';
 
-    const parent = 'users/0853b5aa-ad8f-4419-aad5-0996f24ff96f'
+    const layout = new Layout(
+      {
+        name: `${parent}/layouts/${id ?? ""}`,
+        displayName: name,
+        data: Struct.fromJson(data as JsonObject),
+        scope: permission === "CREATOR_WRITE" ? LayoutScopeEnum_LayoutScope.PERSONAL : LayoutScopeEnum_LayoutScope.PROJECT,
+        modifyTime: Timestamp.fromDate(new Date(savedAt)),
+      }
+    )
+
+    // const parent = 'users/0853b5aa-ad8f-4419-aad5-0996f24ff96f'
     const result = await this.api.createLayout({ parent, layout });
 
     console.log("saveNewLayout", result);
@@ -215,8 +182,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       let layoutName: string;
       if (existingLayout.permission === "CREATOR_WRITE") {
         layoutName = `users/${this.userId}/layouts/${id}`;
-      } else if (this.projectId != undefined) {
-        layoutName = `projects/${this.projectId}/layouts/${id}`;
+      } else if (this.projectName != undefined) {
+        layoutName = `${this.projectName}/layouts/${id}`;
       } else {
         return { status: "conflict" };
       }
@@ -266,8 +233,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         return true;
       } catch {
         // If not found in user layouts and project ID exists, try project layouts
-        if (this.projectId != undefined) {
-          layoutName = `projects/${this.projectId}/layouts/${id}`;
+        if (this.projectName != undefined) {
+          layoutName = `${this.projectName}/layouts/${id}`;
           try {
             await this.api.deleteLayout({ name: layoutName });
             return true;

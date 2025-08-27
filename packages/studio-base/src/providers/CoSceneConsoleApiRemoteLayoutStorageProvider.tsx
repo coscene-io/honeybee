@@ -30,10 +30,10 @@ export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
             currentUser.userId,
             api,
             currentUser.userId,
-            externalInitConfig?.projectId,
+            `warehouses/${externalInitConfig?.warehouseId}/projects/${externalInitConfig?.projectId}`,
           )
         : undefined,
-    [api, currentUser?.userId, externalInitConfig?.projectId],
+    [api, currentUser?.userId, externalInitConfig?.warehouseId, externalInitConfig?.projectId],
   );
 
   return (
