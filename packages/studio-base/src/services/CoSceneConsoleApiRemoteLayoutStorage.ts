@@ -55,7 +55,7 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
     name: layout.displayName,
     permission,
     data,
-    savedAt: layout.updateTime?.toDate().toISOString() as ISO8601Timestamp,
+    savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
     parent: layout.name.split('/layouts/')[0] ?? '',
   };
 }
