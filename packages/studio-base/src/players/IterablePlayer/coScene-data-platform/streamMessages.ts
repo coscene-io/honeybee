@@ -12,8 +12,9 @@ import * as _ from "lodash-es";
 import Logger from "@foxglove/log";
 import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/mcap-support";
 import { fromNanoSec, Time, toMillis } from "@foxglove/rostime";
-import { MessageEvent } from "@foxglove/studio-base/players/types";
 import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+
+import { IteratorResult } from "../IIterableSource";
 
 const log = Logger.getLogger(__filename);
 
@@ -73,7 +74,11 @@ export async function* streamMessages({
    * parsedChannelsByTopic (thus mutating parsedChannelsByTopic).
    */
   parsedChannelsByTopic: Map<string, ParsedChannelAndEncodings[]>;
-}): AsyncGenerator<MessageEvent[]> {
+}): AsyncGenerator<IteratorResult[]> {
+  // Local connection ID management for this streaming session
+  const connectionIdByTopic: Record<string, number> = {};
+  let nextConnectionId = 0;
+
   const controller = new AbortController();
   const abortHandler = () => {
     log.debug("Manual abort of streamMessages", params);
@@ -90,7 +95,7 @@ export async function* streamMessages({
   }
 
   let totalMessages = 0;
-  let messages: MessageEvent[] = [];
+  let results: IteratorResult[] = [];
   const schemasById = new Map<number, McapTypes.TypedMcapRecords["Schema"]>();
   const channelInfoById = new Map<
     number,
@@ -177,13 +182,49 @@ export async function* streamMessages({
         }
         const receiveTime = fromNanoSec(record.logTime);
         totalMessages++;
-        messages.push({
-          topic: info.channel.topic,
-          receiveTime,
-          message: info.parsedChannel.deserialize(record.data),
-          sizeInBytes: record.data.byteLength,
-          schemaName: info.schemaName,
-        });
+
+        try {
+          const deserializedMessage = info.parsedChannel.deserialize(record.data);
+          results.push({
+            type: "message-event",
+            msgEvent: {
+              topic: info.channel.topic,
+              receiveTime,
+              message: deserializedMessage,
+              sizeInBytes: record.data.byteLength,
+              schemaName: info.schemaName,
+            },
+          });
+        } catch (err) {
+          // Similar to DeserializingIterableSource error handling - create a problem for the main thread
+          console.error(`Failed to deserialize message on topic ${info.channel.topic}:`, err);
+          captureException(err, {
+            extra: {
+              topic: info.channel.topic,
+              channelId: record.channelId,
+              messageSize: record.data.byteLength,
+              schemaName: info.schemaName,
+            },
+          });
+
+          // Assign a unique connection ID for each topic in this streaming session
+          if (connectionIdByTopic[info.channel.topic] == undefined) {
+            connectionIdByTopic[info.channel.topic] = nextConnectionId++;
+          }
+          const connectionId = connectionIdByTopic[info.channel.topic]!;
+
+          results.push({
+            type: "problem",
+            connectionId,
+            problem: {
+              severity: "error",
+              message: `Failed to deserialize message on topic ${
+                info.channel.topic
+              }. ${err.toString()}`,
+              tip: `Check that your input file is not corrupted.`,
+            },
+          });
+        }
         return;
       }
     }
@@ -238,9 +279,11 @@ export async function* streamMessages({
           }
           processRecord(record);
         }
-        if (messages.length > 0) {
-          yield messages;
-          messages = [];
+
+        // 统一输出结果，保持时序
+        if (results.length > 0) {
+          yield results;
+          results = [];
         }
 
         if (normalReturn) {
@@ -271,7 +314,7 @@ export async function* streamMessages({
 
   log.debug(
     "message",
-    messages,
+    results,
     "total message",
     totalMessages,
     "fetch time",

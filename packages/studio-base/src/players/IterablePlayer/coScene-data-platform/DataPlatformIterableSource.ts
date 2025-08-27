@@ -14,8 +14,8 @@ import { clampTime, fromRFC3339String, add as addTime, compare, Time } from "@fo
 import {
   PlayerProblem,
   Topic,
-  MessageEvent,
   TopicStats,
+  type MessageEvent,
 } from "@foxglove/studio-base/players/types";
 import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
@@ -250,7 +250,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       for await (const messages of stream) {
         for (const message of messages) {
-          yield { type: "message-event", msgEvent: message };
+          yield message;
         }
       }
 
@@ -282,7 +282,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       for await (const messages of stream) {
         for (const message of messages) {
-          yield { type: "message-event", msgEvent: message };
+          yield message;
         }
       }
 
@@ -356,8 +356,22 @@ export class DataPlatformIterableSource implements IIterableSource {
       signal: abortSignal,
       params: streamByParams,
     })) {
-      messages.push(...block);
+      for (const message of block) {
+        if (message.type === "message-event") {
+          messages.push(message.msgEvent);
+        }
+
+        if (message.type === "problem") {
+          log.warn(`Problem during backfill: ${message.problem.message}`, {
+            severity: message.problem.severity,
+            tip: message.problem.tip,
+            topics: Array.from(topics.keys()),
+            time,
+          });
+        }
+      }
     }
+
     return messages;
   }
 }

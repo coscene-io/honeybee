@@ -484,9 +484,9 @@ export function DataSource(): React.JSX.Element {
       <WssErrorModal playerProblems={playerProblems} />
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
-          {dataSource?.type === "connection" ? (
+          {dataSource?.id === "coscene-websocket" ? (
             <RealTimeVizDataSource />
-          ) : dataSource?.type === "persistent-cache" ? (
+          ) : dataSource?.id === "persistent-cache" ? (
             <>{t("realTimeVizPlayback", { ns: "cosWebsocket" })}</>
           ) : (
             <CommonDataSource />
