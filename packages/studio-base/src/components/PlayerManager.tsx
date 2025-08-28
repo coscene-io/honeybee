@@ -396,7 +396,6 @@ export default function PlayerManager(
             const handle = args.handle;
             const files = args.files;
 
-            let recentId = undefined;
             // files we can try loading immediately
             // We do not add these to recents entries because putting File in indexedb results in
             // the entire file being stored in the database.
@@ -419,6 +418,8 @@ export default function PlayerManager(
               });
 
               constructPlayers(newPlayer);
+
+              setDataSource({ id: sourceId, type: "file" });
               return;
             } else if (handle) {
               const permission = await handle.queryPermission({ mode: "read" });
@@ -446,17 +447,16 @@ export default function PlayerManager(
               });
 
               constructPlayers(newPlayer);
-              recentId = addRecent({
+              const recentId = addRecent({
                 type: "file",
                 title: handle.name,
                 sourceId: foundSource.id,
                 handle,
               });
 
+              setDataSource({ id: sourceId, type: "file", recentId });
               return;
             }
-
-            setDataSource({ id: sourceId, type: "file", recentId });
           }
         }
 
