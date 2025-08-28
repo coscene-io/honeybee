@@ -59,9 +59,9 @@ export type Layout = {
 
 export interface ILayoutStorage {
   list(namespace: string): Promise<readonly Layout[]>;
-  get(namespace: string, id: LayoutID): Promise<Layout | undefined>;
+  get(namespace: string, parent: string, id: LayoutID): Promise<Layout | undefined>;
   put(namespace: string, layout: Layout): Promise<Layout>;
-  delete(namespace: string, id: LayoutID): Promise<void>;
+  delete(namespace: string, parent: string, id: LayoutID): Promise<void>;
 
   /**
    * If applicable, the layout manager will call this method to migrate any old existing local

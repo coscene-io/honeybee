@@ -62,9 +62,9 @@ export class IdbLayoutStorage implements ILayoutStorage {
     return results;
   }
 
-  public async get(namespace: string, id: LayoutID): Promise<Layout | undefined> {
+  public async get(namespace: string, parent: string, id: LayoutID): Promise<Layout | undefined> {
     // TODO: fix parent
-    const record = await (await this.#db).get(OBJECT_STORE_NAME, [namespace, '', id]);
+    const record = await (await this.#db).get(OBJECT_STORE_NAME, [namespace, parent, id]);
     return record == undefined ? undefined : migrateLayout(record.layout);
   }
 
@@ -73,9 +73,9 @@ export class IdbLayoutStorage implements ILayoutStorage {
     return layout;
   }
 
-  public async delete(namespace: string, id: LayoutID): Promise<void> {
+  public async delete(namespace: string, parent: string, id: LayoutID): Promise<void> {
     // TODO: fix parent
-    await (await this.#db).delete(OBJECT_STORE_NAME, [namespace, '', id]);
+    await (await this.#db).delete(OBJECT_STORE_NAME, [namespace, parent, id]);
   }
 
   public async importLayouts({
