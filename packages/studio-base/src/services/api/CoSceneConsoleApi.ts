@@ -523,8 +523,6 @@ class CoSceneConsoleApi {
     return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
   }
 
-
-
   // gRPC Layout methods using protobuf interfaces
   public getLayout = Object.assign(
     async ({ name }: { name: string }): Promise<Layout> => {
