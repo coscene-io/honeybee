@@ -147,7 +147,7 @@ export default function CurrentLayoutProvider({
               loading: false,
               id: layout.id,
               data: layout.working?.data ?? layout.baseline.data,
-              name: layout.name,
+              displayName: layout.displayName,
             },
           });
           if (saveToProfile) {
@@ -199,7 +199,7 @@ export default function CurrentLayoutProvider({
           id: layoutStateRef.current.selectedLayout.id,
           data: newData,
           loading: false,
-          name: layoutStateRef.current.selectedLayout.name,
+          displayName: layoutStateRef.current.selectedLayout.displayName,
           edited: true,
         },
       });
@@ -235,7 +235,7 @@ export default function CurrentLayoutProvider({
             loading: false,
             id: updatedLayout.id,
             data: updatedLayout.working?.data ?? updatedLayout.baseline.data,
-            name: updatedLayout.name,
+            displayName: updatedLayout.displayName,
           },
         });
       }

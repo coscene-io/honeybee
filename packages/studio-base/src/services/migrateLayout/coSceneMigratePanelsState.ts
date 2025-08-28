@@ -38,7 +38,7 @@ export function migrateLayout(value: unknown): Layout {
   if (typeof value !== "object" || value == undefined) {
     throw new Error("Invariant violation - layout item is not an object");
   }
-  const layout = value as Partial<Layout>;
+  const layout = value as Partial<Layout> & { name?: string };
   if (!("id" in layout) || !layout.id) {
     throw new Error("Invariant violation - layout item is missing an id");
   }
@@ -60,7 +60,7 @@ export function migrateLayout(value: unknown): Layout {
 
   return {
     id: layout.id,
-    name: layout.name ?? `Unnamed (${now})`,
+    displayName: layout.displayName ?? layout.name ?? `Unnamed (${now})`,
     permission: layout.permission?.toUpperCase() ?? "CREATOR_WRITE",
     working: layout.working
       ? { ...layout.working, data: migratePanelsState(layout.working.data) }

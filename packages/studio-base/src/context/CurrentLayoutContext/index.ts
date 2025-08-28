@@ -44,7 +44,7 @@ export type UpdatePanelState = (type: PanelType, data: SharedPanelState) => void
 
 export type SelectedLayout = {
   data: LayoutData | undefined;
-  name?: string;
+  displayName?: string;
   edited?: boolean;
 };
 export type LayoutID = string & { __brand: "LayoutID" };
@@ -61,7 +61,7 @@ export type LayoutState = Readonly<{
     id: LayoutID;
     loading?: boolean;
     data: LayoutData | undefined;
-    name?: string;
+    displayName?: string;
     edited?: boolean;
   }
   | undefined;

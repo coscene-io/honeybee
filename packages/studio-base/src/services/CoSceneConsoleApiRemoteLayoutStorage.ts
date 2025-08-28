@@ -52,7 +52,7 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
 
   return {
     id,
-    name: layout.displayName,
+    displayName: layout.displayName,
     permission,
     data,
     savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
@@ -125,13 +125,13 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
   public async saveNewLayout({
     id,
-    name,
+    displayName,
     data,
     permission,
     savedAt,
   }: {
     id: LayoutID | undefined;
-    name: string;
+    displayName: string;
     data: LayoutData;
     permission: LayoutPermission;
     savedAt: ISO8601Timestamp;
@@ -144,7 +144,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     const layout = new Layout(
       {
         name: `${parent}/layouts/${id ?? ""}`,
-        displayName: name,
+        displayName,
         data: Struct.fromJson(data as JsonObject),
         scope: permission === "CREATOR_WRITE" ? LayoutScopeEnum_LayoutScope.PERSONAL : LayoutScopeEnum_LayoutScope.PROJECT,
         modifyTime: Timestamp.fromDate(new Date(savedAt)),
@@ -160,13 +160,13 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
   public async updateLayout({
     id,
-    name,
+    displayName,
     data,
     permission: _permission,
     savedAt,
   }: {
     id: LayoutID;
-    name?: string;
+    displayName?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
     savedAt: ISO8601Timestamp;
@@ -192,8 +192,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       const updatedLayout = new Layout();
       updatedLayout.name = layoutName;
 
-      if (name != undefined && name) {
-        updatedLayout.displayName = name;
+      if (displayName != undefined && displayName) {
+        updatedLayout.displayName = displayName;
       }
       if (data != undefined) {
         // todo:  replaceUndefinedWithNull 是否必须
@@ -207,7 +207,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       // Create update mask for the fields we're updating
       const updateMask = new FieldMask();
       const paths: string[] = [];
-      if (name != undefined) {
+      if (displayName != undefined) {
         paths.push("display_name");
       }
       if (data != undefined) {

@@ -22,7 +22,7 @@ export type LayoutSyncStatus =
   | "remotely-deleted";
 export type Layout = {
   id: LayoutID;
-  name: string;
+  displayName: string;
   permission: LayoutPermission;
   parent: string;
 

@@ -121,7 +121,7 @@ export function replaceUndefinedWithNull(obj: Record<string, unknown>): Record<s
 export const getCoSceneLayout = (layout: {
   id: LayoutID | undefined;
   savedAt: ISO8601Timestamp | undefined;
-  name: string | undefined;
+  displayName: string | undefined;
   permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
   data: Record<string, unknown> | undefined;
   userId: string;
@@ -130,7 +130,7 @@ export const getCoSceneLayout = (layout: {
   const newLayout = new Layout(
     {
       // id: layout.id ?? "",
-      name: layout.name ?? "",
+      displayName: layout.displayName ?? "",
       // permission: layout.permission ?? "",
       createTime: Timestamp.fromDate(new Date()),
       updateTime: Timestamp.fromDate(new Date()),
@@ -149,7 +149,7 @@ export const getCoSceneLayout = (layout: {
       : "layouts/" + (layout.id ?? "");
   // const layoutDetail = new LayoutDetail();
 
-  // layoutDetail.name = layout.name ?? "";
+  // layoutDetail.name = layout.displayName ?? "";
   // layoutDetail.permission = layout.permission ?? "";
   // layoutDetail.createTime = Timestamp.fromDate(new Date());
   // layoutDetail.updateTime = Timestamp.fromDate(new Date());

@@ -217,7 +217,7 @@ export default React.memo(function LayoutRow({
       title: multiSelection
         ? t("revertLayouts")
         : t("revertTargetLayout", {
-            layoutName: layout.name,
+            layoutName: layout.displayName,
           }),
       prompt: t("revertLayoutsPrompt"),
       ok: t("revertLayoutsConfim"),
@@ -236,7 +236,7 @@ export default React.memo(function LayoutRow({
   }, [layout, onMakePersonalCopy]);
 
   const renameAction = useCallback(() => {
-    setNameFieldValue(layout.name);
+    setNameFieldValue(layout.displayName);
     setEditingName(true);
   }, [layout]);
 
@@ -281,7 +281,7 @@ export default React.memo(function LayoutRow({
         return;
       }
       const newName = nameFieldValue;
-      if (newName && newName !== layout.name) {
+      if (newName && newName !== layout.displayName) {
         onRename(layout, newName);
       }
       setEditingName(false);
@@ -315,7 +315,7 @@ export default React.memo(function LayoutRow({
     const title = multiSelection
       ? t("deleteSelectedLayoutsTitle")
       : t("deleteLayoutsTitle", {
-          layoutName: layout.name,
+          layoutName: layout.displayName,
         });
     void confirm({
       title,
@@ -562,7 +562,7 @@ export default React.memo(function LayoutRow({
             style={{ display: editingName ? "none" : "block" }}
           >
             <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-              <HighlightedText text={layout.name} highlight={searchQuery} />
+              <HighlightedText text={layout.displayName} highlight={searchQuery} />
             </Stack>
           </Typography>
         </ListItemText>

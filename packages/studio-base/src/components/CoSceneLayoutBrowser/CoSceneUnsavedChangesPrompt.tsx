@@ -28,7 +28,7 @@ import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 type UnsavedChangesResolution =
   | { type: "cancel" }
   | { type: "discard" }
-  | { type: "makePersonal"; name: string }
+  | { type: "makePersonal"; displayName: string }
   | { type: "overwrite" };
 
 export function UnsavedChangesPrompt({
@@ -55,7 +55,7 @@ export function UnsavedChangesPrompt({
   );
 
   const [personalCopyName, setPersonalCopyName] = useState(
-    defaultPersonalCopyName ?? `${layout.name} copy`,
+    defaultPersonalCopyName ?? `${layout.displayName} copy`,
   );
   const personalCopyNameRef = useLatest(personalCopyName);
 
@@ -79,7 +79,7 @@ export function UnsavedChangesPrompt({
           onComplete({ type: "overwrite" });
           break;
         case "makePersonal":
-          onComplete({ type: "makePersonal", name: personalCopyNameRef.current });
+          onComplete({ type: "makePersonal", displayName: personalCopyNameRef.current });
           break;
       }
     },
@@ -95,7 +95,7 @@ export function UnsavedChangesPrompt({
       <form onSubmit={handleSubmit}>
         <DialogTitle>
           {t("layoutHasUnsavedChange", {
-            layoutName: layout.name,
+            layoutName: layout.displayName,
           })}
         </DialogTitle>
         <DialogContent>
@@ -104,7 +104,7 @@ export function UnsavedChangesPrompt({
               <FormControlLabel
                 value="discard"
                 label={t("revertLayoutsConfim", {
-                  layoutName: layout.name,
+                  layoutName: layout.displayName,
                 })}
                 control={<Radio />}
               />
@@ -112,7 +112,7 @@ export function UnsavedChangesPrompt({
                 value="overwrite"
                 label={[
                   t("updateSharedLayout", {
-                    layoutName: layout.name,
+                    layoutName: layout.displayName,
                   }),
                   !isOnline && t("unavailableWhileOffline"),
                 ]
