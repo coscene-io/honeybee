@@ -129,18 +129,15 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     data,
     permission,
     savedAt,
+    parent,
   }: {
     id: LayoutID | undefined;
     displayName: string;
     data: LayoutData;
     permission: LayoutPermission;
     savedAt: ISO8601Timestamp;
+    parent: string;
   }): Promise<RemoteLayout> {
-
-    const parent = permission === "CREATOR_WRITE"
-      ? `users/${this.userId}`
-      : this.projectName ?? '';
-
     const layout = new Layout(
       {
         name: `${parent}/layouts/${id ?? ""}`,
@@ -151,7 +148,6 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       }
     )
 
-    // const parent = 'users/0853b5aa-ad8f-4419-aad5-0996f24ff96f'
     const result = await this.api.createLayout({ parent, layout });
 
     console.log("saveNewLayout", result);
@@ -164,12 +160,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     data,
     permission: _permission,
     savedAt,
+    parent,
   }: {
     id: LayoutID;
     displayName?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
     savedAt: ISO8601Timestamp;
+    parent: string;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
     try {
       // First get the existing layout to determine its current resource name
@@ -179,18 +177,18 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       }
 
       // Construct the layout name based on current permission/location
-      let layoutName: string;
-      if (existingLayout.permission === "CREATOR_WRITE") {
-        layoutName = `users/${this.userId}/layouts/${id}`;
-      } else if (this.projectName != undefined) {
-        layoutName = `${this.projectName}/layouts/${id}`;
-      } else {
-        return { status: "conflict" };
-      }
+      // let layoutName: string;
+      // if (existingLayout.permission === "CREATOR_WRITE") {
+      //   layoutName = `users/${this.userId}/layouts/${id}`;
+      // } else if (this.projectName != undefined) {
+      //   layoutName = `${this.projectName}/layouts/${id}`;
+      // } else {
+      //   return { status: "conflict" };
+      // }
 
       // Create updated layout
       const updatedLayout = new Layout();
-      updatedLayout.name = layoutName;
+      updatedLayout.name = `${parent}/layouts/${id}`;
 
       if (displayName != undefined && displayName) {
         updatedLayout.displayName = displayName;

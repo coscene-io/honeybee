@@ -118,6 +118,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   public error: undefined | Error = undefined;
 
+  public projectName: string | undefined;
+  public userName: string | undefined;
+
   // eslint-disable-next-line @foxglove/no-boolean-parameters
   public setOnline(online: boolean): void {
     this.isOnline = online;
@@ -127,6 +130,14 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   public setError(error: undefined | Error): void {
     this.error = error;
     this.#emitter.emit("errorchange");
+  }
+
+  public setProjectName(projectName?: string): void {
+    this.projectName = projectName;
+  }
+
+  public setUserName(userName?: string): void {
+    this.userName = userName;
   }
 
   public constructor({
@@ -267,7 +278,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     permission: LayoutPermission;
     isRecordDefaultLayout?: boolean; // todo: delete
   }): Promise<Layout> {
-    const parent = 'users/0853b5aa-ad8f-4419-aad5-0996f24ff96f' // todo: check get parent
+    const parent = this.userName ?? ''; // fix: parent
 
     const data = migratePanelsState(unmigratedData);
     if (layoutPermissionIsShared(permission)) {
