@@ -38,10 +38,6 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
     throw new Error(`Invalid layout data for ${layout.displayName}: ${err}`);
   }
 
-  // Extract ID from resource name (e.g., "users/123/layouts/456" or "projects/123/layouts/456")
-  const nameParts = layout.name.split('/');
-  const id = nameParts[nameParts.length - 1] as LayoutID;
-
   // Determine permission based on resource name pattern
   let permission: LayoutPermission = "CREATOR_WRITE";
   if (layout.name.startsWith('projects/')) {
@@ -51,7 +47,7 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
   }
 
   return {
-    id,
+    id: layout.name.split('/layouts/')[1] as LayoutID,
     displayName: layout.displayName,
     permission,
     data,
@@ -150,8 +146,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
     const result = await this.api.createLayout({ parent, layout });
 
-    console.log("saveNewLayout", result);
-    return convertGrpcLayoutToRemoteLayout(result);
+    return {
+      id: result.name.split('/layouts/')[1] as LayoutID,
+      displayName: result.displayName,
+      permission,
+      data,
+      savedAt: result.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
+      parent,
+    }
   }
 
   public async updateLayout({
