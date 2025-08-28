@@ -74,7 +74,7 @@ export default function LayoutSection({
             if (searchQuery === "") {
               return true;
             }
-            return layout.name.toLowerCase().includes(searchQuery.toLowerCase());
+            return layout.displayName.toLowerCase().includes(searchQuery.toLowerCase());
           })
           .map((layout) => (
             <LayoutRow

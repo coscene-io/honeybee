@@ -74,7 +74,7 @@ export interface ILayoutManager {
   getLayout(id: LayoutID): Promise<Layout | undefined>;
 
   saveNewLayout(params: {
-    name: string;
+    displayName: string;
     data: LayoutData;
     permission: LayoutPermission;
     isRecordDefaultLayout?: boolean;
@@ -88,7 +88,7 @@ export interface ILayoutManager {
    */
   updateLayout(params: {
     id: LayoutID;
-    name?: string;
+    displayName?: string;
     data?: LayoutData;
   }): Promise<Layout | undefined>;
 
@@ -101,5 +101,5 @@ export interface ILayoutManager {
   revertLayout(params: { id: LayoutID }): Promise<Layout>;
 
   /** Transfer a shared layout's working changes into a new personal layout. */
-  makePersonalCopy(params: { id: LayoutID; name: string }): Promise<Layout>;
+  makePersonalCopy(params: { id: LayoutID; displayName: string }): Promise<Layout>;
 }

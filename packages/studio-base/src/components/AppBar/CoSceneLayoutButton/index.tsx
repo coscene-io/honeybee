@@ -127,8 +127,8 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         layoutManager.supportsSharing ? layoutIsShared : () => false,
       );
       return {
-        personal: personal.sort((a, b) => a.name.localeCompare(b.name)),
-        shared: shared.sort((a, b) => a.name.localeCompare(b.name)),
+        personal: personal.sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        shared: shared.sort((a, b) => a.displayName.localeCompare(b.displayName)),
       };
     },
     [layoutManager],
@@ -220,7 +220,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               const layout = await layoutManager.getLayout(id as LayoutID);
               if (layout) {
                 await layoutManager.saveNewLayout({
-                  name: `${layout.name} copy`,
+                  displayName: `${layout.displayName} copy`,
                   data: layout.working?.data ?? layout.baseline.data,
                   permission: "CREATOR_WRITE",
                 });
@@ -285,7 +285,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           // We don't use onMakePersonalCopy() here because it might need to prompt for unsaved changes, and we don't want to select the newly created layout
           await layoutManager.makePersonalCopy({
             id: currentLayout.id,
-            name: result.name,
+            displayName: result.displayName,
           });
           void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
             permission: currentLayout.permission,
@@ -338,7 +338,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onRenameLayout = useCallbackWithToast(
     async (item: Layout, newName: string) => {
-      await layoutManager.updateLayout({ id: item.id, name: newName });
+      await layoutManager.updateLayout({ id: item.id, displayName: newName });
       void analytics.logEvent(AppEvent.LAYOUT_RENAME, { permission: item.permission });
     },
     [analytics, layoutManager],
@@ -355,7 +355,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         return;
       }
       const newLayout = await layoutManager.saveNewLayout({
-        name: `${item.name} copy`,
+        displayName: `${item.displayName} copy`,
         data: item.working?.data ?? item.baseline.data,
         permission: "CREATOR_WRITE",
       });
@@ -406,15 +406,15 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onShareLayout = useCallbackWithToast(
     async (item: Layout) => {
-      const name = await prompt({
+      const displayName = await prompt({
         title: t("shareDialogTitle"),
         subText: t("shareDialogDescription"),
-        initialValue: item.name,
+        initialValue: item.displayName,
         label: t("layoutName"),
       });
-      if (name != undefined) {
+      if (displayName != undefined) {
         const newLayout = await layoutManager.saveNewLayout({
-          name,
+          displayName,
           data: item.working?.data ?? item.baseline.data,
           permission: "ORG_WRITE",
         });
@@ -428,7 +428,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const onExportLayout = useCallbackWithToast(
     async (item: Layout) => {
       const content = JSON.stringify(item.working?.data ?? item.baseline.data, undefined, 2) ?? "";
-      downloadTextFile(content, `${item.name}.json`);
+      downloadTextFile(content, `${item.displayName}.json`);
       void analytics.logEvent(AppEvent.LAYOUT_EXPORT, { permission: item.permission });
     },
     [analytics],
@@ -446,7 +446,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
       if (layoutIsShared(item)) {
         const response = await confirm({
-          title: `${t("update")} " ${item.name}"?`,
+          title: `${t("update")} " ${item.displayName}"?`,
           prompt: t("updateRemoteLayoutConfirm"),
           ok: t("save", {
             ns: "cosGeneral",
@@ -482,7 +482,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     async (item: Layout) => {
       const newLayout = await layoutManager.makePersonalCopy({
         id: item.id,
-        name: `${item.name} copy`,
+        displayName: `${item.displayName} copy`,
       });
       await onSelectLayout(newLayout);
       void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
@@ -497,14 +497,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     if (!(await promptForUnsavedChanges())) {
       return;
     }
-    const name = `Unnamed layout ${moment().format("l")} at ${moment().format("LT")}`;
-    const layoutData: Omit<LayoutData, "name" | "id"> = {
+    const displayName = `Unnamed layout ${moment().format("l")} at ${moment().format("LT")}`;
+    const layoutData: Omit<LayoutData, "displayName" | "id"> = {
       configById: {},
       globalVariables: {},
       userNodes: {},
     };
     const newLayout = await layoutManager.saveNewLayout({
-      name,
+      displayName,
       data: layoutData as LayoutData,
       permission: "CREATOR_WRITE",
     });
@@ -528,7 +528,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       //     const nextRecommendedLayouts = [...currentRecommendedLayouts, item.id];
       //     await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
       //   }
-      //   await layoutManager.updateLayout({ id: item.id, name: item.name });
+      //   await layoutManager.updateLayout({ id: item.id, displayName: item.displayName });
       // }
     },
     [],
@@ -537,15 +537,15 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onCopyToRecordDefaultLayout = useCallbackWithToast(
     async (item: Layout) => {
-      const name = await prompt({
+      const displayName = await prompt({
         title: t("copyToRecordDefaultLayoutTitle"),
         subText: t("copyToRecordDefaultLayoutDesc"),
-        initialValue: item.name,
+        initialValue: item.displayName,
         label: t("layoutName"),
       });
-      if (name != undefined) {
+      if (displayName != undefined) {
         const newLayout = await layoutManager.saveNewLayout({
-          name,
+          displayName,
           data: item.working?.data ?? item.baseline.data,
           permission: "ORG_WRITE",
           isRecordDefaultLayout: true,
@@ -594,7 +594,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const handleSelectLayoutTemplate = async (layout: LayoutData, layoutName: string) => {
     setSelectLayoutTemplateModalOpen(false);
     const newLayout = await layoutManager.saveNewLayout({
-      name: layoutName,
+      displayName: layoutName,
       data: layout,
       permission: "CREATOR_WRITE",
     });
@@ -641,7 +641,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     <>
       <AppBarDropdownButton
         subheader={t("layout")}
-        title={currentLayouts?.name ?? t("noLayouts")}
+        title={currentLayouts?.displayName ?? t("noLayouts")}
         selected={menuOpen}
         onClick={() => {
           setMenuOpen(!menuOpen);

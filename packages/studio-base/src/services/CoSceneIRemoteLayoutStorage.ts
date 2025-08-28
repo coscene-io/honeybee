@@ -17,7 +17,7 @@ import {
  */
 export type RemoteLayout = {
   id: LayoutID;
-  name: string;
+  displayName: string;
   permission: LayoutPermission;
   data: LayoutData;
   savedAt: ISO8601Timestamp | undefined;
@@ -37,7 +37,7 @@ export interface IRemoteLayoutStorage {
 
   saveNewLayout: (params: {
     id: LayoutID | undefined;
-    name: string;
+    displayName: string;
     data: LayoutData;
     permission: LayoutPermission;
     savedAt: ISO8601Timestamp;
@@ -46,7 +46,7 @@ export interface IRemoteLayoutStorage {
 
   updateLayout: (params: {
     id: LayoutID;
-    name?: string;
+    displayName?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
     savedAt: ISO8601Timestamp;

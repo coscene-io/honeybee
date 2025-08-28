@@ -148,8 +148,8 @@ export function useWorkspaceActions(): WorkspaceActions {
         layoutManager.supportsSharing ? layoutIsShared : () => false,
       );
       return {
-        personal: personal.sort((a, b) => a.name.localeCompare(b.name)),
-        shared: shared.sort((a, b) => a.name.localeCompare(b.name)),
+        personal: personal.sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        shared: shared.sort((a, b) => a.displayName.localeCompare(b.displayName)),
       };
     },
     [layoutManager],
@@ -192,7 +192,7 @@ export function useWorkspaceActions(): WorkspaceActions {
           // We don't use onMakePersonalCopy() here because it might need to prompt for unsaved changes, and we don't want to select the newly created layout
           await layoutManager.makePersonalCopy({
             id: currentLayout.id,
-            name: result.name,
+            displayName: result.displayName,
           });
           void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
             permission: currentLayout.permission,
@@ -244,7 +244,7 @@ export function useWorkspaceActions(): WorkspaceActions {
   const onExportLayout = useCallbackWithToast(
     async (item: Layout) => {
       const content = JSON.stringify(item.working?.data ?? item.baseline.data, undefined, 2) ?? "";
-      downloadTextFile(content, `${item.name}.json`);
+      downloadTextFile(content, `${item.displayName}.json`);
       void analytics.logEvent(AppEvent.LAYOUT_EXPORT, { permission: item.permission });
     },
     [analytics],
@@ -297,7 +297,7 @@ export function useWorkspaceActions(): WorkspaceActions {
 
         const data = parsedState as LayoutData;
         const newLayout = await layoutManager.saveNewLayout({
-          name: layoutName,
+          displayName: layoutName,
           data,
           permission: "CREATOR_WRITE",
         });
