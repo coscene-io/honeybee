@@ -23,6 +23,11 @@ export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
   const currentUser = useCurrentUser(selectUser);
   const externalInitConfig = useCoreData(selectExternalInitConfig);
 
+  const projectName =
+    externalInitConfig?.warehouseId && externalInitConfig.projectId
+      ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`
+      : undefined;
+
   const apiStorage = useMemo(
     () =>
       currentUser?.userId
@@ -30,10 +35,10 @@ export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
             currentUser.userId,
             api,
             currentUser.userId,
-            `warehouses/${externalInitConfig?.warehouseId}/projects/${externalInitConfig?.projectId}`,
+            projectName,
           )
         : undefined,
-    [api, currentUser?.userId, externalInitConfig?.warehouseId, externalInitConfig?.projectId],
+    [api, currentUser?.userId, projectName],
   );
 
   return (
