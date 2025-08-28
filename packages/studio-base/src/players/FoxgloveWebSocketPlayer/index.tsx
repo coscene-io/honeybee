@@ -841,7 +841,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         if (messageHeaderTime && this.#timeOffset != undefined) {
           this.#networkStatus = {
             ...this.#networkStatus,
-            networkDelay: Date.now() - toMillis(messageHeaderTime) + this.#timeOffset,
+            networkDelay: Date.now() - this.#timeOffset - toMillis(messageHeaderTime),
           };
         }
       } catch (error) {
@@ -1101,8 +1101,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#preFetchAssetRequests.delete(response.requestId);
     });
 
-    this.#client.on("syncTime", ({ serverTime }) => {
-      this.#client?.clientSyncTime(serverTime, Date.now());
+    this.#client.on("syncTime", ({ serverTime, receiveTime }) => {
+      this.#client?.clientSyncTime(serverTime, receiveTime, Date.now() - receiveTime);
     });
 
     // delay of client to server
@@ -1674,6 +1674,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     for (const [requestId, callback] of this.#fetchAssetRequests) {
       callback({
         op: BinaryOpcode.FETCH_ASSET_RESPONSE,
+        receiveTime: Date.now(),
         status: FetchAssetStatus.ERROR,
         requestId,
         error: "WebSocket connection reset",
@@ -1682,6 +1683,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     for (const [requestId, callback] of this.#preFetchAssetRequests) {
       callback({
         op: BinaryOpcode.PRE_FETCH_ASSET_RESPONSE,
+        receiveTime: Date.now(),
         status: FetchAssetStatus.ERROR,
         requestId,
         error: "WebSocket connection reset",

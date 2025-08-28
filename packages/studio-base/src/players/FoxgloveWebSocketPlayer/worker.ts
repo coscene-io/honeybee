@@ -21,7 +21,7 @@ export type FromWorkerMessage =
   | { type: "open"; protocol: string }
   | { type: "close"; data: CloseEventMessage }
   | { type: "error"; error: unknown }
-  | { type: "message"; data: unknown };
+  | { type: "message"; data: unknown; receiveTime: number };
 
 let ws: WebSocket | undefined = undefined;
 
@@ -61,11 +61,14 @@ self.onmessage = (event: MessageEvent<ToWorkerMessage>) => {
           send({ type: "close", data: cloneCloseEvent(wsEvent) });
         };
         ws.onmessage = (wsEvent: MessageEvent) => {
+          const receiveTime = Date.now();
+
           if (wsEvent.data instanceof ArrayBuffer) {
             sendWithTransfer(
               {
                 type: "message",
                 data: wsEvent.data,
+                receiveTime,
               },
               [wsEvent.data],
             );
@@ -73,6 +76,7 @@ self.onmessage = (event: MessageEvent<ToWorkerMessage>) => {
             send({
               type: "message",
               data: wsEvent.data,
+              receiveTime,
             });
           }
         };
