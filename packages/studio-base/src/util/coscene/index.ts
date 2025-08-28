@@ -127,11 +127,12 @@ export const getCoSceneLayout = (layout: {
   userId: string;
 }): Layout => {
   // todo
-  const newLayout = new Layout(
+  return new Layout(
     {
-      // id: layout.id ?? "",
+      name: layout.permission === "CREATOR_WRITE"
+        ? `users/${layout.userId}/layouts/${layout.id}`
+        : "layouts/" + (layout.id ?? ""),
       displayName: layout.displayName ?? "",
-      // permission: layout.permission ?? "",
       createTime: Timestamp.fromDate(new Date()),
       updateTime: Timestamp.fromDate(new Date()),
       // todo:  replaceUndefinedWithNull 是否必须
@@ -139,27 +140,8 @@ export const getCoSceneLayout = (layout: {
       modifyTime: Timestamp.fromDate(new Date()),
       creator: layout.userId,
       modifier: layout.userId,
-      // saveTime: Timestamp.fromDate(new Date(layout.savedAt ?? "")),
-      // data: Value.fromJson(replaceUndefinedWithNull(layout.data ?? {}) as JsonObject),
     }
   );
-  newLayout.name =
-    layout.permission === "CREATOR_WRITE"
-      ? `users/${layout.userId}/layouts/${layout.id}`
-      : "layouts/" + (layout.id ?? "");
-  // const layoutDetail = new LayoutDetail();
-
-  // layoutDetail.name = layout.displayName ?? "";
-  // layoutDetail.permission = layout.permission ?? "";
-  // layoutDetail.createTime = Timestamp.fromDate(new Date());
-  // layoutDetail.updateTime = Timestamp.fromDate(new Date());
-  // layoutDetail.saveTime = Timestamp.fromDate(new Date(layout.savedAt ?? ""));
-
-  // layoutDetail.data = Value.fromJson(replaceUndefinedWithNull(layout.data ?? {}) as JsonObject);
-
-  // newLayout.value = }
-
-  return newLayout;
 };
 
 // 将任意字符串映射为一颜色
