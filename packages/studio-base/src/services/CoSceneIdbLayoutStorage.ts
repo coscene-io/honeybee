@@ -12,18 +12,21 @@ import { Layout, LayoutID, ILayoutStorage, migrateLayout } from "@foxglove/studi
 
 const log = Log.getLogger(__filename);
 
-const DATABASE_NAME = "foxglove-layouts";
+const DATABASE_NAME = "coScene-layouts";
 const OBJECT_STORE_NAME = "layouts";
 
 interface LayoutsDB extends IDB.DBSchema {
   layouts: {
-    key: [namespace: string, id: LayoutID];
+    key: [namespace: string, parent: string, id: LayoutID];
     value: {
       namespace: string;
+      // parent: string;
       layout: Layout;
     };
     indexes: {
       namespace: string;
+      parent: string;
+      namespace_parent: [namespace: string, parent: string];
     };
   };
 }
@@ -36,9 +39,11 @@ export class IdbLayoutStorage implements ILayoutStorage {
   #db = IDB.openDB<LayoutsDB>(DATABASE_NAME, 1, {
     upgrade(db) {
       const store = db.createObjectStore(OBJECT_STORE_NAME, {
-        keyPath: ["namespace", "layout.id"],
+        keyPath: ["namespace", "parent", "layout.id"],
       });
       store.createIndex("namespace", "namespace");
+      store.createIndex("parent", "parent");
+      store.createIndex("namespace_parent", ["namespace", "parent"]);
     },
   });
 
@@ -58,7 +63,8 @@ export class IdbLayoutStorage implements ILayoutStorage {
   }
 
   public async get(namespace: string, id: LayoutID): Promise<Layout | undefined> {
-    const record = await (await this.#db).get(OBJECT_STORE_NAME, [namespace, id]);
+    // TODO: fix parent
+    const record = await (await this.#db).get(OBJECT_STORE_NAME, [namespace, '', id]);
     return record == undefined ? undefined : migrateLayout(record.layout);
   }
 
@@ -68,7 +74,8 @@ export class IdbLayoutStorage implements ILayoutStorage {
   }
 
   public async delete(namespace: string, id: LayoutID): Promise<void> {
-    await (await this.#db).delete(OBJECT_STORE_NAME, [namespace, id]);
+    // TODO: fix parent
+    await (await this.#db).delete(OBJECT_STORE_NAME, [namespace, '', id]);
   }
 
   public async importLayouts({
