@@ -20,12 +20,11 @@ interface LayoutsDB extends IDB.DBSchema {
     key: [namespace: string, parent: string, id: LayoutID];
     value: {
       namespace: string;
-      // parent: string;
       layout: Layout;
     };
     indexes: {
       namespace: string;
-      parent: string;
+      namespace_id: [namespace: string, id: LayoutID];
       namespace_parent: [namespace: string, parent: string];
     };
   };
@@ -42,8 +41,8 @@ export class IdbLayoutStorage implements ILayoutStorage {
         keyPath: ["namespace", "layout.parent", "layout.id"],
       });
       store.createIndex("namespace", "namespace");
-      store.createIndex("parent", "parent");
-      store.createIndex("namespace_parent", ["namespace", "parent"]);
+      store.createIndex("namespace_id", ["namespace", "layout.id"]);
+      store.createIndex("namespace_parent", ["namespace", "layout.parent"]);
     },
   });
 
@@ -62,9 +61,8 @@ export class IdbLayoutStorage implements ILayoutStorage {
     return results;
   }
 
-  public async get(namespace: string, parent: string, id: LayoutID): Promise<Layout | undefined> {
-    // TODO: fix parent
-    const record = await (await this.#db).get(OBJECT_STORE_NAME, [namespace, parent, id]);
+  public async get(namespace: string, id: LayoutID): Promise<Layout | undefined> {
+    const record = await (await this.#db).getFromIndex(OBJECT_STORE_NAME, "namespace_id", [namespace, id]);
     return record == undefined ? undefined : migrateLayout(record.layout);
   }
 
@@ -73,9 +71,12 @@ export class IdbLayoutStorage implements ILayoutStorage {
     return layout;
   }
 
-  public async delete(namespace: string, parent: string, id: LayoutID): Promise<void> {
-    // TODO: fix parent
-    await (await this.#db).delete(OBJECT_STORE_NAME, [namespace, parent, id]);
+  public async delete(namespace: string, id: LayoutID): Promise<void> {
+    const record = await (await this.#db).getFromIndex(OBJECT_STORE_NAME, "namespace_id", [namespace, id]);
+    if (record == undefined) {
+      return;
+    }
+    await (await this.#db).delete(OBJECT_STORE_NAME, [namespace, record.layout.parent, id]);
   }
 
   public async importLayouts({
