@@ -39,7 +39,7 @@ export class IdbLayoutStorage implements ILayoutStorage {
   #db = IDB.openDB<LayoutsDB>(DATABASE_NAME, 1, {
     upgrade(db) {
       const store = db.createObjectStore(OBJECT_STORE_NAME, {
-        keyPath: ["namespace", "parent", "layout.id"],
+        keyPath: ["namespace", "layout.parent", "layout.id"],
       });
       store.createIndex("namespace", "namespace");
       store.createIndex("parent", "parent");
