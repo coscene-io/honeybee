@@ -56,6 +56,25 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
   };
 }
 
+function convertGrpcLayoutToRemoteLayoutWithoutData(layout: Layout, data?: LayoutData): RemoteLayout {
+  // Determine permission based on resource name pattern
+  let permission: LayoutPermission = "CREATOR_WRITE";
+  if (layout.name.startsWith('projects/')) {
+    permission = "ORG_WRITE"; // Project layouts are typically org-writable
+  } else if (layout.name.startsWith('users/')) {
+    permission = "CREATOR_WRITE"; // User layouts are creator-writable
+  }
+
+  return {
+    id: layout.name.split('/layouts/')[1] as LayoutID,
+    displayName: layout.displayName,
+    permission,
+    data: data ?? { configById: {}, globalVariables: {}, userNodes: {} },
+    savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
+    parent: layout.name.split('/layouts/')[0] ?? '',
+  };
+}
+
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {
   public constructor(
     public readonly namespace: string,
@@ -69,7 +88,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
       const layouts = await Promise.all(parents.map(async (parent) => {
         const layouts = await this.api.listLayouts({ parent });
-        return layouts.layouts.map(convertGrpcLayoutToRemoteLayout);
+        return layouts.layouts.map((layout) => convertGrpcLayoutToRemoteLayoutWithoutData(layout));
       }));
 
       return layouts.flat();
@@ -137,15 +156,18 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     )
 
     const result = await this.api.createLayout({ parent, layout });
+    console.log('createLayout', layout, parent);
+    console.log('result', result);
 
-    return {
-      id: result.name.split('/layouts/')[1] as LayoutID,
-      displayName: result.displayName,
-      permission,
-      data,
-      savedAt: result.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
-      parent,
-    }
+    return convertGrpcLayoutToRemoteLayoutWithoutData(result, data);
+    // return {
+    //   id: result.name.split('/layouts/')[1] as LayoutID,
+    //   displayName: result.displayName,
+    //   permission,
+    //   data,
+    //   savedAt: result.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
+    //   parent,
+    // }
   }
 
   public async updateLayout({
@@ -209,7 +231,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       updateMask.paths = paths;
 
       const result = await this.api.updateLayout({ layout: updatedLayout, updateMask });
-      return { status: "success", newLayout: convertGrpcLayoutToRemoteLayout(result) };
+      return { status: "success", newLayout: convertGrpcLayoutToRemoteLayoutWithoutData(result, data) };
     } catch (err) {
       log.error("Failed to update layout:", err);
       return { status: "conflict" };
