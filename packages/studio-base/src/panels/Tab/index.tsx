@@ -31,7 +31,7 @@ import { TabbedToolbar } from "@foxglove/studio-base/panels/Tab/TabbedToolbar";
 import { TabPanelConfig as Config } from "@foxglove/studio-base/types/layouts";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
-import { DEFAULT_TAB_PANEL_CONFIG, updateTabPanelLayout } from "@foxglove/studio-base/util/layout";
+import { DEFAULT_TAB_PANEL_CONFIG } from "@foxglove/studio-base/util/layout";
 
 const useStyles = makeStyles()((theme) => ({
   panelCover: {
@@ -43,6 +43,26 @@ const useStyles = makeStyles()((theme) => ({
     background: theme.palette.background.paper,
     position: "absolute",
   },
+  tabContent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+  },
+  hiddenTab: {
+    visibility: "hidden",
+    pointerEvents: "none",
+    zIndex: -999,
+    userSelect: "none",
+  },
+  visibleTab: {
+    visibility: "visible",
+    pointerEvents: "auto",
+    zIndex: 100,
+    userSelect: "auto",
+  },
 }));
 
 type Props = { config: Config; saveConfig: SaveConfig<Config> };
@@ -52,8 +72,6 @@ function Tab({ config, saveConfig }: Props) {
   const { classes } = useStyles();
 
   const { tabs, activeTabIdx } = config;
-  const activeTab = tabs[activeTabIdx];
-  const activeLayout = activeTab?.layout;
 
   // Holds the state of actively dragging tabs as they relate to this Tab Panel
   const [draggingTabState, setDraggingTabState] = useState<DraggingTabPanelState>({
@@ -91,11 +109,18 @@ function Tab({ config, saveConfig }: Props) {
     const newTab = { title: `${tabs.length + 1}`, layout: undefined };
     saveConfig({ ...config, activeTabIdx: tabs.length, tabs: tabs.concat([newTab]) });
   }, [config, saveConfig, tabs]);
-  const onChangeLayout = useCallback(
-    (layout: MosaicNode<string> | undefined) => {
-      saveConfig(updateTabPanelLayout(layout, config));
+  // Create individual layout change handlers for each tab to maintain state
+  const createTabLayoutChangeHandler = useCallback(
+    (tabIndex: number) => (layout: MosaicNode<string> | undefined) => {
+      const newTabs = tabs.slice();
+      const currentTab = tabs[tabIndex];
+      if (currentTab) {
+        newTabs[tabIndex] = { ...currentTab, layout };
+        const newConfig = { ...config, tabs: newTabs };
+        saveConfig(newConfig);
+      }
     },
-    [config, saveConfig],
+    [config, saveConfig, tabs],
   );
   const actions = useMemo(
     () => ({ addTab, removeTab, selectTab, setTabTitle }),
@@ -121,17 +146,32 @@ function Tab({ config, saveConfig }: Props) {
         setDraggingTabState={setDraggingTabState}
       />
       <Stack direction="row" flex="auto" overflow="hidden" position="relative">
-        {activeLayout != undefined ? (
-          <TabDndContext.Provider value={{ preventTabDrop }}>
-            <UnconnectedPanelLayout
-              layout={activeLayout}
-              onChange={onChangeLayout}
-              tabId={panelId}
-            />
-          </TabDndContext.Provider>
-        ) : (
-          <EmptyPanelLayout tabId={panelId} />
-        )}
+        {/* Render all tabs but control visibility with CSS */}
+        {tabs.map((tab, tabIndex) => {
+          const isActive = tabIndex === activeTabIdx;
+          const tabLayout = tab.layout;
+
+          return (
+            <div
+              key={`tab-${tabIndex}`}
+              className={`${classes.tabContent} ${
+                isActive ? classes.visibleTab : classes.hiddenTab
+              }`}
+            >
+              {tabLayout != undefined ? (
+                <TabDndContext.Provider value={{ preventTabDrop: preventTabDrop && isActive }}>
+                  <UnconnectedPanelLayout
+                    layout={tabLayout}
+                    onChange={createTabLayoutChangeHandler(tabIndex)}
+                    tabId={panelId}
+                  />
+                </TabDndContext.Provider>
+              ) : (
+                <EmptyPanelLayout tabId={panelId} />
+              )}
+            </div>
+          );
+        })}
         {preventTabDrop && <div className={classes.panelCover} />}
       </Stack>
     </Stack>
