@@ -38,10 +38,10 @@ export default function CoSceneLayoutManagerProvider({
 
   const currentUser = useCurrentUser(selectUser);
 
-  const userName = currentUser?.userId ? `/users/${currentUser.userId}` : undefined;
+  const userName = currentUser?.userId ? `users/${currentUser.userId}` : undefined;
   const projectName =
     externalInitConfig?.warehouseId && externalInitConfig.projectId
-      ? `/warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`
+      ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`
       : undefined;
 
   const layoutManager = useMemo(
