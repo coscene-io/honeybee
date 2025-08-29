@@ -128,8 +128,7 @@ export default function CurrentLayoutProvider({
       }
       try {
         setLayoutState({ selectedLayout: { id, loading: true, data: undefined } });
-        // fix: parent
-        const layout = await layoutManager.getLayout({ id, parent: "" });
+        const layout = await layoutManager.getLayout({ id });
         const layoutVersion = layout?.baseline.data.version;
         if (layoutVersion != undefined && layoutVersion > MAX_SUPPORTED_LAYOUT_VERSION) {
           setIncompatibleLayoutVersionError(true);
