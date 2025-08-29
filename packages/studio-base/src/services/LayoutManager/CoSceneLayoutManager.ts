@@ -140,7 +140,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.userName = userName;
   }
 
-  private getRemoteLayoutParents(): string[] {
+  #getRemoteLayoutParents(): string[] {
     const parents = [];
     if (this.userName) {
       parents.push(this.userName);
@@ -251,7 +251,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     log.debug(`Attempting to fetch from remote id:${id}`);
     // We couldn't find an existing local layout for our id, so we attempt to load the remote one
     // const remoteLayout = await this.#remote?.getLayout(id, parent);
-    const remoteLayouts = await this.#remote?.getLayouts(this.getRemoteLayoutParents());
+    const remoteLayouts = await this.#remote?.getLayouts(this.#getRemoteLayoutParents());
     const remoteLayout = remoteLayouts?.find((layout) => layout.id === id);
 
     if (!remoteLayout) {
@@ -591,7 +591,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     const [localLayouts, remoteLayouts] = await Promise.all([
       this.#local.runExclusive(async (local) => await local.list()),
-      this.#remote.getLayouts(this.getRemoteLayoutParents()),
+      this.#remote.getLayouts(this.#getRemoteLayoutParents()),
     ]);
     if (abortSignal.aborted) {
       return;
