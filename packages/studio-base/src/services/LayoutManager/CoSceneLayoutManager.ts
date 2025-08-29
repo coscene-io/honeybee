@@ -53,7 +53,7 @@ async function updateOrFetchLayout(
     case "success":
       return response.newLayout;
     case "conflict": {
-      const remoteLayout = await remote.getLayout(params.id);
+      const remoteLayout = await remote.getLayout(params.id, params.parent);
       if (!remoteLayout) {
         throw new Error(`Update rejected but layout is not present on server: ${params.id}`);
       }
@@ -204,7 +204,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
   }
 
-  public async getLayout(id: LayoutID): Promise<Layout | undefined> {
+  public async getLayout({ id, parent }: { id: LayoutID, parent: string }): Promise<Layout | undefined> {
     const existingLocal = await this.#local.runExclusive(async (local) => {
       return await local.get(id);
     });
@@ -239,7 +239,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     log.debug(`Attempting to fetch from remote id:${id}`);
     // We couldn't find an existing local layout for our id, so we attempt to load the remote one
-    const remoteLayout = await this.#remote?.getLayout(id);
+    const remoteLayout = await this.#remote?.getLayout(id, parent);
     if (!remoteLayout) {
       log.debug(`No remote layout with id:${id}`);
       return undefined;
@@ -421,7 +421,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         if (!this.isOnline) {
           throw new Error("Cannot delete a shared layout while offline");
         }
-        await this.#remote.deleteLayout(id);
+        await this.#remote.deleteLayout(id, localLayout.parent);
       }
     }
     await this.#local.runExclusive(async (local) => {
@@ -679,7 +679,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           case "delete-remote": {
             const { localLayout } = operation;
             log.debug(`Deleting remote layout ${localLayout.id}`);
-            if (!(await remote.deleteLayout(localLayout.id))) {
+            if (!(await remote.deleteLayout(localLayout.id, localLayout.parent))) {
               log.warn(`Deleting layout ${localLayout.id} which was not present in remote storage`);
             }
             return async (local) => {
