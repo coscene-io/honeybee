@@ -204,7 +204,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
   }
 
-  public async getLayout({ id, parent }: { id: LayoutID, parent: string }): Promise<Layout | undefined> {
+  public async getLayout({ id }: { id: LayoutID }): Promise<Layout | undefined> {
     const existingLocal = await this.#local.runExclusive(async (local) => {
       return await local.get(id);
     });
@@ -239,7 +239,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     log.debug(`Attempting to fetch from remote id:${id}`);
     // We couldn't find an existing local layout for our id, so we attempt to load the remote one
-    const remoteLayout = await this.#remote?.getLayout(id, parent);
+    // const remoteLayout = await this.#remote?.getLayout(id, parent);
+    const remoteLayouts = await this.#remote?.getLayouts();
+    const remoteLayout = remoteLayouts?.find((layout) => layout.id === id);
+
     if (!remoteLayout) {
       log.debug(`No remote layout with id:${id}`);
       return undefined;
