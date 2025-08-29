@@ -88,7 +88,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
       const layouts = await Promise.all(parents.map(async (parent) => {
         const layouts = await this.api.listLayouts({ parent });
-        return layouts.layouts.map((layout) => convertGrpcLayoutToRemoteLayoutWithoutData(layout));
+        return layouts.layouts.map(convertGrpcLayoutToRemoteLayout);
       }));
 
       return layouts.flat();

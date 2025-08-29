@@ -71,6 +71,7 @@ import {
   DeleteLayoutRequest,
   ListLayoutsRequest,
   ListLayoutsResponse,
+  ListLayoutsRequest_LayoutView,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
@@ -540,13 +541,16 @@ class CoSceneConsoleApi {
     async ({
       parent,
       filter,
+      view = ListLayoutsRequest_LayoutView.FULL,
     }: {
       parent: string;
       filter?: string;
+      view?: ListLayoutsRequest_LayoutView;
     }): Promise<ListLayoutsResponse> => {
       const req = new ListLayoutsRequest({
         parent,
         filter,
+        view,
       });
       return await getPromiseClient(LayoutService).listLayouts(req);
     },
