@@ -50,7 +50,7 @@ export class NamespacedLayoutStorage {
   }
   public async get(id: LayoutID): Promise<Layout | undefined> {
     await this.#migration;
-    return await this.storage.get(this.namespace, '', id);
+    return await this.storage.get(this.namespace, id);
   }
   public async put(layout: Layout): Promise<Layout> {
     await this.#migration;
@@ -58,6 +58,6 @@ export class NamespacedLayoutStorage {
   }
   public async delete(id: LayoutID): Promise<void> {
     await this.#migration;
-    await this.storage.delete(this.namespace, '', id);
+    await this.storage.delete(this.namespace, id);
   }
 }
