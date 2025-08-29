@@ -92,27 +92,11 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     }
   }
 
-  public async getLayout(id: LayoutID): Promise<RemoteLayout | undefined> {
+  public async getLayout(id: LayoutID, parent: string): Promise<RemoteLayout | undefined> {
     try {
-      // Try to get from user layouts first
-      let layoutName = `users/${this.userId}/layouts/${id}`;
-      try {
-        const layout = await this.api.getLayout({ name: layoutName });
-        return convertGrpcLayoutToRemoteLayout(layout);
-      } catch {
-        // If not found in user layouts and project ID exists, try project layouts
-        if (this.projectName != undefined) {
-          layoutName = `${this.projectName}/layouts/${id}`;
-          try {
-            const layout = await this.api.getLayout({ name: layoutName });
-            return convertGrpcLayoutToRemoteLayout(layout);
-          } catch {
-            log.warn(`Layout ${id} not found in user or project layouts`);
-            return undefined;
-          }
-        }
-        return undefined;
-      }
+      const name = `${parent}/layouts/${id}`;
+      const layout = await this.api.getLayout({ name });
+      return convertGrpcLayoutToRemoteLayout(layout);
     } catch (err) {
       log.error("Failed to get layout:", err);
       return undefined;
@@ -173,7 +157,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
     try {
       // First get the existing layout to determine its current resource name
-      const existingLayout = await this.getLayout(id);
+      const existingLayout = await this.getLayout(id, parent);
       if (!existingLayout) {
         return { status: "conflict" };
       }
@@ -224,27 +208,11 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     }
   }
 
-  public async deleteLayout(id: LayoutID): Promise<boolean> {
+  public async deleteLayout(id: LayoutID, parent: string): Promise<boolean> {
     try {
-      // Try to delete from user layouts first
-      let layoutName = `users/${this.userId}/layouts/${id}`;
-      try {
-        await this.api.deleteLayout({ name: layoutName });
-        return true;
-      } catch {
-        // If not found in user layouts and project ID exists, try project layouts
-        if (this.projectName != undefined) {
-          layoutName = `${this.projectName}/layouts/${id}`;
-          try {
-            await this.api.deleteLayout({ name: layoutName });
-            return true;
-          } catch {
-            log.warn(`Layout ${id} not found in user or project layouts for deletion`);
-            return false;
-          }
-        }
-        return false;
-      }
+      const name = `${parent}/layouts/${id}`;
+      await this.api.deleteLayout({ name });
+      return true;
     } catch (err) {
       log.error("Failed to delete layout:", err);
       return false;

@@ -217,7 +217,8 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               dispatch({ type: "shift-multi-action" });
               break;
             case "duplicate": {
-              const layout = await layoutManager.getLayout(id as LayoutID);
+              // fix: parent
+              const layout = await layoutManager.getLayout({ id: id as LayoutID, parent: "" });
               if (layout) {
                 await layoutManager.saveNewLayout({
                   displayName: `${layout.displayName} copy`,
@@ -257,7 +258,9 @@ export function CoSceneLayoutButton(): React.JSX.Element {
    */
   const promptForUnsavedChanges = useCallback(async () => {
     const currentLayout =
-      currentLayoutId != undefined ? await layoutManager.getLayout(currentLayoutId) : undefined;
+      currentLayoutId != undefined
+        ? await layoutManager.getLayout({ id: currentLayoutId, parent: "" })
+        : undefined;
     if (
       currentLayout != undefined &&
       layoutIsShared(currentLayout) &&

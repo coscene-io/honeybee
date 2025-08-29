@@ -71,7 +71,7 @@ export interface ILayoutManager {
 
   getLayouts(): Promise<readonly Layout[]>;
 
-  getLayout(id: LayoutID): Promise<Layout | undefined>;
+  getLayout(params: { id: LayoutID, parent: string }): Promise<Layout | undefined>;
 
   saveNewLayout(params: {
     displayName: string;

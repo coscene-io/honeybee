@@ -128,7 +128,8 @@ export default function CurrentLayoutProvider({
       }
       try {
         setLayoutState({ selectedLayout: { id, loading: true, data: undefined } });
-        const layout = await layoutManager.getLayout(id);
+        // fix: parent
+        const layout = await layoutManager.getLayout({ id, parent: "" });
         const layoutVersion = layout?.baseline.data.version;
         if (layoutVersion != undefined && layoutVersion > MAX_SUPPORTED_LAYOUT_VERSION) {
           setIncompatibleLayoutVersionError(true);
@@ -266,32 +267,33 @@ export default function CurrentLayoutProvider({
     };
   }, [enqueueSnackbar, layoutManager, setSelectedLayoutId]);
 
+  // fix: remove
   // Load initial state by re-selecting the last selected layout from the UserProfile.
-  useAsync(async () => {
-    // Don't restore the layout if there's one specified in the app state url.
-    if (windowAppURLState()?.layoutId != undefined || currentUserLoginStatus !== "alreadyLogin") {
-      return;
-    }
+  // useAsync(async () => {
+  //   // Don't restore the layout if there's one specified in the app state url.
+  //   if (windowAppURLState()?.layoutId != undefined || currentUserLoginStatus !== "alreadyLogin") {
+  //     return;
+  //   }
 
-    // Retreive the selected layout id from the user's profile. If there's no layout specified
-    // or we can't load it then save and select a default layout.
-    const { currentLayoutId } = await getUserProfile();
+  // Retreive the selected layout id from the user's profile. If there's no layout specified
+  // or we can't load it then save and select a default layout.
+  // const { currentLayoutId } = await getUserProfile();
 
-    try {
-      const lastLayout = currentLayoutId
-        ? await layoutManager.getLayout(currentLayoutId)
-        : undefined;
-      if (lastLayout != undefined) {
-        log.debug(`Initializing layout from profile: ${currentLayoutId}`);
-        await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
-      } else {
-        const layouts = await layoutManager.getLayouts();
-        await setSelectedLayoutId(layouts[0]?.id);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  }, [currentUserLoginStatus, getUserProfile, layoutManager, setSelectedLayoutId]);
+  // try {
+  //   const lastLayout = currentLayoutId
+  //     ? await layoutManager.getLayout(currentLayoutId)
+  //     : undefined;
+  //   if (lastLayout != undefined) {
+  //     log.debug(`Initializing layout from profile: ${currentLayoutId}`);
+  //     await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
+  //   } else {
+  //     const layouts = await layoutManager.getLayouts();
+  //     await setSelectedLayoutId(layouts[0]?.id);
+  //   }
+  // } catch (error) {
+  //   console.error(error);
+  // }
+  // }, [currentUserLoginStatus, getUserProfile, layoutManager, setSelectedLayoutId]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({
