@@ -132,7 +132,6 @@ function CreateCoreDataStore() {
           dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
             ? "ENABLE"
             : "DISABLE",
-        uploadLocalFile: dataSource?.type === "file" ? "ENABLE" : "DISABLE",
         task: project.value != undefined ? "ENABLE" : "DISABLE",
         layoutSync:
           externalInitConfig?.warehouseId && externalInitConfig.projectId ? "ENABLE" : "DISABLE",
