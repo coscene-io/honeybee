@@ -31,7 +31,7 @@ export interface IRemoteLayoutStorage {
    */
   readonly namespace: string;
 
-  getLayouts: () => Promise<readonly RemoteLayout[]>;
+  getLayouts: (parents: string[]) => Promise<readonly RemoteLayout[]>;
 
   getLayout: (id: LayoutID, parent: string) => Promise<RemoteLayout | undefined>;
 

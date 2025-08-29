@@ -64,28 +64,36 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     private projectName?: string,
   ) { }
 
-  public async getLayouts(): Promise<readonly RemoteLayout[]> {
+  public async getLayouts(parents: string[]): Promise<readonly RemoteLayout[]> {
     try {
+
+      const layouts = await Promise.all(parents.map(async (parent) => {
+        const layouts = await this.api.listLayouts({ parent });
+        return layouts.layouts.map(convertGrpcLayoutToRemoteLayout);
+      }));
+
+      return layouts.flat();
+
       // List both user layouts and project layouts if project ID is available
-      const userParent = `users/${this.userId}`;
-      const userLayouts = await this.api.listLayouts({ parent: userParent });
+      // const userParent = `users/${this.userId}`;
+      // const userLayouts = await this.api.listLayouts({ parent: userParent });
 
-      let projectLayouts: Layout[] = [];
-      if (this.projectName) {
-        const projectResponse = await this.api.listLayouts({ parent: this.projectName });
-        projectLayouts = projectResponse.layouts;
-      }
+      // let projectLayouts: Layout[] = [];
+      // if (this.projectName) {
+      //   const projectResponse = await this.api.listLayouts({ parent: this.projectName });
+      //   projectLayouts = projectResponse.layouts;
+      // }
 
-      const allLayouts = [...userLayouts.layouts, ...projectLayouts];
+      // const allLayouts = [...userLayouts.layouts, ...projectLayouts];
 
-      return filterMap(allLayouts, (layout) => {
-        try {
-          return convertGrpcLayoutToRemoteLayout(layout);
-        } catch (err) {
-          log.warn(err);
-          return undefined;
-        }
-      });
+      // return filterMap(allLayouts, (layout) => {
+      //   try {
+      //     return convertGrpcLayoutToRemoteLayout(layout);
+      //   } catch (err) {
+      //     log.warn(err);
+      //     return undefined;
+      //   }
+      // });
     } catch (err) {
       log.error("Failed to get layouts:", err);
       return [];
@@ -184,7 +192,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         updatedLayout.data = Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject);
       }
 
-      updatedLayout.modifier = this.userId;
+      // updatedLayout.modifier = this.userId;
       updatedLayout.modifyTime = Timestamp.fromDate(new Date(savedAt));
       updatedLayout.updateTime = Timestamp.fromDate(new Date(savedAt));
 
