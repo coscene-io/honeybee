@@ -88,6 +88,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
       const layouts = await Promise.all(parents.map(async (parent) => {
         const layouts = await this.api.listLayouts({ parent });
+        console.log('getLayouts', layouts)
         return layouts.layouts.map(convertGrpcLayoutToRemoteLayout);
       }));
 
@@ -185,6 +186,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     savedAt: ISO8601Timestamp;
     parent: string;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
+    console.log('remote updateLayout')
     try {
       // First get the existing layout to determine its current resource name
       const existingLayout = await this.getLayout(id, parent);
@@ -211,26 +213,33 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       }
       if (data != undefined) {
         // todo:  replaceUndefinedWithNull 是否必须
-        updatedLayout.data = Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject);
+        // updatedLayout.data = Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject);
+        console.log('s1')
+        updatedLayout.data = Struct.fromJson(data as JsonObject);
       }
 
       // updatedLayout.modifier = this.userId;
+      // updatedLayout.modifyTime = Timestamp.fromDate(new Date(savedAt));
       updatedLayout.modifyTime = Timestamp.fromDate(new Date(savedAt));
-      updatedLayout.updateTime = Timestamp.fromDate(new Date(savedAt));
+      // updatedLayout.updateTime = Timestamp.fromDate(new Date(savedAt));
 
       // Create update mask for the fields we're updating
       const updateMask = new FieldMask();
       const paths: string[] = [];
       if (displayName != undefined) {
-        paths.push("display_name");
+        paths.push("displayName");
       }
       if (data != undefined) {
         paths.push("data");
       }
-      paths.push("modifier", "modify_time", "update_time");
+      // paths.push("modifyTime");
       updateMask.paths = paths;
 
+      console.log('s2', updatedLayout, updateMask)
+
       const result = await this.api.updateLayout({ layout: updatedLayout, updateMask });
+
+      console.log('sssssss', result)
       return { status: "success", newLayout: convertGrpcLayoutToRemoteLayoutWithoutData(result, data) };
     } catch (err) {
       log.error("Failed to update layout:", err);

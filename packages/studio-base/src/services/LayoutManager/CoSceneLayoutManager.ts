@@ -49,6 +49,7 @@ async function updateOrFetchLayout(
   params: Parameters<IRemoteLayoutStorage["updateLayout"]>[0],
 ): Promise<RemoteLayout> {
   const response = await remote.updateLayout(params);
+  console.log('updateOrFetchLayout', response);
   switch (response.status) {
     case "success":
       return response.newLayout;
@@ -356,6 +357,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   }): Promise<Layout | undefined> {
     const now = new Date().toISOString() as ISO8601Timestamp;
     const localLayout = await this.#local.runExclusive(async (local) => await local.get(id));
+
+    console.log('CoSceneLayoutManager updateLayout', id, displayName, data, 'layoutIsShared(localLayout)', layoutIsShared(localLayout))
+
     if (!localLayout) {
       // if this layout is record recommended layout, this error is expected
       // because the layout will be deleted when the user plays another record
@@ -372,14 +376,19 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
-    if (displayName != undefined && layoutIsShared(localLayout)) {
+    // if (displayName != undefined && layoutIsShared(localLayout)) {
+
+    if (displayName != undefined) {
+      console.log('manger update 1111')
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
       if (!this.isOnline) {
         throw new Error("Cannot update a shared layout while offline");
       }
-      const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, displayName, savedAt: now, parent: localLayout.parent });
+      // const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, displayName, savedAt: now, parent: localLayout.parent });
+      console.log(localLayout.baseline.savedAt)
+      const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, displayName, savedAt: localLayout.baseline.savedAt!, parent: localLayout.parent });
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
