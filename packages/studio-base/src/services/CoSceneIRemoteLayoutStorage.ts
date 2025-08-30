@@ -37,11 +37,11 @@ export interface IRemoteLayoutStorage {
 
   saveNewLayout: (params: {
     id: LayoutID | undefined;
+    parent: string;
     displayName: string;
+    folder: string;
     data: LayoutData;
     permission: LayoutPermission;
-    savedAt: ISO8601Timestamp;
-    parent: string;
   }) => Promise<RemoteLayout>;
 
   updateLayout: (params: {

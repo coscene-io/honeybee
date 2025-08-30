@@ -306,11 +306,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
       const newLayout = await this.#remote.saveNewLayout({
         id: uuidv4() as LayoutID,
+        parent,
         displayName,
+        folder: '', // todo: get folder
         data,
         permission,
-        savedAt: new Date().toISOString() as ISO8601Timestamp,
-        parent,
       });
 
       const result = await this.#local.runExclusive(
@@ -718,12 +718,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             log.debug(`Uploading new layout ${localLayout.id}`);
             const newBaseline = await remote.saveNewLayout({
               id: localLayout.id,
+              parent: localLayout.parent,
+              folder: '', // todo: get folder
               displayName: localLayout.displayName,
               data: localLayout.baseline.data,
               permission: localLayout.permission,
-              savedAt:
-                localLayout.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
-              parent: localLayout.parent,
             });
             return async (local) => {
               // Don't check abortSignal; we need the cache to be updated to show the layout is tracked

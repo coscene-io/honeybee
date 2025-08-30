@@ -131,26 +131,28 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
   public async saveNewLayout({
     id,
+    parent,
     displayName,
+    folder,
     data,
     permission,
-    savedAt,
-    parent,
+    // savedAt,
   }: {
     id: LayoutID | undefined;
+    parent: string;
     displayName: string;
+    folder: string;
     data: LayoutData;
     permission: LayoutPermission;
-    savedAt: ISO8601Timestamp;
-    parent: string;
+    // savedAt: ISO8601Timestamp;
   }): Promise<RemoteLayout> {
     const layout = new Layout(
       {
         name: `${parent}/layouts/${id ?? ""}`,
         displayName,
+        folder,
         data: Struct.fromJson(data as JsonObject),
         scope: permission === "CREATOR_WRITE" ? LayoutScopeEnum_LayoutScope.PERSONAL : LayoutScopeEnum_LayoutScope.PROJECT,
-        modifyTime: Timestamp.fromDate(new Date(savedAt)),
       }
     )
 
