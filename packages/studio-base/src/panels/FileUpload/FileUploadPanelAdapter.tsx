@@ -77,7 +77,7 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
   };
   
   // 刷新按钮服务配置
-  const refreshButtonServiceName = fileUploadConfig.refreshButtonService?.serviceName || "/api/test/end_and_get_candidates";
+  const refreshButtonServiceName = fileUploadConfig.refreshButtonService.serviceName || "/api/test/end_and_get_candidates";
 
   const boundInitPanel = useMemo(() => {
     return (context: PanelExtensionContext) => {

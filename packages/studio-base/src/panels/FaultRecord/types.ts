@@ -32,20 +32,6 @@ export interface ActionNameConfig {
   label: string;
 }
 
-// 时长配置
-export interface DurationConfig {
-  preparation_duration_s: number;
-  record_duration_s: number;
-}
-
-// 面板配置
-export interface Config {
-  actionNames: ActionNameConfig[];
-  durations: DurationConfig;
-  startRecordService: string;
-  stopRecordService: string;
-}
-
 // 面板状态
 export interface PanelState {
   recordingState: RecordingState;
@@ -64,15 +50,4 @@ export interface LogLine {
   type?: string;
 }
 
-// ROS服务接口
-export interface RosService {
-  startRecord(req: StartRecordReq): Promise<CommonRsp>;
-  stopRecord(req: StopRecordReq): Promise<CommonRsp>;
-  callService(serviceName: string, params: any): Promise<any>;
-}
-
-// Mock服务接口
-export interface MockService {
-  mockStartRecord(req: StartRecordReq): Promise<CommonRsp>;
-  mockStopRecord(req: StopRecordReq): Promise<CommonRsp>;
-}
+// ROS服务接口已移除，不再使用

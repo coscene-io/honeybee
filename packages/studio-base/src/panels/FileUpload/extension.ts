@@ -5,12 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { ExtensionContext, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 
+import type { ExtensionContext, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
+
 import { FileUploadPanel } from "./components/FileUploadPanel";
-import { defaultConfig, buildSettingsTree, settingsActionTypes, settingsReducer, type Config } from "./config/settings";
+import { defaultConfig, buildSettingsTree, settingsReducer, type Config } from "./config/settings";
 
 export function activate(context: ExtensionContext) {
   context.registerPanel({
@@ -30,19 +31,19 @@ export function activate(context: ExtensionContext) {
         };
         
         // 刷新按钮服务配置
-        const refreshButtonServiceName = cfg.refreshButtonService?.serviceName || "/api/test/end_and_get_candidates";
+        const refreshButtonServiceName = cfg.refreshButtonService.serviceName || "/api/test/end_and_get_candidates";
         
         root.render(React.createElement(FileUploadPanel, { 
           config: cfg, 
           context: panelCtx,
-          serviceSettings: serviceSettings,
-          refreshButtonServiceName: refreshButtonServiceName
+          serviceSettings,
+          refreshButtonServiceName
         }));
       };
 
       // 3) 左侧设置：使用 updatePanelSettingsEditor
       const actionHandler = (action: SettingsTreeAction) => {
-        if (action.action !== "update") return;
+        if (action.action !== "update") {return;}
         cfg = settingsReducer(cfg, action);
         // 更新左侧与面板
         applySettingsEditor();
@@ -50,7 +51,7 @@ export function activate(context: ExtensionContext) {
       };
       
       const applySettingsEditor = () => {
-        panelCtx.updatePanelSettingsEditor?.({
+        panelCtx.updatePanelSettingsEditor({
           nodes: buildSettingsTree(cfg),
           actionHandler,
         });
@@ -61,7 +62,7 @@ export function activate(context: ExtensionContext) {
       render();
 
       // 5) 清理
-      return () => root.unmount();
+      return () => { root.unmount(); };
     },
   });
 }

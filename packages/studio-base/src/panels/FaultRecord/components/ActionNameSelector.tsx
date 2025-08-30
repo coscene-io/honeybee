@@ -25,7 +25,7 @@ export default function ActionNameSelector({
   return (
     <select
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => { onChange(e.target.value); }}
       disabled={disabled}
       style={{
         width: "100%",

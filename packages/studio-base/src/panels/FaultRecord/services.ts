@@ -1,56 +1,69 @@
+// Service utilities for FaultRecord panel
+import type { PanelExtensionContext } from "@foxglove/studio";
 import { ActionNameConfig } from "./types";
 
-// Mock数据 - 模拟从ROS2获取的action name列表
-const MOCK_ACTION_NAMES: ActionNameConfig[] = [
-  { value: "move_to_position", label: "Move to Position" },
-  { value: "pick_object", label: "Pick Object" },
-  { value: "place_object", label: "Place Object" },
-  { value: "navigate_to_goal", label: "Navigate to Goal" },
-  { value: "scan_environment", label: "Scan Environment" },
-];
-
-/**
- * 获取可用的action name列表
- * TODO: 替换为实际的ROS2 action调用
- * @returns Promise<ActionNameConfig[]> action name列表
- */
-export async function fetchAvailableActions(): Promise<ActionNameConfig[]> {
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // TODO: 在这里实现实际的ROS2 action调用
-  // 例如：
-  // const response = await ros2Client.callAction('get_available_actions', {});
-  // return response.action_names.map(name => ({ value: name, label: name }));
-  
-  return MOCK_ACTION_NAMES;
+// Action info returned by GetActionList service
+export interface ActionInfo {
+  mode: string;
+  action_name: string;
+  preparation_duration_s: number;
+  record_duration_s: number;
+  topics: string[];
+  is_enable: boolean;
+  is_auto_upload: boolean;
 }
 
 /**
- * 刷新action name列表
- * 这个函数可以在需要时被调用来重新获取最新的action列表
+ * Call ROS2 service to get action list and filter with is_enable = true.
+ * Type assertion is required because context.callService returns unknown.
  */
-export async function refreshActionNames(): Promise<ActionNameConfig[]> {
+export async function fetchActionList(context: PanelExtensionContext): Promise<ActionInfo[]> {
+  if (!context) {
+    // eslint-disable-next-line no-console
+    console.error("fetchActionList: context is undefined");
+    return [];
+  }
   try {
-    return await fetchAvailableActions();
-  } catch (error) {
-    console.error('Failed to fetch action names:', error);
-    // 返回默认的action列表作为fallback
-    return MOCK_ACTION_NAMES;
+    // 支持 mockService 注入，优先调用 mockService.getActionList
+    if ((context as any).mockService?.getActionList) {
+      const rsp = await (context as any).mockService.getActionList();
+      const actions: ActionInfo[] = Array.isArray(rsp?.actions) ? rsp.actions! : [];
+      return actions.filter((a) => a?.is_enable === true);
+    }
+    if (typeof context.callService === "function") {
+      const rsp = await context.callService("/RecordPlayback/GetActionList", { mode: "record" }) as { actions?: ActionInfo[] };
+      const actions: ActionInfo[] = Array.isArray(rsp?.actions) ? rsp.actions! : [];
+      return actions.filter((a) => a?.is_enable === true);
+    }
+    // eslint-disable-next-line no-console
+    console.warn("fetchActionList: context.callService is not available, returning empty list");
+    return [];
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("Failed to call GetActionList:", err);
+    return [];
   }
 }
 
 /**
- * 检查指定的action name是否可用
- * @param actionName 要检查的action name
- * @returns Promise<boolean> 是否可用
+ * Get available action names for dropdown.
  */
-export async function isActionAvailable(actionName: string): Promise<boolean> {
-  try {
-    const availableActions = await fetchAvailableActions();
-    return availableActions.some(action => action.value === actionName);
-  } catch (error) {
-    console.error('Failed to check action availability:', error);
-    return false;
-  }
+export async function fetchAvailableActions(context: PanelExtensionContext): Promise<ActionNameConfig[]> {
+  const actions = await fetchActionList(context);
+  return actions.map((a) => ({ value: a.action_name, label: a.action_name }));
+}
+
+/**
+ * Refresh action names; fallback handled inside fetchActionList.
+ */
+export async function refreshActionNames(context: PanelExtensionContext): Promise<ActionNameConfig[]> {
+  return await fetchAvailableActions(context);
+}
+
+/**
+ * Check if an action is available (is_enable = true in current list).
+ */
+export async function isActionAvailable(context: PanelExtensionContext, actionName: string): Promise<boolean> {
+  const availableActions = await fetchAvailableActions(context);
+  return availableActions.some((a) => a.value === actionName);
 }

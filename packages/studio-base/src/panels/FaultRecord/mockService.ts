@@ -11,8 +11,8 @@ import type { StartRecordReq, StopRecordReq, CommonRsp } from "./types";
 const MOCK_DELAY = 1000;
 
 // 模拟网络延迟
-const delay = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+const delay = async (ms: number): Promise<void> => {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 };
 
 // 模拟开始录制服务调用
@@ -79,10 +79,68 @@ export async function mockStopRecordWithError(req: StopRecordReq): Promise<Commo
   return response;
 }
 
+// 模拟 GetActionList 服务调用，返回多种场景
+export async function mockGetActionList(scene: string = "default"): Promise<{ actions?: { action_name: string; is_enable: boolean; is_auto_upload: boolean }[] }> {
+  await delay(MOCK_DELAY);
+  switch (scene) {
+    case "all_enabled_some_auto":
+      return {
+        actions: [
+          { action_name: "主录制", is_enable: true, is_auto_upload: false },
+          { action_name: "感知录制", is_enable: true, is_auto_upload: false },
+          { action_name: "控制录制", is_enable: true, is_auto_upload: true },
+          { action_name: "紧急录制", is_enable: true, is_auto_upload: true }
+        ]
+      };
+    case "part_disabled":
+      return {
+        actions: [
+          { action_name: "主录制", is_enable: true, is_auto_upload: false },
+          { action_name: "测试录制", is_enable: false, is_auto_upload: false }
+        ]
+      };
+    case "all_disabled":
+      return {
+        actions: [
+          { action_name: "主录制", is_enable: false, is_auto_upload: false },
+          { action_name: "感知录制", is_enable: false, is_auto_upload: false }
+        ]
+      };
+    case "empty":
+      return { actions: [] };
+    case "error":
+      return {};
+    case "mixed":
+      return {
+        actions: [
+          { action_name: "感知录制", is_enable: true, is_auto_upload: false },
+          { action_name: "控制录制", is_enable: true, is_auto_upload: false },
+          { action_name: "紧急录制", is_enable: true, is_auto_upload: true }
+        ]
+      };
+    case "test_disabled":
+      return {
+        actions: [
+          { action_name: "测试录制", is_enable: false, is_auto_upload: false }
+        ]
+      };
+    default:
+      return {
+        actions: [
+          { action_name: "主录制", is_enable: true, is_auto_upload: false },
+          { action_name: "感知录制", is_enable: true, is_auto_upload: false },
+          { action_name: "控制录制", is_enable: true, is_auto_upload: true },
+          { action_name: "紧急录制", is_enable: true, is_auto_upload: true }
+        ]
+      };
+  }
+}
+
 // 导出mock服务接口
 export const mockService = {
   startRecord: mockStartRecord,
   stopRecord: mockStopRecord,
   startRecordWithError: mockStartRecordWithError,
   stopRecordWithError: mockStopRecordWithError,
+  getActionList: mockGetActionList,
 };

@@ -5,12 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useCallback, useEffect } from "react";
-import _ from "lodash";
 import { produce } from "immer";
+import _ from "lodash";
+import { useCallback, useEffect } from "react";
 
-import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
+import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
+
 import type { Config } from "./types";
 
 // Config interface imported from types.ts

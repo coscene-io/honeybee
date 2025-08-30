@@ -8,38 +8,31 @@
 import { StrictMode, useMemo } from "react";
 import ReactDOM from "react-dom";
 
-import { useCrash } from "@foxglove/hooks";
-import { PanelExtensionContext } from "@foxglove/studio";
-import { CaptureErrorBoundary } from "@foxglove/studio-base/components/CaptureErrorBoundary";
-import {
-  MessagePipelineContext,
-  useMessagePipeline,
-} from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { PanelExtensionAdapter } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
+import type { MessagePipelineContext } from "@foxglove/studio-base/components/MessagePipeline";
+import { useCrash } from "@foxglove/hooks";
+import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { CaptureErrorBoundary } from "@foxglove/studio-base/components/CaptureErrorBoundary";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
+import type { PanelExtensionContext } from "@foxglove/studio";
 
 import FaultRecordPanel from "./FaultRecordPanel";
 import { defaultConfig, useFaultRecordPanelSettings, type FaultRecordConfig } from "./settings";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
-const selectOrganization = (state: CoreDataStore) => state.organization;
-const selectProject = (state: CoreDataStore) => state.project;
-const selectDevice = (state: CoreDataStore) => state.device;
-const selectDataSource = (state: CoreDataStore) => state.dataSource;
+const selectOrganization = (state: any) => state.organization;
+const selectProject = (state: any) => state.project;
+const selectDevice = (state: any) => state.device;
+const selectDataSource = (state: any) => state.dataSource;
 
-function initPanel(
-  crash: ReturnType<typeof useCrash>,
-  config: FaultRecordConfig,
-  saveConfig: SaveConfig<FaultRecordConfig>,
-  context: PanelExtensionContext,
-) {
+function initPanel(crash: ReturnType<typeof useCrash>, context: PanelExtensionContext) {
   // eslint-disable-next-line react/no-deprecated
   ReactDOM.render(
     <StrictMode>
@@ -64,33 +57,30 @@ function FaultRecordPanelAdapter({ config, saveConfig }: Props) {
   const crash = useCrash();
   const userInfo = useCurrentUser(selectUser);
   const loginStatus = useCurrentUser(selectLoginStatus);
-  
+
   const consoleApi = useConsoleApi();
   const urlState = useMessagePipeline(selectUrlState);
   const dataSource = useCoreData(selectDataSource);
-  
+
   const project = useCoreData(selectProject);
   const projectSlug = useMemo(() => project.value?.slug, [project]);
   const organization = useCoreData(selectOrganization);
   const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
   const device = useCoreData(selectDevice);
-  const deviceId = useMemo(() => device.value?.name.split("/").pop(), [device]);
+  // Safely derive deviceId; avoid calling methods on undefined which can crash at runtime
+  const deviceId = useMemo(() => device.value?.name?.split?.("/")?.pop(), [device]);
 
   const deviceLink =
     urlState?.parameters?.deviceLink ??
     `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
 
-  // 使用设置钩子来处理面板设置
-  const mergedConfig = { ...defaultConfig, ...config };
+  // Use settings hook to manage panel settings
+  const mergedConfig = useMemo(() => ({ ...defaultConfig, ...config }), [config]);
   useFaultRecordPanelSettings(mergedConfig, saveConfig);
 
-  const boundInitPanel = useMemo(
-    () =>
-      initPanel.bind(undefined, crash, mergedConfig, saveConfig),
-    [crash, mergedConfig, saveConfig],
-  );
+  const boundInitPanel = useMemo(() => initPanel.bind(undefined, crash), [crash]);
 
-  // 使用 useMemo 稳定 extensionData 对象引用
+  // Use useMemo to keep extensionData reference stable to reduce unnecessary re-renders
   const extensionData = useMemo(
     () => ({
       userInfo,
@@ -101,8 +91,19 @@ function FaultRecordPanelAdapter({ config, saveConfig }: Props) {
       project: project.value,
       organization: organization.value,
       device: device.value,
+      panelConfig: mergedConfig,
     }),
-    [userInfo, loginStatus, consoleApi, deviceLink, dataSource, project.value, organization.value, device.value],
+    [
+      userInfo,
+      loginStatus,
+      consoleApi,
+      deviceLink,
+      dataSource,
+      project.value,
+      organization.value,
+      device.value,
+      mergedConfig,
+    ],
   );
 
   return (
@@ -119,5 +120,4 @@ function FaultRecordPanelAdapter({ config, saveConfig }: Props) {
 FaultRecordPanelAdapter.panelType = "FaultRecord";
 
 FaultRecordPanelAdapter.defaultConfig = defaultConfig;
-
 export default Panel<FaultRecordConfig, Props>(FaultRecordPanelAdapter);

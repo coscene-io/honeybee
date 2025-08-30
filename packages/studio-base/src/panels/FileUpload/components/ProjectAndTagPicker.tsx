@@ -14,10 +14,12 @@ export function ProjectAndTagPicker({
   client,
   value,
   onChange,
+  log,
 }: {
   client: CoSceneClient;
   value: UploadConfig;
   onChange: (v: UploadConfig) => void;
+  log?: (level: "info" | "error" | "warn", message: string) => void;
 }) {
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
@@ -26,15 +28,29 @@ export function ProjectAndTagPicker({
 
   useEffect(() => {
     let mounted = true;
-    setLoadingProjects(true);
-    client
-      .listProjects()
-      .then((ps) => mounted && setProjects(ps))
-      .finally(() => mounted && setLoadingProjects(false));
+    async function fetchProjects() {
+      setLoadingProjects(true);
+      try {
+        const clientName = client?.constructor?.name || 'Unknown';
+        log?.("info", `[项目下拉] 调用${clientName}.listProjects()`);
+        const result = await client.listProjects();
+        if (mounted) {
+          setProjects(result);
+          log?.("info", `[项目下拉] 获取到${result.length}个项目: [${result.map(p => `${p.name}(${p.id})`).join(', ')}]`);
+        }
+      } catch (error) {
+        log?.("error", `[项目下拉] 获取项目失败: ${error}`);
+      } finally {
+        if (mounted) {
+          setLoadingProjects(false);
+        }
+      }
+    }
+    fetchProjects();
     return () => {
       mounted = false;
     };
-  }, [client]);
+  }, [client, log]);
 
   useEffect(() => {
     let mounted = true;
@@ -45,12 +61,19 @@ export function ProjectAndTagPicker({
       }
       setLoadingTags(true);
       try {
+        const clientName = client?.constructor?.name || 'Unknown';
+        log?.("info", `[标签获取] 调用${clientName}.listTags(${value.projectId})`);
         const tags = await client.listTags(value.projectId);
-        if (mounted) {setAvailableTags(tags);}
+        if (mounted) {
+          setAvailableTags(tags);
+          log?.("info", `[标签获取] 项目${value.projectId}获取到${tags.length}个标签: [${tags.join(', ')}]`);
+        }
         if (mounted && value.tags.length > 0) {
           const filtered = value.tags.filter((t) => tags.includes(t));
           if (filtered.length !== value.tags.length) {onChange({ ...value, tags: filtered });}
         }
+      } catch (error) {
+        log?.("error", `[标签获取] 获取项目${value.projectId}标签失败: ${error}`);
       } finally {
         if (mounted) {setLoadingTags(false);}
       }
@@ -59,7 +82,7 @@ export function ProjectAndTagPicker({
     return () => {
       mounted = false;
     };
-  }, [client, value.projectId, value.addTags, value.tags, onChange]);
+  }, [client, value.projectId, value.addTags, value.tags, onChange, log]);
 
   const toggleTag = useCallback(
     (t: string) => {
@@ -86,7 +109,13 @@ export function ProjectAndTagPicker({
           <select
             className="border rounded-lg px-2 py-1 text-sm"
             value={value.projectId || ""}
-            onChange={(e) => { onChange({ ...value, projectId: e.target.value || null }); }}
+            onChange={(e) => { 
+              const oldProject = value.projectId || '未选择';
+              const newProject = e.target.value || '未选择';
+              const projectName = projects.find(p => p.id === e.target.value)?.name || e.target.value;
+              onChange({ ...value, projectId: e.target.value || null });
+              log?.("info", `[项目选择] ${oldProject} -> ${newProject} (${projectName})`);
+            }}
           >
             <option value="">请选择项目</option>
             {projects.map((p) => (
