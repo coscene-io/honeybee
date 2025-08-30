@@ -31,7 +31,10 @@ import {
   messagePathStructures,
   traverseStructure,
 } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathsForDatatype";
-import { MessagePathDataItem } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
+import {
+  MessagePathDataItem,
+  MessageAndData,
+} from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import { useMessageDataItem } from "@foxglove/studio-base/components/MessagePathSyntax/useMessageDataItem";
 import {
   useMessagePipeline,
@@ -133,6 +136,10 @@ function RawMessages(props: Props) {
   // previous frame, rather than the last frame of the previous rendered frame
   const rendedTime = useRef<Time[]>([]);
 
+  // 用于保存next frame操作前的消息数据，避免在next状态下显示中间帧造成抖动
+  // Save message data before next frame operation to avoid flickering from intermediate frames
+  const frozenMessagesRef = useRef<MessageAndData[] | undefined>();
+
   // 如果用户是连续播放，我们需要记录播放过的所有消息的时间戳（包括未被展示的消息, 参考 rendedTime 的注释），
   // 但是如果用户手动跳转到一个时间位置，我们需要清空记录
   // 但是上一帧和下一帧的实际上也是一种跳转，所以我们需要一个标记位，来标记这次跳转是产生自用户点击上一帧/下一帧按钮，还是点击进度条跳转的
@@ -155,6 +162,9 @@ function RawMessages(props: Props) {
 
     if (frameState.current === "next" || frameState.current === "previous") {
       frameState.current = "current";
+      // 清除冻结状态，恢复正常显示
+      // Clear frozen state and resume normal display
+      frozenMessagesRef.current = undefined;
     }
   };
 
@@ -214,9 +224,18 @@ function RawMessages(props: Props) {
   });
   const diffMessages = useMessageDataItem(diffEnabled ? diffTopicPath : "");
 
+  // 在next状态下使用冻结的消息数据，避免显示中间帧
+  // Use frozen message data in next state to avoid showing intermediate frames
+  const effectiveMessages = useMemo(() => {
+    if (frameState.current === "next" && frozenMessagesRef.current) {
+      return frozenMessagesRef.current;
+    }
+    return matchedMessages;
+  }, [matchedMessages]);
+
   const diffTopicObj = diffMessages[0];
-  const currTickObj = matchedMessages[matchedMessages.length - 1];
-  const prevTickObj = matchedMessages[matchedMessages.length - 2];
+  const currTickObj = effectiveMessages[effectiveMessages.length - 1];
+  const prevTickObj = effectiveMessages[effectiveMessages.length - 2];
 
   const inTimetickDiffMode = diffEnabled && diffMethod === Constants.PREV_MSG_METHOD;
   const baseItem = inTimetickDiffMode ? prevTickObj : currTickObj;
@@ -784,9 +803,21 @@ function RawMessages(props: Props) {
   }, [pausePlayback, seekPlayback]);
 
   const handleNextFrame = useCallback(() => {
+    // 防止连续快速点击时重复执行next操作
+    // Prevent repeated next operations during rapid clicking
+    if (frameState.current === "next") {
+      return;
+    }
+
+    // 在开始next操作前冻结当前消息数据，避免显示中间帧
+    // Freeze current message data before starting next operation to avoid intermediate frames
+    if (matchedMessages.length > 0) {
+      frozenMessagesRef.current = [...matchedMessages];
+    }
+
     frameState.current = "next";
     startPlayback?.();
-  }, [startPlayback]);
+  }, [startPlayback, matchedMessages]);
 
   useEffect(() => {
     updatePanelSettingsTree({
