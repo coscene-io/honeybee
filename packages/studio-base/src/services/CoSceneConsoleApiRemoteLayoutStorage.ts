@@ -192,46 +192,30 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         return { status: "conflict" };
       }
 
-      // Construct the layout name based on current permission/location
-      // let layoutName: string;
-      // if (existingLayout.permission === "CREATOR_WRITE") {
-      //   layoutName = `users/${this.userId}/layouts/${id}`;
-      // } else if (this.projectName != undefined) {
-      //   layoutName = `${this.projectName}/layouts/${id}`;
-      // } else {
-      //   return { status: "conflict" };
-      // }
-
       // Create updated layout
-      const updatedLayout = new Layout();
-      updatedLayout.name = `${parent}/layouts/${id}`;
-
-      if (displayName != undefined && displayName) {
-        updatedLayout.displayName = displayName;
-      }
-      if (data != undefined) {
-        // todo:  replaceUndefinedWithNull 是否必须
-        // updatedLayout.data = Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject);
-        console.log('s1')
-        updatedLayout.data = Struct.fromJson(data as JsonObject);
-      }
-
-      // updatedLayout.modifier = this.userId;
-      // updatedLayout.modifyTime = Timestamp.fromDate(new Date(savedAt));
-      updatedLayout.modifyTime = Timestamp.fromDate(new Date(savedAt));
-      // updatedLayout.updateTime = Timestamp.fromDate(new Date(savedAt));
+      const updatedLayout = new Layout(
+        {
+          name: `${parent}/layouts/${id}`,
+          modifyTime: Timestamp.fromDate(new Date(savedAt)),
+        }
+      );
 
       // Create update mask for the fields we're updating
       const updateMask = new FieldMask();
       const paths: string[] = [];
-      if (displayName != undefined) {
+      updateMask.paths = paths;
+
+      if (displayName != undefined && displayName) {
+        updatedLayout.displayName = displayName;
         paths.push("displayName");
       }
       if (data != undefined) {
+        // todo:  replaceUndefinedWithNull 是否必须
+        // updatedLayout.data = Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject);
+        updatedLayout.data = Struct.fromJson(data as JsonObject);
         paths.push("data");
       }
-      // paths.push("modifyTime");
-      updateMask.paths = paths;
+
 
       console.log('s2', updatedLayout, updateMask)
 
