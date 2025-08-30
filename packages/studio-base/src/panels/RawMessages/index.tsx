@@ -206,7 +206,6 @@ function RawMessages(props: Props) {
         // New time is greater than the last time in array, add directly to the end
         rendedTime.current.push(newTime);
       } else {
-        // Rare case: need to find and truncate (e.g., user seeks backward)
         // find the index of the time that is less than and closest to newTime
         let closestIndex = -1;
         for (let i = rendedTime.current.length - 1; i >= 0; i--) {
