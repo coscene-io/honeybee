@@ -34,7 +34,7 @@ const selectProject = (state: CoreDataStore) => state.project;
 const selectDevice = (state: CoreDataStore) => state.device;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
-// initPanel函数将在PanelExtensionAdapter内部创建
+// initPanel will be created inside PanelExtensionAdapter
 
 type Props = {
   config: PanelConfig;
@@ -61,48 +61,67 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
     urlState?.parameters?.deviceLink ??
     `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
 
-  // 将PanelConfig转换为Config类型
+  // Convert PanelConfig -> Config
   const fileUploadConfig: Config = {
     ...defaultConfig,
-    ...config
+    ...config,
   };
 
-  // 设置面板设置树
+  // Register settings tree
   useFileUploadPanelSettings(fileUploadConfig, saveConfig as SaveConfig<Config>);
   
-  // 从配置中提取service设置
-  const serviceSettings = {
-    getBagListService: "mock", // 固定使用mock服务
-    submitFilesService: "mock" // 固定使用mock服务
-  };
+  // From config extract service settings; memoized for stable identity
+  const serviceSettings = useMemo(
+    () => ({
+      getBagListService: "mock", // fixed mock service
+      submitFilesService: "mock", // fixed mock service
+    }),
+    [],
+  );
   
-  // 刷新按钮服务配置
-  const refreshButtonServiceName = fileUploadConfig.refreshButtonService.serviceName || "/api/test/end_and_get_candidates";
+  // Refresh button service config
+  const refreshButtonServiceName =
+    fileUploadConfig.refreshButtonService.serviceName || "/api/test/end_and_get_candidates";
 
+  // Keep initPanel stable: do not capture changing config in its closure.
+  // Use extensionData + onRender to pass latest props to the inner React tree.
   const boundInitPanel = useMemo(() => {
     return (context: PanelExtensionContext) => {
-      // eslint-disable-next-line react/no-deprecated
-      ReactDOM.render(
-        <StrictMode>
-          <CaptureErrorBoundary onError={crash}>
-            <FileUploadPanel 
-              config={fileUploadConfig} 
-              context={context} 
-              serviceSettings={serviceSettings}
-              refreshButtonServiceName={refreshButtonServiceName}
-            />
-          </CaptureErrorBoundary>
-        </StrictMode>,
-        context.panelElement,
-      );
+      // Watch for extensionData updates so onRender will be called when it changes.
+      context.watch("extensionData");
+
+      context.onRender = (renderState, done) => {
+        const ext = (renderState?.extensionData ?? {}) as any;
+        const cfg: Config = { ...defaultConfig, ...(ext.fileUploadConfig ?? {}) };
+        const svc = ext.serviceSettings ?? serviceSettings;
+        const rbsn: string = ext.refreshButtonServiceName ?? refreshButtonServiceName;
+
+        // eslint-disable-next-line react/no-deprecated
+        ReactDOM.render(
+          <StrictMode>
+            <CaptureErrorBoundary onError={crash}>
+              <FileUploadPanel
+                config={cfg}
+                context={context}
+                serviceSettings={svc}
+                refreshButtonServiceName={rbsn}
+              />
+            </CaptureErrorBoundary>
+          </StrictMode>,
+          context.panelElement,
+        );
+        // Signal render completion to resume the frame.
+        done?.();
+      };
 
       return () => {
         ReactDOM.unmountComponentAtNode(context.panelElement);
       };
     };
-  }, [crash, fileUploadConfig, serviceSettings]);
+  // Only depend on crash to preserve error boundary behavior; avoid config-caused reinit.
+  }, [crash]);
 
-  // 使用 useMemo 稳定 extensionData 对象引用
+  // Build extensionData with all dynamic inputs that should cause re-render via onRender.
   const extensionData = useMemo(
     () => ({
       userInfo,
@@ -113,8 +132,24 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
       project: project.value,
       organization: organization.value,
       device: device.value,
+      // Panel props for inner tree, routed via onRender to avoid initPanel recreation
+      fileUploadConfig,
+      serviceSettings,
+      refreshButtonServiceName,
     }),
-    [userInfo, loginStatus, consoleApi, deviceLink, dataSource, project.value, organization.value, device.value],
+    [
+      userInfo,
+      loginStatus,
+      consoleApi,
+      deviceLink,
+      dataSource,
+      project.value,
+      organization.value,
+      device.value,
+      fileUploadConfig,
+      serviceSettings,
+      refreshButtonServiceName,
+    ],
   );
 
   return (

@@ -33,11 +33,11 @@ export const defaultConfig: FaultRecordConfig = {
   defaultPreparationDuration: 30,
   defaultRecordDuration: 30,
   startRecordService: {
-    serviceName: "/start_record",
+    serviceName: "/RecordPlayback/StartRecord",
     serviceType: "fault_record/StartRecord",
   },
   stopRecordService: {
-    serviceName: "/stop_record",
+    serviceName: "/RecordPlayback/StopRecord",
     serviceType: "fault_record/StopRecord",
   },
 };

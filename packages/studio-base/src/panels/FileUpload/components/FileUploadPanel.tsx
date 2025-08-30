@@ -161,43 +161,115 @@ export function FileUploadPanel({ config, context, serviceSettings, refreshButto
   const [selectedMode, setSelectedMode] = useState<string>(""); // "" | "imd" | "signal"
   const [selectedActionName, setSelectedActionName] = useState<string>(""); // "" 或具体action名称
   
-  // 获取所有可用的action_name选项
-  const availableActionNames = useMemo(() => {
-    try {
-      const actionNames = bagServiceRef.current.getUniqueActionNames();
-      log("info", `[Action接口] 调用getUniqueActionNames(), 获取到${actionNames.length}个选项: [${actionNames.join(', ')}]`);
-      return actionNames;
-    } catch (error) {
-      log("error", `[Action接口] getUniqueActionNames()调用失败: ${error}`);
-      return [];
-    }
-  }, [log]);
+  // 获取所有可用的action_name选项 - 使用真实ROS服务调用
+  const [availableActionNames, setAvailableActionNames] = useState<string[]>([]);
 
-  // 获取文件列表
+  // Restore UI state from initialState on first mount only
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) {
+      return;
+    }
+    restoredRef.current = true;
+    try {
+      const st = (context.initialState ?? {}) as Partial<{
+        selectedPaths: string[];
+        uploadConfig: UploadConfig;
+        selectedMode: string;
+        selectedActionName: string;
+      }>;
+      if (st.selectedPaths && Array.isArray(st.selectedPaths)) {
+        setSelectedPaths(new Set(st.selectedPaths));
+      }
+      if (st.uploadConfig && typeof st.uploadConfig === "object") {
+        setUploadConfig((prev) => ({ ...prev, ...st.uploadConfig }));
+      }
+      if (typeof st.selectedMode === "string") {
+        setSelectedMode(st.selectedMode);
+      }
+      if (typeof st.selectedActionName === "string") {
+        setSelectedActionName(st.selectedActionName);
+      }
+    } catch {
+      // Ignore malformed initialState
+    }
+  }, [context]);
+
+  // Persist minimal UI state whenever it changes
+  useEffect(() => {
+    const uiState = {
+      selectedPaths: Array.from(selectedPaths),
+      uploadConfig,
+      selectedMode,
+      selectedActionName,
+    };
+    // saveState is provided by PanelExtensionContext; optional chaining to be safe
+    context.saveState?.(uiState);
+  }, [selectedPaths, uploadConfig, selectedMode, selectedActionName, context]);
+  
+  // 加载可用的action名称
+  const loadAvailableActionNames = useCallback(async () => {
+    try {
+      if (typeof context.callService === "function") {
+        const result = await context.callService("/RecordPlayback/GetActionList", { mode: "all" }) as { actions?: Array<{ action_name: string; is_enable: boolean }> };
+        
+        if (result.actions && Array.isArray(result.actions)) {
+          const actionNames = result.actions
+            .filter(action => action.is_enable === true)
+            .map(action => action.action_name)
+            .filter((name, index, arr) => arr.indexOf(name) === index); // 去重
+          
+          setAvailableActionNames(actionNames);
+          log("info", `[Action接口] ROS服务调用成功: 获取到${actionNames.length}个可用选项: [${actionNames.join(', ')}]`);
+        } else {
+          setAvailableActionNames([]);
+          log("error", `[Action接口] ROS服务返回数据格式错误`);
+        }
+      } else {
+        setAvailableActionNames([]);
+        log("error", `[Action接口] context.callService不可用，无法获取action列表`);
+      }
+    } catch (error) {
+      setAvailableActionNames([]);
+      log("error", `[Action接口] ROS服务调用失败: ${error}`);
+    }
+  }, [context, log]);
+  
+  // 组件加载时获取action列表
+  useEffect(() => {
+    loadAvailableActionNames();
+  }, [loadAvailableActionNames]);
+
+  // 获取文件列表 - 使用真实ROS服务调用
   const onGetBagList = useCallback(async () => {
     try {
       setPhase("loading");
       setSelectedPaths(new Set()); // 清空之前的选择状态
       
-      const serviceName = bagServiceRef.current?.constructor?.name || 'Unknown';
       const requestParams = { mode: selectedMode, action_name: selectedActionName };
-      log("info", `[刷新按钮] 调用${serviceName}.getBagList(), 参数: ${JSON.stringify(requestParams)}`);
+      log("info", `[刷新按钮] 调用ROS服务: ${refreshButtonServiceName}, 参数: ${JSON.stringify(requestParams)}`);
       
-      const result = await bagServiceRef.current.getBagList(requestParams);
-      
-      if (result.code === 0) {
-        setBagFiles(result.bags);
-        setPhase("loaded");
-        log("info", `[刷新按钮] 返回成功: 获取到${result.bags.length}个文件, 详情: ${JSON.stringify(result.bags.map((f: any) => ({ path: f.path, mode: f.mode, action_name: f.action_name })))}`);
+      // 使用context.callService调用真实的ROS服务
+      if (typeof context.callService === "function") {
+        const result = await context.callService(refreshButtonServiceName, requestParams) as { code: number; bags?: BagFile[]; msg?: string };
+        
+        if (result.code === 0 && result.bags) {
+          setBagFiles(result.bags);
+          setPhase("loaded");
+          log("info", `[刷新按钮] ROS服务调用成功: 获取到${result.bags.length}个文件, 详情: ${JSON.stringify(result.bags.map((f: any) => ({ path: f.path, mode: f.mode, action_name: f.action_name })))}`);
+        } else {
+          setPhase("idle");
+          log("error", `[刷新按钮] ROS服务返回失败: code=${result.code}, msg=${result.msg || '未知错误'}`);
+        }
       } else {
         setPhase("idle");
-        log("error", `[刷新按钮] 返回失败: code=${result.code}, msg=${result.msg}`);
+        log("error", `[刷新按钮] context.callService不可用，无法调用ROS服务`);
       }
     } catch (e: any) {
       setPhase("idle");
-      log("error", `[刷新按钮] 接口调用异常: ${e?.message || e}`);
+      log("error", `[刷新按钮] ROS服务调用异常: ${e?.message || e}`);
     }
-  }, [selectedMode, selectedActionName, log]);
+  }, [selectedMode, selectedActionName, refreshButtonServiceName, context, log]);
 
   // 切换文件选择状态
   const toggleFileSelection = useCallback((path: string) => {

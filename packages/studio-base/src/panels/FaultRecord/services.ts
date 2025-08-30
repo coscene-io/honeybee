@@ -24,14 +24,14 @@ export async function fetchActionList(context: PanelExtensionContext): Promise<A
     return [];
   }
   try {
-    // 支持 mockService 注入，优先调用 mockService.getActionList
-    if ((context as any).mockService?.getActionList) {
-      const rsp = await (context as any).mockService.getActionList();
-      const actions: ActionInfo[] = Array.isArray(rsp?.actions) ? rsp.actions! : [];
-      return actions.filter((a) => a?.is_enable === true);
-    }
+    // ONLY REAL SERVICE - MOCK SERVICE COMMENTED OUT FOR TESTING
+    // if ((context as any).mockService?.getActionList) {
+    //   const rsp = await (context as any).mockService.getActionList();
+    //   const actions: ActionInfo[] = Array.isArray(rsp?.actions) ? rsp.actions! : [];
+    //   return actions.filter((a) => a?.is_enable === true);
+    // }
     if (typeof context.callService === "function") {
-      const rsp = await context.callService("/RecordPlayback/GetActionList", { mode: "record" }) as { actions?: ActionInfo[] };
+      const rsp = await context.callService("/RecordPlayback/GetActionList", { mode: "all" }) as { actions?: ActionInfo[] };
       const actions: ActionInfo[] = Array.isArray(rsp?.actions) ? rsp.actions! : [];
       return actions.filter((a) => a?.is_enable === true);
     }

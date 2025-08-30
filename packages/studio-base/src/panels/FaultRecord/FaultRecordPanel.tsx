@@ -45,15 +45,15 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
 
 
 
-  // Inject mockService if not present
-  if (!("mockService" in context)) {
-    try {
-      (context as any).mockService = require("./mockService").mockService;
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("mockService 注入失败", e);
-    }
-  }
+  // Inject mockService if not present - COMMENTED OUT FOR REAL SERVICE TESTING
+  // if (!("mockService" in context)) {
+  //   try {
+  //     (context as any).mockService = require("./mockService").mockService;
+  //   } catch (e) {
+  //     // eslint-disable-next-line no-console
+  //     console.error("mockService 注入失败", e);
+  //   }
+  // }
 
   // Add log line
   const addLog = useCallback((message: string, type: "info" | "success" | "error" = "info") => {
@@ -274,7 +274,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
       };
       addLog(`发送请求参数: ${JSON.stringify(req)}`, "info");
 
-      // Fire-and-forget service call
+      // Fire-and-forget service call - ONLY REAL SERVICE
       if (context?.callService) {
         addLog(`使用 context.callService 调用真实服务: ${config.startRecordService.serviceName}`, "info");
         context
@@ -294,29 +294,35 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
             setState((prev) => ({ ...prev, recordingState: "idle" }));
             addLog(`录制失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
           });
-      } else if ((context as any).mockService?.startRecord) {
-        addLog(`使用 mockService.startRecord 调用模拟服务`, "info");
-        (context as any).mockService.startRecord(req)
-          .then((response: any) => {
-            const code = typeof response?.code === "number" ? response.code : -1;
-            const msg = typeof response?.msg === "string" ? response.msg : "Unknown response";
-            if (code === 0) {
-              setState((prev) => ({ ...prev, recordingState: "recording" }));
-              addLog(msg, "success");
-            } else {
-              setState((prev) => ({ ...prev, recordingState: "idle" }));
-              addLog(`录制失败: ${msg}`, "error");
-            }
-          })
-          .catch((error: any) => {
-            setState((prev) => ({ ...prev, recordingState: "idle" }));
-            addLog(`录制失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
-          });
       } else {
-        addLog("录制失败: context.callService 和 mockService.startRecord 均未定义", "error");
+        addLog("录制失败: context.callService 未定义，无法调用真实服务", "error");
         setIsStartLoading(false);
         return;
       }
+      // MOCK SERVICE CALLS COMMENTED OUT FOR REAL SERVICE TESTING
+      // } else if ((context as any).mockService?.startRecord) {
+      //   addLog(`使用 mockService.startRecord 调用模拟服务`, "info");
+      //   (context as any).mockService.startRecord(req)
+      //     .then((response: any) => {
+      //       const code = typeof response?.code === "number" ? response.code : -1;
+      //       const msg = typeof response?.msg === "string" ? response.msg : "Unknown response";
+      //       if (code === 0) {
+      //         setState((prev) => ({ ...prev, recordingState: "recording" }));
+      //         addLog(msg, "success");
+      //       } else {
+      //         setState((prev) => ({ ...prev, recordingState: "idle" }));
+      //         addLog(`录制失败: ${msg}`, "error");
+      //       }
+      //     })
+      //     .catch((error: any) => {
+      //       setState((prev) => ({ ...prev, recordingState: "idle" }));
+      //       addLog(`录制失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
+      //     });
+      // } else {
+      //   addLog("录制失败: context.callService 和 mockService.startRecord 均未定义", "error");
+      //   setIsStartLoading(false);
+      //   return;
+      // }
       addLog("录制请求已发送，可以继续选择其他action进行录制", "info");
       
     } catch (error) {
@@ -344,7 +350,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
       };
       addLog(`发送停止请求参数: ${JSON.stringify(req)}`, "info");
 
-      // Fire-and-forget service call
+      // Fire-and-forget service call - ONLY REAL SERVICE
       if (context?.callService) {
         addLog(`使用 context.callService 调用真实停止服务: ${config.stopRecordService.serviceName}`, "info");
         context
@@ -362,27 +368,33 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
           .catch((error: any) => {
             addLog(`停止失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
           });
-      } else if ((context as any).mockService?.stopRecord) {
-        addLog(`使用 mockService.stopRecord 调用模拟停止服务`, "info");
-        (context as any).mockService.stopRecord(req)
-          .then((response: any) => {
-            const code = typeof response?.code === "number" ? response.code : -1;
-            const msg = typeof response?.msg === "string" ? response.msg : "Unknown response";
-            if (code === 0) {
-              setState((prev) => ({ ...prev, recordingState: "idle" }));
-              addLog(msg, "success");
-            } else {
-              addLog(`停止失败: ${msg}`, "error");
-            }
-          })
-          .catch((error: any) => {
-            addLog(`停止失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
-          });
       } else {
-        addLog("停止失败: context.callService 和 mockService.stopRecord 均未定义", "error");
+        addLog("停止失败: context.callService 未定义，无法调用真实服务", "error");
         setIsStopLoading(false);
         return;
       }
+      // MOCK SERVICE CALLS COMMENTED OUT FOR REAL SERVICE TESTING
+      // } else if ((context as any).mockService?.stopRecord) {
+      //   addLog(`使用 mockService.stopRecord 调用模拟停止服务`, "info");
+      //   (context as any).mockService.stopRecord(req)
+      //     .then((response: any) => {
+      //       const code = typeof response?.code === "number" ? response.code : -1;
+      //       const msg = typeof response?.msg === "string" ? response.msg : "Unknown response";
+      //       if (code === 0) {
+      //         setState((prev) => ({ ...prev, recordingState: "idle" }));
+      //         addLog(msg, "success");
+      //       } else {
+      //         addLog(`停止失败: ${msg}`, "error");
+      //       }
+      //     })
+      //     .catch((error: any) => {
+      //       addLog(`停止失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
+      //     });
+      // } else {
+      //   addLog("停止失败: context.callService 和 mockService.stopRecord 均未定义", "error");
+      //   setIsStopLoading(false);
+      //   return;
+      // }
       addLog("停止录制请求已发送", "info");
       
     } catch (error) {
