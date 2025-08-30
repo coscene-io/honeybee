@@ -77,10 +77,8 @@ function convertGrpcLayoutToRemoteLayoutWithoutData(layout: Layout, data?: Layou
 
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {
   public constructor(
-    public readonly namespace: string,
+    public readonly namespace: string, // todo: remove namespace
     private api: ConsoleApi,
-    private userId: string,
-    private projectName?: string,
   ) { }
 
   public async getLayouts(parents: string[]): Promise<readonly RemoteLayout[]> {
