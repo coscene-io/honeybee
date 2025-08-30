@@ -27,9 +27,10 @@ import {
   ToggleButtonGroup,
   ToggleButtonGroupProps,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo } from "react";
+import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -38,6 +39,7 @@ import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
@@ -551,12 +553,18 @@ export function InactivityTimeout(): React.ReactElement {
   );
 }
 
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
+
 export function RetentionWindowMs(): React.ReactElement {
   const { t } = useTranslation("appSettings");
   const [retentionWindowMs, setRetentionWindowMs] = useAppConfigurationValue<number>(
     AppSetting.RETENTION_WINDOW_MS,
   );
+  const dataSource = useCoreData(selectDataSource);
+  const [showTips, setShowTips] = useState(false);
+  const { reloadCurrentSource } = usePlayerSelection();
 
+  const { theme } = useStyles();
   const getDurationText = useCallback(
     (ms: number) => {
       switch (ms) {
@@ -605,7 +613,12 @@ export function RetentionWindowMs(): React.ReactElement {
       <Select
         value={retentionWindowMs ?? 30 * 1000}
         fullWidth
-        onChange={(event) => void setRetentionWindowMs(event.target.value)}
+        onChange={(event) => {
+          void setRetentionWindowMs(event.target.value);
+          if (dataSource?.id === "coscene-websocket") {
+            setShowTips(true);
+          }
+        }}
       >
         {options.map((option) => (
           <MenuItem key={option.key} value={option.key}>
@@ -613,6 +626,27 @@ export function RetentionWindowMs(): React.ReactElement {
           </MenuItem>
         ))}
       </Select>
+      {showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="retentionWindowNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
     </Stack>
   );
 }

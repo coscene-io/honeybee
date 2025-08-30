@@ -125,7 +125,6 @@ export type CoreDataStore = {
     event: "ENABLE" | "DISABLE";
     playlist: "ENABLE" | "DISABLE";
     task: "ENABLE" | "DISABLE";
-    uploadLocalFile: "ENABLE" | "DISABLE";
     layoutSync: "ENABLE" | "DISABLE";
     recordInfo: "ENABLE" | "DISABLE";
   };

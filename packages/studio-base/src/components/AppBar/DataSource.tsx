@@ -128,7 +128,6 @@ const selectProject = (state: CoreDataStore) => state.project;
 const selectRecord = (state: CoreDataStore) => state.record;
 const selectDevice = (state: CoreDataStore) => state.device;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
-const selectEnableList = (state: CoreDataStore) => state.getEnableList();
 const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectJobRun = (state: CoreDataStore) => state.jobRun;
 
@@ -404,12 +403,11 @@ const RealTimeVizDataSource = () => {
   );
 };
 
-const CommonDataSource = () => {
+const DataPlatformSource = () => {
   const { classes } = useStyles();
 
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
-  const enableList = useCoreData(selectEnableList);
   const dataSource = useCoreData(selectDataSource);
   const organization = useCoreData(selectOrganization);
   const jobRun = useCoreData(selectJobRun);
@@ -451,19 +449,23 @@ const CommonDataSource = () => {
   ];
 
   return (
-    <>
-      <div className={classes.textTruncate}>
-        {enableList.uploadLocalFile === "ENABLE" ? (
-          <UploadFileComponent />
-        ) : (
-          <Stack direction="row" alignItems="center" gap={2}>
-            <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
-              {projectSlug && dataSource?.id === "coscene-data-platform" ? breadcrumbs : ""}
-            </Breadcrumbs>
-          </Stack>
-        )}
-      </div>
-    </>
+    <div className={classes.textTruncate}>
+      <Stack direction="row" alignItems="center" gap={2}>
+        <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+          {projectSlug && dataSource?.id === "coscene-data-platform" ? breadcrumbs : ""}
+        </Breadcrumbs>
+      </Stack>
+    </div>
+  );
+};
+
+const CommonDataSource = () => {
+  const { classes } = useStyles();
+
+  return (
+    <div className={classes.textTruncate}>
+      <UploadFileComponent />
+    </div>
   );
 };
 
@@ -484,13 +486,18 @@ export function DataSource(): React.JSX.Element {
       <WssErrorModal playerProblems={playerProblems} />
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
-          {dataSource?.id === "coscene-websocket" ? (
-            <RealTimeVizDataSource />
-          ) : dataSource?.id === "persistent-cache" ? (
-            <>{t("realTimeVizPlayback", { ns: "cosWebsocket" })}</>
-          ) : (
-            <CommonDataSource />
-          )}
+          {(() => {
+            switch (dataSource?.id) {
+              case "coscene-websocket":
+                return <RealTimeVizDataSource />;
+              case "persistent-cache":
+                return <>{t("realTimeVizPlayback", { ns: "cosWebsocket" })}</>;
+              case "coscene-data-platform":
+                return <DataPlatformSource />;
+              default:
+                return <CommonDataSource />;
+            }
+          })()}
         </div>
         <Adornment />
       </Stack>
