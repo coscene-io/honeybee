@@ -27,6 +27,8 @@ import {
 
 type Options = {
   historySize: number;
+
+  onRestore?: () => void;
 };
 
 type ReducedValue = {
@@ -100,6 +102,8 @@ export function useMessageDataItem(path: string, options?: Options): ReducedValu
 
   const restore = useCallback(
     (prevValue?: ReducedValue): ReducedValue => {
+      options?.onRestore?.();
+
       if (!prevValue) {
         return {
           matches: [],

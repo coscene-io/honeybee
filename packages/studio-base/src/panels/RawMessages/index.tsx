@@ -16,12 +16,13 @@
 
 import { Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
 import * as _ from "lodash-es";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactHoverObserver from "react-hover-observer";
 import Tree from "react-json-tree";
 import { makeStyles } from "tss-react/mui";
 
 import { parseMessagePath, MessagePathStructureItem, MessagePath } from "@foxglove/message-path";
+import { compare, Time } from "@foxglove/rostime";
 import { Immutable, SettingsTreeAction } from "@foxglove/studio";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
@@ -32,6 +33,10 @@ import {
 } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathsForDatatype";
 import { MessagePathDataItem } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import { useMessageDataItem } from "@foxglove/studio-base/components/MessagePathSyntax/useMessageDataItem";
+import {
+  useMessagePipeline,
+  MessagePipelineContext,
+} from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -87,6 +92,13 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
+const MAX_RENDERED_TIME_ARRAY_LENGTH = 1000;
+
+// Selector functions for player controls
+const selectSeekPlayback = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+const selectStartPlayback = (ctx: MessagePipelineContext) => ctx.startPlayback;
+const selectPausePlayback = (ctx: MessagePipelineContext) => ctx.pausePlayback;
+
 function RawMessages(props: Props) {
   const {
     palette: { mode: themePreference },
@@ -100,6 +112,21 @@ function RawMessages(props: Props) {
   const { topics, datatypes } = useDataSourceInfo();
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const { setMessagePathDropConfig } = usePanelContext();
+
+  // Player control hooks
+  const seekPlayback = useMessagePipeline(selectSeekPlayback);
+  const startPlayback = useMessagePipeline(selectStartPlayback);
+  const pausePlayback = useMessagePipeline(selectPausePlayback);
+
+  // Flag bit to indicate that the next message is the previous frame, current frame, next frame.
+  const frameState = useRef<"previous" | "current" | "next">("current");
+  const rendedTime = useRef<Time[]>([]);
+
+  const onRestore = () => {
+    if (frameState.current === "current") {
+      rendedTime.current = [];
+    }
+  };
 
   useEffect(() => {
     setMessagePathDropConfig({
@@ -151,7 +178,7 @@ function RawMessages(props: Props) {
 
   // Pass an empty path to useMessageDataItem if our path doesn't resolve to a valid topic to avoid
   // spamming the message pipeline with useless subscription requests.
-  const matchedMessages = useMessageDataItem(topic ? topicPath : "", { historySize: 2 });
+  const matchedMessages = useMessageDataItem(topic ? topicPath : "", { historySize: 2, onRestore });
   const diffMessages = useMessageDataItem(diffEnabled ? diffTopicPath : "");
 
   const diffTopicObj = diffMessages[0];
@@ -161,6 +188,56 @@ function RawMessages(props: Props) {
   const inTimetickDiffMode = diffEnabled && diffMethod === Constants.PREV_MSG_METHOD;
   const baseItem = inTimetickDiffMode ? prevTickObj : currTickObj;
   const diffItem = inTimetickDiffMode ? currTickObj : diffTopicObj;
+
+  useEffect(() => {
+    if (frameState.current === "previous") {
+      frameState.current = "current";
+      return;
+    }
+
+    if (currTickObj?.messageEvent.receiveTime) {
+      const newTime = currTickObj.messageEvent.receiveTime;
+
+      // Optimization: 99% of the time, new time is the largest value, so add directly to the end
+      if (
+        rendedTime.current.length === 0 ||
+        compare(rendedTime.current[rendedTime.current.length - 1]!, newTime) < 0
+      ) {
+        // New time is greater than the last time in array, add directly to the end
+        rendedTime.current.push(newTime);
+      } else {
+        // Rare case: need to find and truncate (e.g., user seeks backward)
+        // find the index of the time that is less than and closest to newTime
+        let closestIndex = -1;
+        for (let i = rendedTime.current.length - 1; i >= 0; i--) {
+          if (compare(rendedTime.current[i]!, newTime) < 0) {
+            closestIndex = i;
+            break;
+          }
+        }
+
+        // if a time is found, delete all elements after it
+        if (closestIndex >= 0) {
+          rendedTime.current = rendedTime.current.slice(0, closestIndex + 1);
+        } else {
+          // if no time is found, clear the array
+          rendedTime.current = [];
+        }
+
+        // add the new time to the end of the array
+        rendedTime.current.push(newTime);
+      }
+    }
+
+    if (rendedTime.current.length > MAX_RENDERED_TIME_ARRAY_LENGTH) {
+      rendedTime.current.shift();
+    }
+
+    if (frameState.current === "next") {
+      frameState.current = "current";
+      pausePlayback?.();
+    }
+  }, [currTickObj, pausePlayback]);
 
   const nodes = useMemo(() => {
     if (baseItem) {
@@ -653,6 +730,20 @@ function RawMessages(props: Props) {
     [saveConfig],
   );
 
+  const handlePreviousFrame = useCallback(() => {
+    pausePlayback?.();
+    frameState.current = "previous";
+    rendedTime.current.pop();
+    if (rendedTime.current.length > 0) {
+      seekPlayback?.(rendedTime.current[rendedTime.current.length - 1]!);
+    }
+  }, [pausePlayback, seekPlayback]);
+
+  const handleNextFrame = useCallback(() => {
+    frameState.current = "next";
+    startPlayback?.();
+  }, [startPlayback]);
+
   useEffect(() => {
     updatePanelSettingsTree({
       actionHandler,
@@ -689,6 +780,8 @@ function RawMessages(props: Props) {
         onToggleDiff={onToggleDiff}
         onToggleExpandAll={onToggleExpandAll}
         onTopicPathChange={onTopicPathChange}
+        onPreviousFrame={handlePreviousFrame}
+        onNextFrame={handleNextFrame}
         saveConfig={saveConfig}
         topicPath={topicPath}
       />
