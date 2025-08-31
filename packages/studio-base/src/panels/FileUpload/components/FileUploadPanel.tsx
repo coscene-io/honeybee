@@ -6,15 +6,26 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import React, { useCallback, useEffect, useState, useRef, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { PanelExtensionContext } from "@foxglove/studio";
+import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { handleTaskProgress } from "@foxglove/studio-base/panels/DataCollection/utils";
 
 import { ProjectAndTagPicker } from "./ProjectAndTagPicker";
 import type { Config } from "../config/types";
 import { MockCoSceneClient, RealCoSceneClient } from "../services/coscene";
+
 import { MockBagService } from "../services/mockBagService";
 import { MockRosService, RealRosService } from "../services/ros";
 import type { BagFile, UploadConfig, CoSceneClient } from "../types";
+
+const POLLING_TIMEOUT = 5000; // 5 seconds timeout for task progress polling
+
+// Remove selectors as we'll receive data via props
 
 interface LogLine {
   id: string;
@@ -86,17 +97,25 @@ interface FileUploadPanelProps {
   context: PanelExtensionContext;
   serviceSettings: { getBagListService: string; submitFilesService: string };
   refreshButtonServiceName: string;
+  consoleApi?: ConsoleApi;
+  device?: { name: string; [key: string]: any };
+  user?: User;
+  organization?: Organization;
+  project?: Project;
 }
 
 // Service factory functions
-function createBagService(serviceType: string) {
+function createBagService(serviceType: string, consoleApi?: ConsoleApi) {
   switch (serviceType) {
     case "mock":
       return new MockBagService();
     case "coscene-mock":
       return new MockCoSceneClient();
     case "coscene-real":
-      return new RealCoSceneClient();
+      if (!consoleApi) {
+        throw new Error("ConsoleApi is required for RealCoSceneClient");
+      }
+      return new RealCoSceneClient(consoleApi);
     case "ros-mock":
       return new MockRosService();
     case "ros-real":
@@ -107,42 +126,48 @@ function createBagService(serviceType: string) {
 }
 
 // Create CoScene client for project and tag management
-function createCoSceneClient(serviceType: string): CoSceneClient {
+function createCoSceneClient(serviceType: string, consoleApi?: ConsoleApi): CoSceneClient {
   switch (serviceType) {
     case "coscene-real":
-      return new RealCoSceneClient();
+      if (!consoleApi) {
+        throw new Error("ConsoleApi is required for RealCoSceneClient");
+      }
+      return new RealCoSceneClient(consoleApi);
     case "coscene-mock":
     default:
       return new MockCoSceneClient();
   }
 }
 
-export function FileUploadPanel({ config, context, serviceSettings, refreshButtonServiceName }: FileUploadPanelProps) {
+export function FileUploadPanel({ config, context, serviceSettings, refreshButtonServiceName, consoleApi, device, user, organization, project }: FileUploadPanelProps) {
+  const { t } = useTranslation("dataCollection");
+  
   const [logs, setLogs] = useState<LogLine[]>([]);
+  const [taskProgressMap, setTaskProgressMap] = useState<Map<string, { progress: number; status: string }>>(new Map());
   
   const log = useCallback((level: LogLine["level"], msg: string) => {
     setLogs((xs) => [...xs, { id: Date.now().toString() + Math.random().toString(36).substr(2, 9), ts: new Date().toLocaleTimeString(), level, msg }]);
   }, []);
   
-  const bagServiceRef = useRef<any>(createBagService(serviceSettings.getBagListService || "mock"));
+  const bagServiceRef = useRef<any>(createBagService(serviceSettings.getBagListService || "mock", consoleApi));
   
   // Create CoScene client for project and tag functionality
   const coSceneClient = useMemo(() => {
     const newServiceType = serviceSettings.submitFilesService || "coscene-mock";
-    const client = createCoSceneClient(newServiceType);
+    const client = createCoSceneClient(newServiceType, consoleApi);
     const newService = client?.constructor?.name || 'Unknown';
     log('info', `CoScene client service changed to: ${newService}`);
     return client;
-  }, [serviceSettings.submitFilesService, log]);
+  }, [serviceSettings.submitFilesService, consoleApi, log]);
   
   // When service configuration changes, recreate service instance
   useEffect(() => {
     const oldService = bagServiceRef.current?.constructor?.name || 'Unknown';
     const newServiceType = serviceSettings.getBagListService || "mock";
-    bagServiceRef.current = createBagService(newServiceType);
+    bagServiceRef.current = createBagService(newServiceType, consoleApi);
     const newService = bagServiceRef.current?.constructor?.name || 'Unknown';
     log("info", `[配置变更] BagService: ${oldService} -> ${newService} (${newServiceType})`);
-  }, [serviceSettings.getBagListService, log]);
+  }, [serviceSettings.getBagListService, consoleApi, log]);
   
   const [phase, setPhase] = useState<"idle" | "loading" | "loaded">("idle");
   const [bagFiles, setBagFiles] = useState<BagFile[]>([]);
@@ -321,11 +346,82 @@ export function FileUploadPanel({ config, context, serviceSettings, refreshButto
         const clientName = coSceneClient?.constructor?.name || 'Unknown';
         log("info", `[上传文件] 调用${clientName}.upload(), 文件数: ${filesCandidates.length}`);
         
-        await coSceneClient.upload(filesCandidates, uploadConfig, (progress) => {
+        // Add device information to upload config
+        const uploadConfigWithDevice = {
+          ...uploadConfig,
+          device: device
+        };
+        
+        const uploadResult = await coSceneClient.upload(filesCandidates, uploadConfigWithDevice, (progress) => {
           log("info", `[上传进度] ${progress}%`);
         });
         
-        log("info", `[上传完成] CoScene上传成功, 文件数: ${pathsArray.length}, 项目: ${uploadConfig.projectId}, 标签: [${uploadConfig.tags.join(', ')}]`);
+        if (uploadResult.success) {
+          if (uploadResult.taskName) {
+            log("info", `[上传完成] CoScene上传成功, 文件数: ${pathsArray.length}, 项目: ${uploadConfig.projectId}, 任务: ${uploadResult.taskName}, 标签: [${uploadConfig.tags.join(', ')}]`);
+            
+            // Start task progress tracking similar to DataCollection
+            if (consoleApi && user && organization && project) {
+              log("info", `[任务跟踪] 开始跟踪任务进度: ${uploadResult.taskName}`);
+              
+              // Initialize task progress state
+              setTaskProgressMap(prev => new Map(prev.set(uploadResult.taskName!, { progress: 0, status: 'processing' })));
+              
+              // Start polling task progress with timeout
+              const timeoutId = setTimeout(() => {
+                log("warn", `[任务跟踪] 任务 ${uploadResult.taskName} 进度跟踪超时`);
+                setTaskProgressMap(prev => {
+                  const newMap = new Map(prev);
+                  newMap.delete(uploadResult.taskName!);
+                  return newMap;
+                });
+              }, POLLING_TIMEOUT);
+              
+              handleTaskProgress({
+                  consoleApi,
+                  taskName: uploadResult.taskName,
+                  timeout: POLLING_TIMEOUT,
+                  addLog: (logMessage: string) => {
+                    log("info", `[任务跟踪] ${logMessage}`);
+                  },
+                  t,
+                  showRecordLink: true,
+                  targetOrg: organization!,
+                  targetProject: project!,
+                  focusedTask: undefined
+                }).then(() => {
+                // Task completed successfully
+                clearTimeout(timeoutId);
+                log("info", `[任务完成] 任务 ${uploadResult.taskName} 处理完成`);
+                setTaskProgressMap(prev => {
+                  const newMap = new Map(prev);
+                  newMap.set(uploadResult.taskName!, { progress: 100, status: 'completed' });
+                  return newMap;
+                });
+                // Remove from tracking map after completion
+                setTimeout(() => {
+                  setTaskProgressMap(prev => {
+                    const newMap = new Map(prev);
+                    newMap.delete(uploadResult.taskName!);
+                    return newMap;
+                  });
+                }, 2000); // Keep for 2 seconds to show final status
+              }).catch((error) => {
+                clearTimeout(timeoutId);
+                log("error", `[任务跟踪] 任务进度跟踪失败: ${error.message}`);
+                setTaskProgressMap(prev => {
+                  const newMap = new Map(prev);
+                  newMap.delete(uploadResult.taskName!);
+                  return newMap;
+                });
+              });
+            }
+          } else {
+            log("info", `[上传完成] CoScene文件上传成功, 文件数: ${pathsArray.length}, 项目: ${uploadConfig.projectId}, 标签: [${uploadConfig.tags.join(', ')}] (未创建任务)`);
+          }
+        } else {
+          log("error", `[上传失败] CoScene上传失败, 文件数: ${pathsArray.length}`);
+        }
       } else {
         // Use original bag service upload
         const serviceName = bagServiceRef.current?.constructor?.name || 'Unknown';
@@ -555,6 +651,56 @@ export function FileUploadPanel({ config, context, serviceSettings, refreshButto
               <div style={{ fontSize: 12, color: '#6b7280' }}>
                 请选择要上传的文件，然后点击上传按钮
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* 任务进度跟踪区域 */}
+        {taskProgressMap.size > 0 && (
+          <div style={{ 
+            backgroundColor: '#f0f9ff', 
+            border: '1px solid #0ea5e9',
+            borderRadius: 6,
+            padding: 12,
+            marginBottom: 16
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#0369a1' }}>任务进度跟踪</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {Array.from(taskProgressMap.entries()).map(([taskName, { progress, status }]) => (
+                <div key={taskName} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: 8,
+                  backgroundColor: '#ffffff',
+                  borderRadius: 4,
+                  border: '1px solid #e0f2fe'
+                }}>
+                  <div style={{ flex: 1, fontSize: 12 }}>
+                    <div style={{ fontWeight: 500, marginBottom: 2 }}>{taskName}</div>
+                    <div style={{ color: '#6b7280' }}>状态: {status}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      width: 100,
+                      height: 6,
+                      backgroundColor: '#e5e7eb',
+                      borderRadius: 3,
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{
+                        width: `${progress}%`,
+                        height: '100%',
+                        backgroundColor: status === 'completed' ? '#10b981' : status === 'failed' ? '#ef4444' : '#3b82f6',
+                        transition: 'width 0.3s ease'
+                      }} />
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 500, minWidth: 35, textAlign: 'right' }}>
+                      {progress}%
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

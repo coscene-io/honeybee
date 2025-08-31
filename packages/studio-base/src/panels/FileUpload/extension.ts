@@ -26,8 +26,8 @@ export function activate(context: ExtensionContext) {
       const render = () => {
         // 从配置中提取service设置
         const serviceSettings = {
-          getBagListService: "mock", // 固定使用mock服务
-          submitFilesService: "mock" // 固定使用mock服务
+          getBagListService: "coscene-real", // 使用真实的CoSceneConsoleApi服务
+          submitFilesService: "coscene-real" // 使用真实的CoSceneConsoleApi服务
         };
         
         // 刷新按钮服务配置

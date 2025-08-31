@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { StrictMode, useMemo, useCallback, useEffect } from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import { useCrash } from "@foxglove/hooks";
 import { PanelExtensionContext } from "@foxglove/studio";
@@ -73,8 +73,8 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
   // From config extract service settings; memoized for stable identity
   const serviceSettings = useMemo(
     () => ({
-      getBagListService: "mock", // fixed mock service
-      submitFilesService: "mock", // fixed mock service
+      getBagListService: "coscene-real", // use real CoSceneConsoleApi service
+      submitFilesService: "coscene-real", // use real CoSceneConsoleApi service
     }),
     [],
   );
@@ -90,14 +90,28 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
       // Watch for extensionData updates so onRender will be called when it changes.
       context.watch("extensionData");
 
+      // Create root only once per panel instance
+      let root: ReturnType<typeof createRoot> | undefined;
+      let isUnmounted = false;
+
       context.onRender = (renderState, done) => {
+        // Create root on first render if not exists
+        if (!root && !isUnmounted) {
+          root = createRoot(context.panelElement);
+        }
+
+        // Skip rendering if root is unmounted
+        if (isUnmounted || !root) {
+          done?.();
+          return;
+        }
+
         const ext = (renderState?.extensionData ?? {}) as any;
         const cfg: Config = { ...defaultConfig, ...(ext.fileUploadConfig ?? {}) };
         const svc = ext.serviceSettings ?? serviceSettings;
         const rbsn: string = ext.refreshButtonServiceName ?? refreshButtonServiceName;
 
-        // eslint-disable-next-line react/no-deprecated
-        ReactDOM.render(
+        root.render(
           <StrictMode>
             <CaptureErrorBoundary onError={crash}>
               <FileUploadPanel
@@ -105,21 +119,28 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
                 context={context}
                 serviceSettings={svc}
                 refreshButtonServiceName={rbsn}
+                consoleApi={ext.consoleApi}
+                device={ext.device}
+                user={ext.user}
+                organization={ext.organization}
+                project={ext.project}
               />
             </CaptureErrorBoundary>
           </StrictMode>,
-          context.panelElement,
         );
         // Signal render completion to resume the frame.
         done?.();
       };
 
       return () => {
-        ReactDOM.unmountComponentAtNode(context.panelElement);
+        isUnmounted = true;
+        if (root) {
+          root.unmount();
+          root = undefined;
+        }
       };
     };
-  // Only depend on crash to preserve error boundary behavior; avoid config-caused reinit.
-  }, [crash]);
+  }, [crash, serviceSettings, refreshButtonServiceName]);
 
   // Build extensionData with all dynamic inputs that should cause re-render via onRender.
   const extensionData = useMemo(
