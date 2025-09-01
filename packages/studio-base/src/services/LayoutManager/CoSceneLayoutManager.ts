@@ -420,7 +420,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             working: newWorking,
 
             // If the name is being changed, we will need to upload to the server with a new modifyTime
-            baseline: isRename ? { ...localLayout.baseline, modifyTime: Timestamp.fromDate(new Date()) } : localLayout.baseline,
+            // baseline: isRename ? { ...localLayout.baseline, modifyTime: Timestamp.fromDate(new Date()) } : localLayout.baseline,
+            baseline: localLayout.baseline,
             syncInfo: isRename
               ? { status: "updated", lastRemoteModifyTime: localLayout.syncInfo?.lastRemoteModifyTime }
               : localLayout.syncInfo,
@@ -488,7 +489,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       const updatedBaseline = await updateOrFetchLayout(this.#remote, {
         id,
         data: localLayout.working?.data ?? localLayout.baseline.data,
-        modifyTime: now,
+        // modifyTime: now,
+        modifyTime: localLayout.baseline.modifyTime!,
         parent: localLayout.parent,
       });
       const result = await this.#local.runExclusive(
@@ -509,7 +511,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             ...localLayout,
             baseline: {
               data: localLayout.working?.data ?? localLayout.baseline.data,
-              modifyTime: now,
+              // modifyTime: now,
+              modifyTime: localLayout.baseline.modifyTime!,
             },
             working: undefined,
             syncInfo:
