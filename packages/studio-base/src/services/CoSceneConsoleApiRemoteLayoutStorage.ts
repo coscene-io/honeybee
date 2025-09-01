@@ -117,7 +117,6 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     displayName,
     data,
     permission,
-    // savedAt,
   }: {
     id: LayoutID | undefined;
     parent: string;
@@ -125,7 +124,6 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     displayName: string;
     data: LayoutData;
     permission: LayoutPermission;
-    // savedAt: ISO8601Timestamp;
   }): Promise<RemoteLayout> {
     const layout = new Layout(
       {
@@ -146,18 +144,18 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
   public async updateLayout({
     id,
+    parent,
     displayName,
     data,
     permission: _permission,
     savedAt,
-    parent,
   }: {
     id: LayoutID;
+    parent: string;
     displayName?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
     savedAt: ISO8601Timestamp;
-    parent: string;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
     try {
       // First get the existing layout to determine its current resource name
