@@ -358,8 +358,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     const now = new Date().toISOString() as ISO8601Timestamp;
     const localLayout = await this.#local.runExclusive(async (local) => await local.get(id));
 
-    console.log('CoSceneLayoutManager updateLayout', id, displayName, data, 'layoutIsShared(localLayout)', layoutIsShared(localLayout))
-
     if (!localLayout) {
       // if this layout is record recommended layout, this error is expected
       // because the layout will be deleted when the user plays another record

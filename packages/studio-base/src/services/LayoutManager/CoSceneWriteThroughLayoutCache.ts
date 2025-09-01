@@ -61,7 +61,7 @@ export default class CoSceneWriteThroughLayoutCache implements ILayoutStorage {
 
   public async delete(namespace: string, id: LayoutID): Promise<void> {
     // TODO: fix parent
-    await this.storage.delete(namespace, '', id);
+    await this.storage.delete(namespace, id);
     (await this.#getOrCreateCache(namespace).get()).delete(id);
   }
 }
