@@ -74,6 +74,7 @@ export interface ILayoutManager {
   getLayout(params: { id: LayoutID }): Promise<Layout | undefined>;
 
   saveNewLayout(params: {
+    folder: string;
     displayName: string;
     data: LayoutData;
     permission: LayoutPermission;

@@ -60,6 +60,8 @@ export function migrateLayout(value: unknown): Layout {
 
   return {
     id: layout.id,
+    parent: layout.parent ?? '',
+    folder: layout.folder ?? '',
     displayName: layout.displayName ?? layout.name ?? `Unnamed (${now})`,
     permission: layout.permission?.toUpperCase() ?? "CREATOR_WRITE",
     working: layout.working
@@ -67,6 +69,5 @@ export function migrateLayout(value: unknown): Layout {
       : undefined,
     baseline: { ...baseline, data: migratePanelsState(baseline.data) },
     syncInfo: layout.syncInfo,
-    parent: layout.parent ?? '',
   };
 }

@@ -17,11 +17,12 @@ import {
  */
 export type RemoteLayout = {
   id: LayoutID;
+  parent: string;
+  folder: string;
   displayName: string;
   permission: LayoutPermission;
   data: LayoutData;
   savedAt: ISO8601Timestamp | undefined;
-  parent: string;
 };
 
 export interface IRemoteLayoutStorage {
@@ -38,19 +39,19 @@ export interface IRemoteLayoutStorage {
   saveNewLayout: (params: {
     id: LayoutID | undefined;
     parent: string;
-    displayName: string;
     folder: string;
+    displayName: string;
     data: LayoutData;
     permission: LayoutPermission;
   }) => Promise<RemoteLayout>;
 
   updateLayout: (params: {
     id: LayoutID;
+    parent: string;
     displayName?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
     savedAt: ISO8601Timestamp;
-    parent: string;
   }) => Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }>;
 
   /** Returns true if the layout existed and was deleted, false if the layout did not exist. */

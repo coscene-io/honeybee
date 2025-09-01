@@ -48,11 +48,12 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
 
   return {
     id: layout.name.split('/layouts/')[1] as LayoutID,
+    parent: layout.name.split('/layouts/')[0] ?? '',
+    folder: layout.folder,
     displayName: layout.displayName,
     permission,
     data,
     savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
-    parent: layout.name.split('/layouts/')[0] ?? '',
   };
 }
 
@@ -67,11 +68,12 @@ function convertGrpcLayoutToRemoteLayoutWithoutData(layout: Layout, data?: Layou
 
   return {
     id: layout.name.split('/layouts/')[1] as LayoutID,
+    parent: layout.name.split('/layouts/')[0] ?? '',
+    folder: layout.folder,
     displayName: layout.displayName,
     permission,
     data: data ?? { configById: {}, globalVariables: {}, userNodes: {} },
     savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
-    parent: layout.name.split('/layouts/')[0] ?? '',
   };
 }
 
@@ -132,16 +134,16 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   public async saveNewLayout({
     id,
     parent,
-    displayName,
     folder,
+    displayName,
     data,
     permission,
     // savedAt,
   }: {
     id: LayoutID | undefined;
     parent: string;
-    displayName: string;
     folder: string;
+    displayName: string;
     data: LayoutData;
     permission: LayoutPermission;
     // savedAt: ISO8601Timestamp;

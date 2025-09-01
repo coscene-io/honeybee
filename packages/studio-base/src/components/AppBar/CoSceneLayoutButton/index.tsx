@@ -220,6 +220,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               const layout = await layoutManager.getLayout({ id: id as LayoutID });
               if (layout) {
                 await layoutManager.saveNewLayout({
+                  folder: layout.folder,
                   displayName: `${layout.displayName} copy`,
                   data: layout.working?.data ?? layout.baseline.data,
                   permission: "CREATOR_WRITE",
@@ -357,6 +358,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         return;
       }
       const newLayout = await layoutManager.saveNewLayout({
+        folder: item.folder,
         displayName: `${item.displayName} copy`,
         data: item.working?.data ?? item.baseline.data,
         permission: "CREATOR_WRITE",
@@ -416,6 +418,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       });
       if (displayName != undefined) {
         const newLayout = await layoutManager.saveNewLayout({
+          folder: item.folder,
           displayName,
           data: item.working?.data ?? item.baseline.data,
           permission: "ORG_WRITE",
@@ -506,6 +509,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       userNodes: {},
     };
     const newLayout = await layoutManager.saveNewLayout({
+      folder: "", // todo: get folder
       displayName,
       data: layoutData as LayoutData,
       permission: "CREATOR_WRITE",
@@ -547,6 +551,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       });
       if (displayName != undefined) {
         const newLayout = await layoutManager.saveNewLayout({
+          folder: item.folder,
           displayName,
           data: item.working?.data ?? item.baseline.data,
           permission: "ORG_WRITE",
@@ -596,6 +601,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const handleSelectLayoutTemplate = async (layout: LayoutData, layoutName: string) => {
     setSelectLayoutTemplateModalOpen(false);
     const newLayout = await layoutManager.saveNewLayout({
+      folder: "", // todo: get folder
       displayName: layoutName,
       data: layout,
       permission: "CREATOR_WRITE",
