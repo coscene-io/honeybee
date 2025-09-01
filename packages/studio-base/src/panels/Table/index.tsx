@@ -14,18 +14,21 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { useEffect } from "react";
+import SkipNextIcon from "@mui/icons-material/SkipNext";
+import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
+import { IconButton } from "@mui/material";
+import React, { useEffect } from "react";
 import { makeStyles } from "tss-react/mui";
 
-import { parseMessagePath, MessagePath } from "@foxglove/message-path";
-import { useMessagesByTopic } from "@foxglove/studio-base/PanelAPI";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
+import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
-import { useCachedGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
+import { useMessageDataItem } from "@foxglove/studio-base/components/MessagePathSyntax/useMessageDataItem";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useFrameNavigation } from "@foxglove/studio-base/hooks";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import Table from "./Table";
@@ -36,9 +39,13 @@ type Props = { config: Config; saveConfig: SaveConfig<Config> };
 const useStyles = makeStyles()((theme) => ({
   toolbar: {
     paddingBlock: 0,
+    gap: theme.spacing(0.25),
   },
   monospace: {
     fontFamily: theme.typography.fontMonospace,
+  },
+  iconButton: {
+    padding: theme.spacing(0.25),
   },
 }));
 
@@ -52,15 +59,33 @@ function TablePanel({ config, saveConfig }: Props) {
     [saveConfig],
   );
 
-  const topicRosPath: MessagePath | undefined = React.useMemo(
-    () => parseMessagePath(topicPath),
-    [topicPath],
-  );
-  const topicName = topicRosPath?.topicName ?? "";
-  const msgs = useMessagesByTopic({ topics: [topicName], historySize: 1 })[topicName];
-  const cachedGetMessagePathDataItems = useCachedGetMessagePathDataItems([topicPath]);
-  const msg = msgs?.[0];
-  const cachedMessages = msg ? cachedGetMessagePathDataItems(topicPath, msg) ?? [] : [];
+  // Use frame navigation hook
+  const {
+    hasPreFrame,
+    handlePreviousFrame,
+    handleNextFrame,
+    onRestore,
+    getEffectiveMessages,
+    updateRenderedTime,
+    keyDownHandlers,
+    keyUpHandlers,
+    panelRef,
+  } = useFrameNavigation();
+
+  const messageDataItems = useMessageDataItem(topicPath ? topicPath : "", {
+    historySize: "all",
+    onRestore,
+  });
+  const effectiveMessages = getEffectiveMessages(messageDataItems);
+  const cachedMessages =
+    effectiveMessages.length > 0
+      ? effectiveMessages[effectiveMessages.length - 1]?.queriedData ?? []
+      : [];
+
+  // Update rendered time for frame navigation
+  useEffect(() => {
+    updateRenderedTime(messageDataItems);
+  }, [messageDataItems, updateRenderedTime]);
 
   const { setMessagePathDropConfig } = usePanelContext();
 
@@ -82,27 +107,62 @@ function TablePanel({ config, saveConfig }: Props) {
   }, [setMessagePathDropConfig, saveConfig]);
 
   return (
-    <Stack flex="auto" overflow="hidden" position="relative">
-      <PanelToolbar className={classes.toolbar}>
-        <MessagePathInput index={0} path={topicPath} onChange={onTopicPathChange} />
-      </PanelToolbar>
-      {topicPath.length === 0 && <EmptyState>No topic selected</EmptyState>}
-      {topicPath.length !== 0 && cachedMessages.length === 0 && (
-        <EmptyState>Waiting for next message…</EmptyState>
-      )}
-      {topicPath.length !== 0 && cachedMessages.length > 0 && (
-        <Stack overflow="auto" className={classes.monospace}>
-          <Table
-            value={
-              cachedMessages.length > 1
-                ? cachedMessages.map((item) => item.value)
-                : cachedMessages[0]?.value
-            }
-            accessorPath=""
-          />
-        </Stack>
-      )}
-    </Stack>
+    <div
+      ref={panelRef}
+      tabIndex={0}
+      style={{
+        outline: "none",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+      }}
+    >
+      <Stack flex="auto" overflow="hidden" position="relative">
+        <PanelToolbar className={classes.toolbar}>
+          <MessagePathInput index={0} path={topicPath} onChange={onTopicPathChange} />
+          {hasPreFrame && (
+            <IconButton
+              className={classes.iconButton}
+              title="Previous frame (↑)"
+              onClick={handlePreviousFrame}
+              data-testid="previous-frame"
+              size="small"
+            >
+              <SkipPreviousIcon fontSize="small" />
+            </IconButton>
+          )}
+          <IconButton
+            className={classes.iconButton}
+            title="Next frame (↓)"
+            onClick={() => {
+              handleNextFrame(messageDataItems);
+            }}
+            data-testid="next-frame"
+            size="small"
+          >
+            <SkipNextIcon fontSize="small" />
+          </IconButton>
+        </PanelToolbar>
+        {topicPath.length === 0 && <EmptyState>No topic selected</EmptyState>}
+        {topicPath.length !== 0 && cachedMessages.length === 0 && (
+          <EmptyState>Waiting for next message…</EmptyState>
+        )}
+        {topicPath.length !== 0 && cachedMessages.length > 0 && (
+          <Stack overflow="auto" className={classes.monospace}>
+            <Table
+              value={
+                cachedMessages.length > 1
+                  ? cachedMessages.map((item) => item.value)
+                  : cachedMessages[0]?.value
+              }
+              accessorPath=""
+            />
+          </Stack>
+        )}
+        <KeyListener global keyDownHandlers={keyDownHandlers} keyUpHandlers={keyUpHandlers} />
+      </Stack>
+    </div>
   );
 }
 

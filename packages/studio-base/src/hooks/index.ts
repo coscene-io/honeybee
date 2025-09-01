@@ -9,3 +9,4 @@
 
 export { useAppConfigurationValue } from "./useAppConfigurationValue";
 export { useAppTimeFormat } from "./useAppTimeFormat";
+export { useFrameNavigation } from "./useFrameNavigation";
