@@ -477,7 +477,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     if (!localLayout) {
       throw new Error(`Cannot overwrite layout ${id} because it does not exist`);
     }
-    const now = Timestamp.fromDate(new Date());
+    // const now = Timestamp.fromDate(new Date());
 
     if (layoutIsShared(localLayout)) {
       if (!this.#remote) {
