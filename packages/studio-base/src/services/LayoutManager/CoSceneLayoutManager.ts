@@ -559,7 +559,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         permission: "CREATOR_WRITE",
         baseline: { data: layout.working?.data ?? layout.baseline.data, modifyTime: now },
         working: undefined,
-        syncInfo: { status: "new", lastRemoteModifyTime: now },
+        syncInfo: { status: "new", lastRemoteModifyTime: now }, // fix: now
       });
       await local.put({ ...layout, working: undefined });
       return newLayout;

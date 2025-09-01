@@ -517,50 +517,50 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     void analytics.logEvent(AppEvent.LAYOUT_CREATE);
   }, [promptForUnsavedChanges, layoutManager, onSelectLayout, analytics]);
 
-  const onRecommendedToProjectLayout = useCallbackWithToast(
-    async (item: Layout) => {
-      // todo: delete
-      // const currentProjectId = externalInitConfig?.projectId;
-      // const currentRecommendedLayouts = layouts.value?.shared
-      //   .filter((layout) => layout.isProjectRecommended)
-      //   .map((layout) => layout.id);
-      // if (currentRecommendedLayouts != undefined && currentProjectId != undefined) {
-      //   if (item.isProjectRecommended) {
-      //     const nextRecommendedLayouts = currentRecommendedLayouts.filter((id) => id !== item.id);
-      //     await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
-      //   } else {
-      //     const nextRecommendedLayouts = [...currentRecommendedLayouts, item.id];
-      //     await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
-      //   }
-      //   await layoutManager.updateLayout({ id: item.id, displayName: item.displayName });
-      // }
-    },
-    [],
-    // [externalInitConfig?.projectId, consoleApi, layoutManager, layouts.value?.shared],
-  );
+  // const onRecommendedToProjectLayout = useCallbackWithToast(
+  //   async (item: Layout) => {
+  //     todo: delete
+  //     const currentProjectId = externalInitConfig?.projectId;
+  //     const currentRecommendedLayouts = layouts.value?.shared
+  //       .filter((layout) => layout.isProjectRecommended)
+  //       .map((layout) => layout.id);
+  //     if (currentRecommendedLayouts != undefined && currentProjectId != undefined) {
+  //       if (item.isProjectRecommended) {
+  //         const nextRecommendedLayouts = currentRecommendedLayouts.filter((id) => id !== item.id);
+  //         await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
+  //       } else {
+  //         const nextRecommendedLayouts = [...currentRecommendedLayouts, item.id];
+  //         await consoleApi.setProjectRecommendedLayouts(nextRecommendedLayouts, currentProjectId);
+  //       }
+  //       await layoutManager.updateLayout({ id: item.id, displayName: item.displayName });
+  //     }
+  //   },
+  //   [],
+  //   [externalInitConfig?.projectId, consoleApi, layoutManager, layouts.value?.shared],
+  // );
 
-  const onCopyToRecordDefaultLayout = useCallbackWithToast(
-    async (item: Layout) => {
-      const displayName = await prompt({
-        title: t("copyToRecordDefaultLayoutTitle"),
-        subText: t("copyToRecordDefaultLayoutDesc"),
-        initialValue: item.displayName,
-        label: t("layoutName"),
-      });
-      if (displayName != undefined) {
-        const newLayout = await layoutManager.saveNewLayout({
-          folder: item.folder,
-          displayName,
-          data: item.working?.data ?? item.baseline.data,
-          permission: "ORG_WRITE",
-          isRecordDefaultLayout: true,
-        });
-        void analytics.logEvent(AppEvent.LAYOUT_SHARE, { permission: item.permission });
-        await onSelectLayout(newLayout);
-      }
-    },
-    [analytics, t, layoutManager, onSelectLayout, prompt],
-  );
+  // const onCopyToRecordDefaultLayout = useCallbackWithToast(
+  //   async (item: Layout) => {
+  //     const displayName = await prompt({
+  //       title: t("copyToRecordDefaultLayoutTitle"),
+  //       subText: t("copyToRecordDefaultLayoutDesc"),
+  //       initialValue: item.displayName,
+  //       label: t("layoutName"),
+  //     });
+  //     if (displayName != undefined) {
+  //       const newLayout = await layoutManager.saveNewLayout({
+  //         folder: item.folder,
+  //         displayName,
+  //         data: item.working?.data ?? item.baseline.data,
+  //         permission: "ORG_WRITE",
+  //         isRecordDefaultLayout: true,
+  //       });
+  //       void analytics.logEvent(AppEvent.LAYOUT_SHARE, { permission: item.permission });
+  //       await onSelectLayout(newLayout);
+  //     }
+  //   },
+  //   [analytics, t, layoutManager, onSelectLayout, prompt],
+  // );
 
   const appBarMenuItems = [
     {
@@ -713,7 +713,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
             onRevert={onRevertLayout}
             onMakePersonalCopy={onMakePersonalCopy}
             searchQuery={searchQuery}
-            onCopyToRecordDefaultLayout={onCopyToRecordDefaultLayout}
           />
           {layoutManager.supportsSharing && orgLayouts != undefined && orgLayouts.length > 0 && (
             <LayoutSection
@@ -734,8 +733,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               onRevert={onRevertLayout}
               onMakePersonalCopy={onMakePersonalCopy}
               searchQuery={searchQuery}
-              onRecommendedToProjectLayout={onRecommendedToProjectLayout}
-              onCopyToRecordDefaultLayout={onCopyToRecordDefaultLayout}
             />
           )}
           {layoutManager.supportsSharing &&
@@ -759,11 +756,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           <Stack flexGrow={1} />
         </Stack>
       </Menu>
-      {/* <SelectLayoutTemplateModal
-        open={selectLayoutTemplateModalOpen}
-        onClose={handleCloseLayoutTemplateModal}
-        onSelectedLayout={handleSelectLayoutTemplate}
-      /> */}
     </>
   );
 }

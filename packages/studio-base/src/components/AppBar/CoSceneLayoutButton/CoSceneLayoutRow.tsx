@@ -130,9 +130,9 @@ export type LayoutActionMenuItem =
       debug?: boolean;
     };
 
-const selectUserRole = (store: UserStore) => store.role;
-const selectProject = (state: CoreDataStore) => state.project;
-const selectRecord = (state: CoreDataStore) => state.record;
+// const selectUserRole = (store: UserStore) => store.role;
+// const selectProject = (state: CoreDataStore) => state.project;
+// const selectRecord = (state: CoreDataStore) => state.record;
 
 export default React.memo(function LayoutRow({
   layout,
@@ -149,8 +149,6 @@ export default React.memo(function LayoutRow({
   onOverwrite,
   onRevert,
   onMakePersonalCopy,
-  onRecommendedToProjectLayout,
-  onCopyToRecordDefaultLayout,
 }: {
   layout: Layout;
   anySelectedModifiedLayouts: boolean;
@@ -166,14 +164,12 @@ export default React.memo(function LayoutRow({
   onOverwrite?: (item: Layout) => void;
   onRevert?: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
-  onRecommendedToProjectLayout?: (item: Layout) => void;
-  onCopyToRecordDefaultLayout?: (item: Layout) => void;
 }): React.JSX.Element {
   const isMounted = useMountedState();
   const confirm = useConfirm();
   const layoutManager = useLayoutManager();
   const { t } = useTranslation("cosLayout");
-  const currentUserRole = useCurrentUser(selectUserRole);
+  // const currentUserRole = useCurrentUser(selectUserRole);
 
   const [editingName, setEditingName] = useState(false);
   const [nameFieldValue, setNameFieldValue] = useState("");
@@ -188,8 +184,8 @@ export default React.memo(function LayoutRow({
   const hasModifications = layout.working != undefined && onOverwrite != undefined;
   const multiSelection = multiSelectedIds.length > 1;
 
-  const project = useCoreData(selectProject);
-  const record = useCoreData(selectRecord);
+  // const project = useCoreData(selectProject);
+  // const record = useCoreData(selectRecord);
 
   useLayoutEffect(() => {
     const onlineListener = () => {
@@ -376,30 +372,6 @@ export default React.memo(function LayoutRow({
       onClick: duplicateAction,
       "data-testid": "duplicate-layout",
     },
-    // todo: check
-    // layoutIsShared(layout) &&
-    //   onRecommendedToProjectLayout != undefined &&
-    //   !layout.isRecordRecommended &&
-    //   currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_ADMIN] &&
-    //   project.value != undefined && {
-    //     type: "item",
-    //     key: "recommendedToProjectLayout",
-    //     text: layout.isProjectRecommended
-    //       ? t("removeProjectRecommendedLayout")
-    //       : t("markAsProjectRecommendedLayout"),
-    //     onClick: recommendedToProjectAction,
-    //     "data-testid": "recommended-project-layout",
-    //   },
-    // onCopyToRecordDefaultLayout != undefined &&
-    //   !layout.isRecordRecommended &&
-    //   currentUserRole.projectRole > ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER] &&
-    //   record.value != undefined && {
-    //     type: "item",
-    //     key: "copyToRecordDefaultLayout",
-    //     text: t("copyToRecordDefaultLayoutTitle"),
-    //     onClick: copyToRecordDefaultAction,
-    //     "data-testid": "copy-to-record-default-layout",
-    //   },
     layoutManager.supportsSharing &&
       !layoutIsShared(layout) && {
         type: "item",
