@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Timestamp } from "@bufbuild/protobuf";
+
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
@@ -36,7 +38,8 @@ export type Layout = {
   /** The last explicitly saved version of this layout. */
   baseline: {
     data: LayoutData;
-    savedAt: ISO8601Timestamp | undefined;
+    savedAt: ISO8601Timestamp | undefined; // deprecated
+    modifyTime: Timestamp | undefined;
   };
 
   /**
@@ -45,7 +48,8 @@ export type Layout = {
   working:
   | {
     data: LayoutData;
-    savedAt: ISO8601Timestamp | undefined;
+    savedAt: ISO8601Timestamp | undefined; // deprecated
+    modifyTime: Timestamp | undefined;
   }
   | undefined;
 
@@ -54,7 +58,8 @@ export type Layout = {
   | {
     status: LayoutSyncStatus;
     /** The last savedAt time returned by the server. */
-    lastRemoteSavedAt: ISO8601Timestamp | undefined;
+    lastRemoteSavedAt: ISO8601Timestamp | undefined; // deprecated
+    lastRemoteModifyTime: Timestamp | undefined;
   }
   | undefined;
 };
