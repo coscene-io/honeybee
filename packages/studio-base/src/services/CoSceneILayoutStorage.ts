@@ -20,12 +20,13 @@ export type LayoutSyncStatus =
   | "tracked"
   | "locally-deleted"
   | "remotely-deleted";
+
 export type Layout = {
   id: LayoutID;
+  parent: string;
+  folder: string;
   displayName: string;
   permission: LayoutPermission;
-  folder: string;
-  parent: string;
 
   /** @deprecated old field name, migrated to working/baseline */
   data?: LayoutData;

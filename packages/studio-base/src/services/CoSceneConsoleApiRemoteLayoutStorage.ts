@@ -188,7 +188,6 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     savedAt: ISO8601Timestamp;
     parent: string;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
-    console.log('remote updateLayout')
     try {
       // First get the existing layout to determine its current resource name
       const existingLayout = await this.getLayout(id, parent);
