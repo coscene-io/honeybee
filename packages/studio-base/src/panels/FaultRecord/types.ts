@@ -50,4 +50,15 @@ export interface LogLine {
   type?: string;
 }
 
+// Action info returned by GetActionList service
+export interface ActionInfo {
+  mode: string;
+  action_name: string;
+  preparation_duration_s: number;
+  record_duration_s: number;
+  topics: string[];
+  is_enable: boolean;
+  is_auto_upload: boolean;
+}
+
 // ROS服务接口已移除，不再使用

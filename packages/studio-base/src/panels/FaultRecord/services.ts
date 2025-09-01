@@ -1,17 +1,6 @@
 // Service utilities for FaultRecord panel
 import type { PanelExtensionContext } from "@foxglove/studio";
-import { ActionNameConfig } from "./types";
-
-// Action info returned by GetActionList service
-export interface ActionInfo {
-  mode: string;
-  action_name: string;
-  preparation_duration_s: number;
-  record_duration_s: number;
-  topics: string[];
-  is_enable: boolean;
-  is_auto_upload: boolean;
-}
+import { ActionNameConfig, ActionInfo } from "./types";
 
 /**
  * Call ROS2 service to get action list and filter with is_enable = true.
@@ -66,4 +55,12 @@ export async function refreshActionNames(context: PanelExtensionContext): Promis
 export async function isActionAvailable(context: PanelExtensionContext, actionName: string): Promise<boolean> {
   const availableActions = await fetchAvailableActions(context);
   return availableActions.some((a) => a.value === actionName);
+}
+
+/**
+ * Get detailed information for a specific action by name.
+ */
+export async function getActionDetail(actionName: string, context: PanelExtensionContext): Promise<ActionInfo | undefined> {
+  const actions = await fetchActionList(context);
+  return actions.find(action => action.action_name === actionName);
 }

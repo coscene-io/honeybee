@@ -9,9 +9,10 @@ import { PanelExtensionContext } from "@foxglove/studio";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { ActionNameSelector, DurationInput, RecordButton } from "./components/ui";
+import ActionDetailModal from "./components/ActionDetailModal";
 import { defaultConfig } from "./settings";
-import { fetchAvailableActions } from "./services";
-import type { PanelState, RecordingState, StartRecordReq, StopRecordReq, ActionNameConfig } from "./types";
+import { fetchAvailableActions, getActionDetail } from "./services";
+import type { PanelState, RecordingState, StartRecordReq, StopRecordReq, ActionNameConfig, ActionInfo } from "./types";
 import type { FaultRecordConfig } from "./settings";
 
 import { isEqual } from "lodash";
@@ -41,6 +42,9 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
   const [isLoadingActions, setIsLoadingActions] = useState(false);
   const [isStartLoading, setIsStartLoading] = useState(false);
   const [isStopLoading, setIsStopLoading] = useState(false);
+  const [showActionDetail, setShowActionDetail] = useState(false);
+  const [selectedActionDetail, setSelectedActionDetail] = useState<ActionInfo | null>(null);
+  const [isLoadingActionDetail, setIsLoadingActionDetail] = useState(false);
   const hydratingRef = useRef(false);
 
 
@@ -404,12 +408,43 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
     }
   }, [state.selectedActionName, addLog, config.stopRecordService.serviceName, context]);
 
+  // Handle showing action detail modal
+  const handleShowActionDetail = useCallback(async (actionName: string) => {
+    if (!actionName) return;
+    
+    setIsLoadingActionDetail(true);
+    addLog(`获取Action详情: ${actionName}`, "info");
+    
+    try {
+      const actionDetail = await getActionDetail(actionName, context);
+      if (actionDetail) {
+        setSelectedActionDetail(actionDetail);
+        setShowActionDetail(true);
+        addLog(`成功获取Action详情: ${actionName}`, "success");
+      } else {
+        addLog(`未找到Action详情: ${actionName}`, "error");
+      }
+    } catch (error) {
+      addLog(`获取Action详情失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
+    } finally {
+      setIsLoadingActionDetail(false);
+    }
+  }, [addLog, context]);
+
   const isRecording = state.recordingState === "recording";
   const canStart = !isStartLoading && availableActions.length > 0;
   const canStop = !isStopLoading && availableActions.length > 0;
 
   return (
-    <div style={{ padding: 16, height: "100%", display: "flex", flexDirection: "column", gap: 16, overflow: "auto" }}>
+    <div style={{ 
+      padding: 16, 
+      height: "100%", 
+      display: "flex", 
+      flexDirection: "column", 
+      gap: 16, 
+      overflow: "auto",
+      position: "relative" // Enable absolute positioning for modal
+    }}>
       {/* Control section */}
       <div style={{ 
         border: "1px solid #e5e7eb", 
@@ -429,9 +464,13 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
               onChange={(v) => {
                 addLog(`用户选择Action: "${v}" (之前选择: "${state.selectedActionName}")`, "info");
                 setState((prev) => ({ ...prev, selectedActionName: v }));
+                // Auto show action detail when user selects an action
+                if (v && v !== state.selectedActionName) {
+                  handleShowActionDetail(v);
+                }
               }}
               options={availableActions}
-              disabled={isLoadingActions}
+              disabled={isLoadingActions || isLoadingActionDetail}
             />
           </div>
           
@@ -532,6 +571,16 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
           )}
         </div>
       </div>
+      
+      {/* Action Detail Modal */}
+      <ActionDetailModal
+        isOpen={showActionDetail}
+        onClose={() => {
+          setShowActionDetail(false);
+          setSelectedActionDetail(null);
+        }}
+        actionInfo={selectedActionDetail}
+      />
     </div>
   );
 }
