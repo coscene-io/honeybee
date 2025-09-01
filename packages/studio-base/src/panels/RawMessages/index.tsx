@@ -121,6 +121,8 @@ function RawMessages(props: Props) {
   const startPlayback = useMessagePipeline(selectStartPlayback);
   const pausePlayback = useMessagePipeline(selectPausePlayback);
 
+  const [hasPreFrame, setHasPreFrame] = useState(false);
+
   // Flag bit to indicate that the next message is the previous frame, current frame, next frame.
   const frameState = useRef<"previous" | "current" | "next">("current");
   // 记录我们播放过的每一帧的时间戳，方便用户返回上一帧, 这里要注意⚠️ 在连续播放的情况下，用户看到的是渲染帧，比如当前以一秒 60 帧的速度播放，
@@ -158,6 +160,7 @@ function RawMessages(props: Props) {
   const onRestore = () => {
     if (frameState.current === "current") {
       rendedTime.current = [];
+      setHasPreFrame(false);
     }
 
     if (frameState.current === "next" || frameState.current === "previous") {
@@ -299,6 +302,10 @@ function RawMessages(props: Props) {
 
     if (rendedTime.current.length > MAX_RENDERED_TIME_ARRAY_LENGTH) {
       rendedTime.current = rendedTime.current.slice(-MAX_RENDERED_TIME_ARRAY_LENGTH);
+    }
+
+    if (rendedTime.current.length > 1) {
+      setHasPreFrame(true);
     }
   }, [matchedMessages, pausePlayback, seekPlayback]);
 
@@ -794,11 +801,17 @@ function RawMessages(props: Props) {
   );
 
   const handlePreviousFrame = useCallback(() => {
-    pausePlayback?.();
-    frameState.current = "previous";
-    rendedTime.current.pop();
-    if (rendedTime.current.length > 0) {
-      seekPlayback?.(rendedTime.current[rendedTime.current.length - 1]!);
+    if (rendedTime.current.length > 1) {
+      pausePlayback?.();
+      frameState.current = "previous";
+      rendedTime.current.pop();
+      if (rendedTime.current.length > 0) {
+        seekPlayback?.(rendedTime.current[rendedTime.current.length - 1]!);
+      }
+
+      if (rendedTime.current.length <= 1) {
+        setHasPreFrame(false);
+      }
     }
   }, [pausePlayback, seekPlayback]);
 
@@ -855,7 +868,7 @@ function RawMessages(props: Props) {
         onToggleDiff={onToggleDiff}
         onToggleExpandAll={onToggleExpandAll}
         onTopicPathChange={onTopicPathChange}
-        onPreviousFrame={handlePreviousFrame}
+        onPreviousFrame={hasPreFrame ? handlePreviousFrame : undefined}
         onNextFrame={handleNextFrame}
         saveConfig={saveConfig}
         topicPath={topicPath}
