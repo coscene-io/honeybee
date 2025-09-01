@@ -298,6 +298,7 @@ export function useWorkspaceActions(): WorkspaceActions {
 
         const data = parsedState as LayoutData;
         const newLayout = await layoutManager.saveNewLayout({
+          folder: "", // todo: get folder
           displayName: layoutName,
           data,
           permission: "CREATOR_WRITE",
