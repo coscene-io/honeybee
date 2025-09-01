@@ -48,6 +48,7 @@ async function updateOrFetchLayout(
   remote: IRemoteLayoutStorage,
   params: Parameters<IRemoteLayoutStorage["updateLayout"]>[0],
 ): Promise<RemoteLayout> {
+  console.log("updateOrFetchLayout", params)
   const response = await remote.updateLayout(params);
 
   switch (response.status) {
@@ -379,18 +380,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           : { data, modifyTime: Timestamp.fromDate(new Date()) };
 
     // Renames of shared layouts go directly to the server
-    // if (displayName != undefined && layoutIsShared(localLayout)) {
-
     if (displayName != undefined && layoutIsShared(localLayout)) {
-      // console.log('manger update 1111')
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
       if (!this.isOnline) {
         throw new Error("Cannot update a shared layout while offline");
       }
-      // const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, displayName, modifyTime: Timestamp.fromDate(new Date()), parent: localLayout.parent });
-      // console.log(localLayout.baseline.modifyTime)
       const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, displayName, modifyTime: localLayout.baseline.modifyTime!, parent: localLayout.parent });
       const result = await this.#local.runExclusive(
         async (local) =>
@@ -414,6 +410,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         displayName != undefined &&
         localLayout.syncInfo != undefined &&
         localLayout.syncInfo.status !== "new";
+      console.log('isRename', isRename)
+
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
@@ -473,6 +471,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   @CoSceneLayoutManager.#withBusyStatus
   public async overwriteLayout({ id }: { id: LayoutID }): Promise<Layout> {
+    console.log('overwriteLayout', id)
     const localLayout = await this.#local.runExclusive(async (local) => await local.get(id));
     if (!localLayout) {
       throw new Error(`Cannot overwrite layout ${id} because it does not exist`);
@@ -695,6 +694,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     operations: readonly (SyncOperation & { local: false })[],
     abortSignal: AbortSignal,
   ): Promise<void> {
+    console.log('performRemoteSyncOperations', operations)
     const remote = this.#remote;
     if (!remote) {
       return;

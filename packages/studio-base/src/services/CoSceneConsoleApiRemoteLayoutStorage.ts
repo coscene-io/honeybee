@@ -17,6 +17,7 @@ import {
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import { replaceUndefinedWithNull } from "@foxglove/studio-base/util/coscene";
 
 const log = Logger.getLogger(__filename);
 
@@ -127,7 +128,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         name: `${parent}/layouts/${id ?? ""}`,
         displayName,
         folder,
-        data: Struct.fromJson(data as JsonObject),
+        data: Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject),
         scope: permission === "CREATOR_WRITE" ? LayoutScopeEnum_LayoutScope.PERSONAL : LayoutScopeEnum_LayoutScope.PROJECT,
       }
     )
@@ -165,7 +166,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       const updatedLayout = new Layout(
         {
           name: `${parent}/layouts/${id}`,
-          modifyTime: modifyTime,
+          modifyTime,
         }
       );
 
@@ -179,19 +180,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         paths.push("displayName");
       }
       if (data != undefined) {
-        // todo:  replaceUndefinedWithNull 是否必须
-        // updatedLayout.data = Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject);
-        updatedLayout.data = Struct.fromJson(data as JsonObject);
+        updatedLayout.data = Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject);
         paths.push("data");
       }
 
-
-      console.log('s2', updatedLayout, updateMask)
-
       const result = await this.api.updateLayout({ layout: updatedLayout, updateMask });
 
-      console.log('sssssss', result)
-      return { status: "success", newLayout: convertGrpcLayoutToRemoteLayoutWithoutData(result, data) };
+      console.log('result', result)
+      return { status: "success", newLayout: convertGrpcLayoutToRemoteLayout(result) };
     } catch (err) {
       log.error("Failed to update layout:", err);
       return { status: "conflict" };
