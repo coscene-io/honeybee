@@ -58,7 +58,6 @@ import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
 import LayoutSection from "./LayoutSection";
-import SelectLayoutTemplateModal from "./SelectLayoutTemplateModal";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
@@ -112,7 +111,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const analytics = useAnalytics();
   const [prompt, promptModal] = usePrompt();
   const confirm = useConfirm();
-  const [selectLayoutTemplateModalOpen, setSelectLayoutTemplateModalOpen] = useState(false);
   const layoutManager = useLayoutManager();
 
   const consoleApi = useConsoleApi();
@@ -582,34 +580,8 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         setMenuOpen(false);
       },
     },
-    {
-      type: "item",
-      key: "CreateLayoutFromTemplate",
-      label: t("createLayoutFromTemplate"),
-      onClick: () => {
-        setMenuOpen(false);
-        setSelectLayoutTemplateModalOpen(true);
-      },
-    },
     { type: "divider" },
   ];
-
-  const handleCloseLayoutTemplateModal = useCallback(() => {
-    setSelectLayoutTemplateModalOpen(false);
-  }, [setSelectLayoutTemplateModalOpen]);
-
-  const handleSelectLayoutTemplate = async (layout: LayoutData, layoutName: string) => {
-    setSelectLayoutTemplateModalOpen(false);
-    const newLayout = await layoutManager.saveNewLayout({
-      folder: "", // todo: get folder
-      displayName: layoutName,
-      data: layout,
-      permission: "CREATOR_WRITE",
-    });
-    void onSelectLayout(newLayout);
-
-    void analytics.logEvent(AppEvent.LAYOUT_CREATE);
-  };
 
   const sortedRemoteLayouts = useMemo(() => {
     // return layouts.value?.shared.sort((a, b) => {
@@ -787,11 +759,11 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           <Stack flexGrow={1} />
         </Stack>
       </Menu>
-      <SelectLayoutTemplateModal
+      {/* <SelectLayoutTemplateModal
         open={selectLayoutTemplateModalOpen}
         onClose={handleCloseLayoutTemplateModal}
         onSelectedLayout={handleSelectLayoutTemplate}
-      />
+      /> */}
     </>
   );
 }

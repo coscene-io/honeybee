@@ -1027,6 +1027,7 @@ class CoSceneConsoleApi {
     return await getPromiseClient(ProjectService).getProject(req);
   }
 
+  // todo: remove
   public async getLayoutTemplatesIndex(layoutTemplatesUrl: string): Promise<LayoutTemplatesIndex> {
     return await this.#get<LayoutTemplatesIndex>(layoutTemplatesUrl, undefined, true);
   }
