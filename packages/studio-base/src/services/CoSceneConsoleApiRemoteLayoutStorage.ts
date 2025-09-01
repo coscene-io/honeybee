@@ -93,27 +93,6 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       }));
 
       return layouts.flat();
-
-      // List both user layouts and project layouts if project ID is available
-      // const userParent = `users/${this.userId}`;
-      // const userLayouts = await this.api.listLayouts({ parent: userParent });
-
-      // let projectLayouts: Layout[] = [];
-      // if (this.projectName) {
-      //   const projectResponse = await this.api.listLayouts({ parent: this.projectName });
-      //   projectLayouts = projectResponse.layouts;
-      // }
-
-      // const allLayouts = [...userLayouts.layouts, ...projectLayouts];
-
-      // return filterMap(allLayouts, (layout) => {
-      //   try {
-      //     return convertGrpcLayoutToRemoteLayout(layout);
-      //   } catch (err) {
-      //     log.warn(err);
-      //     return undefined;
-      //   }
-      // });
     } catch (err) {
       log.error("Failed to get layouts:", err);
       return [];
@@ -163,14 +142,6 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     console.log('result', result);
 
     return convertGrpcLayoutToRemoteLayoutWithoutData(result, data);
-    // return {
-    //   id: result.name.split('/layouts/')[1] as LayoutID,
-    //   displayName: result.displayName,
-    //   permission,
-    //   data,
-    //   savedAt: result.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
-    //   parent,
-    // }
   }
 
   public async updateLayout({
@@ -200,6 +171,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         {
           name: `${parent}/layouts/${id}`,
           modifyTime: Timestamp.fromDate(new Date(savedAt)),
+          // modifyTime: new Timestamp({ seconds: 1756451485n, nanos: 845399000 }),
         }
       );
 
