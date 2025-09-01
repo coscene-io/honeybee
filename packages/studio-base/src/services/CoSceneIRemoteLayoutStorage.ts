@@ -10,7 +10,6 @@ import { Timestamp } from "@bufbuild/protobuf";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
-  ISO8601Timestamp,
   LayoutPermission,
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
@@ -24,7 +23,6 @@ export type RemoteLayout = {
   displayName: string;
   permission: LayoutPermission;
   data: LayoutData;
-  savedAt: ISO8601Timestamp | undefined; // deprecated
   modifyTime: Timestamp | undefined;
 };
 
@@ -54,7 +52,7 @@ export interface IRemoteLayoutStorage {
     displayName?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
-    savedAt: ISO8601Timestamp;
+    modifyTime: Timestamp;
   }) => Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }>;
 
   /** Returns true if the layout existed and was deleted, false if the layout did not exist. */

@@ -38,7 +38,6 @@ export type Layout = {
   /** The last explicitly saved version of this layout. */
   baseline: {
     data: LayoutData;
-    savedAt: ISO8601Timestamp | undefined; // deprecated
     modifyTime: Timestamp | undefined;
   };
 
@@ -48,7 +47,6 @@ export type Layout = {
   working:
   | {
     data: LayoutData;
-    savedAt: ISO8601Timestamp | undefined; // deprecated
     modifyTime: Timestamp | undefined;
   }
   | undefined;
@@ -57,8 +55,7 @@ export type Layout = {
   syncInfo:
   | {
     status: LayoutSyncStatus;
-    /** The last savedAt time returned by the server. */
-    lastRemoteSavedAt: ISO8601Timestamp | undefined; // deprecated
+    /** The last modifyTime returned by the server. */
     lastRemoteModifyTime: Timestamp | undefined;
   }
   | undefined;

@@ -10,9 +10,11 @@ import { MarkOptional } from "ts-essentials";
 
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
+import { Timestamp } from "@bufbuild/protobuf";
+
 import { migrateLegacyToNew3DPanels } from "./migrateLegacyToNew3DPanels";
 import { migrateLegacyToNewImagePanels } from "./migrateLegacyToNewImagePanels";
-import { Layout, ISO8601Timestamp } from "../CoSceneILayoutStorage";
+import { Layout } from "../CoSceneILayoutStorage";
 
 /**
  * Perform any necessary migrations on old layout data.
@@ -43,16 +45,16 @@ export function migrateLayout(value: unknown): Layout {
     throw new Error("Invariant violation - layout item is missing an id");
   }
 
-  const now = new Date().toISOString() as ISO8601Timestamp;
+  const now = Timestamp.fromDate(new Date());
 
   let baseline = layout.baseline;
   if (!baseline) {
     if (layout.working) {
       baseline = layout.working;
     } else if (layout.data) {
-      baseline = { data: layout.data, savedAt: now };
+      baseline = { data: layout.data, modifyTime: now };
     } else if (layout.state) {
-      baseline = { data: layout.state, savedAt: now };
+      baseline = { data: layout.state, modifyTime: now };
     } else {
       throw new Error("Invariant violation - layout item is missing data");
     }
@@ -62,7 +64,7 @@ export function migrateLayout(value: unknown): Layout {
     id: layout.id,
     parent: layout.parent ?? '',
     folder: layout.folder ?? '',
-    displayName: layout.displayName ?? layout.name ?? `Unnamed (${now})`,
+    displayName: layout.displayName ?? layout.name ?? `Unnamed (${now.toDate().toISOString()})`,
     permission: layout.permission?.toUpperCase() ?? "CREATOR_WRITE",
     working: layout.working
       ? { ...layout.working, data: migratePanelsState(layout.working.data) }

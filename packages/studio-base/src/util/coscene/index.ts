@@ -120,7 +120,7 @@ export function replaceUndefinedWithNull(obj: Record<string, unknown>): Record<s
 
 // export const getCoSceneLayout = (layout: {
 //   id: LayoutID | undefined;
-//   savedAt: ISO8601Timestamp | undefined;
+//   modifyTime: Timestamp | undefined;
 //   displayName: string | undefined;
 //   permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
 //   data: Record<string, unknown> | undefined;

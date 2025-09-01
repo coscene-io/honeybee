@@ -9,17 +9,14 @@ import { Timestamp, FieldMask, Struct, JsonObject } from "@bufbuild/protobuf";
 import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
 import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 
-import { filterMap } from "@foxglove/den/collection";
 import Logger from "@foxglove/log";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import {
   IRemoteLayoutStorage,
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
-import { replaceUndefinedWithNull } from "@foxglove/studio-base/util/coscene";
 
 const log = Logger.getLogger(__filename);
 
@@ -53,7 +50,7 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
     displayName: layout.displayName,
     permission,
     data,
-    savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
+    modifyTime: layout.modifyTime,
   };
 }
 
@@ -73,7 +70,7 @@ function convertGrpcLayoutToRemoteLayoutWithoutData(layout: Layout, data?: Layou
     displayName: layout.displayName,
     permission,
     data: data ?? { configById: {}, globalVariables: {}, userNodes: {} },
-    savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
+    modifyTime: layout.modifyTime,
   };
 }
 
@@ -148,14 +145,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     displayName,
     data,
     permission: _permission,
-    savedAt,
+    modifyTime,
   }: {
     id: LayoutID;
     parent: string;
     displayName?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
-    savedAt: ISO8601Timestamp;
+    modifyTime: Timestamp;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
     try {
       // First get the existing layout to determine its current resource name
@@ -168,8 +165,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       const updatedLayout = new Layout(
         {
           name: `${parent}/layouts/${id}`,
-          modifyTime: Timestamp.fromDate(new Date(savedAt)),
-          // modifyTime: new Timestamp({ seconds: 1756451485n, nanos: 845399000 }),
+          modifyTime: modifyTime,
         }
       );
 

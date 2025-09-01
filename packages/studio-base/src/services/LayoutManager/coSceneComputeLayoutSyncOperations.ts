@@ -53,12 +53,12 @@ export default function coSceneComputeLayoutSyncOperations(
           ops.push({ local: false, type: "upload-updated", localLayout });
           break;
         case "tracked":
-          // if the server doesn't provide a savedAt we consider the layout old and ignore it
-          if (!remoteLayout.savedAt) {
+          // if the server doesn't provide a modifyTime we consider the layout old and ignore it
+          if (!remoteLayout.modifyTime) {
             break;
           }
 
-          if (localLayout.syncInfo.lastRemoteSavedAt !== remoteLayout.savedAt) {
+          if (localLayout.syncInfo.lastRemoteModifyTime?.seconds !== remoteLayout.modifyTime.seconds || localLayout.syncInfo.lastRemoteModifyTime.nanos !== remoteLayout.modifyTime.nanos) {
             ops.push({
               local: true,
               type: "update-baseline",
