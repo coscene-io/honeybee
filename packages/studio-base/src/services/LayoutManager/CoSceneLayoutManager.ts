@@ -295,7 +295,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     displayName: string;
     data: LayoutData;
     permission: LayoutPermission;
-    isRecordDefaultLayout?: boolean; // todo: delete
   }): Promise<Layout> {
     const parent = this.userName ?? ''; // fix: parent
 
