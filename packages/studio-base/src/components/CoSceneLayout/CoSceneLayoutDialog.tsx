@@ -7,8 +7,62 @@
 
 import CloseIcon from "@mui/icons-material/Close";
 import { Dialog, DialogProps, DialogTitle, IconButton } from "@mui/material";
+import _ from "lodash";
+import _uniq from "lodash/uniq";
+import { useEffect } from "react";
+import { useAsyncFn } from "react-use";
 
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import Logger from "@foxglove/log";
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+
+import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
+
+const log = Logger.getLogger(__filename);
+
+export function CoSceneLayoutDialogContent(): React.JSX.Element {
+  const layoutManager = useLayoutManager();
+
+  const [layouts, reloadLayouts] = useAsyncFn(
+    async () => {
+      const layouts = await layoutManager.getLayouts();
+      const [projectLayouts, personalLayouts] = _.partition(
+        layouts,
+        layoutManager.supportsSharing ? layoutIsShared : () => false,
+      );
+      return {
+        layouts: [...layouts].sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        personalFolders: _uniq(
+          personalLayouts.map((layout) => layout.folder).filter((folder) => folder),
+        ),
+        projectFolders: _uniq(
+          projectLayouts.map((layout) => layout.folder).filter((folder) => folder),
+        ),
+        personalLayouts: personalLayouts.sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        projectLayouts: projectLayouts.sort((a, b) => a.displayName.localeCompare(b.displayName)),
+      };
+    },
+    [layoutManager],
+    { loading: true },
+  );
+
+  useEffect(() => {
+    const listener = () => void reloadLayouts();
+    layoutManager.on("change", listener);
+    return () => {
+      layoutManager.off("change", listener);
+    };
+  }, [layoutManager, reloadLayouts]);
+
+  // Start loading on first mount
+  useEffect(() => {
+    reloadLayouts().catch((err: unknown) => {
+      log.error(err);
+    });
+  }, [reloadLayouts]);
+
+  return <CoSceneLayoutContent layouts={layouts.value} />;
+}
 
 export function CoSceneLayoutDialog(
   props: DialogProps & {
@@ -16,7 +70,6 @@ export function CoSceneLayoutDialog(
   },
 ): React.JSX.Element {
   const { open, onClose } = props;
-  const consoleApi = useConsoleApi();
 
   return (
     <Dialog open={open} onClose={onClose}>
@@ -31,6 +84,7 @@ export function CoSceneLayoutDialog(
           <CloseIcon />
         </IconButton>
       </DialogTitle>
+      <CoSceneLayoutDialogContent />
     </Dialog>
   );
 }
