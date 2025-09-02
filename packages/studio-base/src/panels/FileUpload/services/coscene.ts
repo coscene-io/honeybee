@@ -11,6 +11,7 @@ import { LinkTaskWrapper } from "@coscene-io/cosceneapis-es/coscene/dataplatform
 import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
 import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import { Timestamp } from "@bufbuild/protobuf";
+import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 
 import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { ListUserProjectsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
@@ -33,14 +34,16 @@ export class MockCoSceneClient implements CoSceneClient {
     ];
   }
 
-  async listTags(projectId: string): Promise<string[]> {
+  async listTags(projectId: string): Promise<Label[]> {
     await delay(80);
     const map: Record<string, string[]> = {
       "proj-1": ["slam", "localization", "regression", "night-run"],
       "proj-2": ["navigation", "failpoint", "sensor", "charging"],
       "proj-3": ["demo", "warehouse", "dc-fast", "qa"]
     };
-    return map[projectId] || [];
+    const tagNames = map[projectId] || [];
+    // Convert string[] to Label[] for mock data
+    return tagNames.map(name => new Label({ name, displayName: name }));
   }
 
   async upload(
@@ -95,7 +98,7 @@ export class RealCoSceneClient implements CoSceneClient {
     }
   }
 
-  async listTags(projectId: string): Promise<string[]> {
+  async listTags(projectId: string): Promise<Label[]> {
     try {
       // Extract warehouse ID and project ID from the full project name
       // Expected format: "warehouses/{warehouseId}/projects/{projectId}"
@@ -125,9 +128,8 @@ export class RealCoSceneClient implements CoSceneClient {
         projectId: actualProjectId,
       });
       
-      const tags = response.labels.map((label) => label.displayName || label.name);
-      console.log(`[标签获取] 项目${projectId}获取到${tags.length}个标签:`, tags);
-      return tags;
+      console.log(`[标签获取] 项目${projectId}获取到${response.labels.length}个标签`);
+      return response.labels;
     } catch (error) {
       console.error("Failed to list tags:", error);
       // Fallback to mock data if API fails
@@ -137,7 +139,9 @@ export class RealCoSceneClient implements CoSceneClient {
         "proj-2": ["navigation", "failpoint", "sensor", "charging"],
         "proj-3": ["demo", "warehouse", "dc-fast", "qa"]
       };
-      return map[projectId] || [];
+      const tagNames = map[projectId] || [];
+      // Convert string[] to Label[] for fallback data
+      return tagNames.map(name => new Label({ name, displayName: name }));
     }
   }
 
@@ -166,13 +170,23 @@ export class RealCoSceneClient implements CoSceneClient {
       const recordTitle = `Upload Record ${timestamp}`;
       const recordDescription = `Record created for file upload containing ${files.length} file(s)`;
       
+      // Convert tags to Label[] for API compatibility
+      const labelMessages = (cfg.tags ?? []).map(tag => {
+        if (typeof tag === 'string') {
+          return new Label({ name: tag, displayName: tag });
+        }
+        return tag;
+      });
+      
       console.log(`[记录创建] 创建记录: ${recordTitle}`);
+      console.log(`[记录创建] 标签信息: [${labelMessages.map(l => l.displayName || l.name).join(', ')}]`);
       
       const createdRecord = await this.api.createRecord({
         parent: cfg.projectId,
         record: {
           title: recordTitle,
           description: recordDescription,
+          labels: labelMessages, // Add labels to the record
         },
       });
       
@@ -288,6 +302,11 @@ export class RealCoSceneClient implements CoSceneClient {
             if (deviceName) {
               console.log("[任务创建] 设备信息:", deviceInfo);
               console.log("[任务创建] 提取的设备名称:", deviceName);
+              // Convert tags to string[] for task creation
+              const labelStrings = (cfg.tags ?? []).map(tag => 
+                typeof tag === 'string' ? tag : (tag.displayName || tag.name)
+              );
+              console.log(`[任务创建] 标签信息: [${labelStrings.join(', ')}]`);
               
               console.log(`[任务创建] 任务标题: ${taskTitle}`);
               console.log(`[任务创建] 使用项目名称: ${cfg.projectId}`);
@@ -304,7 +323,7 @@ export class RealCoSceneClient implements CoSceneClient {
                      scanFolders: [], // TODO: set actual scan folders if needed  
                      endTime: Timestamp.fromDate(new Date()),
                      startTime: Timestamp.fromDate(new Date()),
-                     labels: cfg.tags ?? [],
+                     labels: labelStrings,
                    }),
                  },
                  title: taskTitle,

@@ -139,8 +139,9 @@ function createCoSceneClient(serviceType: string, consoleApi?: ConsoleApi): CoSc
   }
 }
 
-export function FileUploadPanel({ config, context, serviceSettings, refreshButtonServiceName, consoleApi, device, user, organization, project }: FileUploadPanelProps) {
+export function FileUploadPanel({ config: _config, context, serviceSettings, refreshButtonServiceName, consoleApi, device, user, organization, project }: FileUploadPanelProps) {
   const { t } = useTranslation("dataCollection");
+  const logContainerRef = useRef<HTMLDivElement>(null);
   
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [taskProgressMap, setTaskProgressMap] = useState<Map<string, { progress: number; status: string }>>(new Map());
@@ -148,6 +149,13 @@ export function FileUploadPanel({ config, context, serviceSettings, refreshButto
   const log = useCallback((level: LogLine["level"], msg: string) => {
     setLogs((xs) => [...xs, { id: Date.now().toString() + Math.random().toString(36).substr(2, 9), ts: new Date().toLocaleTimeString(), level, msg }]);
   }, []);
+  
+  // Auto-scroll to latest log
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logs]);
   
   const bagServiceRef = useRef<any>(createBagService(serviceSettings.getBagListService || "mock", consoleApi));
   
@@ -358,7 +366,8 @@ export function FileUploadPanel({ config, context, serviceSettings, refreshButto
         
         if (uploadResult.success) {
           if (uploadResult.taskName) {
-            log("info", `[上传完成] CoScene上传成功, 文件数: ${pathsArray.length}, 项目: ${uploadConfig.projectId}, 任务: ${uploadResult.taskName}, 标签: [${uploadConfig.tags.join(', ')}]`);
+            const tagNames = uploadConfig.tags.map(tag => typeof tag === 'string' ? tag : (tag.displayName || tag.name));
+            log("info", `[上传完成] CoScene上传成功, 文件数: ${pathsArray.length}, 项目: ${uploadConfig.projectId}, 任务: ${uploadResult.taskName}, 标签: [${tagNames.join(', ')}]`);
             
             // Start task progress tracking similar to DataCollection
             if (consoleApi && user && organization && project) {
@@ -417,7 +426,8 @@ export function FileUploadPanel({ config, context, serviceSettings, refreshButto
               });
             }
           } else {
-            log("info", `[上传完成] CoScene文件上传成功, 文件数: ${pathsArray.length}, 项目: ${uploadConfig.projectId}, 标签: [${uploadConfig.tags.join(', ')}] (未创建任务)`);
+            const tagNames = uploadConfig.tags.map(tag => typeof tag === 'string' ? tag : (tag.displayName || tag.name));
+            log("info", `[上传完成] CoScene文件上传成功, 文件数: ${pathsArray.length}, 项目: ${uploadConfig.projectId}, 标签: [${tagNames.join(', ')}] (未创建任务)`);
           }
         } else {
           log("error", `[上传失败] CoScene上传失败, 文件数: ${pathsArray.length}`);
@@ -713,7 +723,7 @@ export function FileUploadPanel({ config, context, serviceSettings, refreshButto
           padding: 12
         }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>操作日志</div>
-          <div style={{ maxHeight: 120, overflowY: 'auto' }}>
+          <div ref={logContainerRef} style={{ maxHeight: 120, overflowY: 'auto' }}>
             {logs.length === 0 ? (
               <div style={{ color: '#6b7280', fontSize: 12 }}>无日志</div>
             ) : (

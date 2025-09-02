@@ -24,6 +24,7 @@ interface FaultRecordPanelProps {
 export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
   console.log('[FaultRecordPanel] Component initialized with context:', context);
   
+  const logContainerRef = useRef<HTMLDivElement>(null);
   const [config, setConfig] = useState<FaultRecordConfig>(defaultConfig);
   const [state, setState] = useState<PanelState>({
     recordingState: "idle",
@@ -75,6 +76,13 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
       ].slice(-50), // Keep last 50 logs
     }));
   }, []);
+
+  // Auto-scroll to latest log
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [state.logs]);
 
   // Add initial log when component mounts
   useEffect(() => {
@@ -539,7 +547,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
         flexDirection: "column"
       }}>
         <h3 style={{ margin: "0 0 12px 0", fontSize: 16, fontWeight: 600 }}>操作日志</h3>
-        <div style={{ 
+        <div ref={logContainerRef} style={{ 
           flex: 1, 
           overflowY: "auto", 
           overflowX: "auto",
@@ -547,7 +555,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
           borderRadius: 6, 
           padding: 8,
           backgroundColor: "#f9fafb",
-          fontFamily: "monospace",
           fontSize: 12,
           minHeight: 200,
           maxHeight: 400

@@ -6,8 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useEffect, useState, useCallback } from "react";
+import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 
 import { Section, Checkbox } from "./ui";
+import LabelSelector from "./LabelSelector";
 import type { CoSceneClient, UploadConfig } from "../types";
 
 export function ProjectAndTagPicker({
@@ -24,7 +26,7 @@ export function ProjectAndTagPicker({
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [loadingTags, setLoadingTags] = useState(false);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<Label[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -66,10 +68,10 @@ export function ProjectAndTagPicker({
         const tags = await client.listTags(value.projectId);
         if (mounted) {
           setAvailableTags(tags);
-          log?.("info", `[标签获取] 项目${value.projectId}获取到${tags.length}个标签: [${tags.join(', ')}]`);
+          log?.("info", `[标签获取] 项目${value.projectId}获取到${tags.length}个标签: [${tags.map(t => t.displayName ?? t.name).join(', ')}]`);
         }
         if (mounted && value.tags.length > 0) {
-          const filtered = value.tags.filter((t) => tags.includes(t));
+          const filtered = value.tags.filter((t) => tags.some(tag => tag.name === t.name));
           if (filtered.length !== value.tags.length) {onChange({ ...value, tags: filtered });}
         }
       } catch (error) {
@@ -84,14 +86,13 @@ export function ProjectAndTagPicker({
     };
   }, [client, value.projectId, value.addTags, value.tags, onChange, log]);
 
-  const toggleTag = useCallback(
-    (t: string) => {
+  const handleTagsChange = useCallback(
+    (newTags: Label[]) => {
       if (!value.addTags) {return;}
-      const set = new Set(value.tags);
-      set.has(t) ? set.delete(t) : set.add(t);
-      onChange({ ...value, tags: Array.from(set) });
+      log?.("info", `[标签选择] 更新标签: [${newTags.map(t => t.displayName ?? t.name).join(', ')}]`);
+      onChange({ ...value, tags: newTags });
     },
-    [value, onChange]
+    [value, onChange, log]
   );
 
   return (
@@ -103,11 +104,19 @@ export function ProjectAndTagPicker({
         </span>
       }
     >
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <label className="text-sm w-24 text-gray-600">上传项目</label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <label style={{ fontSize: '14px', width: '80px', color: '#6b7280', fontWeight: '500' }}>上传项目</label>
           <select
-            className="border rounded-lg px-2 py-1 text-sm"
+            style={{
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              fontSize: '14px',
+              flex: 1,
+              maxWidth: '300px',
+              backgroundColor: 'white'
+            }}
             value={value.projectId || ""}
             onChange={(e) => { 
               const oldProject = value.projectId || '未选择';
@@ -126,8 +135,8 @@ export function ProjectAndTagPicker({
           </select>
         </div>
 
-        <div className="flex items-center gap-3">
-          <label className="text-sm w-24 text-gray-600">标签</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <label style={{ fontSize: '14px', width: '80px', color: '#6b7280', fontWeight: '500' }}>标签</label>
           <Checkbox
             checked={value.addTags}
             onChange={(v) => { onChange({ ...value, addTags: v, tags: v ? value.tags : [] }); }}
@@ -136,25 +145,25 @@ export function ProjectAndTagPicker({
         </div>
 
         {value.addTags && (
-          <div className="rounded-xl border p-3">
-            <div className="text-sm text-gray-600 mb-2 flex items-center justify-between">
-              <span>可选标签（来自所选项目）</span>
-              <span className="text-xs text-gray-400">{loadingTags ? "加载中…" : `${availableTags.length} 项`}</span>
+          <div style={{ marginLeft: '92px' }}>
+             <div style={{ maxWidth: '400px', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '12px' }}>
+              <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                 <span>可选标签（来自所选项目）</span>
+                 <span style={{ fontSize: '12px', color: '#9ca3af' }}>{loadingTags ? "加载中…" : `${availableTags.length} 项`}</span>
+               </div>
+               {!value.projectId && !loadingTags && <div style={{ fontSize: '12px', color: '#9ca3af' }}>请选择项目后再选择标签</div>}
+               {value.projectId && availableTags.length === 0 && !loadingTags && (
+                 <div style={{ fontSize: '12px', color: '#9ca3af' }}>该项目暂无可用标签</div>
+               )}
+              {availableTags.length > 0 && (
+                <LabelSelector
+                  value={value.tags}
+                  options={availableTags}
+                  onChange={handleTagsChange}
+                  disabled={loadingTags}
+                />
+              )}
             </div>
-            {!value.projectId && !loadingTags && <div className="text-xs text-gray-400">请选择项目后再选择标签</div>}
-            {value.projectId && availableTags.length === 0 && !loadingTags && (
-              <div className="text-xs text-gray-400">该项目暂无可用标签</div>
-            )}
-            {availableTags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map((t) => (
-                  <label key={t} className="text-xs bg-gray-50 border px-2 py-1 rounded-xl inline-flex items-center gap-2">
-                    <input type="checkbox" checked={value.tags.includes(t)} onChange={() => { toggleTag(t); }} />
-                    <span>{t}</span>
-                  </label>
-                ))}
-              </div>
-            )}
           </div>
         )}
       </div>

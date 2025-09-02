@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
+
 export type FileCandidate = {
   id: string;
   name: string;
@@ -48,7 +50,7 @@ export type CommonRsp = {
 export type UploadConfig = {
   projectId: string | null;
   addTags: boolean;
-  tags: string[];
+  tags: Label[];
   device?: { name: string; [key: string]: any } | string;
 };
 
@@ -64,7 +66,7 @@ export interface RosService {
 
 export interface CoSceneClient {
   listProjects(): Promise<{ id: string; name: string }[]>;
-  listTags(projectId: string): Promise<string[]>;
+  listTags(projectId: string): Promise<Label[]>;
   upload(
     files: FileCandidate[],
     cfg: Partial<UploadConfig> & { projectId: string | null },
