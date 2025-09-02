@@ -7,8 +7,9 @@
 
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CheckIcon from "@mui/icons-material/Check";
-import { Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
+import { Button, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
@@ -43,6 +44,7 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
   const speed = useWorkspaceStore(selectPlaybackSpeed);
   const setPlaybackSpeed = useMessagePipeline(useCallback((state) => state.setPlaybackSpeed, []));
   // Speed setting lives on the Workspace/persists accross layouts
+  const { t } = useTranslation();
   const {
     playbackControlActions: { setSpeed },
   } = useWorkspaceActions();
@@ -63,22 +65,24 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
 
   return (
     <>
-      <Button
-        className={classes.button}
-        id="playback-speed-button"
-        aria-controls={open ? "playback-speed-menu" : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? "true" : undefined}
-        onClick={handleClick}
-        data-testid="PlaybackSpeedControls-Dropdown"
-        disabled={props.disabled}
-        disableRipple
-        variant="contained"
-        color="inherit"
-        endIcon={<ArrowDropDownIcon />}
-      >
-        {formatSpeed(speed)}
-      </Button>
+      <Tooltip title={t("playbackSpeed", { ns: "cosGeneral" })}>
+        <Button
+          className={classes.button}
+          id="playback-speed-button"
+          aria-controls={open ? "playback-speed-menu" : undefined}
+          aria-haspopup="true"
+          aria-expanded={open ? "true" : undefined}
+          onClick={handleClick}
+          data-testid="PlaybackSpeedControls-Dropdown"
+          disabled={props.disabled}
+          disableRipple
+          variant="contained"
+          color="inherit"
+          endIcon={<ArrowDropDownIcon />}
+        >
+          {formatSpeed(speed)}
+        </Button>
+      </Tooltip>
       <Menu
         id="playback-speed-menu"
         anchorEl={anchorEl}

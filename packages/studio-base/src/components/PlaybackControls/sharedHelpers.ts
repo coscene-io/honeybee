@@ -28,13 +28,18 @@ export const jumpSeek = (
   directionSign: (typeof DIRECTION)[keyof typeof DIRECTION],
   currentTime: Time,
   modifierKeys?: { altKey: boolean; shiftKey: boolean },
+  defaultMsOverride?: number,
 ): Time => {
   const timeMs = toMillis(currentTime);
+  const defaultMs =
+    defaultMsOverride != undefined && defaultMsOverride > 0
+      ? defaultMsOverride
+      : ARROW_SEEK_DEFAULT_MS;
   const deltaMs =
     modifierKeys?.altKey === true
       ? ARROW_SEEK_BIG_MS
       : modifierKeys?.shiftKey === true
       ? ARROW_SEEK_SMALL_MS
-      : ARROW_SEEK_DEFAULT_MS;
+      : defaultMs;
   return fromMillis(timeMs + deltaMs * directionSign);
 };

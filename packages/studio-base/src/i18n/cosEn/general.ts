@@ -22,5 +22,8 @@ export const cosGeneral = {
   pause: "Pause",
   play: "Play",
   seekForward: "Seek forward",
+  seekStep: "Seek step",
   loopPlayback: "Loop playback",
+  invalidSeekStep: "Seek step must be > 1e-9s and < 1 hour. Reset to 0.1 s.",
+  playbackSpeed: "Playback speed",
 };

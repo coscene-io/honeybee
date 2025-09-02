@@ -7,11 +7,12 @@
 
 import DiffIcon from "@mui/icons-material/Difference";
 import DiffOutlinedIcon from "@mui/icons-material/DifferenceOutlined";
-import SkipNextIcon from "@mui/icons-material/SkipNext";
-import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import UnfoldLessIcon from "@mui/icons-material/UnfoldLess";
 import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import { IconButton, MenuItem, Select, SelectChangeEvent } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { Topic } from "@foxglove/studio";
@@ -79,13 +80,14 @@ function ToolbarComponent(props: Props): React.JSX.Element {
   } = props;
 
   const { classes, cx } = useStyles();
+  const { t } = useTranslation("rawMessages");
 
   return (
     <>
       <PanelToolbar className={classes.toolbar}>
         <IconButton
           className={cx(classes.iconButton, { "Mui-selected": diffEnabled })}
-          title="Toggle diff"
+          title={t("toggleDiff")}
           onClick={onToggleDiff}
           color={diffEnabled ? "default" : "inherit"}
           size="small"
@@ -94,7 +96,7 @@ function ToolbarComponent(props: Props): React.JSX.Element {
         </IconButton>
         <IconButton
           className={classes.iconButton}
-          title={canExpandAll ? "Expand all" : "Collapse all"}
+          title={canExpandAll ? t("expandAll") : t("collapseAll")}
           onClick={onToggleExpandAll}
           data-testid="expand-all"
           size="small"
@@ -113,23 +115,23 @@ function ToolbarComponent(props: Props): React.JSX.Element {
         {onPreviousFrame && (
           <IconButton
             className={classes.iconButton}
-            title="Previous frame"
+            title={t("previousFrame")}
             onClick={onPreviousFrame}
             data-testid="previous-frame"
             size="small"
           >
-            <SkipPreviousIcon fontSize="small" />
+            <KeyboardArrowUpIcon fontSize="small" />
           </IconButton>
         )}
         {onNextFrame && (
           <IconButton
             className={classes.iconButton}
-            title="Next frame"
+            title={t("nextFrame")}
             onClick={onNextFrame}
             data-testid="next-frame"
             size="small"
           >
-            <SkipNextIcon fontSize="small" />
+            <KeyboardArrowDownIcon fontSize="small" />
           </IconButton>
         )}
       </PanelToolbar>
@@ -138,7 +140,7 @@ function ToolbarComponent(props: Props): React.JSX.Element {
           <Select
             variant="filled"
             size="small"
-            title="Diff method"
+            title={t("diffMethod")}
             value={diffMethod}
             MenuProps={{
               slotProps: {
@@ -153,8 +155,8 @@ function ToolbarComponent(props: Props): React.JSX.Element {
               });
             }}
           >
-            <MenuItem value={Constants.PREV_MSG_METHOD}>{Constants.PREV_MSG_METHOD}</MenuItem>
-            <MenuItem value={Constants.CUSTOM_METHOD}>custom</MenuItem>
+            <MenuItem value={Constants.PREV_MSG_METHOD}>{t("previousMessage")}</MenuItem>
+            <MenuItem value={Constants.CUSTOM_METHOD}>{t("custom")}</MenuItem>
           </Select>
           {diffMethod === Constants.CUSTOM_METHOD && (
             <MessagePathInput

@@ -26,4 +26,5 @@ export const general = {
   clearButtonLabel: "Clear",
   okButtonLabel: "OK",
   unknownField: "Unknown Field",
+  sec: "sec",
 };
