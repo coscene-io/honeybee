@@ -7,6 +7,8 @@
 
 import DiffIcon from "@mui/icons-material/Difference";
 import DiffOutlinedIcon from "@mui/icons-material/DifferenceOutlined";
+import SkipNextIcon from "@mui/icons-material/SkipNext";
+import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
 import UnfoldLessIcon from "@mui/icons-material/UnfoldLess";
 import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import { IconButton, MenuItem, Select, SelectChangeEvent } from "@mui/material";
@@ -29,6 +31,8 @@ type Props = {
   onToggleDiff: () => void;
   onToggleExpandAll: () => void;
   onTopicPathChange: (path: string) => void;
+  onPreviousFrame?: () => void;
+  onNextFrame?: () => void;
   saveConfig: SaveConfig<RawMessagesPanelConfig>;
   topic?: Topic;
   topicPath: string;
@@ -67,6 +71,8 @@ function ToolbarComponent(props: Props): React.JSX.Element {
     onToggleDiff,
     onToggleExpandAll,
     onTopicPathChange,
+    onPreviousFrame,
+    onNextFrame,
     saveConfig,
     topic,
     topicPath,
@@ -103,6 +109,29 @@ function ToolbarComponent(props: Props): React.JSX.Element {
             inputStyle={{ height: 20 }}
           />
         </Stack>
+
+        {onPreviousFrame && (
+          <IconButton
+            className={classes.iconButton}
+            title="Previous frame"
+            onClick={onPreviousFrame}
+            data-testid="previous-frame"
+            size="small"
+          >
+            <SkipPreviousIcon fontSize="small" />
+          </IconButton>
+        )}
+        {onNextFrame && (
+          <IconButton
+            className={classes.iconButton}
+            title="Next frame"
+            onClick={onNextFrame}
+            data-testid="next-frame"
+            size="small"
+          >
+            <SkipNextIcon fontSize="small" />
+          </IconButton>
+        )}
       </PanelToolbar>
       {diffEnabled && (
         <div className={classes.diffOptions}>
