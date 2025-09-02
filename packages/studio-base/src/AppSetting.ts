@@ -52,4 +52,7 @@ export enum AppSetting {
 
   // Retention Window
   RETENTION_WINDOW_MS = "retentionWindowMs",
+
+  // Playback seek step (ms)
+  SEEK_STEP_MS = "seekStepMs",
 }
