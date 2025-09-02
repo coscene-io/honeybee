@@ -1,0 +1,62 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import { Avatar, Box, TableCell, TableRow, Typography } from "@mui/material";
+import dayjs from "dayjs";
+import { makeStyles } from "tss-react/mui";
+
+import { LayoutActions } from "@foxglove/studio-base/components/CoSceneLayout/LayoutActions";
+import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+
+const useStyles = makeStyles()((theme) => ({
+  updaterCell: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+    justifyContent: "flex-end",
+  },
+  avatar: {
+    width: 24,
+    height: 24,
+    fontSize: "0.75rem",
+  },
+}));
+
+interface LayoutTableRowProps {
+  layout: Layout;
+  handleMenuOpen: (event: React.MouseEvent<HTMLElement>, layout: Layout) => void;
+}
+
+export function LayoutTableRow({ layout, handleMenuOpen }: LayoutTableRowProps): React.JSX.Element {
+  const { classes } = useStyles();
+
+  const formatTimestamp = (timestamp: { seconds: number | bigint } | undefined) => {
+    if (!timestamp) {
+      return "未知时间";
+    }
+    const date = new Date(Number(timestamp.seconds) * 1000);
+    return dayjs(date).format("YYYY-MM-DD HH:mm:ss");
+  };
+
+  return (
+    <TableRow key={layout.id} hover>
+      <TableCell>{layout.displayName}</TableCell>
+      <TableCell align="right">
+        {formatTimestamp(layout.working?.modifyTime ?? layout.baseline.modifyTime)}
+      </TableCell>
+      <TableCell align="right">
+        <Box className={classes.updaterCell}>
+          <Avatar className={classes.avatar}>U</Avatar>
+          <Typography variant="body2">user</Typography>
+        </Box>
+      </TableCell>
+      <TableCell align="center">
+        <LayoutActions layout={layout} handleMenuOpen={handleMenuOpen} />
+      </TableCell>
+    </TableRow>
+  );
+}

@@ -13,7 +13,6 @@ import {
   Sort as SortIcon,
 } from "@mui/icons-material";
 import {
-  Avatar,
   Box,
   Breadcrumbs,
   DialogContent,
@@ -35,13 +34,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import dayjs from "dayjs";
 import { useState, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { LayoutActions } from "@foxglove/studio-base/components/CoSceneLayout/LayoutActions";
 import { LayoutMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutMenu";
+import { LayoutTableRow } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRow";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
@@ -116,22 +113,13 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
     justifyContent: "flex-end",
   },
-  updaterCell: {
-    display: "flex",
-    alignItems: "center",
-    gap: theme.spacing(1),
-    justifyContent: "flex-end",
-  },
+
   emptyState: {
     textAlign: "center",
     paddingTop: theme.spacing(4),
     paddingBottom: theme.spacing(4),
   },
-  avatar: {
-    width: 24,
-    height: 24,
-    fontSize: "0.75rem",
-  },
+
   boxPadding: {
     padding: theme.spacing(2),
   },
@@ -150,7 +138,6 @@ export function CoSceneLayoutContent({
     projectLayouts: Layout[];
   };
 }): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
   const [selectedCategory, setSelectedCategory] = useState<"personal" | "project">("personal");
   const [selectedFolder, setSelectedFolder] = useState<string>("");
@@ -215,14 +202,6 @@ export function CoSceneLayoutContent({
 
   const handleMenuClose = () => {
     setMenu({ anchorEl: undefined, layout: undefined });
-  };
-
-  const formatTimestamp = (timestamp: { seconds: number | bigint } | undefined) => {
-    if (!timestamp) {
-      return "未知时间";
-    }
-    const date = new Date(Number(timestamp.seconds) * 1000);
-    return dayjs(date).format("YYYY-MM-DD HH:mm:ss");
   };
 
   if (!layouts) {
@@ -390,36 +369,11 @@ export function CoSceneLayoutContent({
                   </TableHead>
                   <TableBody>
                     {filteredLayouts.map((layout) => (
-                      <TableRow key={layout.id} hover>
-                        <TableCell>{layout.displayName}</TableCell>
-                        <TableCell align="right">
-                          {formatTimestamp(
-                            layout.working?.modifyTime ?? layout.baseline.modifyTime,
-                          )}
-                        </TableCell>
-                        <TableCell align="right">
-                          <Box className={classes.updaterCell}>
-                            <Avatar className={classes.avatar}>U</Avatar>
-                            <Typography variant="body2">user</Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell align="center">
-                          <LayoutActions layout={layout} handleMenuOpen={handleMenuOpen} />
-                          {/* <Box className={classes.actionsCell}>
-                            <Button variant="outlined" size="small">
-                              {t("use")}
-                            </Button>
-                            <IconButton
-                              size="small"
-                              onClick={(event) => {
-                                handleMenuOpen(event, layout);
-                              }}
-                            >
-                              <MoreVertIcon />
-                            </IconButton>
-                          </Box> */}
-                        </TableCell>
-                      </TableRow>
+                      <LayoutTableRow
+                        key={layout.id}
+                        layout={layout}
+                        handleMenuOpen={handleMenuOpen}
+                      />
                     ))}
                   </TableBody>
                 </Table>

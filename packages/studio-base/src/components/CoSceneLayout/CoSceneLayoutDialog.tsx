@@ -62,6 +62,13 @@ export function CoSceneLayoutDialogContent(): React.JSX.Element {
     });
   }, [reloadLayouts]);
 
+  // todo: 实现
+  const onSelectLayout = () => {};
+  const onDeleteLayout = () => {};
+  const onRenameLayout = () => {};
+  const onRevertLayout = () => {};
+  const onCreateNewLayout = () => {};
+
   return <CoSceneLayoutContent layouts={layouts.value} />;
 }
 
@@ -72,15 +79,6 @@ export function CoSceneLayoutDialog(
 ): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { open, onClose } = props;
-
-  const layoutManager = useLayoutManager();
-
-  // todo: 实现
-  const onSelectLayout = () => {};
-  const onDeleteLayout = () => {};
-  const onRenameLayout = () => {};
-  const onRevertLayout = () => {};
-  const onCreateNewLayout = () => {};
 
   return (
     <Dialog maxWidth="xl" open={open} onClose={onClose}>
