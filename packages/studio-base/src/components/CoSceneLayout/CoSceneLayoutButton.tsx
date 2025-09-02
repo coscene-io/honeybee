@@ -5,12 +5,18 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import { CoSceneLayoutDialog } from "./CoSceneLayoutDialog";
 
 export function CoSceneLayoutButton(): React.JSX.Element {
   const [open, setOpen] = useState(false);
+  const layoutManager = useLayoutManager();
+
+  // todo: 显示正在使用的layout
   return (
     <>
       <div
