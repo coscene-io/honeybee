@@ -14,7 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { MosaicNode } from "react-mosaic-component";
 import { makeStyles } from "tss-react/mui";
 
@@ -39,7 +39,7 @@ const useStyles = makeStyles()((theme) => ({
     left: "0",
     width: "100%",
     height: "100%",
-    zIndex: 1,
+    zIndex: 2,
     background: theme.palette.background.paper,
     position: "absolute",
   },
@@ -60,7 +60,7 @@ const useStyles = makeStyles()((theme) => ({
   visibleTab: {
     visibility: "visible",
     pointerEvents: "auto",
-    zIndex: 100,
+    zIndex: 1,
     userSelect: "auto",
   },
 }));
@@ -72,6 +72,24 @@ function Tab({ config, saveConfig }: Props) {
   const { classes } = useStyles();
 
   const { tabs, activeTabIdx } = config;
+
+  // Generate stable keys for each tab to prevent React component reuse issues
+  // Use a WeakMap to store stable IDs for tab objects
+  const tabIdMap = useRef(new WeakMap<object, string>());
+  const tabIdCounter = useRef(0);
+
+  const tabKeys = useMemo(() => {
+    return tabs.map((tab) => {
+      // Check if this tab object already has a stable ID
+      let tabId = tabIdMap.current.get(tab);
+      if (!tabId) {
+        // Generate a new stable ID for this tab object
+        tabId = `tab-${tabIdCounter.current++}`;
+        tabIdMap.current.set(tab, tabId);
+      }
+      return tabId;
+    });
+  }, [tabs]);
 
   // Holds the state of actively dragging tabs as they relate to this Tab Panel
   const [draggingTabState, setDraggingTabState] = useState<DraggingTabPanelState>({
@@ -146,32 +164,38 @@ function Tab({ config, saveConfig }: Props) {
         setDraggingTabState={setDraggingTabState}
       />
       <Stack direction="row" flex="auto" overflow="hidden" position="relative">
-        {/* Render all tabs but control visibility with CSS */}
-        {tabs.map((tab, tabIndex) => {
-          const isActive = tabIndex === activeTabIdx;
-          const tabLayout = tab.layout;
+        {/* Show EmptyPanelLayout when there are no tabs */}
+        {tabs.length === 0 ? (
+          <EmptyPanelLayout tabId={panelId} />
+        ) : (
+          /* Render all tabs but control visibility with CSS */
+          tabs.map((tab, tabIndex) => {
+            const isActive = tabIndex === activeTabIdx;
+            const tabLayout = tab.layout;
+            const stableKey = tabKeys[tabIndex];
 
-          return (
-            <div
-              key={`tab-${tabIndex}`}
-              className={`${classes.tabContent} ${
-                isActive ? classes.visibleTab : classes.hiddenTab
-              }`}
-            >
-              {tabLayout != undefined ? (
-                <TabDndContext.Provider value={{ preventTabDrop: preventTabDrop && isActive }}>
-                  <UnconnectedPanelLayout
-                    layout={tabLayout}
-                    onChange={createTabLayoutChangeHandler(tabIndex)}
-                    tabId={panelId}
-                  />
-                </TabDndContext.Provider>
-              ) : (
-                <EmptyPanelLayout tabId={panelId} />
-              )}
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={stableKey}
+                className={`${classes.tabContent} ${
+                  isActive ? classes.visibleTab : classes.hiddenTab
+                }`}
+              >
+                {tabLayout != undefined ? (
+                  <TabDndContext.Provider value={{ preventTabDrop: preventTabDrop && isActive }}>
+                    <UnconnectedPanelLayout
+                      layout={tabLayout}
+                      onChange={createTabLayoutChangeHandler(tabIndex)}
+                      tabId={panelId}
+                    />
+                  </TabDndContext.Provider>
+                ) : (
+                  <EmptyPanelLayout tabId={panelId} />
+                )}
+              </div>
+            );
+          })
+        )}
         {preventTabDrop && <div className={classes.panelCover} />}
       </Stack>
     </Stack>
