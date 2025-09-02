@@ -10,6 +10,7 @@ import { Dialog, DialogProps, DialogTitle, IconButton } from "@mui/material";
 import _ from "lodash";
 import _uniq from "lodash/uniq";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 
 import Logger from "@foxglove/log";
@@ -69,21 +70,18 @@ export function CoSceneLayoutDialog(
     onClose: () => void;
   },
 ): React.JSX.Element {
+  const { t } = useTranslation("cosLayout");
   const { open, onClose } = props;
 
   return (
-    <Dialog open={open} onClose={onClose}>
+    <Dialog maxWidth="xl" open={open} onClose={onClose}>
       <DialogTitle>
-        CoScene Layout
-        <IconButton
-          component="button"
-          onClick={() => {
-            onClose();
-          }}
-        >
+        {t("layout")}
+        <IconButton component="button" onClick={onClose}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
+
       <CoSceneLayoutDialogContent />
     </Dialog>
   );
