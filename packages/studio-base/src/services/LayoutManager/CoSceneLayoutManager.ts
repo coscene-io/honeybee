@@ -296,7 +296,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     data: LayoutData;
     permission: LayoutPermission;
   }): Promise<Layout> {
-    const parent = this.userName ?? ''; // fix: parent
+    const parent = permission === "CREATOR_WRITE" ? this.userName ?? '' : this.projectName ?? '';
 
     const data = migratePanelsState(unmigratedData);
     if (layoutPermissionIsShared(permission)) {

@@ -12,7 +12,7 @@ import { CoSceneLayoutDialog } from "./CoSceneLayoutDialog";
 export function CoSceneLayoutButton(): React.JSX.Element {
   const [open, setOpen] = useState(false);
   return (
-    <div>
+    <>
       <div
         onClick={() => {
           setOpen(true);
@@ -20,12 +20,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       >
         CoSceneLayoutButton
       </div>
-      <CoSceneLayoutDialog
-        open={open}
-        onClose={() => {
-          setOpen(false);
-        }}
-      />
-    </div>
+      {open && (
+        <CoSceneLayoutDialog
+          open
+          onClose={() => {
+            setOpen(false);
+          }}
+        />
+      )}
+    </>
   );
 }

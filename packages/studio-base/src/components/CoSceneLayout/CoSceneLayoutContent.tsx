@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  Add as AddIcon,
   Business as BusinessIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
@@ -20,8 +19,6 @@ import {
   Avatar,
   Box,
   Breadcrumbs,
-  Button,
-  Chip,
   DialogContent,
   Divider,
   IconButton,
@@ -48,6 +45,7 @@ import dayjs from "dayjs";
 import { useState, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
+import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
@@ -68,9 +66,6 @@ const useStyles = makeStyles()((theme) => ({
   contentArea: {
     width: "75%",
     minWidth: 800,
-  },
-  createButton: {
-    marginBottom: theme.spacing(2),
   },
   listItemButton: {
     "&.Mui-selected": {
@@ -186,7 +181,7 @@ export function CoSceneLayoutContent({
 
     if (searchQuery) {
       filtered = filtered.filter((l) =>
-        l.displayName.toLowerCase().includes(searchQuery.toLowerCase()),
+        l.displayName.toLowerCase().includes(searchQuery.toLowerCase().trim()),
       );
     }
 
@@ -244,14 +239,7 @@ export function CoSceneLayoutContent({
           {/* Left Navigation Sidebar */}
           <div className={classes.sidebar}>
             <Box className={classes.boxPadding}>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                fullWidth
-                className={classes.createButton}
-              >
-                创建布局
-              </Button>
+              <CreateLayoutButton />
             </Box>
 
             <List className={classes.listPadding}>
@@ -374,16 +362,6 @@ export function CoSceneLayoutContent({
                   size="small"
                   className={classes.searchField}
                 />
-
-                {/* <Button
-                  variant="outlined"
-                  endIcon={<SortIcon />}
-                  onClick={() => {
-                    setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                  }}
-                >
-                  {sortBy === "updateTime" ? "更新时间" : "布局名称"}
-                </Button> */}
               </Box>
 
               {/* Layouts Table */}
@@ -420,8 +398,8 @@ export function CoSceneLayoutContent({
                         </TableCell>
                         <TableCell align="right">
                           <Box className={classes.updaterCell}>
-                            <Avatar className={classes.avatar}>用</Avatar>
-                            <Typography variant="body2">用户名</Typography>
+                            <Avatar className={classes.avatar}>U</Avatar>
+                            <Typography variant="body2">user</Typography>
                           </Box>
                         </TableCell>
                         <TableCell align="center">

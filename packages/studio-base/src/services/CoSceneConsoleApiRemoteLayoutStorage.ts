@@ -38,7 +38,7 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
 
   // Determine permission based on resource name pattern
   let permission: LayoutPermission = "CREATOR_WRITE";
-  if (layout.name.startsWith('projects/')) {
+  if (layout.name.startsWith('warehouses/')) {
     permission = "ORG_WRITE"; // Project layouts are typically org-writable
   } else if (layout.name.startsWith('users/')) {
     permission = "CREATOR_WRITE"; // User layouts are creator-writable
