@@ -153,10 +153,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-interface LayoutWithFolder extends Layout {
-  folder: string;
-}
-
 export function CoSceneLayoutContent({
   layouts,
 }: {
@@ -181,7 +177,7 @@ export function CoSceneLayoutContent({
       return [];
     }
 
-    let filtered: LayoutWithFolder[] =
+    let filtered: Layout[] =
       selectedCategory === "personal" ? layouts.personalLayouts : layouts.projectLayouts;
 
     if (selectedFolder) {
@@ -237,10 +233,6 @@ export function CoSceneLayoutContent({
     return dayjs(date).format("YYYY-MM-DD HH:mm:ss");
   };
 
-  const getLayoutTypeLabel = (layout: Layout) => {
-    return layout.permission === "CREATOR_WRITE" ? "个人布局" : "项目布局";
-  };
-
   if (!layouts) {
     return <div>No layouts</div>;
   }
@@ -285,25 +277,24 @@ export function CoSceneLayoutContent({
               </ListItem>
 
               {/* Personal Layout Folders */}
-              {selectedCategory === "personal" &&
-                layouts.personalFolders.map((folder) => (
-                  <ListItem key={folder} disablePadding className={classes.folderItem}>
-                    <ListItemButton
-                      selected={selectedFolder === folder}
-                      onClick={() => {
-                        setSelectedFolder(folder);
-                      }}
-                    >
-                      <ListItemIcon>
-                        <FolderIcon />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
-                        slotProps={{ primary: { noWrap: true } }}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                ))}
+              {layouts.personalFolders.map((folder) => (
+                <ListItem key={folder} disablePadding className={classes.folderItem}>
+                  <ListItemButton
+                    selected={selectedFolder === folder}
+                    onClick={() => {
+                      setSelectedFolder(folder);
+                    }}
+                  >
+                    <ListItemIcon>
+                      <FolderIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
+                      slotProps={{ primary: { noWrap: true } }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
 
               {/* Project Layouts */}
               <ListItem disablePadding>
@@ -327,25 +318,24 @@ export function CoSceneLayoutContent({
               </ListItem>
 
               {/* Project Layout Folders */}
-              {selectedCategory === "project" &&
-                layouts.projectFolders.map((folder) => (
-                  <ListItem key={folder} disablePadding className={classes.folderItem}>
-                    <ListItemButton
-                      selected={selectedFolder === folder}
-                      onClick={() => {
-                        setSelectedFolder(folder);
-                      }}
-                    >
-                      <ListItemIcon>
-                        <FolderIcon />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
-                        slotProps={{ primary: { noWrap: true } }}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                ))}
+              {layouts.projectFolders.map((folder) => (
+                <ListItem key={folder} disablePadding className={classes.folderItem}>
+                  <ListItemButton
+                    selected={selectedFolder === folder}
+                    onClick={() => {
+                      setSelectedFolder(folder);
+                    }}
+                  >
+                    <ListItemIcon>
+                      <FolderIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
+                      slotProps={{ primary: { noWrap: true } }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
             </List>
           </div>
 
@@ -436,11 +426,6 @@ export function CoSceneLayoutContent({
                         </TableCell>
                         <TableCell align="center">
                           <Box className={classes.actionsCell}>
-                            <Chip
-                              label={getLayoutTypeLabel(layout)}
-                              size="small"
-                              variant="outlined"
-                            />
                             <IconButton size="small" onClick={handleMenuOpen}>
                               <MoreVertIcon />
                             </IconButton>
