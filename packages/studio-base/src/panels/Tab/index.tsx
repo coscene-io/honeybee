@@ -14,7 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { MosaicNode } from "react-mosaic-component";
 import { makeStyles } from "tss-react/mui";
 
@@ -75,22 +75,11 @@ function Tab({ config, saveConfig }: Props) {
   const { tabs, activeTabIdx } = config;
 
   // Generate stable keys for each tab to prevent React component reuse issues
-  // Use a WeakMap to store stable IDs for tab objects
-  const tabIdMap = useRef(new WeakMap<object, string>());
-  const tabIdCounter = useRef(0);
-
+  // Use tab index as stable key since tabs are identified by their position
   const tabKeys = useMemo(() => {
-    return tabs.map((tab) => {
-      // Check if this tab object already has a stable ID
-      let tabId = tabIdMap.current.get(tab);
-      if (!tabId) {
-        // Generate a new stable ID for this tab object
-        tabId = `tab-${tabIdCounter.current++}`;
-        tabIdMap.current.set(tab, tabId);
-      }
-      return tabId;
-    });
-  }, [tabs]);
+    return tabs.map((_, index) => `tab-${index}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only depend on length to prevent key regeneration when tab content changes
+  }, [tabs.length]);
 
   // Holds the state of actively dragging tabs as they relate to this Tab Panel
   const [draggingTabState, setDraggingTabState] = useState<DraggingTabPanelState>({
@@ -128,9 +117,9 @@ function Tab({ config, saveConfig }: Props) {
     const newTab = { title: `${tabs.length + 1}`, layout: undefined };
     saveConfig({ ...config, activeTabIdx: tabs.length, tabs: tabs.concat([newTab]) });
   }, [config, saveConfig, tabs]);
-  // Create individual layout change handlers for each tab to maintain state
-  const createTabLayoutChangeHandler = useCallback(
-    (tabIndex: number) => (layout: MosaicNode<string> | undefined) => {
+  // Create stable layout change handlers for each tab to prevent unnecessary re-renders
+  const tabLayoutChangeHandlers = useMemo(() => {
+    return tabs.map((_, tabIndex) => (layout: MosaicNode<string> | undefined) => {
       const newTabs = tabs.slice();
       const currentTab = tabs[tabIndex];
       if (currentTab) {
@@ -138,9 +127,8 @@ function Tab({ config, saveConfig }: Props) {
         const newConfig = { ...config, tabs: newTabs };
         saveConfig(newConfig);
       }
-    },
-    [config, saveConfig, tabs],
-  );
+    });
+  }, [config, saveConfig, tabs]);
   const actions = useMemo(
     () => ({ addTab, removeTab, selectTab, setTabTitle }),
     [addTab, removeTab, selectTab, setTabTitle],
@@ -186,12 +174,12 @@ function Tab({ config, saveConfig }: Props) {
                   <TabDndContext.Provider value={{ preventTabDrop: preventTabDrop && isActive }}>
                     <UnconnectedPanelLayout
                       layout={tabLayout}
-                      onChange={createTabLayoutChangeHandler(tabIndex)}
+                      onChange={tabLayoutChangeHandlers[tabIndex]!}
                       tabId={panelId}
                     />
                   </TabDndContext.Provider>
                 ) : (
-                  <EmptyPanelLayout tabId={panelId} />
+                  <EmptyPanelLayout tabId={`${panelId}-tab-${tabIndex}`} />
                 )}
               </div>
             );
