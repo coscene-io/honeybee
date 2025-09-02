@@ -26,4 +26,5 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   clearButtonLabel: "清除",
   okButtonLabel: "确定",
   unknownField: "未知字段",
+  sec: "秒",
 };

@@ -14,10 +14,11 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import SkipNextIcon from "@mui/icons-material/SkipNext";
-import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { IconButton } from "@mui/material";
-import React, { useEffect } from "react";
+import { useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
@@ -52,7 +53,8 @@ const useStyles = makeStyles()((theme) => ({
 function TablePanel({ config, saveConfig }: Props) {
   const { topicPath } = config;
   const { classes } = useStyles();
-  const onTopicPathChange = React.useCallback(
+  const { t } = useTranslation("table");
+  const onTopicPathChange = useCallback(
     (newTopicPath: string) => {
       saveConfig({ topicPath: newTopicPath });
     },
@@ -124,29 +126,29 @@ function TablePanel({ config, saveConfig }: Props) {
           {hasPreFrame && (
             <IconButton
               className={classes.iconButton}
-              title="Previous frame (↑)"
+              title={t("previousFrame")}
               onClick={handlePreviousFrame}
               data-testid="previous-frame"
               size="small"
             >
-              <SkipPreviousIcon fontSize="small" />
+              <KeyboardArrowUpIcon fontSize="small" />
             </IconButton>
           )}
           <IconButton
             className={classes.iconButton}
-            title="Next frame (↓)"
+            title={t("nextFrame")}
             onClick={() => {
               handleNextFrame(messageDataItems);
             }}
             data-testid="next-frame"
             size="small"
           >
-            <SkipNextIcon fontSize="small" />
+            <KeyboardArrowDownIcon fontSize="small" />
           </IconButton>
         </PanelToolbar>
-        {topicPath.length === 0 && <EmptyState>No topic selected</EmptyState>}
+        {topicPath.length === 0 && <EmptyState>{t("noTopicSelected")}</EmptyState>}
         {topicPath.length !== 0 && cachedMessages.length === 0 && (
-          <EmptyState>Waiting for next message…</EmptyState>
+          <EmptyState>{t("waitingForNextMessage")}</EmptyState>
         )}
         {topicPath.length !== 0 && cachedMessages.length > 0 && (
           <Stack overflow="auto" className={classes.monospace}>
