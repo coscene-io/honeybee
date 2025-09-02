@@ -8,7 +8,6 @@
 import {
   Business as BusinessIcon,
   Folder as FolderIcon,
-  MoreVert as MoreVertIcon,
   Person as PersonIcon,
   Search as SearchIcon,
   Sort as SortIcon,
@@ -38,8 +37,10 @@ import {
 } from "@mui/material";
 import dayjs from "dayjs";
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { LayoutActions } from "@foxglove/studio-base/components/CoSceneLayout/LayoutActions";
 import { LayoutMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutMenu";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
@@ -121,11 +122,6 @@ const useStyles = makeStyles()((theme) => ({
     gap: theme.spacing(1),
     justifyContent: "flex-end",
   },
-  actionsCell: {
-    display: "flex",
-    gap: theme.spacing(1),
-    justifyContent: "center",
-  },
   emptyState: {
     textAlign: "center",
     paddingTop: theme.spacing(4),
@@ -154,13 +150,18 @@ export function CoSceneLayoutContent({
     projectLayouts: Layout[];
   };
 }): React.JSX.Element {
+  const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
   const [selectedCategory, setSelectedCategory] = useState<"personal" | "project">("personal");
   const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "updateTime">("updateTime");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>(undefined);
+
+  const [menu, setMenu] = useState<{
+    anchorEl: HTMLElement | undefined;
+    layout: Layout | undefined;
+  }>({ anchorEl: undefined, layout: undefined });
 
   // Filter layouts based on selection
   const filteredLayouts = useMemo(() => {
@@ -208,12 +209,12 @@ export function CoSceneLayoutContent({
     return filtered;
   }, [layouts, selectedCategory, selectedFolder, searchQuery, sortBy, sortOrder]);
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, layout: Layout) => {
+    setMenu({ anchorEl: event.currentTarget, layout });
   };
 
   const handleMenuClose = () => {
-    setAnchorEl(undefined);
+    setMenu({ anchorEl: undefined, layout: undefined });
   };
 
   const formatTimestamp = (timestamp: { seconds: number | bigint } | undefined) => {
@@ -372,7 +373,11 @@ export function CoSceneLayoutContent({
                           <IconButton
                             size="small"
                             onClick={() => {
-                              setSortBy("updateTime");
+                              if (sortBy === "updateTime") {
+                                setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                              } else {
+                                setSortBy("updateTime");
+                              }
                             }}
                           >
                             <SortIcon />
@@ -399,11 +404,20 @@ export function CoSceneLayoutContent({
                           </Box>
                         </TableCell>
                         <TableCell align="center">
-                          <Box className={classes.actionsCell}>
-                            <IconButton size="small" onClick={handleMenuOpen}>
+                          <LayoutActions layout={layout} handleMenuOpen={handleMenuOpen} />
+                          {/* <Box className={classes.actionsCell}>
+                            <Button variant="outlined" size="small">
+                              {t("use")}
+                            </Button>
+                            <IconButton
+                              size="small"
+                              onClick={(event) => {
+                                handleMenuOpen(event, layout);
+                              }}
+                            >
                               <MoreVertIcon />
                             </IconButton>
-                          </Box>
+                          </Box> */}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -421,7 +435,13 @@ export function CoSceneLayoutContent({
         </div>
       </DialogContent>
 
-      <LayoutMenu anchorEl={anchorEl} handleMenuClose={handleMenuClose} />
+      {menu.layout && (
+        <LayoutMenu
+          anchorEl={menu.anchorEl}
+          handleMenuClose={handleMenuClose}
+          layout={menu.layout}
+        />
+      )}
     </div>
   );
 }

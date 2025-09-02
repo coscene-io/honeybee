@@ -5,35 +5,42 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Divider, Menu, MenuItem } from "@mui/material";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { Button, IconButton } from "@mui/material";
 import { useTranslation } from "react-i18next";
 
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
-export function LayoutMenu({
-  anchorEl,
-  handleMenuClose,
+export function LayoutActions({
   layout,
+  handleMenuOpen,
 }: {
-  anchorEl: HTMLElement | undefined;
-  handleMenuClose: () => void;
   layout: Layout;
+  handleMenuOpen: (event: React.MouseEvent<HTMLButtonElement>, layout: Layout) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
-  const layoutManager = useLayoutManager();
 
-  const handleDelete = () => {
-    void layoutManager.deleteLayout({ id: layout.id });
-    handleMenuClose();
+  const layoutManager = useLayoutManager();
+  const handleUse = () => {
+    console.log("handleUse", layout);
+    // void layoutManager.set(layout.id);
   };
 
   return (
-    <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-      <MenuItem onClick={handleMenuClose}>{t("rename")}</MenuItem>
-      <MenuItem onClick={handleMenuClose}>{t("copyLayout")}</MenuItem>
-      <Divider />
-      <MenuItem onClick={handleDelete}>{t("delete")}</MenuItem>
-    </Menu>
+    <div>
+      <Button variant="outlined" size="small" onClick={handleUse}>
+        {t("use")}
+      </Button>
+
+      <IconButton
+        size="small"
+        onClick={(event) => {
+          handleMenuOpen(event, layout);
+        }}
+      >
+        <MoreVertIcon />
+      </IconButton>
+    </div>
   );
 }
