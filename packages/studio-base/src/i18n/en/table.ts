@@ -11,4 +11,3 @@ export const table = {
   noTopicSelected: "No topic selected",
   waitingForNextMessage: "Waiting for next message…",
 };
-

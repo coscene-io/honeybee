@@ -13,4 +13,3 @@ export const table: Partial<TypeOptions["resources"]["table"]> = {
   noTopicSelected: "未选择话题",
   waitingForNextMessage: "等待下一条消息…",
 };
-

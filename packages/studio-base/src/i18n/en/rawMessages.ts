@@ -15,4 +15,3 @@ export const rawMessages = {
   previousMessage: "Previous message",
   custom: "Custom",
 };
-

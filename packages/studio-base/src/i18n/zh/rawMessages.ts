@@ -17,4 +17,3 @@ export const rawMessages: Partial<TypeOptions["resources"]["rawMessages"]> = {
   previousMessage: "上一条消息",
   custom: "自定义",
 };
-
