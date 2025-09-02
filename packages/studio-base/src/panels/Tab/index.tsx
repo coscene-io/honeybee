@@ -42,6 +42,7 @@ const useStyles = makeStyles()((theme) => ({
     zIndex: 2,
     background: theme.palette.background.paper,
     position: "absolute",
+    opacity: 0.5,
   },
   tabContent: {
     position: "absolute",
