@@ -72,4 +72,5 @@ export const cosLayout = {
   projectLayout: "Project layout",
   type: "Type",
   folder: "Folder",
+  copyLayout: "Copy layout",
 };

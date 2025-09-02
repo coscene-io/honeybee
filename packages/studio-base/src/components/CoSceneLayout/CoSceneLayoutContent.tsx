@@ -7,8 +7,6 @@
 
 import {
   Business as BusinessIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
   Folder as FolderIcon,
   MoreVert as MoreVertIcon,
   Person as PersonIcon,
@@ -20,7 +18,6 @@ import {
   Box,
   Breadcrumbs,
   DialogContent,
-  Divider,
   IconButton,
   InputAdornment,
   Link,
@@ -29,8 +26,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Menu,
-  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -45,6 +40,7 @@ import dayjs from "dayjs";
 import { useState, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
+import { LayoutMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutMenu";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
@@ -425,34 +421,7 @@ export function CoSceneLayoutContent({
         </div>
       </DialogContent>
 
-      {/* Context Menu */}
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          重命名
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon>
-            <PersonIcon fontSize="small" />
-          </ListItemIcon>
-          复制为个人布局
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon>
-            <BusinessIcon fontSize="small" />
-          </ListItemIcon>
-          复制为项目布局
-        </MenuItem>
-        <Divider />
-        <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          删除
-        </MenuItem>
-      </Menu>
+      <LayoutMenu anchorEl={anchorEl} handleMenuClose={handleMenuClose} />
     </div>
   );
 }
