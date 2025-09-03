@@ -36,8 +36,8 @@ import {
 import { useState, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
-import { LayoutMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutMenu";
 import { LayoutTableRow } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRow";
+import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
@@ -389,7 +389,7 @@ export function CoSceneLayoutContent({
       </div>
 
       {menu.layout && (
-        <LayoutMenu
+        <LayoutTableRowMenu
           anchorEl={menu.anchorEl}
           handleMenuClose={handleMenuClose}
           layout={menu.layout}

@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
-export function LayoutMenu({
+export function LayoutTableRowMenu({
   anchorEl,
   handleMenuClose,
   layout,
