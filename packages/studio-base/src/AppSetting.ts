@@ -35,12 +35,6 @@ export enum AppSetting {
   ENABLE_LAYOUT_DEBUGGING = "enableLayoutDebugging",
   ENABLE_MEMORY_USE_INDICATOR = "dev.memory-use-indicator",
 
-  // Time Mode
-  TIME_MODE = "timeMode",
-
-  // Playback Quality
-  PLAYBACK_QUALITY_LEVEL = "playbackQualityLevel",
-
   // TF Compatibility Mode
   TF_COMPATIBILITY_MODE = "tfCompatibilityMode",
 

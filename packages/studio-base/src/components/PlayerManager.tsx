@@ -241,14 +241,7 @@ export default function PlayerManager(
 
   const setDataSource = useCoreData(selectSetDataSource);
 
-  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
-  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
-
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
-
-  const [playbackQualityLevel] = useAppConfigurationValue<string>(
-    AppSetting.PLAYBACK_QUALITY_LEVEL,
-  );
 
   const [currentSourceParams, setCurrentSourceParams] = useState<
     { sourceId: string; args?: DataSourceArgs } | undefined
@@ -307,8 +300,6 @@ export default function PlayerManager(
         switch (args.type) {
           case "connection": {
             const params: Record<string, string | undefined> = {
-              timeMode,
-              playbackQualityLevel,
               ...args.params,
             };
 
@@ -325,8 +316,6 @@ export default function PlayerManager(
               metricsCollector,
               confirm,
               params: {
-                timeMode,
-                playbackQualityLevel,
                 ...args.params,
               },
               consoleApi,
@@ -467,8 +456,6 @@ export default function PlayerManager(
       constructPlayers,
       setDataSource,
       enqueueSnackbar,
-      timeMode,
-      playbackQualityLevel,
       beforeConnectionSource,
       confirm,
       consoleApi,

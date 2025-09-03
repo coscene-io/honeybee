@@ -391,11 +391,9 @@ class CoSceneConsoleApi {
   #bffUrl: string;
   #authHeader?: string;
   #responseObserver: undefined | ((response: Response) => void);
-  #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
   #baseInfo: ApiBaseInfo = {};
   #type?: "realtime" | "playback" | "other";
-  #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
   #permissionList: {
     orgPermissionList: string[];
     projectPermissionList: string[];
@@ -408,22 +406,10 @@ class CoSceneConsoleApi {
     projectDenyList: [],
   };
 
-  public constructor(
-    baseUrl: string,
-    bffUrl: string,
-    jwt: string,
-    timeMode?: "absoluteTime" | "relativeTime",
-    playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW",
-  ) {
+  public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
     this.#authHeader = jwt;
-    this.#timeMode = timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime";
-    this.#playbackQualityLevel = playbackQualityLevel ?? "ORIGINAL";
-  }
-
-  public getPlaybackQualityLevel(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
-    return this.#playbackQualityLevel;
   }
 
   public async setApiBaseInfo(baseInfo: ApiBaseInfo): Promise<void> {
@@ -445,14 +431,6 @@ class CoSceneConsoleApi {
 
   public getProblemManager(): PlayerProblemManager {
     return this.#problemManager;
-  }
-
-  public getTimeMode(): "absoluteTime" | "relativeTime" {
-    return this.#timeMode;
-  }
-
-  public setTimeMode(timeMode: "absoluteTime" | "relativeTime"): void {
-    this.#timeMode = timeMode;
   }
 
   public getBaseUrl(): string {
@@ -754,10 +732,7 @@ class CoSceneConsoleApi {
       },
       undefined,
       {
-        headers: {
-          "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
-          "Playback-Quality-Level": this.#playbackQualityLevel,
-        },
+        headers: {},
       },
     );
 
@@ -803,8 +778,6 @@ class CoSceneConsoleApi {
         // Include the version of studio in the request Useful when scraping logs to determine what
         // versions of the app are making requests.
         "Content-Type": "application/json",
-        "Playback-Quality-Level": this.#playbackQualityLevel,
-        "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
         "Project-Name": projectName,
       },
       body: JSON.stringify({

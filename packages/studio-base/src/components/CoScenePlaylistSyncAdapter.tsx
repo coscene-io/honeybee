@@ -12,7 +12,6 @@ import { v4 as uuidv4 } from "uuid";
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, toSec, Time, fromNanoSec, compare } from "@foxglove/rostime";
-import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -30,7 +29,6 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { MediaStatus, FileList } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { stringToColor } from "@foxglove/studio-base/util/coscene";
 
@@ -63,7 +61,6 @@ function positionBag({
   recordName,
   currentFileStartTime,
   currentFileEndTime,
-  timeMode,
   mediaStatus,
   sha256,
 }: {
@@ -76,7 +73,6 @@ function positionBag({
   projectName: string;
   recordName: string;
   ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
-  timeMode: "relativeTime" | "absoluteTime";
   mediaStatus: MediaStatus;
   sha256: string;
 }): BagFileInfo {
@@ -89,14 +85,8 @@ function positionBag({
   const startTimeInSeconds = toSec(bagFileStartTime);
   const endTimeInSeconds = toSec(bagFileEndTime);
 
-  const startPosition =
-    timeMode === "absoluteTime"
-      ? scale(startTimeInSeconds, startSecs, endSecs, 0, 1)
-      : scale(0, startSecs, endSecs, 0, 1);
-  const endPosition =
-    timeMode === "absoluteTime"
-      ? scale(endTimeInSeconds, startSecs, endSecs, 0, 1)
-      : scale(endTimeInSeconds - startTimeInSeconds, startSecs, endSecs, 0, 1);
+  const startPosition = scale(startTimeInSeconds, startSecs, endSecs, 0, 1);
+  const endPosition = scale(endTimeInSeconds, startSecs, endSecs, 0, 1);
 
   let colorCertificate: string | undefined = undefined;
 
@@ -156,9 +146,6 @@ export function PlaylistSyncAdapter(): ReactNull {
   const dataSource = useCoreData(selectDataSource);
   const externalInitConfig = useCoreData(selectExternalInitConfig);
 
-  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
-  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
-
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
       return undefined;
@@ -196,7 +183,6 @@ export function PlaylistSyncAdapter(): ReactNull {
           endTime,
           currentFileStartTime: ele.startTime,
           currentFileEndTime: ele.endTime,
-          timeMode: timeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
           mediaStatus:
             ele.mediaStatus === "GENERATING" && currentStatus === "NORMAL"
               ? "GENERATED_SUCCESS"
@@ -210,7 +196,7 @@ export function PlaylistSyncAdapter(): ReactNull {
 
       setBagFiles({ loading: false, value: newStateRecordBagFiles });
     },
-    [startTime, endTime, timeMode, setBagFiles],
+    [startTime, endTime, setBagFiles],
   );
 
   const [_records, syncRecords] = useAsyncFn(async () => {
@@ -236,7 +222,6 @@ export function PlaylistSyncAdapter(): ReactNull {
               endTime,
               currentFileStartTime: ele.startTime,
               currentFileEndTime: ele.endTime,
-              timeMode: timeMode === "relativeTime" ? "relativeTime" : "absoluteTime",
             }),
           );
         });
@@ -319,7 +304,6 @@ export function PlaylistSyncAdapter(): ReactNull {
     endTime,
     setBagFiles,
     baseInfoKey,
-    timeMode,
     consoleApi,
     updateBagFiles,
   ]);

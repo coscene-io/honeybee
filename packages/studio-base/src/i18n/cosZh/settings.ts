@@ -18,7 +18,6 @@ export const cosSettings: Partial<TypeOptions["resources"]["cosSettings"]> = {
   off: "关",
   on: "开",
   auto: "自动",
-  timeMode: "时间模式",
   understandFrameRateOptimization: "了解帧率优化",
   selectProjectSources: "选择项目资源",
 };
