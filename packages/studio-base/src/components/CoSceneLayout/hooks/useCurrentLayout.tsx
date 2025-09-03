@@ -72,6 +72,7 @@ export function useCurrentLayout() {
   }, [layouts, currentLayoutId]);
 
   return {
+    currentLayoutId,
     currentLayout,
     layouts,
   };
