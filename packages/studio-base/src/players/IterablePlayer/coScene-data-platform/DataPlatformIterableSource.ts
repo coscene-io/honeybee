@@ -390,7 +390,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   const warehouseId = params.warehouseId;
   const key = params.key;
 
-  const addTopicPrefix = params.addTopicPrefix;
   const timeMode = params.timeMode;
   const playbackQualityLevel = params.playbackQualityLevel;
 
@@ -415,7 +414,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     api.baseUrl,
     api.bffUrl,
     api.auth ?? "",
-    addTopicPrefix === "true" ? "true" : "false",
     timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime",
     getPlaybackQualityTranslation(playbackQualityLevel),
   );

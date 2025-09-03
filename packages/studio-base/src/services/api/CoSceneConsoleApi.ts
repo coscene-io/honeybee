@@ -391,7 +391,6 @@ class CoSceneConsoleApi {
   #bffUrl: string;
   #authHeader?: string;
   #responseObserver: undefined | ((response: Response) => void);
-  #addTopicPrefix: "false" | "true" = "false";
   #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
   #baseInfo: ApiBaseInfo = {};
@@ -413,15 +412,12 @@ class CoSceneConsoleApi {
     baseUrl: string,
     bffUrl: string,
     jwt: string,
-    // The following three parameters are only used in data sources
-    addTopicPrefix?: "true" | "false",
     timeMode?: "absoluteTime" | "relativeTime",
     playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW",
   ) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
     this.#authHeader = jwt;
-    this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
     this.#timeMode = timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime";
     this.#playbackQualityLevel = playbackQualityLevel ?? "ORIGINAL";
   }
@@ -473,14 +469,6 @@ class CoSceneConsoleApi {
 
   public getAuthHeader(): string | undefined {
     return this.#authHeader;
-  }
-
-  public getAddTopicPrefix(): string {
-    return this.#addTopicPrefix;
-  }
-
-  public setAddTopicPrefix(prefix: "true" | "false"): void {
-    this.#addTopicPrefix = prefix;
   }
 
   public setResponseObserver(observer: undefined | ((response: Response) => void)): void {
@@ -767,7 +755,6 @@ class CoSceneConsoleApi {
       undefined,
       {
         headers: {
-          "Topic-Prefix": this.#addTopicPrefix,
           "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
           "Playback-Quality-Level": this.#playbackQualityLevel,
         },
@@ -816,7 +803,6 @@ class CoSceneConsoleApi {
         // Include the version of studio in the request Useful when scraping logs to determine what
         // versions of the app are making requests.
         "Content-Type": "application/json",
-        "Topic-Prefix": this.#addTopicPrefix,
         "Playback-Quality-Level": this.#playbackQualityLevel,
         "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
         "Project-Name": projectName,

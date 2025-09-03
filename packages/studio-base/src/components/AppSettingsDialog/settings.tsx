@@ -426,43 +426,6 @@ export function LanguageSettings(): React.ReactElement {
   );
 }
 
-export function AddTopicPrefix(): React.ReactElement {
-  const [addTopicPrefix, setAddTopicPrefix] = useAppConfigurationValue<string>(
-    AppSetting.ADD_TOPIC_PREFIX,
-  );
-  const { reloadCurrentSource } = usePlayerSelection();
-  const consoleApi = useConsoleApi();
-
-  const { t } = useTranslation("appSettings");
-
-  return (
-    <Stack>
-      <FormLabel>{t("addTopicPrefix")}:</FormLabel>
-      <ToggleButtonGroup
-        color="primary"
-        size="small"
-        fullWidth
-        exclusive
-        value={addTopicPrefix}
-        onChange={async (_, value?: string) => {
-          if (value != undefined) {
-            await setAddTopicPrefix(value);
-            consoleApi.setAddTopicPrefix(value === "true" ? "true" : "false");
-            await reloadCurrentSource({ addTopicPrefix: value === "true" ? "true" : "false" });
-          }
-        }}
-      >
-        <ToggleButton value="false" data-testid="timeformat-seconds">
-          {t("off")}
-        </ToggleButton>
-        <ToggleButton value="true" data-testid="timeformat-local">
-          {t("on")}
-        </ToggleButton>
-      </ToggleButtonGroup>
-    </Stack>
-  );
-}
-
 export function CompatibilityMode(): React.ReactElement {
   const [tfCompatibilityMode, setTfCompatibilityMode] = useAppConfigurationValue<string>(
     AppSetting.TF_COMPATIBILITY_MODE,

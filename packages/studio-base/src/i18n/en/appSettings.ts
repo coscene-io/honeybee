@@ -44,7 +44,6 @@ export const appSettings = {
   security: "Security",
   updates: "Updates",
   automaticallyInstallUpdates: "Automatically install updates",
-  addTopicPrefix: "Add topic prefix",
   tfCompatibilityMode: "TF compatibility mode",
   on: "On",
   off: "Off",
