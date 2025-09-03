@@ -109,11 +109,11 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     this.#datasetsBuilder = builder;
   }
 
-  /** Stop the coordinator from sending any future updates to the renderer. */
+  /** Stop the coordinator from sending any future updates to the renderer.
+   *  Don't destroy datasetsBuilder, let Plot.tsx manager it
+   */
   public destroy(): void {
     this.#destroyed = true;
-    // Explicitly destroy datasets builder if it supports explicit cleanup
-    this.#datasetsBuilder.destroy?.();
   }
 
   public isDestroyed(): boolean {
