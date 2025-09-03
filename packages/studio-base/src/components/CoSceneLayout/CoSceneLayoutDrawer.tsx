@@ -12,6 +12,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
 
@@ -30,6 +31,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 interface CoSceneLayoutDrawerProps extends DrawerProps {
+  currentLayoutId?: LayoutID;
   onClose: () => void;
   onSelectLayout: (layout: Layout) => Promise<void>;
   onDeleteLayout: (layout: Layout) => Promise<void>;
@@ -50,6 +52,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
   const {
+    currentLayoutId,
     open,
     onClose,
     onSelectLayout,
@@ -73,6 +76,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
         </Box>
 
         <CoSceneLayoutContent
+          currentLayoutId={currentLayoutId}
           layouts={layouts}
           onSelectLayout={onSelectLayout}
           onDeleteLayout={onDeleteLayout}

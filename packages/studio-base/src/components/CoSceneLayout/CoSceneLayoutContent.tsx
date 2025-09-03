@@ -41,6 +41,7 @@ import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayo
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -96,6 +97,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 export function CoSceneLayoutContent({
+  currentLayoutId,
   layouts,
   onSelectLayout,
   onDeleteLayout,
@@ -105,6 +107,7 @@ export function CoSceneLayoutContent({
   onRevertLayout,
   onCreateLayout,
 }: {
+  currentLayoutId?: LayoutID;
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
@@ -349,6 +352,7 @@ export function CoSceneLayoutContent({
                   {filteredLayouts.map((layout) => (
                     <LayoutTableRow
                       key={layout.id}
+                      currentLayoutId={currentLayoutId}
                       layout={layout}
                       handleMenuOpen={handleMenuOpen}
                       onSelectLayout={onSelectLayout}

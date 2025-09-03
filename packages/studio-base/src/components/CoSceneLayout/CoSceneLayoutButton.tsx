@@ -325,6 +325,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       {unsavedChangesPrompt}
       {open && (
         <CoSceneLayoutDrawer
+          currentLayoutId={currentLayoutId}
           open
           layouts={layouts.value}
           onSelectLayout={onSelectLayout}

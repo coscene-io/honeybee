@@ -74,4 +74,5 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   copyLayout: "复制布局",
   loading: "加载中...",
   use: "使用",
+  inUse: "使用中",
 };

@@ -5,12 +5,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Avatar, Box, TableCell, TableRow, Typography } from "@mui/material";
+import { Avatar, Box, Chip, TableCell, TableRow, Typography } from "@mui/material";
 import dayjs from "dayjs";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { LayoutActions } from "@foxglove/studio-base/components/CoSceneLayout/LayoutActions";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const useStyles = makeStyles()((theme) => ({
   updaterCell: {
@@ -27,17 +29,20 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 interface LayoutTableRowProps {
+  currentLayoutId?: LayoutID;
   layout: Layout;
   handleMenuOpen: (event: React.MouseEvent<HTMLElement>, layout: Layout) => void;
   onSelectLayout: (layout: Layout) => Promise<void>;
 }
 
 export function LayoutTableRow({
+  currentLayoutId,
   layout,
   handleMenuOpen,
   onSelectLayout,
 }: LayoutTableRowProps): React.JSX.Element {
   const { classes } = useStyles();
+  const { t } = useTranslation("cosLayout");
 
   const formatTimestamp = (timestamp: { seconds: number | bigint } | undefined) => {
     if (!timestamp) {
@@ -49,7 +54,10 @@ export function LayoutTableRow({
 
   return (
     <TableRow key={layout.id} hover>
-      <TableCell>{layout.displayName}</TableCell>
+      <TableCell>
+        {layout.displayName}
+        {currentLayoutId === layout.id && <Chip size="small" color="success" label={t("inUse")} />}
+      </TableCell>
       <TableCell align="right">
         {formatTimestamp(layout.working?.modifyTime ?? layout.baseline.modifyTime)}
       </TableCell>
