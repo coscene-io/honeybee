@@ -5,7 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 
 import { CoSceneLayoutDrawer } from "./CoSceneLayoutDrawer";
 import { LayoutButton } from "./components/LayoutButton";
@@ -14,6 +17,13 @@ import { useCurrentLayout } from "./hooks/useCurrentLayout";
 export function CoSceneLayoutButton(): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const { currentLayout, layouts } = useCurrentLayout();
+
+  const analytics = useAnalytics();
+  const layoutManager = useLayoutManager();
+
+  const promptForUnsavedChanges = useCallback(async () => {
+    return false;
+  }, []);
 
   // todo: 实现
   // const onSelectLayout = () => {};
