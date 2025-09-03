@@ -5,12 +5,21 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Avatar, Box, Chip, TableCell, TableRow, Typography } from "@mui/material";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import {
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  TableCell,
+  TableRow,
+  Typography,
+} from "@mui/material";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { LayoutActions } from "@foxglove/studio-base/components/CoSceneLayout/LayoutActions";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
@@ -24,6 +33,12 @@ const useStyles = makeStyles()((theme) => ({
     width: 24,
     height: 24,
     fontSize: "0.75rem",
+  },
+  actions: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+    justifyContent: "flex-end",
   },
 }));
 
@@ -46,6 +61,21 @@ export function LayoutTableRow({
 }: LayoutTableRowProps): React.JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("cosLayout");
+
+  const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
+  const hasModifications = layout.working != undefined;
+
+  const handleUse = () => {
+    onSelectLayout(layout);
+  };
+
+  const handleOverwrite = () => {
+    onOverwriteLayout(layout);
+  };
+
+  const handleRevert = () => {
+    onRevertLayout(layout);
+  };
 
   const formatTimestamp = (timestamp: { seconds: number | bigint } | undefined) => {
     if (!timestamp) {
@@ -71,13 +101,31 @@ export function LayoutTableRow({
         </Box>
       </TableCell>
       <TableCell align="right">
-        <LayoutActions
-          layout={layout}
-          handleMenuOpen={handleMenuOpen}
-          onSelectLayout={onSelectLayout}
-          onOverwriteLayout={onOverwriteLayout}
-          onRevertLayout={onRevertLayout}
-        />
+        <Box className={classes.actions}>
+          {hasModifications && (
+            <>
+              <Button variant="outlined" size="small" onClick={handleOverwrite}>
+                {t("saveChanges")}
+              </Button>
+              <Button variant="outlined" size="small" onClick={handleRevert}>
+                {t("revert")}
+              </Button>
+            </>
+          )}
+
+          <Button variant="outlined" size="small" onClick={handleUse}>
+            {t("use")}
+          </Button>
+
+          <IconButton
+            size="small"
+            onClick={(event) => {
+              handleMenuOpen(event, layout);
+            }}
+          >
+            <MoreVertIcon />
+          </IconButton>
+        </Box>
       </TableCell>
     </TableRow>
   );
