@@ -34,6 +34,7 @@ export function settingsReducer(config: Config, action: SettingsTreeAction): Con
 
 export const defaultConfig = {
   refreshButtonService: { serviceName: "/api/test/end_and_get_candidates" },
+  actionListService: { serviceName: "/RecordPlayback/GetActionList" },
   rosServiceUrl: "http://localhost:11311",
   coSceneApiUrl: "https://api.coscene.cn",
 } as const satisfies Config;
@@ -42,22 +43,30 @@ export const defaultConfig = {
 export function settingsActionReducer(config: Config, action: SettingsTreeAction): Config {
   // 处理重置操作 - 当用户点击"重置默认值"时
   if (action.action === "perform-node-action" && action.payload.id === "reset") {
-    return { ...defaultConfig };
+    return { ...defaultConfig } as Config;
   }
   
   // 处理字段更新
   if (action.action === "update" && action.payload.path && action.payload.value !== undefined) {
-    const newConfig = { ...config };
+    const newConfig: Config = { ...config };
     const pathArray = Array.isArray(action.payload.path) ? action.payload.path : [action.payload.path];
     const pathStr = pathArray.join(".");
     const value = action.payload.value;
     
-    // 处理刷新按钮服务配置更新
+    // 刷新按钮服务配置更新
     if (pathStr === "general.refreshButtonService.serviceName") {
       newConfig.refreshButtonService = {
         ...config.refreshButtonService,
         serviceName: String(value),
       };
+    }
+
+    // Action 列表服务配置更新
+    if (pathStr === "general.actionListService.serviceName") {
+      newConfig.actionListService = {
+        ...config.actionListService,
+        serviceName: String(value),
+      } as any;
     }
     
     return newConfig;
@@ -91,6 +100,20 @@ export function useSettingsNodes(config: Config, actionHandler?: (action: Settin
               value: config.refreshButtonService.serviceName,
               placeholder: "输入刷新按钮调用的服务名称",
               help: "刷新按钮点击时调用的ROS服务名称",
+            },
+          },
+        },
+        actionListService: {
+          label: "Action 列表接口",
+          icon: "List",
+          handler: actionHandler,
+          fields: {
+            serviceName: {
+              label: "服务名称",
+              input: "string",
+              value: config.actionListService?.serviceName ?? "/RecordPlayback/GetActionList",
+              placeholder: "输入查询 Action 列表的服务名称",
+              help: "获取可用 Action 名称列表的服务名称",
             },
           },
         },

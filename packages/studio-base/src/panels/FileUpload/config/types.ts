@@ -9,6 +9,7 @@ import { PanelConfig } from "@foxglove/studio-base/types/panels";
 
 export interface Config extends PanelConfig {
   refreshButtonService: { serviceName: string };
+  actionListService: { serviceName: string };
   rosServiceUrl: string;
   coSceneApiUrl: string;
   [key: string]: unknown;

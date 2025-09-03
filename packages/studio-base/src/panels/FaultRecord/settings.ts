@@ -25,6 +25,7 @@ export interface FaultRecordConfig {
   defaultRecordDuration: number;
   startRecordService: ServiceConfig;
   stopRecordService: ServiceConfig;
+  actionListService: { serviceName: string };
   // Persisted UI state for this panel instance
   panelState?: PanelState;
 }
@@ -39,6 +40,9 @@ export const defaultConfig: FaultRecordConfig = {
   stopRecordService: {
     serviceName: "/RecordPlayback/StopRecord",
     serviceType: "fault_record/StopRecord",
+  },
+  actionListService: {
+    serviceName: "/RecordPlayback/GetActionList",
   },
 };
 
@@ -72,20 +76,16 @@ function buildSettingsTree(config: FaultRecordConfig): SettingsTreeNodes {
           input: "string",
           value: config.startRecordService.serviceName,
         },
-        startServiceType: {
-          label: "Start record service type",
-          input: "string",
-          value: config.startRecordService.serviceType,
-        },
+        // Hide service type fields from UI; keep defaults in config
         stopServiceName: {
           label: "Stop record service name",
           input: "string",
           value: config.stopRecordService.serviceName,
         },
-        stopServiceType: {
-          label: "Stop record service type",
+        actionListServiceName: {
+          label: "Action List Service Name",
           input: "string",
-          value: config.stopRecordService.serviceType,
+          value: config.actionListService.serviceName,
         },
       },
     },
@@ -112,9 +112,8 @@ export function useFaultRecordPanelSettings(
           // Map serviceConfig paths to config properties
           const pathMapping: Record<string, string> = {
             "serviceConfig.startServiceName": "startRecordService.serviceName",
-            "serviceConfig.startServiceType": "startRecordService.serviceType",
             "serviceConfig.stopServiceName": "stopRecordService.serviceName",
-            "serviceConfig.stopServiceType": "stopRecordService.serviceType",
+            "serviceConfig.actionListServiceName": "actionListService.serviceName",
           };
 
           const pathStr = path.join(".");

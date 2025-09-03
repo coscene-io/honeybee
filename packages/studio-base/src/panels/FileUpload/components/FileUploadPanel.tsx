@@ -242,31 +242,62 @@ export function FileUploadPanel({ config: _config, context, serviceSettings, ref
   
   // 加载可用的action名称
   const loadAvailableActionNames = useCallback(async () => {
+    const defaultService = "/RecordPlayback/GetActionList";
+    const serviceName = _config?.actionListService?.serviceName || defaultService;
     try {
-      if (typeof context.callService === "function") {
-        const result = await context.callService("/RecordPlayback/GetActionList", { mode: "all" }) as { actions?: Array<{ action_name: string; is_enable: boolean }> };
-        
-        if (result.actions && Array.isArray(result.actions)) {
-          const actionNames = result.actions
-            .filter(action => action.is_enable === true)
-            .map(action => action.action_name)
-            .filter((name, index, arr) => arr.indexOf(name) === index); // 去重
-          
-          setAvailableActionNames(actionNames);
-          log("info", `[Action接口] ROS服务调用成功: 获取到${actionNames.length}个可用选项: [${actionNames.join(', ')}]`);
-        } else {
-          setAvailableActionNames([]);
-          log("error", `[Action接口] ROS服务返回数据格式错误`);
-        }
-      } else {
+      if (typeof context.callService !== "function") {
         setAvailableActionNames([]);
         log("error", `[Action接口] context.callService不可用，无法获取action列表`);
+        return;
+      }
+
+      const call = async (svc: string) => {
+        const callService = context.callService;
+        if (!callService) {
+          log("error", `获取action列表失败: context.callService 未定义`);
+          return [];
+        }
+        const result = (await callService(svc, { mode: "all" })) as {
+          actions?: Array<{ action_name: string; is_enable: boolean }>;
+        };
+        return Array.isArray(result.actions) ? result.actions : [];
+      };
+
+      let actions = await call(serviceName);
+
+      // If configured service returns empty, try fallback to default
+      if ((!actions || actions.length === 0) && serviceName !== defaultService) {
+        try {
+          actions = await call(defaultService);
+          log(
+            "warn",
+            `[Action接口] 配置服务 ${serviceName} 返回空或异常，已回退至默认 ${defaultService}`,
+          );
+        } catch {
+          // ignore fallback errors
+        }
+      }
+
+      if (actions && Array.isArray(actions)) {
+        const actionNames = actions
+          .filter((action) => action.is_enable === true)
+          .map((action) => action.action_name)
+          .filter((name, index, arr) => arr.indexOf(name) === index); // 去重
+
+        setAvailableActionNames(actionNames);
+        log(
+          "info",
+          `[Action接口] 获取到${actionNames.length}个可用选项: [${actionNames.join(", ")}]`,
+        );
+      } else {
+        setAvailableActionNames([]);
+        log("error", `[Action接口] ROS服务返回数据格式错误`);
       }
     } catch (error) {
       setAvailableActionNames([]);
       log("error", `[Action接口] ROS服务调用失败: ${error}`);
     }
-  }, [context, log]);
+  }, [_config?.actionListService?.serviceName, context, log]);
   
   // 组件加载时获取action列表
   useEffect(() => {

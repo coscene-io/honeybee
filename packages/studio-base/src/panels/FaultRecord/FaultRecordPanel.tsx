@@ -98,7 +98,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
   const loadAvailableActions = useCallback(async () => {
     setIsLoadingActions(true);
     try {
-      const actions = await fetchAvailableActions(context);
+      const actions = await fetchAvailableActions(context, config.actionListService.serviceName);
       setAvailableActions(actions);
       
       // Validate current selection; clear if not available
@@ -117,7 +117,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
     } finally {
       setIsLoadingActions(false);
     }
-  }, [addLog, context]);
+  }, [addLog, context, config.actionListService.serviceName]);
 
   // Fetch on mount and every 60s
   useEffect(() => {
@@ -424,7 +424,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
     addLog(`获取Action详情: ${actionName}`, "info");
     
     try {
-      const actionDetail = await getActionDetail(actionName, context);
+      const actionDetail = await getActionDetail(actionName, context, config.actionListService.serviceName);
       if (actionDetail) {
         setSelectedActionDetail(actionDetail);
         setShowActionDetail(true);
@@ -437,7 +437,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
     } finally {
       setIsLoadingActionDetail(false);
     }
-  }, [addLog, context]);
+  }, [addLog, context, config.actionListService.serviceName]);
 
   const isRecording = state.recordingState === "recording";
   const canStart = !isStartLoading && availableActions.length > 0;
