@@ -7,25 +7,23 @@
 
 import { useState } from "react";
 
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
-
 import { CoSceneLayoutDrawer } from "./CoSceneLayoutDrawer";
+import { LayoutButton } from "./components/LayoutButton";
+import { useCurrentLayout } from "./hooks/useCurrentLayout";
 
 export function CoSceneLayoutButton(): React.JSX.Element {
   const [open, setOpen] = useState(false);
-  const layoutManager = useLayoutManager();
+  const { currentLayout, loading } = useCurrentLayout();
 
-  // todo: 显示正在使用的layout
   return (
     <>
-      <div
+      <LayoutButton
+        currentLayout={currentLayout}
+        loading={loading}
         onClick={() => {
           setOpen(true);
         }}
-      >
-        CoSceneLayoutButton
-      </div>
+      />
       {open && (
         <CoSceneLayoutDrawer
           open
