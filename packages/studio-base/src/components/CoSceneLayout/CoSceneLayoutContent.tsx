@@ -45,6 +45,8 @@ import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayou
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
+import { RenameLayoutDialog } from "./RenameLayoutDialog";
+
 const useStyles = makeStyles()((theme) => ({
   root: {
     height: "100%",
@@ -396,6 +398,14 @@ export function CoSceneLayoutContent({
           onDeleteLayout={onDeleteLayout}
           onExportLayout={onExportLayout}
           handleOpenDialog={handleOpenDialog}
+        />
+      )}
+      {dialog.layout && dialog.type === "rename" && (
+        <RenameLayoutDialog
+          layout={dialog.layout}
+          open
+          onClose={handleCloseDialog}
+          onRenameLayout={onRenameLayout}
         />
       )}
       {dialog.layout && dialog.type === "copy" && (
