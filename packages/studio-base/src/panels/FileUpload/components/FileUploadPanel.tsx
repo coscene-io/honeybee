@@ -13,7 +13,7 @@ import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { handleTaskProgress } from "@foxglove/studio-base/panels/DataCollection/utils";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import { ProjectAndTagPicker } from "./ProjectAndTagPicker";
 import type { Config } from "../config/types";
@@ -23,9 +23,15 @@ import { MockBagService } from "../services/mockBagService";
 import { MockRosService, RealRosService } from "../services/ros";
 import type { BagFile, UploadConfig, CoSceneClient } from "../types";
 
-const POLLING_TIMEOUT = 5000; // 5 seconds timeout for task progress polling
-
 // Remove selectors as we'll receive data via props
+
+// Safe JSON stringify that handles BigInt values
+const safeStringify = (obj: any): string => {
+  const result = JSON.stringify(obj, (key, value) => 
+    typeof value === 'bigint' ? value.toString() : value
+  );
+  return result ?? 'null';
+};
 
 interface LogLine {
   id: string;
@@ -33,6 +39,38 @@ interface LogLine {
   level: "info" | "warn" | "error";
   msg: string;
 }
+
+// Function to render log message with clickable links
+const renderLogMessage = (msg: string) => {
+  // Regular expression to match URLs
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = msg.split(urlRegex);
+  
+  return parts.map((part, index) => {
+    if (urlRegex.test(part)) {
+      return (
+        <a 
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: '#2563eb',
+            textDecoration: 'underline',
+            cursor: 'pointer'
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(part, '_blank');
+          }}
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+};
 
 // 简单的Button组件
 function Button({
@@ -144,7 +182,6 @@ export function FileUploadPanel({ config: _config, context, serviceSettings, ref
   const logContainerRef = useRef<HTMLDivElement>(null);
   
   const [logs, setLogs] = useState<LogLine[]>([]);
-  const [taskProgressMap, setTaskProgressMap] = useState<Map<string, { progress: number; status: string }>>(new Map());
   
   const log = useCallback((level: LogLine["level"], msg: string) => {
     setLogs((xs) => [...xs, { id: Date.now().toString() + Math.random().toString(36).substr(2, 9), ts: new Date().toLocaleTimeString(), level, msg }]);
@@ -311,7 +348,7 @@ export function FileUploadPanel({ config: _config, context, serviceSettings, ref
       setSelectedPaths(new Set()); // 清空之前的选择状态
       
       const requestParams = { mode: selectedMode, action_name: selectedActionName };
-      log("info", `[刷新按钮] 调用ROS服务: ${refreshButtonServiceName}, 参数: ${JSON.stringify(requestParams)}`);
+      log("info", `[刷新按钮] 调用ROS服务: ${refreshButtonServiceName}, 参数: ${safeStringify(requestParams)}`);
       
       // 使用context.callService调用真实的ROS服务
       if (typeof context.callService === "function") {
@@ -320,7 +357,7 @@ export function FileUploadPanel({ config: _config, context, serviceSettings, ref
         if (result.code === 0 && result.bags) {
           setBagFiles(result.bags);
           setPhase("loaded");
-          log("info", `[刷新按钮] ROS服务调用成功: 获取到${result.bags.length}个文件, 详情: ${JSON.stringify(result.bags.map((f: any) => ({ path: f.path, mode: f.mode, action_name: f.action_name })))}`);
+          log("info", `[刷新按钮] ROS服务调用成功: 获取到${result.bags.length}个文件, 详情: ${safeStringify(result.bags.map((f: any) => ({ path: f.path, mode: f.mode, action_name: f.action_name })))}`);
         } else {
           setPhase("idle");
           log("error", `[刷新按钮] ROS服务返回失败: code=${result.code}, msg=${result.msg || '未知错误'}`);
@@ -369,7 +406,7 @@ export function FileUploadPanel({ config: _config, context, serviceSettings, ref
         tags: uploadConfig.addTags ? uploadConfig.tags : [],
         serviceType: serviceSettings.submitFilesService
       };
-      log("info", `[上传文件] 开始上传, 配置: ${JSON.stringify(uploadInfo)}`);
+      log("info", `[上传文件] 开始上传, 配置: ${safeStringify(uploadInfo)}`);
       
       // If using CoScene service and project/tags are configured, use CoScene upload
       if ((serviceSettings.submitFilesService === "coscene-real" || serviceSettings.submitFilesService === "coscene-mock") && uploadConfig.projectId) {
@@ -400,61 +437,88 @@ export function FileUploadPanel({ config: _config, context, serviceSettings, ref
             const tagNames = uploadConfig.tags.map(tag => typeof tag === 'string' ? tag : (tag.displayName || tag.name));
             log("info", `[上传完成] CoScene上传成功, 文件数: ${pathsArray.length}, 项目: ${uploadConfig.projectId}, 任务: ${uploadResult.taskName}, 标签: [${tagNames.join(', ')}]`);
             
-            // Start task progress tracking similar to DataCollection
-            if (consoleApi && user && organization && project) {
-              log("info", `[任务跟踪] 开始跟踪任务进度: ${uploadResult.taskName}`);
+            // Generate task and record URLs directly
+            const webDomain = APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? "dev.coscene.cn";
+            const taskId = uploadResult.taskName.split("/").pop();
+            
+            // Try to get organization and project info from API if not available
+            let orgInfo = organization;
+            let projInfo = project;
+            
+            if ((!orgInfo || !projInfo) && consoleApi) {
+              try {
+                // Extract warehouseId and projectId from taskName or recordName
+                const pathToExtract = uploadResult.taskName || uploadResult.recordName;
+                if (pathToExtract) {
+                  const pathParts = pathToExtract.split("/");
+                  const warehouseIndex = pathParts.findIndex(part => part === "warehouses");
+                  const projectIndex = pathParts.findIndex(part => part === "projects");
+                  
+                  if (warehouseIndex >= 0 && projectIndex >= 0 && warehouseIndex + 1 < pathParts.length && projectIndex + 1 < pathParts.length) {
+                    const warehouseId = pathParts[warehouseIndex + 1];
+                    const projectId = pathParts[projectIndex + 1];
+                    
+                    // Get organization info
+                    if (!orgInfo && warehouseId) {
+                      try {
+                        orgInfo = await consoleApi.getOrg(`warehouses/${warehouseId}`);
+                        log("info", `[组织信息] 获取成功: ${orgInfo.slug}`);
+                      } catch (error) {
+                        log("warn", `[组织信息] 获取失败: ${error}`);
+                      }
+                    }
+                    
+                    // Get project info
+                    if (!projInfo && warehouseId && projectId) {
+                      try {
+                        projInfo = await consoleApi.getProject({ projectName: `warehouses/${warehouseId}/projects/${projectId}` });
+                        log("info", `[项目信息] 获取成功: ${projInfo.slug}`);
+                      } catch (error) {
+                        log("warn", `[项目信息] 获取失败: ${error}`);
+                      }
+                    }
+                  }
+                }
+              } catch (error) {
+                log("warn", `[URL生成] 获取组织/项目信息失败: ${error}`);
+              }
+            }
+            
+            // Generate URLs with organization and project info if available
+            if (orgInfo && projInfo) {
+              // Generate task URL
+              const taskUrl = `https://${webDomain}/${orgInfo.slug}/${projInfo.slug}/devices/execution-history/${taskId}`;
+              log("info", `[任务链接] ${taskUrl}`);
               
-              // Initialize task progress state
-              setTaskProgressMap(prev => new Map(prev.set(uploadResult.taskName!, { progress: 0, status: 'processing' })));
+              // Generate record URL if record information is available
+              if (uploadResult.recordName) {
+                const recordId = uploadResult.recordName.split("/").pop();
+                const recordUrl = `https://${webDomain}/${orgInfo.slug}/${projInfo.slug}/records/${recordId}/files`;
+                log("info", `[记录链接] ${recordUrl}`);
+              }
+            } else {
+              // Generate URLs using available information
+              log("info", `[任务ID] ${taskId}`);
+              if (uploadConfig.projectId) {
+                log("info", `[项目ID] ${uploadConfig.projectId}`);
+              }
               
-              // Start polling task progress with timeout
-              const timeoutId = setTimeout(() => {
-                log("warn", `[任务跟踪] 任务 ${uploadResult.taskName} 进度跟踪超时`);
-                setTaskProgressMap(prev => {
-                  const newMap = new Map(prev);
-                  newMap.delete(uploadResult.taskName!);
-                  return newMap;
-                });
-              }, POLLING_TIMEOUT);
+              if (uploadResult.recordName) {
+                const recordId = uploadResult.recordName.split("/").pop();
+                log("info", `[记录ID] ${recordId}`);
+              }
               
-              handleTaskProgress({
-                  consoleApi,
-                  taskName: uploadResult.taskName,
-                  timeout: POLLING_TIMEOUT,
-                  addLog: (logMessage: string) => {
-                    log("info", `[任务跟踪] ${logMessage}`);
-                  },
-                  t,
-                  showRecordLink: true,
-                  targetOrg: organization!,
-                  targetProject: project!,
-                  focusedTask: undefined
-                }).then(() => {
-                // Task completed successfully
-                clearTimeout(timeoutId);
-                log("info", `[任务完成] 任务 ${uploadResult.taskName} 处理完成`);
-                setTaskProgressMap(prev => {
-                  const newMap = new Map(prev);
-                  newMap.set(uploadResult.taskName!, { progress: 100, status: 'completed' });
-                  return newMap;
-                });
-                // Remove from tracking map after completion
-                setTimeout(() => {
-                  setTaskProgressMap(prev => {
-                    const newMap = new Map(prev);
-                    newMap.delete(uploadResult.taskName!);
-                    return newMap;
-                  });
-                }, 2000); // Keep for 2 seconds to show final status
-              }).catch((error) => {
-                clearTimeout(timeoutId);
-                log("error", `[任务跟踪] 任务进度跟踪失败: ${error.message}`);
-                setTaskProgressMap(prev => {
-                  const newMap = new Map(prev);
-                  newMap.delete(uploadResult.taskName!);
-                  return newMap;
-                });
-              });
+              // Generate basic URLs if we have domain info
+              if (taskId) {
+                log("info", `[任务链接] https://${webDomain}/tasks/${taskId}`);
+              }
+              
+              if (uploadResult.recordName) {
+                const recordId = uploadResult.recordName.split("/").pop();
+                if (recordId) {
+                  log("info", `[记录链接] https://${webDomain}/records/${recordId}`);
+                }
+              }
             }
           } else {
             const tagNames = uploadConfig.tags.map(tag => typeof tag === 'string' ? tag : (tag.displayName || tag.name));
@@ -473,7 +537,7 @@ export function FileUploadPanel({ config: _config, context, serviceSettings, ref
         });
         
         if (result.code === 0) {
-          log("info", `[上传完成] ${serviceName}上传成功, 返回: ${JSON.stringify(result)}`);
+          log("info", `[上传完成] ${serviceName}上传成功, 返回: ${safeStringify(result)}`);
         } else {
           log("error", `[上传失败] ${serviceName}上传失败: code=${result.code}, msg=${result.msg}`);
         }
@@ -696,55 +760,7 @@ export function FileUploadPanel({ config: _config, context, serviceSettings, ref
           </div>
         )}
 
-        {/* 任务进度跟踪区域 */}
-        {taskProgressMap.size > 0 && (
-          <div style={{ 
-            backgroundColor: '#f0f9ff', 
-            border: '1px solid #0ea5e9',
-            borderRadius: 6,
-            padding: 12,
-            marginBottom: 16
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#0369a1' }}>任务进度跟踪</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {Array.from(taskProgressMap.entries()).map(([taskName, { progress, status }]) => (
-                <div key={taskName} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: 8,
-                  backgroundColor: '#ffffff',
-                  borderRadius: 4,
-                  border: '1px solid #e0f2fe'
-                }}>
-                  <div style={{ flex: 1, fontSize: 12 }}>
-                    <div style={{ fontWeight: 500, marginBottom: 2 }}>{taskName}</div>
-                    <div style={{ color: '#6b7280' }}>状态: {status}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{
-                      width: 100,
-                      height: 6,
-                      backgroundColor: '#e5e7eb',
-                      borderRadius: 3,
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        width: `${progress}%`,
-                        height: '100%',
-                        backgroundColor: status === 'completed' ? '#10b981' : status === 'failed' ? '#ef4444' : '#3b82f6',
-                        transition: 'width 0.3s ease'
-                      }} />
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 500, minWidth: 35, textAlign: 'right' }}>
-                      {progress}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+
 
         {/* 日志区域 */}
         <div style={{ 
@@ -764,7 +780,7 @@ export function FileUploadPanel({ config: _config, context, serviceSettings, ref
                   fontSize: 12,
                   marginBottom: 2
                 }}>
-                  [{l.ts}] {l.level.toUpperCase()} | {l.msg}
+                  [{l.ts}] {l.level.toUpperCase()} | {renderLogMessage(l.msg)}
                 </div>
               ))
             )}

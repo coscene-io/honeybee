@@ -254,6 +254,7 @@ export class RealCoSceneClient implements CoSceneClient {
       console.log(`[文件上传] ${files.length} 个文件已成功上传并关联到记录: ${recordName}`);
       
       // Now create a task and link it to the record
+      let createdTaskName: string | undefined;
        if (cfg.projectId) {
          try {
           // Extract warehouse and project IDs for device lookup
@@ -336,6 +337,10 @@ export class RealCoSceneClient implements CoSceneClient {
                 task: newTask,
               });
               
+              // Store the actual created task name (this is the real task ID)
+              createdTaskName = createdTask.name;
+              console.log(`[任务创建] 任务创建成功，任务ID: ${createdTaskName}`);
+              
               // Link the task to the record if both exist
                if (recordName && createdTask.name) {
                  try {
@@ -364,15 +369,12 @@ export class RealCoSceneClient implements CoSceneClient {
       onProgress?.(100);
       
       // Return success with task and record information if created
-      if (cfg.projectId && deviceName) {
-        return { 
-          success: true, 
-          taskName: `${cfg.projectId}/tasks/${taskTitle}`,
-          recordName: recordName || undefined
-        };
-      }
-      
-      return { success: true, recordName: recordName || undefined };
+      // Use the actual created task name instead of constructed taskName
+      return { 
+        success: true, 
+        taskName: createdTaskName || undefined,
+        recordName: recordName || undefined
+      };
     } catch (error) {
       console.error("File upload failed:", error);
       throw new Error(`Upload failed: ${error instanceof Error ? error.message : String(error)}`);
