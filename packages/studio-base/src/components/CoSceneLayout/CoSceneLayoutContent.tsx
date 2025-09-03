@@ -120,8 +120,10 @@ export function CoSceneLayoutContent({
   onCreateLayout: (params: CreateLayoutParams) => Promise<void>;
 }): React.JSX.Element {
   const { classes } = useStyles();
-  const [selectedCategory, setSelectedCategory] = useState<"personal" | "project">("personal");
-  const [selectedFolder, setSelectedFolder] = useState<string>("");
+  const [selectedFolder, setSelectedFolder] = useState<{
+    category: "personal" | "project";
+    folder: string;
+  }>({ category: "personal", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "updateTime">("updateTime");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -138,10 +140,10 @@ export function CoSceneLayoutContent({
     }
 
     let filtered: Layout[] =
-      selectedCategory === "personal" ? layouts.personalLayouts : layouts.projectLayouts;
+      selectedFolder.category === "personal" ? layouts.personalLayouts : layouts.projectLayouts;
 
-    if (selectedFolder) {
-      filtered = filtered.filter((l) => l.folder === selectedFolder);
+    if (selectedFolder.folder) {
+      filtered = filtered.filter((l) => l.folder === selectedFolder.folder);
     }
 
     if (searchQuery) {
@@ -175,7 +177,7 @@ export function CoSceneLayoutContent({
     });
 
     return filtered;
-  }, [layouts, selectedCategory, selectedFolder, searchQuery, sortBy, sortOrder]);
+  }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery, sortBy, sortOrder]);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, layout: Layout) => {
     setMenu({ anchorEl: event.currentTarget, layout });
@@ -202,10 +204,9 @@ export function CoSceneLayoutContent({
             {/* Personal Layouts */}
             <ListItem disablePadding>
               <ListItemButton
-                selected={selectedCategory === "personal"}
+                selected={selectedFolder.category === "personal"}
                 onClick={() => {
-                  setSelectedCategory("personal");
-                  setSelectedFolder("");
+                  setSelectedFolder({ category: "personal", folder: "" });
                 }}
               >
                 <ListItemIcon className={classes.listItemIcon}>
@@ -219,9 +220,11 @@ export function CoSceneLayoutContent({
             {layouts.personalFolders.map((folder) => (
               <ListItem key={folder} disablePadding className={classes.folderItem}>
                 <ListItemButton
-                  selected={selectedFolder === folder}
+                  selected={
+                    selectedFolder.category === "personal" && selectedFolder.folder === folder
+                  }
                   onClick={() => {
-                    setSelectedFolder(folder);
+                    setSelectedFolder({ category: "personal", folder });
                   }}
                 >
                   <ListItemIcon>
@@ -238,14 +241,10 @@ export function CoSceneLayoutContent({
             {/* Project Layouts */}
             <ListItem disablePadding>
               <ListItemButton
-                selected={selectedCategory === "project"}
+                selected={selectedFolder.category === "project"}
                 onClick={() => {
-                  setSelectedCategory("project");
-                  setSelectedFolder("");
+                  setSelectedFolder({ category: "project", folder: "" });
                 }}
-                // className={`${classes.listItemButton} ${
-                //   selectedCategory === "project" ? classes.listItemButtonSelected : ""
-                // }`}
               >
                 <ListItemIcon className={classes.listItemIcon}>
                   <BusinessIcon />
@@ -258,9 +257,11 @@ export function CoSceneLayoutContent({
             {layouts.projectFolders.map((folder) => (
               <ListItem key={folder} disablePadding className={classes.folderItem}>
                 <ListItemButton
-                  selected={selectedFolder === folder}
+                  selected={
+                    selectedFolder.category === "project" && selectedFolder.folder === folder
+                  }
                   onClick={() => {
-                    setSelectedFolder(folder);
+                    setSelectedFolder({ category: "project", folder });
                   }}
                 >
                   <ListItemIcon>
@@ -281,14 +282,16 @@ export function CoSceneLayoutContent({
           <Box className={classes.boxPadding}>
             {/* Breadcrumb */}
             <Breadcrumbs className={classes.breadcrumbs}>
-              <Link color="inherit" href="#" underline="hover">
-                {selectedCategory === "personal" ? "个人布局" : "项目布局"}
+              <Link
+                color="inherit"
+                underline="hover"
+                onClick={() => {
+                  setSelectedFolder({ category: "personal", folder: "" });
+                }}
+              >
+                {selectedFolder.category === "personal" ? "个人布局" : "项目布局"}
               </Link>
-              {selectedFolder && (
-                <Link color="inherit" href="#" underline="hover">
-                  {selectedFolder}
-                </Link>
-              )}
+              {selectedFolder.folder && <div>{selectedFolder.folder}</div>}
             </Breadcrumbs>
 
             {/* Toolbar */}
