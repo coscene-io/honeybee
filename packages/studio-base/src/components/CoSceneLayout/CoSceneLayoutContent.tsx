@@ -34,6 +34,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { LayoutTableRow } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRow";
@@ -121,6 +122,7 @@ export function CoSceneLayoutContent({
   onRevertLayout: (layout: Layout) => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
   const [selectedFolder, setSelectedFolder] = useState<{
     category: "personal" | "project";
@@ -214,7 +216,7 @@ export function CoSceneLayoutContent({
                 <ListItemIcon className={classes.listItemIcon}>
                   <PersonIcon />
                 </ListItemIcon>
-                <ListItemText primary="个人布局" />
+                <ListItemText primary={t("personalLayout")} />
               </ListItemButton>
             </ListItem>
 
@@ -252,7 +254,7 @@ export function CoSceneLayoutContent({
                 <ListItemIcon className={classes.listItemIcon}>
                   <BusinessIcon />
                 </ListItemIcon>
-                <ListItemText primary="项目布局" />
+                <ListItemText primary={t("projectLayout")} />
               </ListItemButton>
             </ListItem>
 
@@ -293,7 +295,7 @@ export function CoSceneLayoutContent({
                   setSelectedFolder({ category: "personal", folder: "" });
                 }}
               >
-                {selectedFolder.category === "personal" ? "个人布局" : "项目布局"}
+                {selectedFolder.category === "personal" ? t("personalLayout") : t("projectLayout")}
               </Link>
               {selectedFolder.folder && <div>{selectedFolder.folder}</div>}
             </Breadcrumbs>

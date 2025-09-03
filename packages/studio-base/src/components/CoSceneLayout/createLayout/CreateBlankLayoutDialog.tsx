@@ -20,13 +20,6 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
-
-interface CreateBlankLayoutForm {
-  displayName: string;
-  folder: string;
-  permission: LayoutPermission;
-}
 
 export function CreateBlankLayoutDialog({
   open,
@@ -35,21 +28,21 @@ export function CreateBlankLayoutDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  onCreateLayout: (params: CreateLayoutParams) => Promise<void>;
+  onCreateLayout: (params: CreateLayoutParams) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
 
-  const form = useForm<CreateBlankLayoutForm>({
+  const form = useForm<CreateLayoutParams>({
     defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE" },
   });
 
-  const onSubmit = async (data: CreateBlankLayoutForm) => {
-    onClose();
-    await onCreateLayout({
+  const onSubmit = (data: CreateLayoutParams) => {
+    onCreateLayout({
       folder: data.folder,
       displayName: data.displayName,
       permission: data.permission,
     });
+    onClose();
   };
 
   return (
