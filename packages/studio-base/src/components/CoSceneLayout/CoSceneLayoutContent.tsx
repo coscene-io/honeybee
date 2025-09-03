@@ -218,8 +218,9 @@ export function CoSceneLayoutContent({
 
             {/* Personal Layout Folders */}
             {layouts.personalFolders.map((folder) => (
-              <ListItem key={folder} disablePadding className={classes.folderItem}>
+              <ListItem key={folder} disablePadding>
                 <ListItemButton
+                  className={classes.folderItem}
                   selected={
                     selectedFolder.category === "personal" && selectedFolder.folder === folder
                   }
@@ -255,8 +256,9 @@ export function CoSceneLayoutContent({
 
             {/* Project Layout Folders */}
             {layouts.projectFolders.map((folder) => (
-              <ListItem key={folder} disablePadding className={classes.folderItem}>
+              <ListItem key={folder} disablePadding>
                 <ListItemButton
+                  className={classes.folderItem}
                   selected={
                     selectedFolder.category === "project" && selectedFolder.folder === folder
                   }
