@@ -18,7 +18,7 @@ import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayou
 export function CreateLayoutButton({
   onCreateLayout,
 }: {
-  onCreateLayout: (params: CreateLayoutParams) => Promise<void>;
+  onCreateLayout: (params: CreateLayoutParams) => void;
 }): React.JSX.Element {
   const [open, setOpen] = useState("");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>(undefined);

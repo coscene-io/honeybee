@@ -32,7 +32,9 @@ interface LayoutTableRowProps {
   currentLayoutId?: LayoutID;
   layout: Layout;
   handleMenuOpen: (event: React.MouseEvent<HTMLElement>, layout: Layout) => void;
-  onSelectLayout: (layout: Layout) => Promise<void>;
+  onSelectLayout: (layout: Layout) => void;
+  onOverwriteLayout: (layout: Layout) => void;
+  onRevertLayout: (layout: Layout) => void;
 }
 
 export function LayoutTableRow({
@@ -40,13 +42,15 @@ export function LayoutTableRow({
   layout,
   handleMenuOpen,
   onSelectLayout,
+  onOverwriteLayout,
+  onRevertLayout,
 }: LayoutTableRowProps): React.JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("cosLayout");
 
   const formatTimestamp = (timestamp: { seconds: number | bigint } | undefined) => {
     if (!timestamp) {
-      return "未知时间";
+      return "-";
     }
     const date = new Date(Number(timestamp.seconds) * 1000);
     return dayjs(date).format("YYYY-MM-DD HH:mm:ss");
@@ -58,20 +62,22 @@ export function LayoutTableRow({
         {layout.displayName}
         {currentLayoutId === layout.id && <Chip size="small" color="success" label={t("inUse")} />}
       </TableCell>
-      <TableCell align="right">
+      <TableCell>
         {formatTimestamp(layout.working?.modifyTime ?? layout.baseline.modifyTime)}
       </TableCell>
-      <TableCell align="right">
+      <TableCell>
         <Box className={classes.updaterCell}>
           <Avatar className={classes.avatar}>U</Avatar>
           <Typography variant="body2">user</Typography>
         </Box>
       </TableCell>
-      <TableCell align="center">
+      <TableCell align="right">
         <LayoutActions
           layout={layout}
           handleMenuOpen={handleMenuOpen}
           onSelectLayout={onSelectLayout}
+          onOverwriteLayout={onOverwriteLayout}
+          onRevertLayout={onRevertLayout}
         />
       </TableCell>
     </TableRow>

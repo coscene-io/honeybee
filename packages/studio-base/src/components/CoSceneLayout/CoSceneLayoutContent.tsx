@@ -79,7 +79,6 @@ const useStyles = makeStyles()((theme) => ({
   tableHeaderCell: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "flex-end",
   },
 
   emptyState: {
@@ -114,13 +113,13 @@ export function CoSceneLayoutContent({
     personalLayouts: Layout[];
     projectLayouts: Layout[];
   };
-  onSelectLayout: (layout: Layout) => Promise<void>;
-  onDeleteLayout: (layout: Layout) => Promise<void>;
-  onRenameLayout: (layout: Layout, newName: string) => Promise<void>;
-  onExportLayout: (layout: Layout) => Promise<void>;
-  onOverwriteLayout: (layout: Layout) => Promise<void>;
-  onRevertLayout: (layout: Layout) => Promise<void>;
-  onCreateLayout: (params: CreateLayoutParams) => Promise<void>;
+  onSelectLayout: (layout: Layout) => void;
+  onDeleteLayout: (layout: Layout) => void;
+  onRenameLayout: (layout: Layout, newName: string) => void;
+  onExportLayout: (layout: Layout) => void;
+  onOverwriteLayout: (layout: Layout) => void;
+  onRevertLayout: (layout: Layout) => void;
+  onCreateLayout: (params: CreateLayoutParams) => void;
 }): React.JSX.Element {
   const { classes } = useStyles();
   const [selectedFolder, setSelectedFolder] = useState<{
@@ -327,7 +326,7 @@ export function CoSceneLayoutContent({
                 <TableHead>
                   <TableRow>
                     <TableCell>布局名称</TableCell>
-                    <TableCell align="right">
+                    <TableCell>
                       <Box className={classes.tableHeaderCell}>
                         更新时间
                         <IconButton
@@ -344,8 +343,8 @@ export function CoSceneLayoutContent({
                         </IconButton>
                       </Box>
                     </TableCell>
-                    <TableCell align="right">更新者</TableCell>
-                    <TableCell align="center">操作</TableCell>
+                    <TableCell>更新者</TableCell>
+                    <TableCell align="right">操作</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -356,6 +355,8 @@ export function CoSceneLayoutContent({
                       layout={layout}
                       handleMenuOpen={handleMenuOpen}
                       onSelectLayout={onSelectLayout}
+                      onOverwriteLayout={onOverwriteLayout}
+                      onRevertLayout={onRevertLayout}
                     />
                   ))}
                 </TableBody>
@@ -377,6 +378,7 @@ export function CoSceneLayoutContent({
           handleMenuClose={handleMenuClose}
           layout={menu.layout}
           onDeleteLayout={onDeleteLayout}
+          onExportLayout={onExportLayout}
         />
       )}
     </div>

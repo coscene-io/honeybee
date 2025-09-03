@@ -15,19 +15,45 @@ export function LayoutActions({
   layout,
   handleMenuOpen,
   onSelectLayout,
+  onOverwriteLayout,
+  onRevertLayout,
 }: {
   layout: Layout;
   handleMenuOpen: (event: React.MouseEvent<HTMLButtonElement>, layout: Layout) => void;
-  onSelectLayout: (layout: Layout) => Promise<void>;
+  onSelectLayout: (layout: Layout) => void;
+  onOverwriteLayout: (layout: Layout) => void;
+  onRevertLayout: (layout: Layout) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
 
+  const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
+  const hasModifications = layout.working != undefined;
+
   const handleUse = () => {
-    void onSelectLayout(layout);
+    onSelectLayout(layout);
+  };
+
+  const handleOverwrite = () => {
+    onOverwriteLayout(layout);
+  };
+
+  const handleRevert = () => {
+    onRevertLayout(layout);
   };
 
   return (
     <div>
+      {hasModifications && (
+        <>
+          <Button variant="outlined" size="small" onClick={handleOverwrite}>
+            {t("saveChanges")}
+          </Button>
+          <Button variant="outlined" size="small" onClick={handleRevert}>
+            {t("revert")}
+          </Button>
+        </>
+      )}
+
       <Button variant="outlined" size="small" onClick={handleUse}>
         {t("use")}
       </Button>
