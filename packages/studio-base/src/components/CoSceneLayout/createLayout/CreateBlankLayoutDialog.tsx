@@ -12,7 +12,6 @@ import {
   TextField,
   Button,
   DialogActions,
-  FormControl,
   Stack,
   Select,
   MenuItem,
@@ -21,7 +20,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import type { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 interface CreateBlankLayoutForm {
   displayName: string;

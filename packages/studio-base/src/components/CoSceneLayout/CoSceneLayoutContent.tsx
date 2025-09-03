@@ -39,6 +39,7 @@ import { makeStyles } from "tss-react/mui";
 import { LayoutTableRow } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRow";
 import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
@@ -128,6 +129,11 @@ export function CoSceneLayoutContent({
   layouts,
   onSelectLayout,
   onDeleteLayout,
+  onRenameLayout,
+  onExportLayout,
+  onOverwriteLayout,
+  onRevertLayout,
+  onCreateLayout,
 }: {
   layouts?: {
     personalFolders: string[];
@@ -137,6 +143,11 @@ export function CoSceneLayoutContent({
   };
   onSelectLayout: (layout: Layout) => Promise<void>;
   onDeleteLayout: (layout: Layout) => Promise<void>;
+  onRenameLayout: (layout: Layout, newName: string) => Promise<void>;
+  onExportLayout: (layout: Layout) => Promise<void>;
+  onOverwriteLayout: (layout: Layout) => Promise<void>;
+  onRevertLayout: (layout: Layout) => Promise<void>;
+  onCreateLayout: (layout: Layout, layoutData?: LayoutData) => Promise<void>;
 }): React.JSX.Element {
   const { classes } = useStyles();
   const [selectedCategory, setSelectedCategory] = useState<"personal" | "project">("personal");

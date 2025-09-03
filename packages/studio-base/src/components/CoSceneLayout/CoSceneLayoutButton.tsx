@@ -5,9 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useCallback, useState } from "react";
+import { useSnackbar } from "notistack";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import Logger from "@foxglove/log";
 import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/CoSceneUnsavedChangesPrompt";
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
@@ -15,6 +17,9 @@ import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutMan
 import {
   LayoutData,
   useCurrentLayoutActions,
+  // LayoutState,
+  // useCurrentLayoutSelector,
+  LayoutID,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
@@ -26,10 +31,12 @@ import { CoSceneLayoutDrawer } from "./CoSceneLayoutDrawer";
 import { LayoutButton } from "./components/LayoutButton";
 import { useCurrentLayout } from "./hooks/useCurrentLayout";
 
+const log = Logger.getLogger(__filename);
+
 export function CoSceneLayoutButton(): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const { currentLayoutId, currentLayout, layouts } = useCurrentLayout();
-
+  const { enqueueSnackbar } = useSnackbar();
   const analytics = useAnalytics();
   const { t } = useTranslation("cosLayout");
   const confirm = useConfirm();
@@ -44,6 +51,85 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     error: layoutManager.error,
     online: layoutManager.isOnline,
   });
+
+  const pendingMultiAction = state.multiAction?.ids != undefined;
+
+  const anySelectedModifiedLayouts = useMemo(() => {
+    return [layouts.value?.personalLayouts ?? [], layouts.value?.projectLayouts ?? []]
+      .flat()
+      .some((layout) => layout.working != undefined && state.selectedIds.includes(layout.id));
+  }, [layouts, state.selectedIds]);
+
+  useLayoutEffect(() => {
+    const busyListener = () => {
+      dispatch({ type: "set-busy", value: layoutManager.isBusy });
+    };
+    const onlineListener = () => {
+      dispatch({ type: "set-online", value: layoutManager.isOnline });
+    };
+    const errorListener = () => {
+      dispatch({ type: "set-error", value: layoutManager.error });
+    };
+    busyListener();
+    onlineListener();
+    errorListener();
+    layoutManager.on("busychange", busyListener);
+    layoutManager.on("onlinechange", onlineListener);
+    layoutManager.on("errorchange", errorListener);
+    return () => {
+      layoutManager.off("busychange", busyListener);
+      layoutManager.off("onlinechange", onlineListener);
+      layoutManager.off("errorchange", errorListener);
+    };
+  }, [dispatch, layoutManager]);
+
+  useEffect(() => {
+    const processAction = async () => {
+      if (!state.multiAction) {
+        return;
+      }
+
+      const id = state.multiAction.ids[0];
+      if (id) {
+        try {
+          switch (state.multiAction.action) {
+            case "delete":
+              await layoutManager.deleteLayout({ id: id as LayoutID });
+              dispatch({ type: "shift-multi-action" });
+              break;
+            case "duplicate": {
+              const layout = await layoutManager.getLayout({ id: id as LayoutID });
+              if (layout) {
+                await layoutManager.saveNewLayout({
+                  folder: layout.folder,
+                  displayName: `${layout.displayName} copy`,
+                  data: layout.working?.data ?? layout.baseline.data,
+                  permission: "CREATOR_WRITE",
+                });
+              }
+              dispatch({ type: "shift-multi-action" });
+              break;
+            }
+            case "revert":
+              await layoutManager.revertLayout({ id: id as LayoutID });
+              dispatch({ type: "shift-multi-action" });
+              break;
+            case "save":
+              await layoutManager.overwriteLayout({ id: id as LayoutID });
+              dispatch({ type: "shift-multi-action" });
+              break;
+          }
+        } catch (err) {
+          enqueueSnackbar(`Error processing layouts: ${err.message}`, { variant: "error" });
+          dispatch({ type: "clear-multi-action" });
+        }
+      }
+    };
+
+    processAction().catch((err: unknown) => {
+      log.error(err);
+    });
+  }, [dispatch, enqueueSnackbar, layoutManager, state.multiAction]);
 
   /**
    * Don't allow the user to switch away from a personal layout if they have unsaved changes. This
@@ -247,6 +333,11 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           layouts={layouts.value}
           onSelectLayout={onSelectLayout}
           onDeleteLayout={onDeleteLayout}
+          onRenameLayout={onRenameLayout}
+          onExportLayout={onExportLayout}
+          onOverwriteLayout={onOverwriteLayout}
+          onRevertLayout={onRevertLayout}
+          onCreateLayout={onCreateLayout}
           onClose={() => {
             setOpen(false);
           }}
