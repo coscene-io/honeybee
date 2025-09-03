@@ -23,7 +23,11 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import {
+  Layout,
+  layoutIsShared,
+  LayoutPermission,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
@@ -289,26 +293,27 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   );
 
   const onCreateLayout = useCallbackWithToast(
-    async (item: Layout, layoutData?: LayoutData) => {
+    async (params: {
+      folder: string;
+      displayName: string;
+      permission: LayoutPermission;
+      data?: LayoutData;
+    }) => {
       if (!(await promptForUnsavedChanges())) {
         return;
       }
-      // const layoutData: Omit<LayoutData, "displayName" | "id"> = {
-      //   configById: {},
-      //   globalVariables: {},
-      //   userNodes: {},
-      // };
-      const data = layoutData ?? {
+
+      const data = params.data ?? {
         configById: {},
         globalVariables: {},
         userNodes: {},
       };
 
       const newLayout = await layoutManager.saveNewLayout({
-        folder: item.folder,
-        displayName: item.displayName,
+        folder: params.folder,
+        displayName: params.displayName,
         data,
-        permission: item.permission,
+        permission: params.permission,
       });
       void onSelectLayout(newLayout);
 

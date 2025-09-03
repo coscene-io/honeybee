@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
 
@@ -37,7 +37,12 @@ interface CoSceneLayoutDrawerProps extends DrawerProps {
   onExportLayout: (layout: Layout) => Promise<void>;
   onOverwriteLayout: (layout: Layout) => Promise<void>;
   onRevertLayout: (layout: Layout) => Promise<void>;
-  onCreateLayout: (layout: Layout, layoutData?: LayoutData) => Promise<void>;
+  onCreateLayout: (params: {
+    folder: string;
+    displayName: string;
+    permission: LayoutPermission;
+    data?: LayoutData;
+  }) => Promise<void>;
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];

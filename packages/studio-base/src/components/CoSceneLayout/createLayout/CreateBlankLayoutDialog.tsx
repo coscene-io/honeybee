@@ -20,7 +20,12 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import {
+  Layout,
+  layoutIsShared,
+  LayoutPermission,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 interface CreateBlankLayoutForm {
   displayName: string;
@@ -31,32 +36,30 @@ interface CreateBlankLayoutForm {
 export function CreateBlankLayoutDialog({
   open,
   onClose,
+  onCreateLayout,
 }: {
   open: boolean;
   onClose: () => void;
+  onCreateLayout: (params: {
+    folder: string;
+    displayName: string;
+    permission: LayoutPermission;
+    data?: LayoutData;
+  }) => Promise<void>;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
-  const layoutManager = useLayoutManager();
 
   const form = useForm<CreateBlankLayoutForm>({
     defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE" },
   });
 
   const onSubmit = async (data: CreateBlankLayoutForm) => {
-    await layoutManager
-      .saveNewLayout({
-        folder: data.folder,
-        displayName: data.displayName,
-        data: {
-          configById: {},
-          globalVariables: {},
-          userNodes: {},
-        },
-        permission: data.permission,
-      })
-      .then(() => {
-        onClose();
-      });
+    onClose();
+    await onCreateLayout({
+      folder: data.folder,
+      displayName: data.displayName,
+      permission: data.permission,
+    });
   };
 
   return (

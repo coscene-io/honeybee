@@ -40,7 +40,7 @@ import { LayoutTableRow } from "@foxglove/studio-base/components/CoSceneLayout/L
 import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -57,36 +57,6 @@ const useStyles = makeStyles()((theme) => ({
   contentArea: {
     width: "75%",
     minWidth: 800,
-  },
-  listItemButton: {
-    "&.Mui-selected": {
-      backgroundColor: theme.palette.primary.light,
-      color: theme.palette.primary.main,
-    },
-  },
-  listItemButtonPersonal: {
-    "&.Mui-selected": {
-      backgroundColor: theme.palette.primary.light,
-      color: theme.palette.primary.main,
-    },
-    backgroundColor: "transparent",
-    color: "inherit",
-  },
-  listItemButtonPersonalSelected: {
-    backgroundColor: theme.palette.primary.light,
-    color: theme.palette.primary.main,
-  },
-  listItemButtonProject: {
-    "&.Mui-selected": {
-      backgroundColor: theme.palette.primary.light,
-      color: theme.palette.primary.main,
-    },
-    backgroundColor: "transparent",
-    color: "inherit",
-  },
-  listItemButtonProjectSelected: {
-    backgroundColor: theme.palette.primary.light,
-    color: theme.palette.primary.main,
   },
   listItemIcon: {
     color: "inherit",
@@ -147,7 +117,12 @@ export function CoSceneLayoutContent({
   onExportLayout: (layout: Layout) => Promise<void>;
   onOverwriteLayout: (layout: Layout) => Promise<void>;
   onRevertLayout: (layout: Layout) => Promise<void>;
-  onCreateLayout: (layout: Layout, layoutData?: LayoutData) => Promise<void>;
+  onCreateLayout: (params: {
+    folder: string;
+    displayName: string;
+    permission: LayoutPermission;
+    data?: LayoutData;
+  }) => Promise<void>;
 }): React.JSX.Element {
   const { classes } = useStyles();
   const [selectedCategory, setSelectedCategory] = useState<"personal" | "project">("personal");
@@ -225,7 +200,7 @@ export function CoSceneLayoutContent({
         {/* Left Navigation Sidebar */}
         <div className={classes.sidebar}>
           <Box className={classes.boxPadding}>
-            <CreateLayoutButton />
+            <CreateLayoutButton onCreateLayout={onCreateLayout} />
           </Box>
 
           <List className={classes.listPadding}>
@@ -237,11 +212,6 @@ export function CoSceneLayoutContent({
                   setSelectedCategory("personal");
                   setSelectedFolder("");
                 }}
-                className={`${classes.listItemButton} ${
-                  selectedCategory === "personal"
-                    ? classes.listItemButtonPersonalSelected
-                    : classes.listItemButtonPersonal
-                }`}
               >
                 <ListItemIcon className={classes.listItemIcon}>
                   <PersonIcon />
@@ -278,11 +248,9 @@ export function CoSceneLayoutContent({
                   setSelectedCategory("project");
                   setSelectedFolder("");
                 }}
-                className={`${classes.listItemButton} ${
-                  selectedCategory === "project"
-                    ? classes.listItemButtonProjectSelected
-                    : classes.listItemButtonProject
-                }`}
+                // className={`${classes.listItemButton} ${
+                //   selectedCategory === "project" ? classes.listItemButtonSelected : ""
+                // }`}
               >
                 <ListItemIcon className={classes.listItemIcon}>
                   <BusinessIcon />

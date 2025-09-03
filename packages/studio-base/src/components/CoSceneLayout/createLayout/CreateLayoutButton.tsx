@@ -13,8 +13,19 @@ import { useTranslation } from "react-i18next";
 import { CopyFromOtherProjectDialog } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CopyFromOtherProjectDialog";
 import { CreateBlankLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateBlankLayoutDialog";
 import { ImportFromFileDialog } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/ImportFromFileDialog";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
-export function CreateLayoutButton(): React.JSX.Element {
+export function CreateLayoutButton({
+  onCreateLayout,
+}: {
+  onCreateLayout: (params: {
+    folder: string;
+    displayName: string;
+    permission: LayoutPermission;
+    data?: LayoutData;
+  }) => Promise<void>;
+}): React.JSX.Element {
   const [open, setOpen] = useState("");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>(undefined);
   const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -59,6 +70,7 @@ export function CreateLayoutButton(): React.JSX.Element {
       </Menu>
       {open === "createBlankLayout" && (
         <CreateBlankLayoutDialog
+          onCreateLayout={onCreateLayout}
           open
           onClose={() => {
             setOpen("");
