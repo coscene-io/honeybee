@@ -16,12 +16,8 @@ import PanelCatalogContext, {
   PanelCatalog,
   PanelInfo,
 } from "@foxglove/studio-base/context/PanelCatalogContext";
-import * as generalPanels from "@foxglove/studio-base/panels";
-import * as suporPanels from "@foxglove/studio-base/panels/suporPanels";
+import * as panels from "@foxglove/studio-base/panels";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
-import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
-
-const panels = getDomainConfig().logo === "supor" ? suporPanels : generalPanels;
 
 type PanelProps = {
   config: unknown;
