@@ -33,15 +33,25 @@ export function LayoutTableRowMenu({
   layout,
   onDeleteLayout,
   onExportLayout,
+  onRenameLayout,
 }: {
   anchorEl: HTMLElement | undefined;
   handleMenuClose: () => void;
   layout: Layout;
   onDeleteLayout: (layout: Layout) => void;
   onExportLayout: (layout: Layout) => void;
+  onRenameLayout: (layout: Layout) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const confirm = useConfirm();
+
+  const openRenameDialog = useCallback(() => {
+    // setRenameDialogOpen(true);
+  }, []);
+
+  const openCopyDialog = useCallback(() => {
+    // setRenameDialogOpen(true);
+  }, []);
 
   const exportAction = useCallback(() => {
     onExportLayout(layout);
@@ -56,9 +66,25 @@ export function LayoutTableRowMenu({
   const menuItems: LayoutActionMenuItem[] = [
     {
       type: "item",
+      key: "rename",
+      text: t("rename"),
+      onClick: openRenameDialog,
+    },
+    {
+      type: "item",
+      key: "copy",
+      text: t("copy"),
+      onClick: openCopyDialog,
+    },
+    {
+      type: "item",
       key: "export",
       text: t("export"),
       onClick: exportAction,
+    },
+    {
+      type: "divider",
+      key: "divider",
     },
     {
       type: "item",

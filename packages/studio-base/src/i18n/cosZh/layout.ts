@@ -71,6 +71,7 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   projectLayout: "项目布局",
   type: "类型",
   folder: "文件夹",
+  copy: "复制",
   copyLayout: "复制布局",
   loading: "加载中...",
   use: "使用",
