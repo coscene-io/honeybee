@@ -15,7 +15,6 @@ import {
 import {
   Box,
   Breadcrumbs,
-  DialogContent,
   IconButton,
   InputAdornment,
   Link,
@@ -45,9 +44,6 @@ import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 const useStyles = makeStyles()((theme) => ({
   root: {
     height: "100%",
-  },
-  content: {
-    padding: 0,
   },
   gridContainer: {
     display: "flex",
@@ -210,184 +206,182 @@ export function CoSceneLayoutContent({
 
   return (
     <div className={classes.root}>
-      <DialogContent className={classes.content}>
-        <div className={classes.gridContainer}>
-          {/* Left Navigation Sidebar */}
-          <div className={classes.sidebar}>
-            <Box className={classes.boxPadding}>
-              <CreateLayoutButton />
-            </Box>
+      <div className={classes.gridContainer}>
+        {/* Left Navigation Sidebar */}
+        <div className={classes.sidebar}>
+          <Box className={classes.boxPadding}>
+            <CreateLayoutButton />
+          </Box>
 
-            <List className={classes.listPadding}>
-              {/* Personal Layouts */}
-              <ListItem disablePadding>
+          <List className={classes.listPadding}>
+            {/* Personal Layouts */}
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={selectedCategory === "personal"}
+                onClick={() => {
+                  setSelectedCategory("personal");
+                  setSelectedFolder("");
+                }}
+                className={`${classes.listItemButton} ${
+                  selectedCategory === "personal"
+                    ? classes.listItemButtonPersonalSelected
+                    : classes.listItemButtonPersonal
+                }`}
+              >
+                <ListItemIcon className={classes.listItemIcon}>
+                  <PersonIcon />
+                </ListItemIcon>
+                <ListItemText primary="个人布局" />
+              </ListItemButton>
+            </ListItem>
+
+            {/* Personal Layout Folders */}
+            {layouts.personalFolders.map((folder) => (
+              <ListItem key={folder} disablePadding className={classes.folderItem}>
                 <ListItemButton
-                  selected={selectedCategory === "personal"}
+                  selected={selectedFolder === folder}
                   onClick={() => {
-                    setSelectedCategory("personal");
-                    setSelectedFolder("");
+                    setSelectedFolder(folder);
                   }}
-                  className={`${classes.listItemButton} ${
-                    selectedCategory === "personal"
-                      ? classes.listItemButtonPersonalSelected
-                      : classes.listItemButtonPersonal
-                  }`}
                 >
-                  <ListItemIcon className={classes.listItemIcon}>
-                    <PersonIcon />
+                  <ListItemIcon>
+                    <FolderIcon />
                   </ListItemIcon>
-                  <ListItemText primary="个人布局" />
+                  <ListItemText
+                    primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
+                    slotProps={{ primary: { noWrap: true } }}
+                  />
                 </ListItemButton>
               </ListItem>
+            ))}
 
-              {/* Personal Layout Folders */}
-              {layouts.personalFolders.map((folder) => (
-                <ListItem key={folder} disablePadding className={classes.folderItem}>
-                  <ListItemButton
-                    selected={selectedFolder === folder}
-                    onClick={() => {
-                      setSelectedFolder(folder);
-                    }}
-                  >
-                    <ListItemIcon>
-                      <FolderIcon />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
-                      slotProps={{ primary: { noWrap: true } }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))}
+            {/* Project Layouts */}
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={selectedCategory === "project"}
+                onClick={() => {
+                  setSelectedCategory("project");
+                  setSelectedFolder("");
+                }}
+                className={`${classes.listItemButton} ${
+                  selectedCategory === "project"
+                    ? classes.listItemButtonProjectSelected
+                    : classes.listItemButtonProject
+                }`}
+              >
+                <ListItemIcon className={classes.listItemIcon}>
+                  <BusinessIcon />
+                </ListItemIcon>
+                <ListItemText primary="项目布局" />
+              </ListItemButton>
+            </ListItem>
 
-              {/* Project Layouts */}
-              <ListItem disablePadding>
+            {/* Project Layout Folders */}
+            {layouts.projectFolders.map((folder) => (
+              <ListItem key={folder} disablePadding className={classes.folderItem}>
                 <ListItemButton
-                  selected={selectedCategory === "project"}
+                  selected={selectedFolder === folder}
                   onClick={() => {
-                    setSelectedCategory("project");
-                    setSelectedFolder("");
+                    setSelectedFolder(folder);
                   }}
-                  className={`${classes.listItemButton} ${
-                    selectedCategory === "project"
-                      ? classes.listItemButtonProjectSelected
-                      : classes.listItemButtonProject
-                  }`}
                 >
-                  <ListItemIcon className={classes.listItemIcon}>
-                    <BusinessIcon />
+                  <ListItemIcon>
+                    <FolderIcon />
                   </ListItemIcon>
-                  <ListItemText primary="项目布局" />
+                  <ListItemText
+                    primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
+                    slotProps={{ primary: { noWrap: true } }}
+                  />
                 </ListItemButton>
               </ListItem>
-
-              {/* Project Layout Folders */}
-              {layouts.projectFolders.map((folder) => (
-                <ListItem key={folder} disablePadding className={classes.folderItem}>
-                  <ListItemButton
-                    selected={selectedFolder === folder}
-                    onClick={() => {
-                      setSelectedFolder(folder);
-                    }}
-                  >
-                    <ListItemIcon>
-                      <FolderIcon />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
-                      slotProps={{ primary: { noWrap: true } }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
-          </div>
-
-          {/* Right Content Area */}
-          <div className={classes.contentArea}>
-            <Box className={classes.boxPadding}>
-              {/* Breadcrumb */}
-              <Breadcrumbs className={classes.breadcrumbs}>
-                <Link color="inherit" href="#" underline="hover">
-                  {selectedCategory === "personal" ? "个人布局" : "项目布局"}
-                </Link>
-                {selectedFolder && (
-                  <Link color="inherit" href="#" underline="hover">
-                    {selectedFolder}
-                  </Link>
-                )}
-              </Breadcrumbs>
-
-              {/* Toolbar */}
-              <Box className={classes.toolbar}>
-                <TextField
-                  placeholder="布局名称"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                  }}
-                  slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon />
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
-                  size="small"
-                  className={classes.searchField}
-                />
-              </Box>
-
-              {/* Layouts Table */}
-              <TableContainer component={Paper} variant="outlined">
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>布局名称</TableCell>
-                      <TableCell align="right">
-                        <Box className={classes.tableHeaderCell}>
-                          更新时间
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              if (sortBy === "updateTime") {
-                                setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                              } else {
-                                setSortBy("updateTime");
-                              }
-                            }}
-                          >
-                            <SortIcon />
-                          </IconButton>
-                        </Box>
-                      </TableCell>
-                      <TableCell align="right">更新者</TableCell>
-                      <TableCell align="center">操作</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredLayouts.map((layout) => (
-                      <LayoutTableRow
-                        key={layout.id}
-                        layout={layout}
-                        handleMenuOpen={handleMenuOpen}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              {filteredLayouts.length === 0 && (
-                <Box className={classes.emptyState}>
-                  <Typography color="text.secondary">暂无布局数据</Typography>
-                </Box>
-              )}
-            </Box>
-          </div>
+            ))}
+          </List>
         </div>
-      </DialogContent>
+
+        {/* Right Content Area */}
+        <div className={classes.contentArea}>
+          <Box className={classes.boxPadding}>
+            {/* Breadcrumb */}
+            <Breadcrumbs className={classes.breadcrumbs}>
+              <Link color="inherit" href="#" underline="hover">
+                {selectedCategory === "personal" ? "个人布局" : "项目布局"}
+              </Link>
+              {selectedFolder && (
+                <Link color="inherit" href="#" underline="hover">
+                  {selectedFolder}
+                </Link>
+              )}
+            </Breadcrumbs>
+
+            {/* Toolbar */}
+            <Box className={classes.toolbar}>
+              <TextField
+                placeholder="布局名称"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+                size="small"
+                className={classes.searchField}
+              />
+            </Box>
+
+            {/* Layouts Table */}
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>布局名称</TableCell>
+                    <TableCell align="right">
+                      <Box className={classes.tableHeaderCell}>
+                        更新时间
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            if (sortBy === "updateTime") {
+                              setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                            } else {
+                              setSortBy("updateTime");
+                            }
+                          }}
+                        >
+                          <SortIcon />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right">更新者</TableCell>
+                    <TableCell align="center">操作</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredLayouts.map((layout) => (
+                    <LayoutTableRow
+                      key={layout.id}
+                      layout={layout}
+                      handleMenuOpen={handleMenuOpen}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {filteredLayouts.length === 0 && (
+              <Box className={classes.emptyState}>
+                <Typography color="text.secondary">暂无布局数据</Typography>
+              </Box>
+            )}
+          </Box>
+        </div>
+      </div>
 
       {menu.layout && (
         <LayoutMenu

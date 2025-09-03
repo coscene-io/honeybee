@@ -6,12 +6,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import CloseIcon from "@mui/icons-material/Close";
-import { Dialog, DialogProps, DialogTitle, IconButton } from "@mui/material";
+import { Drawer, DrawerProps, IconButton, Box, Typography } from "@mui/material";
 import _ from "lodash";
 import _uniq from "lodash/uniq";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
@@ -20,6 +21,20 @@ import { layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutSto
 import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
 
 const log = Logger.getLogger(__filename);
+
+const useStyles = makeStyles()((theme) => ({
+  drawerContent: {
+    width: 1200,
+    height: "100%",
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: theme.spacing(2),
+    borderBottom: `1px solid ${theme.palette.divider}`,
+  },
+}));
 
 export function CoSceneLayoutDialogContent(): React.JSX.Element {
   const layoutManager = useLayoutManager();
@@ -63,33 +78,36 @@ export function CoSceneLayoutDialogContent(): React.JSX.Element {
   }, [reloadLayouts]);
 
   // todo: 实现
-  const onSelectLayout = () => {};
-  const onDeleteLayout = () => {};
-  const onRenameLayout = () => {};
-  const onRevertLayout = () => {};
-  const onCreateNewLayout = () => {};
+  // const onSelectLayout = () => {};
+  // const onDeleteLayout = () => {};
+  // const onRenameLayout = () => {};
+  // const onRevertLayout = () => {};
+  // const onCreateNewLayout = () => {};
 
   return <CoSceneLayoutContent layouts={layouts.value} />;
 }
 
-export function CoSceneLayoutDialog(
-  props: DialogProps & {
+export function CoSceneLayoutDrawer(
+  props: DrawerProps & {
     onClose: () => void;
   },
 ): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
+  const { classes } = useStyles();
   const { open, onClose } = props;
 
   return (
-    <Dialog maxWidth="xl" open={open} onClose={onClose}>
-      <DialogTitle>
-        {t("layout")}
-        <IconButton component="button" onClick={onClose}>
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
+    <Drawer anchor="right" open={open} onClose={onClose}>
+      <Box className={classes.drawerContent}>
+        <Box className={classes.header}>
+          <Typography variant="h6">{t("layout")}</Typography>
+          <IconButton onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
 
-      <CoSceneLayoutDialogContent />
-    </Dialog>
+        <CoSceneLayoutDialogContent />
+      </Box>
+    </Drawer>
   );
 }
