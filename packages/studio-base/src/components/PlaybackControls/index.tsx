@@ -29,18 +29,8 @@ import {
 } from "@fluentui/react-icons";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import ShieldTwoToneIcon from "@mui/icons-material/ShieldTwoTone";
-import {
-  IconButton,
-  Tooltip,
-  Typography,
-  Link,
-  TextField,
-  ClickAwayListener,
-  Button,
-  InputAdornment,
-} from "@mui/material";
-import { useCallback, useMemo, useEffect, useRef, useState } from "react";
-import toast from "react-hot-toast";
+import { IconButton, Tooltip, Typography, Link } from "@mui/material";
+import { useCallback, useMemo, useEffect, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -68,6 +58,7 @@ import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import Scrubber from "./Scrubber";
+import SeekStepControls, { MIN_SEEK_STEP_MS, MAX_SEEK_STEP_MS } from "./SeekStepControls";
 import { DIRECTION, jumpSeek } from "./sharedHelpers";
 
 const useStyles = makeStyles()((theme) => ({
@@ -91,13 +82,6 @@ const useStyles = makeStyles()((theme) => ({
   },
   dataSourceInfoButton: {
     cursor: "default",
-  },
-  seekStepButton: {
-    minWidth: "auto",
-    padding: theme.spacing(1, 1),
-    "&:hover": {
-      backgroundColor: theme.palette.action.hover,
-    },
   },
 }));
 
@@ -211,40 +195,15 @@ export default function PlaybackControls(props: {
     }
   }, [isPlaying, pause, getTimeInfo, play, seek]);
 
-  // Default seek step control (ms)
-  const [seekStepMs, setSeekStepMs] = useAppConfigurationValue<number>(AppSetting.SEEK_STEP_MS);
-  const minMs = 1e-6; // 1e-9 s in ms
-  const maxMs = 3600 * 1000; // 1 hour in ms
+  // Track SeekStep editing state for KeyListener management
+  const [seekStepEditing, setSeekStepEditing] = useState(false);
+
+  // Default seek step control (ms) - get current value for seek actions
+  const [seekStepMs] = useAppConfigurationValue<number>(AppSetting.SEEK_STEP_MS);
   const effectiveSeekMs =
-    seekStepMs != undefined && seekStepMs > minMs && seekStepMs < maxMs ? seekStepMs : 100;
-  const [editingSeekStep, setEditingSeekStep] = useState(false);
-  const [seekStepInput, setSeekStepInput] = useState<string>(String(effectiveSeekMs / 1000));
-  const seekInputRef = useRef<HTMLInputElement>(ReactNull);
-
-  useEffect(() => {
-    if (editingSeekStep) {
-      setSeekStepInput(String(effectiveSeekMs / 1000));
-      // focus input next tick
-      setTimeout(() => seekInputRef.current?.focus(), 0);
-    }
-  }, [editingSeekStep, effectiveSeekMs]);
-
-  const commitSeekStep = useCallback(() => {
-    const nSec = Number(seekStepInput.trim());
-    const minSec = 1e-9; // 0.000000001 s
-    const maxSec = 3600; // 1 hour
-    if (Number.isFinite(nSec) && nSec > 0) {
-      if (nSec > minSec && nSec < maxSec) {
-        const nMs = Math.round(nSec * 1000);
-        void setSeekStepMs(nMs);
-      } else {
-        void setSeekStepMs(100);
-        setSeekStepInput("0.1");
-        toast.error(t("invalidSeekStep", { ns: "cosGeneral" }));
-      }
-    }
-    setEditingSeekStep(false);
-  }, [seekStepInput, setSeekStepMs, t]);
+    seekStepMs != undefined && seekStepMs >= MIN_SEEK_STEP_MS && seekStepMs <= MAX_SEEK_STEP_MS
+      ? seekStepMs
+      : 100;
 
   const seekForwardAction = useCallback(
     (ev?: KeyboardEvent) => {
@@ -301,7 +260,7 @@ export default function PlaybackControls(props: {
 
   return (
     <>
-      {!editingSeekStep && <KeyListener global keyDownHandlers={keyDownHandlers} />}
+      {!seekStepEditing && <KeyListener global keyDownHandlers={keyDownHandlers} />}
       <div className={classes.root}>
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
@@ -405,57 +364,7 @@ export default function PlaybackControls(props: {
               </>
             )}
 
-            {editingSeekStep ? (
-              <ClickAwayListener onClickAway={commitSeekStep}>
-                <TextField
-                  inputRef={seekInputRef}
-                  autoFocus
-                  size="small"
-                  variant="outlined"
-                  value={seekStepInput}
-                  onChange={(e) => {
-                    setSeekStepInput(e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      commitSeekStep();
-                    } else if (e.key === "Escape") {
-                      setEditingSeekStep(false);
-                      setSeekStepInput(String(effectiveSeekMs / 1000));
-                    }
-                    e.stopPropagation();
-                  }}
-                  style={{ width: 100 }}
-                  placeholder={t("sec", { ns: "general" })}
-                  slotProps={{
-                    input: {
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          {t("sec", { ns: "general" })}
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
-                />
-              </ClickAwayListener>
-            ) : (
-              <Tooltip title={t("seekStep", { ns: "cosGeneral" })}>
-                <Button
-                  className={classes.seekStepButton}
-                  size="small"
-                  disabled={disableControls}
-                  onClick={() => {
-                    setEditingSeekStep(true);
-                  }}
-                  variant="text"
-                  color="inherit"
-                >
-                  <Typography variant="body2" marginLeft="4px" fontWeight="bold">
-                    {effectiveSeekMs / 1000} {t("sec", { ns: "general" })}
-                  </Typography>
-                </Button>
-              </Tooltip>
-            )}
+            <SeekStepControls disabled={disableControls} onEditingChange={setSeekStepEditing} />
             <HoverableIconButton
               size="small"
               title={t("loopPlayback", { ns: "cosGeneral" })}
