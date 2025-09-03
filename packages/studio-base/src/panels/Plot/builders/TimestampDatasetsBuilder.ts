@@ -230,11 +230,6 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   public async getViewportDatasets(
     viewport: Immutable<Viewport>,
   ): Promise<GetViewportDatasetsResult> {
-    // Check if the builder has been destroyed before proceeding
-    if (this.#destroyed) {
-      throw new Error("TimestampDatasetsBuilder has been destroyed");
-    }
-
     const dispatch = this.#pendingDispatch;
     if (dispatch.length > 0) {
       this.#pendingDispatch = [];
