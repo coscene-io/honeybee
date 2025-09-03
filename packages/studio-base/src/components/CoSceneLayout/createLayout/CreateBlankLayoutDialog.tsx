@@ -19,13 +19,8 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import {
-  Layout,
-  layoutIsShared,
-  LayoutPermission,
-} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 interface CreateBlankLayoutForm {
   displayName: string;
@@ -40,12 +35,7 @@ export function CreateBlankLayoutDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  onCreateLayout: (params: {
-    folder: string;
-    displayName: string;
-    permission: LayoutPermission;
-    data?: LayoutData;
-  }) => Promise<void>;
+  onCreateLayout: (params: CreateLayoutParams) => Promise<void>;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
 

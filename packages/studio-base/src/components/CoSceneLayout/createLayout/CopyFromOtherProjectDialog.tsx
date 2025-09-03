@@ -51,7 +51,7 @@ export function CopyFromOtherProjectDialog({
         </Button>
         <Button
           onClick={() => {
-            form.handleSubmit(onSubmit);
+            form.handleSubmit(onSubmit)();
           }}
         >
           {t("ok", { ns: "cosGeneral" })}

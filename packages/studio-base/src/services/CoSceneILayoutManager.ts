@@ -32,6 +32,13 @@ export type LayoutManagerEventTypes = {
   errorchange: () => void;
 };
 
+export type CreateLayoutParams = {
+  folder: string;
+  displayName: string;
+  permission: LayoutPermission;
+  data?: LayoutData;
+};
+
 /**
  * The Layout Manager is a high-level interface on top of raw layout storage which maps more closely
  * to actions the user can take in the application.

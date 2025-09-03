@@ -15,7 +15,6 @@ import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoScen
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
-  LayoutData,
   useCurrentLayoutActions,
   // LayoutState,
   // useCurrentLayoutSelector,
@@ -23,11 +22,8 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import {
-  Layout,
-  layoutIsShared,
-  LayoutPermission,
-} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
@@ -293,12 +289,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   );
 
   const onCreateLayout = useCallbackWithToast(
-    async (params: {
-      folder: string;
-      displayName: string;
-      permission: LayoutPermission;
-      data?: LayoutData;
-    }) => {
+    async (params: CreateLayoutParams) => {
       if (!(await promptForUnsavedChanges())) {
         return;
       }

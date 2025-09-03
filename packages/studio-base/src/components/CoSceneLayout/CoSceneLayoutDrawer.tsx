@@ -10,8 +10,8 @@ import { Drawer, DrawerProps, IconButton, Box, Typography } from "@mui/material"
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { Layout, LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
 
@@ -37,12 +37,7 @@ interface CoSceneLayoutDrawerProps extends DrawerProps {
   onExportLayout: (layout: Layout) => Promise<void>;
   onOverwriteLayout: (layout: Layout) => Promise<void>;
   onRevertLayout: (layout: Layout) => Promise<void>;
-  onCreateLayout: (params: {
-    folder: string;
-    displayName: string;
-    permission: LayoutPermission;
-    data?: LayoutData;
-  }) => Promise<void>;
+  onCreateLayout: (params: CreateLayoutParams) => Promise<void>;
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];

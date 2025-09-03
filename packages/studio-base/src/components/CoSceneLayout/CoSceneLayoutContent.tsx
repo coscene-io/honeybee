@@ -39,8 +39,8 @@ import { makeStyles } from "tss-react/mui";
 import { LayoutTableRow } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRow";
 import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { Layout, LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -117,12 +117,7 @@ export function CoSceneLayoutContent({
   onExportLayout: (layout: Layout) => Promise<void>;
   onOverwriteLayout: (layout: Layout) => Promise<void>;
   onRevertLayout: (layout: Layout) => Promise<void>;
-  onCreateLayout: (params: {
-    folder: string;
-    displayName: string;
-    permission: LayoutPermission;
-    data?: LayoutData;
-  }) => Promise<void>;
+  onCreateLayout: (params: CreateLayoutParams) => Promise<void>;
 }): React.JSX.Element {
   const { classes } = useStyles();
   const [selectedCategory, setSelectedCategory] = useState<"personal" | "project">("personal");
