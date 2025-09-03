@@ -33,14 +33,14 @@ export function LayoutTableRowMenu({
   layout,
   onDeleteLayout,
   onExportLayout,
-  onRenameLayout,
-}: {
+} // onRenameLayout,
+: {
   anchorEl: HTMLElement | undefined;
   handleMenuClose: () => void;
   layout: Layout;
   onDeleteLayout: (layout: Layout) => void;
   onExportLayout: (layout: Layout) => void;
-  onRenameLayout: (layout: Layout) => void;
+  // onRenameLayout: (layout: Layout) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const confirm = useConfirm();
