@@ -26,6 +26,6 @@ export const cosGeneral: Partial<TypeOptions["resources"]["cosGeneral"]> = {
   seekForward: "前进",
   seekStep: "步长",
   loopPlayback: "循环播放",
-  invalidSeekStep: "步长需大于 1e-9 秒且小于 1 小时，已重置为 0.1 秒。",
+  invalidSeekStep: "步长需大于等于 1e-6 秒且小于等于 1 小时，已重置为 0.1 秒。",
   playbackSpeed: "播放速度",
 };

@@ -265,6 +265,8 @@ export class IterablePlayer implements Player {
     }
 
     if (opt?.untilTime) {
+      console.log("opt.untilTime", opt.untilTime);
+      console.log("this.#currentTime", this.#currentTime);
       if (this.#currentTime && compare(opt.untilTime, this.#currentTime) <= 0) {
         throw new Error("Invariant: playUntil time must be after the current time");
       }
