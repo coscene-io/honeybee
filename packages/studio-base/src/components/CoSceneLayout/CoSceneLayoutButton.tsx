@@ -6,16 +6,21 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/CoSceneUnsavedChangesPrompt";
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import {
+  LayoutData,
+  useCurrentLayoutActions,
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
 import { CoSceneLayoutDrawer } from "./CoSceneLayoutDrawer";
 import { LayoutButton } from "./components/LayoutButton";
@@ -26,6 +31,9 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const { currentLayoutId, currentLayout, layouts } = useCurrentLayout();
 
   const analytics = useAnalytics();
+  const { t } = useTranslation("cosLayout");
+  const confirm = useConfirm();
+
   const layoutManager = useLayoutManager();
   const { setSelectedLayoutId } = useCurrentLayoutActions();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
@@ -101,6 +109,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     [analytics, dispatch, promptForUnsavedChanges, setSelectedLayoutId],
   );
 
+  const onRenameLayout = useCallbackWithToast(
+    async (item: Layout, newName: string) => {
+      await layoutManager.updateLayout({ id: item.id, displayName: newName });
+      void analytics.logEvent(AppEvent.LAYOUT_RENAME, { permission: item.permission });
+    },
+    [analytics, layoutManager],
+  );
+
   const onDeleteLayout = useCallbackWithToast(
     async (item: Layout) => {
       if (state.selectedIds.length > 1) {
@@ -133,10 +149,87 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     ],
   );
 
-  // todo: 实现
-  // const onRenameLayout = () => {};
-  // const onRevertLayout = () => {};
-  // const onCreateNewLayout = () => {};
+  const onExportLayout = useCallbackWithToast(
+    async (item: Layout) => {
+      const content = JSON.stringify(item.working?.data ?? item.baseline.data, undefined, 2) ?? "";
+      downloadTextFile(content, `${item.displayName}.json`);
+      void analytics.logEvent(AppEvent.LAYOUT_EXPORT, { permission: item.permission });
+    },
+    [analytics],
+  );
+
+  const onOverwriteLayout = useCallbackWithToast(
+    async (item: Layout) => {
+      // We don't need to confirm the multiple selection case because we force users to save
+      // or abandon changes before selecting another layout with unsaved changes to the current
+      // shared layout.
+      if (state.selectedIds.length > 1) {
+        dispatch({ type: "queue-multi-action", action: "save" });
+        return;
+      }
+
+      if (layoutIsShared(item)) {
+        const response = await confirm({
+          title: `${t("update")} " ${item.displayName}"?`,
+          prompt: t("updateRemoteLayoutConfirm"),
+          ok: t("save", {
+            ns: "cosGeneral",
+          }),
+          cancel: t("cancel", {
+            ns: "cosGeneral",
+          }),
+        });
+        if (response !== "ok") {
+          return;
+        }
+      }
+      await layoutManager.overwriteLayout({ id: item.id });
+      void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, { permission: item.permission });
+    },
+    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length, t],
+  );
+
+  const onRevertLayout = useCallbackWithToast(
+    async (item: Layout) => {
+      if (state.selectedIds.length > 1) {
+        dispatch({ type: "queue-multi-action", action: "revert" });
+        return;
+      }
+
+      await layoutManager.revertLayout({ id: item.id });
+      void analytics.logEvent(AppEvent.LAYOUT_REVERT, { permission: item.permission });
+    },
+    [analytics, dispatch, layoutManager, state.selectedIds.length],
+  );
+
+  const onCreateLayout = useCallbackWithToast(
+    async (item: Layout, layoutData?: LayoutData) => {
+      if (!(await promptForUnsavedChanges())) {
+        return;
+      }
+      // const layoutData: Omit<LayoutData, "displayName" | "id"> = {
+      //   configById: {},
+      //   globalVariables: {},
+      //   userNodes: {},
+      // };
+      const data = layoutData ?? {
+        configById: {},
+        globalVariables: {},
+        userNodes: {},
+      };
+
+      const newLayout = await layoutManager.saveNewLayout({
+        folder: item.folder,
+        displayName: item.displayName,
+        data,
+        permission: item.permission,
+      });
+      void onSelectLayout(newLayout);
+
+      void analytics.logEvent(AppEvent.LAYOUT_CREATE);
+    },
+    [promptForUnsavedChanges, layoutManager, onSelectLayout, analytics],
+  );
 
   return (
     <>
