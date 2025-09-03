@@ -33,10 +33,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { CopyLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/CopyLayoutDialog";
 import { LayoutTableRow } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRow";
 import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
@@ -137,6 +138,27 @@ export function CoSceneLayoutContent({
     layout: Layout | undefined;
   }>({ anchorEl: undefined, layout: undefined });
 
+  const [dialog, setDialog] = useState<{
+    type: "rename" | "copy" | undefined;
+    layout: Layout | undefined;
+  }>({ type: undefined, layout: undefined });
+
+  const handleMenuOpen = useCallback((event: React.MouseEvent<HTMLElement>, layout: Layout) => {
+    setMenu({ anchorEl: event.currentTarget, layout });
+  }, []);
+
+  const handleMenuClose = useCallback(() => {
+    setMenu({ anchorEl: undefined, layout: undefined });
+  }, []);
+
+  const handleOpenDialog = useCallback((type: "rename" | "copy", layout: Layout) => {
+    setDialog({ type, layout });
+  }, []);
+
+  const handleCloseDialog = useCallback(() => {
+    setDialog({ type: undefined, layout: undefined });
+  }, []);
+
   // Filter layouts based on selection
   const filteredLayouts = useMemo(() => {
     if (!layouts) {
@@ -182,14 +204,6 @@ export function CoSceneLayoutContent({
 
     return filtered;
   }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery, sortBy, sortOrder]);
-
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, layout: Layout) => {
-    setMenu({ anchorEl: event.currentTarget, layout });
-  };
-
-  const handleMenuClose = () => {
-    setMenu({ anchorEl: undefined, layout: undefined });
-  };
 
   if (!layouts) {
     return <div>No layouts</div>;
@@ -381,6 +395,15 @@ export function CoSceneLayoutContent({
           layout={menu.layout}
           onDeleteLayout={onDeleteLayout}
           onExportLayout={onExportLayout}
+          handleOpenDialog={handleOpenDialog}
+        />
+      )}
+      {dialog.layout && dialog.type === "copy" && (
+        <CopyLayoutDialog
+          layout={dialog.layout}
+          open
+          onClose={handleCloseDialog}
+          onCreateLayout={onCreateLayout}
         />
       )}
     </div>

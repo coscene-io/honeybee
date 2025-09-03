@@ -29,33 +29,33 @@ export type LayoutActionMenuItem =
 
 export function LayoutTableRowMenu({
   anchorEl,
-  handleMenuClose,
   layout,
+  handleMenuClose,
+  handleOpenDialog,
   onDeleteLayout,
   onExportLayout,
-} // onRenameLayout,
-: {
+}: {
   anchorEl: HTMLElement | undefined;
-  handleMenuClose: () => void;
   layout: Layout;
+  handleMenuClose: () => void;
+  handleOpenDialog: (type: "rename" | "copy", layout: Layout) => void;
   onDeleteLayout: (layout: Layout) => void;
   onExportLayout: (layout: Layout) => void;
-  // onRenameLayout: (layout: Layout) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
-  const confirm = useConfirm();
-
-  const openRenameDialog = useCallback(() => {
-    // setRenameDialogOpen(true);
-  }, []);
-
-  const openCopyDialog = useCallback(() => {
-    // setRenameDialogOpen(true);
-  }, []);
+  // const confirm = useConfirm();
 
   const exportAction = useCallback(() => {
     onExportLayout(layout);
   }, [layout, onExportLayout]);
+
+  const openRenameDialog = useCallback(() => {
+    handleOpenDialog("rename", layout);
+  }, [layout, handleOpenDialog]);
+
+  const openCopyDialog = useCallback(() => {
+    handleOpenDialog("copy", layout);
+  }, [layout, handleOpenDialog]);
 
   // todo: 实现
   const confirmDelete = useCallback(() => {
