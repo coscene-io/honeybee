@@ -51,15 +51,14 @@ const renderLogMessage = (msg: string) => {
       return (
         <a 
           key={index}
-          href={part}
-          target="_blank"
-          rel="noopener noreferrer"
+          href="#"
           style={{
             color: '#2563eb',
             textDecoration: 'underline',
             cursor: 'pointer'
           }}
           onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
             window.open(part, '_blank');
           }}
