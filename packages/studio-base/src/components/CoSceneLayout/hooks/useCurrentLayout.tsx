@@ -15,24 +15,33 @@ import {
   LayoutState,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
 export function useCurrentLayout() {
   const layoutManager = useLayoutManager();
-  const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
 
   const [layouts, reloadLayouts] = useAsyncFn(
     async () => {
-      const [shared, personal] = _.partition(
-        await layoutManager.getLayouts(),
+      const layouts = await layoutManager.getLayouts();
+
+      const [projectLayouts, personalLayouts] = _.partition(
+        layouts,
         layoutManager.supportsSharing ? layoutIsShared : () => false,
       );
+
       return {
-        personal: personal.sort((a, b) => a.displayName.localeCompare(b.displayName)),
-        shared: shared.sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        // layouts: [...layouts].sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        personalFolders: _.uniq(
+          personalLayouts.map((layout) => layout.folder).filter((folder) => folder),
+        ),
+        projectFolders: _.uniq(
+          projectLayouts.map((layout) => layout.folder).filter((folder) => folder),
+        ),
+        personalLayouts: personalLayouts.sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        projectLayouts: projectLayouts.sort((a, b) => a.displayName.localeCompare(b.displayName)),
       };
     },
     [layoutManager],
@@ -54,16 +63,16 @@ export function useCurrentLayout() {
     });
   }, [reloadLayouts]);
 
+  const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const currentLayout = useMemo(() => {
-    return [...(layouts.value?.personal ?? []), ...(layouts.value?.shared ?? [])].find(
-      (layout) => layout.id === currentLayoutId,
-    );
+    return [
+      ...(layouts.value?.personalLayouts ?? []),
+      ...(layouts.value?.projectLayouts ?? []),
+    ].find((layout) => layout.id === currentLayoutId);
   }, [layouts, currentLayoutId]);
 
   return {
     currentLayout,
-    layouts: layouts.value,
-    loading: layouts.loading,
-    error: layouts.error,
+    layouts,
   };
 }

@@ -13,13 +13,20 @@ import { useCurrentLayout } from "./hooks/useCurrentLayout";
 
 export function CoSceneLayoutButton(): React.JSX.Element {
   const [open, setOpen] = useState(false);
-  const { currentLayout, loading } = useCurrentLayout();
+  const { currentLayout, layouts } = useCurrentLayout();
+
+  // todo: 实现
+  // const onSelectLayout = () => {};
+  // const onDeleteLayout = () => {};
+  // const onRenameLayout = () => {};
+  // const onRevertLayout = () => {};
+  // const onCreateNewLayout = () => {};
 
   return (
     <>
       <LayoutButton
         currentLayout={currentLayout}
-        loading={loading}
+        loading={layouts.loading}
         onClick={() => {
           setOpen(true);
         }}
@@ -27,6 +34,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       {open && (
         <CoSceneLayoutDrawer
           open
+          layouts={layouts.value}
           onClose={() => {
             setOpen(false);
           }}

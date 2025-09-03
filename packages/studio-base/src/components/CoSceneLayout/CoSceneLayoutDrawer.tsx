@@ -7,20 +7,12 @@
 
 import CloseIcon from "@mui/icons-material/Close";
 import { Drawer, DrawerProps, IconButton, Box, Typography } from "@mui/material";
-import _ from "lodash";
-import _uniq from "lodash/uniq";
-import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
-import Logger from "@foxglove/log";
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
-
-const log = Logger.getLogger(__filename);
 
 const useStyles = makeStyles()((theme) => ({
   drawerContent: {
@@ -36,65 +28,20 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export function CoSceneLayoutDialogContent(): React.JSX.Element {
-  const layoutManager = useLayoutManager();
-
-  const [layouts, reloadLayouts] = useAsyncFn(
-    async () => {
-      const layouts = await layoutManager.getLayouts();
-      const [projectLayouts, personalLayouts] = _.partition(
-        layouts,
-        layoutManager.supportsSharing ? layoutIsShared : () => false,
-      );
-      return {
-        layouts: [...layouts].sort((a, b) => a.displayName.localeCompare(b.displayName)),
-        personalFolders: _uniq(
-          personalLayouts.map((layout) => layout.folder).filter((folder) => folder),
-        ),
-        projectFolders: _uniq(
-          projectLayouts.map((layout) => layout.folder).filter((folder) => folder),
-        ),
-        personalLayouts: personalLayouts.sort((a, b) => a.displayName.localeCompare(b.displayName)),
-        projectLayouts: projectLayouts.sort((a, b) => a.displayName.localeCompare(b.displayName)),
-      };
-    },
-    [layoutManager],
-    { loading: true },
-  );
-
-  useEffect(() => {
-    const listener = () => void reloadLayouts();
-    layoutManager.on("change", listener);
-    return () => {
-      layoutManager.off("change", listener);
-    };
-  }, [layoutManager, reloadLayouts]);
-
-  // Start loading on first mount
-  useEffect(() => {
-    reloadLayouts().catch((err: unknown) => {
-      log.error(err);
-    });
-  }, [reloadLayouts]);
-
-  // todo: 实现
-  // const onSelectLayout = () => {};
-  // const onDeleteLayout = () => {};
-  // const onRenameLayout = () => {};
-  // const onRevertLayout = () => {};
-  // const onCreateNewLayout = () => {};
-
-  return <CoSceneLayoutContent layouts={layouts.value} />;
+interface CoSceneLayoutDrawerProps extends DrawerProps {
+  onClose: () => void;
+  layouts?: {
+    personalFolders: string[];
+    projectFolders: string[];
+    personalLayouts: Layout[];
+    projectLayouts: Layout[];
+  };
 }
 
-export function CoSceneLayoutDrawer(
-  props: DrawerProps & {
-    onClose: () => void;
-  },
-): React.JSX.Element {
+export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
-  const { open, onClose } = props;
+  const { open, onClose, layouts } = props;
 
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>
@@ -106,7 +53,7 @@ export function CoSceneLayoutDrawer(
           </IconButton>
         </Box>
 
-        <CoSceneLayoutDialogContent />
+        <CoSceneLayoutContent layouts={layouts} />
       </Box>
     </Drawer>
   );

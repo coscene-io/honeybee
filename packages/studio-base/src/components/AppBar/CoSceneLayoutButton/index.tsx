@@ -61,7 +61,7 @@ import LayoutSection from "./LayoutSection";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
-const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
+// const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectUserRole = (store: UserStore) => store.role;
 
 const useStyles = makeStyles()((theme) => {
@@ -113,9 +113,9 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const confirm = useConfirm();
   const layoutManager = useLayoutManager();
 
-  const consoleApi = useConsoleApi();
+  // const consoleApi = useConsoleApi();
 
-  const externalInitConfig = useCoreData(selectExternalInitConfig);
+  // const externalInitConfig = useCoreData(selectExternalInitConfig);
   const currentUserRole = useCurrentUser(selectUserRole);
 
   const [layouts, reloadLayouts] = useAsyncFn(
