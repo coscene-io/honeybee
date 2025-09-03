@@ -6,34 +6,38 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Divider, Menu, MenuItem } from "@mui/material";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 export function LayoutMenu({
   anchorEl,
   handleMenuClose,
   layout,
+  onDeleteLayout,
 }: {
   anchorEl: HTMLElement | undefined;
   handleMenuClose: () => void;
   layout: Layout;
+  onDeleteLayout: (layout: Layout) => Promise<void>;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
-  const layoutManager = useLayoutManager();
+  const confirm = useConfirm();
 
-  const handleDelete = () => {
-    void layoutManager.deleteLayout({ id: layout.id });
+  // todo: 实现
+  const confirmDelete = useCallback(() => {
+    void onDeleteLayout(layout);
     handleMenuClose();
-  };
+  }, [onDeleteLayout, handleMenuClose, layout]);
 
   return (
     <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
       <MenuItem onClick={handleMenuClose}>{t("rename")}</MenuItem>
       <MenuItem onClick={handleMenuClose}>{t("copyLayout")}</MenuItem>
       <Divider />
-      <MenuItem onClick={handleDelete}>{t("delete")}</MenuItem>
+      <MenuItem onClick={confirmDelete}>{t("delete")}</MenuItem>
     </Menu>
   );
 }

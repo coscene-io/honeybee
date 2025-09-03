@@ -13,6 +13,7 @@ import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
@@ -29,7 +30,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const { setSelectedLayoutId } = useCurrentLayoutActions();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
 
-  const [, dispatch] = useLayoutBrowserReducer({
+  const [state, dispatch] = useLayoutBrowserReducer({
     lastSelectedId: currentLayoutId,
     busy: layoutManager.isBusy,
     error: layoutManager.error,
@@ -100,8 +101,39 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     [analytics, dispatch, promptForUnsavedChanges, setSelectedLayoutId],
   );
 
+  const onDeleteLayout = useCallbackWithToast(
+    async (item: Layout) => {
+      if (state.selectedIds.length > 1) {
+        dispatch({ type: "queue-multi-action", action: "delete" });
+        return;
+      }
+
+      void analytics.logEvent(AppEvent.LAYOUT_DELETE, { permission: item.permission });
+
+      // If the layout was selected, select a different available layout.
+      //
+      // When a users current layout is deleted, we display a notice. By selecting a new layout
+      // before deleting their current layout we avoid the weirdness of displaying a notice that the
+      // user just deleted their current layout which is somewhat obvious to the user.
+      if (currentLayoutId === item.id) {
+        const storedLayouts = await layoutManager.getLayouts();
+        const targetLayout = storedLayouts.find((layout) => layout.id !== currentLayoutId);
+        setSelectedLayoutId(targetLayout?.id);
+        dispatch({ type: "select-id", id: targetLayout?.id });
+      }
+      await layoutManager.deleteLayout({ id: item.id });
+    },
+    [
+      analytics,
+      currentLayoutId,
+      dispatch,
+      layoutManager,
+      setSelectedLayoutId,
+      state.selectedIds.length,
+    ],
+  );
+
   // todo: 实现
-  // const onDeleteLayout = () => {};
   // const onRenameLayout = () => {};
   // const onRevertLayout = () => {};
   // const onCreateNewLayout = () => {};
@@ -121,6 +153,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           open
           layouts={layouts.value}
           onSelectLayout={onSelectLayout}
+          onDeleteLayout={onDeleteLayout}
           onClose={() => {
             setOpen(false);
           }}

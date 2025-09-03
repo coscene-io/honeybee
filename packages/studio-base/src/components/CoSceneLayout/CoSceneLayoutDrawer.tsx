@@ -31,6 +31,7 @@ const useStyles = makeStyles()((theme) => ({
 interface CoSceneLayoutDrawerProps extends DrawerProps {
   onClose: () => void;
   onSelectLayout: (layout: Layout) => Promise<void>;
+  onDeleteLayout: (layout: Layout) => Promise<void>;
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
@@ -42,7 +43,7 @@ interface CoSceneLayoutDrawerProps extends DrawerProps {
 export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
-  const { open, onClose, onSelectLayout, layouts } = props;
+  const { open, onClose, onSelectLayout, onDeleteLayout, layouts } = props;
 
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>
@@ -54,7 +55,11 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
           </IconButton>
         </Box>
 
-        <CoSceneLayoutContent layouts={layouts} onSelectLayout={onSelectLayout} />
+        <CoSceneLayoutContent
+          layouts={layouts}
+          onSelectLayout={onSelectLayout}
+          onDeleteLayout={onDeleteLayout}
+        />
       </Box>
     </Drawer>
   );

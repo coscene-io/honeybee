@@ -127,6 +127,7 @@ const useStyles = makeStyles()((theme) => ({
 export function CoSceneLayoutContent({
   layouts,
   onSelectLayout,
+  onDeleteLayout,
 }: {
   layouts?: {
     personalFolders: string[];
@@ -135,6 +136,7 @@ export function CoSceneLayoutContent({
     projectLayouts: Layout[];
   };
   onSelectLayout: (layout: Layout) => Promise<void>;
+  onDeleteLayout: (layout: Layout) => Promise<void>;
 }): React.JSX.Element {
   const { classes } = useStyles();
   const [selectedCategory, setSelectedCategory] = useState<"personal" | "project">("personal");
@@ -391,6 +393,7 @@ export function CoSceneLayoutContent({
           anchorEl={menu.anchorEl}
           handleMenuClose={handleMenuClose}
           layout={menu.layout}
+          onDeleteLayout={onDeleteLayout}
         />
       )}
     </div>
