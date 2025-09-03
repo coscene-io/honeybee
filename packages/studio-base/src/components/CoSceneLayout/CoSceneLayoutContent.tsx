@@ -126,6 +126,7 @@ const useStyles = makeStyles()((theme) => ({
 
 export function CoSceneLayoutContent({
   layouts,
+  onSelectLayout,
 }: {
   layouts?: {
     personalFolders: string[];
@@ -133,6 +134,7 @@ export function CoSceneLayoutContent({
     personalLayouts: Layout[];
     projectLayouts: Layout[];
   };
+  onSelectLayout: (layout: Layout) => Promise<void>;
 }): React.JSX.Element {
   const { classes } = useStyles();
   const [selectedCategory, setSelectedCategory] = useState<"personal" | "project">("personal");
@@ -368,6 +370,7 @@ export function CoSceneLayoutContent({
                       key={layout.id}
                       layout={layout}
                       handleMenuOpen={handleMenuOpen}
+                      onSelectLayout={onSelectLayout}
                     />
                   ))}
                 </TableBody>

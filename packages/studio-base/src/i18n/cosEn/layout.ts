@@ -74,4 +74,5 @@ export const cosLayout = {
   folder: "Folder",
   copyLayout: "Copy layout",
   loading: "Loading...",
+  use: "Use",
 };

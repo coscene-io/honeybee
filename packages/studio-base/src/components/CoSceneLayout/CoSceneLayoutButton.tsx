@@ -7,19 +7,18 @@
 
 import { useCallback, useState } from "react";
 
+import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/CoSceneUnsavedChangesPrompt";
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import {
-  LayoutState,
-  useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
+import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 import { CoSceneLayoutDrawer } from "./CoSceneLayoutDrawer";
 import { LayoutButton } from "./components/LayoutButton";
 import { useCurrentLayout } from "./hooks/useCurrentLayout";
-
-const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
 export function CoSceneLayoutButton(): React.JSX.Element {
   const [open, setOpen] = useState(false);
@@ -27,20 +26,81 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const analytics = useAnalytics();
   const layoutManager = useLayoutManager();
+  const { setSelectedLayoutId } = useCurrentLayoutActions();
+  const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
 
-  const [state, dispatch] = useLayoutBrowserReducer({
+  const [, dispatch] = useLayoutBrowserReducer({
     lastSelectedId: currentLayoutId,
     busy: layoutManager.isBusy,
     error: layoutManager.error,
     online: layoutManager.isOnline,
   });
 
+  /**
+   * Don't allow the user to switch away from a personal layout if they have unsaved changes. This
+   * currently has a race condition because of the throttled save in CurrentLayoutProvider -- it's
+   * possible to make changes and switch layouts before they're sent to the layout manager.
+   * @returns true if the original action should continue, false otherwise
+   */
   const promptForUnsavedChanges = useCallback(async () => {
-    return false;
-  }, []);
+    const currentLayout =
+      currentLayoutId != undefined
+        ? await layoutManager.getLayout({ id: currentLayoutId })
+        : undefined;
+    if (
+      currentLayout != undefined &&
+      layoutIsShared(currentLayout) &&
+      currentLayout.working != undefined
+    ) {
+      const result = await openUnsavedChangesPrompt(currentLayout);
+      switch (result.type) {
+        case "cancel":
+          return false;
+        case "discard":
+          await layoutManager.revertLayout({ id: currentLayout.id });
+          void analytics.logEvent(AppEvent.LAYOUT_REVERT, {
+            permission: currentLayout.permission,
+            context: "UnsavedChangesPrompt",
+          });
+          return true;
+        case "overwrite":
+          await layoutManager.overwriteLayout({ id: currentLayout.id });
+          void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, {
+            permission: currentLayout.permission,
+            context: "UnsavedChangesPrompt",
+          });
+          return true;
+        case "makePersonal":
+          // We don't use onMakePersonalCopy() here because it might need to prompt for unsaved changes, and we don't want to select the newly created layout
+          await layoutManager.makePersonalCopy({
+            id: currentLayout.id,
+            displayName: result.displayName,
+          });
+          void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
+            permission: currentLayout.permission,
+            syncStatus: currentLayout.syncInfo?.status,
+            context: "UnsavedChangesPrompt",
+          });
+          return true;
+      }
+    }
+    return true;
+  }, [analytics, currentLayoutId, layoutManager, openUnsavedChangesPrompt]);
+
+  const onSelectLayout = useCallbackWithToast(
+    async (item: Layout) => {
+      if (!(await promptForUnsavedChanges())) {
+        return;
+      }
+      void analytics.logEvent(AppEvent.LAYOUT_SELECT, { permission: item.permission });
+      setSelectedLayoutId(item.id);
+      dispatch({ type: "select-id", id: item.id });
+      setOpen(false);
+    },
+    [analytics, dispatch, promptForUnsavedChanges, setSelectedLayoutId],
+  );
 
   // todo: 实现
-  // const onSelectLayout = () => {};
   // const onDeleteLayout = () => {};
   // const onRenameLayout = () => {};
   // const onRevertLayout = () => {};
@@ -55,10 +115,12 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           setOpen(true);
         }}
       />
+      {unsavedChangesPrompt}
       {open && (
         <CoSceneLayoutDrawer
           open
           layouts={layouts.value}
+          onSelectLayout={onSelectLayout}
           onClose={() => {
             setOpen(false);
           }}

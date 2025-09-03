@@ -29,9 +29,14 @@ const useStyles = makeStyles()((theme) => ({
 interface LayoutTableRowProps {
   layout: Layout;
   handleMenuOpen: (event: React.MouseEvent<HTMLElement>, layout: Layout) => void;
+  onSelectLayout: (layout: Layout) => Promise<void>;
 }
 
-export function LayoutTableRow({ layout, handleMenuOpen }: LayoutTableRowProps): React.JSX.Element {
+export function LayoutTableRow({
+  layout,
+  handleMenuOpen,
+  onSelectLayout,
+}: LayoutTableRowProps): React.JSX.Element {
   const { classes } = useStyles();
 
   const formatTimestamp = (timestamp: { seconds: number | bigint } | undefined) => {
@@ -55,7 +60,11 @@ export function LayoutTableRow({ layout, handleMenuOpen }: LayoutTableRowProps):
         </Box>
       </TableCell>
       <TableCell align="center">
-        <LayoutActions layout={layout} handleMenuOpen={handleMenuOpen} />
+        <LayoutActions
+          layout={layout}
+          handleMenuOpen={handleMenuOpen}
+          onSelectLayout={onSelectLayout}
+        />
       </TableCell>
     </TableRow>
   );

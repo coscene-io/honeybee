@@ -9,22 +9,21 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Button, IconButton } from "@mui/material";
 import { useTranslation } from "react-i18next";
 
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 export function LayoutActions({
   layout,
   handleMenuOpen,
+  onSelectLayout,
 }: {
   layout: Layout;
   handleMenuOpen: (event: React.MouseEvent<HTMLButtonElement>, layout: Layout) => void;
+  onSelectLayout: (layout: Layout) => Promise<void>;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
 
-  const layoutManager = useLayoutManager();
   const handleUse = () => {
-    console.log("handleUse", layout);
-    // void layoutManager.set(layout.id);
+    void onSelectLayout(layout);
   };
 
   return (
