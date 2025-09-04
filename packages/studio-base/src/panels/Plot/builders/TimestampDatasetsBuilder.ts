@@ -245,6 +245,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   }
 
   public async getXRange(): Promise<Bounds1D | undefined> {
+    console.log("getXRange", this.#destroyed);
     return await this.#datasetsBuilderRemote.getXRange();
   }
 }
