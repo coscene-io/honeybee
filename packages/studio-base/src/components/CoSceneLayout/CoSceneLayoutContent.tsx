@@ -132,7 +132,7 @@ export function CoSceneLayoutContent({
     folder: string;
   }>({ category: "personal", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "updateTime">("updateTime");
+  const [sortBy, setSortBy] = useState<"name" | "updateTime">("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const [menu, setMenu] = useState<{

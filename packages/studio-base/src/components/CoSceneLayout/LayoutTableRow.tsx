@@ -77,13 +77,10 @@ export function LayoutTableRow({
     onRevertLayout(layout);
   };
 
-  const formatTimestamp = (timestamp: { seconds: number | bigint } | undefined) => {
-    if (!timestamp) {
-      return "-";
-    }
-    const date = new Date(Number(timestamp.seconds) * 1000);
-    return dayjs(date).format("YYYY-MM-DD HH:mm:ss");
-  };
+  const updatedAt =
+    layout.syncInfo?.lastRemoteUpdatedAt ??
+    layout.syncInfo?.lastRemoteSavedAt ??
+    layout.baseline.savedAt;
 
   return (
     <TableRow key={layout.id} hover>
@@ -91,9 +88,7 @@ export function LayoutTableRow({
         {layout.displayName}
         {currentLayoutId === layout.id && <Chip size="small" color="success" label={t("inUse")} />}
       </TableCell>
-      <TableCell>
-        {formatTimestamp(layout.working?.modifyTime ?? layout.baseline.modifyTime)}
-      </TableCell>
+      <TableCell>{updatedAt ? dayjs(updatedAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</TableCell>
       <TableCell>
         <Box className={classes.updaterCell}>
           <Avatar className={classes.avatar}>U</Avatar>

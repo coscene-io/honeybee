@@ -14,7 +14,7 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/a
 
 import { migrateLegacyToNew3DPanels } from "./migrateLegacyToNew3DPanels";
 import { migrateLegacyToNewImagePanels } from "./migrateLegacyToNewImagePanels";
-import { Layout } from "../CoSceneILayoutStorage";
+import { ISO8601Timestamp, Layout } from "../CoSceneILayoutStorage";
 
 /**
  * Perform any necessary migrations on old layout data.
@@ -45,16 +45,17 @@ export function migrateLayout(value: unknown): Layout {
     throw new Error("Invariant violation - layout item is missing an id");
   }
 
-  const now = Timestamp.fromDate(new Date());
+
+  const now = new Date().toISOString() as ISO8601Timestamp;
 
   let baseline = layout.baseline;
   if (!baseline) {
     if (layout.working) {
       baseline = layout.working;
     } else if (layout.data) {
-      baseline = { data: layout.data, modifyTime: now };
+      baseline = { data: layout.data, savedAt: now };
     } else if (layout.state) {
-      baseline = { data: layout.state, modifyTime: now };
+      baseline = { data: layout.state, savedAt: now };
     } else {
       throw new Error("Invariant violation - layout item is missing data");
     }
@@ -64,7 +65,7 @@ export function migrateLayout(value: unknown): Layout {
     id: layout.id,
     parent: layout.parent ?? '',
     folder: layout.folder ?? '',
-    displayName: layout.displayName ?? layout.name ?? `Unnamed (${now.toDate().toISOString()})`,
+    displayName: layout.displayName ?? layout.name ?? `Unnamed (${now})`,
     permission: layout.permission?.toUpperCase() ?? "CREATOR_WRITE",
     working: layout.working
       ? { ...layout.working, data: migratePanelsState(layout.working.data) }
