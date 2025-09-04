@@ -382,9 +382,6 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
    * back to the config or dataset bounds
    */
   async #getXResetBounds(): Promise<Partial<Bounds1D>> {
-    if (this.isDestroyed()) {
-      return {};
-    }
     if (
       this.#datasetsBuilder instanceof TimestampDatasetsBuilder &&
       this.#xAxisVal === "partialTimestamp"
@@ -421,9 +418,6 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
   }
 
   async #getXBounds(): Promise<Partial<Bounds1D>> {
-    if (this.isDestroyed()) {
-      return {};
-    }
     // Interaction, synced global bounds override the config and data source bounds in precedence
     const resetBounds = this.#getXResetBounds();
     return {
