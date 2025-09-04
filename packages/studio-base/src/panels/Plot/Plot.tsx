@@ -265,7 +265,7 @@ export function Plot(props: Props): React.JSX.Element {
     coordinator.handleConfig(config, theme.palette.mode, globalVariables);
   }, [coordinator, config, globalVariables, theme.palette.mode]);
 
-  // This effect must come after the coordinator creation so the coordinator gets the latest config before
+  // This effect must come after the one above it so the coordinator gets the latest config before
   // the latest player state and can properly initialize if the player state already contains the
   // data for display.
   useEffect(() => {
