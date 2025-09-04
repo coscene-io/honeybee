@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Timestamp, FieldMask, Struct, JsonObject } from "@bufbuild/protobuf";
+import { FieldMask, Struct, JsonObject } from "@bufbuild/protobuf";
 import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
 import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
 import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
@@ -156,14 +156,12 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     displayName,
     data,
     permission: _permission,
-    modifyTime,
   }: {
     id: LayoutID;
     parent: string;
     displayName?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
-    modifyTime: Timestamp;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
     try {
       // First get the existing layout to determine its current resource name
@@ -176,7 +174,6 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       const updatedLayout = new Layout(
         {
           name: `${parent}/layouts/${id}`,
-          modifyTime,
         }
       );
 
@@ -195,10 +192,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       }
 
       const result = await this.api.updateLayout({ layout: updatedLayout, updateMask });
-
-      // console.log('result', result)
-      // todo: get users
-      return { status: "success", newLayout: convertGrpcLayoutToRemoteLayout(result, []) };
+      const users = await this.api.batchGetUsers([result.modifier]);
+      return { status: "success", newLayout: convertGrpcLayoutToRemoteLayout(result, users.users) };
     } catch (err) {
       log.error("Failed to update layout:", err);
       return { status: "conflict" };

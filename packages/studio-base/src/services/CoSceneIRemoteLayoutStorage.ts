@@ -55,7 +55,6 @@ export interface IRemoteLayoutStorage {
     displayName?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
-    modifyTime: Timestamp;
   }) => Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }>;
 
   /** Returns true if the layout existed and was deleted, false if the layout did not exist. */

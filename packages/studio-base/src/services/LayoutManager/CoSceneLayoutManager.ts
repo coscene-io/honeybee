@@ -386,7 +386,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       if (!this.isOnline) {
         throw new Error("Cannot update a shared layout while offline");
       }
-      const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, displayName, modifyTime: localLayout.baseline.modifyTime!, parent: localLayout.parent });
+      const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, displayName, parent: localLayout.parent });
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
@@ -409,7 +409,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         displayName != undefined &&
         localLayout.syncInfo != undefined &&
         localLayout.syncInfo.status !== "new";
-      console.log('isRename', isRename)
 
       const result = await this.#local.runExclusive(
         async (local) =>
@@ -489,7 +488,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         id,
         data: localLayout.working?.data ?? localLayout.baseline.data,
         // modifyTime: now,
-        modifyTime: localLayout.baseline.modifyTime!,
         parent: localLayout.parent,
       });
       const result = await this.#local.runExclusive(
@@ -752,8 +750,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               parent: localLayout.parent,
               displayName: localLayout.displayName,
               data: localLayout.baseline.data,
-              modifyTime:
-                localLayout.baseline.modifyTime ?? Timestamp.fromDate(new Date()),
+              // modifyTime:
+              //   localLayout.baseline.modifyTime ?? Timestamp.fromDate(new Date()),
             });
             return async (local) => {
               // Don't check abortSignal; we need the cache to be updated to show the layout is tracked
