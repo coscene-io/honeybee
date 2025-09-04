@@ -732,7 +732,9 @@ class CoSceneConsoleApi {
       },
       undefined,
       {
-        headers: {},
+        headers: {
+          "Topic-Prefix": "false",
+        },
       },
     );
 
@@ -779,6 +781,7 @@ class CoSceneConsoleApi {
         // versions of the app are making requests.
         "Content-Type": "application/json",
         "Project-Name": projectName,
+        "Topic-Prefix": "false",
       },
       body: JSON.stringify({
         start,
