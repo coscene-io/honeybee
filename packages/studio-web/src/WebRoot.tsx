@@ -18,6 +18,7 @@ import {
   IdbExtensionLoader,
   ConsoleApi,
   SharedProviders,
+  PersistentCacheDataSourceFactory,
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
@@ -56,6 +57,7 @@ export function WebRoot(props: {
     const sources = [
       new CoSceneDataPlatformDataSourceFactory(),
       new FoxgloveWebSocketDataSourceFactory(),
+      new PersistentCacheDataSourceFactory(),
     ];
 
     return props.dataSources ?? sources;
