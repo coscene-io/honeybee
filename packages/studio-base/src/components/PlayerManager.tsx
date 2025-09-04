@@ -241,16 +241,7 @@ export default function PlayerManager(
 
   const setDataSource = useCoreData(selectSetDataSource);
 
-  const [addTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
-
-  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
-  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
-
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
-
-  const [playbackQualityLevel] = useAppConfigurationValue<string>(
-    AppSetting.PLAYBACK_QUALITY_LEVEL,
-  );
 
   const [currentSourceParams, setCurrentSourceParams] = useState<
     { sourceId: string; args?: DataSourceArgs } | undefined
@@ -309,9 +300,6 @@ export default function PlayerManager(
         switch (args.type) {
           case "connection": {
             const params: Record<string, string | undefined> = {
-              addTopicPrefix,
-              timeMode,
-              playbackQualityLevel,
               ...args.params,
             };
 
@@ -328,9 +316,6 @@ export default function PlayerManager(
               metricsCollector,
               confirm,
               params: {
-                addTopicPrefix,
-                timeMode,
-                playbackQualityLevel,
                 ...args.params,
               },
               consoleApi,
@@ -471,9 +456,6 @@ export default function PlayerManager(
       constructPlayers,
       setDataSource,
       enqueueSnackbar,
-      addTopicPrefix,
-      timeMode,
-      playbackQualityLevel,
       beforeConnectionSource,
       confirm,
       consoleApi,
@@ -504,7 +486,7 @@ export default function PlayerManager(
 
   /**
    *  in data platform, some value change need to reload current source
-   *  like addTopicPrefix, timeMode, playbackQualityLevel, tfCompatibilityMode
+   *  like  tfCompatibilityMode
    *  or add remove file
    *  And due to the storage mechanism of appconfig, it will not be updated immediately after modification.
    *  You need to manually call reloadCurrentSource and pass in the corresponding value.

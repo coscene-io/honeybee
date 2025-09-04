@@ -40,7 +40,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   security: "安全",
   updates: "自动更新",
   automaticallyInstallUpdates: "自动安装更新",
-  addTopicPrefix: "添加主题前缀",
   tfCompatibilityMode: "TF 兼容模式",
   on: "开",
   off: "关",

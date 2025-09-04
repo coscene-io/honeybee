@@ -75,8 +75,6 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     const bffUrl = consoleApi.getBffUrl();
     const auth = consoleApi.getAuthHeader();
     const baseInfo = consoleApi.getApiBaseInfo();
-    const addTopicPrefix = consoleApi.getAddTopicPrefix();
-    const timeMode = consoleApi.getTimeMode();
 
     const source = new WorkerIterableSource({
       initWorker: () => {
@@ -92,8 +90,6 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
         api: {
           baseUrl,
           bffUrl,
-          addTopicPrefix,
-          timeMode,
           auth,
         },
         params: { ...args.params, ...baseInfo },
