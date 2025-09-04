@@ -257,7 +257,7 @@ export function Plot(props: Props): React.JSX.Element {
 
   const { globalVariables } = useGlobalVariables();
 
-  // 使用 useLayoutEffect 确保 handleConfig 同步执行，避免执行顺序问题
+  // use useLayoutEffect make sure the handleConfig after the coordinator creation
   useLayoutEffect(() => {
     if (!coordinator) {
       return;
