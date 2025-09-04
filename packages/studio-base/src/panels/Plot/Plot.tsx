@@ -9,7 +9,7 @@ import ErrorIcon from "@mui/icons-material/Error";
 import { Button, Tooltip, Fade, buttonClasses, useTheme } from "@mui/material";
 import Hammer from "hammerjs";
 import * as _ from "lodash-es";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -257,8 +257,12 @@ export function Plot(props: Props): React.JSX.Element {
 
   const { globalVariables } = useGlobalVariables();
 
-  useEffect(() => {
-    coordinator?.handleConfig(config, theme.palette.mode, globalVariables);
+  // use useLayoutEffect make sure the handleConfig after the coordinator creation
+  useLayoutEffect(() => {
+    if (!coordinator) {
+      return;
+    }
+    coordinator.handleConfig(config, theme.palette.mode, globalVariables);
   }, [coordinator, config, globalVariables, theme.palette.mode]);
 
   // This effect must come after the one above it so the coordinator gets the latest config before
@@ -373,12 +377,12 @@ export function Plot(props: Props): React.JSX.Element {
 
     const plotCoordinator = new PlotCoordinator(renderer, datasetsBuilder);
 
-    setCoordinator(plotCoordinator);
-
     plotCoordinator.setSize({
       width: contentRect.width,
       height: contentRect.height,
     });
+
+    setCoordinator(plotCoordinator);
 
     const isCanvasTarget = (entry: Immutable<ResizeObserverEntry>) => entry.target === canvasDiv;
     const resizeObserver = new ResizeObserver((entries) => {
