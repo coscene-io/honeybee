@@ -6,8 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Timestamp, FieldMask, Struct, JsonObject } from "@bufbuild/protobuf";
+import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
 import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
 import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import _uniq from "lodash/uniq";
 
 import Logger from "@foxglove/log";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
@@ -24,7 +26,7 @@ const log = Logger.getLogger(__filename);
 type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
 
 // Convert gRPC Layout to RemoteLayout
-function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
+function convertGrpcLayoutToRemoteLayout(layout: Layout, users: CoUser[]): RemoteLayout {
   if (!layout.data) {
     throw new Error(`Missing data for server layout ${layout.displayName} (${layout.name})`);
   }
@@ -44,6 +46,8 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
     permission = "CREATOR_WRITE"; // User layouts are creator-writable
   }
 
+  const modifier = users.find(user => user.name === layout.modifier);
+
   return {
     id: layout.name.split('/layouts/')[1] as LayoutID,
     parent: layout.name.split('/layouts/')[0] ?? '',
@@ -52,28 +56,34 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout): RemoteLayout {
     permission,
     data,
     modifyTime: layout.modifyTime,
+    modifier: layout.modifier,
+    modifierAvatar: modifier?.avatar ?? '',
+    modifierNickname: modifier?.nickname ?? '',
   };
 }
 
-function convertGrpcLayoutToRemoteLayoutWithoutData(layout: Layout, data?: LayoutData): RemoteLayout {
-  // Determine permission based on resource name pattern
-  let permission: LayoutPermission = "CREATOR_WRITE";
-  if (layout.name.startsWith('projects/')) {
-    permission = "ORG_WRITE"; // Project layouts are typically org-writable
-  } else if (layout.name.startsWith('users/')) {
-    permission = "CREATOR_WRITE"; // User layouts are creator-writable
-  }
+// function convertGrpcLayoutToRemoteLayoutWithoutData(layout: Layout, data?: LayoutData): RemoteLayout {
+//   // Determine permission based on resource name pattern
+//   let permission: LayoutPermission = "CREATOR_WRITE";
+//   if (layout.name.startsWith('projects/')) {
+//     permission = "ORG_WRITE"; // Project layouts are typically org-writable
+//   } else if (layout.name.startsWith('users/')) {
+//     permission = "CREATOR_WRITE"; // User layouts are creator-writable
+//   }
 
-  return {
-    id: layout.name.split('/layouts/')[1] as LayoutID,
-    parent: layout.name.split('/layouts/')[0] ?? '',
-    folder: layout.folder,
-    displayName: layout.displayName,
-    permission,
-    data: data ?? { configById: {}, globalVariables: {}, userNodes: {} },
-    modifyTime: layout.modifyTime,
-  };
-}
+//   return {
+//     id: layout.name.split('/layouts/')[1] as LayoutID,
+//     parent: layout.name.split('/layouts/')[0] ?? '',
+//     folder: layout.folder,
+//     displayName: layout.displayName,
+//     permission,
+//     data: data ?? { configById: {}, globalVariables: {}, userNodes: {} },
+//     modifyTime: layout.modifyTime,
+//     modifier: layout.modifier,
+//     modifierAvatar: '',
+//     modifierNickname: '',
+//   };
+// }
 
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {
   public constructor(
@@ -86,8 +96,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
       const layouts = await Promise.all(parents.map(async (parent) => {
         const layouts = await this.api.listLayouts({ parent });
-        console.log('getLayouts', layouts)
-        return layouts.layouts.map(convertGrpcLayoutToRemoteLayout);
+        const users = await this.api.batchGetUsers(_uniq(layouts.layouts.map(layout => layout.modifier)));
+        return layouts.layouts.map(layout => convertGrpcLayoutToRemoteLayout(layout, users.users));
       }));
 
       return layouts.flat();
@@ -101,7 +111,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     try {
       const name = `${parent}/layouts/${id}`;
       const layout = await this.api.getLayout({ name });
-      return convertGrpcLayoutToRemoteLayout(layout);
+      const users = await this.api.batchGetUsers([layout.modifier]);
+      return convertGrpcLayoutToRemoteLayout(layout, users.users);
     } catch (err) {
       log.error("Failed to get layout:", err);
       return undefined;
@@ -134,10 +145,9 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     )
 
     const result = await this.api.createLayout({ parent, layout });
-    console.log('createLayout', layout, parent);
-    console.log('result', result);
+    const users = await this.api.batchGetUsers([result.modifier]);
 
-    return convertGrpcLayoutToRemoteLayoutWithoutData(result, data);
+    return convertGrpcLayoutToRemoteLayout(result, users.users);
   }
 
   public async updateLayout({
@@ -186,8 +196,9 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
       const result = await this.api.updateLayout({ layout: updatedLayout, updateMask });
 
-      console.log('result', result)
-      return { status: "success", newLayout: convertGrpcLayoutToRemoteLayout(result) };
+      // console.log('result', result)
+      // todo: get users
+      return { status: "success", newLayout: convertGrpcLayoutToRemoteLayout(result, []) };
     } catch (err) {
       log.error("Failed to update layout:", err);
       return { status: "conflict" };

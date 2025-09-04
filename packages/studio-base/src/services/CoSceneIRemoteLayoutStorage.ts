@@ -24,6 +24,9 @@ export type RemoteLayout = {
   permission: LayoutPermission;
   data: LayoutData;
   modifyTime: Timestamp | undefined;
+  modifier: string;
+  modifierAvatar: string;
+  modifierNickname: string;
 };
 
 export interface IRemoteLayoutStorage {
