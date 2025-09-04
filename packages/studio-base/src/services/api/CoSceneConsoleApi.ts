@@ -734,6 +734,7 @@ class CoSceneConsoleApi {
       {
         headers: {
           "Topic-Prefix": "false",
+          "Relative-Time": "false",
         },
       },
     );
@@ -782,6 +783,7 @@ class CoSceneConsoleApi {
         "Content-Type": "application/json",
         "Project-Name": projectName,
         "Topic-Prefix": "false",
+        "Relative-Time": "false",
       },
       body: JSON.stringify({
         start,
