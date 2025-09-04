@@ -52,6 +52,7 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { VerticalBars } from "@foxglove/studio-base/panels/Plot/VerticalBars";
 import { SubscribePayload } from "@foxglove/studio-base/players/types";
@@ -175,6 +176,7 @@ export function Plot(props: Props): React.JSX.Element {
   const [canvasDiv, setCanvasDiv] = useState<HTMLDivElement | ReactNull>(ReactNull);
   const [renderer, setRenderer] = useState<OffscreenCanvasRenderer | undefined>(undefined);
   const [coordinator, setCoordinator] = useState<PlotCoordinator | undefined>(undefined);
+  const { formatTime } = useAppTimeFormat();
 
   // When true the user can reset the plot back to the original view
   const [canReset, setCanReset] = useState(false);
@@ -447,6 +449,22 @@ export function Plot(props: Props): React.JSX.Element {
         return;
       }
 
+      // Get absolute time for timestamp-based charts
+      let absoluteTimeString: string | undefined = undefined;
+      if ((xAxisMode === "timestamp" || xAxisMode === "partialTimestamp") && coordinator) {
+        const {
+          playerState: { activeData: { startTime: start } = {} },
+        } = getMessagePipelineState();
+
+        if (start) {
+          const seconds = coordinator.getXValueAtPixel(args.canvasX);
+          if (seconds >= 0) {
+            const absoluteTime = addTimes(start, fromSec(seconds));
+            absoluteTimeString = formatTime(absoluteTime);
+          }
+        }
+      }
+
       const tooltipItems: TimeBasedChartTooltipData[] = [];
 
       for (const element of elements) {
@@ -456,6 +474,7 @@ export function Plot(props: Props): React.JSX.Element {
         tooltipItems.push({
           configIndex: element.configIndex,
           value: tooltipValue,
+          absoluteTime: absoluteTimeString,
         });
       }
 
@@ -470,7 +489,7 @@ export function Plot(props: Props): React.JSX.Element {
         data: tooltipItems,
       });
     });
-  }, [renderer, isMounted]);
+  }, [renderer, isMounted, xAxisMode, coordinator, getMessagePipelineState, formatTime]);
 
   // Extract the bounding client rect from currentTarget before calling the debounced function
   // because react re-uses the SyntheticEvent objects.
