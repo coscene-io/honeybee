@@ -6,11 +6,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 /* eslint-disable @typescript-eslint/no-deprecated */
+import { Timestamp } from "@bufbuild/protobuf";
 import { MarkOptional } from "ts-essentials";
 
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
-import { Timestamp } from "@bufbuild/protobuf";
 
 import { migrateLegacyToNew3DPanels } from "./migrateLegacyToNew3DPanels";
 import { migrateLegacyToNewImagePanels } from "./migrateLegacyToNewImagePanels";
