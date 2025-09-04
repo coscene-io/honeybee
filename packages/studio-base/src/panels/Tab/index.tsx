@@ -179,7 +179,7 @@ function Tab({ config, saveConfig }: Props) {
                     />
                   </TabDndContext.Provider>
                 ) : (
-                  <EmptyPanelLayout tabId={`${panelId}-tab-${tabIndex}`} />
+                  <EmptyPanelLayout tabId={panelId} />
                 )}
               </div>
             );
