@@ -50,19 +50,6 @@ type DataPlatformIterableSourceOptions = {
   params: DataPlatformSourceParameters;
 };
 
-const getPlaybackQualityTranslation = (quality?: string) => {
-  switch (quality) {
-    case "high":
-      return "HIGH";
-    case "low":
-      return "LOW";
-    case "mid":
-      return "MID";
-    default:
-      return "ORIGINAL";
-  }
-};
-
 export class DataPlatformIterableSource implements IIterableSource {
   readonly #consoleApi: DataPlatformInterableSourceConsoleApi;
 
@@ -390,10 +377,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   const warehouseId = params.warehouseId;
   const key = params.key;
 
-  const addTopicPrefix = params.addTopicPrefix;
-  const timeMode = params.timeMode;
-  const playbackQualityLevel = params.playbackQualityLevel;
-
   if (!projectId) {
     throw new Error("projectId is required for data platform source");
   }
@@ -411,14 +394,7 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
     projectName: `warehouses/${warehouseId}/projects/${projectId}`,
   };
 
-  const consoleApi = new ConsoleApi(
-    api.baseUrl,
-    api.bffUrl,
-    api.auth ?? "",
-    addTopicPrefix === "true" ? "true" : "false",
-    timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime",
-    getPlaybackQualityTranslation(playbackQualityLevel),
-  );
+  const consoleApi = new ConsoleApi(api.baseUrl, api.bffUrl, api.auth ?? "");
 
   return new DataPlatformIterableSource({
     api: consoleApi,

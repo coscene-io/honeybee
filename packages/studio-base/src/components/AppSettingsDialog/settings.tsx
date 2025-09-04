@@ -38,7 +38,6 @@ import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
@@ -422,43 +421,6 @@ export function LanguageSettings(): React.ReactElement {
           </MenuItem>
         ))}
       </Select>
-    </Stack>
-  );
-}
-
-export function AddTopicPrefix(): React.ReactElement {
-  const [addTopicPrefix, setAddTopicPrefix] = useAppConfigurationValue<string>(
-    AppSetting.ADD_TOPIC_PREFIX,
-  );
-  const { reloadCurrentSource } = usePlayerSelection();
-  const consoleApi = useConsoleApi();
-
-  const { t } = useTranslation("appSettings");
-
-  return (
-    <Stack>
-      <FormLabel>{t("addTopicPrefix")}:</FormLabel>
-      <ToggleButtonGroup
-        color="primary"
-        size="small"
-        fullWidth
-        exclusive
-        value={addTopicPrefix}
-        onChange={async (_, value?: string) => {
-          if (value != undefined) {
-            await setAddTopicPrefix(value);
-            consoleApi.setAddTopicPrefix(value === "true" ? "true" : "false");
-            await reloadCurrentSource({ addTopicPrefix: value === "true" ? "true" : "false" });
-          }
-        }}
-      >
-        <ToggleButton value="false" data-testid="timeformat-seconds">
-          {t("off")}
-        </ToggleButton>
-        <ToggleButton value="true" data-testid="timeformat-local">
-          {t("on")}
-        </ToggleButton>
-      </ToggleButtonGroup>
     </Stack>
   );
 }

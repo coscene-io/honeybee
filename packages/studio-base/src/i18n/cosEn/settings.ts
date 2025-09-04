@@ -17,7 +17,6 @@ export const cosSettings = {
   off: "Off",
   on: "On",
   auto: "Auto",
-  timeMode: "Time Mode",
   understandFrameRateOptimization: "Understand Frame Rate Optimization",
   selectProjectSources: "Select Project Resources",
 };

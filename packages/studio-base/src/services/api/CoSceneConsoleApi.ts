@@ -391,12 +391,9 @@ class CoSceneConsoleApi {
   #bffUrl: string;
   #authHeader?: string;
   #responseObserver: undefined | ((response: Response) => void);
-  #addTopicPrefix: "false" | "true" = "false";
-  #timeMode: "absoluteTime" | "relativeTime" = "absoluteTime";
   #problemManager = new PlayerProblemManager();
   #baseInfo: ApiBaseInfo = {};
   #type?: "realtime" | "playback" | "other";
-  #playbackQualityLevel: "ORIGINAL" | "HIGH" | "MID" | "LOW" = "ORIGINAL";
   #permissionList: {
     orgPermissionList: string[];
     projectPermissionList: string[];
@@ -409,25 +406,10 @@ class CoSceneConsoleApi {
     projectDenyList: [],
   };
 
-  public constructor(
-    baseUrl: string,
-    bffUrl: string,
-    jwt: string,
-    // The following three parameters are only used in data sources
-    addTopicPrefix?: "true" | "false",
-    timeMode?: "absoluteTime" | "relativeTime",
-    playbackQualityLevel?: "ORIGINAL" | "HIGH" | "MID" | "LOW",
-  ) {
+  public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
     this.#authHeader = jwt;
-    this.#addTopicPrefix = addTopicPrefix === "true" ? "true" : "false";
-    this.#timeMode = timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime";
-    this.#playbackQualityLevel = playbackQualityLevel ?? "ORIGINAL";
-  }
-
-  public getPlaybackQualityLevel(): "ORIGINAL" | "HIGH" | "MID" | "LOW" {
-    return this.#playbackQualityLevel;
   }
 
   public async setApiBaseInfo(baseInfo: ApiBaseInfo): Promise<void> {
@@ -451,14 +433,6 @@ class CoSceneConsoleApi {
     return this.#problemManager;
   }
 
-  public getTimeMode(): "absoluteTime" | "relativeTime" {
-    return this.#timeMode;
-  }
-
-  public setTimeMode(timeMode: "absoluteTime" | "relativeTime"): void {
-    this.#timeMode = timeMode;
-  }
-
   public getBaseUrl(): string {
     return this.#baseUrl;
   }
@@ -473,14 +447,6 @@ class CoSceneConsoleApi {
 
   public getAuthHeader(): string | undefined {
     return this.#authHeader;
-  }
-
-  public getAddTopicPrefix(): string {
-    return this.#addTopicPrefix;
-  }
-
-  public setAddTopicPrefix(prefix: "true" | "false"): void {
-    this.#addTopicPrefix = prefix;
   }
 
   public setResponseObserver(observer: undefined | ((response: Response) => void)): void {
@@ -767,9 +733,8 @@ class CoSceneConsoleApi {
       undefined,
       {
         headers: {
-          "Topic-Prefix": this.#addTopicPrefix,
-          "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
-          "Playback-Quality-Level": this.#playbackQualityLevel,
+          "Topic-Prefix": "false",
+          "Relative-Time": "false",
         },
       },
     );
@@ -816,10 +781,9 @@ class CoSceneConsoleApi {
         // Include the version of studio in the request Useful when scraping logs to determine what
         // versions of the app are making requests.
         "Content-Type": "application/json",
-        "Topic-Prefix": this.#addTopicPrefix,
-        "Playback-Quality-Level": this.#playbackQualityLevel,
-        "Relative-Time": this.#timeMode === "relativeTime" ? "true" : "false",
         "Project-Name": projectName,
+        "Topic-Prefix": "false",
+        "Relative-Time": "false",
       },
       body: JSON.stringify({
         start,
