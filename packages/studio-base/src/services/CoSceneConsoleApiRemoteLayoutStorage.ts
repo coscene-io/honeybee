@@ -21,6 +21,8 @@ import {
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { replaceUndefinedWithNull } from "@foxglove/studio-base/util/coscene";
 
+import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
+
 const log = Logger.getLogger(__filename);
 
 type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
@@ -55,35 +57,14 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout, users: CoUser[]): Remot
     displayName: layout.displayName,
     permission,
     data,
+    savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
+    updatedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
     modifyTime: layout.modifyTime,
     modifier: layout.modifier,
-    modifierAvatar: modifier?.avatar ?? '',
-    modifierNickname: modifier?.nickname ?? '',
+    modifierAvatar: modifier?.avatar,
+    modifierNickname: modifier?.nickname,
   };
 }
-
-// function convertGrpcLayoutToRemoteLayoutWithoutData(layout: Layout, data?: LayoutData): RemoteLayout {
-//   // Determine permission based on resource name pattern
-//   let permission: LayoutPermission = "CREATOR_WRITE";
-//   if (layout.name.startsWith('projects/')) {
-//     permission = "ORG_WRITE"; // Project layouts are typically org-writable
-//   } else if (layout.name.startsWith('users/')) {
-//     permission = "CREATOR_WRITE"; // User layouts are creator-writable
-//   }
-
-//   return {
-//     id: layout.name.split('/layouts/')[1] as LayoutID,
-//     parent: layout.name.split('/layouts/')[0] ?? '',
-//     folder: layout.folder,
-//     displayName: layout.displayName,
-//     permission,
-//     data: data ?? { configById: {}, globalVariables: {}, userNodes: {} },
-//     modifyTime: layout.modifyTime,
-//     modifier: layout.modifier,
-//     modifierAvatar: '',
-//     modifierNickname: '',
-//   };
-// }
 
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {
   public constructor(

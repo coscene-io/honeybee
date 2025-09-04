@@ -11,6 +11,7 @@ import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
   LayoutPermission,
+  ISO8601Timestamp,
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 /**
@@ -23,10 +24,14 @@ export type RemoteLayout = {
   displayName: string;
   permission: LayoutPermission;
   data: LayoutData;
+
+  savedAt: ISO8601Timestamp | undefined;
+  updatedAt: ISO8601Timestamp | undefined;
+
   modifyTime: Timestamp | undefined;
   modifier: string;
-  modifierAvatar: string;
-  modifierNickname: string;
+  modifierAvatar: string | undefined;
+  modifierNickname: string | undefined;
 };
 
 export interface IRemoteLayoutStorage {
