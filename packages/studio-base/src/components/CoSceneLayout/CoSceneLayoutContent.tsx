@@ -187,8 +187,8 @@ export function CoSceneLayoutContent({
           ? a.displayName.localeCompare(b.displayName)
           : b.displayName.localeCompare(a.displayName);
       } else {
-        const timeA = a.working?.modifyTime ?? a.baseline.modifyTime;
-        const timeB = b.working?.modifyTime ?? b.baseline.modifyTime;
+        const timeA = a.working?.savedAt ?? a.baseline.savedAt;
+        const timeB = b.working?.savedAt ?? b.baseline.savedAt;
         if (!timeA && !timeB) {
           return 0;
         }
@@ -199,8 +199,8 @@ export function CoSceneLayoutContent({
           return -1;
         }
         return sortOrder === "asc"
-          ? Number(timeA.seconds) - Number(timeB.seconds)
-          : Number(timeB.seconds) - Number(timeA.seconds);
+          ? new Date(timeA).getTime() - new Date(timeB).getTime()
+          : new Date(timeB).getTime() - new Date(timeA).getTime();
       }
     });
 
