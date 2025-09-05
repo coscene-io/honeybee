@@ -17,8 +17,12 @@ import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayou
 
 export function CreateLayoutButton({
   onCreateLayout,
+  personalFolders,
+  projectFolders,
 }: {
   onCreateLayout: (params: CreateLayoutParams) => void;
+  personalFolders: string[];
+  projectFolders: string[];
 }): React.JSX.Element {
   const [open, setOpen] = useState("");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>(undefined);
@@ -65,6 +69,8 @@ export function CreateLayoutButton({
       {open === "createBlankLayout" && (
         <CreateBlankLayoutDialog
           onCreateLayout={onCreateLayout}
+          personalFolders={personalFolders}
+          projectFolders={projectFolders}
           open
           onClose={() => {
             setOpen("");

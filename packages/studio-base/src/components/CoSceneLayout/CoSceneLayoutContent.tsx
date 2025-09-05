@@ -222,7 +222,11 @@ export function CoSceneLayoutContent({
         {/* Left Navigation Sidebar */}
         <div className={classes.sidebar}>
           <Box className={classes.boxPadding}>
-            <CreateLayoutButton onCreateLayout={onCreateLayout} />
+            <CreateLayoutButton
+              onCreateLayout={onCreateLayout}
+              personalFolders={layouts.personalFolders}
+              projectFolders={layouts.projectFolders}
+            />
           </Box>
 
           <List className={classes.listPadding}>

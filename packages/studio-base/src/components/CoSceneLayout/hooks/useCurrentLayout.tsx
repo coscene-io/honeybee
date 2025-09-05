@@ -15,7 +15,7 @@ import {
   LayoutState,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
@@ -33,7 +33,6 @@ export function useCurrentLayout() {
       );
 
       return {
-        // layouts: [...layouts].sort((a, b) => a.displayName.localeCompare(b.displayName)),
         personalFolders: _.uniq(
           personalLayouts.map((layout) => layout.folder).filter((folder) => folder),
         ).sort(),

@@ -10,12 +10,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export function SelectFolder({
-  value,
-  type,
+  folders,
   onChange,
 }: {
-  value: string;
-  type: "personal" | "project";
+  folders: string[];
   onChange: (value?: string) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
@@ -27,15 +25,14 @@ export function SelectFolder({
   const options: { label: string; value: string }[] = useMemo(() => {
     return [
       { label: t("createNewFolder"), value: "" },
-      { label: t("personalLayout"), value: "personal" },
-      { label: t("projectLayout"), value: "project" },
+      ...folders.map((folder) => ({ label: folder, value: folder })),
     ];
-  }, [t]);
+  }, [t, folders]);
 
   useEffect(() => {
     setSelectedFolder(undefined);
     setNewFolderName("");
-  }, [type]);
+  }, [folders]);
 
   useEffect(() => {
     onChange(selectedFolder?.value === "" ? newFolderName : selectedFolder?.value);
@@ -45,7 +42,7 @@ export function SelectFolder({
     <>
       <Autocomplete
         options={options}
-        value={selectedFolder}
+        value={selectedFolder ?? null} // eslint-disable-line no-restricted-syntax
         onChange={(_, option) => {
           setSelectedFolder(option ?? undefined);
           if (option?.value !== "") {

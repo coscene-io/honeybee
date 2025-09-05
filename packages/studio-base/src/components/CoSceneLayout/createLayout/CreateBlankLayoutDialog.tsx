@@ -35,10 +35,14 @@ export function CreateBlankLayoutDialog({
   open,
   onClose,
   onCreateLayout,
+  personalFolders,
+  projectFolders,
 }: {
   open: boolean;
   onClose: () => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
+  personalFolders: string[];
+  projectFolders: string[];
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
@@ -69,7 +73,15 @@ export function CreateBlankLayoutDialog({
             rules={{
               required: true,
             }}
-            render={({ field }) => <TextField required label={t("layoutName")} {...field} />}
+            render={({ field, fieldState }) => (
+              <TextField
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                required
+                label={t("layoutName")}
+                {...field}
+              />
+            )}
           />
 
           <Stack>
@@ -95,8 +107,7 @@ export function CreateBlankLayoutDialog({
             name="folder"
             render={({ field }) => (
               <SelectFolder
-                value={field.value}
-                type={permission === "CREATOR_WRITE" ? "personal" : "project"}
+                folders={permission === "CREATOR_WRITE" ? personalFolders : projectFolders}
                 onChange={(value) => {
                   field.onChange(value ?? "");
                 }}
