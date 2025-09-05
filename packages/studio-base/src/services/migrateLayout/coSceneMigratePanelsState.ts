@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 /* eslint-disable @typescript-eslint/no-deprecated */
-import { Timestamp } from "@bufbuild/protobuf";
 import { MarkOptional } from "ts-essentials";
 
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
@@ -45,17 +44,34 @@ export function migrateLayout(value: unknown): Layout {
     throw new Error("Invariant violation - layout item is missing an id");
   }
 
-
   const now = new Date().toISOString() as ISO8601Timestamp;
 
   let baseline = layout.baseline;
   if (!baseline) {
     if (layout.working) {
-      baseline = layout.working;
+      baseline = {
+        data: layout.working.data,
+        savedAt: layout.working.savedAt,
+        modifier: undefined,
+        modifierAvatar: undefined,
+        modifierNickname: undefined,
+      };
     } else if (layout.data) {
-      baseline = { data: layout.data, savedAt: now };
+      baseline = {
+        data: layout.data,
+        savedAt: now,
+        modifier: undefined,
+        modifierAvatar: undefined,
+        modifierNickname: undefined,
+      };
     } else if (layout.state) {
-      baseline = { data: layout.state, savedAt: now };
+      baseline = {
+        data: layout.state,
+        savedAt: now,
+        modifier: undefined,
+        modifierAvatar: undefined,
+        modifierNickname: undefined,
+      };
     } else {
       throw new Error("Invariant violation - layout item is missing data");
     }
