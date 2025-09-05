@@ -40,19 +40,31 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout, users: CoUser[]): Remot
     throw new Error(`Invalid layout data for ${layout.displayName}: ${err}`);
   }
 
+  // Parse layout name to extract ID and parent
+  const layoutNameParts = layout.name.split('/layouts/');
+  if (layoutNameParts.length !== 2 || !layoutNameParts[1] || !layoutNameParts[0]) {
+    throw new Error(`Invalid layout name format: ${layout.name}. Expected format: '<parent>/layouts/<id>'`);
+  }
+
+  const layoutId = layoutNameParts[1];
+  const parent = layoutNameParts[0];
+
   // Determine permission based on resource name pattern
-  let permission: LayoutPermission = "CREATOR_WRITE";
-  if (layout.name.startsWith('warehouses/')) {
+  let permission: LayoutPermission;
+  if (parent.startsWith('warehouses/')) {
     permission = "ORG_WRITE"; // Project layouts are typically org-writable
-  } else if (layout.name.startsWith('users/')) {
+  } else if (parent.startsWith('users/')) {
     permission = "CREATOR_WRITE"; // User layouts are creator-writable
+  } else {
+    // For any other format, default to read-only to be safe
+    permission = "ORG_READ";
   }
 
   const modifier = users.find(user => user.name === layout.modifier);
 
   return {
-    id: layout.name.split('/layouts/')[1] as LayoutID,
-    parent: layout.name.split('/layouts/')[0] ?? '',
+    id: layoutId as LayoutID,
+    parent,
     folder: layout.folder,
     displayName: layout.displayName,
     permission,
