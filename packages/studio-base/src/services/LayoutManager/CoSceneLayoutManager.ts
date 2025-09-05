@@ -48,7 +48,6 @@ async function updateOrFetchLayout(
   remote: IRemoteLayoutStorage,
   params: Parameters<IRemoteLayoutStorage["updateLayout"]>[0],
 ): Promise<RemoteLayout> {
-  console.log("updateOrFetchLayout", params)
   const response = await remote.updateLayout(params);
 
   switch (response.status) {
@@ -354,10 +353,18 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           displayName,
           permission,
           baseline: {
-            data, savedAt: new Date().toISOString() as ISO8601Timestamp, modifier: undefined, modifierAvatar: undefined, modifierNickname: undefined
+            data,
+            savedAt: new Date().toISOString() as ISO8601Timestamp,
+            modifier: undefined,
+            modifierAvatar: undefined,
+            modifierNickname: undefined
           },
           working: undefined,
-          syncInfo: this.#remote ? { status: "new", lastRemoteSavedAt: undefined, lastRemoteUpdatedAt: undefined } : undefined,
+          syncInfo: this.#remote ? {
+            status: "new",
+            lastRemoteSavedAt: undefined,
+            lastRemoteUpdatedAt: undefined
+          } : undefined,
         }),
     );
     this.#notifyChangeListeners({ type: "change", updatedLayout: newLayout });
@@ -505,7 +512,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   @CoSceneLayoutManager.#withBusyStatus
   public async overwriteLayout({ id }: { id: LayoutID }): Promise<Layout> {
-    console.log('overwriteLayout', id)
     const localLayout = await this.#local.runExclusive(async (local) => await local.get(id));
     if (!localLayout) {
       throw new Error(`Cannot overwrite layout ${id} because it does not exist`);
