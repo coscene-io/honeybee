@@ -57,12 +57,15 @@ const useStyles = makeStyles()((theme) => ({
     height: "100%",
   },
   sidebar: {
-    width: "25%",
+    padding: theme.spacing(2),
+    width: "20%",
+    minWidth: 200,
     borderRight: `1px solid ${theme.palette.divider}`,
   },
   contentArea: {
-    width: "75%",
-    // minWidth: 800,
+    width: "80%",
+    padding: theme.spacing(2),
+    flex: 1,
   },
   listItemIcon: {
     color: "inherit",
@@ -80,6 +83,7 @@ const useStyles = makeStyles()((theme) => ({
   },
   searchField: {
     flexGrow: 1,
+    maxWidth: 300,
   },
   tableHeaderCell: {
     display: "flex",
@@ -93,7 +97,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 
   boxPadding: {
-    padding: theme.spacing(2),
+    paddingBottom: theme.spacing(2),
   },
   listPadding: {
     paddingTop: 0,
