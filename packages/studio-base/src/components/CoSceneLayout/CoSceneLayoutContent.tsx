@@ -11,6 +11,8 @@ import {
   Person as PersonIcon,
   Search as SearchIcon,
   Sort as SortIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as ArrowDownwardIcon,
 } from "@mui/icons-material";
 import {
   Box,
@@ -137,8 +139,10 @@ export function CoSceneLayoutContent({
     folder: string;
   }>({ category: "personal", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "updateTime">("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [{ sortBy, sortOrder }, setSort] = useState<{
+    sortBy: "name" | "updateTime";
+    sortOrder: "asc" | "desc";
+  }>({ sortBy: "name", sortOrder: "asc" });
 
   const [menu, setMenu] = useState<{
     anchorEl: HTMLElement | undefined;
@@ -352,21 +356,33 @@ export function CoSceneLayoutContent({
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>{t("layoutName")}</TableCell>
+                    <TableCell>
+                      {t("layoutName")}
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setSort({
+                            sortBy: "name",
+                            sortOrder: sortOrder === "asc" ? "desc" : "asc",
+                          });
+                        }}
+                      >
+                        <ArrowUpwardIcon />
+                      </IconButton>
+                    </TableCell>
                     <TableCell>
                       <Box className={classes.tableHeaderCell}>
                         {t("updateTime")}
                         <IconButton
                           size="small"
                           onClick={() => {
-                            if (sortBy === "updateTime") {
-                              setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                            } else {
-                              setSortBy("updateTime");
-                            }
+                            setSort({
+                              sortBy: "updateTime",
+                              sortOrder: sortOrder === "asc" ? "desc" : "asc",
+                            });
                           }}
                         >
-                          <SortIcon />
+                          <ArrowUpwardIcon />
                         </IconButton>
                       </Box>
                     </TableCell>
