@@ -103,12 +103,6 @@ export function CreateBlankLayoutDialog({
               />
             )}
           />
-
-          {/* <Controller
-            control={form.control}
-            name="folder"
-            render={({ field }) => <TextField label={t("folder")} {...field} />}
-          /> */}
         </Stack>
       </DialogContent>
       <DialogActions>
