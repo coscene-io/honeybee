@@ -121,7 +121,7 @@ export function replaceUndefinedWithNull(obj: Record<string, unknown>): Record<s
 // export const getCoSceneLayout = (layout: {
 //   id: LayoutID | undefined;
 //   modifyTime: Timestamp | undefined;
-//   displayName: string | undefined;
+//   name: string | undefined;
 //   permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
 //   data: Record<string, unknown> | undefined;
 //   userId: string;
@@ -132,7 +132,7 @@ export function replaceUndefinedWithNull(obj: Record<string, unknown>): Record<s
 //       name: layout.permission === "CREATOR_WRITE"
 //         ? `users/${layout.userId}/layouts/${layout.id}`
 //         : `${layout.p}/layouts/${layout.id}`,
-//       displayName: layout.displayName ?? "",
+//       name: layout.name ?? "",
 //       createTime: Timestamp.fromDate(new Date()),
 //       updateTime: Timestamp.fromDate(new Date()),
 //       // todo:  replaceUndefinedWithNull 是否必须

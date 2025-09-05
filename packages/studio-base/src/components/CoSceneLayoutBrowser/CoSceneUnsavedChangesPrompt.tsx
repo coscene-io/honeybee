@@ -55,7 +55,7 @@ export function UnsavedChangesPrompt({
   );
 
   const [personalCopyName, setPersonalCopyName] = useState(
-    defaultPersonalCopyName ?? `${layout.displayName} copy`,
+    defaultPersonalCopyName ?? `${layout.name} copy`,
   );
   const personalCopyNameRef = useLatest(personalCopyName);
 
@@ -95,7 +95,7 @@ export function UnsavedChangesPrompt({
       <form onSubmit={handleSubmit}>
         <DialogTitle>
           {t("layoutHasUnsavedChange", {
-            layoutName: layout.displayName,
+            layoutName: layout.name,
           })}
         </DialogTitle>
         <DialogContent>
@@ -104,7 +104,7 @@ export function UnsavedChangesPrompt({
               <FormControlLabel
                 value="discard"
                 label={t("revertLayoutsConfim", {
-                  layoutName: layout.displayName,
+                  layoutName: layout.name,
                 })}
                 control={<Radio />}
               />
@@ -112,7 +112,7 @@ export function UnsavedChangesPrompt({
                 value="overwrite"
                 label={[
                   t("updateSharedLayout", {
-                    layoutName: layout.displayName,
+                    layoutName: layout.name,
                   }),
                   !isOnline && t("unavailableWhileOffline"),
                 ]

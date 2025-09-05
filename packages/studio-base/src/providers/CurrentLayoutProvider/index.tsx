@@ -230,7 +230,7 @@ export default function CurrentLayoutProvider({
             loading: false,
             id: updatedLayout.id,
             data: updatedLayout.working?.data ?? updatedLayout.baseline.data,
-            displayName: updatedLayout.displayName,
+            name: updatedLayout.name,
           },
         });
       }

@@ -36,14 +36,14 @@ import { useMountedState } from "react-use";
 
 // import { withStyles } from "tss-react/mui";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
-import {
-  ProjectRoleEnum,
-  ProjectRoleWeight,
-  UserStore,
-  useCurrentUser,
-} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+// import {
+//   ProjectRoleEnum,
+//   ProjectRoleWeight,
+//   UserStore,
+//   useCurrentUser,
+// } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+// import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
@@ -213,7 +213,7 @@ export default React.memo(function LayoutRow({
       title: multiSelection
         ? t("revertLayouts")
         : t("revertTargetLayout", {
-            layoutName: layout.displayName,
+            layoutName: layout.name,
           }),
       prompt: t("revertLayoutsPrompt"),
       ok: t("revertLayoutsConfim"),
@@ -232,7 +232,7 @@ export default React.memo(function LayoutRow({
   }, [layout, onMakePersonalCopy]);
 
   const renameAction = useCallback(() => {
-    setNameFieldValue(layout.displayName);
+    setNameFieldValue(layout.name);
     setEditingName(true);
   }, [layout]);
 
@@ -277,7 +277,7 @@ export default React.memo(function LayoutRow({
         return;
       }
       const newName = nameFieldValue;
-      if (newName && newName !== layout.displayName) {
+      if (newName && newName !== layout.name) {
         onRename(layout, newName);
       }
       setEditingName(false);
@@ -311,7 +311,7 @@ export default React.memo(function LayoutRow({
     const title = multiSelection
       ? t("deleteSelectedLayoutsTitle")
       : t("deleteLayoutsTitle", {
-          layoutName: layout.displayName,
+          layoutName: layout.name,
         });
     void confirm({
       title,
@@ -534,7 +534,7 @@ export default React.memo(function LayoutRow({
             style={{ display: editingName ? "none" : "block" }}
           >
             <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-              <HighlightedText text={layout.displayName} highlight={searchQuery} />
+              <HighlightedText text={layout.name} highlight={searchQuery} />
             </Stack>
           </Typography>
         </ListItemText>
