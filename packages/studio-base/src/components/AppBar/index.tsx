@@ -22,7 +22,7 @@ import { Trans, useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
-import { CoSceneLayoutButton as CoSceneLayoutButtonOld } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
+// import { CoSceneLayoutButton as CoSceneLayoutButtonOld } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
 import { CoSceneLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/CoSceneLayoutButton";
 import { CoSceneLogo } from "@foxglove/studio-base/components/CoSceneLogo";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -326,7 +326,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
           <div className={classes.end}>
             <div className={classes.endInner}>
               {appBarLayoutButton}
-              <CoSceneLayoutButtonOld />
+              {/* <CoSceneLayoutButtonOld /> */}
               <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
                 {checkSupportCoStudioDownload() && (
