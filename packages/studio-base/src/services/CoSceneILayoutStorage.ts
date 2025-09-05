@@ -39,6 +39,10 @@ export type Layout = {
   baseline: {
     data: LayoutData;
     savedAt: ISO8601Timestamp | undefined;
+
+    modifier: string | undefined;
+    modifierAvatar: string | undefined;
+    modifierNickname: string | undefined;
   };
 
   /**

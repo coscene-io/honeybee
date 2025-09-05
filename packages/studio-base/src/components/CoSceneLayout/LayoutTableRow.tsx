@@ -91,8 +91,10 @@ export function LayoutTableRow({
       <TableCell>{updatedAt ? dayjs(updatedAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</TableCell>
       <TableCell>
         <Box className={classes.updaterCell}>
-          <Avatar className={classes.avatar}>U</Avatar>
-          <Typography variant="body2">user</Typography>
+          <Avatar className={classes.avatar} src={layout.baseline.modifierAvatar}>
+            {layout.baseline.modifierNickname?.split("/").pop()}
+          </Avatar>
+          <Typography variant="body2">{layout.baseline.modifierNickname}</Typography>
         </Box>
       </TableCell>
       <TableCell align="right">

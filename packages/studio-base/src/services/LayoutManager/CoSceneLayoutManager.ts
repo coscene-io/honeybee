@@ -277,7 +277,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         folder: remoteLayout.folder,
         displayName: remoteLayout.displayName,
         permission: remoteLayout.permission,
-        baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+        baseline: {
+          data: remoteLayout.data,
+          savedAt: remoteLayout.savedAt,
+          modifier: remoteLayout.modifier,
+          modifierAvatar: remoteLayout.modifierAvatar,
+          modifierNickname: remoteLayout.modifierNickname,
+        },
         working: undefined,
         syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt, lastRemoteUpdatedAt: remoteLayout.updatedAt },
       });
@@ -324,7 +330,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             folder: newLayout.folder,
             displayName: newLayout.displayName,
             permission: newLayout.permission,
-            baseline: { data: newLayout.data, savedAt: newLayout.savedAt },
+            baseline: {
+              data: newLayout.data,
+              savedAt: newLayout.savedAt,
+              modifier: newLayout.modifier,
+              modifierAvatar: newLayout.modifierAvatar,
+              modifierNickname: newLayout.modifierNickname,
+            },
             working: undefined,
             syncInfo: { status: "tracked", lastRemoteSavedAt: newLayout.savedAt, lastRemoteUpdatedAt: newLayout.updatedAt },
           }),
@@ -341,7 +353,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           folder,
           displayName,
           permission,
-          baseline: { data, savedAt: new Date().toISOString() as ISO8601Timestamp },
+          baseline: {
+            data, savedAt: new Date().toISOString() as ISO8601Timestamp, modifier: undefined, modifierAvatar: undefined, modifierNickname: undefined
+          },
           working: undefined,
           syncInfo: this.#remote ? { status: "new", lastRemoteSavedAt: undefined, lastRemoteUpdatedAt: undefined } : undefined,
         }),
@@ -393,9 +407,19 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             ...localLayout,
             parent: updatedBaseline.parent,
             displayName: updatedBaseline.displayName,
-            baseline: { data: updatedBaseline.data, savedAt: updatedBaseline.savedAt },
+            baseline: {
+              data: updatedBaseline.data,
+              savedAt: updatedBaseline.savedAt,
+              modifier: updatedBaseline.modifier,
+              modifierAvatar: updatedBaseline.modifierAvatar,
+              modifierNickname: updatedBaseline.modifierNickname,
+            },
             working: newWorking,
-            syncInfo: { status: "tracked", lastRemoteSavedAt: updatedBaseline.savedAt, lastRemoteUpdatedAt: updatedBaseline.updatedAt },
+            syncInfo: {
+              status: "tracked",
+              lastRemoteSavedAt: updatedBaseline.savedAt,
+              lastRemoteUpdatedAt: updatedBaseline.updatedAt,
+            },
           }),
       );
       // 当 busyCount > 1 时，代表着有多个更新 layout 的任务在排队，这时不应该触发 change 事件，否则会导致 layout 跳回上一个版本
@@ -418,9 +442,20 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             working: newWorking,
 
             // If the name is being changed, we will need to upload to the server with a new savedAt
-            baseline: isRename ? { ...localLayout.baseline, savedAt: now } : localLayout.baseline,
+            baseline: isRename ? {
+              ...localLayout.baseline,
+              savedAt: now,
+              // todo: update modifier
+              modifier: localLayout.baseline.modifier,
+              modifierAvatar: localLayout.baseline.modifierAvatar,
+              modifierNickname: localLayout.baseline.modifierNickname,
+            } : localLayout.baseline,
             syncInfo: isRename
-              ? { status: "updated", lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt, lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt }
+              ? {
+                status: "updated",
+                lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+                lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
+              }
               : localLayout.syncInfo,
           }),
       );
@@ -495,9 +530,19 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         async (local) =>
           await local.put({
             ...localLayout,
-            baseline: { data: updatedBaseline.data, savedAt: updatedBaseline.savedAt },
+            baseline: {
+              data: updatedBaseline.data,
+              savedAt: updatedBaseline.savedAt,
+              modifier: updatedBaseline.modifier,
+              modifierAvatar: updatedBaseline.modifierAvatar,
+              modifierNickname: updatedBaseline.modifierNickname,
+            },
             working: undefined,
-            syncInfo: { status: "tracked", lastRemoteSavedAt: updatedBaseline.savedAt, lastRemoteUpdatedAt: updatedBaseline.updatedAt },
+            syncInfo: {
+              status: "tracked",
+              lastRemoteSavedAt: updatedBaseline.savedAt,
+              lastRemoteUpdatedAt: updatedBaseline.updatedAt,
+            },
           }),
       );
       this.#notifyChangeListeners({ type: "change", updatedLayout: result });
@@ -510,6 +555,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             baseline: {
               data: localLayout.working?.data ?? localLayout.baseline.data,
               savedAt: now,
+              // todo: update modifier
+              modifier: localLayout.baseline.modifier,
+              modifierAvatar: localLayout.baseline.modifierAvatar,
+              modifierNickname: localLayout.baseline.modifierNickname,
             },
             working: undefined,
             syncInfo:
@@ -554,7 +603,14 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         folder: layout.folder,
         displayName,
         permission: "CREATOR_WRITE",
-        baseline: { data: layout.working?.data ?? layout.baseline.data, savedAt: now },
+        baseline: {
+          data: layout.working?.data ?? layout.baseline.data,
+          savedAt: now,
+          // todo: modifier current user
+          modifier: layout.baseline.modifier,
+          modifierAvatar: layout.baseline.modifierAvatar,
+          modifierNickname: layout.baseline.modifierNickname,
+        },
         working: undefined,
         syncInfo: { status: "new", lastRemoteSavedAt: now, lastRemoteUpdatedAt: now },
       });
@@ -659,7 +715,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               folder: remoteLayout.folder,
               displayName: remoteLayout.displayName,
               permission: remoteLayout.permission,
-              baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+              baseline: {
+                data: remoteLayout.data,
+                savedAt: remoteLayout.savedAt,
+                modifier: remoteLayout.modifier,
+                modifierAvatar: remoteLayout.modifierAvatar,
+                modifierNickname: remoteLayout.modifierNickname,
+              },
               working: undefined,
               syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt, lastRemoteUpdatedAt: remoteLayout.updatedAt },
               parent: remoteLayout.parent,
@@ -675,7 +737,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               folder: remoteLayout.folder,
               displayName: remoteLayout.displayName,
               permission: remoteLayout.permission,
-              baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+              baseline: {
+                data: remoteLayout.data,
+                savedAt: remoteLayout.savedAt,
+                modifier: remoteLayout.modifier,
+                modifierAvatar: remoteLayout.modifierAvatar,
+                modifierNickname: remoteLayout.modifierNickname,
+              },
               working: localLayout.working,
               syncInfo: {
                 status: localLayout.syncInfo.status,
@@ -821,7 +889,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 folder: remoteLayout.folder,
                 displayName: remoteLayout.displayName,
                 permission: remoteLayout.permission,
-                baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+                baseline: {
+                  data: remoteLayout.data,
+                  savedAt: remoteLayout.savedAt,
+                  modifier: remoteLayout.modifier,
+                  modifierAvatar: remoteLayout.modifierAvatar,
+                  modifierNickname: remoteLayout.modifierNickname,
+                },
                 working: undefined,
                 syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt, lastRemoteUpdatedAt: remoteLayout.updatedAt },
               });
@@ -841,7 +915,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 folder: remoteLayout.folder,
                 displayName: remoteLayout.displayName,
                 permission: remoteLayout.permission,
-                baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+                baseline: {
+                  data: remoteLayout.data,
+                  savedAt: remoteLayout.savedAt,
+                  modifier: remoteLayout.modifier,
+                  modifierAvatar: remoteLayout.modifierAvatar,
+                  modifierNickname: remoteLayout.modifierNickname,
+                },
                 working: localLayout.working,
                 syncInfo: {
                   status: localLayout.syncInfo.status,

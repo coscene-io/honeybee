@@ -29,7 +29,7 @@ export type RemoteLayout = {
   updatedAt: ISO8601Timestamp | undefined;
 
   modifyTime: Timestamp | undefined;
-  modifier: string;
+  modifier: string | undefined;
   modifierAvatar: string | undefined;
   modifierNickname: string | undefined;
 };

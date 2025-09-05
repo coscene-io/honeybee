@@ -60,6 +60,7 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout, users: CoUser[]): Remot
     savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
     updatedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
     modifyTime: layout.modifyTime,
+
     modifier: layout.modifier,
     modifierAvatar: modifier?.avatar,
     modifierNickname: modifier?.nickname,
