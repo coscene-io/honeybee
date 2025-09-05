@@ -9,53 +9,125 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  TextField,
   Button,
   DialogActions,
-  Input,
-  FormControl,
-  InputLabel,
+  Stack,
+  Select,
+  MenuItem,
+  FormLabel,
 } from "@mui/material";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
+
+import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+
+import { SelectFolder } from "./SelectFolder";
+
+const useStyles = makeStyles()({
+  dialogContent: {
+    minWidth: 400,
+  },
+});
 
 export function CopyFromOtherProjectDialog({
   open,
   onClose,
+  onCreateLayout,
+  personalFolders,
+  projectFolders,
 }: {
   open: boolean;
   onClose: () => void;
+  onCreateLayout: (params: CreateLayoutParams) => void;
+  personalFolders: string[];
+  projectFolders: string[];
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
+  const { classes } = useStyles();
 
-  const form = useForm({ defaultValues: { displayName: "" } });
+  const form = useForm<CreateLayoutParams>({
+    defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE" },
+  });
 
-  const onSubmit = (data: any) => {
-    // console.log(data);
-    console.log(data);
+  const onSubmit = (data: CreateLayoutParams) => {
+    onCreateLayout({
+      folder: data.folder,
+      displayName: data.displayName,
+      permission: data.permission,
+    });
+    onClose();
   };
 
+  const permission = form.watch("permission");
+
   return (
-    <Dialog maxWidth="md" fullWidth open={open} onClose={onClose}>
+    <Dialog open={open} onClose={onClose}>
       <DialogTitle>{t("copyFromOtherProject")}</DialogTitle>
-      <DialogContent>
-        <FormControl fullWidth>
-          <InputLabel required id="project-select-label">
-            {t("projectName")}
-          </InputLabel>
-          <Input {...form.register("displayName")} />
-        </FormControl>
+      <DialogContent className={classes.dialogContent}>
+        <Stack gap={2}>
+          <Controller
+            control={form.control}
+            name="displayName"
+            rules={{
+              required: true,
+            }}
+            render={({ field, fieldState }) => (
+              <TextField
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                required
+                label={t("layoutName")}
+                {...field}
+              />
+            )}
+          />
+
+          <Stack>
+            <FormLabel>
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                {t("type")}
+              </Stack>
+            </FormLabel>
+            <Controller
+              control={form.control}
+              name="permission"
+              render={({ field }) => (
+                <Select label={t("type")} {...field}>
+                  <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
+                  <MenuItem value="ORG_WRITE">{t("projectLayout")}</MenuItem>
+                </Select>
+              )}
+            />
+          </Stack>
+
+          <Controller
+            control={form.control}
+            name="folder"
+            render={({ field }) => (
+              <SelectFolder
+                folders={permission === "CREATOR_WRITE" ? personalFolders : projectFolders}
+                onChange={(value) => {
+                  field.onChange(value ?? "");
+                }}
+              />
+            )}
+          />
+        </Stack>
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" onClick={onClose}>
           {t("cancel", { ns: "cosGeneral" })}
         </Button>
         <Button
+          variant="contained"
           onClick={() => {
-            form.handleSubmit(onSubmit)();
+            void form.handleSubmit(onSubmit)();
           }}
         >
           {t("ok", { ns: "cosGeneral" })}
-        </Button>{" "}
+        </Button>
       </DialogActions>
     </Dialog>
   );

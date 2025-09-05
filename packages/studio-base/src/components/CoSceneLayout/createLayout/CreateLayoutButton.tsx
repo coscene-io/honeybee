@@ -79,6 +79,9 @@ export function CreateLayoutButton({
       )}
       {open === "copyFromOtherProject" && (
         <CopyFromOtherProjectDialog
+          onCreateLayout={onCreateLayout}
+          personalFolders={personalFolders}
+          projectFolders={projectFolders}
           open
           onClose={() => {
             setOpen("");
