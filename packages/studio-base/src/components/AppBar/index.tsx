@@ -299,23 +299,6 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   setAppMenuEl(undefined);
                 }}
               />
-              <AppBarIconButton
-                className={cx({ "Mui-selected": panelMenuOpen })}
-                color="inherit"
-                disabled={!hasCurrentLayout}
-                id="add-panel-button"
-                data-tourid="add-panel-button"
-                title={t("addPanel")}
-                aria-label="Add panel button"
-                aria-controls={panelMenuOpen ? "add-panel-menu" : undefined}
-                aria-haspopup="true"
-                aria-expanded={panelMenuOpen ? "true" : undefined}
-                onClick={(event) => {
-                  setPanelAnchorEl(event.currentTarget);
-                }}
-              >
-                <SlideAdd24Regular color={theme.palette.appBar.icon} />
-              </AppBarIconButton>
             </div>
           </div>
 
@@ -329,6 +312,23 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
               {/* <CoSceneLayoutButtonOld /> */}
               <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
+                <AppBarIconButton
+                  className={cx({ "Mui-selected": panelMenuOpen })}
+                  color="inherit"
+                  disabled={!hasCurrentLayout}
+                  id="add-panel-button"
+                  data-tourid="add-panel-button"
+                  title={t("addPanel")}
+                  aria-label="Add panel button"
+                  aria-controls={panelMenuOpen ? "add-panel-menu" : undefined}
+                  aria-haspopup="true"
+                  aria-expanded={panelMenuOpen ? "true" : undefined}
+                  onClick={(event) => {
+                    setPanelAnchorEl(event.currentTarget);
+                  }}
+                >
+                  <SlideAdd24Regular color={theme.palette.appBar.icon} />
+                </AppBarIconButton>
                 {checkSupportCoStudioDownload() && (
                   <AppBarIconButton
                     title={t("openInCoStudio")}
