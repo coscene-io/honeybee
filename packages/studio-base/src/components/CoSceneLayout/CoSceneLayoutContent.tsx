@@ -319,7 +319,7 @@ export function CoSceneLayoutContent({
             {/* Toolbar */}
             <Box className={classes.toolbar}>
               <TextField
-                placeholder="布局名称"
+                placeholder={t("layoutName")}
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -343,10 +343,10 @@ export function CoSceneLayoutContent({
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>布局名称</TableCell>
+                    <TableCell>{t("layoutName")}</TableCell>
                     <TableCell>
                       <Box className={classes.tableHeaderCell}>
-                        更新时间
+                        {t("updateTime")}
                         <IconButton
                           size="small"
                           onClick={() => {
@@ -361,8 +361,8 @@ export function CoSceneLayoutContent({
                         </IconButton>
                       </Box>
                     </TableCell>
-                    <TableCell>更新者</TableCell>
-                    <TableCell align="right">操作</TableCell>
+                    <TableCell>{t("updater")}</TableCell>
+                    <TableCell align="right" />
                   </TableRow>
                 </TableHead>
                 <TableBody>

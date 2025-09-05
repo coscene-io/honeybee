@@ -77,4 +77,5 @@ export const cosLayout = {
   loading: "Loading...",
   use: "Use",
   inUse: "In use",
+  updater: "Updater",
 };

@@ -76,4 +76,5 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   loading: "加载中...",
   use: "使用",
   inUse: "使用中",
+  updater: "更新者",
 };
