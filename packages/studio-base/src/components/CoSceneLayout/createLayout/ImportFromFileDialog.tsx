@@ -112,6 +112,10 @@ export function ImportFromFileDialog({
       <DialogTitle>{t("importFromFile")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
+          <input
+            style={{ display: "none" }}
+            {...form.register("selectedFile", { required: true })}
+          />
           <Box>
             <Button variant="outlined" onClick={importLayout}>
               {form.watch("selectedFile") || t("importFromFile")}
