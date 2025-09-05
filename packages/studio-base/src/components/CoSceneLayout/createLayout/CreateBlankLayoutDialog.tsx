@@ -23,6 +23,8 @@ import { makeStyles } from "tss-react/mui";
 
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 
+import { SelectFolder } from "./SelectFolder";
+
 const useStyles = makeStyles()({
   dialogContent: {
     minWidth: 400,
@@ -53,6 +55,8 @@ export function CreateBlankLayoutDialog({
     });
     onClose();
   };
+
+  const permission = form.watch("permission");
 
   return (
     <Dialog open={open} onClose={onClose}>
@@ -89,8 +93,22 @@ export function CreateBlankLayoutDialog({
           <Controller
             control={form.control}
             name="folder"
-            render={({ field }) => <TextField label={t("folder")} {...field} />}
+            render={({ field }) => (
+              <SelectFolder
+                value={field.value}
+                type={permission === "CREATOR_WRITE" ? "personal" : "project"}
+                onChange={(value) => {
+                  field.onChange(value ?? "");
+                }}
+              />
+            )}
           />
+
+          {/* <Controller
+            control={form.control}
+            name="folder"
+            render={({ field }) => <TextField label={t("folder")} {...field} />}
+          /> */}
         </Stack>
       </DialogContent>
       <DialogActions>

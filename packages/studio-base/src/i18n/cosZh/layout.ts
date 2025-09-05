@@ -77,4 +77,5 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   use: "使用",
   inUse: "使用中",
   updater: "更新者",
+  createNewFolder: "创建新文件夹",
 };

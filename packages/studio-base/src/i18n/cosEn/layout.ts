@@ -78,4 +78,5 @@ export const cosLayout = {
   use: "Use",
   inUse: "In use",
   updater: "Updater",
+  createNewFolder: "Create new folder",
 };
