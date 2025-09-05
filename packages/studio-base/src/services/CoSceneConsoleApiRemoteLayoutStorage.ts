@@ -66,7 +66,7 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout, users: CoUser[]): Remot
     id: layoutId as LayoutID,
     parent,
     folder: layout.folder,
-    displayName: layout.displayName,
+    name: layout.displayName,
     permission,
     data,
     savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
@@ -117,21 +117,21 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     id,
     parent,
     folder,
-    displayName,
+    name,
     data,
     permission,
   }: {
     id: LayoutID | undefined;
     parent: string;
     folder: string;
-    displayName: string;
+    name: string;
     data: LayoutData;
     permission: LayoutPermission;
   }): Promise<RemoteLayout> {
     const layout = new Layout(
       {
-        name: `${parent}/layouts/${id ?? ""}`,
-        displayName,
+        name: id ? `${parent}/layouts/${id}` : undefined,
+        displayName: name,
         folder,
         data: Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject),
         scope: permission === "CREATOR_WRITE" ? LayoutScopeEnum_LayoutScope.PERSONAL : LayoutScopeEnum_LayoutScope.PROJECT,
@@ -147,13 +147,13 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   public async updateLayout({
     id,
     parent,
-    displayName,
+    name,
     data,
     permission: _permission,
   }: {
     id: LayoutID;
     parent: string;
-    displayName?: string;
+    name?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
@@ -176,8 +176,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       const paths: string[] = [];
       updateMask.paths = paths;
 
-      if (displayName != undefined && displayName) {
-        updatedLayout.displayName = displayName;
+      if (name != undefined && name) {
+        updatedLayout.displayName = name;
         paths.push("displayName");
       }
       if (data != undefined) {

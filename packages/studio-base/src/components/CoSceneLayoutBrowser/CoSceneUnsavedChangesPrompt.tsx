@@ -28,7 +28,7 @@ import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 type UnsavedChangesResolution =
   | { type: "cancel" }
   | { type: "discard" }
-  | { type: "makePersonal"; displayName: string }
+  | { type: "makePersonal"; name: string }
   | { type: "overwrite" };
 
 export function UnsavedChangesPrompt({
@@ -79,7 +79,7 @@ export function UnsavedChangesPrompt({
           onComplete({ type: "overwrite" });
           break;
         case "makePersonal":
-          onComplete({ type: "makePersonal", displayName: personalCopyNameRef.current });
+          onComplete({ type: "makePersonal", name: personalCopyNameRef.current });
           break;
       }
     },

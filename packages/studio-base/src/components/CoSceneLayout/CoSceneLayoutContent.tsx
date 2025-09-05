@@ -194,16 +194,14 @@ export function CoSceneLayoutContent({
 
     if (searchQuery) {
       filtered = filtered.filter((l) =>
-        l.displayName.toLowerCase().includes(searchQuery.toLowerCase().trim()),
+        l.name.toLowerCase().includes(searchQuery.toLowerCase().trim()),
       );
     }
 
     // Sort layouts
     filtered.sort((a, b) => {
       if (sortBy === "name") {
-        return sortOrder === "asc"
-          ? a.displayName.localeCompare(b.displayName)
-          : b.displayName.localeCompare(a.displayName);
+        return sortOrder === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
       } else {
         const timeA = a.working?.savedAt ?? a.baseline.savedAt;
         const timeB = b.working?.savedAt ?? b.baseline.savedAt;

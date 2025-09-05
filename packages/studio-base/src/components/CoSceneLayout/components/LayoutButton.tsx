@@ -68,7 +68,7 @@ export function LayoutButton({
       return t("noLayouts");
     }
 
-    return currentLayout.displayName;
+    return currentLayout.name;
   };
 
   const getSubheader = () => {

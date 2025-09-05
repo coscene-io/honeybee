@@ -274,7 +274,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         id: remoteLayout.id,
         parent: remoteLayout.parent,
         folder: remoteLayout.folder,
-        displayName: remoteLayout.displayName,
+        name: remoteLayout.name,
         permission: remoteLayout.permission,
         baseline: {
           data: remoteLayout.data,
@@ -292,12 +292,12 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   @CoSceneLayoutManager.#withBusyStatus
   public async saveNewLayout({
     folder,
-    displayName,
+    name,
     data: unmigratedData,
     permission,
   }: {
     folder: string;
-    displayName: string;
+    name: string;
     data: LayoutData;
     permission: LayoutPermission;
   }): Promise<Layout> {
@@ -316,7 +316,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         id: uuidv4() as LayoutID,
         parent,
         folder,
-        displayName,
+        name,
         data,
         permission,
       });
@@ -327,7 +327,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             id: newLayout.id,
             parent: newLayout.parent,
             folder: newLayout.folder,
-            displayName: newLayout.displayName,
+            name: newLayout.name,
             permission: newLayout.permission,
             baseline: {
               data: newLayout.data,
@@ -350,7 +350,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           id: uuidv4() as LayoutID,
           parent,
           folder,
-          displayName,
+          name,
           permission,
           baseline: {
             data,
@@ -374,11 +374,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   @CoSceneLayoutManager.#withBusyStatus
   public async updateLayout({
     id,
-    displayName,
+    name,
     data,
   }: {
     id: LayoutID;
-    displayName: string | undefined;
+    name: string | undefined;
     data: LayoutData | undefined;
   }): Promise<Layout | undefined> {
     const now = new Date().toISOString() as ISO8601Timestamp;
@@ -400,20 +400,20 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
-    if (displayName != undefined && layoutIsShared(localLayout)) {
+    if (name != undefined && layoutIsShared(localLayout)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
       if (!this.isOnline) {
         throw new Error("Cannot update a shared layout while offline");
       }
-      const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, displayName, parent: localLayout.parent });
+      const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, name, parent: localLayout.parent });
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
             ...localLayout,
             parent: updatedBaseline.parent,
-            displayName: updatedBaseline.displayName,
+            name: updatedBaseline.name,
             baseline: {
               data: updatedBaseline.data,
               savedAt: updatedBaseline.savedAt,
@@ -437,7 +437,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     } else {
       const isRename =
         this.#remote != undefined &&
-        displayName != undefined &&
+        name != undefined &&
         localLayout.syncInfo != undefined &&
         localLayout.syncInfo.status !== "new";
 
@@ -445,7 +445,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         async (local) =>
           await local.put({
             ...localLayout,
-            displayName: displayName ?? localLayout.displayName,
+            name: name ?? localLayout.name,
             working: newWorking,
 
             // If the name is being changed, we will need to upload to the server with a new savedAt
@@ -595,7 +595,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   }
 
   @CoSceneLayoutManager.#withBusyStatus
-  public async makePersonalCopy({ id, displayName }: { id: LayoutID; displayName: string }): Promise<Layout> {
+  public async makePersonalCopy({ id, name }: { id: LayoutID; name: string }): Promise<Layout> {
     const now = new Date().toISOString() as ISO8601Timestamp;
 
     const result = await this.#local.runExclusive(async (local) => {
@@ -607,7 +607,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         id: uuidv4() as LayoutID,
         parent: '', // todo: get parent
         folder: layout.folder,
-        displayName,
+        name,
         permission: "CREATOR_WRITE",
         baseline: {
           data: layout.working?.data ?? layout.baseline.data,
@@ -719,7 +719,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             await local.put({
               id: remoteLayout.id,
               folder: remoteLayout.folder,
-              displayName: remoteLayout.displayName,
+              name: remoteLayout.name,
               permission: remoteLayout.permission,
               baseline: {
                 data: remoteLayout.data,
@@ -741,7 +741,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             await local.put({
               id: remoteLayout.id,
               folder: remoteLayout.folder,
-              displayName: remoteLayout.displayName,
+              name: remoteLayout.name,
               permission: remoteLayout.permission,
               baseline: {
                 data: remoteLayout.data,
@@ -802,7 +802,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               id: localLayout.id,
               parent: localLayout.parent,
               folder: localLayout.folder,
-              displayName: localLayout.displayName,
+              name: localLayout.name,
               data: localLayout.baseline.data,
               permission: localLayout.permission,
             });
@@ -822,7 +822,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             const newBaseline = await updateOrFetchLayout(remote, {
               id: localLayout.id,
               parent: localLayout.parent,
-              displayName: localLayout.displayName,
+              name: localLayout.name,
               data: localLayout.baseline.data,
               // savedAt:
               //   localLayout.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
@@ -831,7 +831,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               // Don't check abortSignal; we need the cache to be updated to show the layout is tracked
               await local.put({
                 ...localLayout,
-                displayName: newBaseline.displayName,
+                name: newBaseline.name,
                 baseline: { ...localLayout.baseline, savedAt: newBaseline.savedAt },
                 syncInfo: { status: "tracked", lastRemoteSavedAt: newBaseline.savedAt, lastRemoteUpdatedAt: newBaseline.updatedAt },
               });
@@ -893,7 +893,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 id: remoteLayout.id,
                 parent: remoteLayout.parent,
                 folder: remoteLayout.folder,
-                displayName: remoteLayout.displayName,
+                name: remoteLayout.name,
                 permission: remoteLayout.permission,
                 baseline: {
                   data: remoteLayout.data,
@@ -919,7 +919,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 id: remoteLayout.id,
                 parent: remoteLayout.parent,
                 folder: remoteLayout.folder,
-                displayName: remoteLayout.displayName,
+                name: remoteLayout.name,
                 permission: remoteLayout.permission,
                 baseline: {
                   data: remoteLayout.data,

@@ -53,13 +53,13 @@ export function ImportFromFileDialog({
   const { classes } = useStyles();
 
   const form = useForm<CreateLayoutParams & { selectedFile: string }>({
-    defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE", selectedFile: "" },
+    defaultValues: { name: "", folder: "", permission: "CREATOR_WRITE", selectedFile: "" },
   });
 
   const onSubmit = (data: CreateLayoutParams) => {
     onCreateLayout({
       folder: data.folder,
-      displayName: data.displayName,
+      name: data.name,
       permission: data.permission,
       data: data.data,
     });
@@ -103,7 +103,7 @@ export function ImportFromFileDialog({
     }
     const data = parsedState as LayoutData;
     form.setValue("selectedFile", file.name);
-    form.setValue("displayName", layoutName);
+    form.setValue("name", layoutName);
     form.setValue("data", data);
   }, [enqueueSnackbar, form]);
 
@@ -124,7 +124,7 @@ export function ImportFromFileDialog({
 
           <Controller
             control={form.control}
-            name="displayName"
+            name="name"
             rules={{
               required: true,
             }}

@@ -21,7 +21,7 @@ export type RemoteLayout = {
   id: LayoutID;
   parent: string;
   folder: string;
-  displayName: string;
+  name: string;
   permission: LayoutPermission;
   data: LayoutData;
 
@@ -49,7 +49,7 @@ export interface IRemoteLayoutStorage {
     id: LayoutID | undefined;
     parent: string;
     folder: string;
-    displayName: string;
+    name: string;
     data: LayoutData;
     permission: LayoutPermission;
   }) => Promise<RemoteLayout>;
@@ -57,7 +57,7 @@ export interface IRemoteLayoutStorage {
   updateLayout: (params: {
     id: LayoutID;
     parent: string;
-    displayName?: string;
+    name?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
   }) => Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }>;

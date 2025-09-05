@@ -51,13 +51,13 @@ export function CopyLayoutDialog({
   const { classes } = useStyles();
 
   const form = useForm<CreateLayoutParams>({
-    defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE" },
+    defaultValues: { name: "", folder: "", permission: "CREATOR_WRITE" },
   });
 
   const onSubmit = (data: CreateLayoutParams) => {
     onCreateLayout({
       folder: data.folder,
-      displayName: data.displayName,
+      name: data.name,
       permission: data.permission,
       data: layout.working?.data ?? layout.baseline.data,
     });
@@ -73,7 +73,7 @@ export function CopyLayoutDialog({
         <Stack gap={2}>
           <Controller
             control={form.control}
-            name="displayName"
+            name="name"
             rules={{
               required: true,
             }}

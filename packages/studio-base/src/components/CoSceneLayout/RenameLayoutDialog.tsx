@@ -41,7 +41,7 @@ export function RenameLayoutDialog({
   const { classes } = useStyles();
 
   const form = useForm({
-    defaultValues: { newName: layout.displayName },
+    defaultValues: { newName: layout.name },
   });
 
   const onSubmit = (data: { newName: string }) => {

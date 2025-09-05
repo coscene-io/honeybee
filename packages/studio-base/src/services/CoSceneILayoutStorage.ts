@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Timestamp } from "@bufbuild/protobuf";
-
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
@@ -27,7 +25,7 @@ export type Layout = {
   id: LayoutID;
   parent: string;
   folder: string;
-  displayName: string;
+  name: string;
   permission: LayoutPermission;
 
   /** @deprecated old field name, migrated to working/baseline */

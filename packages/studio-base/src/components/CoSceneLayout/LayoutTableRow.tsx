@@ -100,18 +100,15 @@ export function LayoutTableRow({
     },
   ].filter((button) => button.visible);
 
-  const updatedAt =
-    layout.syncInfo?.lastRemoteUpdatedAt ??
-    layout.syncInfo?.lastRemoteSavedAt ??
-    layout.baseline.savedAt;
+  const savedAt = layout.baseline.savedAt;
 
   return (
     <TableRow key={layout.id} hover>
       <TableCell>
-        {layout.displayName}
+        {layout.name}
         {currentLayoutId === layout.id && <Chip size="small" color="success" label={t("inUse")} />}
       </TableCell>
-      <TableCell>{updatedAt ? dayjs(updatedAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</TableCell>
+      <TableCell>{savedAt ? dayjs(savedAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</TableCell>
       <TableCell>
         <Box className={classes.updaterCell}>
           <Avatar className={classes.avatar} src={layout.baseline.modifierAvatar}>

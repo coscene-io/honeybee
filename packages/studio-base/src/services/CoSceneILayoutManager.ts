@@ -34,7 +34,7 @@ export type LayoutManagerEventTypes = {
 
 export type CreateLayoutParams = {
   folder: string;
-  displayName: string;
+  name: string;
   permission: LayoutPermission;
   data?: LayoutData;
 };
@@ -82,7 +82,7 @@ export interface ILayoutManager {
 
   saveNewLayout(params: {
     folder: string;
-    displayName: string;
+    name: string;
     data: LayoutData;
     permission: LayoutPermission;
   }): Promise<Layout>;
@@ -95,7 +95,7 @@ export interface ILayoutManager {
    */
   updateLayout(params: {
     id: LayoutID;
-    displayName?: string;
+    name?: string;
     data?: LayoutData;
   }): Promise<Layout | undefined>;
 
@@ -108,5 +108,5 @@ export interface ILayoutManager {
   revertLayout(params: { id: LayoutID }): Promise<Layout>;
 
   /** Transfer a shared layout's working changes into a new personal layout. */
-  makePersonalCopy(params: { id: LayoutID; displayName: string }): Promise<Layout>;
+  makePersonalCopy(params: { id: LayoutID; name: string }): Promise<Layout>;
 }

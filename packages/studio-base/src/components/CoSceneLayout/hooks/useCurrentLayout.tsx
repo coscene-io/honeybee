@@ -39,8 +39,8 @@ export function useCurrentLayout() {
         projectFolders: _.uniq(
           projectLayouts.map((layout) => layout.folder).filter((folder) => folder),
         ).sort(),
-        personalLayouts: personalLayouts.sort((a, b) => a.displayName.localeCompare(b.displayName)),
-        projectLayouts: projectLayouts.sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        personalLayouts: personalLayouts.sort((a, b) => a.name.localeCompare(b.name)),
+        projectLayouts: projectLayouts.sort((a, b) => a.name.localeCompare(b.name)),
       };
     },
     [layoutManager],

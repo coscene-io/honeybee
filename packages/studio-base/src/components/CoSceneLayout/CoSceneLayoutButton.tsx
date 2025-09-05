@@ -102,7 +102,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               if (layout) {
                 await layoutManager.saveNewLayout({
                   folder: layout.folder,
-                  displayName: `${layout.displayName} copy`,
+                  name: `${layout.name} copy`,
                   data: layout.working?.data ?? layout.baseline.data,
                   permission: "CREATOR_WRITE",
                 });
@@ -169,7 +169,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           // We don't use onMakePersonalCopy() here because it might need to prompt for unsaved changes, and we don't want to select the newly created layout
           await layoutManager.makePersonalCopy({
             id: currentLayout.id,
-            displayName: result.displayName,
+            name: result.name,
           });
           void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
             permission: currentLayout.permission,
@@ -197,7 +197,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onRenameLayout = useCallbackWithToast(
     async (item: Layout, newName: string) => {
-      await layoutManager.updateLayout({ id: item.id, displayName: newName });
+      await layoutManager.updateLayout({ id: item.id, name: newName });
       void analytics.logEvent(AppEvent.LAYOUT_RENAME, { permission: item.permission });
     },
     [analytics, layoutManager],
@@ -238,7 +238,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const onExportLayout = useCallbackWithToast(
     async (item: Layout) => {
       const content = JSON.stringify(item.working?.data ?? item.baseline.data, undefined, 2) ?? "";
-      downloadTextFile(content, `${item.displayName}.json`);
+      downloadTextFile(content, `${item.name}.json`);
       void analytics.logEvent(AppEvent.LAYOUT_EXPORT, { permission: item.permission });
     },
     [analytics],
@@ -256,7 +256,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
       if (layoutIsShared(item)) {
         const response = await confirm({
-          title: `${t("update")} " ${item.displayName}"?`,
+          title: `${t("update")} " ${item.name}"?`,
           prompt: t("updateRemoteLayoutConfirm"),
           ok: t("save", {
             ns: "cosGeneral",
@@ -302,7 +302,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
       const newLayout = await layoutManager.saveNewLayout({
         folder: params.folder,
-        displayName: params.displayName,
+        name: params.name,
         data,
         permission: params.permission,
       });

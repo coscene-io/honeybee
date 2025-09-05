@@ -142,7 +142,7 @@ export default function CurrentLayoutProvider({
               loading: false,
               id: layout.id,
               data: layout.working?.data ?? layout.baseline.data,
-              displayName: layout.displayName,
+              name: layout.name,
             },
           });
           if (saveToProfile) {
@@ -194,7 +194,7 @@ export default function CurrentLayoutProvider({
           id: layoutStateRef.current.selectedLayout.id,
           data: newData,
           loading: false,
-          displayName: layoutStateRef.current.selectedLayout.displayName,
+          name: layoutStateRef.current.selectedLayout.name,
           edited: true,
         },
       });
