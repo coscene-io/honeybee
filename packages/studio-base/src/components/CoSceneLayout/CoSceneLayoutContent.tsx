@@ -10,7 +10,6 @@ import {
   Folder as FolderIcon,
   Person as PersonIcon,
   Search as SearchIcon,
-  Sort as SortIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
 } from "@mui/icons-material";
@@ -90,6 +89,16 @@ const useStyles = makeStyles()((theme) => ({
   tableHeaderCell: {
     display: "flex",
     alignItems: "center",
+    cursor: "pointer",
+    "&:hover .sort-icon": {
+      visibility: "visible",
+    },
+  },
+  sortIcon: {
+    visibility: "hidden",
+    "&.active": {
+      visibility: "visible",
+    },
   },
 
   emptyState: {
@@ -357,32 +366,53 @@ export function CoSceneLayoutContent({
                 <TableHead>
                   <TableRow>
                     <TableCell>
-                      {t("layoutName")}
-                      <IconButton
-                        size="small"
+                      <Box
+                        className={classes.tableHeaderCell}
                         onClick={() => {
                           setSort({
                             sortBy: "name",
-                            sortOrder: sortOrder === "asc" ? "desc" : "asc",
+                            sortOrder: sortBy === "name" && sortOrder === "asc" ? "desc" : "asc",
                           });
                         }}
                       >
-                        <ArrowUpwardIcon />
-                      </IconButton>
+                        {t("layoutName")}
+                        <IconButton
+                          size="small"
+                          className={`sort-icon ${classes.sortIcon} ${
+                            sortBy === "name" ? "active" : ""
+                          }`}
+                        >
+                          {sortBy === "name" && sortOrder === "desc" ? (
+                            <ArrowDownwardIcon />
+                          ) : (
+                            <ArrowUpwardIcon />
+                          )}
+                        </IconButton>
+                      </Box>
                     </TableCell>
                     <TableCell>
-                      <Box className={classes.tableHeaderCell}>
+                      <Box
+                        className={classes.tableHeaderCell}
+                        onClick={() => {
+                          setSort({
+                            sortBy: "updateTime",
+                            sortOrder:
+                              sortBy === "updateTime" && sortOrder === "asc" ? "desc" : "asc",
+                          });
+                        }}
+                      >
                         {t("updateTime")}
                         <IconButton
                           size="small"
-                          onClick={() => {
-                            setSort({
-                              sortBy: "updateTime",
-                              sortOrder: sortOrder === "asc" ? "desc" : "asc",
-                            });
-                          }}
+                          className={`sort-icon ${classes.sortIcon} ${
+                            sortBy === "updateTime" ? "active" : ""
+                          }`}
                         >
-                          <ArrowUpwardIcon />
+                          {sortBy === "updateTime" && sortOrder === "desc" ? (
+                            <ArrowDownwardIcon />
+                          ) : (
+                            <ArrowUpwardIcon />
+                          )}
                         </IconButton>
                       </Box>
                     </TableCell>
