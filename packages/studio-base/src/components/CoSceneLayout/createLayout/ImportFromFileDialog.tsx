@@ -16,10 +16,10 @@ import {
   Select,
   MenuItem,
   FormLabel,
+  Box,
 } from "@mui/material";
 import { useSnackbar } from "notistack";
 import path from "path";
-import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -52,8 +52,6 @@ export function ImportFromFileDialog({
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
 
-  // const [selectedFile, setSelectedFile] = useState<string>("");
-
   const form = useForm<CreateLayoutParams & { selectedFile: string }>({
     defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE", selectedFile: "" },
   });
@@ -85,10 +83,6 @@ export function ImportFromFileDialog({
       ],
     });
 
-    if (fileHandles.length === 0) {
-      return;
-    }
-
     const file = await fileHandles[0].getFile();
     const layoutName = path.basename(file.name, path.extname(file.name));
     const content = await file.text();
@@ -115,14 +109,14 @@ export function ImportFromFileDialog({
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>{form.watch("selectedFile") || t("importFromFile")}</DialogTitle>
+      <DialogTitle>{t("importFromFile")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
-          <div>
+          <Box>
             <Button variant="outlined" onClick={importLayout}>
-              {t("importFromFile")}
+              {form.watch("selectedFile") || t("importFromFile")}
             </Button>
-          </div>
+          </Box>
 
           <Controller
             control={form.control}
