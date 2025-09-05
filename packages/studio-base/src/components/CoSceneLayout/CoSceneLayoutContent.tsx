@@ -419,6 +419,8 @@ export function CoSceneLayoutContent({
       )}
       {dialog.layout && dialog.type === "copy" && (
         <CopyLayoutDialog
+          personalFolders={layouts.personalFolders}
+          projectFolders={layouts.projectFolders}
           layout={dialog.layout}
           open
           onClose={handleCloseDialog}

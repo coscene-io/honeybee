@@ -15,6 +15,7 @@ import {
   Stack,
   Select,
   MenuItem,
+  FormLabel,
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -22,6 +23,8 @@ import { makeStyles } from "tss-react/mui";
 
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+
+import { SelectFolder } from "./createLayout/SelectFolder";
 
 const useStyles = makeStyles()({
   dialogContent: {
@@ -33,11 +36,15 @@ export function CopyLayoutDialog({
   open,
   onClose,
   onCreateLayout,
+  personalFolders,
+  projectFolders,
   layout,
 }: {
   open: boolean;
   onClose: () => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
+  personalFolders: string[];
+  projectFolders: string[];
   layout: Layout;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
@@ -57,6 +64,8 @@ export function CopyLayoutDialog({
     onClose();
   };
 
+  const permission = form.watch("permission");
+
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{t("copyLayout")}</DialogTitle>
@@ -68,22 +77,46 @@ export function CopyLayoutDialog({
             rules={{
               required: true,
             }}
-            render={({ field }) => <TextField required label={t("layoutName")} {...field} />}
-          />
-          <Controller
-            control={form.control}
-            name="permission"
-            render={({ field }) => (
-              <Select label={t("type")} {...field}>
-                <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
-                <MenuItem value="ORG_WRITE">{t("projectLayout")}</MenuItem>
-              </Select>
+            render={({ field, fieldState }) => (
+              <TextField
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                required
+                label={t("layoutName")}
+                {...field}
+              />
             )}
           />
+
+          <Stack>
+            <FormLabel>
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                {t("type")}
+              </Stack>
+            </FormLabel>
+            <Controller
+              control={form.control}
+              name="permission"
+              render={({ field }) => (
+                <Select label={t("type")} {...field}>
+                  <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
+                  <MenuItem value="ORG_WRITE">{t("projectLayout")}</MenuItem>
+                </Select>
+              )}
+            />
+          </Stack>
+
           <Controller
             control={form.control}
             name="folder"
-            render={({ field }) => <TextField label={t("folder")} {...field} />}
+            render={({ field }) => (
+              <SelectFolder
+                folders={permission === "CREATOR_WRITE" ? personalFolders : projectFolders}
+                onChange={(value) => {
+                  field.onChange(value ?? "");
+                }}
+              />
+            )}
           />
         </Stack>
       </DialogContent>
