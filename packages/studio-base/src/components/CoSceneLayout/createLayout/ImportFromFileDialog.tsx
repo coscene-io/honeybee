@@ -17,10 +17,15 @@ import {
   MenuItem,
   FormLabel,
 } from "@mui/material";
+import { useSnackbar } from "notistack";
+import path from "path";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 
 import { SelectFolder } from "./SelectFolder";
@@ -47,8 +52,10 @@ export function ImportFromFileDialog({
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
 
-  const form = useForm<CreateLayoutParams>({
-    defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE" },
+  // const [selectedFile, setSelectedFile] = useState<string>("");
+
+  const form = useForm<CreateLayoutParams & { selectedFile: string }>({
+    defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE", selectedFile: "" },
   });
 
   const onSubmit = (data: CreateLayoutParams) => {
@@ -56,17 +63,67 @@ export function ImportFromFileDialog({
       folder: data.folder,
       displayName: data.displayName,
       permission: data.permission,
+      data: data.data,
     });
     onClose();
   };
 
   const permission = form.watch("permission");
 
+  const { enqueueSnackbar } = useSnackbar();
+
+  const importLayout = useCallbackWithToast(async () => {
+    const fileHandles = await showOpenFilePicker({
+      excludeAcceptAllOption: false,
+      types: [
+        {
+          description: "JSON Files",
+          accept: {
+            "application/json": [".json"],
+          },
+        },
+      ],
+    });
+
+    if (fileHandles.length === 0) {
+      return;
+    }
+
+    const file = await fileHandles[0].getFile();
+    const layoutName = path.basename(file.name, path.extname(file.name));
+    const content = await file.text();
+
+    let parsedState: unknown;
+    try {
+      parsedState = JSON.parse(content);
+    } catch (err) {
+      enqueueSnackbar(`${file.name} is not a valid layout: ${err.message}`, {
+        variant: "error",
+      });
+      return;
+    }
+
+    if (typeof parsedState !== "object" || !parsedState) {
+      enqueueSnackbar(`${file.name} is not a valid layout`, { variant: "error" });
+      return;
+    }
+    const data = parsedState as LayoutData;
+    form.setValue("selectedFile", file.name);
+    form.setValue("displayName", layoutName);
+    form.setValue("data", data);
+  }, [enqueueSnackbar, form]);
+
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>{t("importFromFile")}</DialogTitle>
+      <DialogTitle>{form.watch("selectedFile") || t("importFromFile")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
+          <div>
+            <Button variant="outlined" onClick={importLayout}>
+              {t("importFromFile")}
+            </Button>
+          </div>
+
           <Controller
             control={form.control}
             name="displayName"
