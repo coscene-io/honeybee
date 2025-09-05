@@ -17,10 +17,12 @@ import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
 
 const useStyles = makeStyles()((theme) => ({
-  drawerContent: {
+  drawerContainer: {
     width: "100vw",
     height: "100%",
     maxWidth: "100vw",
+    display: "flex",
+    flexDirection: "column",
   },
   header: {
     display: "flex",
@@ -28,6 +30,10 @@ const useStyles = makeStyles()((theme) => ({
     justifyContent: "space-between",
     padding: theme.spacing(2),
     borderBottom: `1px solid ${theme.palette.divider}`,
+  },
+  drawerContent: {
+    flex: 1,
+    overflow: "auto",
   },
 }));
 
@@ -68,7 +74,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
 
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>
-      <Box className={classes.drawerContent}>
+      <Box className={classes.drawerContainer}>
         <Box className={classes.header}>
           <Typography variant="h6">{t("layout")}</Typography>
           <IconButton onClick={onClose}>
@@ -76,17 +82,19 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
           </IconButton>
         </Box>
 
-        <CoSceneLayoutContent
-          currentLayoutId={currentLayoutId}
-          layouts={layouts}
-          onSelectLayout={onSelectLayout}
-          onDeleteLayout={onDeleteLayout}
-          onRenameLayout={onRenameLayout}
-          onExportLayout={onExportLayout}
-          onOverwriteLayout={onOverwriteLayout}
-          onRevertLayout={onRevertLayout}
-          onCreateLayout={onCreateLayout}
-        />
+        <Box className={classes.drawerContent}>
+          <CoSceneLayoutContent
+            currentLayoutId={currentLayoutId}
+            layouts={layouts}
+            onSelectLayout={onSelectLayout}
+            onDeleteLayout={onDeleteLayout}
+            onRenameLayout={onRenameLayout}
+            onExportLayout={onExportLayout}
+            onOverwriteLayout={onOverwriteLayout}
+            onRevertLayout={onRevertLayout}
+            onCreateLayout={onCreateLayout}
+          />
+        </Box>
       </Box>
     </Drawer>
   );
