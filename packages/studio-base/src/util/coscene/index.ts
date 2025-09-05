@@ -8,14 +8,12 @@
 // coScene custom tools
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { ServiceType, Timestamp, JsonObject, Struct } from "@bufbuild/protobuf";
-import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import { ServiceType, } from "@bufbuild/protobuf";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
 
-import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
@@ -117,32 +115,6 @@ export function replaceUndefinedWithNull(obj: Record<string, unknown>): Record<s
   });
   return obj;
 }
-
-// export const getCoSceneLayout = (layout: {
-//   id: LayoutID | undefined;
-//   modifyTime: Timestamp | undefined;
-//   name: string | undefined;
-//   permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
-//   data: Record<string, unknown> | undefined;
-//   userId: string;
-// }): Layout => {
-//   // todo
-//   return new Layout(
-//     {
-//       name: layout.permission === "CREATOR_WRITE"
-//         ? `users/${layout.userId}/layouts/${layout.id}`
-//         : `${layout.p}/layouts/${layout.id}`,
-//       name: layout.name ?? "",
-//       createTime: Timestamp.fromDate(new Date()),
-//       updateTime: Timestamp.fromDate(new Date()),
-//       // todo:  replaceUndefinedWithNull 是否必须
-//       data: layout.data ? Struct.fromJson(replaceUndefinedWithNull(layout.data) as JsonObject) : undefined,
-//       modifyTime: Timestamp.fromDate(new Date()),
-//       creator: layout.userId,
-//       modifier: layout.userId,
-//     }
-//   );
-// };
 
 // 将任意字符串映射为一颜色
 export function stringToColor(str: string): string {

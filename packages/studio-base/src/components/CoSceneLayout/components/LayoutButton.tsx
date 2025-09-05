@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ChevronDown12Filled } from "@fluentui/react-icons";
 import { ButtonBase, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -96,7 +95,6 @@ export function LayoutButton({
           <TextMiddleTruncate text={getDisplayText()} />
         </div>
       </Stack>
-      {/* <ChevronDown12Filled color={theme.palette.text.secondary} /> */}
     </ButtonBase>
   );
 }

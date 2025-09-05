@@ -509,7 +509,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     const newLayout = await layoutManager.saveNewLayout({
       folder: "", // todo: get folder
       name: displayName,
-      data: layoutData as LayoutData,
+      data: layoutData,
       permission: "CREATOR_WRITE",
     });
     void onSelectLayout(newLayout);

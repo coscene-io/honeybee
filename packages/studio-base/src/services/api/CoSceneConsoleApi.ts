@@ -136,7 +136,6 @@ import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import toast from "react-hot-toast";
 
-import Log from "@foxglove/log";
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
 import {
@@ -160,8 +159,6 @@ import { timestampToTime } from "@foxglove/studio-base/util/time";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 import { HttpError } from "./HttpError";
-
-const log = Log.getLogger(__filename);
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 
