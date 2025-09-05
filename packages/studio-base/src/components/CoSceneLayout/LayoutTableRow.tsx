@@ -77,6 +77,30 @@ export function LayoutTableRow({
     onRevertLayout(layout);
   };
 
+  const buttons = [
+    {
+      key: "saveChanges",
+      text: t("saveChanges"),
+      onClick: handleOverwrite,
+      disabled: deletedOnServer,
+      visible: hasModifications,
+      // secondaryText: deletedOnServer ? t("someoneElseHasDeletedThisLayout") : undefined,
+    },
+    {
+      key: "revert",
+      text: t("revert"),
+      onClick: handleRevert,
+      disabled: deletedOnServer,
+      visible: hasModifications,
+    },
+    {
+      key: "use",
+      text: t("use"),
+      onClick: handleUse,
+      visible: true,
+    },
+  ].filter((button) => button.visible);
+
   const updatedAt =
     layout.syncInfo?.lastRemoteUpdatedAt ??
     layout.syncInfo?.lastRemoteSavedAt ??
@@ -99,20 +123,17 @@ export function LayoutTableRow({
       </TableCell>
       <TableCell align="right">
         <Box className={classes.actions}>
-          {hasModifications && (
-            <>
-              <Button variant="outlined" size="small" onClick={handleOverwrite}>
-                {t("saveChanges")}
-              </Button>
-              <Button variant="outlined" size="small" onClick={handleRevert}>
-                {t("revert")}
-              </Button>
-            </>
-          )}
-
-          <Button variant="outlined" size="small" onClick={handleUse}>
-            {t("use")}
-          </Button>
+          {buttons.map((button) => (
+            <Button
+              key={button.key}
+              variant="outlined"
+              size="small"
+              onClick={button.onClick}
+              disabled={button.disabled}
+            >
+              {button.text}
+            </Button>
+          ))}
 
           <IconButton
             size="small"
