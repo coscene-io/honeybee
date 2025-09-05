@@ -52,7 +52,9 @@ export function RenameLayoutDialog({
             rules={{
               required: true,
             }}
-            render={({ field }) => <TextField required label={t("layoutName")} {...field} />}
+            render={({ field }) => (
+              <TextField autoFocus required label={t("layoutName")} {...field} />
+            )}
           />
         </Stack>
       </DialogContent>
