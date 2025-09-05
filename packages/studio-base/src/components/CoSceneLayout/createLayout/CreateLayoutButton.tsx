@@ -87,6 +87,9 @@ export function CreateLayoutButton({
       )}
       {open === "importFromFile" && (
         <ImportFromFileDialog
+          onCreateLayout={onCreateLayout}
+          personalFolders={personalFolders}
+          projectFolders={projectFolders}
           open
           onClose={() => {
             setOpen("");

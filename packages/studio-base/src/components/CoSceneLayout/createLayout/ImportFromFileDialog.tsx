@@ -5,24 +5,130 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Dialog, DialogTitle, DialogContent, TextField } from "@mui/material";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  Button,
+  DialogActions,
+  Stack,
+  Select,
+  MenuItem,
+  FormLabel,
+} from "@mui/material";
+import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
+
+import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+
+import { SelectFolder } from "./SelectFolder";
+
+const useStyles = makeStyles()({
+  dialogContent: {
+    minWidth: 400,
+  },
+});
 
 export function ImportFromFileDialog({
   open,
   onClose,
+  onCreateLayout,
+  personalFolders,
+  projectFolders,
 }: {
   open: boolean;
   onClose: () => void;
+  onCreateLayout: (params: CreateLayoutParams) => void;
+  personalFolders: string[];
+  projectFolders: string[];
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
+  const { classes } = useStyles();
+
+  const form = useForm<CreateLayoutParams>({
+    defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE" },
+  });
+
+  const onSubmit = (data: CreateLayoutParams) => {
+    onCreateLayout({
+      folder: data.folder,
+      displayName: data.displayName,
+      permission: data.permission,
+    });
+    onClose();
+  };
+
+  const permission = form.watch("permission");
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>{t("copyFromOtherProject")}</DialogTitle>
-      <DialogContent>
-        <TextField label="布局名称" />
+      <DialogTitle>{t("importFromFile")}</DialogTitle>
+      <DialogContent className={classes.dialogContent}>
+        <Stack gap={2}>
+          <Controller
+            control={form.control}
+            name="displayName"
+            rules={{
+              required: true,
+            }}
+            render={({ field, fieldState }) => (
+              <TextField
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                required
+                label={t("layoutName")}
+                {...field}
+              />
+            )}
+          />
+
+          <Stack>
+            <FormLabel>
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                {t("type")}
+              </Stack>
+            </FormLabel>
+            <Controller
+              control={form.control}
+              name="permission"
+              render={({ field }) => (
+                <Select label={t("type")} {...field}>
+                  <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
+                  <MenuItem value="ORG_WRITE">{t("projectLayout")}</MenuItem>
+                </Select>
+              )}
+            />
+          </Stack>
+
+          <Controller
+            control={form.control}
+            name="folder"
+            render={({ field }) => (
+              <SelectFolder
+                folders={permission === "CREATOR_WRITE" ? personalFolders : projectFolders}
+                onChange={(value) => {
+                  field.onChange(value ?? "");
+                }}
+              />
+            )}
+          />
+        </Stack>
       </DialogContent>
+      <DialogActions>
+        <Button variant="outlined" onClick={onClose}>
+          {t("cancel", { ns: "cosGeneral" })}
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => {
+            void form.handleSubmit(onSubmit)();
+          }}
+        >
+          {t("ok", { ns: "cosGeneral" })}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 }
