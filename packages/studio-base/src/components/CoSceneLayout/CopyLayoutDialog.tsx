@@ -18,9 +18,16 @@ import {
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+
+const useStyles = makeStyles()({
+  dialogContent: {
+    minWidth: 400,
+  },
+});
 
 export function CopyLayoutDialog({
   open,
@@ -34,6 +41,7 @@ export function CopyLayoutDialog({
   layout: Layout;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
+  const { classes } = useStyles();
 
   const form = useForm<CreateLayoutParams>({
     defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE" },
@@ -52,7 +60,7 @@ export function CopyLayoutDialog({
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{t("copyLayout")}</DialogTitle>
-      <DialogContent>
+      <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
           <Controller
             control={form.control}

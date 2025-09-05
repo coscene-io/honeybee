@@ -16,8 +16,15 @@ import {
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+
+const useStyles = makeStyles()({
+  dialogContent: {
+    minWidth: 400,
+  },
+});
 
 export function RenameLayoutDialog({
   open,
@@ -31,6 +38,7 @@ export function RenameLayoutDialog({
   layout: Layout;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
+  const { classes } = useStyles();
 
   const form = useForm({
     defaultValues: { newName: layout.displayName },
@@ -44,7 +52,7 @@ export function RenameLayoutDialog({
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{t("rename")}</DialogTitle>
-      <DialogContent>
+      <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
           <Controller
             control={form.control}

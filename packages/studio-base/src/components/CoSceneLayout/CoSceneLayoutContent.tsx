@@ -50,6 +50,7 @@ import { RenameLayoutDialog } from "./RenameLayoutDialog";
 const useStyles = makeStyles()((theme) => ({
   root: {
     height: "100%",
+    width: "100%",
   },
   gridContainer: {
     display: "flex",
@@ -61,7 +62,7 @@ const useStyles = makeStyles()((theme) => ({
   },
   contentArea: {
     width: "75%",
-    minWidth: 800,
+    // minWidth: 800,
   },
   listItemIcon: {
     color: "inherit",

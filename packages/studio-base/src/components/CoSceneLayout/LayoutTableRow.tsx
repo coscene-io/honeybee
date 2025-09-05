@@ -84,7 +84,6 @@ export function LayoutTableRow({
       onClick: handleOverwrite,
       disabled: deletedOnServer,
       visible: hasModifications,
-      // secondaryText: deletedOnServer ? t("someoneElseHasDeletedThisLayout") : undefined,
     },
     {
       key: "revert",

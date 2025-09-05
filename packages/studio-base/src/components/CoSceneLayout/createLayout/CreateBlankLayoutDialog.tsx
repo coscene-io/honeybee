@@ -15,11 +15,19 @@ import {
   Stack,
   Select,
   MenuItem,
+  FormLabel,
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+
+const useStyles = makeStyles()({
+  dialogContent: {
+    minWidth: 400,
+  },
+});
 
 export function CreateBlankLayoutDialog({
   open,
@@ -31,6 +39,7 @@ export function CreateBlankLayoutDialog({
   onCreateLayout: (params: CreateLayoutParams) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
+  const { classes } = useStyles();
 
   const form = useForm<CreateLayoutParams>({
     defaultValues: { displayName: "", folder: "", permission: "CREATOR_WRITE" },
@@ -48,7 +57,7 @@ export function CreateBlankLayoutDialog({
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{t("createBlankLayout")}</DialogTitle>
-      <DialogContent>
+      <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
           <Controller
             control={form.control}
@@ -58,16 +67,25 @@ export function CreateBlankLayoutDialog({
             }}
             render={({ field }) => <TextField required label={t("layoutName")} {...field} />}
           />
-          <Controller
-            control={form.control}
-            name="permission"
-            render={({ field }) => (
-              <Select label={t("type")} {...field}>
-                <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
-                <MenuItem value="ORG_WRITE">{t("projectLayout")}</MenuItem>
-              </Select>
-            )}
-          />
+
+          <Stack>
+            <FormLabel>
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                {t("type")}
+              </Stack>
+            </FormLabel>
+            <Controller
+              control={form.control}
+              name="permission"
+              render={({ field }) => (
+                <Select label={t("type")} {...field}>
+                  <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
+                  <MenuItem value="ORG_WRITE">{t("projectLayout")}</MenuItem>
+                </Select>
+              )}
+            />
+          </Stack>
+
           <Controller
             control={form.control}
             name="folder"
