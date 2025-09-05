@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Timestamp } from "@bufbuild/protobuf";
 import EventEmitter from "eventemitter3";
 import * as _ from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
@@ -280,7 +279,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         permission: remoteLayout.permission,
         baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
         working: undefined,
-        syncInfo: { status: "tracked", lastRemoteModifyTime: remoteLayout.modifyTime, lastRemoteSavedAt: remoteLayout.savedAt, lastRemoteUpdatedAt: remoteLayout.updatedAt },
+        syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt, lastRemoteUpdatedAt: remoteLayout.updatedAt },
       });
     });
   }
@@ -321,13 +320,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         async (local) =>
           await local.put({
             id: newLayout.id,
+            parent: newLayout.parent,
             folder: newLayout.folder,
             displayName: newLayout.displayName,
             permission: newLayout.permission,
             baseline: { data: newLayout.data, savedAt: newLayout.savedAt },
             working: undefined,
             syncInfo: { status: "tracked", lastRemoteSavedAt: newLayout.savedAt, lastRemoteUpdatedAt: newLayout.updatedAt },
-            parent: newLayout.parent,
           }),
       );
       this.#notifyChangeListeners({ type: "change", updatedLayout: undefined });
@@ -361,9 +360,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     displayName: string | undefined;
     data: LayoutData | undefined;
   }): Promise<Layout | undefined> {
+    const now = new Date().toISOString() as ISO8601Timestamp;
 
     const localLayout = await this.#local.runExclusive(async (local) => await local.get(id));
-
     if (!localLayout) {
       // if this layout is record recommended layout, this error is expected
       // because the layout will be deleted when the user plays another record
@@ -377,7 +376,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         ? localLayout.working
         : isLayoutEqual(localLayout.baseline.data, data)
           ? undefined
-          : { data, savedAt: new Date().toISOString() as ISO8601Timestamp };
+          : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
     if (displayName != undefined && layoutIsShared(localLayout)) {
@@ -392,11 +391,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         async (local) =>
           await local.put({
             ...localLayout,
+            parent: updatedBaseline.parent,
             displayName: updatedBaseline.displayName,
             baseline: { data: updatedBaseline.data, savedAt: updatedBaseline.savedAt },
             working: newWorking,
             syncInfo: { status: "tracked", lastRemoteSavedAt: updatedBaseline.savedAt, lastRemoteUpdatedAt: updatedBaseline.updatedAt },
-            parent: updatedBaseline.parent,
           }),
       );
       // 当 busyCount > 1 时，代表着有多个更新 layout 的任务在排队，这时不应该触发 change 事件，否则会导致 layout 跳回上一个版本
@@ -418,9 +417,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             displayName: displayName ?? localLayout.displayName,
             working: newWorking,
 
-            // If the name is being changed, we will need to upload to the server with a new modifyTime
-            // baseline: isRename ? { ...localLayout.baseline, modifyTime: Timestamp.fromDate(new Date()) } : localLayout.baseline,
-            baseline: localLayout.baseline,
+            // If the name is being changed, we will need to upload to the server with a new savedAt
+            baseline: isRename ? { ...localLayout.baseline, savedAt: now } : localLayout.baseline,
             syncInfo: isRename
               ? { status: "updated", lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt, lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt }
               : localLayout.syncInfo,
@@ -477,7 +475,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     if (!localLayout) {
       throw new Error(`Cannot overwrite layout ${id} because it does not exist`);
     }
-    // const now = Timestamp.fromDate(new Date());
 
     const now = new Date().toISOString() as ISO8601Timestamp;
 
@@ -490,9 +487,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       }
       const updatedBaseline = await updateOrFetchLayout(this.#remote, {
         id,
-        data: localLayout.working?.data ?? localLayout.baseline.data,
-        // modifyTime: now,
         parent: localLayout.parent,
+        data: localLayout.working?.data ?? localLayout.baseline.data,
+        // savedAt: now,
       });
       const result = await this.#local.runExclusive(
         async (local) =>
@@ -513,7 +510,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             baseline: {
               data: localLayout.working?.data ?? localLayout.baseline.data,
               savedAt: now,
-              // modifyTime: localLayout.baseline.modifyTime!,
             },
             working: undefined,
             syncInfo:
@@ -560,7 +556,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         permission: "CREATOR_WRITE",
         baseline: { data: layout.working?.data ?? layout.baseline.data, savedAt: now },
         working: undefined,
-        syncInfo: { status: "new", lastRemoteSavedAt: now, lastRemoteUpdatedAt: now }, // fix: now
+        syncInfo: { status: "new", lastRemoteSavedAt: now, lastRemoteUpdatedAt: now },
       });
       await local.put({ ...layout, working: undefined });
       return newLayout;
@@ -754,8 +750,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               parent: localLayout.parent,
               displayName: localLayout.displayName,
               data: localLayout.baseline.data,
-              // modifyTime:
-              //   localLayout.baseline.modifyTime ?? Timestamp.fromDate(new Date()),
+              // savedAt:
+              //   localLayout.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
             });
             return async (local) => {
               // Don't check abortSignal; we need the cache to be updated to show the layout is tracked
