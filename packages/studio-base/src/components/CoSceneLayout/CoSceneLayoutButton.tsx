@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useSnackbar } from "notistack";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
@@ -52,13 +52,13 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     online: layoutManager.isOnline,
   });
 
-  const pendingMultiAction = state.multiAction?.ids != undefined;
+  // const pendingMultiAction = state.multiAction?.ids != undefined;
 
-  const anySelectedModifiedLayouts = useMemo(() => {
-    return [layouts.value?.personalLayouts ?? [], layouts.value?.projectLayouts ?? []]
-      .flat()
-      .some((layout) => layout.working != undefined && state.selectedIds.includes(layout.id));
-  }, [layouts, state.selectedIds]);
+  // const anySelectedModifiedLayouts = useMemo(() => {
+  //   return [layouts.value?.personalLayouts ?? [], layouts.value?.projectLayouts ?? []]
+  //     .flat()
+  //     .some((layout) => layout.working != undefined && state.selectedIds.includes(layout.id));
+  // }, [layouts, state.selectedIds]);
 
   useLayoutEffect(() => {
     const busyListener = () => {
