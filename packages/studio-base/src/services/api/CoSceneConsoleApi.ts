@@ -309,8 +309,6 @@ export type LayoutID = string & { __brand: "LayoutID" };
 export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
 export type Permission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
 
-
-
 export enum MetricType {
   RecordPlaysTotal = "honeybee_record_plays_total",
   RecordPlaysEveryFiveSecondsTotal = "honeybee_record_plays_every_five_seconds_total",
@@ -401,11 +399,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-      orgPermissionList: [],
-      projectPermissionList: [],
-      orgDenyList: [],
-      projectDenyList: [],
-    };
+    orgPermissionList: [],
+    projectPermissionList: [],
+    orgDenyList: [],
+    projectDenyList: [],
+  };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -559,13 +557,7 @@ class CoSceneConsoleApi {
   );
 
   public createLayout = Object.assign(
-    async ({
-      parent,
-      layout,
-    }: {
-      parent: string;
-      layout: Layout;
-    }): Promise<Layout> => {
+    async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
       const req = new CreateLayoutRequest({
         parent,
         layout,
@@ -580,13 +572,7 @@ class CoSceneConsoleApi {
   );
 
   public updateLayout = Object.assign(
-    async ({
-      layout,
-      updateMask,
-    }: {
-      layout: Layout;
-      updateMask?: FieldMask;
-    }): Promise<Layout> => {
+    async ({ layout, updateMask }: { layout: Layout; updateMask?: FieldMask }): Promise<Layout> => {
       const req = new UpdateLayoutRequest({
         layout,
         updateMask,
@@ -622,8 +608,8 @@ class CoSceneConsoleApi {
       customHost != undefined && customHost
         ? url
         : url.startsWith("/bff")
-          ? `${this.#bffUrl}${url}`
-          : `${this.#baseUrl}${url}`;
+        ? `${this.#bffUrl}${url}`
+        : `${this.#baseUrl}${url}`;
 
     const fullConfig: RequestInit = {
       ...config,
@@ -732,7 +718,6 @@ class CoSceneConsoleApi {
       { allowedStatuses: [409] },
     );
   }
-
 
   // coScene-----------------------------------------------------------
 

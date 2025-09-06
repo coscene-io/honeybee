@@ -57,14 +57,14 @@ export type LayoutState = Readonly<{
   sharedPanelState?: Record<PanelType, SharedPanelState>;
 
   selectedLayout:
-  | {
-    id: LayoutID;
-    loading?: boolean;
-    data: LayoutData | undefined;
-    name?: string;
-    edited?: boolean;
-  }
-  | undefined;
+    | {
+        id: LayoutID;
+        loading?: boolean;
+        data: LayoutData | undefined;
+        name?: string;
+        edited?: boolean;
+      }
+    | undefined;
 }>;
 
 /**

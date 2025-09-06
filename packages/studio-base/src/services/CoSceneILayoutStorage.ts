@@ -47,21 +47,21 @@ export type Layout = {
    * The working copy of this layout, if it has been edited since the last explicit save.
    */
   working:
-  | {
-    data: LayoutData;
-    savedAt: ISO8601Timestamp | undefined;
-  }
-  | undefined;
+    | {
+        data: LayoutData;
+        savedAt: ISO8601Timestamp | undefined;
+      }
+    | undefined;
 
   /** Info about this layout from remote storage. */
   syncInfo:
-  | {
-    status: LayoutSyncStatus;
-    /** The last modifyTime returned by the server. */
-    lastRemoteSavedAt: ISO8601Timestamp | undefined;
-    lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
-  }
-  | undefined;
+    | {
+        status: LayoutSyncStatus;
+        /** The last modifyTime returned by the server. */
+        lastRemoteSavedAt: ISO8601Timestamp | undefined;
+        lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
+      }
+    | undefined;
 };
 
 export interface ILayoutStorage {

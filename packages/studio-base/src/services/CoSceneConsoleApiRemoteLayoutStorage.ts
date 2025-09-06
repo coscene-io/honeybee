@@ -41,9 +41,11 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout, users: CoUser[]): Remot
   }
 
   // Parse layout name to extract ID and parent
-  const layoutNameParts = layout.name.split('/layouts/');
+  const layoutNameParts = layout.name.split("/layouts/");
   if (layoutNameParts.length !== 2 || !layoutNameParts[1] || !layoutNameParts[0]) {
-    throw new Error(`Invalid layout name format: ${layout.name}. Expected format: '<parent>/layouts/<id>'`);
+    throw new Error(
+      `Invalid layout name format: ${layout.name}. Expected format: '<parent>/layouts/<id>'`,
+    );
   }
 
   const layoutId = layoutNameParts[1];
@@ -51,16 +53,16 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout, users: CoUser[]): Remot
 
   // Determine permission based on resource name pattern
   let permission: LayoutPermission;
-  if (parent.startsWith('warehouses/')) {
+  if (parent.startsWith("warehouses/")) {
     permission = "ORG_WRITE"; // Project layouts are typically org-writable
-  } else if (parent.startsWith('users/')) {
+  } else if (parent.startsWith("users/")) {
     permission = "CREATOR_WRITE"; // User layouts are creator-writable
   } else {
     // For any other format, default to read-only to be safe
     permission = "ORG_READ";
   }
 
-  const modifier = users.find(user => user.name === layout.modifier);
+  const modifier = users.find((user) => user.name === layout.modifier);
 
   return {
     id: layoutId as LayoutID,
@@ -83,16 +85,21 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   public constructor(
     public readonly namespace: string, // todo: remove namespace
     private api: ConsoleApi,
-  ) { }
+  ) {}
 
   public async getLayouts(parents: string[]): Promise<readonly RemoteLayout[]> {
     try {
-
-      const layouts = await Promise.all(parents.map(async (parent) => {
-        const layouts = await this.api.listLayouts({ parent });
-        const users = await this.api.batchGetUsers(_uniq(layouts.layouts.map(layout => layout.modifier)));
-        return layouts.layouts.map(layout => convertGrpcLayoutToRemoteLayout(layout, users.users));
-      }));
+      const layouts = await Promise.all(
+        parents.map(async (parent) => {
+          const layouts = await this.api.listLayouts({ parent });
+          const users = await this.api.batchGetUsers(
+            _uniq(layouts.layouts.map((layout) => layout.modifier)),
+          );
+          return layouts.layouts.map((layout) =>
+            convertGrpcLayoutToRemoteLayout(layout, users.users),
+          );
+        }),
+      );
 
       return layouts.flat();
     } catch (err) {
@@ -128,15 +135,16 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     data: LayoutData;
     permission: LayoutPermission;
   }): Promise<RemoteLayout> {
-    const layout = new Layout(
-      {
-        name: id ? `${parent}/layouts/${id}` : undefined,
-        displayName: name,
-        folder,
-        data: Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject),
-        scope: permission === "CREATOR_WRITE" ? LayoutScopeEnum_LayoutScope.PERSONAL : LayoutScopeEnum_LayoutScope.PROJECT,
-      }
-    )
+    const layout = new Layout({
+      name: id ? `${parent}/layouts/${id}` : undefined,
+      displayName: name,
+      folder,
+      data: Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject),
+      scope:
+        permission === "CREATOR_WRITE"
+          ? LayoutScopeEnum_LayoutScope.PERSONAL
+          : LayoutScopeEnum_LayoutScope.PROJECT,
+    });
 
     const result = await this.api.createLayout({ parent, layout });
     const users = await this.api.batchGetUsers([result.modifier]);
@@ -165,11 +173,9 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       }
 
       // Create updated layout
-      const updatedLayout = new Layout(
-        {
-          name: `${parent}/layouts/${id}`,
-        }
-      );
+      const updatedLayout = new Layout({
+        name: `${parent}/layouts/${id}`,
+      });
 
       // Create update mask for the fields we're updating
       const updateMask = new FieldMask();

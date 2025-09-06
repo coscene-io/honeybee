@@ -8,7 +8,7 @@
 // coScene custom tools
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { ServiceType, } from "@bufbuild/protobuf";
+import { ServiceType } from "@bufbuild/protobuf";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";

@@ -10,7 +10,6 @@ import { MarkOptional } from "ts-essentials";
 
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
-
 import { migrateLegacyToNew3DPanels } from "./migrateLegacyToNew3DPanels";
 import { migrateLegacyToNewImagePanels } from "./migrateLegacyToNewImagePanels";
 import { ISO8601Timestamp, Layout } from "../CoSceneILayoutStorage";
@@ -79,8 +78,8 @@ export function migrateLayout(value: unknown): Layout {
 
   return {
     id: layout.id,
-    parent: layout.parent ?? '',
-    folder: layout.folder ?? '',
+    parent: layout.parent ?? "",
+    folder: layout.folder ?? "",
     name: layout.name ?? `Unnamed (${now})`,
     permission: layout.permission?.toUpperCase() ?? "CREATOR_WRITE",
     working: layout.working

@@ -165,7 +165,9 @@ export function useWorkspaceActions(): WorkspaceActions {
   const promptForUnsavedChanges = useCallback(async () => {
     // fix: parent
     const currentLayout =
-      currentLayoutId != undefined ? await layoutManager.getLayout({ id: currentLayoutId }) : undefined;
+      currentLayoutId != undefined
+        ? await layoutManager.getLayout({ id: currentLayoutId })
+        : undefined;
     if (
       currentLayout != undefined &&
       layoutIsShared(currentLayout) &&

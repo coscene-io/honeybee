@@ -18,7 +18,7 @@ import { ILayoutStorage, Layout } from "@foxglove/studio-base/services/CoSceneIL
 export default class CoSceneWriteThroughLayoutCache implements ILayoutStorage {
   #cacheByNamespace = new Map<string, LazilyInitialized<Map<string, Layout>>>();
 
-  public constructor(private storage: ILayoutStorage) { }
+  public constructor(private storage: ILayoutStorage) {}
 
   #getOrCreateCache(namespace: string): LazilyInitialized<Map<string, Layout>> {
     let cache = this.#cacheByNamespace.get(namespace);

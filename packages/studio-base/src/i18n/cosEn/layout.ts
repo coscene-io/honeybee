@@ -80,7 +80,9 @@ export const cosLayout = {
   updater: "Updater",
   createNewFolder: "Create new folder",
   deletePersonalLayout: "Delete personal layout",
-  deletePersonalLayoutPrompt: "Delete <strong>{{layoutName}}</strong> after you cannot use it again, confirm delete?",
+  deletePersonalLayoutPrompt:
+    "Delete <strong>{{layoutName}}</strong> after you cannot use it again, confirm delete?",
   deleteProjectLayout: "Delete project layout",
-  deleteProjectLayoutPrompt: "Delete <strong>{{layoutName}}</strong> after the users in this project cannot use this layout, confirm delete?",
+  deleteProjectLayoutPrompt:
+    "Delete <strong>{{layoutName}}</strong> after the users in this project cannot use this layout, confirm delete?",
 };
