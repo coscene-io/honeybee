@@ -7,7 +7,7 @@
 
 import * as _ from "lodash-es";
 import { useEffect, useMemo } from "react";
-import useAsyncFn from "react-use/lib/useAsyncFn";
+import useAsyncFn, { AsyncState } from "react-use/lib/useAsyncFn";
 
 import Logger from "@foxglove/log";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
@@ -15,12 +15,21 @@ import {
   LayoutState,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
-export function useCurrentLayout() {
+export function useCurrentLayout(): {
+  currentLayoutId: string | undefined;
+  currentLayout: Layout | undefined;
+  layouts: AsyncState<{
+    personalFolders: string[];
+    projectFolders: string[];
+    personalLayouts: Layout[];
+    projectLayouts: Layout[];
+  }>;
+} {
   const layoutManager = useLayoutManager();
 
   const [layouts, reloadLayouts] = useAsyncFn(
