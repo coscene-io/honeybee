@@ -69,7 +69,8 @@ export default function CoSceneLayoutManagerProvider({
     remoteLayoutStorage != undefined &&
     online &&
     visibilityState === "visible" &&
-    currentUserLoginStatus === "alreadyLogin";
+    currentUserLoginStatus === "alreadyLogin" &&
+    externalInitConfig?.warehouseId != undefined;
 
   useEffect(() => {
     // if base info is loaded, resync layouts
