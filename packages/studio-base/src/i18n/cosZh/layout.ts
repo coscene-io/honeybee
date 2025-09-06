@@ -78,4 +78,8 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   inUse: "使用中",
   updater: "更新者",
   createNewFolder: "创建新文件夹",
+  deletePersonalLayout: "删除个人布局",
+  deletePersonalLayoutPrompt: "删除 <strong>{{layoutName}}</strong> 后，你将无法再次使用，确认删除？",
+  deleteProjectLayout: "删除项目布局",
+  deleteProjectLayoutPrompt: "删除 <strong>{{layoutName}}</strong> 后，本项目内的用户将无法使用此布局，确认删除？",
 };

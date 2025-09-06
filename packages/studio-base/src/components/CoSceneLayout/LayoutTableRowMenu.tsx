@@ -7,7 +7,7 @@
 
 import { Divider, Menu, MenuItem, Typography } from "@mui/material";
 import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
@@ -42,8 +42,8 @@ export function LayoutTableRowMenu({
   onDeleteLayout: (layout: Layout) => void;
   onExportLayout: (layout: Layout) => void;
 }): React.JSX.Element {
+  const confirm = useConfirm();
   const { t } = useTranslation("cosLayout");
-  // const confirm = useConfirm();
 
   const exportAction = useCallback(() => {
     onExportLayout(layout);
@@ -57,11 +57,36 @@ export function LayoutTableRowMenu({
     handleOpenDialog("copy", layout);
   }, [layout, handleOpenDialog]);
 
-  // todo: 实现
   const confirmDelete = useCallback(() => {
-    onDeleteLayout(layout);
-    handleMenuClose();
-  }, [onDeleteLayout, handleMenuClose, layout]);
+    const prompt = layoutIsShared(layout) ? (
+      <Trans
+        t={t}
+        i18nKey="deleteProjectLayoutPrompt"
+        values={{ layoutName: layout.name }}
+        components={{ strong: <strong /> }}
+      />
+    ) : (
+      <Trans
+        t={t}
+        i18nKey="deletePersonalLayoutPrompt"
+        values={{ layoutName: layout.name }}
+        components={{ strong: <strong /> }}
+      />
+    );
+    const title = layoutIsShared(layout) ? t("deleteProjectLayout") : t("deletePersonalLayout");
+
+    void confirm({
+      title,
+      prompt,
+      ok: t("delete", { ns: "cosGeneral" }),
+      cancel: t("cancel", { ns: "cosGeneral" }),
+      variant: "danger",
+    }).then((response) => {
+      if (response === "ok") {
+        onDeleteLayout(layout);
+      }
+    });
+  }, [confirm, layout, t, onDeleteLayout]);
 
   const menuItems: LayoutActionMenuItem[] = [
     {
