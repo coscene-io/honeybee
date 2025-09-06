@@ -14,6 +14,7 @@ import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutMan
 import {
   LayoutState,
   useCurrentLayoutSelector,
+  LayoutID,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
@@ -21,7 +22,7 @@ const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
 export function useCurrentLayout(): {
-  currentLayoutId: string | undefined;
+  currentLayoutId: LayoutID | undefined;
   currentLayout: Layout | undefined;
   layouts: AsyncState<{
     personalFolders: string[];
