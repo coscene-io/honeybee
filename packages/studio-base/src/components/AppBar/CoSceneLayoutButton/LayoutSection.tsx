@@ -30,8 +30,6 @@ export default function LayoutSection({
   onRevert,
   onMakePersonalCopy,
   searchQuery,
-  onRecommendedToProjectLayout,
-  onCopyToRecordDefaultLayout,
 }: {
   title: string | undefined;
   emptyText: string | undefined;
@@ -48,8 +46,6 @@ export default function LayoutSection({
   onOverwrite?: (item: Layout) => void;
   onRevert?: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
-  onRecommendedToProjectLayout?: (item: Layout) => void;
-  onCopyToRecordDefaultLayout?: (item: Layout) => void;
   searchQuery: string;
 }): React.JSX.Element {
   return (
@@ -93,8 +89,6 @@ export default function LayoutSection({
               onOverwrite={onOverwrite}
               onRevert={onRevert}
               onMakePersonalCopy={onMakePersonalCopy}
-              onRecommendedToProjectLayout={onRecommendedToProjectLayout}
-              onCopyToRecordDefaultLayout={onCopyToRecordDefaultLayout}
             />
           ))}
       </List>

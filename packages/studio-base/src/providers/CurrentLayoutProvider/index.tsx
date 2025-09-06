@@ -9,7 +9,7 @@ import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getNodeAtPath } from "react-mosaic-component";
-import { useAsync, useAsyncFn, useMountedState } from "react-use";
+import { useAsyncFn, useMountedState } from "react-use";
 import shallowequal from "shallowequal";
 import { v4 as uuidv4 } from "uuid";
 
@@ -17,7 +17,6 @@ import { useShallowMemo } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { VariableValue } from "@foxglove/studio";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useUserProfileStorage } from "@foxglove/studio-base/context/CoSceneUserProfileStorageContext";
 import CoSceneCurrentLayoutContext, {
@@ -43,7 +42,6 @@ import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
-import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
 import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert";
@@ -51,8 +49,6 @@ import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert
 const log = Logger.getLogger(__filename);
 
 export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
-
-const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 /**
  * Concrete implementation of CurrentLayoutContext.Provider which handles
@@ -62,11 +58,10 @@ export default function CurrentLayoutProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const { enqueueSnackbar } = useSnackbar();
-  const { getUserProfile, setUserProfile } = useUserProfileStorage();
+  const { setUserProfile } = useUserProfileStorage();
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
   const isMounted = useMountedState();
-  const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
 
   const [mosaicId] = useState(() => uuidv4());
 
@@ -128,7 +123,7 @@ export default function CurrentLayoutProvider({
       }
       try {
         setLayoutState({ selectedLayout: { id, loading: true, data: undefined } });
-        const layout = await layoutManager.getLayout(id);
+        const layout = await layoutManager.getLayout({ id });
         const layoutVersion = layout?.baseline.data.version;
         if (layoutVersion != undefined && layoutVersion > MAX_SUPPORTED_LAYOUT_VERSION) {
           setIncompatibleLayoutVersionError(true);
@@ -256,8 +251,7 @@ export default function CurrentLayoutProvider({
       if (event.layoutId === layoutStateRef.current.selectedLayout.id) {
         // 删除后选择拥有的第一个layout
         const layouts = await layoutManager.getLayouts();
-        const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
-        await setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
+        await setSelectedLayoutId(layouts[0]?.id);
       }
     };
 
@@ -266,34 +260,6 @@ export default function CurrentLayoutProvider({
       layoutManager.off("change", listener);
     };
   }, [enqueueSnackbar, layoutManager, setSelectedLayoutId]);
-
-  // Load initial state by re-selecting the last selected layout from the UserProfile.
-  useAsync(async () => {
-    // Don't restore the layout if there's one specified in the app state url.
-    if (windowAppURLState()?.layoutId != undefined || currentUserLoginStatus !== "alreadyLogin") {
-      return;
-    }
-
-    // Retreive the selected layout id from the user's profile. If there's no layout specified
-    // or we can't load it then save and select a default layout.
-    const { currentLayoutId } = await getUserProfile();
-
-    try {
-      const lastLayout = currentLayoutId
-        ? await layoutManager.getLayout(currentLayoutId)
-        : undefined;
-      if (lastLayout != undefined) {
-        log.debug(`Initializing layout from profile: ${currentLayoutId}`);
-        await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
-      } else {
-        const layouts = await layoutManager.getLayouts();
-        const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
-        await setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  }, [currentUserLoginStatus, getUserProfile, layoutManager, setSelectedLayoutId]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({

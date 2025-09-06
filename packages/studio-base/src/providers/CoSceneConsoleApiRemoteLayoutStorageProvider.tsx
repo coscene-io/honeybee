@@ -19,6 +19,7 @@ export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
 }: React.PropsWithChildren): React.JSX.Element {
   const api = useConsoleApi();
   const currentUser = useCurrentUser(selectUser);
+
   const apiStorage = useMemo(
     () =>
       currentUser?.userId ? new ConsoleApiRemoteLayoutStorage(currentUser.userId, api) : undefined,

@@ -20,12 +20,12 @@ import {
 } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import {
   ILayoutStorage,
+  ISO8601Timestamp,
   Layout,
   layoutAppearsDeleted,
   layoutIsShared,
   LayoutPermission,
   layoutPermissionIsShared,
-  ISO8601Timestamp,
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import {
   IRemoteLayoutStorage,
@@ -49,11 +49,12 @@ async function updateOrFetchLayout(
   params: Parameters<IRemoteLayoutStorage["updateLayout"]>[0],
 ): Promise<RemoteLayout> {
   const response = await remote.updateLayout(params);
+
   switch (response.status) {
     case "success":
       return response.newLayout;
     case "conflict": {
-      const remoteLayout = await remote.getLayout(params.id);
+      const remoteLayout = await remote.getLayout(params.id, params.parent);
       if (!remoteLayout) {
         throw new Error(`Update rejected but layout is not present on server: ${params.id}`);
       }
@@ -118,6 +119,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   public error: undefined | Error = undefined;
 
+  public projectName: string | undefined;
+  public userName: string | undefined;
+
   // eslint-disable-next-line @foxglove/no-boolean-parameters
   public setOnline(online: boolean): void {
     this.isOnline = online;
@@ -127,6 +131,25 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   public setError(error: undefined | Error): void {
     this.error = error;
     this.#emitter.emit("errorchange");
+  }
+
+  public setProjectName(projectName?: string): void {
+    this.projectName = projectName;
+  }
+
+  public setUserName(userName?: string): void {
+    this.userName = userName;
+  }
+
+  #getRemoteLayoutParents(): string[] {
+    const parents = [];
+    if (this.userName) {
+      parents.push(this.userName);
+    }
+    if (this.projectName) {
+      parents.push(this.projectName);
+    }
+    return parents;
   }
 
   public constructor({
@@ -193,7 +216,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
   }
 
-  public async getLayout(id: LayoutID): Promise<Layout | undefined> {
+  public async getLayout({ id }: { id: LayoutID }): Promise<Layout | undefined> {
     const existingLocal = await this.#local.runExclusive(async (local) => {
       return await local.get(id);
     });
@@ -202,17 +225,19 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       if (layoutAppearsDeleted(existingLocal)) {
         return undefined;
       }
+
+      // todo: check
       // record recommended layout only show on single record page
       // so we need to check this record is in this record
-      if (existingLocal.isRecordRecommended) {
-        const remoteLayout = await this.#remote?.getLayout(id);
+      // if (existingLocal.isRecordRecommended) {
+      //   const remoteLayout = await this.#remote?.getLayout(id);
 
-        if (remoteLayout) {
-          return existingLocal;
-        }
+      //   if (remoteLayout) {
+      //     return existingLocal;
+      //   }
 
-        return undefined;
-      }
+      //   return undefined;
+      // }
       return existingLocal;
     }
 
@@ -226,7 +251,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     log.debug(`Attempting to fetch from remote id:${id}`);
     // We couldn't find an existing local layout for our id, so we attempt to load the remote one
-    const remoteLayout = await this.#remote?.getLayout(id);
+    // const remoteLayout = await this.#remote?.getLayout(id, parent);
+    const remoteLayouts = await this.#remote?.getLayouts(this.#getRemoteLayoutParents());
+    const remoteLayout = remoteLayouts?.find((layout) => layout.id === id);
+
     if (!remoteLayout) {
       log.debug(`No remote layout with id:${id}`);
       return undefined;
@@ -244,29 +272,41 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       log.debug(`Adding layout to cache from getLayout: ${remoteLayout.id}`);
       return await local.put({
         id: remoteLayout.id,
+        parent: remoteLayout.parent,
+        folder: remoteLayout.folder,
         name: remoteLayout.name,
         permission: remoteLayout.permission,
-        baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+        baseline: {
+          data: remoteLayout.data,
+          savedAt: remoteLayout.savedAt,
+          modifier: remoteLayout.modifier,
+          modifierAvatar: remoteLayout.modifierAvatar,
+          modifierNickname: remoteLayout.modifierNickname,
+        },
         working: undefined,
-        syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
-        isProjectRecommended: remoteLayout.isProjectRecommended,
-        isRecordRecommended: remoteLayout.isRecordRecommended,
+        syncInfo: {
+          status: "tracked",
+          lastRemoteSavedAt: remoteLayout.savedAt,
+          lastRemoteUpdatedAt: remoteLayout.updatedAt,
+        },
       });
     });
   }
 
   @CoSceneLayoutManager.#withBusyStatus
   public async saveNewLayout({
+    folder,
     name,
     data: unmigratedData,
     permission,
-    isRecordDefaultLayout = false,
   }: {
+    folder: string;
     name: string;
     data: LayoutData;
     permission: LayoutPermission;
-    isRecordDefaultLayout?: boolean;
   }): Promise<Layout> {
+    const parent = permission === "CREATOR_WRITE" ? this.userName ?? "" : this.projectName ?? "";
+
     const data = migratePanelsState(unmigratedData);
     if (layoutPermissionIsShared(permission)) {
       if (!this.#remote) {
@@ -275,36 +315,37 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       if (!this.isOnline) {
         throw new Error("Cannot share a layout while offline");
       }
-      let newLayout: RemoteLayout;
 
-      if (isRecordDefaultLayout) {
-        newLayout = await this.#remote.saveAsRecordDefaultLayout({
-          id: uuidv4() as LayoutID,
-          name,
-          data,
-          permission,
-          savedAt: new Date().toISOString() as ISO8601Timestamp,
-        });
-      } else {
-        newLayout = await this.#remote.saveNewLayout({
-          id: uuidv4() as LayoutID,
-          name,
-          data,
-          permission,
-          savedAt: new Date().toISOString() as ISO8601Timestamp,
-        });
-      }
+      const newLayout = await this.#remote.saveNewLayout({
+        id: uuidv4() as LayoutID,
+        parent,
+        folder,
+        name,
+        data,
+        permission,
+      });
+
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
             id: newLayout.id,
+            parent: newLayout.parent,
+            folder: newLayout.folder,
             name: newLayout.name,
             permission: newLayout.permission,
-            baseline: { data: newLayout.data, savedAt: newLayout.savedAt },
+            baseline: {
+              data: newLayout.data,
+              savedAt: newLayout.savedAt,
+              modifier: newLayout.modifier,
+              modifierAvatar: newLayout.modifierAvatar,
+              modifierNickname: newLayout.modifierNickname,
+            },
             working: undefined,
-            syncInfo: { status: "tracked", lastRemoteSavedAt: newLayout.savedAt },
-            isProjectRecommended: newLayout.isProjectRecommended,
-            isRecordRecommended: newLayout.isRecordRecommended,
+            syncInfo: {
+              status: "tracked",
+              lastRemoteSavedAt: newLayout.savedAt,
+              lastRemoteUpdatedAt: newLayout.updatedAt,
+            },
           }),
       );
       this.#notifyChangeListeners({ type: "change", updatedLayout: undefined });
@@ -315,13 +356,25 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       async (local) =>
         await local.put({
           id: uuidv4() as LayoutID,
+          parent,
+          folder,
           name,
           permission,
-          baseline: { data, savedAt: new Date().toISOString() as ISO8601Timestamp },
+          baseline: {
+            data,
+            savedAt: new Date().toISOString() as ISO8601Timestamp,
+            modifier: undefined,
+            modifierAvatar: undefined,
+            modifierNickname: undefined,
+          },
           working: undefined,
-          syncInfo: this.#remote ? { status: "new", lastRemoteSavedAt: undefined } : undefined,
-          isProjectRecommended: false,
-          isRecordRecommended: false,
+          syncInfo: this.#remote
+            ? {
+                status: "new",
+                lastRemoteSavedAt: undefined,
+                lastRemoteUpdatedAt: undefined,
+              }
+            : undefined,
         }),
     );
     this.#notifyChangeListeners({ type: "change", updatedLayout: newLayout });
@@ -339,6 +392,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     data: LayoutData | undefined;
   }): Promise<Layout | undefined> {
     const now = new Date().toISOString() as ISO8601Timestamp;
+
     const localLayout = await this.#local.runExclusive(async (local) => await local.get(id));
     if (!localLayout) {
       // if this layout is record recommended layout, this error is expected
@@ -363,17 +417,30 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       if (!this.isOnline) {
         throw new Error("Cannot update a shared layout while offline");
       }
-      const updatedBaseline = await updateOrFetchLayout(this.#remote, { id, name, savedAt: now });
+      const updatedBaseline = await updateOrFetchLayout(this.#remote, {
+        id,
+        name,
+        parent: localLayout.parent,
+      });
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
             ...localLayout,
+            parent: updatedBaseline.parent,
             name: updatedBaseline.name,
-            baseline: { data: updatedBaseline.data, savedAt: updatedBaseline.savedAt },
+            baseline: {
+              data: updatedBaseline.data,
+              savedAt: updatedBaseline.savedAt,
+              modifier: updatedBaseline.modifier,
+              modifierAvatar: updatedBaseline.modifierAvatar,
+              modifierNickname: updatedBaseline.modifierNickname,
+            },
             working: newWorking,
-            syncInfo: { status: "tracked", lastRemoteSavedAt: updatedBaseline.savedAt },
-            isProjectRecommended: updatedBaseline.isProjectRecommended,
-            isRecordRecommended: updatedBaseline.isRecordRecommended,
+            syncInfo: {
+              status: "tracked",
+              lastRemoteSavedAt: updatedBaseline.savedAt,
+              lastRemoteUpdatedAt: updatedBaseline.updatedAt,
+            },
           }),
       );
       // 当 busyCount > 1 时，代表着有多个更新 layout 的任务在排队，这时不应该触发 change 事件，否则会导致 layout 跳回上一个版本
@@ -387,6 +454,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         name != undefined &&
         localLayout.syncInfo != undefined &&
         localLayout.syncInfo.status !== "new";
+
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
@@ -395,9 +463,22 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             working: newWorking,
 
             // If the name is being changed, we will need to upload to the server with a new savedAt
-            baseline: isRename ? { ...localLayout.baseline, savedAt: now } : localLayout.baseline,
+            baseline: isRename
+              ? {
+                  ...localLayout.baseline,
+                  savedAt: now,
+                  // todo: update modifier
+                  modifier: localLayout.baseline.modifier,
+                  modifierAvatar: localLayout.baseline.modifierAvatar,
+                  modifierNickname: localLayout.baseline.modifierNickname,
+                }
+              : localLayout.baseline,
             syncInfo: isRename
-              ? { status: "updated", lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt }
+              ? {
+                  status: "updated",
+                  lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+                  lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
+                }
               : localLayout.syncInfo,
           }),
       );
@@ -420,7 +501,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         if (!this.isOnline) {
           throw new Error("Cannot delete a shared layout while offline");
         }
-        await this.#remote.deleteLayout(id);
+        await this.#remote.deleteLayout(id, localLayout.parent);
       }
     }
     await this.#local.runExclusive(async (local) => {
@@ -434,6 +515,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           syncInfo: {
             status: "locally-deleted",
             lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+            lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
           },
         });
       } else {
@@ -450,7 +532,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     if (!localLayout) {
       throw new Error(`Cannot overwrite layout ${id} because it does not exist`);
     }
+
     const now = new Date().toISOString() as ISO8601Timestamp;
+
     if (layoutIsShared(localLayout)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
@@ -460,16 +544,27 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       }
       const updatedBaseline = await updateOrFetchLayout(this.#remote, {
         id,
+        parent: localLayout.parent,
         data: localLayout.working?.data ?? localLayout.baseline.data,
-        savedAt: now,
+        // savedAt: now,
       });
       const result = await this.#local.runExclusive(
         async (local) =>
           await local.put({
             ...localLayout,
-            baseline: { data: updatedBaseline.data, savedAt: updatedBaseline.savedAt },
+            baseline: {
+              data: updatedBaseline.data,
+              savedAt: updatedBaseline.savedAt,
+              modifier: updatedBaseline.modifier,
+              modifierAvatar: updatedBaseline.modifierAvatar,
+              modifierNickname: updatedBaseline.modifierNickname,
+            },
             working: undefined,
-            syncInfo: { status: "tracked", lastRemoteSavedAt: updatedBaseline.savedAt },
+            syncInfo: {
+              status: "tracked",
+              lastRemoteSavedAt: updatedBaseline.savedAt,
+              lastRemoteUpdatedAt: updatedBaseline.updatedAt,
+            },
           }),
       );
       this.#notifyChangeListeners({ type: "change", updatedLayout: result });
@@ -482,11 +577,19 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             baseline: {
               data: localLayout.working?.data ?? localLayout.baseline.data,
               savedAt: now,
+              // todo: update modifier
+              modifier: localLayout.baseline.modifier,
+              modifierAvatar: localLayout.baseline.modifierAvatar,
+              modifierNickname: localLayout.baseline.modifierNickname,
             },
             working: undefined,
             syncInfo:
               this.#remote && localLayout.syncInfo?.status !== "new"
-                ? { status: "updated", lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt }
+                ? {
+                    status: "updated",
+                    lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+                    lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
+                  }
                 : localLayout.syncInfo,
           }),
       );
@@ -514,6 +617,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   @CoSceneLayoutManager.#withBusyStatus
   public async makePersonalCopy({ id, name }: { id: LayoutID; name: string }): Promise<Layout> {
     const now = new Date().toISOString() as ISO8601Timestamp;
+
     const result = await this.#local.runExclusive(async (local) => {
       const layout = await local.get(id);
       if (!layout) {
@@ -521,13 +625,20 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       }
       const newLayout = await local.put({
         id: uuidv4() as LayoutID,
+        parent: "", // todo: get parent
+        folder: layout.folder,
         name,
         permission: "CREATOR_WRITE",
-        baseline: { data: layout.working?.data ?? layout.baseline.data, savedAt: now },
+        baseline: {
+          data: layout.working?.data ?? layout.baseline.data,
+          savedAt: now,
+          // todo: modifier current user
+          modifier: layout.baseline.modifier,
+          modifierAvatar: layout.baseline.modifierAvatar,
+          modifierNickname: layout.baseline.modifierNickname,
+        },
         working: undefined,
-        syncInfo: { status: "new", lastRemoteSavedAt: now },
-        isProjectRecommended: false,
-        isRecordRecommended: false,
+        syncInfo: { status: "new", lastRemoteSavedAt: now, lastRemoteUpdatedAt: now },
       });
       await local.put({ ...layout, working: undefined });
       return newLayout;
@@ -576,7 +687,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     const [localLayouts, remoteLayouts] = await Promise.all([
       this.#local.runExclusive(async (local) => await local.list()),
-      this.#remote.getLayouts(),
+      this.#remote.getLayouts(this.#getRemoteLayoutParents()),
     ]);
     if (abortSignal.aborted) {
       return;
@@ -606,15 +717,15 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         switch (operation.type) {
           case "mark-deleted": {
             const { localLayout } = operation;
-            if (localLayout.isRecordRecommended) {
-              await local.delete(localLayout.id);
-            } else {
-              log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
-              await local.put({
-                ...localLayout,
-                syncInfo: { status: "remotely-deleted", lastRemoteSavedAt: undefined },
-              });
-            }
+            log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
+            await local.put({
+              ...localLayout,
+              syncInfo: {
+                status: "remotely-deleted",
+                lastRemoteSavedAt: undefined,
+                lastRemoteUpdatedAt: undefined,
+              },
+            });
             break;
           }
 
@@ -631,13 +742,23 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             log.debug(`Adding layout to cache: ${remoteLayout.id}`);
             await local.put({
               id: remoteLayout.id,
+              folder: remoteLayout.folder,
               name: remoteLayout.name,
               permission: remoteLayout.permission,
-              baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+              baseline: {
+                data: remoteLayout.data,
+                savedAt: remoteLayout.savedAt,
+                modifier: remoteLayout.modifier,
+                modifierAvatar: remoteLayout.modifierAvatar,
+                modifierNickname: remoteLayout.modifierNickname,
+              },
               working: undefined,
-              syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
-              isProjectRecommended: remoteLayout.isProjectRecommended,
-              isRecordRecommended: remoteLayout.isRecordRecommended,
+              syncInfo: {
+                status: "tracked",
+                lastRemoteSavedAt: remoteLayout.savedAt,
+                lastRemoteUpdatedAt: remoteLayout.updatedAt,
+              },
+              parent: remoteLayout.parent,
             });
             break;
           }
@@ -647,16 +768,23 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             log.debug(`Updating baseline for ${localLayout.id}`);
             await local.put({
               id: remoteLayout.id,
+              folder: remoteLayout.folder,
               name: remoteLayout.name,
               permission: remoteLayout.permission,
-              baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+              baseline: {
+                data: remoteLayout.data,
+                savedAt: remoteLayout.savedAt,
+                modifier: remoteLayout.modifier,
+                modifierAvatar: remoteLayout.modifierAvatar,
+                modifierNickname: remoteLayout.modifierNickname,
+              },
               working: localLayout.working,
               syncInfo: {
                 status: localLayout.syncInfo.status,
                 lastRemoteSavedAt: remoteLayout.savedAt,
+                lastRemoteUpdatedAt: remoteLayout.updatedAt,
               },
-              isProjectRecommended: remoteLayout.isProjectRecommended,
-              isRecordRecommended: remoteLayout.isRecordRecommended,
+              parent: remoteLayout.parent,
             });
             break;
           }
@@ -684,7 +812,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           case "delete-remote": {
             const { localLayout } = operation;
             log.debug(`Deleting remote layout ${localLayout.id}`);
-            if (!(await remote.deleteLayout(localLayout.id))) {
+            if (!(await remote.deleteLayout(localLayout.id, localLayout.parent))) {
               log.warn(`Deleting layout ${localLayout.id} which was not present in remote storage`);
             }
             return async (local) => {
@@ -700,18 +828,22 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             log.debug(`Uploading new layout ${localLayout.id}`);
             const newBaseline = await remote.saveNewLayout({
               id: localLayout.id,
+              parent: localLayout.parent,
+              folder: localLayout.folder,
               name: localLayout.name,
               data: localLayout.baseline.data,
               permission: localLayout.permission,
-              savedAt:
-                localLayout.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
             });
             return async (local) => {
               // Don't check abortSignal; we need the cache to be updated to show the layout is tracked
               await local.put({
                 ...localLayout,
                 baseline: { ...localLayout.baseline, savedAt: newBaseline.savedAt },
-                syncInfo: { status: "tracked", lastRemoteSavedAt: newBaseline.savedAt },
+                syncInfo: {
+                  status: "tracked",
+                  lastRemoteSavedAt: newBaseline.savedAt,
+                  lastRemoteUpdatedAt: newBaseline.updatedAt,
+                },
               });
             };
           }
@@ -721,10 +853,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             log.debug(`Uploading updated layout ${localLayout.id}`);
             const newBaseline = await updateOrFetchLayout(remote, {
               id: localLayout.id,
+              parent: localLayout.parent,
               name: localLayout.name,
               data: localLayout.baseline.data,
-              savedAt:
-                localLayout.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
+              // savedAt:
+              //   localLayout.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
             });
             return async (local) => {
               // Don't check abortSignal; we need the cache to be updated to show the layout is tracked
@@ -732,7 +865,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 ...localLayout,
                 name: newBaseline.name,
                 baseline: { ...localLayout.baseline, savedAt: newBaseline.savedAt },
-                syncInfo: { status: "tracked", lastRemoteSavedAt: newBaseline.savedAt },
+                syncInfo: {
+                  status: "tracked",
+                  lastRemoteSavedAt: newBaseline.savedAt,
+                  lastRemoteUpdatedAt: newBaseline.updatedAt,
+                },
               });
             };
           }
@@ -766,15 +903,15 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         switch (operation.type) {
           case "mark-deleted": {
             const { localLayout } = operation;
-            if (localLayout.isRecordRecommended) {
-              await local.delete(localLayout.id);
-            } else {
-              log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
-              await local.put({
-                ...localLayout,
-                syncInfo: { status: "remotely-deleted", lastRemoteSavedAt: undefined },
-              });
-            }
+            log.debug(`Marking layout as remotely deleted: ${localLayout.id}`);
+            await local.put({
+              ...localLayout,
+              syncInfo: {
+                status: "remotely-deleted",
+                lastRemoteSavedAt: undefined,
+                lastRemoteUpdatedAt: undefined,
+              },
+            });
             break;
           }
 
@@ -794,13 +931,23 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             if (remoteLayout.permission === "CREATOR_WRITE") {
               await local.put({
                 id: remoteLayout.id,
+                parent: remoteLayout.parent,
+                folder: remoteLayout.folder,
                 name: remoteLayout.name,
                 permission: remoteLayout.permission,
-                baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+                baseline: {
+                  data: remoteLayout.data,
+                  savedAt: remoteLayout.savedAt,
+                  modifier: remoteLayout.modifier,
+                  modifierAvatar: remoteLayout.modifierAvatar,
+                  modifierNickname: remoteLayout.modifierNickname,
+                },
                 working: undefined,
-                syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
-                isProjectRecommended: remoteLayout.isProjectRecommended,
-                isRecordRecommended: remoteLayout.isRecordRecommended,
+                syncInfo: {
+                  status: "tracked",
+                  lastRemoteSavedAt: remoteLayout.savedAt,
+                  lastRemoteUpdatedAt: remoteLayout.updatedAt,
+                },
               });
             }
             break;
@@ -814,16 +961,23 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             if (remoteLayout.permission === "CREATOR_WRITE") {
               await local.put({
                 id: remoteLayout.id,
+                parent: remoteLayout.parent,
+                folder: remoteLayout.folder,
                 name: remoteLayout.name,
                 permission: remoteLayout.permission,
-                baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+                baseline: {
+                  data: remoteLayout.data,
+                  savedAt: remoteLayout.savedAt,
+                  modifier: remoteLayout.modifier,
+                  modifierAvatar: remoteLayout.modifierAvatar,
+                  modifierNickname: remoteLayout.modifierNickname,
+                },
                 working: localLayout.working,
                 syncInfo: {
                   status: localLayout.syncInfo.status,
                   lastRemoteSavedAt: remoteLayout.savedAt,
+                  lastRemoteUpdatedAt: remoteLayout.updatedAt,
                 },
-                isProjectRecommended: remoteLayout.isProjectRecommended,
-                isRecordRecommended: remoteLayout.isRecordRecommended,
               });
             }
             break;

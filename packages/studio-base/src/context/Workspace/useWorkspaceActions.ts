@@ -163,8 +163,11 @@ export function useWorkspaceActions(): WorkspaceActions {
    * @returns true if the original action should continue, false otherwise
    */
   const promptForUnsavedChanges = useCallback(async () => {
+    // fix: parent
     const currentLayout =
-      currentLayoutId != undefined ? await layoutManager.getLayout(currentLayoutId) : undefined;
+      currentLayoutId != undefined
+        ? await layoutManager.getLayout({ id: currentLayoutId })
+        : undefined;
     if (
       currentLayout != undefined &&
       layoutIsShared(currentLayout) &&
@@ -297,6 +300,7 @@ export function useWorkspaceActions(): WorkspaceActions {
 
         const data = parsedState as LayoutData;
         const newLayout = await layoutManager.saveNewLayout({
+          folder: "", // todo: get folder
           name: layoutName,
           data,
           permission: "CREATOR_WRITE",

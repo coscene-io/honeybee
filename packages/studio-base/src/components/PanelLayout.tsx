@@ -231,6 +231,7 @@ export default function PanelLayout(): React.JSX.Element {
     };
 
     const layout = await layoutManager.saveNewLayout({
+      folder: "", // todo: get folder
       name: "Default",
       data: layoutData,
       permission: "CREATOR_WRITE",

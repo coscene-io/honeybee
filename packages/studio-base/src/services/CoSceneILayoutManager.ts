@@ -32,6 +32,13 @@ export type LayoutManagerEventTypes = {
   errorchange: () => void;
 };
 
+export type CreateLayoutParams = {
+  folder: string;
+  name: string;
+  permission: LayoutPermission;
+  data?: LayoutData;
+};
+
 /**
  * The Layout Manager is a high-level interface on top of raw layout storage which maps more closely
  * to actions the user can take in the application.
@@ -71,13 +78,13 @@ export interface ILayoutManager {
 
   getLayouts(): Promise<readonly Layout[]>;
 
-  getLayout(id: LayoutID): Promise<Layout | undefined>;
+  getLayout(params: { id: LayoutID }): Promise<Layout | undefined>;
 
   saveNewLayout(params: {
+    folder: string;
     name: string;
     data: LayoutData;
     permission: LayoutPermission;
-    isRecordDefaultLayout?: boolean;
   }): Promise<Layout>;
 
   /**
