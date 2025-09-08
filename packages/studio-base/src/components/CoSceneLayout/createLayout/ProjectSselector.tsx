@@ -50,13 +50,14 @@ export function ProjectSelector({
 
   return (
     <Autocomplete
-      error={error}
       options={options.value ?? []}
       value={options.value?.find((option) => option.value === value)}
       onChange={(_event, value) => {
         onChange(value?.value ?? "");
       }}
-      renderInput={(params) => <TextField required {...params} label={t("projectName")} />}
+      renderInput={(params) => (
+        <TextField required {...params} label={t("projectName")} error={error} />
+      )}
     />
   );
 }

@@ -85,4 +85,5 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   deleteProjectLayoutPrompt:
     "删除 <strong>{{layoutName}}</strong> 后，本项目内的用户将无法使用此布局，确认删除？",
   projectName: "项目",
+  layoutToCopy: "要复制的布局",
 };

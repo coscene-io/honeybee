@@ -61,12 +61,13 @@ export function LayoutSelector({
 
   return (
     <Autocomplete
-      error={error}
       options={options.value ?? []}
       onChange={(_event, value) => {
         void getLayout(value?.value ?? "");
       }}
-      renderInput={(params) => <TextField required {...params} label={t("layoutName")} />}
+      renderInput={(params) => (
+        <TextField required {...params} label={t("layoutToCopy")} error={error} />
+      )}
     />
   );
 }
