@@ -190,7 +190,6 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
   }, [currentLayoutContext, player]);
 
   useEffect(() => {
-    // console.log("use effect");
     const dispatch = store.getState().dispatch;
     if (!player) {
       // When there is no player, set the player state to the default to go back to a state where we

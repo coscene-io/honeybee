@@ -570,6 +570,9 @@ export function RetentionWindowMs(): React.ReactElement {
       <FormLabel>
         <Stack direction="row" alignItems="center" gap={0.5}>
           {t("retentionWindowMs")}:
+          <Tooltip title={t("retentionWindowDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
         </Stack>
       </FormLabel>
       <Select
