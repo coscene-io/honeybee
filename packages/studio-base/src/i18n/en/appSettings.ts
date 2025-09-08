@@ -58,4 +58,5 @@ export const appSettings = {
   noCache: "No cache",
   retentionWindowNextEffectiveNotice:
     "Setting updated, will take effect on next connection <Link>Reconnect now</Link>",
+  retentionWindowDescription: "Set the cache duration of the real-time visualization",
 };

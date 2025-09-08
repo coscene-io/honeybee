@@ -36,4 +36,5 @@ export const cosWebsocket = {
     "Playback the data that has been played, up to {{duration}} of data. Want to play more time? <ToSettings>Go to Settings</ToSettings>",
   switchToRealTime: "Switch to real-time mode",
   realTimeVizPlayback: "Real-time visualisation playback",
+  switchToRealTimeFromPlayback: "Exit playback, view real-time view",
 };

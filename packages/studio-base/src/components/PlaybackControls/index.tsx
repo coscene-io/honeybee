@@ -297,19 +297,21 @@ export default function PlaybackControls(props: {
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
             {dataSource?.type === "persistent-cache" &&
               dataSource.previousRecentId != undefined && (
-                <IconButton
-                  component="button"
-                  size="small"
-                  onClick={() => {
-                    if (dataSource.previousRecentId != undefined) {
-                      selectRecent(dataSource.previousRecentId);
-                    }
-                  }}
-                >
-                  <Typography variant="body2" marginLeft="4px">
-                    {t("switchToRealTime", { ns: "cosWebsocket" })}
-                  </Typography>
-                </IconButton>
+                <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "cosWebsocket" })}>
+                  <IconButton
+                    component="button"
+                    size="small"
+                    onClick={() => {
+                      if (dataSource.previousRecentId != undefined) {
+                        selectRecent(dataSource.previousRecentId);
+                      }
+                    }}
+                  >
+                    <Typography variant="body2" marginLeft="4px">
+                      {t("switchToRealTime", { ns: "cosWebsocket" })}
+                    </Typography>
+                  </IconButton>
+                </Tooltip>
               )}
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
