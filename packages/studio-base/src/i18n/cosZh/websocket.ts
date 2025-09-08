@@ -36,4 +36,5 @@ export const cosWebsocket: Partial<TypeOptions["resources"]["cosWebsocket"]> = {
     "回放已播的数据，最多可回放 {{duration}} 的数据，想要回放更多时间？<ToSettings>前往设置</ToSettings>",
   switchToRealTime: "切换为实时模式",
   realTimeVizPlayback: "实时可视化回放",
+  switchToRealTimeFromPlayback: "退出回放，查看实时视图",
 };
