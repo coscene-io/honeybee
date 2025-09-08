@@ -30,6 +30,7 @@ import { MAX_PROJECTS_PAGE_SIZE } from "@foxglove/studio-base/panels/DataCollect
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
+import { LayoutSelector } from "./LayoutSelector";
 import { SelectFolder } from "./SelectFolder";
 
 export type CreateProjectLayoutParams = {
@@ -38,7 +39,7 @@ export type CreateProjectLayoutParams = {
   permission: LayoutPermission;
   data?: LayoutData;
   projectName: string;
-  template: string;
+  templateName: string;
 };
 
 const useStyles = makeStyles()({
@@ -106,11 +107,13 @@ export function CopyFromOtherProjectDialog({
       folder: data.folder,
       name: data.name,
       permission: data.permission,
+      data: data.data,
     });
     onClose();
   };
 
   const permission = form.watch("permission");
+  const projectName = form.watch("projectName");
 
   return (
     <Dialog open={open} onClose={onClose}>
@@ -126,6 +129,7 @@ export function CopyFromOtherProjectDialog({
                 projectOptions={projectOptions}
                 onProjectChange={(projectName) => {
                   field.onChange(projectName);
+                  form.setValue("data", undefined);
                 }}
                 onClearFocusedTask={() => {
                   // No focused task functionality needed in this context
@@ -135,7 +139,17 @@ export function CopyFromOtherProjectDialog({
             )}
           />
 
-          {/* todo: selct layout data */}
+          <Controller
+            control={form.control}
+            name="data"
+            render={({ field }) => (
+              <LayoutSelector
+                key={projectName}
+                projectName={projectName}
+                onChange={field.onChange}
+              />
+            )}
+          />
 
           <Controller
             control={form.control}
