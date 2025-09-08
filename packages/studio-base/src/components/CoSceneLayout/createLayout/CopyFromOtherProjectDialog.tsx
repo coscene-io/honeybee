@@ -135,7 +135,7 @@ export function CopyFromOtherProjectDialog({
             )}
           />
 
-          {/* todo: selct template */}
+          {/* todo: selct layout data */}
 
           <Controller
             control={form.control}
