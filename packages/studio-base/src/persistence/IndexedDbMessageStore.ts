@@ -8,8 +8,8 @@
 import * as IDB from "idb";
 
 import Log from "@foxglove/log";
-import { isGreaterThan } from "@foxglove/rostime";
-import type { MessageEvent, Time } from "@foxglove/studio";
+import { isGreaterThan, Time, fromMillis, subtract } from "@foxglove/rostime";
+import type { MessageEvent } from "@foxglove/studio";
 import { OptionalMessageDefinition, RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import type { PersistentMessageCache } from "./PersistentMessageCache";
@@ -92,7 +92,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #currentSessionId: string;
   #initialized = false;
   #lastPruneTime?: number;
-  #pruneIntervalMs: number = 30 * 1000; // Prune every 30 seconds
+  #pruneIntervalMs: number = 1 * 1000; // Prune every 1 second
   #messageCount = 0;
 
   public constructor(options: IndexedDbMessageStoreOptions = {}) {
@@ -343,13 +343,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         let totalPrunedCount = 0;
 
         // Time-based pruning
-        const cutoffDate = new Date(
-          latestTime.sec * 1000 + Math.floor(latestTime.nsec / 1e6) - this.#retentionWindowMs,
-        );
-        const cutoff: Time = {
-          sec: Math.floor(cutoffDate.getTime() / 1000),
-          nsec: (cutoffDate.getTime() % 1000) * 1e6,
-        };
+        const retentionWindowMsTime = fromMillis(this.#retentionWindowMs);
+
+        const cutoff = subtract(latestTime, retentionWindowMsTime);
 
         totalPrunedCount += await this.#pruneBeforeTime(this.#currentSessionId, cutoff);
 
