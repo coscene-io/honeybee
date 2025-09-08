@@ -67,7 +67,6 @@ export type WorkspaceActions = {
   playbackControlActions: {
     setRepeat: Dispatch<SetStateAction<boolean>>;
     setSpeed: Dispatch<SetStateAction<PlaybackSpeed>>;
-    // setSyncInstances: Dispatch<SetStateAction<boolean>>;
   };
 
   sidebarActions: {
