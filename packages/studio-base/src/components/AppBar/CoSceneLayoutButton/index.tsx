@@ -92,7 +92,7 @@ const useStyles = makeStyles()((theme) => {
   };
 });
 
-const selectLayoutMenuOpen = (store: WorkspaceContextStore) => store.layoutMenu.open;
+const selectLayoutMenuOpen = (store: WorkspaceContextStore) => store.layoutDrawer.open;
 export function CoSceneLayoutButton(): React.JSX.Element {
   const menuOpen = useWorkspaceStore(selectLayoutMenuOpen);
   const { classes, cx } = useStyles();
@@ -103,7 +103,9 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     const query = event.target.value;
     setSearchQuery(query);
   }, []);
-  const { layoutActions } = useWorkspaceActions();
+  // const { layoutActions } = useWorkspaceActions();
+  const { layoutDrawer } = useWorkspaceActions();
+
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const { enqueueSnackbar } = useSnackbar();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
@@ -136,9 +138,9 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const setMenuOpen = useCallback(
     // eslint-disable-next-line @foxglove/no-boolean-parameters
     (open: boolean) => {
-      layoutActions.setOpen(open);
+      // openLayoutBrowser();
     },
-    [layoutActions],
+    [],
   );
 
   useEffect(() => {
@@ -531,7 +533,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       key: "importFromFile",
       label: t("importFromFile"),
       onClick: () => {
-        layoutActions.importFromFile();
+        // layoutActions.importFromFile();
         setMenuOpen(false);
       },
     },
@@ -585,7 +587,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       />
       {promptModal}
       {unsavedChangesPrompt}
-      {layoutActions.unsavedChangesPrompt}
+      {/* {layoutActions.unsavedChangesPrompt} */}
       <Menu
         id="add-panel-menu"
         anchorEl={anchorEl.current}

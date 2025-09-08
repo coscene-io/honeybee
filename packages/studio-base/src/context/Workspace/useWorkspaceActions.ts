@@ -5,45 +5,34 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+// SPDX-FileCopyrightText: Copyright (C) 2023-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+
 import { Draft, produce } from "immer";
 import * as _ from "lodash-es";
-import { useSnackbar } from "notistack";
-import path from "path";
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
-import { useMountedState } from "react-use";
-import useAsyncFn from "react-use/lib/useAsyncFn";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
-import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/CoSceneUnsavedChangesPrompt";
-import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
-import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import {
-  LayoutState,
-  useCurrentLayoutActions,
-  useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
   IDataSourceFactory,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
-import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { downloadTextFile } from "@foxglove/studio-base/util/download";
-import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
 
 import {
-  WorkspaceContext,
-  WorkspaceContextStore,
   LeftSidebarItemKey,
   LeftSidebarItemKeys,
   RightSidebarItemKey,
   RightSidebarItemKeys,
+  WorkspaceContext,
+  WorkspaceContextStore,
 } from "./WorkspaceContext";
 import { useOpenFile } from "./useOpenFile";
 
@@ -67,11 +56,18 @@ export type WorkspaceActions = {
     finishTour: (tour: string) => void;
   };
 
+  openAccountSettings: () => void;
   openPanelSettings: () => void;
+
+  layoutDrawer: {
+    close: () => void;
+    open: () => void;
+  };
 
   playbackControlActions: {
     setRepeat: Dispatch<SetStateAction<boolean>>;
     setSpeed: Dispatch<SetStateAction<PlaybackSpeed>>;
+    // setSyncInstances: Dispatch<SetStateAction<boolean>>;
   };
 
   sidebarActions: {
@@ -86,17 +82,6 @@ export type WorkspaceActions = {
       setSize: (size: undefined | number) => void;
     };
   };
-
-  layoutActions: {
-    // Open a dialog for the user to select a layout file to import
-    // This will replace the current layout with the imported layout
-    importFromFile: () => void;
-    // Export the current layout to a file
-    // This will perform a browser download of the current layout to a file
-    exportToFile: (layout: Layout) => void;
-    unsavedChangesPrompt: React.JSX.Element | undefined;
-    setOpen: Dispatch<SetStateAction<boolean>>;
-  };
 };
 
 function setterValue<T>(action: SetStateAction<T>, value: T): T {
@@ -107,30 +92,13 @@ function setterValue<T>(action: SetStateAction<T>, value: T): T {
   return action;
 }
 
-const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
-
 /**
  * Provides various actions to manipulate the workspace state.
  */
 export function useWorkspaceActions(): WorkspaceActions {
   const { setState } = useGuaranteedContext(WorkspaceContext);
-  const layoutManager = useLayoutManager();
-  const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
-  const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
-  const { enqueueSnackbar } = useSnackbar();
-  const { setSelectedLayoutId } = useCurrentLayoutActions();
-  const [, dispatch] = useLayoutBrowserReducer({
-    lastSelectedId: currentLayoutId,
-    busy: layoutManager.isBusy,
-    error: layoutManager.error,
-    online: layoutManager.isOnline,
-  });
 
   const { availableSources } = usePlayerSelection();
-
-  const analytics = useAnalytics();
-
-  const isMounted = useMountedState();
 
   const openFile = useOpenFile(availableSources);
 
@@ -140,193 +108,6 @@ export function useWorkspaceActions(): WorkspaceActions {
     },
     [setState],
   );
-
-  const [layouts] = useAsyncFn(
-    async () => {
-      const [shared, personal] = _.partition(
-        await layoutManager.getLayouts(),
-        layoutManager.supportsSharing ? layoutIsShared : () => false,
-      );
-      return {
-        personal: personal.sort((a, b) => a.name.localeCompare(b.name)),
-        shared: shared.sort((a, b) => a.name.localeCompare(b.name)),
-      };
-    },
-    [layoutManager],
-    { loading: true },
-  );
-
-  /**
-   * Don't allow the user to switch away from a personal layout if they have unsaved changes. This
-   * currently has a race condition because of the throttled save in CurrentLayoutProvider -- it's
-   * possible to make changes and switch layouts before they're sent to the layout manager.
-   * @returns true if the original action should continue, false otherwise
-   */
-  const promptForUnsavedChanges = useCallback(async () => {
-    // fix: parent
-    const currentLayout =
-      currentLayoutId != undefined
-        ? await layoutManager.getLayout({ id: currentLayoutId })
-        : undefined;
-    if (
-      currentLayout != undefined &&
-      layoutIsShared(currentLayout) &&
-      currentLayout.working != undefined
-    ) {
-      const result = await openUnsavedChangesPrompt(currentLayout);
-      switch (result.type) {
-        case "cancel":
-          return false;
-        case "discard":
-          await layoutManager.revertLayout({ id: currentLayout.id });
-          void analytics.logEvent(AppEvent.LAYOUT_REVERT, {
-            permission: currentLayout.permission,
-            context: "UnsavedChangesPrompt",
-          });
-          return true;
-        case "overwrite":
-          await layoutManager.overwriteLayout({ id: currentLayout.id });
-          void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, {
-            permission: currentLayout.permission,
-            context: "UnsavedChangesPrompt",
-          });
-          return true;
-        case "makePersonal":
-          // We don't use onMakePersonalCopy() here because it might need to prompt for unsaved changes, and we don't want to select the newly created layout
-          await layoutManager.makePersonalCopy({
-            id: currentLayout.id,
-            name: result.name,
-          });
-          void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
-            permission: currentLayout.permission,
-            syncStatus: currentLayout.syncInfo?.status,
-            context: "UnsavedChangesPrompt",
-          });
-          return true;
-      }
-    }
-    return true;
-  }, [analytics, currentLayoutId, layoutManager, openUnsavedChangesPrompt]);
-
-  const onSelectLayout = useCallbackWithToast(
-    async (
-      item: Layout,
-      { selectedViaClick = false, event }: { selectedViaClick?: boolean; event?: MouseEvent } = {},
-    ) => {
-      if (selectedViaClick) {
-        if (!(await promptForUnsavedChanges())) {
-          return;
-        }
-        void analytics.logEvent(AppEvent.LAYOUT_SELECT, { permission: item.permission });
-      }
-      if (event?.ctrlKey === true || event?.metaKey === true || event?.shiftKey === true) {
-        if (item.id !== currentLayoutId) {
-          dispatch({
-            type: "select-id",
-            id: item.id,
-            layouts: layouts.value,
-            modKey: event.ctrlKey || event.metaKey,
-            shiftKey: event.shiftKey,
-          });
-        }
-      } else {
-        setSelectedLayoutId(item.id);
-        dispatch({ type: "select-id", id: item.id });
-      }
-    },
-    [
-      analytics,
-      currentLayoutId,
-      dispatch,
-      layouts.value,
-      promptForUnsavedChanges,
-      setSelectedLayoutId,
-    ],
-  );
-
-  const onExportLayout = useCallbackWithToast(
-    async (item: Layout) => {
-      const content = JSON.stringify(item.working?.data ?? item.baseline.data, undefined, 2) ?? "";
-      downloadTextFile(content, `${item.name}.json`);
-      void analytics.logEvent(AppEvent.LAYOUT_EXPORT, { permission: item.permission });
-    },
-    [analytics],
-  );
-
-  const importLayout = useCallbackWithToast(async () => {
-    if (!(await promptForUnsavedChanges())) {
-      return;
-    }
-    const fileHandles = await showOpenFilePicker({
-      multiple: true,
-      excludeAcceptAllOption: false,
-      types: [
-        {
-          description: "JSON Files",
-          accept: {
-            "application/json": [".json"],
-          },
-        },
-      ],
-    });
-    if (fileHandles.length === 0) {
-      return;
-    }
-
-    const newLayouts = await Promise.all(
-      fileHandles.map(async (fileHandle) => {
-        const file = await fileHandle.getFile();
-        const layoutName = path.basename(file.name, path.extname(file.name));
-        const content = await file.text();
-
-        if (!isMounted()) {
-          return;
-        }
-
-        let parsedState: unknown;
-        try {
-          parsedState = JSON.parse(content);
-        } catch (err) {
-          enqueueSnackbar(`${file.name} is not a valid layout: ${err.message}`, {
-            variant: "error",
-          });
-          return;
-        }
-
-        if (typeof parsedState !== "object" || !parsedState) {
-          enqueueSnackbar(`${file.name} is not a valid layout`, { variant: "error" });
-          return;
-        }
-
-        const data = parsedState as LayoutData;
-        const newLayout = await layoutManager.saveNewLayout({
-          folder: "", // todo: get folder
-          name: layoutName,
-          data,
-          permission: "CREATOR_WRITE",
-        });
-        return newLayout;
-      }),
-    );
-
-    if (!isMounted()) {
-      return;
-    }
-    const newLayout = newLayouts.find((layout) => layout != undefined);
-    if (newLayout) {
-      void onSelectLayout(newLayout);
-    }
-    void analytics.logEvent(AppEvent.LAYOUT_IMPORT, { numLayouts: fileHandles.length });
-  }, [
-    analytics,
-    enqueueSnackbar,
-    isMounted,
-    layoutManager,
-    onSelectLayout,
-    promptForUnsavedChanges,
-  ]);
-
-  // const exportAction = useCallback(() => onExportLayout(layout), [layout, onExport]);
 
   return useMemo(() => {
     return {
@@ -386,12 +167,25 @@ export function useWorkspaceActions(): WorkspaceActions {
           });
         },
       },
-
+      openAccountSettings: () => { },
       openPanelSettings: () => {
         set((draft) => {
           draft.sidebars.left.item = "panel-settings";
           draft.sidebars.left.open = true;
         });
+      },
+
+      layoutDrawer: {
+        close: () => {
+          set((draft) => {
+            draft.layoutDrawer.open = false;
+          });
+        },
+        open: () => {
+          set((draft) => {
+            draft.layoutDrawer.open = true;
+          });
+        },
       },
 
       playbackControlActions: {
@@ -407,6 +201,13 @@ export function useWorkspaceActions(): WorkspaceActions {
             draft.playbackControls.speed = speed;
           });
         },
+
+        // setSyncInstances: (setter: SetStateAction<boolean>) => {
+        //   set((draft) => {
+        //     const sync = setterValue(setter, draft.playbackControls.syncInstances);
+        //     draft.playbackControls.syncInstances = sync;
+        //   });
+        // },
       },
 
       sidebarActions: {
@@ -469,18 +270,6 @@ export function useWorkspaceActions(): WorkspaceActions {
           },
         },
       },
-
-      layoutActions: {
-        importFromFile: importLayout,
-        exportToFile: onExportLayout,
-        unsavedChangesPrompt,
-        setOpen: (setter: SetStateAction<boolean>) => {
-          set((draft) => {
-            const layoutMenuOpen = setterValue(setter, draft.layoutMenu.open);
-            draft.layoutMenu.open = layoutMenuOpen;
-          });
-        },
-      },
     };
-  }, [onExportLayout, importLayout, openFile, set, unsavedChangesPrompt]);
+  }, [openFile, set]);
 }

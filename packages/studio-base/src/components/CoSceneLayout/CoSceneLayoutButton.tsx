@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useSnackbar } from "notistack";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
@@ -20,6 +20,11 @@ import {
   // useCurrentLayoutSelector,
   LayoutID,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import {
+  useWorkspaceStore,
+  WorkspaceContextStore,
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
@@ -33,8 +38,12 @@ import { useCurrentLayout } from "./hooks/useCurrentLayout";
 
 const log = Logger.getLogger(__filename);
 
+const layoutDrawerOpen = (store: WorkspaceContextStore) => store.layoutDrawer.open;
+
 export function CoSceneLayoutButton(): React.JSX.Element {
-  const [open, setOpen] = useState(false);
+  const open = useWorkspaceStore(layoutDrawerOpen);
+  const { layoutDrawer } = useWorkspaceActions();
+
   const { currentLayoutId, currentLayout, layouts } = useCurrentLayout();
   const { enqueueSnackbar } = useSnackbar();
   const analytics = useAnalytics();
@@ -190,7 +199,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       void analytics.logEvent(AppEvent.LAYOUT_SELECT, { permission: item.permission });
       setSelectedLayoutId(item.id);
       dispatch({ type: "select-id", id: item.id });
-      setOpen(false);
+      layoutDrawer.open();
 
       // todo: get personal parent from warehouse
       await layoutManager.putHistory({
@@ -198,7 +207,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         parent: item.permission === "CREATOR_WRITE" ? "personal" : item.parent,
       });
     },
-    [analytics, dispatch, promptForUnsavedChanges, setSelectedLayoutId, layoutManager],
+    [
+      analytics,
+      dispatch,
+      promptForUnsavedChanges,
+      setSelectedLayoutId,
+      layoutManager,
+      layoutDrawer,
+    ],
   );
 
   const onRenameLayout = useCallbackWithToast(
@@ -325,7 +341,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         currentLayout={currentLayout}
         loading={layouts.loading}
         onClick={() => {
-          setOpen(true);
+          layoutDrawer.open();
         }}
       />
       {unsavedChangesPrompt}
@@ -342,7 +358,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           onRevertLayout={onRevertLayout}
           onCreateLayout={onCreateLayout}
           onClose={() => {
-            setOpen(false);
+            layoutDrawer.close();
           }}
         />
       )}
