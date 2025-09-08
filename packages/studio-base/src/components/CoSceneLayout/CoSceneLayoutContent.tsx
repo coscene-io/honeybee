@@ -223,10 +223,6 @@ export function CoSceneLayoutContent({
     return filtered;
   }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery, sortBy, sortOrder]);
 
-  if (!layouts) {
-    return <div>No layouts</div>;
-  }
-
   return (
     <div className={classes.root}>
       <div className={classes.gridContainer}>
@@ -235,8 +231,8 @@ export function CoSceneLayoutContent({
           <Box className={classes.boxPadding}>
             <CreateLayoutButton
               onCreateLayout={onCreateLayout}
-              personalFolders={layouts.personalFolders}
-              projectFolders={layouts.projectFolders}
+              personalFolders={layouts?.personalFolders ?? []}
+              projectFolders={layouts?.projectFolders ?? []}
             />
           </Box>
 
@@ -257,7 +253,7 @@ export function CoSceneLayoutContent({
             </ListItem>
 
             {/* Personal Layout Folders */}
-            {layouts.personalFolders.map((folder) => (
+            {layouts?.personalFolders.map((folder) => (
               <ListItem key={folder} disablePadding>
                 <ListItemButton
                   className={classes.folderItem}
@@ -295,7 +291,7 @@ export function CoSceneLayoutContent({
             </ListItem>
 
             {/* Project Layout Folders */}
-            {layouts.projectFolders.map((folder) => (
+            {layouts?.projectFolders.map((folder) => (
               <ListItem key={folder} disablePadding>
                 <ListItemButton
                   className={classes.folderItem}
