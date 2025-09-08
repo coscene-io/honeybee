@@ -36,9 +36,9 @@ interface LayoutsDB extends IDB.DBSchema {
       namespace: string;
       history: LayoutHistory;
     };
-    indexes: {
-      namespace_parent: [namespace: string, parent: string];
-    };
+    // indexes: {
+    //   namespace_parent: [namespace: string, parent: string];
+    // };
   },
 }
 
@@ -67,10 +67,9 @@ export class IdbLayoutStorage implements ILayoutStorage {
             log.warn("Failed to remove old foxglove-layouts database:", error);
           });
 
-        const historyStore = db.createObjectStore(HISTORY_STORE_NAME, {
+        db.createObjectStore(HISTORY_STORE_NAME, {
           keyPath: ["namespace", "history.parent"],
         });
-        historyStore.createIndex("namespace_parent", ["namespace", "history.parent"]);
       }
     },
   });
@@ -178,9 +177,7 @@ export class IdbLayoutStorage implements ILayoutStorage {
   }
 
   public async getHistory(namespace: string, parent: string): Promise<Layout | undefined> {
-    const record = await (
-      await this.#db
-    ).getFromIndex(HISTORY_STORE_NAME, "namespace_parent", [namespace, parent]);
+    const record = await (await this.#db).get(HISTORY_STORE_NAME, [namespace, parent]);
     if (record?.history == undefined) {
       return undefined;
     }

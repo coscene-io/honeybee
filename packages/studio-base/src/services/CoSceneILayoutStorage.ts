@@ -67,7 +67,6 @@ export type Layout = {
 export type LayoutHistory = {
   id: LayoutID;
   parent: string;
-  permission: LayoutPermission;
 };
 
 export interface ILayoutStorage {

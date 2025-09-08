@@ -191,8 +191,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       setSelectedLayoutId(item.id);
       dispatch({ type: "select-id", id: item.id });
       setOpen(false);
+
+      // todo: get personal parent from warehouse
+      await layoutManager.putHistory({
+        id: item.id,
+        parent: item.permission === "CREATOR_WRITE" ? "personal" : item.parent,
+      });
     },
-    [analytics, dispatch, promptForUnsavedChanges, setSelectedLayoutId],
+    [analytics, dispatch, promptForUnsavedChanges, setSelectedLayoutId, layoutManager],
   );
 
   const onRenameLayout = useCallbackWithToast(

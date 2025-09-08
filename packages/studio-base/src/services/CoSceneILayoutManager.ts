@@ -9,7 +9,7 @@ import EventEmitter from "eventemitter3";
 
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { Layout, LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, LayoutHistory, LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 export type LayoutManagerChangeEvent =
   | { type: "delete"; updatedLayout?: undefined; layoutId: LayoutID }
@@ -109,4 +109,9 @@ export interface ILayoutManager {
 
   /** Transfer a shared layout's working changes into a new personal layout. */
   makePersonalCopy(params: { id: LayoutID; name: string }): Promise<Layout>;
+
+  putHistory(params: { id: LayoutID; parent: string }): Promise<LayoutHistory>;
+
+  getHistory(params: { parent: string }): Promise<Layout | undefined>;
+
 }
