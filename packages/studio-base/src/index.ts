@@ -48,7 +48,7 @@ export { SharedProviders } from "./providers/SharedProviders";
 
 // CoScene
 export { migratePanelsState, migrateLayout } from "./services/migrateLayout";
-export type { Layout, ISO8601Timestamp, ILayoutStorage } from "./services/CoSceneILayoutStorage";
+export type { Layout, ISO8601Timestamp, ILayoutStorage, LayoutHistory } from "./services/CoSceneILayoutStorage";
 export { default as CoSceneDataPlatformDataSourceFactory } from "./dataSources/CoSceneDataPlatformDataSourceFactory";
 export { default as ConsoleApi } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 export type { LayoutID } from "./context/CurrentLayoutContext";

@@ -10,17 +10,17 @@ import * as IDB from "idb";
 import { ILayoutHistoryStorage, LayoutHistory } from "@foxglove/studio-base/services/CoSceneILayoutHistoryStorage";
 
 const DATABASE_NAME = "coScene-layouts";
+const DATABASE_VERSION = 2;
 const OBJECT_STORE_NAME = "history";
 
 interface LayoutsHistoryDB extends IDB.DBSchema {
   history: {
-    key: [namespace: string, parent: string,];
+    key: [namespace: string, parent: string];
     value: {
       namespace: string;
       history: LayoutHistory;
     };
     indexes: {
-      // namespace: string;
       namespace_parent: [namespace: string, parent: string];
     };
   };
@@ -31,14 +31,15 @@ interface LayoutsHistoryDB extends IDB.DBSchema {
  * being the tuple of [namespace, parent].
  */
 export class IdbLayoutHistoryStorage implements ILayoutHistoryStorage {
-  #db = IDB.openDB<LayoutsHistoryDB>(DATABASE_NAME, 1, {
+  #db = IDB.openDB<LayoutsHistoryDB>(DATABASE_NAME, DATABASE_VERSION, {
     upgrade(db) {
-      const store = db.createObjectStore(OBJECT_STORE_NAME, {
-        keyPath: ["namespace", "layout.parent"],
-      });
-
-      // store.createIndex("namespace", "namespace");
-      store.createIndex("namespace_parent", ["namespace", "history.parent"]);
+      // Ensure the history store exists and uses the correct keyPath
+      if (!db.objectStoreNames.contains(OBJECT_STORE_NAME)) {
+        const store = db.createObjectStore(OBJECT_STORE_NAME, {
+          keyPath: ["namespace", "history.parent"],
+        });
+        store.createIndex("namespace_parent", ["namespace", "history.parent"]);
+      }
     },
   });
 

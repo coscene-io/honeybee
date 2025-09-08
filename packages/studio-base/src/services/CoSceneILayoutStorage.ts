@@ -47,21 +47,27 @@ export type Layout = {
    * The working copy of this layout, if it has been edited since the last explicit save.
    */
   working:
-    | {
-        data: LayoutData;
-        savedAt: ISO8601Timestamp | undefined;
-      }
-    | undefined;
+  | {
+    data: LayoutData;
+    savedAt: ISO8601Timestamp | undefined;
+  }
+  | undefined;
 
   /** Info about this layout from remote storage. */
   syncInfo:
-    | {
-        status: LayoutSyncStatus;
-        /** The last modifyTime returned by the server. */
-        lastRemoteSavedAt: ISO8601Timestamp | undefined;
-        lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
-      }
-    | undefined;
+  | {
+    status: LayoutSyncStatus;
+    /** The last modifyTime returned by the server. */
+    lastRemoteSavedAt: ISO8601Timestamp | undefined;
+    lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
+  }
+  | undefined;
+};
+
+export type LayoutHistory = {
+  id: LayoutID;
+  parent: string;
+  permission: LayoutPermission;
 };
 
 export interface ILayoutStorage {
@@ -80,6 +86,9 @@ export interface ILayoutStorage {
    * The layout manager will call this method to convert any local layouts to personal layouts when logging in.
    */
   importLayouts(params: { fromNamespace: string; toNamespace: string }): Promise<void>;
+
+  getHistory(namespace: string, parent: string): Promise<Layout | undefined>;
+  putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory>;
 }
 
 export function layoutPermissionIsShared(
