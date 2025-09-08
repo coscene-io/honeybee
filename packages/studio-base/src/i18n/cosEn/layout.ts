@@ -85,4 +85,5 @@ export const cosLayout = {
   deleteProjectLayout: "Delete project layout",
   deleteProjectLayoutPrompt:
     "Delete <strong>{{layoutName}}</strong> after the users in this project cannot use this layout, confirm delete?",
+  projectName: "Project",
 };

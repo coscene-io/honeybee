@@ -49,14 +49,14 @@ export function CreateLayoutButton({
         >
           {t("createBlankLayout")}
         </MenuItem>
-        {/* <MenuItem
+        <MenuItem
           onClick={() => {
             setOpen("copyFromOtherProject");
             handleMenuClose();
           }}
         >
           {t("copyFromOtherProject")}
-        </MenuItem> */}
+        </MenuItem>
         <MenuItem
           onClick={() => {
             setOpen("importFromFile");
