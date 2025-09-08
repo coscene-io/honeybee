@@ -20,12 +20,13 @@ export type LayoutSyncStatus =
   | "tracked"
   | "locally-deleted"
   | "remotely-deleted";
+
 export type Layout = {
   id: LayoutID;
+  parent: string;
+  folder: string;
   name: string;
   permission: LayoutPermission;
-  isProjectRecommended: boolean;
-  isRecordRecommended: boolean;
 
   /** @deprecated old field name, migrated to working/baseline */
   data?: LayoutData;
@@ -36,6 +37,10 @@ export type Layout = {
   baseline: {
     data: LayoutData;
     savedAt: ISO8601Timestamp | undefined;
+
+    modifier: string | undefined;
+    modifierAvatar: string | undefined;
+    modifierNickname: string | undefined;
   };
 
   /**
@@ -52,8 +57,9 @@ export type Layout = {
   syncInfo:
     | {
         status: LayoutSyncStatus;
-        /** The last savedAt time returned by the server. */
+        /** The last modifyTime returned by the server. */
         lastRemoteSavedAt: ISO8601Timestamp | undefined;
+        lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
       }
     | undefined;
 };

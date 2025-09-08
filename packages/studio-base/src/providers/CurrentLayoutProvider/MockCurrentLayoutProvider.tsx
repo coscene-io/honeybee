@@ -71,7 +71,7 @@ export default function MockCurrentLayoutProvider({
           data: newLayout?.data,
           id: "mock-id" as LayoutID,
           edited: newLayout?.edited,
-          name: newLayout?.name,
+          displayName: newLayout?.displayName,
         },
       });
     },

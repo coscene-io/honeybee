@@ -48,6 +48,7 @@ export type SelectedLayout = {
   edited?: boolean;
 };
 export type LayoutID = string & { __brand: "LayoutID" };
+export type LayoutName = string & { __brand: "LayoutName" };
 
 export type LayoutState = Readonly<{
   /**
