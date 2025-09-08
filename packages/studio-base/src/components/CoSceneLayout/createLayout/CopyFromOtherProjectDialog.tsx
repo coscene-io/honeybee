@@ -17,20 +17,16 @@ import {
   MenuItem,
   FormLabel,
 } from "@mui/material";
-import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { ProjectSelector } from "@foxglove/studio-base/panels/DataCollection/components/ProjectSelector";
-import { MAX_PROJECTS_PAGE_SIZE } from "@foxglove/studio-base/panels/DataCollection/constants";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import { LayoutSelector } from "./LayoutSelector";
+import { ProjectSelector } from "./ProjectSselector";
 import { SelectFolder } from "./SelectFolder";
 
 export type CreateProjectLayoutParams = {
@@ -64,43 +60,9 @@ export function CopyFromOtherProjectDialog({
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
 
-  // Access console API and user info
-  const consoleApi = useConsoleApi();
-  const currentUser = useCurrentUser((store) => store.user);
-
-  // Project options state
-  const [projectOptions, setProjectOptions] = useState<{ label: string; value: string }[]>([]);
-
   const form = useForm<CreateProjectLayoutParams>({
     defaultValues: { name: "", folder: "", permission: "CREATOR_WRITE", projectName: "" },
   });
-
-  // Fetch projects when dialog opens
-  useEffect(() => {
-    if (open && currentUser?.userId) {
-      const fetchProjects = async () => {
-        try {
-          const response = await consoleApi.listUserProjects({
-            userId: currentUser.userId,
-            pageSize: MAX_PROJECTS_PAGE_SIZE,
-            currentPage: 0,
-          });
-
-          const options = response.userProjects
-            .filter((project) => !project.isArchived)
-            .map((project) => ({
-              label: project.displayName,
-              value: project.name,
-            }));
-          setProjectOptions(options);
-        } catch (error) {
-          console.error("Failed to fetch projects:", error);
-        }
-      };
-
-      void fetchProjects();
-    }
-  }, [open, currentUser?.userId, consoleApi]);
 
   const onSubmit = (data: CreateProjectLayoutParams) => {
     onCreateLayout({
@@ -122,19 +84,18 @@ export function CopyFromOtherProjectDialog({
         <Stack gap={2}>
           <Controller
             control={form.control}
+            rules={{
+              required: true,
+            }}
             name="projectName"
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <ProjectSelector
-                projectName={field.value}
-                projectOptions={projectOptions}
-                onProjectChange={(projectName) => {
+                error={!!fieldState.error}
+                value={field.value}
+                onChange={(projectName) => {
                   field.onChange(projectName);
                   form.setValue("data", undefined);
                 }}
-                onClearFocusedTask={() => {
-                  // No focused task functionality needed in this context
-                }}
-                label={t("projectName")}
               />
             )}
           />
@@ -142,11 +103,15 @@ export function CopyFromOtherProjectDialog({
           <Controller
             control={form.control}
             name="data"
-            render={({ field }) => (
+            rules={{
+              required: true,
+            }}
+            render={({ field, fieldState }) => (
               <LayoutSelector
                 key={projectName}
                 projectName={projectName}
                 onChange={field.onChange}
+                error={!!fieldState.error}
               />
             )}
           />

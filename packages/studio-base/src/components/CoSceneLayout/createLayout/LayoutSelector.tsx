@@ -16,9 +16,14 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 interface LayoutSelectorProps {
   projectName: string;
   onChange: (data?: LayoutData) => void;
+  error?: boolean;
 }
 
-export function LayoutSelector({ projectName, onChange }: LayoutSelectorProps): React.JSX.Element {
+export function LayoutSelector({
+  projectName,
+  onChange,
+  error,
+}: LayoutSelectorProps): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const consoleApi = useConsoleApi();
 
@@ -56,6 +61,7 @@ export function LayoutSelector({ projectName, onChange }: LayoutSelectorProps): 
 
   return (
     <Autocomplete
+      error={error}
       options={options.value ?? []}
       onChange={(_event, value) => {
         void getLayout(value?.value ?? "");
