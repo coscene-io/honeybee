@@ -135,14 +135,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     { loading: true },
   );
 
-  const setMenuOpen = useCallback(
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
-    (open: boolean) => {
-      // openLayoutBrowser();
-    },
-    [],
-  );
-
   useEffect(() => {
     const listener = () => void reloadLayouts();
     layoutManager.on("change", listener);
@@ -325,7 +317,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       } else {
         setSelectedLayoutId(item.id);
         dispatch({ type: "select-id", id: item.id });
-        setMenuOpen(false);
+        layoutDrawer.close();
       }
     },
     [
@@ -334,7 +326,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       dispatch,
       layouts.value,
       promptForUnsavedChanges,
-      setMenuOpen,
+      layoutDrawer,
       setSelectedLayoutId,
     ],
   );
@@ -534,7 +526,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       label: t("importFromFile"),
       onClick: () => {
         // layoutActions.importFromFile();
-        setMenuOpen(false);
+        layoutDrawer.close();
       },
     },
     { type: "divider" },
@@ -581,7 +573,8 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         title={currentLayouts?.name ?? t("noLayouts")}
         selected={menuOpen}
         onClick={() => {
-          setMenuOpen(!menuOpen);
+          // setMenuOpen(!menuOpen);
+          layoutDrawer.open();
         }}
         ref={anchorEl}
       />
@@ -593,7 +586,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         anchorEl={anchorEl.current}
         open={menuOpen}
         onClose={() => {
-          setMenuOpen(false);
+          layoutDrawer.close();
         }}
         anchorOrigin={{
           horizontal: "right",
