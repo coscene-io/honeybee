@@ -198,7 +198,7 @@ export default function TimeBasedChartTooltipContent(
               {tooltip.constantName != undefined ? ` (${tooltip.constantName})` : ""}
             </div>
             {item.hasMultipleValues && <OverflowMessage />}
-            {tooltip.absoluteTime && idx === 0 && (
+            {tooltip.absoluteTime && idx === sortedItems.length - 1 && (
               <>
                 <div className={classes.absoluteTimeGrid}>{tooltip.absoluteTime}</div>
               </>
