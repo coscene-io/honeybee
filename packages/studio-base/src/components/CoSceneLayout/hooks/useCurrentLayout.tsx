@@ -89,19 +89,20 @@ export function useCurrentLayout(): {
     ].find((layout) => layout.id === currentLayoutId);
   }, [layouts, currentLayoutId]);
 
-  const isLayoutLoaded = !!currentLayoutId && currentLayout === currentLayout?.id;
+  const loadedLayoutId =
+    !!currentLayoutId && currentLayout === currentLayout?.id ? currentLayoutId : undefined;
   const projectName = useCoreData(selectedProjectName);
   const currentUserName = useCurrentUser(selectUserName);
   const currentParent = projectName ?? currentUserName ?? "local";
 
   useEffect(() => {
-    if (currentLayoutId && isLayoutLoaded) {
+    if (loadedLayoutId) {
       void layoutManager.putHistory({
-        id: currentLayoutId,
+        id: loadedLayoutId,
         parent: currentParent,
       });
     }
-  }, [currentLayoutId, layoutManager, currentParent, isLayoutLoaded]);
+  }, [loadedLayoutId, layoutManager, currentParent]);
 
   return {
     currentLayoutId,
