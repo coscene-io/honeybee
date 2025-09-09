@@ -197,7 +197,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       void analytics.logEvent(AppEvent.LAYOUT_SELECT, { permission: item.permission });
       setSelectedLayoutId(item.id);
       dispatch({ type: "select-id", id: item.id });
-      layoutDrawer.open();
+      layoutDrawer.close();
 
       // todo: get personal parent from warehouse
       await layoutManager.putHistory({
