@@ -11,10 +11,6 @@ import ReactDOM from "react-dom";
 import { useCrash } from "@foxglove/hooks";
 import { PanelExtensionContext } from "@foxglove/studio";
 import { CaptureErrorBoundary } from "@foxglove/studio-base/components/CaptureErrorBoundary";
-import {
-  MessagePipelineContext,
-  useMessagePipeline,
-} from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { PanelExtensionAdapter } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -29,7 +25,6 @@ import { Config, PanelState } from "./types";
 
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
-const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectProject = (state: CoreDataStore) => state.project;
@@ -71,7 +66,6 @@ function DataCollectionPanelAdapter(props: Props) {
   const loginStatus = useCurrentUser(selectLoginStatus);
 
   const consoleApi = useConsoleApi();
-  const urlState = useMessagePipeline(selectUrlState);
   const dataSource = useCoreData(selectDataSource);
   const focusedTask = useTasks(selectFocusedTask);
 
@@ -82,9 +76,7 @@ function DataCollectionPanelAdapter(props: Props) {
   const device = useCoreData(selectDevice);
   const deviceId = useMemo(() => device.value?.name.split("/").pop(), [device]);
 
-  const deviceLink =
-    urlState?.parameters?.deviceLink ??
-    `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
+  const deviceLink = `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
 
   const panelState: PanelState = useMemo(() => {
     if (dataSource?.id !== "coscene-websocket") {
