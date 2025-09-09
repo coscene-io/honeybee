@@ -9,6 +9,7 @@ import Logger from "@foxglove/log";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   ILayoutStorage,
+  ISO8601Timestamp,
   Layout,
   LayoutHistory,
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
@@ -73,7 +74,11 @@ export class NamespacedLayoutStorage {
     parent: string;
   }): Promise<LayoutHistory> {
     await this.#migration;
-    const history: LayoutHistory = { id, parent };
+    const history: LayoutHistory = {
+      id,
+      parent,
+      savedAt: new Date().toISOString() as ISO8601Timestamp,
+    };
     return await this.storage.putHistory(this.namespace, history);
   }
 
