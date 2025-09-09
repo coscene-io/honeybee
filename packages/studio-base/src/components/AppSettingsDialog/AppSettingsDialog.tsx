@@ -243,7 +243,7 @@ export function AppSettingsDialog(
               <TimezoneSettings />
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
               <CompatibilityMode />
-              <RetentionWindowMs />
+              {/* <RetentionWindowMs /> */}
               <MessageFramerate />
               <InactivityTimeout />
               {showLanguageOptions && <LanguageSettings />}

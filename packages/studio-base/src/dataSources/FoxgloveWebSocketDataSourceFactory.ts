@@ -88,6 +88,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       authHeader: args.consoleApi?.getAuthHeader() ?? "",
       retentionWindowMs: args.retentionWindowMs,
       sessionId,
+      enablePersistentCache: false,
     });
   }
 }
