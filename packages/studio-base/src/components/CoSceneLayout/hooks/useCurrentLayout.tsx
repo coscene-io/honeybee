@@ -7,13 +7,10 @@
 
 import * as _ from "lodash-es";
 import { useEffect, useMemo } from "react";
-import { useEffectOnce } from "react-use";
 import useAsyncFn, { AsyncState } from "react-use/lib/useAsyncFn";
 
 import Logger from "@foxglove/log";
-import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
@@ -23,13 +20,6 @@ import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneIL
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
-const selectedProjectName = (store: CoreDataStore) => {
-  return store.externalInitConfig?.warehouseId && store.externalInitConfig.projectId
-    ? `warehouses/${store.externalInitConfig.warehouseId}/projects/${store.externalInitConfig.projectId}`
-    : undefined;
-};
-const selectUserName = (store: UserStore) =>
-  store.user?.userId ? `users/${store.user.userId}` : undefined;
 
 export function useCurrentLayout(): {
   currentLayoutId: LayoutID | undefined;
@@ -89,28 +79,6 @@ export function useCurrentLayout(): {
       ...(layouts.value?.projectLayouts ?? []),
     ].find((layout) => layout.id === currentLayoutId);
   }, [layouts, currentLayoutId]);
-
-  const loadedLayoutId =
-    !!currentLayoutId && currentLayout === currentLayout?.id ? currentLayoutId : undefined;
-  const projectName = useCoreData(selectedProjectName);
-  const currentUserName = useCurrentUser(selectUserName);
-  const currentParent = projectName ?? currentUserName ?? "local";
-
-  useEffectOnce(() => {
-    const url = new URL(window.location.href);
-    const layoutId = url.searchParams.get("layoutId");
-    const dskey = url.searchParams.get("ds.key");
-    console.log("dskey", dskey, "layoutId", layoutId);
-  });
-
-  useEffect(() => {
-    if (loadedLayoutId) {
-      void layoutManager.putHistory({
-        id: loadedLayoutId,
-        parent: currentParent,
-      });
-    }
-  }, [loadedLayoutId, layoutManager, currentParent]);
 
   return {
     currentLayoutId,

@@ -33,6 +33,7 @@ import { downloadTextFile } from "@foxglove/studio-base/util/download";
 import { CoSceneLayoutDrawer } from "./CoSceneLayoutDrawer";
 import { LayoutButton } from "./components/LayoutButton";
 import { useCurrentLayout } from "./hooks/useCurrentLayout";
+import { useLayoutHistory } from "./hooks/useLayoutHistory";
 
 const log = Logger.getLogger(__filename);
 
@@ -43,6 +44,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const { layoutDrawer } = useWorkspaceActions();
 
   const { currentLayoutId, currentLayout, layouts } = useCurrentLayout();
+  useLayoutHistory();
   const { enqueueSnackbar } = useSnackbar();
   const analytics = useAnalytics();
   const { t } = useTranslation("cosLayout");
