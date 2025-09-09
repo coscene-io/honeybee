@@ -342,9 +342,7 @@ const RealTimeVizDataSource = () => {
 
   const hostName = urlState?.parameters?.hostName;
 
-  const deviceLink =
-    urlState?.parameters?.deviceLink ??
-    `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
+  const deviceLink = `${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
 
   const initializing = playerPresence === PlayerPresence.INITIALIZING;
 
@@ -365,7 +363,7 @@ const RealTimeVizDataSource = () => {
                 <Link
                   href={
                     APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
-                      ? `https://${APP_CONFIG.DOMAIN_CONFIG.default.webDomain}/${projectSlug}`
+                      ? `https://${APP_CONFIG.DOMAIN_CONFIG.default.webDomain}/${organizationSlug}/${projectSlug}`
                       : "#"
                   }
                   target="_blank"
