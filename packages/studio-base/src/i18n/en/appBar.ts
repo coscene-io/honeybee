@@ -81,6 +81,5 @@ export const appBar = {
   networkSpeed: "Speed",
   droppedMessages: "Dropped Messages",
   packetLoss: "Packet Loss",
-  networkStatusHelp:
-    "Only through coLink connection, and coBridge ≥ v1.2.0 can show network status information",
+  networkStatusHelp: "Only coBridge ≥ v1.2.0 can show network status information",
 };
