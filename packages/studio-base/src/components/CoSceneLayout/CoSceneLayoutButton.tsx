@@ -48,10 +48,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const confirm = useConfirm();
 
-  useEffect(() => {
-    console.log("currentLayout", currentLayout);
-  }, [currentLayout]);
-
   const layoutManager = useLayoutManager();
   const { setSelectedLayoutId } = useCurrentLayoutActions();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
