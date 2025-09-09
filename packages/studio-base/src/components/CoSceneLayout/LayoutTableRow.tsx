@@ -24,6 +24,11 @@ import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const useStyles = makeStyles()((theme) => ({
+  layoutNameCell: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+  },
   updaterCell: {
     display: "flex",
     alignItems: "center",
@@ -96,17 +101,20 @@ export function LayoutTableRow({
       key: "use",
       text: t("use"),
       onClick: handleUse,
-      visible: true,
     },
-  ].filter((button) => button.visible);
+  ].filter((button) => button.visible ?? true);
 
   const savedAt = layout.baseline.savedAt;
 
   return (
     <TableRow key={layout.id} hover>
       <TableCell>
-        {layout.name}
-        {currentLayoutId === layout.id && <Chip size="small" color="success" label={t("inUse")} />}
+        <Box className={classes.layoutNameCell}>
+          {layout.name}
+          {currentLayoutId === layout.id && (
+            <Chip size="small" color="success" label={t("inUse")} />
+          )}
+        </Box>
       </TableCell>
       <TableCell>{savedAt ? dayjs(savedAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</TableCell>
       <TableCell>
