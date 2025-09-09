@@ -451,6 +451,7 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
                   type: "persistent-cache",
                 });
               }}
+              disabled={retentionWindowMs === 0}
             >
               <Typography variant="body2" marginLeft="4px">
                 {t("switchToPlayback")}
