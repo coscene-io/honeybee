@@ -47,7 +47,7 @@ import {
   CompatibilityMode,
   RosPackagePath,
   InactivityTimeout,
-  RetentionWindowMs,
+  // RetentionWindowMs,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
