@@ -17,6 +17,10 @@ import { makeStyles } from "tss-react/mui";
 
 import { Topic } from "@foxglove/studio";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
@@ -62,6 +66,8 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+
 function ToolbarComponent(props: Props): React.JSX.Element {
   const {
     canExpandAll,
@@ -81,6 +87,7 @@ function ToolbarComponent(props: Props): React.JSX.Element {
 
   const { classes, cx } = useStyles();
   const { t } = useTranslation("rawMessages");
+  const seek = useMessagePipeline(selectSeek);
 
   return (
     <>
@@ -112,7 +119,7 @@ function ToolbarComponent(props: Props): React.JSX.Element {
           />
         </Stack>
 
-        {onPreviousFrame && (
+        {onPreviousFrame && seek && (
           <IconButton
             className={classes.iconButton}
             title={t("previousFrame")}
@@ -123,7 +130,7 @@ function ToolbarComponent(props: Props): React.JSX.Element {
             <KeyboardArrowUpIcon fontSize="small" />
           </IconButton>
         )}
-        {onNextFrame && (
+        {onNextFrame && seek && (
           <IconButton
             className={classes.iconButton}
             title={t("nextFrame")}
