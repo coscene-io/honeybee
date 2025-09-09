@@ -48,6 +48,10 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const confirm = useConfirm();
 
+  useEffect(() => {
+    console.log("currentLayout", currentLayout);
+  }, [currentLayout]);
+
   const layoutManager = useLayoutManager();
   const { setSelectedLayoutId } = useCurrentLayoutActions();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
@@ -198,21 +202,8 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       setSelectedLayoutId(item.id);
       dispatch({ type: "select-id", id: item.id });
       layoutDrawer.close();
-
-      // todo: get personal parent from warehouse
-      await layoutManager.putHistory({
-        id: item.id,
-        parent: item.permission === "CREATOR_WRITE" ? "personal" : item.parent,
-      });
     },
-    [
-      analytics,
-      dispatch,
-      promptForUnsavedChanges,
-      setSelectedLayoutId,
-      layoutManager,
-      layoutDrawer,
-    ],
+    [analytics, dispatch, promptForUnsavedChanges, setSelectedLayoutId, layoutDrawer],
   );
 
   const onRenameLayout = useCallbackWithToast(

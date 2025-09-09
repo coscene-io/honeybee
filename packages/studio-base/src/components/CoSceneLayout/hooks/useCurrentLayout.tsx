@@ -10,7 +10,9 @@ import { useEffect, useMemo } from "react";
 import useAsyncFn, { AsyncState } from "react-use/lib/useAsyncFn";
 
 import Logger from "@foxglove/log";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
@@ -20,6 +22,13 @@ import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneIL
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
+const selectedProjectName = (store: CoreDataStore) => {
+  return store.externalInitConfig?.warehouseId && store.externalInitConfig.projectId
+    ? `warehouses/${store.externalInitConfig.warehouseId}/projects/${store.externalInitConfig.projectId}`
+    : undefined;
+};
+const selectUserName = (store: UserStore) =>
+  store.user?.userId ? `users/${store.user.userId}` : undefined;
 
 export function useCurrentLayout(): {
   currentLayoutId: LayoutID | undefined;
@@ -79,6 +88,20 @@ export function useCurrentLayout(): {
       ...(layouts.value?.projectLayouts ?? []),
     ].find((layout) => layout.id === currentLayoutId);
   }, [layouts, currentLayoutId]);
+
+  const isLayoutLoaded = !!currentLayoutId && currentLayout === currentLayout?.id;
+  const projectName = useCoreData(selectedProjectName);
+  const currentUserName = useCurrentUser(selectUserName);
+  const currentParent = projectName ?? currentUserName ?? "local";
+
+  useEffect(() => {
+    if (currentLayoutId && isLayoutLoaded) {
+      void layoutManager.putHistory({
+        id: currentLayoutId,
+        parent: currentParent,
+      });
+    }
+  }, [currentLayoutId, layoutManager, currentParent, isLayoutLoaded]);
 
   return {
     currentLayoutId,
