@@ -158,7 +158,7 @@ export function useWorkspaceActions(): WorkspaceActions {
           });
         },
       },
-      openAccountSettings: () => { },
+      openAccountSettings: () => {},
       openPanelSettings: () => {
         set((draft) => {
           draft.sidebars.left.item = "panel-settings";

@@ -7,7 +7,11 @@
 
 import { LazilyInitialized } from "@foxglove/den/async";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { ILayoutStorage, Layout, LayoutHistory } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import {
+  ILayoutStorage,
+  Layout,
+  LayoutHistory,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 /**
  * A view of ILayoutCache which only calls the underlying list() once per namespace, and implements
@@ -18,7 +22,7 @@ import { ILayoutStorage, Layout, LayoutHistory } from "@foxglove/studio-base/ser
 export default class CoSceneWriteThroughLayoutCache implements ILayoutStorage {
   #cacheByNamespace = new Map<string, LazilyInitialized<Map<string, Layout>>>();
 
-  public constructor(private storage: ILayoutStorage) { }
+  public constructor(private storage: ILayoutStorage) {}
 
   #getOrCreateCache(namespace: string): LazilyInitialized<Map<string, Layout>> {
     let cache = this.#cacheByNamespace.get(namespace);

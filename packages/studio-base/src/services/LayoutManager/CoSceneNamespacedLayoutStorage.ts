@@ -7,7 +7,11 @@
 
 import Logger from "@foxglove/log";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { ILayoutStorage, Layout, LayoutHistory } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import {
+  ILayoutStorage,
+  Layout,
+  LayoutHistory,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
 
@@ -61,7 +65,13 @@ export class NamespacedLayoutStorage {
     await this.storage.delete(this.namespace, id);
   }
 
-  public async putHistory({ id, parent }: { id: LayoutID; parent: string }): Promise<LayoutHistory> {
+  public async putHistory({
+    id,
+    parent,
+  }: {
+    id: LayoutID;
+    parent: string;
+  }): Promise<LayoutHistory> {
     await this.#migration;
     const history: LayoutHistory = { id, parent };
     return await this.storage.putHistory(this.namespace, history);

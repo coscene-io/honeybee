@@ -8,7 +8,13 @@
 import * as IDB from "idb";
 
 import Log from "@foxglove/log";
-import { Layout, LayoutID, ILayoutStorage, migrateLayout, LayoutHistory } from "@foxglove/studio-base";
+import {
+  Layout,
+  LayoutID,
+  ILayoutStorage,
+  migrateLayout,
+  LayoutHistory,
+} from "@foxglove/studio-base";
 
 const log = Log.getLogger(__filename);
 
@@ -29,7 +35,7 @@ interface LayoutsDB extends IDB.DBSchema {
       namespace_id: [namespace: string, id: LayoutID];
       namespace_parent: [namespace: string, parent: string];
     };
-  },
+  };
   history: {
     key: [namespace: string, parent: string];
     value: {
@@ -39,7 +45,7 @@ interface LayoutsDB extends IDB.DBSchema {
     // indexes: {
     //   namespace_parent: [namespace: string, parent: string];
     // };
-  },
+  };
 }
 
 /**
