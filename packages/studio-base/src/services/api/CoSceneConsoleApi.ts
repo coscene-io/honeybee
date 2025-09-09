@@ -399,11 +399,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-    orgPermissionList: [],
-    projectPermissionList: [],
-    orgDenyList: [],
-    projectDenyList: [],
-  };
+      orgPermissionList: [],
+      projectPermissionList: [],
+      orgDenyList: [],
+      projectDenyList: [],
+    };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -608,8 +608,8 @@ class CoSceneConsoleApi {
       customHost != undefined && customHost
         ? url
         : url.startsWith("/bff")
-        ? `${this.#bffUrl}${url}`
-        : `${this.#baseUrl}${url}`;
+          ? `${this.#bffUrl}${url}`
+          : `${this.#baseUrl}${url}`;
 
     const fullConfig: RequestInit = {
       ...config,
@@ -1180,24 +1180,6 @@ class CoSceneConsoleApi {
     });
 
     return key.id;
-  }
-
-  public async setProjectRecommendedLayouts(
-    layoutIds: LayoutID[],
-    currentProjectId: string,
-  ): Promise<{ status: "success" } | { status: "conflict" }> {
-    const { status } = await this.#patch(
-      `/bff/honeybee/layout/v2/recommend/project/${currentProjectId}`,
-      {
-        layoutIds,
-      },
-    );
-
-    if (status === 200) {
-      return { status: "success" };
-    }
-
-    return { status: "conflict" };
   }
 
   public async deleteFile(payload: PartialMessage<DeleteFileRequest>): Promise<void> {
