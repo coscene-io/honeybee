@@ -114,7 +114,7 @@ export interface ILayoutManager {
   /** Transfer a shared layout's working changes into a new personal layout. */
   makePersonalCopy(params: { id: LayoutID; name: string }): Promise<Layout>;
 
-  putHistory(params: { id: LayoutID; parent: string }): Promise<LayoutHistory>;
+  putHistory(params: { id: LayoutID }): Promise<LayoutHistory>;
 
   getHistory(params: { parent: string }): Promise<Layout | undefined>;
 }

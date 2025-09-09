@@ -988,15 +988,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
   }
 
-  public async putHistory({
-    id,
-    parent,
-  }: {
+  public async putHistory({ id }: {
     id: LayoutID;
-    parent: string;
   }): Promise<LayoutHistory> {
     return await this.#local.runExclusive(async (local) => {
-      return await local.putHistory({ id, parent });
+      return await local.putHistory({ id, parent: this.projectName ?? this.userName ?? "local" });
     });
   }
 

@@ -7,16 +7,17 @@
 
 // import * as _ from "lodash-es";
 import { useEffect } from "react";
-import { useEffectOnce } from "react-use";
 
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 const selectedProjectName = (store: CoreDataStore) => {
   return store.externalInitConfig?.warehouseId && store.externalInitConfig.projectId
@@ -30,25 +31,36 @@ export function useLayoutHistory(): void {
   const layoutManager = useLayoutManager();
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
 
-  const loadedLayoutId = currentLayoutId;
-  // !!currentLayoutId && currentLayout === currentLayout?.id ? currentLayoutId : undefined;
-  const projectName = useCoreData(selectedProjectName);
-  const currentUserName = useCurrentUser(selectUserName);
-  const currentParent = projectName ?? currentUserName ?? "local";
+  const loginStatus = useCurrentUser(selectLoginStatus);
+  const remoteLayoutStorage = useRemoteLayoutStorage();
 
-  useEffectOnce(() => {
-    const url = new URL(window.location.href);
-    const layoutId = url.searchParams.get("layoutId");
-    const dskey = url.searchParams.get("ds.key");
-    console.log("dskey", dskey, "layoutId", layoutId);
-  });
+  // const loadedLayoutId = currentLayoutId;
+  // !!currentLayoutId && currentLayout === currentLayout?.id ? currentLayoutId : undefined;
+  // const projectName = useCoreData(selectedProjectName);
+  // const currentUserName = useCurrentUser(selectUserName);
+  // const currentParent = projectName ?? currentUserName ?? "local";
 
   useEffect(() => {
-    if (loadedLayoutId) {
+    if (loginStatus === "alreadyLogin" && remoteLayoutStorage == undefined) {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    const layoutId = url.searchParams.get("layoutId");
+    // const dskey = url.searchParams.get("ds.key");
+    if (!layoutId) {
+      // void layoutManager.putHistory({
+      //   id: layoutId,
+      // });
+    }
+    // console.log("dskey", dskey, "layoutId", layoutId);
+  }, [loginStatus, remoteLayoutStorage]);
+
+  useEffect(() => {
+    if (currentLayoutId) {
       void layoutManager.putHistory({
-        id: loadedLayoutId,
-        parent: currentParent,
+        id: currentLayoutId,
       });
     }
-  }, [loadedLayoutId, layoutManager, currentParent]);
+  }, [currentLayoutId, layoutManager]);
 }
