@@ -7,6 +7,7 @@
 
 import * as _ from "lodash-es";
 import { useEffect, useMemo } from "react";
+import { useEffectOnce } from "react-use";
 import useAsyncFn, { AsyncState } from "react-use/lib/useAsyncFn";
 
 import Logger from "@foxglove/log";
@@ -94,6 +95,13 @@ export function useCurrentLayout(): {
   const projectName = useCoreData(selectedProjectName);
   const currentUserName = useCurrentUser(selectUserName);
   const currentParent = projectName ?? currentUserName ?? "local";
+
+  useEffectOnce(() => {
+    const url = new URL(window.location.href);
+    const layoutId = url.searchParams.get("layoutId");
+    const dskey = url.searchParams.get("ds.key");
+    console.log("dskey", dskey, "layoutId", layoutId);
+  });
 
   useEffect(() => {
     if (loadedLayoutId) {
