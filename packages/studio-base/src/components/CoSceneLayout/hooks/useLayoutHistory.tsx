@@ -58,7 +58,7 @@ export function useLayoutHistory(): void {
 
   useEffect(() => {
     if (currentLayoutId) {
-      void layoutManager.putHistory({ id: currentLayoutId });
+      // void layoutManager.putHistory({ id: currentLayoutId });
     }
   }, [currentLayoutId, layoutManager]);
 }

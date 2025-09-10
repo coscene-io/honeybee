@@ -158,6 +158,8 @@ export default function CurrentLayoutProvider({
                 },
               );
             });
+
+            void layoutManager.putHistory({ id });
           }
         }
       } catch (error) {
@@ -276,7 +278,7 @@ export default function CurrentLayoutProvider({
 
     const layout = await layoutManager.getHistory();
     if (layout) {
-      await setSelectedLayoutId(layout.id, { saveToProfile: true });
+      await setSelectedLayoutId(layout.id);
       return;
     }
 

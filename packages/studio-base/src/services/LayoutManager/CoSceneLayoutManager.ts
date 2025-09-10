@@ -988,10 +988,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
   }
 
-  #getHistoryParent(): string {
-    return this.projectName ?? this.userName ?? "local";
-  }
-
   public async putHistory({ id }: {
     id: LayoutID;
   }): Promise<void> {
@@ -1001,14 +997,22 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     }
 
     await this.#local.runExclusive(async (local) => {
-      return await local.putHistory({ id, parent: this.#getHistoryParent() });
+      return await local.putHistory({ id, parent: this.projectName ?? this.userName ?? "local" });
     });
   }
 
   public async getHistory(): Promise<Layout | undefined> {
-    const parent = this.#getHistoryParent();
     return await this.#local.runExclusive(async (local) => {
-      return await local.getHistory(parent);
+      const parents = [this.projectName, this.userName, 'local'].filter(Boolean) as string[];
+
+      for (const parent of parents) {
+        const layout = await local.getHistory(parent);
+        if (layout) {
+          return layout;
+        }
+      }
+
+      return undefined;
     });
   }
 }
