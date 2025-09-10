@@ -9,7 +9,7 @@ import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getNodeAtPath } from "react-mosaic-component";
-import { useAsyncFn, useMountedState } from "react-use";
+import { useAsync, useAsyncFn, useMountedState } from "react-use";
 import shallowequal from "shallowequal";
 import { v4 as uuidv4 } from "uuid";
 
@@ -42,6 +42,7 @@ import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
+import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
 import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert";
@@ -260,6 +261,60 @@ export default function CurrentLayoutProvider({
       layoutManager.off("change", listener);
     };
   }, [enqueueSnackbar, layoutManager, setSelectedLayoutId]);
+
+  // Load initial state by re-selecting the last selected layout from the UserProfile.
+  useAsync(async () => {
+    // Don't restore the layout if there's one specified in the app state url.
+    if (windowAppURLState()?.layoutId) {
+      return;
+    }
+
+    // // For some reason, this needs to go before the setSelectedLayoutId, probably some initialization
+    // const { currentLayoutId } = await getUserProfile();
+
+    // // Try to load default layouts, before checking to add the fallback "Default".
+    // await loadDefaultLayouts(layoutManager, loaders);
+
+    // const layouts = await layoutManager.getLayouts();
+
+    // // Check if there's a layout specified by app parameter
+    // const defaultLayoutFromParameters = layouts.find((l) => l.name === appParameters.defaultLayout);
+    // if (defaultLayoutFromParameters) {
+    //   await setSelectedLayoutId(defaultLayoutFromParameters.id, { saveToProfile: true });
+    //   return;
+    // }
+
+    // // It there is a defaultLayout setted but didnt found a layout, show a error to the user
+    // if (appParameters.defaultLayout) {
+    //   enqueueSnackbar(t("noDefaultLayoutParameter", { layoutName: appParameters.defaultLayout }), {
+    //     variant: "warning",
+    //   });
+    // }
+
+    // // Retreive the selected layout id from the user's profile. If there's no layout specified
+    // // or we can't load it then save and select a default layout
+    // const layout = currentLayoutId ? await layoutManager.getLayout(currentLayoutId) : undefined;
+
+    // if (layout) {
+    //   await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
+    //   return;
+    // }
+
+    // if (layouts.length > 0) {
+    //   const sortedLayouts = [...layouts].sort((a, b) => a.name.localeCompare(b.name));
+    //   await setSelectedLayoutId(sortedLayouts[0]!.id);
+    //   return;
+    // }
+
+    // const newLayout = await layoutManager.saveNewLayout({
+    //   name: "Default",
+    //   data: defaultLayout,
+    //   permission: "CREATOR_WRITE",
+    // });
+    // await setSelectedLayoutId(newLayout.id);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutManager, setSelectedLayoutId, enqueueSnackbar]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({
