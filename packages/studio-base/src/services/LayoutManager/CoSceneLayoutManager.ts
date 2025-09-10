@@ -359,10 +359,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           working: undefined,
           syncInfo: this.#remote
             ? {
-              status: "new",
-              lastRemoteSavedAt: undefined,
-              lastRemoteUpdatedAt: undefined,
-            }
+                status: "new",
+                lastRemoteSavedAt: undefined,
+                lastRemoteUpdatedAt: undefined,
+              }
             : undefined,
         }),
     );
@@ -395,8 +395,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       data == undefined
         ? localLayout.working
         : isLayoutEqual(localLayout.baseline.data, data)
-          ? undefined
-          : { data, savedAt: now };
+        ? undefined
+        : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
     if (name != undefined && layoutIsShared(localLayout)) {
@@ -454,20 +454,20 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             // If the name is being changed, we will need to upload to the server with a new savedAt
             baseline: isRename
               ? {
-                ...localLayout.baseline,
-                savedAt: now,
-                // todo: update modifier
-                modifier: localLayout.baseline.modifier,
-                modifierAvatar: localLayout.baseline.modifierAvatar,
-                modifierNickname: localLayout.baseline.modifierNickname,
-              }
+                  ...localLayout.baseline,
+                  savedAt: now,
+                  // todo: update modifier
+                  modifier: localLayout.baseline.modifier,
+                  modifierAvatar: localLayout.baseline.modifierAvatar,
+                  modifierNickname: localLayout.baseline.modifierNickname,
+                }
               : localLayout.baseline,
             syncInfo: isRename
               ? {
-                status: "updated",
-                lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
-                lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
-              }
+                  status: "updated",
+                  lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+                  lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
+                }
               : localLayout.syncInfo,
           }),
       );
@@ -575,10 +575,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             syncInfo:
               this.#remote && localLayout.syncInfo?.status !== "new"
                 ? {
-                  status: "updated",
-                  lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
-                  lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
-                }
+                    status: "updated",
+                    lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+                    lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
+                  }
                 : localLayout.syncInfo,
           }),
       );
@@ -976,10 +976,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
   }
 
-  public async putHistory({ id }: {
-    id: LayoutID;
-  }): Promise<void> {
-    const layout = await this.getLayout({ id })
+  public async putHistory({ id }: { id: LayoutID }): Promise<void> {
+    const layout = await this.getLayout({ id });
     if (!layout) {
       return;
     }
@@ -991,7 +989,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   public async getHistory(): Promise<Layout | undefined> {
     return await this.#local.runExclusive(async (local) => {
-      const parents = [this.projectName, this.userName, 'local'].filter(Boolean) as string[];
+      const parents = [this.projectName, this.userName, "local"].filter(Boolean) as string[];
 
       for (const parent of parents) {
         const layout = await local.getHistory(parent);

@@ -85,7 +85,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   public constructor(
     public readonly namespace: string,
     private api: ConsoleApi,
-  ) { }
+  ) {}
 
   public async getLayouts(parents: string[]): Promise<readonly RemoteLayout[]> {
     try {

@@ -402,16 +402,16 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onShareLayout = useCallbackWithToast(
     async (item: Layout) => {
-      const displayName = await prompt({
+      const name = await prompt({
         title: t("shareDialogTitle"),
         subText: t("shareDialogDescription"),
         initialValue: item.name,
         label: t("layoutName"),
       });
-      if (displayName != undefined) {
+      if (name != undefined) {
         const newLayout = await layoutManager.saveNewLayout({
           folder: item.folder,
-          name: displayName,
+          name,
           data: item.working?.data ?? item.baseline.data,
           permission: "ORG_WRITE",
         });
@@ -501,7 +501,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       userNodes: {},
     };
     const newLayout = await layoutManager.saveNewLayout({
-      folder: "", // todo: get folder
+      folder: "",
       name: displayName,
       data: layoutData,
       permission: "CREATOR_WRITE",
