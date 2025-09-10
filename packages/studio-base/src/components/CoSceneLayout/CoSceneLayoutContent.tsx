@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  Business as BusinessIcon,
+  Work as WorkIcon,
   Folder as FolderIcon,
   Person as PersonIcon,
   Search as SearchIcon,
@@ -69,7 +69,7 @@ const useStyles = makeStyles()((theme) => ({
     flex: 1,
   },
   listItemIcon: {
-    color: "inherit",
+    minWidth: 26,
   },
   folderItem: {
     paddingLeft: theme.spacing(4),
@@ -264,7 +264,7 @@ export function CoSceneLayoutContent({
                     setSelectedFolder({ category: "personal", folder });
                   }}
                 >
-                  <ListItemIcon>
+                  <ListItemIcon className={classes.listItemIcon}>
                     <FolderIcon />
                   </ListItemIcon>
                   <ListItemText
@@ -284,7 +284,7 @@ export function CoSceneLayoutContent({
                 }}
               >
                 <ListItemIcon className={classes.listItemIcon}>
-                  <BusinessIcon />
+                  <WorkIcon />
                 </ListItemIcon>
                 <ListItemText primary={t("projectLayout")} />
               </ListItemButton>
@@ -302,7 +302,7 @@ export function CoSceneLayoutContent({
                     setSelectedFolder({ category: "project", folder });
                   }}
                 >
-                  <ListItemIcon>
+                  <ListItemIcon className={classes.listItemIcon}>
                     <FolderIcon />
                   </ListItemIcon>
                   <ListItemText
