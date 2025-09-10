@@ -48,7 +48,6 @@ export type WorkspaceActions = {
     finishTour: (tour: string) => void;
   };
 
-  openAccountSettings: () => void;
   openPanelSettings: () => void;
 
   layoutDrawer: {
@@ -158,7 +157,7 @@ export function useWorkspaceActions(): WorkspaceActions {
           });
         },
       },
-      openAccountSettings: () => {},
+
       openPanelSettings: () => {
         set((draft) => {
           draft.sidebars.left.item = "panel-settings";
@@ -192,13 +191,6 @@ export function useWorkspaceActions(): WorkspaceActions {
             draft.playbackControls.speed = speed;
           });
         },
-
-        // setSyncInstances: (setter: SetStateAction<boolean>) => {
-        //   set((draft) => {
-        //     const sync = setterValue(setter, draft.playbackControls.syncInstances);
-        //     draft.playbackControls.syncInstances = sync;
-        //   });
-        // },
       },
 
       sidebarActions: {
