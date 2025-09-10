@@ -193,7 +193,7 @@ export class IdbLayoutStorage implements ILayoutStorage {
   }
 
   public async putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory> {
-    await (await this.#db).put("history", { namespace, history });
+    await (await this.#db).put(HISTORY_STORE_NAME, { namespace, history });
     return history;
   }
 }
