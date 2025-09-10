@@ -116,5 +116,5 @@ export interface ILayoutManager {
 
   putHistory(params: { id: LayoutID }): Promise<LayoutHistory>;
 
-  getHistory(params: { parent: string }): Promise<Layout | undefined>;
+  getHistory(): Promise<Layout | undefined>;
 }

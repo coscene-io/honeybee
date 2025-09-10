@@ -269,6 +269,13 @@ export default function CurrentLayoutProvider({
       return;
     }
 
+    const layout = await layoutManager.getHistory();
+    // console.log("getHistory layout", layout);
+    if (layout) {
+      await setSelectedLayoutId(layout.id, { saveToProfile: true });
+      return;
+    }
+
     // // For some reason, this needs to go before the setSelectedLayoutId, probably some initialization
     // const { currentLayoutId } = await getUserProfile();
 

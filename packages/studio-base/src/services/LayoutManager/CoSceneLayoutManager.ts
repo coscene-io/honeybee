@@ -996,7 +996,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
   }
 
-  public async getHistory({ parent }: { parent: string }): Promise<Layout | undefined> {
+  public async getHistory(): Promise<Layout | undefined> {
+    const parent = this.projectName ?? this.userName ?? "local";
+    // console.log("parent", parent, this.projectName, this.userName);
     return await this.#local.runExclusive(async (local) => {
       return await local.getHistory(parent);
     });
