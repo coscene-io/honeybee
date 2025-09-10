@@ -255,18 +255,6 @@ export default React.memo(function LayoutRow({
     onExport(layout);
   }, [layout, onExport]);
 
-  // const recommendedToProjectAction = useCallback(() => {
-  //   if (onRecommendedToProjectLayout) {
-  //     onRecommendedToProjectLayout(layout);
-  //   }
-  // }, [layout, onRecommendedToProjectLayout]);
-
-  // const copyToRecordDefaultAction = useCallback(() => {
-  //   if (onCopyToRecordDefaultLayout) {
-  //     onCopyToRecordDefaultLayout(layout);
-  //   }
-  // }, [layout, onCopyToRecordDefaultLayout]);
-
   const onSubmit = useCallback(
     (event: React.FormEvent) => {
       if (onRename == undefined) {

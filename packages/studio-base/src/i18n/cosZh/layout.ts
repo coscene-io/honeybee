@@ -52,13 +52,6 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   discardTip: "您的更改将被永久删除。且无法撤消。",
   projectRecommandedLayout: "项目推荐布局",
   recordDefaultLayout: "记录推荐布局",
-  removeProjectRecommendedLayout: "移除项目推荐布局",
-  removeRecordRecommendedLayout: "移除记录推荐布局",
-  markAsProjectRecommendedLayout: "标记为项目推荐布局",
-  markAsRecordRecommendedLayout: "标记为记录推荐布局",
-  copyToRecordDefaultLayoutTitle: "复制为记录推荐布局",
-  copyToRecordDefaultLayoutDesc:
-    "将当前布局复制为记录推荐布局, 后续从当前记录进入可视化时会自动加载此布局",
   update: "更新",
   updateRemoteLayoutConfirm: "此操作将会覆盖远程布局，是否继续？",
   notLayoutDesc: "您当前没有选择布局",

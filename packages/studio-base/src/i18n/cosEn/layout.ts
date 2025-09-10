@@ -52,13 +52,6 @@ export const cosLayout = {
   discardTip: "Your changes will be permantly deleted. This cannot be undone.",
   projectRecommandedLayout: "Project preferred",
   recordDefaultLayout: "Record preferred",
-  removeProjectRecommendedLayout: "Remove project preferred",
-  removeRecordRecommendedLayout: "Remove preferred",
-  markAsProjectRecommendedLayout: "Mark as project preferred",
-  markAsRecordRecommendedLayout: "Mark as preferred",
-  copyToRecordDefaultLayoutTitle: "Copy as record preferred",
-  copyToRecordDefaultLayoutDesc:
-    "Copies the current layout as the preferred for the record, which is automatically loaded when the visualisation is subsequently accessed from the current record.",
   update: "Update",
   updateRemoteLayoutConfirm:
     "Your changes will overwrite this layout for all organization members. This cannot be undone.",
