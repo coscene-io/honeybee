@@ -138,9 +138,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.projectName = projectName;
   }
 
-  public setUserName(userName?: string): void {
-    this.userName = userName;
-  }
+  // public setUserName(userName?: string): void {
+  //   this.userName = userName;
+  // }
 
   #getRemoteLayoutParents(): string[] {
     const parents = [];
@@ -178,6 +178,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.supportsSharing = remote != undefined;
 
     if (remote) {
+      this.userName = `users/${remote.namespace}`;
+
       this.#backupLocal = new MutexLocked(
         new NamespacedLayoutStorage(
           new WriteThroughLayoutCache(local),
