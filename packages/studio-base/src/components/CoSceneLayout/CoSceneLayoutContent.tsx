@@ -6,9 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  Work as WorkIcon,
-  Folder as FolderIcon,
-  Person as PersonIcon,
+  BusinessCenterOutlined as BusinessCenterOutlinedIcon,
+  FolderOutlined as FolderOutlinedIcon,
+  PersonOutlined as PersonOutlinedIcon,
   Search as SearchIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
@@ -246,7 +246,7 @@ export function CoSceneLayoutContent({
                 }}
               >
                 <ListItemIcon className={classes.listItemIcon}>
-                  <PersonIcon />
+                  <PersonOutlinedIcon />
                 </ListItemIcon>
                 <ListItemText primary={t("personalLayout")} />
               </ListItemButton>
@@ -265,7 +265,7 @@ export function CoSceneLayoutContent({
                   }}
                 >
                   <ListItemIcon className={classes.listItemIcon}>
-                    <FolderIcon />
+                    <FolderOutlinedIcon />
                   </ListItemIcon>
                   <ListItemText
                     primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
@@ -284,7 +284,7 @@ export function CoSceneLayoutContent({
                 }}
               >
                 <ListItemIcon className={classes.listItemIcon}>
-                  <WorkIcon />
+                  <BusinessCenterOutlinedIcon />
                 </ListItemIcon>
                 <ListItemText primary={t("projectLayout")} />
               </ListItemButton>
@@ -303,7 +303,7 @@ export function CoSceneLayoutContent({
                   }}
                 >
                   <ListItemIcon className={classes.listItemIcon}>
-                    <FolderIcon />
+                    <FolderOutlinedIcon />
                   </ListItemIcon>
                   <ListItemText
                     primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
