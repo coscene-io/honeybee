@@ -83,9 +83,9 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout, users: CoUser[]): Remot
 
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {
   public constructor(
-    public readonly namespace: string, // todo: remove namespace
+    public readonly namespace: string,
     private api: ConsoleApi,
-  ) {}
+  ) { }
 
   public async getLayouts(parents: string[]): Promise<readonly RemoteLayout[]> {
     try {
