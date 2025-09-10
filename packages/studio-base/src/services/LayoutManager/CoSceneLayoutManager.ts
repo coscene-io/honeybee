@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { MutexLocked } from "@foxglove/den/async";
 import Logger from "@foxglove/log";
+import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
@@ -121,6 +122,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   public projectName: string | undefined;
   public userName: string | undefined;
+  #currentUser: User | undefined;
 
   // eslint-disable-next-line @foxglove/no-boolean-parameters
   public setOnline(online: boolean): void {
@@ -152,10 +154,12 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     local,
     remote,
     projectName,
+    currentUser,
   }: {
     local: ILayoutStorage;
     remote: IRemoteLayoutStorage | undefined;
     projectName: string | undefined;
+    currentUser: User | undefined;
   }) {
     this.#local = new MutexLocked(
       new NamespacedLayoutStorage(
@@ -174,6 +178,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.#remote = remote;
     this.projectName = projectName;
     this.supportsSharing = remote != undefined;
+    this.#currentUser = currentUser;
 
     if (remote) {
       this.userName = `users/${remote.namespace}`;
@@ -352,17 +357,17 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           baseline: {
             data,
             savedAt: new Date().toISOString() as ISO8601Timestamp,
-            modifier: undefined,
-            modifierAvatar: undefined,
-            modifierNickname: undefined,
+            modifier: this.#currentUser?.userId ? `users/${this.#currentUser.userId}` : undefined,
+            modifierAvatar: this.#currentUser?.avatarUrl,
+            modifierNickname: this.#currentUser?.nickName,
           },
           working: undefined,
           syncInfo: this.#remote
             ? {
-                status: "new",
-                lastRemoteSavedAt: undefined,
-                lastRemoteUpdatedAt: undefined,
-              }
+              status: "new",
+              lastRemoteSavedAt: undefined,
+              lastRemoteUpdatedAt: undefined,
+            }
             : undefined,
         }),
     );
@@ -395,8 +400,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       data == undefined
         ? localLayout.working
         : isLayoutEqual(localLayout.baseline.data, data)
-        ? undefined
-        : { data, savedAt: now };
+          ? undefined
+          : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
     if (name != undefined && layoutIsShared(localLayout)) {
@@ -454,20 +459,20 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             // If the name is being changed, we will need to upload to the server with a new savedAt
             baseline: isRename
               ? {
-                  ...localLayout.baseline,
-                  savedAt: now,
-                  // todo: update modifier
-                  modifier: localLayout.baseline.modifier,
-                  modifierAvatar: localLayout.baseline.modifierAvatar,
-                  modifierNickname: localLayout.baseline.modifierNickname,
-                }
+                ...localLayout.baseline,
+                savedAt: now,
+                // todo: update modifier
+                modifier: localLayout.baseline.modifier,
+                modifierAvatar: localLayout.baseline.modifierAvatar,
+                modifierNickname: localLayout.baseline.modifierNickname,
+              }
               : localLayout.baseline,
             syncInfo: isRename
               ? {
-                  status: "updated",
-                  lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
-                  lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
-                }
+                status: "updated",
+                lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+                lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
+              }
               : localLayout.syncInfo,
           }),
       );
@@ -575,10 +580,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             syncInfo:
               this.#remote && localLayout.syncInfo?.status !== "new"
                 ? {
-                    status: "updated",
-                    lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
-                    lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
-                  }
+                  status: "updated",
+                  lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+                  lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
+                }
                 : localLayout.syncInfo,
           }),
       );
