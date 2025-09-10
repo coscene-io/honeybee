@@ -269,59 +269,26 @@ export default function CurrentLayoutProvider({
       return;
     }
 
+    // waiting for loading projectName done
+    if (windowAppURLState()?.dsParams?.key && layoutManager.projectName == undefined) {
+      return;
+    }
+
     const layout = await layoutManager.getHistory();
-    // console.log("getHistory layout", layout);
     if (layout) {
       await setSelectedLayoutId(layout.id, { saveToProfile: true });
       return;
     }
 
-    // // For some reason, this needs to go before the setSelectedLayoutId, probably some initialization
-    // const { currentLayoutId } = await getUserProfile();
-
-    // // Try to load default layouts, before checking to add the fallback "Default".
-    // await loadDefaultLayouts(layoutManager, loaders);
-
-    // const layouts = await layoutManager.getLayouts();
-
-    // // Check if there's a layout specified by app parameter
-    // const defaultLayoutFromParameters = layouts.find((l) => l.name === appParameters.defaultLayout);
-    // if (defaultLayoutFromParameters) {
-    //   await setSelectedLayoutId(defaultLayoutFromParameters.id, { saveToProfile: true });
-    //   return;
-    // }
-
-    // // It there is a defaultLayout setted but didnt found a layout, show a error to the user
-    // if (appParameters.defaultLayout) {
-    //   enqueueSnackbar(t("noDefaultLayoutParameter", { layoutName: appParameters.defaultLayout }), {
-    //     variant: "warning",
-    //   });
-    // }
-
-    // // Retreive the selected layout id from the user's profile. If there's no layout specified
-    // // or we can't load it then save and select a default layout
-    // const layout = currentLayoutId ? await layoutManager.getLayout(currentLayoutId) : undefined;
-
-    // if (layout) {
-    //   await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
-    //   return;
-    // }
-
-    // if (layouts.length > 0) {
-    //   const sortedLayouts = [...layouts].sort((a, b) => a.name.localeCompare(b.name));
-    //   await setSelectedLayoutId(sortedLayouts[0]!.id);
-    //   return;
-    // }
-
-    // const newLayout = await layoutManager.saveNewLayout({
-    //   name: "Default",
-    //   data: defaultLayout,
-    //   permission: "CREATOR_WRITE",
-    // });
-    // await setSelectedLayoutId(newLayout.id);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutManager, setSelectedLayoutId, enqueueSnackbar]);
+    const layouts = await layoutManager.getLayouts();
+    if (layouts.length > 0) {
+      const sortedLayouts = [...layouts]
+        .filter((layout) => layout.permission === layoutManager.projectName)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      await setSelectedLayoutId(sortedLayouts[0]!.id);
+      return;
+    }
+  }, [layoutManager, setSelectedLayoutId]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({

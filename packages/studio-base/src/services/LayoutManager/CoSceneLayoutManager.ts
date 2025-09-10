@@ -23,7 +23,6 @@ import {
   ISO8601Timestamp,
   Layout,
   layoutAppearsDeleted,
-  LayoutHistory,
   layoutIsShared,
   LayoutPermission,
   layoutPermissionIsShared,
@@ -152,9 +151,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   public constructor({
     local,
     remote,
+    projectName,
   }: {
     local: ILayoutStorage;
     remote: IRemoteLayoutStorage | undefined;
+    projectName: string | undefined;
   }) {
     this.#local = new MutexLocked(
       new NamespacedLayoutStorage(
@@ -171,6 +172,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       ),
     );
     this.#remote = remote;
+    this.projectName = projectName;
     this.supportsSharing = remote != undefined;
 
     if (remote) {
@@ -986,17 +988,25 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
   }
 
+  #getHistoryParent(): string {
+    return this.projectName ?? this.userName ?? "local";
+  }
+
   public async putHistory({ id }: {
     id: LayoutID;
-  }): Promise<LayoutHistory> {
-    return await this.#local.runExclusive(async (local) => {
-      return await local.putHistory({ id, parent: this.projectName ?? this.userName ?? "local" });
+  }): Promise<void> {
+    const layout = await this.getLayout({ id })
+    if (!layout) {
+      return;
+    }
+
+    await this.#local.runExclusive(async (local) => {
+      return await local.putHistory({ id, parent: this.#getHistoryParent() });
     });
   }
 
   public async getHistory(): Promise<Layout | undefined> {
-    const parent = this.projectName ?? this.userName ?? "local";
-    // console.log("parent", parent, this.projectName, this.userName);
+    const parent = this.#getHistoryParent();
     return await this.#local.runExclusive(async (local) => {
       return await local.getHistory(parent);
     });

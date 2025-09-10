@@ -11,7 +11,6 @@ import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
   Layout,
-  LayoutHistory,
   LayoutPermission,
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
@@ -60,6 +59,9 @@ export interface ILayoutManager {
 
   /** Indicates the error state of the layout manager, if any. */
   readonly error: undefined | Error;
+
+  readonly projectName: string | undefined;
+  readonly userName: string | undefined;
 
   /**
    * Inform the layout manager whether it is online or offline (and remote requests may be expected to fail).
@@ -114,7 +116,7 @@ export interface ILayoutManager {
   /** Transfer a shared layout's working changes into a new personal layout. */
   makePersonalCopy(params: { id: LayoutID; name: string }): Promise<Layout>;
 
-  putHistory(params: { id: LayoutID }): Promise<LayoutHistory>;
+  putHistory(params: { id: LayoutID }): Promise<void>;
 
   getHistory(): Promise<Layout | undefined>;
 }

@@ -41,8 +41,8 @@ export default function CoSceneLayoutManagerProvider({
       : undefined;
 
   const layoutManager = useMemo(
-    () => new LayoutManager({ local: layoutStorage, remote: remoteLayoutStorage }),
-    [layoutStorage, remoteLayoutStorage],
+    () => new LayoutManager({ local: layoutStorage, remote: remoteLayoutStorage, projectName }),
+    [layoutStorage, remoteLayoutStorage, projectName],
   );
 
   const { online = false } = useNetworkState();
@@ -51,10 +51,6 @@ export default function CoSceneLayoutManagerProvider({
   useEffect(() => {
     layoutManager.setOnline(online);
   }, [layoutManager, online]);
-
-  useEffect(() => {
-    layoutManager.setProjectName(projectName);
-  }, [layoutManager, projectName]);
 
   // Sync periodically when logged in, online, and the app is not hidden
   const enableSyncing =
