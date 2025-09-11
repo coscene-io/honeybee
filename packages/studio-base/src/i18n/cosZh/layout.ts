@@ -23,7 +23,7 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   rename: "重命名",
   makeAPersonalCopy: "创建个人副本",
   duplicate: "复制",
-  export: "导出...",
+  export: "导出",
   delete: "删除",
   saveChanges: "保存更改",
   revert: "撤销更改",
