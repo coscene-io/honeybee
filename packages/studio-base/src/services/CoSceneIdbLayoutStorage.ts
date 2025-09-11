@@ -42,9 +42,6 @@ interface LayoutsDB extends IDB.DBSchema {
       namespace: string;
       history: LayoutHistory;
     };
-    // indexes: {
-    //   namespace_parent: [namespace: string, parent: string];
-    // };
   };
 }
 
