@@ -210,7 +210,7 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
     player.setListener(listener);
     return () => {
       cleanupListener();
-      player.close();
+      void player.close();
       dispatch({
         type: "update-player-state",
         playerState: defaultPlayerState(),
