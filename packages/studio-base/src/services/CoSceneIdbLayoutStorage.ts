@@ -19,7 +19,7 @@ import {
 const log = Log.getLogger(__filename);
 
 const DATABASE_NAME = "coScene-layouts";
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 1;
 const OBJECT_STORE_NAME = "layouts";
 const HISTORY_STORE_NAME = "history";
 
