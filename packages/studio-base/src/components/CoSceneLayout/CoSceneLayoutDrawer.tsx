@@ -10,9 +10,9 @@ import { Drawer, DrawerProps, IconButton, Box, Typography } from "@mui/material"
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
-import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
 

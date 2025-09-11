@@ -42,9 +42,9 @@ import { CopyLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout
 import { LayoutTableRow } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRow";
 import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
+import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
-import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 import { RenameLayoutDialog } from "./RenameLayoutDialog";
 

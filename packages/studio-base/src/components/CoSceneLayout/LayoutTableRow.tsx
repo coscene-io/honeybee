@@ -20,8 +20,8 @@ import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
-import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const useStyles = makeStyles()((theme) => ({
   layoutNameCell: {
