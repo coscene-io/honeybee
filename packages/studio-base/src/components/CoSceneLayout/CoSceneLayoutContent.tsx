@@ -118,6 +118,7 @@ const useStyles = makeStyles()((theme) => ({
 export function CoSceneLayoutContent({
   currentLayoutId,
   layouts,
+  supportsEditProject,
   onSelectLayout,
   onDeleteLayout,
   onRenameLayout,
@@ -127,6 +128,7 @@ export function CoSceneLayoutContent({
   onCreateLayout,
 }: {
   currentLayoutId?: LayoutID;
+  supportsEditProject: boolean;
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
@@ -420,6 +422,7 @@ export function CoSceneLayoutContent({
                       key={layout.id}
                       currentLayoutId={currentLayoutId}
                       layout={layout}
+                      supportsEditProject={supportsEditProject}
                       handleMenuOpen={handleMenuOpen}
                       onSelectLayout={onSelectLayout}
                       onOverwriteLayout={onOverwriteLayout}
@@ -444,6 +447,7 @@ export function CoSceneLayoutContent({
           anchorEl={menu.anchorEl}
           handleMenuClose={handleMenuClose}
           layout={menu.layout}
+          supportsEditProject={supportsEditProject}
           onDeleteLayout={onDeleteLayout}
           onExportLayout={onExportLayout}
           handleOpenDialog={handleOpenDialog}

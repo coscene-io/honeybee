@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { MutexLocked } from "@foxglove/den/async";
 import Logger from "@foxglove/log";
-import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { ProjectRoleEnum, ProjectRoleWeight, User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
@@ -82,6 +82,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   #remote: IRemoteLayoutStorage | undefined;
 
   public readonly supportsSharing: boolean;
+  public readonly supportsEditProject: boolean;
 
   #emitter = new EventEmitter<LayoutManagerEventTypes>();
 
@@ -151,11 +152,16 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     remote,
     projectName,
     currentUser,
+    currentUserRole,
   }: {
     local: ILayoutStorage;
     remote: IRemoteLayoutStorage | undefined;
     projectName: string | undefined;
     currentUser: User | undefined;
+    currentUserRole: {
+      organizationRole: number;
+      projectRole: number;
+    };
   }) {
     this.#local = new MutexLocked(
       new NamespacedLayoutStorage(
@@ -176,6 +182,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.supportsSharing = remote != undefined;
     this.#currentUser = currentUser;
     this.userName = currentUser?.userId ? `users/${currentUser.userId}` : undefined;
+    this.supportsEditProject = this.supportsSharing && currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER];
 
     if (remote) {
       this.#backupLocal = new MutexLocked(

@@ -39,6 +39,7 @@ const useStyles = makeStyles()((theme) => ({
 
 interface CoSceneLayoutDrawerProps extends DrawerProps {
   currentLayoutId?: LayoutID;
+  supportsEditProject: boolean;
   onClose: () => void;
   onSelectLayout: (layout: Layout) => Promise<void>;
   onDeleteLayout: (layout: Layout) => Promise<void>;
@@ -60,6 +61,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
   const { classes } = useStyles();
   const {
     currentLayoutId,
+    supportsEditProject,
     open,
     onClose,
     onSelectLayout,
@@ -86,6 +88,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
           <CoSceneLayoutContent
             currentLayoutId={currentLayoutId}
             layouts={layouts}
+            supportsEditProject={supportsEditProject}
             onSelectLayout={onSelectLayout}
             onDeleteLayout={onDeleteLayout}
             onRenameLayout={onRenameLayout}

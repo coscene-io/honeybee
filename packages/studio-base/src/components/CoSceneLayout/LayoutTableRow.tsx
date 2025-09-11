@@ -50,6 +50,7 @@ const useStyles = makeStyles()((theme) => ({
 interface LayoutTableRowProps {
   currentLayoutId?: LayoutID;
   layout: Layout;
+  supportsEditProject: boolean;
   handleMenuOpen: (event: React.MouseEvent<HTMLElement>, layout: Layout) => void;
   onSelectLayout: (layout: Layout) => void;
   onOverwriteLayout: (layout: Layout) => void;
@@ -59,6 +60,7 @@ interface LayoutTableRowProps {
 export function LayoutTableRow({
   currentLayoutId,
   layout,
+  supportsEditProject,
   handleMenuOpen,
   onSelectLayout,
   onOverwriteLayout,
@@ -69,6 +71,7 @@ export function LayoutTableRow({
 
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined;
+  const supportsEdit = supportsEditProject || layout.permission === "CREATOR_WRITE";
 
   const handleUse = () => {
     onSelectLayout(layout);
@@ -87,7 +90,7 @@ export function LayoutTableRow({
       key: "saveChanges",
       text: t("saveChanges"),
       onClick: handleOverwrite,
-      disabled: deletedOnServer,
+      disabled: deletedOnServer || !supportsEdit,
       visible: hasModifications,
     },
     {

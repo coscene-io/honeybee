@@ -20,6 +20,7 @@ export type LayoutActionMenuItem =
       key: string;
       onClick?: (event: React.MouseEvent<HTMLLIElement>) => void;
       disabled?: boolean;
+      visible?: boolean;
       "data-testid"?: string;
     }
   | {
@@ -30,6 +31,7 @@ export type LayoutActionMenuItem =
 export function LayoutTableRowMenu({
   anchorEl,
   layout,
+  supportsEditProject,
   handleMenuClose,
   handleOpenDialog,
   onDeleteLayout,
@@ -37,6 +39,7 @@ export function LayoutTableRowMenu({
 }: {
   anchorEl: HTMLElement | undefined;
   layout: Layout;
+  supportsEditProject: boolean;
   handleMenuClose: () => void;
   handleOpenDialog: (type: "rename" | "copy", layout: Layout) => void;
   onDeleteLayout: (layout: Layout) => void;
@@ -88,12 +91,15 @@ export function LayoutTableRowMenu({
     });
   }, [confirm, layout, t, onDeleteLayout]);
 
+  const visible = supportsEditProject || layout.permission === "CREATOR_WRITE";
+
   const menuItems: LayoutActionMenuItem[] = [
     {
       type: "item",
       key: "rename",
       text: t("rename"),
       onClick: openRenameDialog,
+      visible,
     },
     {
       type: "item",
@@ -117,8 +123,9 @@ export function LayoutTableRowMenu({
       text: t("delete"),
       onClick: confirmDelete,
       "data-testid": "delete-layout",
+      visible,
     },
-  ];
+  ].filter((item) => item.visible ?? true) as LayoutActionMenuItem[];
 
   return (
     <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>

@@ -48,6 +48,9 @@ export interface ILayoutManager {
   /** Indicates whether permissions other than "CREATOR_WRITE" are supported. */
   readonly supportsSharing: boolean;
 
+  /** Indicates whether permissions other than "CREATOR_WRITE" are supported. */
+  readonly supportsEditProject: boolean;
+
   /** Indicates whether the layout manager is currently performing an async operation. */
   readonly isBusy: boolean;
 
