@@ -21,9 +21,22 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
+import { LayoutSelector } from "./LayoutSelector";
+import { ProjectSelector } from "./ProjectSselector";
 import { SelectFolder } from "./SelectFolder";
+
+export type CreateProjectLayoutParams = {
+  folder: string;
+  name: string;
+  permission: LayoutPermission;
+  data?: LayoutData;
+  projectName: string;
+  templateName: string;
+};
 
 const useStyles = makeStyles()({
   dialogContent: {
@@ -37,36 +50,74 @@ export function CopyFromOtherProjectDialog({
   onCreateLayout,
   personalFolders,
   projectFolders,
+  supportsEditProject,
 }: {
   open: boolean;
   onClose: () => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
   personalFolders: string[];
   projectFolders: string[];
+  supportsEditProject: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
 
-  const form = useForm<CreateLayoutParams>({
-    defaultValues: { name: "", folder: "", permission: "CREATOR_WRITE" },
+  const form = useForm<CreateProjectLayoutParams>({
+    defaultValues: { name: "", folder: "", permission: "CREATOR_WRITE", projectName: "" },
   });
 
-  const onSubmit = (data: CreateLayoutParams) => {
+  const onSubmit = (data: CreateProjectLayoutParams) => {
     onCreateLayout({
       folder: data.folder,
       name: data.name,
       permission: data.permission,
+      data: data.data,
     });
     onClose();
   };
 
   const permission = form.watch("permission");
+  const projectName = form.watch("projectName");
 
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{t("copyFromOtherProject")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
+          <Controller
+            control={form.control}
+            rules={{
+              required: true,
+            }}
+            name="projectName"
+            render={({ field, fieldState }) => (
+              <ProjectSelector
+                error={!!fieldState.error}
+                value={field.value}
+                onChange={(projectName) => {
+                  field.onChange(projectName);
+                  form.setValue("data", undefined);
+                }}
+              />
+            )}
+          />
+
+          <Controller
+            control={form.control}
+            name="data"
+            rules={{
+              required: true,
+            }}
+            render={({ field, fieldState }) => (
+              <LayoutSelector
+                key={projectName}
+                projectName={projectName}
+                onChange={field.onChange}
+                error={!!fieldState.error}
+              />
+            )}
+          />
+
           <Controller
             control={form.control}
             name="name"
@@ -96,7 +147,9 @@ export function CopyFromOtherProjectDialog({
               render={({ field }) => (
                 <Select label={t("type")} {...field}>
                   <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
-                  <MenuItem value="ORG_WRITE">{t("projectLayout")}</MenuItem>
+                  <MenuItem value="ORG_WRITE" disabled={!supportsEditProject}>
+                    {t("projectLayout")}
+                  </MenuItem>
                 </Select>
               )}
             />

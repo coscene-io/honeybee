@@ -8,12 +8,20 @@
 import * as IDB from "idb";
 
 import Log from "@foxglove/log";
-import { Layout, LayoutID, ILayoutStorage, migrateLayout } from "@foxglove/studio-base";
+import {
+  Layout,
+  LayoutID,
+  ILayoutStorage,
+  migrateLayout,
+  LayoutHistory,
+} from "@foxglove/studio-base";
 
 const log = Log.getLogger(__filename);
 
 const DATABASE_NAME = "coScene-layouts";
+const DATABASE_VERSION = 1;
 const OBJECT_STORE_NAME = "layouts";
+const HISTORY_STORE_NAME = "history";
 
 interface LayoutsDB extends IDB.DBSchema {
   layouts: {
@@ -28,6 +36,13 @@ interface LayoutsDB extends IDB.DBSchema {
       namespace_parent: [namespace: string, parent: string];
     };
   };
+  history: {
+    key: [namespace: string, parent: string];
+    value: {
+      namespace: string;
+      history: LayoutHistory;
+    };
+  };
 }
 
 /**
@@ -35,18 +50,26 @@ interface LayoutsDB extends IDB.DBSchema {
  * being the tuple of [namespace, id].
  */
 export class IdbLayoutStorage implements ILayoutStorage {
-  #db = IDB.openDB<LayoutsDB>(DATABASE_NAME, 1, {
+  #db = IDB.openDB<LayoutsDB>(DATABASE_NAME, DATABASE_VERSION, {
     upgrade(db, oldVersion) {
-      // Create object store if it doesn't exist (version 1)
-      if (oldVersion < 1) {
+      // Create object store if it doesn't exist
+      if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
         const store = db.createObjectStore(OBJECT_STORE_NAME, {
           keyPath: ["namespace", "layout.parent", "layout.id"],
         });
         store.createIndex("namespace", "namespace");
         store.createIndex("namespace_id", ["namespace", "layout.id"]);
         store.createIndex("namespace_parent", ["namespace", "layout.parent"]);
+      }
 
-        // Clean up the old foxglove-layouts IndexedDB database
+      if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
+        db.createObjectStore(HISTORY_STORE_NAME, {
+          keyPath: ["namespace", "history.parent"],
+        });
+      }
+
+      // Clean up the old foxglove-layouts IndexedDB database (version 1)
+      if (oldVersion < 1) {
         IDB.deleteDB("foxglove-layouts")
           .then(() => {
             log.info("Successfully removed old foxglove-layouts database");
@@ -158,5 +181,20 @@ export class IdbLayoutStorage implements ILayoutStorage {
         log.error(err);
       }
     }
+  }
+
+  public async getHistory(namespace: string, parent: string): Promise<Layout | undefined> {
+    const record = await (await this.#db).get(HISTORY_STORE_NAME, [namespace, parent]);
+    if (record?.history == undefined) {
+      return undefined;
+    }
+
+    const layout = await this.get(namespace, record.history.id);
+    return layout;
+  }
+
+  public async putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory> {
+    await (await this.#db).put(HISTORY_STORE_NAME, { namespace, history });
+    return history;
   }
 }

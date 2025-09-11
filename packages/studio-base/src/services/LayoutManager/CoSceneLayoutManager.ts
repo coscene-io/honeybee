@@ -11,6 +11,11 @@ import { v4 as uuidv4 } from "uuid";
 
 import { MutexLocked } from "@foxglove/den/async";
 import Logger from "@foxglove/log";
+import {
+  ProjectRoleEnum,
+  ProjectRoleWeight,
+  User,
+} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
@@ -81,6 +86,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   #remote: IRemoteLayoutStorage | undefined;
 
   public readonly supportsSharing: boolean;
+  public readonly supportsEditProject: boolean;
 
   #emitter = new EventEmitter<LayoutManagerEventTypes>();
 
@@ -121,6 +127,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   public projectName: string | undefined;
   public userName: string | undefined;
+  #currentUser: User | undefined;
 
   // eslint-disable-next-line @foxglove/no-boolean-parameters
   public setOnline(online: boolean): void {
@@ -131,14 +138,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   public setError(error: undefined | Error): void {
     this.error = error;
     this.#emitter.emit("errorchange");
-  }
-
-  public setProjectName(projectName?: string): void {
-    this.projectName = projectName;
-  }
-
-  public setUserName(userName?: string): void {
-    this.userName = userName;
   }
 
   #getRemoteLayoutParents(): string[] {
@@ -155,9 +154,18 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   public constructor({
     local,
     remote,
+    projectName,
+    currentUser,
+    currentUserRole,
   }: {
     local: ILayoutStorage;
     remote: IRemoteLayoutStorage | undefined;
+    projectName: string | undefined;
+    currentUser: User | undefined;
+    currentUserRole: {
+      organizationRole: number;
+      projectRole: number;
+    };
   }) {
     this.#local = new MutexLocked(
       new NamespacedLayoutStorage(
@@ -174,7 +182,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       ),
     );
     this.#remote = remote;
+    this.projectName = projectName;
     this.supportsSharing = remote != undefined;
+    this.#currentUser = currentUser;
+    this.userName = currentUser?.userId ? `users/${currentUser.userId}` : undefined;
+    this.supportsEditProject =
+      this.supportsSharing &&
+      currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER];
 
     if (remote) {
       this.#backupLocal = new MutexLocked(
@@ -226,18 +240,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         return undefined;
       }
 
-      // todo: check
-      // record recommended layout only show on single record page
-      // so we need to check this record is in this record
-      // if (existingLocal.isRecordRecommended) {
-      //   const remoteLayout = await this.#remote?.getLayout(id);
-
-      //   if (remoteLayout) {
-      //     return existingLocal;
-      //   }
-
-      //   return undefined;
-      // }
       return existingLocal;
     }
 
@@ -363,9 +365,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           baseline: {
             data,
             savedAt: new Date().toISOString() as ISO8601Timestamp,
-            modifier: undefined,
-            modifierAvatar: undefined,
-            modifierNickname: undefined,
+            modifier: this.#currentUser?.userId ? `users/${this.#currentUser.userId}` : undefined,
+            modifierAvatar: this.#currentUser?.avatarUrl,
+            modifierNickname: this.#currentUser?.nickName,
           },
           working: undefined,
           syncInfo: this.#remote
@@ -467,7 +469,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               ? {
                   ...localLayout.baseline,
                   savedAt: now,
-                  // todo: update modifier
                   modifier: localLayout.baseline.modifier,
                   modifierAvatar: localLayout.baseline.modifierAvatar,
                   modifierNickname: localLayout.baseline.modifierNickname,
@@ -577,7 +578,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             baseline: {
               data: localLayout.working?.data ?? localLayout.baseline.data,
               savedAt: now,
-              // todo: update modifier
               modifier: localLayout.baseline.modifier,
               modifierAvatar: localLayout.baseline.modifierAvatar,
               modifierNickname: localLayout.baseline.modifierNickname,
@@ -625,14 +625,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       }
       const newLayout = await local.put({
         id: uuidv4() as LayoutID,
-        parent: "", // todo: get parent
+        parent: "",
         folder: layout.folder,
         name,
         permission: "CREATOR_WRITE",
         baseline: {
           data: layout.working?.data ?? layout.baseline.data,
           savedAt: now,
-          // todo: modifier current user
           modifier: layout.baseline.modifier,
           modifierAvatar: layout.baseline.modifierAvatar,
           modifierNickname: layout.baseline.modifierNickname,
@@ -984,6 +983,32 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           }
         }
       }
+    });
+  }
+
+  public async putHistory({ id }: { id: LayoutID }): Promise<void> {
+    const layout = await this.getLayout({ id });
+    if (!layout) {
+      return;
+    }
+
+    await this.#local.runExclusive(async (local) => {
+      return await local.putHistory({ id, parent: this.projectName ?? this.userName ?? "local" });
+    });
+  }
+
+  public async getHistory(): Promise<Layout | undefined> {
+    return await this.#local.runExclusive(async (local) => {
+      const parents = [this.projectName, this.userName, "local"].filter(Boolean) as string[];
+
+      for (const parent of parents) {
+        const layout = await local.getHistory(parent);
+        if (layout) {
+          return layout;
+        }
+      }
+
+      return undefined;
     });
   }
 }

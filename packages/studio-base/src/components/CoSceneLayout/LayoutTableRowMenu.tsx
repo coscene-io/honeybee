@@ -20,16 +20,19 @@ export type LayoutActionMenuItem =
       key: string;
       onClick?: (event: React.MouseEvent<HTMLLIElement>) => void;
       disabled?: boolean;
+      visible?: boolean;
       "data-testid"?: string;
     }
   | {
       type: "divider";
       key: string;
+      visible?: boolean;
     };
 
 export function LayoutTableRowMenu({
   anchorEl,
   layout,
+  supportsEditProject,
   handleMenuClose,
   handleOpenDialog,
   onDeleteLayout,
@@ -37,6 +40,7 @@ export function LayoutTableRowMenu({
 }: {
   anchorEl: HTMLElement | undefined;
   layout: Layout;
+  supportsEditProject: boolean;
   handleMenuClose: () => void;
   handleOpenDialog: (type: "rename" | "copy", layout: Layout) => void;
   onDeleteLayout: (layout: Layout) => void;
@@ -88,23 +92,29 @@ export function LayoutTableRowMenu({
     });
   }, [confirm, layout, t, onDeleteLayout]);
 
+  const disabled = !supportsEditProject && layout.permission !== "CREATOR_WRITE";
+
   const menuItems: LayoutActionMenuItem[] = [
     {
       type: "item",
       key: "rename",
       text: t("rename"),
+      "data-testid": "rename-layout",
       onClick: openRenameDialog,
+      disabled,
     },
     {
       type: "item",
       key: "copy",
       text: t("copy"),
+      "data-testid": "copy-layout",
       onClick: openCopyDialog,
     },
     {
       type: "item",
       key: "export",
       text: t("export"),
+      "data-testid": "export-layout",
       onClick: exportAction,
     },
     {
@@ -115,8 +125,9 @@ export function LayoutTableRowMenu({
       type: "item",
       key: "delete",
       text: t("delete"),
-      onClick: confirmDelete,
       "data-testid": "delete-layout",
+      onClick: confirmDelete,
+      disabled,
     },
   ];
 

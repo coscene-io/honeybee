@@ -26,27 +26,34 @@ const SYNC_INTERVAL_MAX_MS = 3 * 60_000;
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectUser = (store: UserStore) => store.user;
+const selectUserRole = (store: UserStore) => store.role;
 
 export default function CoSceneLayoutManagerProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const layoutStorage = useLayoutStorage();
   const remoteLayoutStorage = useRemoteLayoutStorage();
-  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
-
   const currentUser = useCurrentUser(selectUser);
+  const currentUserRole = useCurrentUser(selectUserRole);
 
-  const userName = currentUser?.userId ? `users/${currentUser.userId}` : undefined;
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
   const projectName =
     externalInitConfig?.warehouseId && externalInitConfig.projectId
       ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`
       : undefined;
 
   const layoutManager = useMemo(
-    () => new LayoutManager({ local: layoutStorage, remote: remoteLayoutStorage }),
-    [layoutStorage, remoteLayoutStorage],
+    () =>
+      new LayoutManager({
+        local: layoutStorage,
+        remote: remoteLayoutStorage,
+        projectName,
+        currentUser,
+        currentUserRole,
+      }),
+    [layoutStorage, remoteLayoutStorage, projectName, currentUser, currentUserRole],
   );
 
   const { online = false } = useNetworkState();
@@ -55,14 +62,6 @@ export default function CoSceneLayoutManagerProvider({
   useEffect(() => {
     layoutManager.setOnline(online);
   }, [layoutManager, online]);
-
-  useEffect(() => {
-    layoutManager.setProjectName(projectName);
-  }, [layoutManager, projectName]);
-
-  useEffect(() => {
-    layoutManager.setUserName(userName);
-  }, [layoutManager, userName]);
 
   // Sync periodically when logged in, online, and the app is not hidden
   const enableSyncing =

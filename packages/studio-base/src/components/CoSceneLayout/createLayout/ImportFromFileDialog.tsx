@@ -42,12 +42,14 @@ export function ImportFromFileDialog({
   onCreateLayout,
   personalFolders,
   projectFolders,
+  supportsEditProject,
 }: {
   open: boolean;
   onClose: () => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
   personalFolders: string[];
   projectFolders: string[];
+  supportsEditProject: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
@@ -151,7 +153,9 @@ export function ImportFromFileDialog({
               render={({ field }) => (
                 <Select label={t("type")} {...field}>
                   <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
-                  <MenuItem value="ORG_WRITE">{t("projectLayout")}</MenuItem>
+                  <MenuItem value="ORG_WRITE" disabled={!supportsEditProject}>
+                    {t("projectLayout")}
+                  </MenuItem>
                 </Select>
               )}
             />

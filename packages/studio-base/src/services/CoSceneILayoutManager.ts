@@ -48,6 +48,9 @@ export interface ILayoutManager {
   /** Indicates whether permissions other than "CREATOR_WRITE" are supported. */
   readonly supportsSharing: boolean;
 
+  /** Indicates whether permissions other than "CREATOR_WRITE" are supported. */
+  readonly supportsEditProject: boolean;
+
   /** Indicates whether the layout manager is currently performing an async operation. */
   readonly isBusy: boolean;
 
@@ -56,6 +59,9 @@ export interface ILayoutManager {
 
   /** Indicates the error state of the layout manager, if any. */
   readonly error: undefined | Error;
+
+  readonly projectName: string | undefined;
+  readonly userName: string | undefined;
 
   /**
    * Inform the layout manager whether it is online or offline (and remote requests may be expected to fail).
@@ -109,4 +115,8 @@ export interface ILayoutManager {
 
   /** Transfer a shared layout's working changes into a new personal layout. */
   makePersonalCopy(params: { id: LayoutID; name: string }): Promise<Layout>;
+
+  putHistory(params: { id: LayoutID }): Promise<void>;
+
+  getHistory(): Promise<Layout | undefined>;
 }

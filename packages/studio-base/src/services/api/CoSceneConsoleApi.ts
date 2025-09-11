@@ -1182,24 +1182,6 @@ class CoSceneConsoleApi {
     return key.id;
   }
 
-  public async setProjectRecommendedLayouts(
-    layoutIds: LayoutID[],
-    currentProjectId: string,
-  ): Promise<{ status: "success" } | { status: "conflict" }> {
-    const { status } = await this.#patch(
-      `/bff/honeybee/layout/v2/recommend/project/${currentProjectId}`,
-      {
-        layoutIds,
-      },
-    );
-
-    if (status === 200) {
-      return { status: "success" };
-    }
-
-    return { status: "conflict" };
-  }
-
   public async deleteFile(payload: PartialMessage<DeleteFileRequest>): Promise<void> {
     const req = new DeleteFileRequest(payload);
     await getPromiseClient(FileService)

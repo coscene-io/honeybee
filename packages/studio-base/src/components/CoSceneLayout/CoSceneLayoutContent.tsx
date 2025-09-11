@@ -6,9 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  Business as BusinessIcon,
-  Folder as FolderIcon,
-  Person as PersonIcon,
+  BusinessCenterOutlined as BusinessCenterOutlinedIcon,
+  FolderOutlined as FolderOutlinedIcon,
+  PersonOutlined as PersonOutlinedIcon,
   Search as SearchIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
@@ -69,7 +69,7 @@ const useStyles = makeStyles()((theme) => ({
     flex: 1,
   },
   listItemIcon: {
-    color: "inherit",
+    minWidth: 26,
   },
   folderItem: {
     paddingLeft: theme.spacing(4),
@@ -118,6 +118,7 @@ const useStyles = makeStyles()((theme) => ({
 export function CoSceneLayoutContent({
   currentLayoutId,
   layouts,
+  supportsEditProject,
   onSelectLayout,
   onDeleteLayout,
   onRenameLayout,
@@ -127,6 +128,7 @@ export function CoSceneLayoutContent({
   onCreateLayout,
 }: {
   currentLayoutId?: LayoutID;
+  supportsEditProject: boolean;
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
@@ -223,10 +225,6 @@ export function CoSceneLayoutContent({
     return filtered;
   }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery, sortBy, sortOrder]);
 
-  if (!layouts) {
-    return <div>No layouts</div>;
-  }
-
   return (
     <div className={classes.root}>
       <div className={classes.gridContainer}>
@@ -235,8 +233,9 @@ export function CoSceneLayoutContent({
           <Box className={classes.boxPadding}>
             <CreateLayoutButton
               onCreateLayout={onCreateLayout}
-              personalFolders={layouts.personalFolders}
-              projectFolders={layouts.projectFolders}
+              personalFolders={layouts?.personalFolders ?? []}
+              projectFolders={layouts?.projectFolders ?? []}
+              supportsEditProject={supportsEditProject}
             />
           </Box>
 
@@ -250,14 +249,14 @@ export function CoSceneLayoutContent({
                 }}
               >
                 <ListItemIcon className={classes.listItemIcon}>
-                  <PersonIcon />
+                  <PersonOutlinedIcon />
                 </ListItemIcon>
                 <ListItemText primary={t("personalLayout")} />
               </ListItemButton>
             </ListItem>
 
             {/* Personal Layout Folders */}
-            {layouts.personalFolders.map((folder) => (
+            {layouts?.personalFolders.map((folder) => (
               <ListItem key={folder} disablePadding>
                 <ListItemButton
                   className={classes.folderItem}
@@ -268,8 +267,8 @@ export function CoSceneLayoutContent({
                     setSelectedFolder({ category: "personal", folder });
                   }}
                 >
-                  <ListItemIcon>
-                    <FolderIcon />
+                  <ListItemIcon className={classes.listItemIcon}>
+                    <FolderOutlinedIcon />
                   </ListItemIcon>
                   <ListItemText
                     primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
@@ -288,14 +287,14 @@ export function CoSceneLayoutContent({
                 }}
               >
                 <ListItemIcon className={classes.listItemIcon}>
-                  <BusinessIcon />
+                  <BusinessCenterOutlinedIcon />
                 </ListItemIcon>
                 <ListItemText primary={t("projectLayout")} />
               </ListItemButton>
             </ListItem>
 
             {/* Project Layout Folders */}
-            {layouts.projectFolders.map((folder) => (
+            {layouts?.projectFolders.map((folder) => (
               <ListItem key={folder} disablePadding>
                 <ListItemButton
                   className={classes.folderItem}
@@ -306,8 +305,8 @@ export function CoSceneLayoutContent({
                     setSelectedFolder({ category: "project", folder });
                   }}
                 >
-                  <ListItemIcon>
-                    <FolderIcon />
+                  <ListItemIcon className={classes.listItemIcon}>
+                    <FolderOutlinedIcon />
                   </ListItemIcon>
                   <ListItemText
                     primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
@@ -424,6 +423,7 @@ export function CoSceneLayoutContent({
                       key={layout.id}
                       currentLayoutId={currentLayoutId}
                       layout={layout}
+                      supportsEditProject={supportsEditProject}
                       handleMenuOpen={handleMenuOpen}
                       onSelectLayout={onSelectLayout}
                       onOverwriteLayout={onOverwriteLayout}
@@ -436,7 +436,7 @@ export function CoSceneLayoutContent({
 
             {filteredLayouts.length === 0 && (
               <Box className={classes.emptyState}>
-                <Typography color="text.secondary">暂无布局数据</Typography>
+                <Typography color="text.secondary">{t("noData")}</Typography>
               </Box>
             )}
           </Box>
@@ -448,6 +448,7 @@ export function CoSceneLayoutContent({
           anchorEl={menu.anchorEl}
           handleMenuClose={handleMenuClose}
           layout={menu.layout}
+          supportsEditProject={supportsEditProject}
           onDeleteLayout={onDeleteLayout}
           onExportLayout={onExportLayout}
           handleOpenDialog={handleOpenDialog}
@@ -463,8 +464,8 @@ export function CoSceneLayoutContent({
       )}
       {dialog.layout && dialog.type === "copy" && (
         <CopyLayoutDialog
-          personalFolders={layouts.personalFolders}
-          projectFolders={layouts.projectFolders}
+          personalFolders={layouts?.personalFolders ?? []}
+          projectFolders={layouts?.projectFolders ?? []}
           layout={dialog.layout}
           open
           onClose={handleCloseDialog}

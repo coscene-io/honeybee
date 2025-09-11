@@ -7,7 +7,11 @@
 
 import { LazilyInitialized } from "@foxglove/den/async";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { ILayoutStorage, Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import {
+  ILayoutStorage,
+  Layout,
+  LayoutHistory,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 /**
  * A view of ILayoutCache which only calls the underlying list() once per namespace, and implements
@@ -60,8 +64,15 @@ export default class CoSceneWriteThroughLayoutCache implements ILayoutStorage {
   }
 
   public async delete(namespace: string, id: LayoutID): Promise<void> {
-    // TODO: fix parent
     await this.storage.delete(namespace, id);
     (await this.#getOrCreateCache(namespace).get()).delete(id);
+  }
+
+  public async getHistory(namespace: string, parent: string): Promise<Layout | undefined> {
+    return await this.storage.getHistory(namespace, parent);
+  }
+
+  public async putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory> {
+    return await this.storage.putHistory(namespace, history);
   }
 }

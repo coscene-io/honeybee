@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useSnackbar } from "notistack";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
@@ -16,10 +16,15 @@ import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
   useCurrentLayoutActions,
-  // LayoutState,
-  // useCurrentLayoutSelector,
   LayoutID,
+  useCurrentLayoutSelector,
+  LayoutState,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import {
+  useWorkspaceStore,
+  WorkspaceContextStore,
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
@@ -33,9 +38,16 @@ import { useCurrentLayout } from "./hooks/useCurrentLayout";
 
 const log = Logger.getLogger(__filename);
 
+const layoutDrawerOpen = (store: WorkspaceContextStore) => store.layoutDrawer.open;
+const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
+
 export function CoSceneLayoutButton(): React.JSX.Element {
-  const [open, setOpen] = useState(false);
-  const { currentLayoutId, currentLayout, layouts } = useCurrentLayout();
+  const open = useWorkspaceStore(layoutDrawerOpen);
+  const { layoutDrawer } = useWorkspaceActions();
+
+  const layouts = useCurrentLayout();
+  const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
+
   const { enqueueSnackbar } = useSnackbar();
   const analytics = useAnalytics();
   const { t } = useTranslation("cosLayout");
@@ -190,9 +202,9 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       void analytics.logEvent(AppEvent.LAYOUT_SELECT, { permission: item.permission });
       setSelectedLayoutId(item.id);
       dispatch({ type: "select-id", id: item.id });
-      setOpen(false);
+      layoutDrawer.close();
     },
-    [analytics, dispatch, promptForUnsavedChanges, setSelectedLayoutId],
+    [analytics, dispatch, promptForUnsavedChanges, setSelectedLayoutId, layoutDrawer],
   );
 
   const onRenameLayout = useCallbackWithToast(
@@ -316,16 +328,19 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   return (
     <>
       <LayoutButton
-        currentLayout={currentLayout}
+        currentLayoutId={currentLayoutId}
+        layouts={layouts.value}
+        supportsEditProject={layoutManager.supportsEditProject}
         loading={layouts.loading}
-        onClick={() => {
-          setOpen(true);
-        }}
+        onOverwriteLayout={onOverwriteLayout}
+        onRevertLayout={onRevertLayout}
+        onClick={layoutDrawer.open}
       />
       {unsavedChangesPrompt}
       {open && (
         <CoSceneLayoutDrawer
           currentLayoutId={currentLayoutId}
+          supportsEditProject={layoutManager.supportsEditProject}
           open
           layouts={layouts.value}
           onSelectLayout={onSelectLayout}
@@ -335,9 +350,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           onOverwriteLayout={onOverwriteLayout}
           onRevertLayout={onRevertLayout}
           onCreateLayout={onCreateLayout}
-          onClose={() => {
-            setOpen(false);
-          }}
+          onClose={layoutDrawer.close}
         />
       )}
     </>

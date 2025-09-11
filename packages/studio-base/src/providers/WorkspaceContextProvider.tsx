@@ -52,7 +52,7 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
       repeat: false,
       speed: 1,
     },
-    layoutMenu: {
+    layoutDrawer: {
       open: false,
     },
   };

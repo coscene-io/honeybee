@@ -29,7 +29,6 @@ import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoScen
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-// import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   ProjectRoleEnum,
   ProjectRoleWeight,
@@ -37,7 +36,6 @@ import {
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-// import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
@@ -92,7 +90,7 @@ const useStyles = makeStyles()((theme) => {
   };
 });
 
-const selectLayoutMenuOpen = (store: WorkspaceContextStore) => store.layoutMenu.open;
+const selectLayoutMenuOpen = (store: WorkspaceContextStore) => store.layoutDrawer.open;
 export function CoSceneLayoutButton(): React.JSX.Element {
   const menuOpen = useWorkspaceStore(selectLayoutMenuOpen);
   const { classes, cx } = useStyles();
@@ -103,7 +101,9 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     const query = event.target.value;
     setSearchQuery(query);
   }, []);
-  const { layoutActions } = useWorkspaceActions();
+  // const { layoutActions } = useWorkspaceActions();
+  const { layoutDrawer } = useWorkspaceActions();
+
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const { enqueueSnackbar } = useSnackbar();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
@@ -131,14 +131,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     },
     [layoutManager],
     { loading: true },
-  );
-
-  const setMenuOpen = useCallback(
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
-    (open: boolean) => {
-      layoutActions.setOpen(open);
-    },
-    [layoutActions],
   );
 
   useEffect(() => {
@@ -323,7 +315,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       } else {
         setSelectedLayoutId(item.id);
         dispatch({ type: "select-id", id: item.id });
-        setMenuOpen(false);
+        layoutDrawer.close();
       }
     },
     [
@@ -332,7 +324,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       dispatch,
       layouts.value,
       promptForUnsavedChanges,
-      setMenuOpen,
+      layoutDrawer,
       setSelectedLayoutId,
     ],
   );
@@ -408,16 +400,16 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onShareLayout = useCallbackWithToast(
     async (item: Layout) => {
-      const displayName = await prompt({
+      const name = await prompt({
         title: t("shareDialogTitle"),
         subText: t("shareDialogDescription"),
         initialValue: item.name,
         label: t("layoutName"),
       });
-      if (displayName != undefined) {
+      if (name != undefined) {
         const newLayout = await layoutManager.saveNewLayout({
           folder: item.folder,
-          name: displayName,
+          name,
           data: item.working?.data ?? item.baseline.data,
           permission: "ORG_WRITE",
         });
@@ -507,7 +499,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       userNodes: {},
     };
     const newLayout = await layoutManager.saveNewLayout({
-      folder: "", // todo: get folder
+      folder: "",
       name: displayName,
       data: layoutData,
       permission: "CREATOR_WRITE",
@@ -531,8 +523,8 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       key: "importFromFile",
       label: t("importFromFile"),
       onClick: () => {
-        layoutActions.importFromFile();
-        setMenuOpen(false);
+        // layoutActions.importFromFile();
+        layoutDrawer.close();
       },
     },
     { type: "divider" },
@@ -556,7 +548,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       return sortedRemoteLayouts;
     }
 
-    return sortedRemoteLayouts; // todo: check
+    return sortedRemoteLayouts;
     // return sortedRemoteLayouts?.filter(
     //   (layout) => !layout.isProjectRecommended && !layout.isRecordRecommended,
     // );
@@ -569,7 +561,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     // return sortedRemoteLayouts?.filter(
     //   (layout) => layout.isProjectRecommended || layout.isRecordRecommended,
     // );
-    return sortedRemoteLayouts; // todo: check
+    return sortedRemoteLayouts;
   }, [currentUserRole.projectRole, sortedRemoteLayouts]);
 
   return (
@@ -579,19 +571,20 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         title={currentLayouts?.name ?? t("noLayouts")}
         selected={menuOpen}
         onClick={() => {
-          setMenuOpen(!menuOpen);
+          // setMenuOpen(!menuOpen);
+          layoutDrawer.open();
         }}
         ref={anchorEl}
       />
       {promptModal}
       {unsavedChangesPrompt}
-      {layoutActions.unsavedChangesPrompt}
+      {/* {layoutActions.unsavedChangesPrompt} */}
       <Menu
         id="add-panel-menu"
         anchorEl={anchorEl.current}
         open={menuOpen}
         onClose={() => {
-          setMenuOpen(false);
+          layoutDrawer.close();
         }}
         anchorOrigin={{
           horizontal: "right",

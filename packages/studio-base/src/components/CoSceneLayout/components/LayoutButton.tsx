@@ -5,13 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ButtonBase, Typography } from "@mui/material";
+import { Button, ButtonBase, Typography } from "@mui/material";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { APP_BAR_HEIGHT } from "@foxglove/studio-base/components/AppBar/constants";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
+import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
@@ -45,18 +47,42 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 interface LayoutButtonProps {
-  currentLayout?: Layout;
+  currentLayoutId?: LayoutID;
+  supportsEditProject: boolean;
   loading?: boolean;
   onClick: () => void;
+  onOverwriteLayout: (layout: Layout) => void;
+  onRevertLayout: (layout: Layout) => void;
+  layouts?: {
+    personalFolders: string[];
+    projectFolders: string[];
+    personalLayouts: Layout[];
+    projectLayouts: Layout[];
+  };
 }
 
 export function LayoutButton({
-  currentLayout,
+  currentLayoutId,
+  layouts,
+  supportsEditProject,
   loading,
   onClick,
+  onOverwriteLayout,
+  onRevertLayout,
 }: LayoutButtonProps): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
+
+  const currentLayout = useMemo(() => {
+    return [...(layouts?.personalLayouts ?? []), ...(layouts?.projectLayouts ?? [])].find(
+      (layout) => layout.id === currentLayoutId,
+    );
+  }, [layouts, currentLayoutId]);
+
+  const deletedOnServer = currentLayout?.syncInfo?.status === "remotely-deleted";
+  const hasModifications = currentLayout?.working != undefined;
+  const supportsEdit =
+    !!currentLayout && (supportsEditProject || currentLayout.permission === "CREATOR_WRITE");
 
   const getDisplayText = (): string => {
     if (loading === true) {
@@ -74,9 +100,57 @@ export function LayoutButton({
     if (loading === true) {
       return undefined;
     }
-
+    if (currentLayout?.permission === "CREATOR_WRITE") {
+      return t("personalLayout");
+    }
+    if (currentLayout?.permission === "ORG_WRITE" || currentLayout?.permission === "ORG_READ") {
+      return t("projectLayout");
+    }
     return t("layout");
   };
+
+  const handleOverwrite = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+
+      if (!currentLayout) {
+        return;
+      }
+
+      onOverwriteLayout(currentLayout);
+    },
+    [currentLayout, onOverwriteLayout],
+  );
+
+  const handleRevert = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+
+      if (!currentLayout) {
+        return;
+      }
+
+      onRevertLayout(currentLayout);
+    },
+    [currentLayout, onRevertLayout],
+  );
+
+  const buttons = [
+    {
+      key: "saveChanges",
+      text: t("saveChanges"),
+      onClick: handleOverwrite,
+      disabled: deletedOnServer || !supportsEdit,
+      visible: hasModifications,
+    },
+    {
+      key: "revert",
+      text: t("revert"),
+      onClick: handleRevert,
+      disabled: deletedOnServer,
+      visible: hasModifications,
+    },
+  ].filter((button) => button.visible);
 
   return (
     <ButtonBase
@@ -95,6 +169,11 @@ export function LayoutButton({
           <TextMiddleTruncate text={getDisplayText()} />
         </div>
       </Stack>
+      {buttons.map((button) => (
+        <Button key={button.key} onClick={button.onClick} disabled={button.disabled}>
+          {button.text}
+        </Button>
+      ))}
     </ButtonBase>
   );
 }

@@ -64,6 +64,12 @@ export type Layout = {
     | undefined;
 };
 
+export type LayoutHistory = {
+  id: LayoutID;
+  parent: string;
+  savedAt: ISO8601Timestamp | undefined;
+};
+
 export interface ILayoutStorage {
   list(namespace: string): Promise<readonly Layout[]>;
   get(namespace: string, id: LayoutID): Promise<Layout | undefined>;
@@ -80,6 +86,9 @@ export interface ILayoutStorage {
    * The layout manager will call this method to convert any local layouts to personal layouts when logging in.
    */
   importLayouts(params: { fromNamespace: string; toNamespace: string }): Promise<void>;
+
+  getHistory(namespace: string, parent: string): Promise<Layout | undefined>;
+  putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory>;
 }
 
 export function layoutPermissionIsShared(

@@ -24,6 +24,11 @@ import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const useStyles = makeStyles()((theme) => ({
+  layoutNameCell: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+  },
   updaterCell: {
     display: "flex",
     alignItems: "center",
@@ -45,6 +50,7 @@ const useStyles = makeStyles()((theme) => ({
 interface LayoutTableRowProps {
   currentLayoutId?: LayoutID;
   layout: Layout;
+  supportsEditProject: boolean;
   handleMenuOpen: (event: React.MouseEvent<HTMLElement>, layout: Layout) => void;
   onSelectLayout: (layout: Layout) => void;
   onOverwriteLayout: (layout: Layout) => void;
@@ -54,6 +60,7 @@ interface LayoutTableRowProps {
 export function LayoutTableRow({
   currentLayoutId,
   layout,
+  supportsEditProject,
   handleMenuOpen,
   onSelectLayout,
   onOverwriteLayout,
@@ -64,6 +71,7 @@ export function LayoutTableRow({
 
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined;
+  const supportsEdit = supportsEditProject || layout.permission === "CREATOR_WRITE";
 
   const handleUse = () => {
     onSelectLayout(layout);
@@ -82,7 +90,7 @@ export function LayoutTableRow({
       key: "saveChanges",
       text: t("saveChanges"),
       onClick: handleOverwrite,
-      disabled: deletedOnServer,
+      disabled: deletedOnServer || !supportsEdit,
       visible: hasModifications,
     },
     {
@@ -96,17 +104,20 @@ export function LayoutTableRow({
       key: "use",
       text: t("use"),
       onClick: handleUse,
-      visible: true,
     },
-  ].filter((button) => button.visible);
+  ].filter((button) => button.visible ?? true);
 
   const savedAt = layout.baseline.savedAt;
 
   return (
     <TableRow key={layout.id} hover>
       <TableCell>
-        {layout.name}
-        {currentLayoutId === layout.id && <Chip size="small" color="success" label={t("inUse")} />}
+        <Box className={classes.layoutNameCell}>
+          {layout.name}
+          {currentLayoutId === layout.id && (
+            <Chip size="small" color="success" label={t("inUse")} />
+          )}
+        </Box>
       </TableCell>
       <TableCell>{savedAt ? dayjs(savedAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</TableCell>
       <TableCell>
