@@ -19,7 +19,7 @@ import {
 const log = Log.getLogger(__filename);
 
 const DATABASE_NAME = "coScene-layouts";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 const OBJECT_STORE_NAME = "layouts";
 const HISTORY_STORE_NAME = "history";
 
@@ -52,16 +52,24 @@ interface LayoutsDB extends IDB.DBSchema {
 export class IdbLayoutStorage implements ILayoutStorage {
   #db = IDB.openDB<LayoutsDB>(DATABASE_NAME, DATABASE_VERSION, {
     upgrade(db, oldVersion) {
-      // Create object store if it doesn't exist (version 1)
-      if (oldVersion < 1) {
+      // Create object store if it doesn't exist
+      if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
         const store = db.createObjectStore(OBJECT_STORE_NAME, {
           keyPath: ["namespace", "layout.parent", "layout.id"],
         });
         store.createIndex("namespace", "namespace");
         store.createIndex("namespace_id", ["namespace", "layout.id"]);
         store.createIndex("namespace_parent", ["namespace", "layout.parent"]);
+      }
 
-        // Clean up the old foxglove-layouts IndexedDB database
+      if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
+        db.createObjectStore(HISTORY_STORE_NAME, {
+          keyPath: ["namespace", "history.parent"],
+        });
+      }
+
+      // Clean up the old foxglove-layouts IndexedDB database (version 1)
+      if (oldVersion < 1) {
         IDB.deleteDB("foxglove-layouts")
           .then(() => {
             log.info("Successfully removed old foxglove-layouts database");
@@ -69,10 +77,6 @@ export class IdbLayoutStorage implements ILayoutStorage {
           .catch((error: unknown) => {
             log.warn("Failed to remove old foxglove-layouts database:", error);
           });
-
-        db.createObjectStore(HISTORY_STORE_NAME, {
-          keyPath: ["namespace", "history.parent"],
-        });
       }
     },
   });
