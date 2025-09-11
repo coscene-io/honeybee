@@ -37,4 +37,5 @@ export const cosWebsocket = {
   switchToRealTime: "Switch to real-time mode",
   realTimeVizPlayback: "Real-time visualisation playback",
   switchToRealTimeFromPlayback: "Exit playback, view real-time view",
+  noCacheSetPrompt: "No cache duration set, <ToSettings>Go to Settings</ToSettings>",
 };

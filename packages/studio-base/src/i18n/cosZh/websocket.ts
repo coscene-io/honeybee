@@ -36,4 +36,5 @@ export const cosWebsocket: Partial<TypeOptions["resources"]["cosWebsocket"]> = {
   switchToRealTime: "切换为实时模式",
   realTimeVizPlayback: "实时可视化回放",
   switchToRealTimeFromPlayback: "退出回放，查看实时视图",
+  noCacheSetPrompt: "目前暂未设置缓存时长，<ToSettings>前往设置</ToSettings>",
 };
