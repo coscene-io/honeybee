@@ -14,7 +14,7 @@ import { APP_BAR_HEIGHT } from "@foxglove/studio-base/components/AppBar/constant
 import Stack from "@foxglove/studio-base/components/Stack";
 import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
   textTruncate: {
@@ -103,10 +103,7 @@ export function LayoutButton({
     if (currentLayout?.permission === "PERSONAL_WRITE") {
       return t("personalLayout");
     }
-    if (
-      currentLayout?.permission === "PROJECT_WRITE" ||
-      currentLayout?.permission === "PROJECT_READ"
-    ) {
+    if (currentLayout && layoutIsProject(currentLayout)) {
       return t("projectLayout");
     }
     return t("layout");

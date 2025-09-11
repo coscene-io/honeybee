@@ -40,6 +40,7 @@ export interface IRemoteLayoutStorage {
    * layouts on disk.
    */
   readonly namespace: string;
+  readonly projectWritePermission: boolean;
 
   getLayouts: (parents: string[]) => Promise<readonly RemoteLayout[]>;
 

@@ -395,11 +395,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-    orgPermissionList: [],
-    projectPermissionList: [],
-    orgDenyList: [],
-    projectDenyList: [],
-  };
+      orgPermissionList: [],
+      projectPermissionList: [],
+      orgDenyList: [],
+      projectDenyList: [],
+    };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -567,6 +567,22 @@ class CoSceneConsoleApi {
     },
   );
 
+  // TODO: This is a temporary method to create a project layout, wating for the new API to be released
+  public createProjectLayout = Object.assign(
+    async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
+      const req = new CreateLayoutRequest({
+        parent,
+        layout,
+      });
+      return await getPromiseClient(LayoutService).createLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.CreateLayout, this.#permissionList);
+      },
+    },
+  );
+
   public updateLayout = Object.assign(
     async ({ layout, updateMask }: { layout: Layout; updateMask?: FieldMask }): Promise<Layout> => {
       const req = new UpdateLayoutRequest({
@@ -604,8 +620,8 @@ class CoSceneConsoleApi {
       customHost != undefined && customHost
         ? url
         : url.startsWith("/bff")
-        ? `${this.#bffUrl}${url}`
-        : `${this.#baseUrl}${url}`;
+          ? `${this.#bffUrl}${url}`
+          : `${this.#baseUrl}${url}`;
 
     const fullConfig: RequestInit = {
       ...config,
