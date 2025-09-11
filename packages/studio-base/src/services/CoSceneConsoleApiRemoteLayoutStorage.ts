@@ -25,7 +25,6 @@ import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
 
-// type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE"; // old
 type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
 
 // Convert gRPC Layout to RemoteLayout
