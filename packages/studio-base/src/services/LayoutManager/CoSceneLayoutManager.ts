@@ -175,10 +175,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.projectName = projectName;
     this.supportsSharing = remote != undefined;
     this.#currentUser = currentUser;
+    this.userName = currentUser?.userId ? `users/${currentUser.userId}` : undefined;
 
     if (remote) {
-      this.userName = `users/${remote.namespace}`;
-
       this.#backupLocal = new MutexLocked(
         new NamespacedLayoutStorage(
           new WriteThroughLayoutCache(local),
