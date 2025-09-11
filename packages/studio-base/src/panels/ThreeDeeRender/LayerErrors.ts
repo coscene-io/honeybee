@@ -81,7 +81,7 @@ export class LayerErrors extends EventEmitter<LayerErrorEvents> {
     // Onlu log the first error message per path+id for performance
     const prevErrorMessage = node.errorsById.get(errorId);
     if (prevErrorMessage == undefined) {
-      log.warn(`[${path.join(" > ")}] ${errorMessage}`);
+      // log.warn(`[${path.join(" > ")}] ${errorMessage}`);
     }
 
     // Add or update the error

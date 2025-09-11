@@ -102,8 +102,8 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #appendFlushPromise: Promise<void> | undefined = undefined;
 
   // Tuning knobs for batching and memory safety
-  #appendBatchMaxSize = 500; // max events per transaction
-  #appendBatchMaxDelayMs = 100; // max delay before flushing a non-empty batch
+  #appendBatchMaxSize = 1000; // max events per transaction
+  #appendBatchMaxDelayMs = 200; // max delay before flushing a non-empty batch
 
   public constructor(options: IndexedDbMessageStoreOptions = {}) {
     const {
