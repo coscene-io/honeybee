@@ -50,7 +50,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-interface LayoutButtonProps {
+interface CurrentLayoutButtonProps {
   currentLayoutId?: LayoutID;
   loading?: boolean;
   onClick: () => void;
@@ -64,14 +64,14 @@ interface LayoutButtonProps {
   };
 }
 
-export function LayoutButton({
+export function CurrentLayoutButton({
   currentLayoutId,
   layouts,
   loading,
   onClick,
   onOverwriteLayout,
   onRevertLayout,
-}: LayoutButtonProps): React.JSX.Element {
+}: CurrentLayoutButtonProps): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
 
