@@ -1693,13 +1693,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#preFetchAssetRequests.clear();
     this.#parameterTypeByName.clear();
     this.#messageSizeEstimateByTopic = {};
-
-    // Clear persistent cache on session reset
-    if (this.#persistentCache) {
-      void this.#persistentCache.clear().catch((error: unknown) => {
-        log.debug("Failed to clear persistent cache:", error);
-      });
-    }
   }
 
   #updateDataTypes(datatypes: MessageDefinitionMap): void {

@@ -91,9 +91,19 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #seqBySession = new Map<string, number>();
   #currentSessionId: string;
   #initialized = false;
+  #closed = false; // Track if the store has been closed
   #lastPruneTime?: number;
   #pruneIntervalMs: number = 1 * 1000; // Prune every 1 second
   #messageCount = 0;
+  // Batched append queue to avoid unbounded concurrent writes
+  #appendQueue: MessageEvent[] = [];
+  #appendFlushTimer: NodeJS.Timeout | undefined = undefined;
+  #appendFlushInFlight = false;
+  #appendFlushPromise: Promise<void> | undefined = undefined;
+
+  // Tuning knobs for batching and memory safety
+  #appendBatchMaxSize = 1000; // max events per transaction
+  #appendBatchMaxDelayMs = 200; // max delay before flushing a non-empty batch
 
   public constructor(options: IndexedDbMessageStoreOptions = {}) {
     const {
@@ -106,7 +116,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#maxCacheSize = maxCacheSize;
     this.#currentSessionId = sessionId;
 
-    console.debug("debug open db", DB_NAME, sessionId);
+    log.debug("Opening database", { dbName: DB_NAME, sessionId });
     this.#dbPromise = IDB.openDB<MessagesDB>(DB_NAME, 1, {
       upgrade(db) {
         const store = db.createObjectStore(STORE, {
@@ -236,10 +246,15 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
       // Clean up messages
       const messageStore = tx.objectStore(STORE);
-      const messageIndex = messageStore.index("bySession");
-      for await (const cursor of messageIndex.iterate(sessionId)) {
-        await cursor.delete();
-      }
+      // Use a single range delete on the primary key to remove all
+      // messages for the session, which is significantly faster than
+      // deleting per-cursor.
+      await messageStore.delete(
+        IDBKeyRange.bound(
+          [sessionId, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER],
+          [sessionId, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+        ),
+      );
 
       // Clean up datatypes
       const datatypesStore = tx.objectStore(DATATYPES_STORE);
@@ -293,87 +308,162 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       return;
     }
 
-    const db = await this.#dbPromise;
-    const tx = db.transaction([STORE, SESSIONS_STORE], "readwrite");
-    const store = tx.objectStore(STORE);
-    const sessionsStore = tx.objectStore(SESSIONS_STORE);
-
-    const sessionId = this.#currentSessionId;
-    let seq = this.#seqBySession.get(sessionId) ?? 0;
-    let latestTime: Time | undefined;
-
-    for (const ev of events) {
-      latestTime =
-        latestTime == undefined || isGreaterThan(ev.receiveTime, latestTime)
-          ? ev.receiveTime
-          : latestTime;
-      const value = sanitizeEvent(sessionId, seq++, ev);
-      await store.put(value);
+    // Check if store has been closed
+    if (this.#closed) {
+      log.debug("Skipping append - store has been closed");
+      return;
     }
-    this.#seqBySession.set(sessionId, seq);
 
-    this.#messageCount += events.length;
+    this.#appendQueue.push(...events);
 
-    // Update session last active time
-    try {
-      const sessionData = await sessionsStore.get(sessionId);
-      if (sessionData) {
-        sessionData.lastActiveAt = Date.now();
-        await sessionsStore.put(sessionData);
+    // Schedule a flush if not already scheduled
+    if (this.#appendFlushTimer == undefined) {
+      this.#appendFlushTimer = setTimeout(() => {
+        this.#appendFlushTimer = undefined;
+        void this.#flushAppends();
+      }, this.#appendBatchMaxDelayMs);
+    }
+
+    // If queue is large, trigger an immediate flush without waiting for the timer
+    if (this.#appendQueue.length >= this.#appendBatchMaxSize) {
+      // Coalesce by running flush soon in microtask if nothing in flight
+      if (!this.#appendFlushInFlight) {
+        // Clear any pending timer; we will flush now
+        clearTimeout(this.#appendFlushTimer);
+        this.#appendFlushTimer = undefined;
+        this.#appendFlushPromise = this.#flushAppends();
       }
-    } catch (error) {
-      // Don't fail the append if session update fails
-      log.debug("Failed to update session lastActiveAt:", error);
     }
 
-    await tx.done;
+    // Return a promise that resolves when the next flush (that includes these events) completes
+    await (this.#appendFlushPromise ?? Promise.resolve());
+  }
 
-    // Pruning - check both retention window and cache size limits
-    // Use interval-based pruning to avoid pruning on every append for performance
-    const now = Date.now();
-    const shouldPrune =
-      this.#lastPruneTime == undefined || now - this.#lastPruneTime >= this.#pruneIntervalMs;
+  // Flush a batch of queued events to IndexedDB, performing pruning as needed
+  async #flushAppends(): Promise<void> {
+    if (this.#appendFlushInFlight) {
+      // Another flush is running; let it handle queued events
+      await (this.#appendFlushPromise ?? Promise.resolve());
+      return;
+    }
 
-    if (latestTime != undefined && shouldPrune) {
+    // Check if store has been closed
+    if (this.#closed) {
+      log.debug("Skipping flush - store has been closed");
+      return;
+    }
+
+    this.#appendFlushInFlight = true;
+    try {
+      // Drain up to batch size; leave remainder for subsequent flushes
+      const batch = this.#appendQueue.splice(0, this.#appendBatchMaxSize);
+
+      if (batch.length === 0) {
+        return;
+      }
+
+      const db = await this.#dbPromise;
+
+      // Double-check that store hasn't been closed while awaiting db (runtime state)
+      // eslint-disable-next-line
+      if (this.#closed) {
+        log.debug("Store closed during flush operation, aborting");
+        return;
+      }
+
+      const tx = db.transaction([STORE, SESSIONS_STORE], "readwrite");
+      const store = tx.objectStore(STORE);
+      const sessionsStore = tx.objectStore(SESSIONS_STORE);
+
+      const sessionId = this.#currentSessionId;
+      let seq = this.#seqBySession.get(sessionId) ?? 0;
+      let latestTime: Time | undefined;
+
+      for (const ev of batch) {
+        latestTime =
+          latestTime == undefined || isGreaterThan(ev.receiveTime, latestTime)
+            ? ev.receiveTime
+            : latestTime;
+        const value = sanitizeEvent(sessionId, seq++, ev);
+        void store.put(value);
+      }
+      this.#seqBySession.set(sessionId, seq);
+
+      this.#messageCount += batch.length;
+
+      // Update session last active time
       try {
-        // Check current storage usage
-        const currentStorageUsage = await getCurrentStorageUsage();
-        const isCacheSizeExceeded = currentStorageUsage > this.#maxCacheSize;
+        const sessionData = await sessionsStore.get(sessionId);
+        if (sessionData) {
+          sessionData.lastActiveAt = Date.now();
+          await sessionsStore.put(sessionData);
+        }
+      } catch (error) {
+        // Don't fail the append if session update fails
+        log.debug("Failed to update session lastActiveAt:", error);
+      }
 
-        let totalPrunedCount = 0;
+      await tx.done;
 
-        // Time-based pruning
-        const retentionWindowMsTime = fromMillis(this.#retentionWindowMs);
+      // Pruning - check both retention window and cache size limits
+      // Use interval-based pruning to avoid pruning on every append for performance
+      const now = Date.now();
+      const shouldPrune =
+        this.#lastPruneTime == undefined || now - this.#lastPruneTime >= this.#pruneIntervalMs;
 
-        const cutoff = subtract(latestTime, retentionWindowMsTime);
+      if (latestTime != undefined && shouldPrune) {
+        try {
+          // Check current storage usage
+          const currentStorageUsage = await getCurrentStorageUsage();
+          const isCacheSizeExceeded = currentStorageUsage > this.#maxCacheSize;
 
-        totalPrunedCount += await this.#pruneBeforeTime(this.#currentSessionId, cutoff);
+          let totalPrunedCount = 0;
 
-        // If cache size is still exceeded after time-based pruning, do size-based pruning
-        if (isCacheSizeExceeded) {
-          const currentStorageAfterTimePrune = await getCurrentStorageUsage();
-          if (currentStorageAfterTimePrune > this.#maxCacheSize) {
-            totalPrunedCount += await this.#pruneOldestUntilSize(
-              this.#currentSessionId,
-              this.#maxCacheSize * 0.9, // Prune to 90% of max to avoid frequent pruning
+          // Time-based pruning
+          const retentionWindowMsTime = fromMillis(this.#retentionWindowMs);
+          const cutoff = subtract(latestTime, retentionWindowMsTime);
+          totalPrunedCount += await this.#pruneBeforeTime(this.#currentSessionId, cutoff);
+
+          // If cache size is still exceeded after time-based pruning, do size-based pruning
+          if (isCacheSizeExceeded) {
+            const currentStorageAfterTimePrune = await getCurrentStorageUsage();
+            if (currentStorageAfterTimePrune > this.#maxCacheSize) {
+              totalPrunedCount += await this.#pruneOldestUntilSize(
+                this.#currentSessionId,
+                this.#maxCacheSize * 0.9, // Prune to 90% of max to avoid frequent pruning
+              );
+            }
+          }
+
+          // Update counters
+          this.#messageCount -= totalPrunedCount;
+          this.#lastPruneTime = now;
+
+          if (totalPrunedCount > 0) {
+            const finalStorageUsage = await getCurrentStorageUsage();
+            log.debug(
+              `Pruned ${totalPrunedCount} messages, storage usage: ${Math.round(
+                finalStorageUsage / 1024 / 1024,
+              )}MB (limit: ${Math.round(this.#maxCacheSize / 1024 / 1024)}MB)`,
             );
           }
+        } catch (err) {
+          log.debug("append: pruning failed", err);
         }
-
-        // Update counters
-        this.#messageCount -= totalPrunedCount;
-        this.#lastPruneTime = now;
-
-        if (totalPrunedCount > 0) {
-          const finalStorageUsage = await getCurrentStorageUsage();
-          log.debug(
-            `Pruned ${totalPrunedCount} messages, storage usage: ${Math.round(
-              finalStorageUsage / 1024 / 1024,
-            )}MB (limit: ${Math.round(this.#maxCacheSize / 1024 / 1024)}MB)`,
-          );
-        }
-      } catch (err) {
-        log.debug("append: pruning failed", err);
+      }
+    } finally {
+      this.#appendFlushInFlight = false;
+      // If more events queued up during the flush, schedule the next flush soon
+      if (this.#appendQueue.length > 0) {
+        // Use a micro-delay to yield to the event loop
+        this.#appendFlushTimer = setTimeout(() => {
+          this.#appendFlushTimer = undefined;
+          void this.#flushAppends().catch((error: unknown) => {
+            console.error("Error flushing appends:", error);
+          });
+        }, this.#appendBatchMaxDelayMs);
+      } else {
+        this.#appendFlushPromise = undefined;
       }
     }
   }
@@ -383,14 +473,13 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const db = await this.#dbPromise;
     const tx = db.transaction(STORE, "readwrite");
     const index = tx.store.index("bySessionTime");
-    const upper = IDBKeyRange.upperBound([sessionId, cutoff.sec, cutoff.nsec], true);
+    const upper = IDBKeyRange.bound(
+      [sessionId, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER],
+      [sessionId, cutoff.sec, cutoff.nsec],
+    );
 
-    let deletedCount = 0;
-
-    for await (const cursor of index.iterate(upper)) {
-      await cursor.delete();
-      deletedCount++;
-    }
+    const deletedCount = await index.count(upper);
+    await tx.store.delete(upper);
 
     await tx.done;
     return deletedCount;
@@ -413,13 +502,26 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
       let batchDeletedCount = 0;
 
-      // Delete a batch of messages
+      // Seek the first BATCH_SIZE items and determine the upper primary key.
+      // Then perform a single range delete up to that primary key.
+      let lastPrimaryKey: IDBValidKey | undefined;
       for await (const cursor of index.iterate(range)) {
-        await cursor.delete();
+        lastPrimaryKey = cursor.primaryKey;
         batchDeletedCount++;
         if (batchDeletedCount >= BATCH_SIZE) {
           break;
         }
+      }
+
+      if (batchDeletedCount > 0 && lastPrimaryKey != undefined) {
+        const lowerPk: [string, number, number, number] = [
+          sessionId,
+          Number.MIN_SAFE_INTEGER,
+          Number.MIN_SAFE_INTEGER,
+          Number.MIN_SAFE_INTEGER,
+        ];
+        // Use one delete call per batch for efficiency
+        await tx.store.delete(IDBKeyRange.bound(lowerPk, lastPrimaryKey));
       }
 
       await tx.done;
@@ -446,9 +548,21 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     topics?: readonly string[];
     limit?: number;
   }): Promise<readonly MessageEvent[]> {
+    if (this.#closed) {
+      log.debug("Skipping getMessages - store has been closed");
+      return [];
+    }
+
     const { start, end, topics, limit } = params;
     const sessionId = this.#currentSessionId;
     const db = await this.#dbPromise;
+
+    // Double-check that store hasn't been closed while awaiting db (runtime state)
+    // eslint-disable-next-line
+    if (this.#closed) {
+      return [];
+    }
+
     const tx = db.transaction(STORE, "readonly");
     const index = tx.store.index("bySessionTime");
     const range = IDBKeyRange.bound(
@@ -478,9 +592,21 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     time: Time;
     topics: readonly string[];
   }): Promise<readonly MessageEvent[]> {
+    if (this.#closed) {
+      log.debug("Skipping getBackfillMessages - store has been closed");
+      return [];
+    }
+
     const { time, topics } = params;
     const sessionId = this.#currentSessionId;
     const db = await this.#dbPromise;
+
+    // Double-check that store hasn't been closed while awaiting db (runtime state)
+    // eslint-disable-next-line
+    if (this.#closed) {
+      return [];
+    }
+
     const tx = db.transaction(STORE, "readonly");
     const index = tx.store.index("bySessionTopicTime");
 
@@ -509,13 +635,30 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   }
 
   public async clear(): Promise<void> {
+    if (this.#closed) {
+      log.debug("Skipping clear - store has been closed");
+      return;
+    }
+
     await this.#cleanupSessionData(this.#currentSessionId);
     this.#seqBySession.delete(this.#currentSessionId);
     this.#messageCount = 0; // Reset message count for current session
   }
 
   public async clearAll(): Promise<void> {
+    if (this.#closed) {
+      log.debug("Skipping clearAll - store has been closed");
+      return;
+    }
+
     const db = await this.#dbPromise;
+
+    // Double-check that store hasn't been closed while awaiting db (runtime state)
+    // eslint-disable-next-line
+    if (this.#closed) {
+      return;
+    }
+
     const tx = db.transaction([STORE, DATATYPES_STORE, SESSIONS_STORE], "readwrite");
     await tx.objectStore(STORE).clear();
     await tx.objectStore(DATATYPES_STORE).clear();
@@ -527,8 +670,27 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   }
 
   public async close(): Promise<void> {
+    // Mark store as closed first to prevent new operations
+    this.#closed = true;
+
+    // Best-effort flush of any pending events before closing
+    try {
+      if (this.#appendFlushTimer != undefined) {
+        clearTimeout(this.#appendFlushTimer);
+        this.#appendFlushTimer = undefined;
+      }
+      if (this.#appendQueue.length > 0) {
+        await this.#flushAppends();
+      }
+    } catch (error) {
+      log.debug("Error flushing pending events on close:", error);
+    }
+
+    // Clear any remaining queued events
+    this.#appendQueue.length = 0;
+
     const db = await this.#dbPromise;
-    console.debug("debug close db", DB_NAME, this.#currentSessionId);
+    log.debug("Closing database", { dbName: DB_NAME, sessionId: this.#currentSessionId });
     db.close();
   }
 
@@ -538,8 +700,20 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     latest?: Time;
     approximateSizeBytes?: number;
   }> {
+    if (this.#closed) {
+      log.debug("Skipping stats - store has been closed");
+      return { count: 0 };
+    }
+
     const sessionId = this.#currentSessionId;
     const db = await this.#dbPromise;
+
+    // Double-check that store hasn't been closed while awaiting db (runtime state)
+    // eslint-disable-next-line
+    if (this.#closed) {
+      return { count: 0 };
+    }
+
     const tx = db.transaction(STORE, "readonly");
     const index = tx.store.index("bySessionTime");
     const lower = IDBKeyRange.lowerBound([
@@ -701,7 +875,19 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
    * Store datatypes information for this session
    */
   public async storeDatatypes(datatypes: RosDatatypes): Promise<void> {
+    if (this.#closed) {
+      log.debug("Skipping storeDatatypes - store has been closed");
+      return;
+    }
+
     const db = await this.#dbPromise;
+
+    // Double-check that store hasn't been closed while awaiting db (runtime state)
+    // eslint-disable-next-line
+    if (this.#closed) {
+      return;
+    }
+
     const tx = db.transaction(DATATYPES_STORE, "readwrite");
     const store = tx.objectStore(DATATYPES_STORE);
 
@@ -723,7 +909,19 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
    * Retrieve datatypes information for this session
    */
   public async getDatatypes(): Promise<RosDatatypes | undefined> {
+    if (this.#closed) {
+      log.debug("Skipping getDatatypes - store has been closed");
+      return undefined;
+    }
+
     const db = await this.#dbPromise;
+
+    // Double-check that store hasn't been closed while awaiting db (runtime state)
+    // eslint-disable-next-line
+    if (this.#closed) {
+      return undefined;
+    }
+
     const tx = db.transaction(DATATYPES_STORE, "readonly");
     const store = tx.objectStore(DATATYPES_STORE);
 

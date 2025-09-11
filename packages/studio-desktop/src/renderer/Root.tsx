@@ -30,7 +30,7 @@ import {
   ConsoleApi,
   CoSceneDataPlatformDataSourceFactory,
   SharedProviders,
-  // PersistentCacheDataSourceFactory,
+  PersistentCacheDataSourceFactory,
 } from "@foxglove/studio-base";
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
@@ -143,7 +143,7 @@ export default function Root(props: {
       new SampleNuscenesDataSourceFactory(),
       new McapLocalDataSourceFactory(),
       new RemoteDataSourceFactory(),
-      // new PersistentCacheDataSourceFactory(),
+      new PersistentCacheDataSourceFactory(),
     ];
 
     return sources;
