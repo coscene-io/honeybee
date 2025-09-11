@@ -53,5 +53,5 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   retentionWindowMs: "实时可视化缓存时长",
   noCache: "不缓存",
   retentionWindowNextEffectiveNotice: "设置已更新，将在下次连接时生效 <Link>立即重连</Link>",
-  retentionWindowDescription: "设置实时可视化缓存时长",
+  retentionWindowDescription: "缓存指定时间长度的数据，用于回放已播的实时数据",
 };
