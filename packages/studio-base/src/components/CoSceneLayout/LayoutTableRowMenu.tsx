@@ -26,6 +26,7 @@ export type LayoutActionMenuItem =
   | {
       type: "divider";
       key: string;
+      visible?: boolean;
     };
 
 export function LayoutTableRowMenu({
@@ -116,6 +117,7 @@ export function LayoutTableRowMenu({
     {
       type: "divider",
       key: "divider",
+      visible,
     },
     {
       type: "item",
