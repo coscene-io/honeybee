@@ -92,16 +92,22 @@ export interface ILayoutStorage {
   putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory>;
 }
 
-export function layoutPermissionIsShared(
+export function layoutPermissionIsProject(
   permission: LayoutPermission,
 ): permission is Exclude<LayoutPermission, "PERSONAL_WRITE"> {
   return permission !== "PERSONAL_WRITE";
 }
 
-export function layoutIsShared(
+export function layoutIsProject(
   layout: Layout,
 ): layout is Layout & { permission: Exclude<LayoutPermission, "PERSONAL_WRITE"> } {
-  return layoutPermissionIsShared(layout.permission);
+  return layoutPermissionIsProject(layout.permission);
+}
+
+export function layoutIsProjectRead(
+  layout: Layout,
+): layout is Layout & { permission: "PROJECT_READ" } {
+  return layout.permission === "PROJECT_READ";
 }
 
 export function layoutAppearsDeleted(layout: Layout): boolean {

@@ -28,7 +28,7 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
@@ -156,7 +156,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         : undefined;
     if (
       currentLayout != undefined &&
-      layoutIsShared(currentLayout) &&
+      layoutIsProject(currentLayout) &&
       currentLayout.working != undefined
     ) {
       const result = await openUnsavedChangesPrompt(currentLayout);
@@ -266,7 +266,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         return;
       }
 
-      if (layoutIsShared(item)) {
+      if (layoutIsProject(item)) {
         const response = await confirm({
           title: `${t("update")} " ${item.name}"?`,
           prompt: t("updateRemoteLayoutConfirm"),

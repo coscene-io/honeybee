@@ -10,7 +10,7 @@ import { useCallback } from "react";
 import { useTranslation, Trans } from "react-i18next";
 
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 export type LayoutActionMenuItem =
   | {
@@ -62,7 +62,7 @@ export function LayoutTableRowMenu({
   }, [layout, handleOpenDialog]);
 
   const confirmDelete = useCallback(() => {
-    const prompt = layoutIsShared(layout) ? (
+    const prompt = layoutIsProject(layout) ? (
       <Trans
         t={t}
         i18nKey="deleteProjectLayoutPrompt"
@@ -77,7 +77,7 @@ export function LayoutTableRowMenu({
         components={{ strong: <strong /> }}
       />
     );
-    const title = layoutIsShared(layout) ? t("deleteProjectLayout") : t("deletePersonalLayout");
+    const title = layoutIsProject(layout) ? t("deleteProjectLayout") : t("deletePersonalLayout");
 
     void confirm({
       title,

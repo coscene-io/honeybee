@@ -28,9 +28,9 @@ import {
   ISO8601Timestamp,
   Layout,
   layoutAppearsDeleted,
-  layoutIsShared,
+  layoutIsProject,
   LayoutPermission,
-  layoutPermissionIsShared,
+  layoutPermissionIsProject,
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import {
   IRemoteLayoutStorage,
@@ -310,7 +310,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     const parent = permission === "PERSONAL_WRITE" ? this.userName ?? "" : this.projectName ?? "";
 
     const data = migratePanelsState(unmigratedData);
-    if (layoutPermissionIsShared(permission)) {
+    if (layoutPermissionIsProject(permission)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
@@ -412,7 +412,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
-    if (name != undefined && layoutIsShared(localLayout)) {
+    if (name != undefined && layoutIsProject(localLayout)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
@@ -494,7 +494,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     if (!localLayout) {
       throw new Error(`Cannot update layout ${id} because it does not exist`);
     }
-    if (layoutIsShared(localLayout)) {
+    if (layoutIsProject(localLayout)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
@@ -506,7 +506,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       }
     }
     await this.#local.runExclusive(async (local) => {
-      if (this.#remote && !layoutIsShared(localLayout)) {
+      if (this.#remote && !layoutIsProject(localLayout)) {
         await local.put({
           ...localLayout,
           working: {
@@ -536,7 +536,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     const now = new Date().toISOString() as ISO8601Timestamp;
 
-    if (layoutIsShared(localLayout)) {
+    if (layoutIsProject(localLayout)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
