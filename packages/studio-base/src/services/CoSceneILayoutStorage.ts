@@ -12,7 +12,6 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/a
 // https://github.com/microsoft/TypeScript/issues/4895
 export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
 
-// export type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE"; // old
 export type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
 
 export type LayoutSyncStatus =
