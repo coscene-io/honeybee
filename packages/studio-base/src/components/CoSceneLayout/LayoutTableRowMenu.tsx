@@ -10,7 +10,11 @@ import { useCallback } from "react";
 import { useTranslation, Trans } from "react-i18next";
 
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import {
+  Layout,
+  layoutIsProject,
+  layoutIsRead,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 export type LayoutActionMenuItem =
   | {
@@ -92,7 +96,7 @@ export function LayoutTableRowMenu({
     });
   }, [confirm, layout, t, onDeleteLayout]);
 
-  const disabled = !supportsEditProject && layout.permission !== "PERSONAL_WRITE";
+  const disabled = layoutIsRead(layout);
 
   const menuItems: LayoutActionMenuItem[] = [
     {

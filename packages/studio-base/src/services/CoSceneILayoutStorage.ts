@@ -104,16 +104,29 @@ export function layoutIsProject(
   return layoutPermissionIsProject(layout.permission);
 }
 
-export function layoutPermissionIsWrite(
+// export function layoutPermissionIsWrite(
+//   permission: LayoutPermission,
+// ): permission is Exclude<LayoutPermission, "PROJECT_READ"> {
+//   return permission !== "PROJECT_READ";
+// }
+
+// export function layoutIsWrite(
+//   layout: Layout,
+// ): layout is Layout & { permission: Exclude<LayoutPermission, "PERSONAL_READ"> } {
+//   return layoutPermissionIsWrite(layout.permission);
+// }
+
+export function layoutPermissionIsRead(
   permission: LayoutPermission,
-): permission is Exclude<LayoutPermission, "PROJECT_READ"> {
-  return permission !== "PROJECT_READ";
+): permission is "PROJECT_READ" {
+  return permission === "PROJECT_READ";
 }
 
-export function layoutIsWrite(
+
+export function layoutIsRead(
   layout: Layout,
 ): layout is Layout & { permission: Exclude<LayoutPermission, "PERSONAL_READ"> } {
-  return layoutPermissionIsWrite(layout.permission);
+  return layoutPermissionIsRead(layout.permission);
 }
 
 export function layoutAppearsDeleted(layout: Layout): boolean {

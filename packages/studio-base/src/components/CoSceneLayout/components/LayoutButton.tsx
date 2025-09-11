@@ -14,7 +14,11 @@ import { APP_BAR_HEIGHT } from "@foxglove/studio-base/components/AppBar/constant
 import Stack from "@foxglove/studio-base/components/Stack";
 import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import {
+  Layout,
+  layoutIsProject,
+  layoutIsRead,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
   textTruncate: {
@@ -81,8 +85,7 @@ export function LayoutButton({
 
   const deletedOnServer = currentLayout?.syncInfo?.status === "remotely-deleted";
   const hasModifications = currentLayout?.working != undefined;
-  const supportsEdit =
-    !!currentLayout && (supportsEditProject || currentLayout.permission === "PERSONAL_WRITE");
+  const isRead = !!currentLayout && layoutIsRead(currentLayout);
 
   const getDisplayText = (): string => {
     if (loading === true) {
@@ -140,7 +143,7 @@ export function LayoutButton({
       key: "saveChanges",
       text: t("saveChanges"),
       onClick: handleOverwrite,
-      disabled: deletedOnServer || !supportsEdit,
+      disabled: deletedOnServer || isRead,
       visible: hasModifications,
     },
     {

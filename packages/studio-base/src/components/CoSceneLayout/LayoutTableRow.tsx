@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsRead } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
   layoutNameCell: {
@@ -50,7 +50,6 @@ const useStyles = makeStyles()((theme) => ({
 interface LayoutTableRowProps {
   currentLayoutId?: LayoutID;
   layout: Layout;
-  supportsEditProject: boolean;
   handleMenuOpen: (event: React.MouseEvent<HTMLElement>, layout: Layout) => void;
   onSelectLayout: (layout: Layout) => void;
   onOverwriteLayout: (layout: Layout) => void;
@@ -60,7 +59,6 @@ interface LayoutTableRowProps {
 export function LayoutTableRow({
   currentLayoutId,
   layout,
-  supportsEditProject,
   handleMenuOpen,
   onSelectLayout,
   onOverwriteLayout,
@@ -71,7 +69,7 @@ export function LayoutTableRow({
 
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined;
-  const supportsEdit = supportsEditProject || layout.permission === "PERSONAL_WRITE";
+  const isRead = layoutIsRead(layout);
 
   const handleUse = () => {
     onSelectLayout(layout);
@@ -90,7 +88,7 @@ export function LayoutTableRow({
       key: "saveChanges",
       text: t("saveChanges"),
       onClick: handleOverwrite,
-      disabled: deletedOnServer || !supportsEdit,
+      disabled: deletedOnServer || isRead,
       visible: hasModifications,
     },
     {
