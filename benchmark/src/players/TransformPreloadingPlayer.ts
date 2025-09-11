@@ -96,7 +96,7 @@ class TransformPreloadingPlayer implements Player {
     this.#listener = listener;
     void this.#run();
   }
-  public close(): void {
+  public async close(): Promise<void> {
     // no-op
   }
   public setSubscriptions(_subs: SubscribePayload[]): void {
