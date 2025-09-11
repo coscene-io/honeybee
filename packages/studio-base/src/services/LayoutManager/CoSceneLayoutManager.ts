@@ -135,10 +135,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.#emitter.emit("errorchange");
   }
 
-  public setProjectName(projectName?: string): void {
-    this.projectName = projectName;
-  }
-
   #getRemoteLayoutParents(): string[] {
     const parents = [];
     if (this.userName) {
