@@ -48,21 +48,21 @@ export type Layout = {
    * The working copy of this layout, if it has been edited since the last explicit save.
    */
   working:
-  | {
-    data: LayoutData;
-    savedAt: ISO8601Timestamp | undefined;
-  }
-  | undefined;
+    | {
+        data: LayoutData;
+        savedAt: ISO8601Timestamp | undefined;
+      }
+    | undefined;
 
   /** Info about this layout from remote storage. */
   syncInfo:
-  | {
-    status: LayoutSyncStatus;
-    /** The last modifyTime returned by the server. */
-    lastRemoteSavedAt: ISO8601Timestamp | undefined;
-    lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
-  }
-  | undefined;
+    | {
+        status: LayoutSyncStatus;
+        /** The last modifyTime returned by the server. */
+        lastRemoteSavedAt: ISO8601Timestamp | undefined;
+        lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
+      }
+    | undefined;
 };
 
 export type LayoutHistory = {
@@ -104,28 +104,11 @@ export function layoutIsProject(
   return layoutPermissionIsProject(layout.permission);
 }
 
-// export function layoutPermissionIsWrite(
-//   permission: LayoutPermission,
-// ): permission is Exclude<LayoutPermission, "PROJECT_READ"> {
-//   return permission !== "PROJECT_READ";
-// }
-
-// export function layoutIsWrite(
-//   layout: Layout,
-// ): layout is Layout & { permission: Exclude<LayoutPermission, "PERSONAL_READ"> } {
-//   return layoutPermissionIsWrite(layout.permission);
-// }
-
-export function layoutPermissionIsRead(
-  permission: LayoutPermission,
-): permission is "PROJECT_READ" {
+export function layoutPermissionIsRead(permission: LayoutPermission): permission is "PROJECT_READ" {
   return permission === "PROJECT_READ";
 }
 
-
-export function layoutIsRead(
-  layout: Layout,
-): layout is Layout & { permission: Exclude<LayoutPermission, "PERSONAL_READ"> } {
+export function layoutIsRead(layout: Layout): layout is Layout & { permission: "PROJECT_READ" } {
   return layoutPermissionIsRead(layout.permission);
 }
 

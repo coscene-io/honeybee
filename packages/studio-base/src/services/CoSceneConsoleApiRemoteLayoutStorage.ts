@@ -28,7 +28,15 @@ const log = Logger.getLogger(__filename);
 type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
 
 // Convert gRPC Layout to RemoteLayout
-function convertGrpcLayoutToRemoteLayout({ layout, users, projectWrite }: { layout: Layout, users: CoUser[], projectWrite: boolean }): RemoteLayout {
+function convertGrpcLayoutToRemoteLayout({
+  layout,
+  users,
+  projectWrite,
+}: {
+  layout: Layout;
+  users: CoUser[];
+  projectWrite: boolean;
+}): RemoteLayout {
   if (!layout.data) {
     throw new Error(`Missing data for server layout ${layout.displayName} (${layout.name})`);
   }
@@ -55,12 +63,12 @@ function convertGrpcLayoutToRemoteLayout({ layout, users, projectWrite }: { layo
   let permission: LayoutPermission;
   if (parent.startsWith("warehouses/")) {
     if (projectWrite) {
-      permission = "PROJECT_WRITE"; // Project layouts are typically project-writable
+      permission = "PROJECT_WRITE";
     } else {
       permission = "PROJECT_READ";
     }
   } else if (parent.startsWith("users/")) {
-    permission = "PERSONAL_WRITE"; // User layouts are personal-writable
+    permission = "PERSONAL_WRITE";
   } else {
     throw new Error(`Invalid parent for layout ${layout.displayName}: ${parent}`);
   }
@@ -89,7 +97,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly namespace: string,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
-  ) { }
+  ) {}
 
   public getProjectWritePermission(): boolean {
     // TODO: waiting for the new API to be released
@@ -125,7 +133,11 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       const name = `${parent}/layouts/${id}`;
       const layout = await this.api.getLayout({ name });
       const users = await this.api.batchGetUsers([layout.modifier]);
-      return convertGrpcLayoutToRemoteLayout({ layout, users: users.users, projectWrite: this.getProjectWritePermission() });
+      return convertGrpcLayoutToRemoteLayout({
+        layout,
+        users: users.users,
+        projectWrite: this.getProjectWritePermission(),
+      });
     } catch (err) {
       log.error("Failed to get layout:", err);
       return undefined;
@@ -161,7 +173,11 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     const result = await this.api.createLayout({ parent, layout });
     const users = await this.api.batchGetUsers([result.modifier]);
 
-    return convertGrpcLayoutToRemoteLayout({ layout: result, users: users.users, projectWrite: this.getProjectWritePermission() });
+    return convertGrpcLayoutToRemoteLayout({
+      layout: result,
+      users: users.users,
+      projectWrite: this.getProjectWritePermission(),
+    });
   }
 
   public async updateLayout({
@@ -205,7 +221,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
       const result = await this.api.updateLayout({ layout: updatedLayout, updateMask });
       const users = await this.api.batchGetUsers([result.modifier]);
-      return { status: "success", newLayout: convertGrpcLayoutToRemoteLayout({ layout: result, users: users.users, projectWrite: this.getProjectWritePermission() }) };
+      return {
+        status: "success",
+        newLayout: convertGrpcLayoutToRemoteLayout({
+          layout: result,
+          users: users.users,
+          projectWrite: this.getProjectWritePermission(),
+        }),
+      };
     } catch (err) {
       log.error("Failed to update layout:", err);
       return { status: "conflict" };
