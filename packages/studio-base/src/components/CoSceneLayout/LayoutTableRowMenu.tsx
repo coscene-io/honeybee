@@ -36,7 +36,6 @@ export type LayoutActionMenuItem =
 export function LayoutTableRowMenu({
   anchorEl,
   layout,
-  supportsEditProject,
   handleMenuClose,
   handleOpenDialog,
   onDeleteLayout,
@@ -44,7 +43,6 @@ export function LayoutTableRowMenu({
 }: {
   anchorEl: HTMLElement | undefined;
   layout: Layout;
-  supportsEditProject: boolean;
   handleMenuClose: () => void;
   handleOpenDialog: (type: "rename" | "copy", layout: Layout) => void;
   onDeleteLayout: (layout: Layout) => void;

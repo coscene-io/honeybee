@@ -330,7 +330,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       <LayoutButton
         currentLayoutId={currentLayoutId}
         layouts={layouts.value}
-        supportsEditProject={layoutManager.supportsEditProject}
         loading={layouts.loading}
         onOverwriteLayout={onOverwriteLayout}
         onRevertLayout={onRevertLayout}

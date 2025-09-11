@@ -423,7 +423,6 @@ export function CoSceneLayoutContent({
                       key={layout.id}
                       currentLayoutId={currentLayoutId}
                       layout={layout}
-                      supportsEditProject={supportsEditProject}
                       handleMenuOpen={handleMenuOpen}
                       onSelectLayout={onSelectLayout}
                       onOverwriteLayout={onOverwriteLayout}
@@ -448,7 +447,6 @@ export function CoSceneLayoutContent({
           anchorEl={menu.anchorEl}
           handleMenuClose={handleMenuClose}
           layout={menu.layout}
-          supportsEditProject={supportsEditProject}
           onDeleteLayout={onDeleteLayout}
           onExportLayout={onExportLayout}
           handleOpenDialog={handleOpenDialog}

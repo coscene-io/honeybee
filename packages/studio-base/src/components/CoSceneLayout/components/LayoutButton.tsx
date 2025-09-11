@@ -52,7 +52,6 @@ const useStyles = makeStyles()((theme) => ({
 
 interface LayoutButtonProps {
   currentLayoutId?: LayoutID;
-  supportsEditProject: boolean;
   loading?: boolean;
   onClick: () => void;
   onOverwriteLayout: (layout: Layout) => void;
@@ -68,7 +67,6 @@ interface LayoutButtonProps {
 export function LayoutButton({
   currentLayoutId,
   layouts,
-  supportsEditProject,
   loading,
   onClick,
   onOverwriteLayout,
