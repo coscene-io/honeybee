@@ -100,10 +100,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #appendFlushTimer: NodeJS.Timeout | undefined = undefined;
   #appendFlushInFlight = false;
   #appendFlushPromise: Promise<void> | undefined = undefined;
+
   // Tuning knobs for batching and memory safety
   #appendBatchMaxSize = 500; // max events per transaction
   #appendBatchMaxDelayMs = 100; // max delay before flushing a non-empty batch
-  // #appendMaxPendingEvents = 5000; // soft cap to bound memory if storage is slow
 
   public constructor(options: IndexedDbMessageStoreOptions = {}) {
     const {
@@ -468,7 +468,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const db = await this.#dbPromise;
     const tx = db.transaction(STORE, "readwrite");
     const index = tx.store.index("bySessionTime");
-    const upper = IDBKeyRange.upperBound([sessionId, cutoff.sec, cutoff.nsec], true);
+    const upper = IDBKeyRange.bound(
+      [sessionId, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER],
+      [sessionId, cutoff.sec, cutoff.nsec],
+    );
 
     const deletedCount = await index.count(upper);
     await tx.store.delete(upper);
