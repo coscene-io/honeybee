@@ -246,10 +246,15 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
       // Clean up messages
       const messageStore = tx.objectStore(STORE);
-      const messageIndex = messageStore.index("bySession");
-      for await (const cursor of messageIndex.iterate(sessionId)) {
-        await cursor.delete();
-      }
+      // Use a single range delete on the primary key to remove all
+      // messages for the session, which is significantly faster than
+      // deleting per-cursor.
+      await messageStore.delete(
+        IDBKeyRange.bound(
+          [sessionId, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER],
+          [sessionId, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+        ),
+      );
 
       // Clean up datatypes
       const datatypesStore = tx.objectStore(DATATYPES_STORE);
@@ -497,13 +502,26 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
       let batchDeletedCount = 0;
 
-      // Delete a batch of messages
+      // Seek the first BATCH_SIZE items and determine the upper primary key.
+      // Then perform a single range delete up to that primary key.
+      let lastPrimaryKey: IDBValidKey | undefined;
       for await (const cursor of index.iterate(range)) {
-        await cursor.delete();
+        lastPrimaryKey = cursor.primaryKey;
         batchDeletedCount++;
         if (batchDeletedCount >= BATCH_SIZE) {
           break;
         }
+      }
+
+      if (batchDeletedCount > 0 && lastPrimaryKey != undefined) {
+        const lowerPk: [string, number, number, number] = [
+          sessionId,
+          Number.MIN_SAFE_INTEGER,
+          Number.MIN_SAFE_INTEGER,
+          Number.MIN_SAFE_INTEGER,
+        ];
+        // Use one delete call per batch for efficiency
+        await tx.store.delete(IDBKeyRange.bound(lowerPk, lastPrimaryKey));
       }
 
       await tx.done;
