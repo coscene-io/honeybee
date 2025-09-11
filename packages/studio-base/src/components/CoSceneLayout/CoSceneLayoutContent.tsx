@@ -118,7 +118,7 @@ const useStyles = makeStyles()((theme) => ({
 export function CoSceneLayoutContent({
   currentLayoutId,
   layouts,
-  supportsEditProject,
+  supportsProjectWrite,
   onSelectLayout,
   onDeleteLayout,
   onRenameLayout,
@@ -128,7 +128,7 @@ export function CoSceneLayoutContent({
   onCreateLayout,
 }: {
   currentLayoutId?: LayoutID;
-  supportsEditProject: boolean;
+  supportsProjectWrite: boolean;
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
@@ -235,7 +235,7 @@ export function CoSceneLayoutContent({
               onCreateLayout={onCreateLayout}
               personalFolders={layouts?.personalFolders ?? []}
               projectFolders={layouts?.projectFolders ?? []}
-              supportsEditProject={supportsEditProject}
+              supportsProjectWrite={supportsProjectWrite}
             />
           </Box>
 

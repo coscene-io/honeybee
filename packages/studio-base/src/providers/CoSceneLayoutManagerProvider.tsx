@@ -26,7 +26,6 @@ const SYNC_INTERVAL_MAX_MS = 3 * 60_000;
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectUser = (store: UserStore) => store.user;
-const selectUserRole = (store: UserStore) => store.role;
 
 export default function CoSceneLayoutManagerProvider({
   children,
@@ -36,7 +35,6 @@ export default function CoSceneLayoutManagerProvider({
 
   const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
   const currentUser = useCurrentUser(selectUser);
-  const currentUserRole = useCurrentUser(selectUserRole);
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const projectName =
@@ -51,9 +49,8 @@ export default function CoSceneLayoutManagerProvider({
         remote: remoteLayoutStorage,
         projectName,
         currentUser,
-        currentUserRole,
       }),
-    [layoutStorage, remoteLayoutStorage, projectName, currentUser, currentUserRole],
+    [layoutStorage, remoteLayoutStorage, projectName, currentUser],
   );
 
   const { online = false } = useNetworkState();

@@ -157,7 +157,6 @@ export default React.memo(function LayoutRow({
   const confirm = useConfirm();
   const layoutManager = useLayoutManager();
   const { t } = useTranslation("cosLayout");
-  // const currentUserRole = useCurrentUser(selectUserRole);
 
   const [editingName, setEditingName] = useState(false);
   const [nameFieldValue, setNameFieldValue] = useState("");
@@ -171,9 +170,6 @@ export default React.memo(function LayoutRow({
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined && onOverwrite != undefined;
   const multiSelection = multiSelectedIds.length > 1;
-
-  // const project = useCoreData(selectProject);
-  // const record = useCoreData(selectRecord);
 
   useLayoutEffect(() => {
     const onlineListener = () => {

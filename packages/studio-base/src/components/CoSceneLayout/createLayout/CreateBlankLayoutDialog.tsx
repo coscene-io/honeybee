@@ -37,14 +37,14 @@ export function CreateBlankLayoutDialog({
   onCreateLayout,
   personalFolders,
   projectFolders,
-  supportsEditProject,
+  supportsProjectWrite,
 }: {
   open: boolean;
   onClose: () => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
   personalFolders: string[];
   projectFolders: string[];
-  supportsEditProject: boolean;
+  supportsProjectWrite: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
@@ -98,7 +98,7 @@ export function CreateBlankLayoutDialog({
               render={({ field }) => (
                 <Select label={t("type")} {...field}>
                   <MenuItem value="PERSONAL_WRITE">{t("personalLayout")}</MenuItem>
-                  <MenuItem value="PROJECT_WRITE" disabled={!supportsEditProject}>
+                  <MenuItem value="PROJECT_WRITE" disabled={!supportsProjectWrite}>
                     {t("projectLayout")}
                   </MenuItem>
                 </Select>

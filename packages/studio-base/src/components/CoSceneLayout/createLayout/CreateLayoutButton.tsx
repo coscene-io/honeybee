@@ -19,12 +19,12 @@ export function CreateLayoutButton({
   onCreateLayout,
   personalFolders,
   projectFolders,
-  supportsEditProject,
+  supportsProjectWrite,
 }: {
   onCreateLayout: (params: CreateLayoutParams) => void;
   personalFolders: string[];
   projectFolders: string[];
-  supportsEditProject: boolean;
+  supportsProjectWrite: boolean;
 }): React.JSX.Element {
   const [open, setOpen] = useState("");
   const handleClose = useCallback(() => {
@@ -73,7 +73,7 @@ export function CreateLayoutButton({
       </Menu>
       {open === "createBlankLayout" && (
         <CreateBlankLayoutDialog
-          supportsEditProject={supportsEditProject}
+          supportsProjectWrite={supportsProjectWrite}
           onCreateLayout={onCreateLayout}
           personalFolders={personalFolders}
           projectFolders={projectFolders}
@@ -83,7 +83,7 @@ export function CreateLayoutButton({
       )}
       {open === "copyFromOtherProject" && (
         <CopyFromOtherProjectDialog
-          supportsEditProject={supportsEditProject}
+          supportsProjectWrite={supportsProjectWrite}
           onCreateLayout={onCreateLayout}
           personalFolders={personalFolders}
           projectFolders={projectFolders}
@@ -93,7 +93,7 @@ export function CreateLayoutButton({
       )}
       {open === "importFromFile" && (
         <ImportFromFileDialog
-          supportsEditProject={supportsEditProject}
+          supportsProjectWrite={supportsProjectWrite}
           onCreateLayout={onCreateLayout}
           personalFolders={personalFolders}
           projectFolders={projectFolders}

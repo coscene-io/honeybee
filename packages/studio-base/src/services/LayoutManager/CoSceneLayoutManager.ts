@@ -86,7 +86,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   #remote: IRemoteLayoutStorage | undefined;
 
   public readonly supportsSharing: boolean;
-  public readonly supportsEditProject: boolean;
+  public readonly supportsProjectWrite: boolean;
 
   #emitter = new EventEmitter<LayoutManagerEventTypes>();
 
@@ -156,16 +156,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     remote,
     projectName,
     currentUser,
-    currentUserRole,
   }: {
     local: ILayoutStorage;
     remote: IRemoteLayoutStorage | undefined;
     projectName: string | undefined;
     currentUser: User | undefined;
-    currentUserRole: {
-      organizationRole: number;
-      projectRole: number;
-    };
   }) {
     this.#local = new MutexLocked(
       new NamespacedLayoutStorage(
@@ -186,9 +181,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.supportsSharing = remote != undefined;
     this.#currentUser = currentUser;
     this.userName = currentUser?.userId ? `users/${currentUser.userId}` : undefined;
-    this.supportsEditProject =
-      this.supportsSharing &&
-      currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER];
+    this.supportsProjectWrite = remote?.projectWritePermission ?? false;
 
     if (remote) {
       this.#backupLocal = new MutexLocked(
