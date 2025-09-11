@@ -305,10 +305,6 @@ type CoverageResponse = {
   end: string;
 };
 
-export type LayoutID = string & { __brand: "LayoutID" };
-export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
-export type Permission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
-
 export enum MetricType {
   RecordPlaysTotal = "honeybee_record_plays_total",
   RecordPlaysEveryFiveSecondsTotal = "honeybee_record_plays_every_five_seconds_total",
