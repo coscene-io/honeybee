@@ -666,7 +666,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
             <LayoutSection
               title={t("organization")}
               emptyText={t("noOrgnizationLayouts")}
-              // Layout of top recommendations
               items={orgLayouts}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}
