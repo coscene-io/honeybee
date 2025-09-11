@@ -181,7 +181,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.supportsSharing = remote != undefined;
     this.#currentUser = currentUser;
     this.userName = currentUser?.userId ? `users/${currentUser.userId}` : undefined;
-    this.supportsProjectWrite = remote?.projectWritePermission ?? false;
+    this.supportsProjectWrite = remote?.getProjectWritePermission() ?? false;
 
     if (remote) {
       this.#backupLocal = new MutexLocked(
