@@ -17,6 +17,8 @@ import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutMan
 import {
   useCurrentLayoutActions,
   LayoutID,
+  useCurrentLayoutSelector,
+  LayoutState,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   useWorkspaceStore,
@@ -37,12 +39,14 @@ import { useCurrentLayout } from "./hooks/useCurrentLayout";
 const log = Logger.getLogger(__filename);
 
 const layoutDrawerOpen = (store: WorkspaceContextStore) => store.layoutDrawer.open;
+const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
 export function CoSceneLayoutButton(): React.JSX.Element {
   const open = useWorkspaceStore(layoutDrawerOpen);
   const { layoutDrawer } = useWorkspaceActions();
 
-  const { currentLayoutId, currentLayout, layouts } = useCurrentLayout();
+  const layouts = useCurrentLayout();
+  const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
 
   const { enqueueSnackbar } = useSnackbar();
   const analytics = useAnalytics();
@@ -324,12 +328,13 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   return (
     <>
       <LayoutButton
-        currentLayout={currentLayout}
+        currentLayoutId={currentLayoutId}
+        layouts={layouts.value}
         supportsEditProject={layoutManager.supportsEditProject}
         loading={layouts.loading}
-        onClick={() => {
-          layoutDrawer.open();
-        }}
+        onOverwriteLayout={onOverwriteLayout}
+        onRevertLayout={onRevertLayout}
+        onClick={layoutDrawer.open}
       />
       {unsavedChangesPrompt}
       {open && (
@@ -345,9 +350,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           onOverwriteLayout={onOverwriteLayout}
           onRevertLayout={onRevertLayout}
           onCreateLayout={onCreateLayout}
-          onClose={() => {
-            layoutDrawer.close();
-          }}
+          onClose={layoutDrawer.close}
         />
       )}
     </>

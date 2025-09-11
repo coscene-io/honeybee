@@ -6,31 +6,21 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import useAsyncFn, { AsyncState } from "react-use/lib/useAsyncFn";
 
 import Logger from "@foxglove/log";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import {
-  LayoutState,
-  useCurrentLayoutSelector,
-  LayoutID,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
-const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
-export function useCurrentLayout(): {
-  currentLayoutId: LayoutID | undefined;
-  currentLayout: Layout | undefined;
-  layouts: AsyncState<{
-    personalFolders: string[];
-    projectFolders: string[];
-    personalLayouts: Layout[];
-    projectLayouts: Layout[];
-  }>;
-} {
+export function useCurrentLayout(): AsyncState<{
+  personalFolders: string[];
+  projectFolders: string[];
+  personalLayouts: Layout[];
+  projectLayouts: Layout[];
+}> {
   const layoutManager = useLayoutManager();
 
   const [layouts, reloadLayouts] = useAsyncFn(
@@ -72,17 +62,5 @@ export function useCurrentLayout(): {
     });
   }, [reloadLayouts]);
 
-  const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
-  const currentLayout = useMemo(() => {
-    return [
-      ...(layouts.value?.personalLayouts ?? []),
-      ...(layouts.value?.projectLayouts ?? []),
-    ].find((layout) => layout.id === currentLayoutId);
-  }, [layouts, currentLayoutId]);
-
-  return {
-    currentLayoutId,
-    currentLayout,
-    layouts,
-  };
+  return layouts;
 }
