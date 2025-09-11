@@ -12,7 +12,8 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/a
 // https://github.com/microsoft/TypeScript/issues/4895
 export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
 
-export type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+// export type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE"; // old
+export type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
 
 export type LayoutSyncStatus =
   | "new"
@@ -47,21 +48,21 @@ export type Layout = {
    * The working copy of this layout, if it has been edited since the last explicit save.
    */
   working:
-    | {
-        data: LayoutData;
-        savedAt: ISO8601Timestamp | undefined;
-      }
-    | undefined;
+  | {
+    data: LayoutData;
+    savedAt: ISO8601Timestamp | undefined;
+  }
+  | undefined;
 
   /** Info about this layout from remote storage. */
   syncInfo:
-    | {
-        status: LayoutSyncStatus;
-        /** The last modifyTime returned by the server. */
-        lastRemoteSavedAt: ISO8601Timestamp | undefined;
-        lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
-      }
-    | undefined;
+  | {
+    status: LayoutSyncStatus;
+    /** The last modifyTime returned by the server. */
+    lastRemoteSavedAt: ISO8601Timestamp | undefined;
+    lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
+  }
+  | undefined;
 };
 
 export type LayoutHistory = {
@@ -93,13 +94,13 @@ export interface ILayoutStorage {
 
 export function layoutPermissionIsShared(
   permission: LayoutPermission,
-): permission is Exclude<LayoutPermission, "CREATOR_WRITE"> {
-  return permission !== "CREATOR_WRITE";
+): permission is Exclude<LayoutPermission, "PERSONAL_WRITE"> {
+  return permission !== "PERSONAL_WRITE";
 }
 
 export function layoutIsShared(
   layout: Layout,
-): layout is Layout & { permission: Exclude<LayoutPermission, "CREATOR_WRITE"> } {
+): layout is Layout & { permission: Exclude<LayoutPermission, "PERSONAL_WRITE"> } {
   return layoutPermissionIsShared(layout.permission);
 }
 

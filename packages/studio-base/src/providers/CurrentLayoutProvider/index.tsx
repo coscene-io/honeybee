@@ -285,11 +285,11 @@ export default function CurrentLayoutProvider({
     const layouts = await layoutManager.getLayouts();
     if (layouts.length > 0) {
       const sortedLayouts = [...layouts].sort((a, b) => {
-        // 优先显示 permission !== 'CREATOR_WRITE' 的布局
-        if (a.permission !== "CREATOR_WRITE" && b.permission === "CREATOR_WRITE") {
+        // 优先显示 permission !== 'PERSONAL_WRITE' 的布局
+        if (a.permission !== "PERSONAL_WRITE" && b.permission === "PERSONAL_WRITE") {
           return -1;
         }
-        if (a.permission === "CREATOR_WRITE" && b.permission !== "CREATOR_WRITE") {
+        if (a.permission === "PERSONAL_WRITE" && b.permission !== "PERSONAL_WRITE") {
           return 1;
         }
         // 如果permission相同，按名称排序

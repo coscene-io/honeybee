@@ -82,7 +82,7 @@ export function LayoutButton({
   const deletedOnServer = currentLayout?.syncInfo?.status === "remotely-deleted";
   const hasModifications = currentLayout?.working != undefined;
   const supportsEdit =
-    !!currentLayout && (supportsEditProject || currentLayout.permission === "CREATOR_WRITE");
+    !!currentLayout && (supportsEditProject || currentLayout.permission === "PERSONAL_WRITE");
 
   const getDisplayText = (): string => {
     if (loading === true) {
@@ -100,10 +100,13 @@ export function LayoutButton({
     if (loading === true) {
       return undefined;
     }
-    if (currentLayout?.permission === "CREATOR_WRITE") {
+    if (currentLayout?.permission === "PERSONAL_WRITE") {
       return t("personalLayout");
     }
-    if (currentLayout?.permission === "ORG_WRITE" || currentLayout?.permission === "ORG_READ") {
+    if (
+      currentLayout?.permission === "PROJECT_WRITE" ||
+      currentLayout?.permission === "PROJECT_READ"
+    ) {
       return t("projectLayout");
     }
     return t("layout");

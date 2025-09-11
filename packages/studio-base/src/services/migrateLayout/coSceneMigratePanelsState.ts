@@ -81,7 +81,7 @@ export function migrateLayout(value: unknown): Layout {
     parent: layout.parent ?? "",
     folder: layout.folder ?? "",
     name: layout.name ?? `Unnamed (${now})`,
-    permission: layout.permission?.toUpperCase() ?? "CREATOR_WRITE",
+    permission: layout.permission?.toUpperCase() ?? "PERSONAL_WRITE",
     working: layout.working
       ? { ...layout.working, data: migratePanelsState(layout.working.data) }
       : undefined,

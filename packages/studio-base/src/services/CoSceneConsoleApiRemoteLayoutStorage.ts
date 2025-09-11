@@ -25,7 +25,8 @@ import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
 
-type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+// type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE"; // old
+type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
 
 // Convert gRPC Layout to RemoteLayout
 function convertGrpcLayoutToRemoteLayout(layout: Layout, users: CoUser[]): RemoteLayout {
@@ -54,12 +55,12 @@ function convertGrpcLayoutToRemoteLayout(layout: Layout, users: CoUser[]): Remot
   // Determine permission based on resource name pattern
   let permission: LayoutPermission;
   if (parent.startsWith("warehouses/")) {
-    permission = "ORG_WRITE"; // Project layouts are typically org-writable
+    permission = "PROJECT_WRITE"; // Project layouts are typically project-writable
   } else if (parent.startsWith("users/")) {
-    permission = "CREATOR_WRITE"; // User layouts are creator-writable
+    permission = "PERSONAL_WRITE"; // User layouts are personal-writable
   } else {
     // For any other format, default to read-only to be safe
-    permission = "ORG_READ";
+    permission = "PROJECT_READ";
   }
 
   const modifier = users.find((user) => user.name === layout.modifier);
@@ -85,7 +86,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   public constructor(
     public readonly namespace: string,
     private api: ConsoleApi,
-  ) {}
+  ) { }
 
   public async getLayouts(parents: string[]): Promise<readonly RemoteLayout[]> {
     try {
@@ -141,7 +142,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       folder,
       data: Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject),
       scope:
-        permission === "CREATOR_WRITE"
+        permission === "PERSONAL_WRITE"
           ? LayoutScopeEnum_LayoutScope.PERSONAL
           : LayoutScopeEnum_LayoutScope.PROJECT,
     });

@@ -116,7 +116,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
                   folder: layout.folder,
                   name: `${layout.name} copy`,
                   data: layout.working?.data ?? layout.baseline.data,
-                  permission: "CREATOR_WRITE",
+                  permission: "PERSONAL_WRITE",
                 });
               }
               dispatch({ type: "shift-multi-action" });

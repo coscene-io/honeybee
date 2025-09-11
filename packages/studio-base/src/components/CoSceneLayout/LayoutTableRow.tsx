@@ -71,7 +71,7 @@ export function LayoutTableRow({
 
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined;
-  const supportsEdit = supportsEditProject || layout.permission === "CREATOR_WRITE";
+  const supportsEdit = supportsEditProject || layout.permission === "PERSONAL_WRITE";
 
   const handleUse = () => {
     onSelectLayout(layout);

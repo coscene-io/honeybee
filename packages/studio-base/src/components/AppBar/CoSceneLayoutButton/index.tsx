@@ -213,7 +213,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
                   folder: layout.folder,
                   name: `${layout.name} copy`,
                   data: layout.working?.data ?? layout.baseline.data,
-                  permission: "CREATOR_WRITE",
+                  permission: "PERSONAL_WRITE",
                 });
               }
               dispatch({ type: "shift-multi-action" });
@@ -351,7 +351,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         folder: item.folder,
         name: `${item.name} copy`,
         data: item.working?.data ?? item.baseline.data,
-        permission: "CREATOR_WRITE",
+        permission: "PERSONAL_WRITE",
       });
       await onSelectLayout(newLayout);
       void analytics.logEvent(AppEvent.LAYOUT_DUPLICATE, { permission: item.permission });
@@ -411,7 +411,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           folder: item.folder,
           name,
           data: item.working?.data ?? item.baseline.data,
-          permission: "ORG_WRITE",
+          permission: "PROJECT_WRITE",
         });
         void analytics.logEvent(AppEvent.LAYOUT_SHARE, { permission: item.permission });
         await onSelectLayout(newLayout);
@@ -502,7 +502,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       folder: "",
       name: displayName,
       data: layoutData,
-      permission: "CREATOR_WRITE",
+      permission: "PERSONAL_WRITE",
     });
     void onSelectLayout(newLayout);
 

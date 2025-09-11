@@ -92,7 +92,7 @@ export function LayoutTableRowMenu({
     });
   }, [confirm, layout, t, onDeleteLayout]);
 
-  const disabled = !supportsEditProject && layout.permission !== "CREATOR_WRITE";
+  const disabled = !supportsEditProject && layout.permission !== "PERSONAL_WRITE";
 
   const menuItems: LayoutActionMenuItem[] = [
     {

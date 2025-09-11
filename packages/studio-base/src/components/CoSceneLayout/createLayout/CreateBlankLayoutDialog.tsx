@@ -50,7 +50,7 @@ export function CreateBlankLayoutDialog({
   const { classes } = useStyles();
 
   const form = useForm<CreateLayoutParams>({
-    defaultValues: { name: "", folder: "", permission: "CREATOR_WRITE" },
+    defaultValues: { name: "", folder: "", permission: "PERSONAL_WRITE" },
   });
 
   const onSubmit = (data: CreateLayoutParams) => {
@@ -97,8 +97,8 @@ export function CreateBlankLayoutDialog({
               name="permission"
               render={({ field }) => (
                 <Select label={t("type")} {...field}>
-                  <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
-                  <MenuItem value="ORG_WRITE" disabled={!supportsEditProject}>
+                  <MenuItem value="PERSONAL_WRITE">{t("personalLayout")}</MenuItem>
+                  <MenuItem value="PROJECT_WRITE" disabled={!supportsEditProject}>
                     {t("projectLayout")}
                   </MenuItem>
                 </Select>
@@ -111,7 +111,7 @@ export function CreateBlankLayoutDialog({
             name="folder"
             render={({ field }) => (
               <SelectFolder
-                folders={permission === "CREATOR_WRITE" ? personalFolders : projectFolders}
+                folders={permission === "PERSONAL_WRITE" ? personalFolders : projectFolders}
                 onChange={(value) => {
                   field.onChange(value ?? "");
                 }}

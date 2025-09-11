@@ -63,7 +63,7 @@ export function CopyFromOtherProjectDialog({
   const { classes } = useStyles();
 
   const form = useForm<CreateProjectLayoutParams>({
-    defaultValues: { name: "", folder: "", permission: "CREATOR_WRITE", projectName: "" },
+    defaultValues: { name: "", folder: "", permission: "PERSONAL_WRITE", projectName: "" },
   });
 
   const onSubmit = (data: CreateProjectLayoutParams) => {
@@ -146,8 +146,8 @@ export function CopyFromOtherProjectDialog({
               name="permission"
               render={({ field }) => (
                 <Select label={t("type")} {...field}>
-                  <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
-                  <MenuItem value="ORG_WRITE" disabled={!supportsEditProject}>
+                  <MenuItem value="PERSONAL_WRITE">{t("personalLayout")}</MenuItem>
+                  <MenuItem value="PROJECT_WRITE" disabled={!supportsEditProject}>
                     {t("projectLayout")}
                   </MenuItem>
                 </Select>
@@ -160,7 +160,7 @@ export function CopyFromOtherProjectDialog({
             name="folder"
             render={({ field }) => (
               <SelectFolder
-                folders={permission === "CREATOR_WRITE" ? personalFolders : projectFolders}
+                folders={permission === "PERSONAL_WRITE" ? personalFolders : projectFolders}
                 onChange={(value) => {
                   field.onChange(value ?? "");
                 }}
