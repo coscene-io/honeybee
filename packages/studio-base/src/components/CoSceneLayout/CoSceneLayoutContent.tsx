@@ -235,6 +235,7 @@ export function CoSceneLayoutContent({
               onCreateLayout={onCreateLayout}
               personalFolders={layouts?.personalFolders ?? []}
               projectFolders={layouts?.projectFolders ?? []}
+              supportsEditProject={supportsEditProject}
             />
           </Box>
 

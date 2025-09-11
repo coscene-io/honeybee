@@ -325,6 +325,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     <>
       <LayoutButton
         currentLayout={currentLayout}
+        supportsEditProject={layoutManager.supportsEditProject}
         loading={layouts.loading}
         onClick={() => {
           layoutDrawer.open();

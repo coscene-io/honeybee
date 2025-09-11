@@ -92,42 +92,44 @@ export function LayoutTableRowMenu({
     });
   }, [confirm, layout, t, onDeleteLayout]);
 
-  const visible = supportsEditProject || layout.permission === "CREATOR_WRITE";
+  const disabled = !supportsEditProject && layout.permission !== "CREATOR_WRITE";
 
   const menuItems: LayoutActionMenuItem[] = [
     {
       type: "item",
       key: "rename",
       text: t("rename"),
+      "data-testid": "rename-layout",
       onClick: openRenameDialog,
-      visible,
+      disabled,
     },
     {
       type: "item",
       key: "copy",
       text: t("copy"),
+      "data-testid": "copy-layout",
       onClick: openCopyDialog,
     },
     {
       type: "item",
       key: "export",
       text: t("export"),
+      "data-testid": "export-layout",
       onClick: exportAction,
     },
     {
       type: "divider",
       key: "divider",
-      visible,
     },
     {
       type: "item",
       key: "delete",
       text: t("delete"),
-      onClick: confirmDelete,
       "data-testid": "delete-layout",
-      visible,
+      onClick: confirmDelete,
+      disabled,
     },
-  ].filter((item) => item.visible ?? true) as LayoutActionMenuItem[];
+  ];
 
   return (
     <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>

@@ -46,12 +46,14 @@ const useStyles = makeStyles()((theme) => ({
 
 interface LayoutButtonProps {
   currentLayout?: Layout;
+  supportsEditProject: boolean;
   loading?: boolean;
   onClick: () => void;
 }
 
 export function LayoutButton({
   currentLayout,
+  supportsEditProject,
   loading,
   onClick,
 }: LayoutButtonProps): React.JSX.Element {

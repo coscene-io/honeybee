@@ -7,7 +7,7 @@
 
 import { Add as AddIcon } from "@mui/icons-material";
 import { Button, Menu, MenuItem } from "@mui/material";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CopyFromOtherProjectDialog } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CopyFromOtherProjectDialog";
@@ -19,12 +19,17 @@ export function CreateLayoutButton({
   onCreateLayout,
   personalFolders,
   projectFolders,
+  supportsEditProject,
 }: {
   onCreateLayout: (params: CreateLayoutParams) => void;
   personalFolders: string[];
   projectFolders: string[];
+  supportsEditProject: boolean;
 }): React.JSX.Element {
   const [open, setOpen] = useState("");
+  const handleClose = useCallback(() => {
+    setOpen("");
+  }, []);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>(undefined);
   const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -68,35 +73,32 @@ export function CreateLayoutButton({
       </Menu>
       {open === "createBlankLayout" && (
         <CreateBlankLayoutDialog
+          supportsEditProject={supportsEditProject}
           onCreateLayout={onCreateLayout}
           personalFolders={personalFolders}
           projectFolders={projectFolders}
           open
-          onClose={() => {
-            setOpen("");
-          }}
+          onClose={handleClose}
         />
       )}
       {open === "copyFromOtherProject" && (
         <CopyFromOtherProjectDialog
+          supportsEditProject={supportsEditProject}
           onCreateLayout={onCreateLayout}
           personalFolders={personalFolders}
           projectFolders={projectFolders}
           open
-          onClose={() => {
-            setOpen("");
-          }}
+          onClose={handleClose}
         />
       )}
       {open === "importFromFile" && (
         <ImportFromFileDialog
+          supportsEditProject={supportsEditProject}
           onCreateLayout={onCreateLayout}
           personalFolders={personalFolders}
           projectFolders={projectFolders}
           open
-          onClose={() => {
-            setOpen("");
-          }}
+          onClose={handleClose}
         />
       )}
     </>
