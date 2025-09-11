@@ -469,7 +469,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               ? {
                   ...localLayout.baseline,
                   savedAt: now,
-                  // todo: update modifier
                   modifier: localLayout.baseline.modifier,
                   modifierAvatar: localLayout.baseline.modifierAvatar,
                   modifierNickname: localLayout.baseline.modifierNickname,
@@ -579,7 +578,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             baseline: {
               data: localLayout.working?.data ?? localLayout.baseline.data,
               savedAt: now,
-              // todo: update modifier
               modifier: localLayout.baseline.modifier,
               modifierAvatar: localLayout.baseline.modifierAvatar,
               modifierNickname: localLayout.baseline.modifierNickname,
@@ -627,14 +625,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       }
       const newLayout = await local.put({
         id: uuidv4() as LayoutID,
-        parent: "", // todo: get parent
+        parent: "",
         folder: layout.folder,
         name,
         permission: "CREATOR_WRITE",
         baseline: {
           data: layout.working?.data ?? layout.baseline.data,
           savedAt: now,
-          // todo: modifier current user
           modifier: layout.baseline.modifier,
           modifierAvatar: layout.baseline.modifierAvatar,
           modifierNickname: layout.baseline.modifierNickname,

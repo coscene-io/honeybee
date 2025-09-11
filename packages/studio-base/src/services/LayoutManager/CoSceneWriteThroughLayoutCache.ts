@@ -64,18 +64,15 @@ export default class CoSceneWriteThroughLayoutCache implements ILayoutStorage {
   }
 
   public async delete(namespace: string, id: LayoutID): Promise<void> {
-    // TODO: fix parent
     await this.storage.delete(namespace, id);
     (await this.#getOrCreateCache(namespace).get()).delete(id);
   }
 
   public async getHistory(namespace: string, parent: string): Promise<Layout | undefined> {
-    // todo: cache
     return await this.storage.getHistory(namespace, parent);
   }
 
   public async putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory> {
-    // todo: cache
     return await this.storage.putHistory(namespace, history);
   }
 }
