@@ -432,7 +432,7 @@ export function CoSceneLayoutContent({
 
             {filteredLayouts.length === 0 && (
               <Box className={classes.emptyState}>
-                <Typography color="text.secondary">暂无布局数据</Typography>
+                <Typography color="text.secondary">{t("noData")}</Typography>
               </Box>
             )}
           </Box>
