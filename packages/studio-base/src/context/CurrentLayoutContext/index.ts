@@ -48,7 +48,6 @@ export type SelectedLayout = {
   edited?: boolean;
 };
 export type LayoutID = string & { __brand: "LayoutID" };
-export type LayoutName = string & { __brand: "LayoutName" };
 
 export type LayoutState = Readonly<{
   /**
@@ -57,14 +56,14 @@ export type LayoutState = Readonly<{
   sharedPanelState?: Record<PanelType, SharedPanelState>;
 
   selectedLayout:
-    | {
-        id: LayoutID;
-        loading?: boolean;
-        data: LayoutData | undefined;
-        name?: string;
-        edited?: boolean;
-      }
-    | undefined;
+  | {
+    id: LayoutID;
+    loading?: boolean;
+    data: LayoutData | undefined;
+    name?: string;
+    edited?: boolean;
+  }
+  | undefined;
 }>;
 
 /**
