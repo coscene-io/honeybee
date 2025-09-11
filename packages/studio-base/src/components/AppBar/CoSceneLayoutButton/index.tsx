@@ -29,7 +29,6 @@ import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoScen
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-// import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   ProjectRoleEnum,
   ProjectRoleWeight,
@@ -37,7 +36,6 @@ import {
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-// import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
@@ -550,7 +548,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       return sortedRemoteLayouts;
     }
 
-    return sortedRemoteLayouts; // todo: check
+    return sortedRemoteLayouts;
     // return sortedRemoteLayouts?.filter(
     //   (layout) => !layout.isProjectRecommended && !layout.isRecordRecommended,
     // );
@@ -563,7 +561,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     // return sortedRemoteLayouts?.filter(
     //   (layout) => layout.isProjectRecommended || layout.isRecordRecommended,
     // );
-    return sortedRemoteLayouts; // todo: check
+    return sortedRemoteLayouts;
   }, [currentUserRole.projectRole, sortedRemoteLayouts]);
 
   return (

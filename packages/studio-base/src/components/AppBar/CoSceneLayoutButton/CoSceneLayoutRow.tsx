@@ -34,16 +34,8 @@ import {
 import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 
-// import { withStyles } from "tss-react/mui";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
-// import {
-//   ProjectRoleEnum,
-//   ProjectRoleWeight,
-//   UserStore,
-//   useCurrentUser,
-// } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-// import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
@@ -129,10 +121,6 @@ export type LayoutActionMenuItem =
       text: string;
       debug?: boolean;
     };
-
-// const selectUserRole = (store: UserStore) => store.role;
-// const selectProject = (state: CoreDataStore) => state.project;
-// const selectRecord = (state: CoreDataStore) => state.record;
 
 export default React.memo(function LayoutRow({
   layout,
