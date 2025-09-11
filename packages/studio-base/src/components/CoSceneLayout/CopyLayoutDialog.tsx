@@ -39,6 +39,7 @@ export function CopyLayoutDialog({
   personalFolders,
   projectFolders,
   layout,
+  supportsProjectWrite,
 }: {
   open: boolean;
   onClose: () => void;
@@ -46,6 +47,7 @@ export function CopyLayoutDialog({
   personalFolders: string[];
   projectFolders: string[];
   layout: Layout;
+  supportsProjectWrite: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
@@ -100,7 +102,9 @@ export function CopyLayoutDialog({
               render={({ field }) => (
                 <Select label={t("type")} {...field}>
                   <MenuItem value="PERSONAL_WRITE">{t("personalLayout")}</MenuItem>
-                  <MenuItem value="PROJECT_WRITE">{t("projectLayout")}</MenuItem>
+                  <MenuItem value="PROJECT_WRITE" disabled={!supportsProjectWrite}>
+                    {t("projectLayout")}
+                  </MenuItem>
                 </Select>
               )}
             />

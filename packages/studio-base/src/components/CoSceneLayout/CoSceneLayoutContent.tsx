@@ -468,6 +468,7 @@ export function CoSceneLayoutContent({
           open
           onClose={handleCloseDialog}
           onCreateLayout={onCreateLayout}
+          supportsProjectWrite={supportsProjectWrite}
         />
       )}
     </div>
