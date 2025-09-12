@@ -136,12 +136,7 @@ export function LayoutTableRow({
         </Box>
       </TableCell>
       <TableCell>
-        <Box className={classes.layoutNameCell}>
-          {layout.name}
-          {currentLayoutId === layout.id && (
-            <Chip size="small" color="success" label={t("inUse")} />
-          )}
-        </Box>
+        <Box className={classes.layoutNameCell}>{layout.name}</Box>
       </TableCell>
       <TableCell>{savedAt ? dayjs(savedAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</TableCell>
       <TableCell>
