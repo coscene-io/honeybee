@@ -49,7 +49,7 @@ class BenchmarkPlayer implements Player {
     this.#listener = listener;
     void this.#run();
   }
-  public close(): void {
+  public async close(): Promise<void> {
     //throw new Error("Method not implemented.");
   }
   public setSubscriptions(subscriptions: SubscribePayload[]): void {

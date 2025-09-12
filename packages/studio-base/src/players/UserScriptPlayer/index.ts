@@ -1063,20 +1063,20 @@ export default class UserScriptPlayer implements Player {
     );
   }
 
-  public close = (): void => {
+  public async close(): Promise<void> {
     void this.#protectedState.runExclusive(async (state) => {
       for (const scriptRegistration of state.scriptRegistrations) {
         scriptRegistration.terminate();
       }
     });
-    this.#player.close();
+    void this.#player.close();
     if (this.#totalTimeMetric != undefined) {
       this.#perfRegistry?.unregisterMetric(this.#totalTimeMetric);
     }
     if (this.#transformRpc) {
       void this.#transformRpc.send("close");
     }
-  };
+  }
 
   public setPublishers(publishers: AdvertiseOptions[]): void {
     this.#player.setPublishers(publishers);
