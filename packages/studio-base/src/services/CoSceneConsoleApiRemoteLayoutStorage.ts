@@ -97,7 +97,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly namespace: string,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
-  ) {}
+  ) { }
 
   public getProjectWritePermission(): boolean {
     // TODO: waiting for the new API to be released
@@ -170,7 +170,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
           : LayoutScopeEnum_LayoutScope.PROJECT,
     });
 
-    const result = await this.api.createLayout({ parent, layout });
+    const result = await this.api.createUserLayout({ parent, layout });
     const users = await this.api.batchGetUsers([result.modifier]);
 
     return convertGrpcLayoutToRemoteLayout({
