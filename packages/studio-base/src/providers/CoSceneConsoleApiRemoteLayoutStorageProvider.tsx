@@ -8,21 +8,32 @@
 import { useMemo } from "react";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
+  ProjectRoleEnum,
+  ProjectRoleWeight,
+  useCurrentUser,
+  UserStore,
+} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import RemoteLayoutStorageContext from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
 import ConsoleApiRemoteLayoutStorage from "@foxglove/studio-base/services/CoSceneConsoleApiRemoteLayoutStorage";
 
 const selectUser = (store: UserStore) => store.user;
+const selectprojectWritePermission = (store: UserStore) =>
+  store.role.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_WRITER];
 
 export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const api = useConsoleApi();
   const currentUser = useCurrentUser(selectUser);
+  const projectWritePermission = useCurrentUser(selectprojectWritePermission);
+
   const apiStorage = useMemo(
     () =>
-      currentUser?.userId ? new ConsoleApiRemoteLayoutStorage(currentUser.userId, api) : undefined,
-    [api, currentUser?.userId],
+      currentUser?.userId
+        ? new ConsoleApiRemoteLayoutStorage(currentUser.userId, api, projectWritePermission)
+        : undefined,
+    [api, currentUser?.userId, projectWritePermission],
   );
 
   return (

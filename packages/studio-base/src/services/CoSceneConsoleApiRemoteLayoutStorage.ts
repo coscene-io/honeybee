@@ -5,39 +5,90 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { filterMap } from "@foxglove/den/collection";
+import { FieldMask, Struct, JsonObject } from "@bufbuild/protobuf";
+import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
+import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
+import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import _uniq from "lodash/uniq";
+
 import Logger from "@foxglove/log";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import {
   IRemoteLayoutStorage,
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
-import ConsoleApi, { ConsoleApiLayout } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import { replaceUndefinedWithNull } from "@foxglove/studio-base/util/coscene";
+
+import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
 
-function convertLayout({
-  id,
-  name,
-  permission,
-  data,
-  savedAt,
-  isProjectRecommended,
-  isRecordRecommended,
-}: ConsoleApiLayout): RemoteLayout {
-  if (data == undefined) {
-    throw new Error(`Missing data for server layout ${name} (${id})`);
+type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
+
+// Convert gRPC Layout to RemoteLayout
+function convertGrpcLayoutToRemoteLayout({
+  layout,
+  users,
+  projectWrite,
+}: {
+  layout: Layout;
+  users: CoUser[];
+  projectWrite: boolean;
+}): RemoteLayout {
+  if (!layout.data) {
+    throw new Error(`Missing data for server layout ${layout.displayName} (${layout.name})`);
   }
+
+  let data: LayoutData;
+  try {
+    data = layout.data.toJson() as LayoutData;
+  } catch (err) {
+    throw new Error(`Invalid layout data for ${layout.displayName}: ${err}`);
+  }
+
+  // Parse layout name to extract ID and parent
+  const layoutNameParts = layout.name.split("/layouts/");
+  if (layoutNameParts.length !== 2 || !layoutNameParts[1] || !layoutNameParts[0]) {
+    throw new Error(
+      `Invalid layout name format: ${layout.name}. Expected format: '<parent>/layouts/<id>'`,
+    );
+  }
+
+  const layoutId = layoutNameParts[1];
+  const parent = layoutNameParts[0];
+
+  // Determine permission based on resource name pattern
+  let permission: LayoutPermission;
+  if (parent.startsWith("warehouses/")) {
+    if (projectWrite) {
+      permission = "PROJECT_WRITE";
+    } else {
+      permission = "PROJECT_READ";
+    }
+  } else if (parent.startsWith("users/")) {
+    permission = "PERSONAL_WRITE";
+  } else {
+    throw new Error(`Invalid parent for layout ${layout.displayName}: ${parent}`);
+  }
+
+  const modifier = users.find((user) => user.name === layout.modifier);
+
   return {
-    id,
-    name,
+    id: layoutId as LayoutID,
+    parent,
+    folder: layout.folder,
+    name: layout.displayName,
     permission,
-    data: data as LayoutData,
-    savedAt,
-    isProjectRecommended,
-    isRecordRecommended,
+    data,
+    savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
+    updatedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
+    modifyTime: layout.modifyTime,
+
+    modifier: layout.modifier,
+    modifierAvatar: modifier?.avatar,
+    modifierNickname: modifier?.nickname,
   };
 }
 
@@ -45,81 +96,153 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   public constructor(
     public readonly namespace: string,
     private api: ConsoleApi,
+    private projectWritePermission: boolean,
   ) {}
 
-  public async getLayouts(): Promise<readonly RemoteLayout[]> {
-    return filterMap(await this.api.getLayouts({ includeData: true }), (layout) => {
-      try {
-        return convertLayout(layout);
-      } catch (err) {
-        log.warn(err);
-        return undefined;
-      }
-    });
+  public getProjectWritePermission(): boolean {
+    // TODO: waiting for the new API to be released
+    // return this.api.createProjectLayout.permission();
+    return this.projectWritePermission;
   }
 
-  public async getLayout(id: LayoutID): Promise<RemoteLayout | undefined> {
-    const layout = await this.api.getLayout(id, { includeData: true });
-    return layout ? convertLayout(layout) : undefined;
+  public async getLayouts(parents: string[]): Promise<readonly RemoteLayout[]> {
+    try {
+      const layouts = await Promise.all(
+        parents.map(async (parent) => {
+          const layouts = await this.api.listLayouts({ parent });
+          const users = await this.api.batchGetUsers(
+            _uniq(layouts.layouts.map((layout) => layout.modifier)),
+          );
+
+          const projectWrite = this.getProjectWritePermission();
+          return layouts.layouts.map((layout) =>
+            convertGrpcLayoutToRemoteLayout({ layout, users: users.users, projectWrite }),
+          );
+        }),
+      );
+
+      return layouts.flat();
+    } catch (err) {
+      log.error("Failed to get layouts:", err);
+      return [];
+    }
+  }
+
+  public async getLayout(id: LayoutID, parent: string): Promise<RemoteLayout | undefined> {
+    try {
+      const name = `${parent}/layouts/${id}`;
+      const layout = await this.api.getLayout({ name });
+      const users = await this.api.batchGetUsers([layout.modifier]);
+      return convertGrpcLayoutToRemoteLayout({
+        layout,
+        users: users.users,
+        projectWrite: this.getProjectWritePermission(),
+      });
+    } catch (err) {
+      log.error("Failed to get layout:", err);
+      return undefined;
+    }
   }
 
   public async saveNewLayout({
     id,
+    parent,
+    folder,
     name,
     data,
     permission,
-    savedAt,
   }: {
     id: LayoutID | undefined;
+    parent: string;
+    folder: string;
     name: string;
     data: LayoutData;
-    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
-    savedAt: ISO8601Timestamp;
+    permission: LayoutPermission;
   }): Promise<RemoteLayout> {
-    const result = await this.api.createLayout({ id, name, data, permission, savedAt });
-    return convertLayout(result);
-  }
+    const layout = new Layout({
+      name: id ? `${parent}/layouts/${id}` : undefined,
+      displayName: name,
+      folder,
+      data: Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject),
+      scope:
+        permission === "PERSONAL_WRITE"
+          ? LayoutScopeEnum_LayoutScope.PERSONAL
+          : LayoutScopeEnum_LayoutScope.PROJECT,
+    });
 
-  public async saveAsRecordDefaultLayout({
-    id,
-    name,
-    data,
-    permission,
-    savedAt,
-  }: {
-    id: LayoutID | undefined;
-    name: string;
-    data: LayoutData;
-    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
-    savedAt: ISO8601Timestamp;
-  }): Promise<RemoteLayout> {
-    const result = await this.api.createRecordLayout({ id, name, data, permission, savedAt });
-    return convertLayout(result);
+    const result = await this.api.createLayout({ parent, layout });
+    const users = await this.api.batchGetUsers([result.modifier]);
+
+    return convertGrpcLayoutToRemoteLayout({
+      layout: result,
+      users: users.users,
+      projectWrite: this.getProjectWritePermission(),
+    });
   }
 
   public async updateLayout({
     id,
+    parent,
     name,
     data,
-    permission,
-    savedAt,
+    permission: _permission,
   }: {
     id: LayoutID;
+    parent: string;
     name?: string;
     data?: LayoutData;
-    permission?: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
-    savedAt: ISO8601Timestamp;
+    permission?: LayoutPermission;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
-    const result = await this.api.updateLayout({ id, name, data, permission, savedAt });
-    switch (result.status) {
-      case "success":
-        return { status: "success", newLayout: convertLayout(result.newLayout) };
-      case "conflict":
-        return result;
+    try {
+      // First get the existing layout to determine its current resource name
+      const existingLayout = await this.getLayout(id, parent);
+      if (!existingLayout) {
+        return { status: "conflict" };
+      }
+
+      // Create updated layout
+      const updatedLayout = new Layout({
+        name: `${parent}/layouts/${id}`,
+      });
+
+      // Create update mask for the fields we're updating
+      const updateMask = new FieldMask();
+      const paths: string[] = [];
+      updateMask.paths = paths;
+
+      if (name != undefined && name) {
+        updatedLayout.displayName = name;
+        paths.push("displayName");
+      }
+      if (data != undefined) {
+        updatedLayout.data = Struct.fromJson(replaceUndefinedWithNull(data) as JsonObject);
+        paths.push("data");
+      }
+
+      const result = await this.api.updateLayout({ layout: updatedLayout, updateMask });
+      const users = await this.api.batchGetUsers([result.modifier]);
+      return {
+        status: "success",
+        newLayout: convertGrpcLayoutToRemoteLayout({
+          layout: result,
+          users: users.users,
+          projectWrite: this.getProjectWritePermission(),
+        }),
+      };
+    } catch (err) {
+      log.error("Failed to update layout:", err);
+      return { status: "conflict" };
     }
   }
 
-  public async deleteLayout(id: LayoutID): Promise<boolean> {
-    return await this.api.deleteLayout(id);
+  public async deleteLayout(id: LayoutID, parent: string): Promise<boolean> {
+    try {
+      const name = `${parent}/layouts/${id}`;
+      await this.api.deleteLayout({ name });
+      return true;
+    } catch (err) {
+      log.error("Failed to delete layout:", err);
+      return false;
+    }
   }
 }

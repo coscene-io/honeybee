@@ -25,19 +25,32 @@ const SYNC_INTERVAL_MAX_MS = 3 * 60_000;
 
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
+const selectUser = (store: UserStore) => store.user;
 
 export default function CoSceneLayoutManagerProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const layoutStorage = useLayoutStorage();
   const remoteLayoutStorage = useRemoteLayoutStorage();
-  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
+  const currentUser = useCurrentUser(selectUser);
+
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
+  const projectName =
+    externalInitConfig?.warehouseId && externalInitConfig.projectId
+      ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`
+      : undefined;
 
   const layoutManager = useMemo(
-    () => new LayoutManager({ local: layoutStorage, remote: remoteLayoutStorage }),
-    [layoutStorage, remoteLayoutStorage],
+    () =>
+      new LayoutManager({
+        local: layoutStorage,
+        remote: remoteLayoutStorage,
+        projectName,
+        currentUser,
+      }),
+    [layoutStorage, remoteLayoutStorage, projectName, currentUser],
   );
 
   const { online = false } = useNetworkState();
