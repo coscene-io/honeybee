@@ -25,7 +25,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   layoutDebugging: "布局调试",
   layoutDebuggingDescription: "显示用于开发和调试布局存储的额外控件。",
   light: "亮色",
-  messageRate: "消息速率",
   noExperimentalFeatures: "目前没有实验性的功能。",
   openLinksIn: "打开链接",
   ros: "ROS",
