@@ -19,7 +19,7 @@ interface LayoutSelectorProps {
   error?: boolean;
 }
 
-export function LayoutSelector({
+export function ProjectLayoutSelector({
   projectName,
   onChange,
   error,
@@ -31,14 +31,14 @@ export function LayoutSelector({
     if (!projectName) {
       return [];
     }
-    const result = await consoleApi.listLayouts({ parent: projectName });
-    return result.layouts.map((layout) => ({
+    const result = await consoleApi.listProjectLayouts({ parent: projectName });
+    return result.projectLayouts.map((layout) => ({
       label: layout.displayName,
       value: layout.name,
     }));
   }, [projectName, consoleApi]);
 
-  const getLayout = useCallback(
+  const getProjectLayout = useCallback(
     async (layoutName: string) => {
       if (!layoutName) {
         onChange(undefined);
@@ -46,7 +46,7 @@ export function LayoutSelector({
       }
 
       try {
-        const result = await consoleApi.getLayout({ name: layoutName });
+        const result = await consoleApi.getProjectLayout({ name: layoutName });
         const data = result.data?.toJson() as LayoutData;
         onChange(data);
       } catch (error) {
@@ -63,7 +63,7 @@ export function LayoutSelector({
     <Autocomplete
       options={options.value ?? []}
       onChange={(_event, value) => {
-        void getLayout(value?.value ?? "");
+        void getProjectLayout(value?.value ?? "");
       }}
       renderInput={(params) => (
         <TextField required {...params} label={t("layoutToCopy")} error={error} />
