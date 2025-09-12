@@ -57,7 +57,7 @@ export type Layout = {
   syncInfo:
     | {
         status: LayoutSyncStatus;
-        /** The last modifyTime returned by the server. */
+        /** The last savedAt returned by the server. */
         lastRemoteSavedAt: ISO8601Timestamp | undefined;
         lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
       }

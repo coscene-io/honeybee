@@ -21,6 +21,3 @@ coverage/
 # Extensions
 *.foxe
 *.coe
-
-# Cursor
-.cursor/rules/

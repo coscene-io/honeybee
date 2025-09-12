@@ -142,7 +142,6 @@ import {
   CoordinatorConfig,
   ExternalInitConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
@@ -311,13 +310,6 @@ export enum MetricType {
 }
 
 type ApiResponse<T> = { status: number; json: T };
-
-type LayoutTemplatesIndex = {
-  [key: string]: {
-    path: string;
-    updateTime: string;
-  };
-};
 
 export type SingleFileGetEventsRequest = {
   projectName: string;
@@ -1019,15 +1011,6 @@ class CoSceneConsoleApi {
       name: projectName,
     });
     return await getPromiseClient(ProjectService).getProject(req);
-  }
-
-  // todo: remove
-  public async getLayoutTemplatesIndex(layoutTemplatesUrl: string): Promise<LayoutTemplatesIndex> {
-    return await this.#get<LayoutTemplatesIndex>(layoutTemplatesUrl, undefined, true);
-  }
-
-  public async getLayoutTemplate(url: string): Promise<LayoutData> {
-    return await this.#get<LayoutData>(url, undefined, true);
   }
 
   public async listUserProjects({

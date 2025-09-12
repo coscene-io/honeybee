@@ -64,14 +64,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     online: layoutManager.isOnline,
   });
 
-  // const pendingMultiAction = state.multiAction?.ids != undefined;
-
-  // const anySelectedModifiedLayouts = useMemo(() => {
-  //   return [layouts.value?.personalLayouts ?? [], layouts.value?.projectLayouts ?? []]
-  //     .flat()
-  //     .some((layout) => layout.working != undefined && state.selectedIds.includes(layout.id));
-  // }, [layouts, state.selectedIds]);
-
   useLayoutEffect(() => {
     const busyListener = () => {
       dispatch({ type: "set-busy", value: layoutManager.isBusy });
