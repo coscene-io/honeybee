@@ -78,11 +78,6 @@ enum Endpoint {
   UpdateProjectLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.UpdateProjectLayout",
   DeleteUserLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.DeleteUserLayout",
   DeleteProjectLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.DeleteProjectLayout",
-  // Keep old endpoints for compatibility during transition
-  DeleteLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.DeleteLayout",
-  GetLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.GetLayout",
-  ListLayouts = "coscene.dataplatform.v1alpha2.services.LayoutService.ListLayouts",
-  UpdateLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.UpdateLayout",
 }
 
 export default Endpoint;
