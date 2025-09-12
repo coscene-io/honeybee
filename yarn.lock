@@ -6285,6 +6285,7 @@ __metadata:
     path-browserify: 1.0.1
     pinyin-match: 1.2.4
     posthog-js: 1.205.0
+    race-as-promised: 0.0.3
     ramda: 0.29.1
     react: ^18.3.1
     react-colorful: 5.6.1
@@ -23706,6 +23707,13 @@ __metadata:
   version: 0.0.3
   resolution: "quicklookjs@npm:0.0.3"
   checksum: e11d4a5976233c686c69ff6da8efe5fb7ac203d789ccb51d7d69d402fcfe634da39dac056a9c8a4325b7e5efea729819b2e5b445578a12ddbaf35b233a66b78c
+  languageName: node
+  linkType: hard
+
+"race-as-promised@npm:0.0.3":
+  version: 0.0.3
+  resolution: "race-as-promised@npm:0.0.3"
+  checksum: 4fa7ffbaf96017171cb8440657f2497a9b1e0dc5505557e2598f4b50ea91f86fefc37a893e6d012f55940e829d90fca14540c9a1653da3a10dcd51820b1b7e50
   languageName: node
   linkType: hard
 

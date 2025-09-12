@@ -151,7 +151,7 @@ describe("RosbridgePlayer", () => {
   });
 
   afterEach(() => {
-    player.close();
+    void player.close();
   });
 
   it("subscribes to topics without errors", async () => {

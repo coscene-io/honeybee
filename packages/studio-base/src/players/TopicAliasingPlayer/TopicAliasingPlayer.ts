@@ -87,8 +87,8 @@ export class TopicAliasingPlayer implements Player {
     this.#skipAliasing = aliasFunctions.length === 0;
   }
 
-  public close(): void {
-    this.#player.close();
+  public async close(): Promise<void> {
+    await this.#player.close();
   }
 
   public setSubscriptions(subscriptions: SubscribePayload[]): void {

@@ -285,7 +285,7 @@ export function createMessagePipelineStore({
 
         if (player) {
           try {
-            player.close();
+            void player.close();
           } catch (error) {
             log.error("Error calling player.close():", error);
           }

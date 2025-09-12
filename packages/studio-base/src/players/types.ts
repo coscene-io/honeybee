@@ -60,7 +60,7 @@ export interface Player {
   setListener(listener: (playerState: PlayerState) => Promise<void>): void;
   // Close the player; i.e. terminate any connections it might have open.
   // 关闭播放器；即终止可能打开的任何连接。
-  close(): void;
+  close(): Promise<void>;
   // Reopen the player; i.e. reconnect to the server.
   // 重新打开播放器；即重新连接到服务器。
   reOpen(): void;
