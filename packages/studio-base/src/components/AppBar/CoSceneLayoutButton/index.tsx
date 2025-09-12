@@ -51,7 +51,7 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { usePrompt } from "@foxglove/studio-base/hooks/useCoScenePrompt";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
@@ -122,7 +122,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     async () => {
       const [shared, personal] = _.partition(
         await layoutManager.getLayouts(),
-        layoutManager.supportsSharing ? layoutIsShared : () => false,
+        layoutManager.supportsSharing ? layoutIsProject : () => false,
       );
       return {
         personal: personal.sort((a, b) => a.name.localeCompare(b.name)),
@@ -213,7 +213,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
                   folder: layout.folder,
                   name: `${layout.name} copy`,
                   data: layout.working?.data ?? layout.baseline.data,
-                  permission: "CREATOR_WRITE",
+                  permission: "PERSONAL_WRITE",
                 });
               }
               dispatch({ type: "shift-multi-action" });
@@ -253,7 +253,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         : undefined;
     if (
       currentLayout != undefined &&
-      layoutIsShared(currentLayout) &&
+      layoutIsProject(currentLayout) &&
       currentLayout.working != undefined
     ) {
       const result = await openUnsavedChangesPrompt(currentLayout);
@@ -351,7 +351,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         folder: item.folder,
         name: `${item.name} copy`,
         data: item.working?.data ?? item.baseline.data,
-        permission: "CREATOR_WRITE",
+        permission: "PERSONAL_WRITE",
       });
       await onSelectLayout(newLayout);
       void analytics.logEvent(AppEvent.LAYOUT_DUPLICATE, { permission: item.permission });
@@ -411,7 +411,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           folder: item.folder,
           name,
           data: item.working?.data ?? item.baseline.data,
-          permission: "ORG_WRITE",
+          permission: "PROJECT_WRITE",
         });
         void analytics.logEvent(AppEvent.LAYOUT_SHARE, { permission: item.permission });
         await onSelectLayout(newLayout);
@@ -439,7 +439,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         return;
       }
 
-      if (layoutIsShared(item)) {
+      if (layoutIsProject(item)) {
         const response = await confirm({
           title: `${t("update")} " ${item.name}"?`,
           prompt: t("updateRemoteLayoutConfirm"),
@@ -502,7 +502,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       folder: "",
       name: displayName,
       data: layoutData,
-      permission: "CREATOR_WRITE",
+      permission: "PERSONAL_WRITE",
     });
     void onSelectLayout(newLayout);
 
@@ -666,7 +666,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
             <LayoutSection
               title={t("organization")}
               emptyText={t("noOrgnizationLayouts")}
-              // Layout of top recommendations
               items={orgLayouts}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}

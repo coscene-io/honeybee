@@ -11,11 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { MutexLocked } from "@foxglove/den/async";
 import Logger from "@foxglove/log";
-import {
-  ProjectRoleEnum,
-  ProjectRoleWeight,
-  User,
-} from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
@@ -28,9 +24,9 @@ import {
   ISO8601Timestamp,
   Layout,
   layoutAppearsDeleted,
-  layoutIsShared,
+  layoutIsProject,
   LayoutPermission,
-  layoutPermissionIsShared,
+  layoutPermissionIsProject,
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import {
   IRemoteLayoutStorage,
@@ -86,7 +82,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   #remote: IRemoteLayoutStorage | undefined;
 
   public readonly supportsSharing: boolean;
-  public readonly supportsEditProject: boolean;
+  public readonly supportsProjectWrite: boolean;
 
   #emitter = new EventEmitter<LayoutManagerEventTypes>();
 
@@ -156,16 +152,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     remote,
     projectName,
     currentUser,
-    currentUserRole,
   }: {
     local: ILayoutStorage;
     remote: IRemoteLayoutStorage | undefined;
     projectName: string | undefined;
     currentUser: User | undefined;
-    currentUserRole: {
-      organizationRole: number;
-      projectRole: number;
-    };
   }) {
     this.#local = new MutexLocked(
       new NamespacedLayoutStorage(
@@ -186,9 +177,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.supportsSharing = remote != undefined;
     this.#currentUser = currentUser;
     this.userName = currentUser?.userId ? `users/${currentUser.userId}` : undefined;
-    this.supportsEditProject =
-      this.supportsSharing &&
-      currentUserRole.projectRole >= ProjectRoleWeight[ProjectRoleEnum.PROJECT_READER];
+    this.supportsProjectWrite = remote?.getProjectWritePermission() ?? false;
 
     if (remote) {
       this.#backupLocal = new MutexLocked(
@@ -307,10 +296,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     data: LayoutData;
     permission: LayoutPermission;
   }): Promise<Layout> {
-    const parent = permission === "CREATOR_WRITE" ? this.userName ?? "" : this.projectName ?? "";
+    const parent = permission === "PERSONAL_WRITE" ? this.userName ?? "" : this.projectName ?? "";
 
     const data = migratePanelsState(unmigratedData);
-    if (layoutPermissionIsShared(permission)) {
+    if (layoutPermissionIsProject(permission)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
@@ -412,7 +401,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
-    if (name != undefined && layoutIsShared(localLayout)) {
+    if (name != undefined && layoutIsProject(localLayout)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
@@ -494,7 +483,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     if (!localLayout) {
       throw new Error(`Cannot update layout ${id} because it does not exist`);
     }
-    if (layoutIsShared(localLayout)) {
+    if (layoutIsProject(localLayout)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
@@ -506,7 +495,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       }
     }
     await this.#local.runExclusive(async (local) => {
-      if (this.#remote && !layoutIsShared(localLayout)) {
+      if (this.#remote && !layoutIsProject(localLayout)) {
         await local.put({
           ...localLayout,
           working: {
@@ -536,7 +525,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     const now = new Date().toISOString() as ISO8601Timestamp;
 
-    if (layoutIsShared(localLayout)) {
+    if (layoutIsProject(localLayout)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
@@ -628,7 +617,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         parent: "",
         folder: layout.folder,
         name,
-        permission: "CREATOR_WRITE",
+        permission: "PERSONAL_WRITE",
         baseline: {
           data: layout.working?.data ?? layout.baseline.data,
           savedAt: now,
@@ -927,7 +916,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             log.debug(`Adding layout to cache: ${remoteLayout.id}`);
 
             // only backup layouts with personal layout
-            if (remoteLayout.permission === "CREATOR_WRITE") {
+            if (remoteLayout.permission === "PERSONAL_WRITE") {
               await local.put({
                 id: remoteLayout.id,
                 parent: remoteLayout.parent,
@@ -957,7 +946,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             log.debug(`Updating baseline for ${localLayout.id}`);
 
             // only backup layouts with personal layout
-            if (remoteLayout.permission === "CREATOR_WRITE") {
+            if (remoteLayout.permission === "PERSONAL_WRITE") {
               await local.put({
                 id: remoteLayout.id,
                 parent: remoteLayout.parent,

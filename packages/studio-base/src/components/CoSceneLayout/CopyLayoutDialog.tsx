@@ -39,6 +39,7 @@ export function CopyLayoutDialog({
   personalFolders,
   projectFolders,
   layout,
+  supportsProjectWrite,
 }: {
   open: boolean;
   onClose: () => void;
@@ -46,12 +47,13 @@ export function CopyLayoutDialog({
   personalFolders: string[];
   projectFolders: string[];
   layout: Layout;
+  supportsProjectWrite: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
 
   const form = useForm<CreateLayoutParams>({
-    defaultValues: { name: "", folder: "", permission: "CREATOR_WRITE" },
+    defaultValues: { name: "", folder: "", permission: "PERSONAL_WRITE" },
   });
 
   const onSubmit = (data: CreateLayoutParams) => {
@@ -99,8 +101,10 @@ export function CopyLayoutDialog({
               name="permission"
               render={({ field }) => (
                 <Select label={t("type")} {...field}>
-                  <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
-                  <MenuItem value="ORG_WRITE">{t("projectLayout")}</MenuItem>
+                  <MenuItem value="PERSONAL_WRITE">{t("personalLayout")}</MenuItem>
+                  <MenuItem value="PROJECT_WRITE" disabled={!supportsProjectWrite}>
+                    {t("projectLayout")}
+                  </MenuItem>
                 </Select>
               )}
             />
@@ -111,7 +115,7 @@ export function CopyLayoutDialog({
             name="folder"
             render={({ field }) => (
               <SelectFolder
-                folders={permission === "CREATOR_WRITE" ? personalFolders : projectFolders}
+                folders={permission === "PERSONAL_WRITE" ? personalFolders : projectFolders}
                 onChange={(value) => {
                   field.onChange(value ?? "");
                 }}

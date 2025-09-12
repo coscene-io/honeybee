@@ -11,7 +11,7 @@ import useAsyncFn, { AsyncState } from "react-use/lib/useAsyncFn";
 
 import Logger from "@foxglove/log";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
 
@@ -29,7 +29,7 @@ export function useCurrentLayout(): AsyncState<{
 
       const [projectLayouts, personalLayouts] = _.partition(
         layouts,
-        layoutManager.supportsSharing ? layoutIsShared : () => false,
+        layoutManager.supportsSharing ? layoutIsProject : () => false,
       );
 
       return {

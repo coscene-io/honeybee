@@ -305,10 +305,6 @@ type CoverageResponse = {
   end: string;
 };
 
-export type LayoutID = string & { __brand: "LayoutID" };
-export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
-export type Permission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
-
 export enum MetricType {
   RecordPlaysTotal = "honeybee_record_plays_total",
   RecordPlaysEveryFiveSecondsTotal = "honeybee_record_plays_every_five_seconds_total",
@@ -570,6 +566,22 @@ class CoSceneConsoleApi {
       },
     },
   );
+
+  // TODO: This is a temporary method to create a project layout, wating for the new API to be released
+  // public createProjectLayout = Object.assign(
+  //   async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
+  //     const req = new CreateLayoutRequest({
+  //       parent,
+  //       layout,
+  //     });
+  //     return await getPromiseClient(LayoutService).createLayout(req);
+  //   },
+  //   {
+  //     permission: () => {
+  //       return checkUserPermission(EndpointDataplatformV1alph2.CreateLayout, this.#permissionList);
+  //     },
+  //   },
+  // );
 
   public updateLayout = Object.assign(
     async ({ layout, updateMask }: { layout: Layout; updateMask?: FieldMask }): Promise<Layout> => {

@@ -37,7 +37,7 @@ import { useMountedState } from "react-use";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const StyledListItem = muiStyled(ListItem, {
   shouldForwardProp: (prop) =>
@@ -157,7 +157,6 @@ export default React.memo(function LayoutRow({
   const confirm = useConfirm();
   const layoutManager = useLayoutManager();
   const { t } = useTranslation("cosLayout");
-  // const currentUserRole = useCurrentUser(selectUserRole);
 
   const [editingName, setEditingName] = useState(false);
   const [nameFieldValue, setNameFieldValue] = useState("");
@@ -171,9 +170,6 @@ export default React.memo(function LayoutRow({
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined && onOverwrite != undefined;
   const multiSelection = multiSelectedIds.length > 1;
-
-  // const project = useCoreData(selectProject);
-  // const record = useCoreData(selectRecord);
 
   useLayoutEffect(() => {
     const onlineListener = () => {
@@ -282,7 +278,7 @@ export default React.memo(function LayoutRow({
       throw new Error("onDelete is not defined");
     }
     const layoutWarning =
-      !multiSelection && layoutIsShared(layout) ? t("deleteLayoutsWarning") : "";
+      !multiSelection && layoutIsProject(layout) ? t("deleteLayoutsWarning") : "";
     const prompt = t("deleteLayoutsPrompt", { layoutWarning });
     const title = multiSelection
       ? t("deleteSelectedLayoutsTitle")
@@ -332,24 +328,24 @@ export default React.memo(function LayoutRow({
             text: t("rename"),
             onClick: renameAction,
             "data-testid": "rename-layout",
-            disabled: (layoutIsShared(layout) && !isOnline) || multiSelection,
-            secondaryText: layoutIsShared(layout) && !isOnline ? "Offline" : undefined,
+            disabled: (layoutIsProject(layout) && !isOnline) || multiSelection,
+            secondaryText: layoutIsProject(layout) && !isOnline ? "Offline" : undefined,
           } as LayoutActionMenuItem,
         ]
       : []),
     // For shared layouts, duplicate first requires saving or discarding changes
-    !(layoutIsShared(layout) && hasModifications) && {
+    !(layoutIsProject(layout) && hasModifications) && {
       type: "item",
       key: "duplicate",
       text:
-        layoutManager.supportsSharing && layoutIsShared(layout)
+        layoutManager.supportsSharing && layoutIsProject(layout)
           ? t("makeAPersonalCopy")
           : t("duplicate"),
       onClick: duplicateAction,
       "data-testid": "duplicate-layout",
     },
     layoutManager.supportsSharing &&
-      !layoutIsShared(layout) && {
+      !layoutIsProject(layout) && {
         type: "item",
         key: "share",
         text: t("shareWithTeam"),
@@ -387,8 +383,8 @@ export default React.memo(function LayoutRow({
               key: "overwrite",
               text: t("saveChanges"),
               onClick: overwriteAction,
-              disabled: deletedOnServer || (layoutIsShared(layout) && !isOnline),
-              secondaryText: layoutIsShared(layout) && !isOnline ? "Offline" : undefined,
+              disabled: deletedOnServer || (layoutIsProject(layout) && !isOnline),
+              secondaryText: layoutIsProject(layout) && !isOnline ? "Offline" : undefined,
             } as LayoutActionMenuItem,
           ]
         : []),
@@ -404,7 +400,7 @@ export default React.memo(function LayoutRow({
           ]
         : []),
     ];
-    if (layoutIsShared(layout)) {
+    if (layoutIsProject(layout)) {
       sectionItems.push({
         type: "item",
         key: "copy_to_personal",

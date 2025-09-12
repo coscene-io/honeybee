@@ -12,7 +12,7 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/a
 // https://github.com/microsoft/TypeScript/issues/4895
 export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
 
-export type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+export type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
 
 export type LayoutSyncStatus =
   | "new"
@@ -91,16 +91,24 @@ export interface ILayoutStorage {
   putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory>;
 }
 
-export function layoutPermissionIsShared(
+export function layoutPermissionIsProject(
   permission: LayoutPermission,
-): permission is Exclude<LayoutPermission, "CREATOR_WRITE"> {
-  return permission !== "CREATOR_WRITE";
+): permission is Exclude<LayoutPermission, "PERSONAL_WRITE"> {
+  return permission !== "PERSONAL_WRITE";
 }
 
-export function layoutIsShared(
+export function layoutIsProject(
   layout: Layout,
-): layout is Layout & { permission: Exclude<LayoutPermission, "CREATOR_WRITE"> } {
-  return layoutPermissionIsShared(layout.permission);
+): layout is Layout & { permission: Exclude<LayoutPermission, "PERSONAL_WRITE"> } {
+  return layoutPermissionIsProject(layout.permission);
+}
+
+export function layoutPermissionIsRead(permission: LayoutPermission): permission is "PROJECT_READ" {
+  return permission === "PROJECT_READ";
+}
+
+export function layoutIsRead(layout: Layout): layout is Layout & { permission: "PROJECT_READ" } {
+  return layoutPermissionIsRead(layout.permission);
 }
 
 export function layoutAppearsDeleted(layout: Layout): boolean {

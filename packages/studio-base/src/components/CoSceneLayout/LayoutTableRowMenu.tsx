@@ -10,7 +10,11 @@ import { useCallback } from "react";
 import { useTranslation, Trans } from "react-i18next";
 
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import {
+  Layout,
+  layoutIsProject,
+  layoutIsRead,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 export type LayoutActionMenuItem =
   | {
@@ -32,7 +36,6 @@ export type LayoutActionMenuItem =
 export function LayoutTableRowMenu({
   anchorEl,
   layout,
-  supportsEditProject,
   handleMenuClose,
   handleOpenDialog,
   onDeleteLayout,
@@ -40,7 +43,6 @@ export function LayoutTableRowMenu({
 }: {
   anchorEl: HTMLElement | undefined;
   layout: Layout;
-  supportsEditProject: boolean;
   handleMenuClose: () => void;
   handleOpenDialog: (type: "rename" | "copy", layout: Layout) => void;
   onDeleteLayout: (layout: Layout) => void;
@@ -62,7 +64,7 @@ export function LayoutTableRowMenu({
   }, [layout, handleOpenDialog]);
 
   const confirmDelete = useCallback(() => {
-    const prompt = layoutIsShared(layout) ? (
+    const prompt = layoutIsProject(layout) ? (
       <Trans
         t={t}
         i18nKey="deleteProjectLayoutPrompt"
@@ -77,7 +79,7 @@ export function LayoutTableRowMenu({
         components={{ strong: <strong /> }}
       />
     );
-    const title = layoutIsShared(layout) ? t("deleteProjectLayout") : t("deletePersonalLayout");
+    const title = layoutIsProject(layout) ? t("deleteProjectLayout") : t("deletePersonalLayout");
 
     void confirm({
       title,
@@ -92,7 +94,7 @@ export function LayoutTableRowMenu({
     });
   }, [confirm, layout, t, onDeleteLayout]);
 
-  const disabled = !supportsEditProject && layout.permission !== "CREATOR_WRITE";
+  const disabled = layoutIsRead(layout);
 
   const menuItems: LayoutActionMenuItem[] = [
     {

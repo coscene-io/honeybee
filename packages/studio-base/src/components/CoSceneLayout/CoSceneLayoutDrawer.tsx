@@ -10,9 +10,9 @@ import { Drawer, DrawerProps, IconButton, Box, Typography } from "@mui/material"
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
-import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
 
@@ -39,7 +39,7 @@ const useStyles = makeStyles()((theme) => ({
 
 interface CoSceneLayoutDrawerProps extends DrawerProps {
   currentLayoutId?: LayoutID;
-  supportsEditProject: boolean;
+  supportsProjectWrite: boolean;
   onClose: () => void;
   onSelectLayout: (layout: Layout) => Promise<void>;
   onDeleteLayout: (layout: Layout) => Promise<void>;
@@ -61,7 +61,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
   const { classes } = useStyles();
   const {
     currentLayoutId,
-    supportsEditProject,
+    supportsProjectWrite,
     open,
     onClose,
     onSelectLayout,
@@ -88,7 +88,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
           <CoSceneLayoutContent
             currentLayoutId={currentLayoutId}
             layouts={layouts}
-            supportsEditProject={supportsEditProject}
+            supportsProjectWrite={supportsProjectWrite}
             onSelectLayout={onSelectLayout}
             onDeleteLayout={onDeleteLayout}
             onRenameLayout={onRenameLayout}

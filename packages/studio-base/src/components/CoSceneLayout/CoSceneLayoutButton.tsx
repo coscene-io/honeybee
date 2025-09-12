@@ -28,12 +28,12 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
 import { CoSceneLayoutDrawer } from "./CoSceneLayoutDrawer";
-import { LayoutButton } from "./components/LayoutButton";
+import { CurrentLayoutButton } from "./CurrentLayoutButton";
 import { useCurrentLayout } from "./hooks/useCurrentLayout";
 
 const log = Logger.getLogger(__filename);
@@ -116,7 +116,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
                   folder: layout.folder,
                   name: `${layout.name} copy`,
                   data: layout.working?.data ?? layout.baseline.data,
-                  permission: "CREATOR_WRITE",
+                  permission: "PERSONAL_WRITE",
                 });
               }
               dispatch({ type: "shift-multi-action" });
@@ -156,7 +156,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         : undefined;
     if (
       currentLayout != undefined &&
-      layoutIsShared(currentLayout) &&
+      layoutIsProject(currentLayout) &&
       currentLayout.working != undefined
     ) {
       const result = await openUnsavedChangesPrompt(currentLayout);
@@ -266,7 +266,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         return;
       }
 
-      if (layoutIsShared(item)) {
+      if (layoutIsProject(item)) {
         const response = await confirm({
           title: `${t("update")} " ${item.name}"?`,
           prompt: t("updateRemoteLayoutConfirm"),
@@ -327,10 +327,9 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   return (
     <>
-      <LayoutButton
+      <CurrentLayoutButton
         currentLayoutId={currentLayoutId}
         layouts={layouts.value}
-        supportsEditProject={layoutManager.supportsEditProject}
         loading={layouts.loading}
         onOverwriteLayout={onOverwriteLayout}
         onRevertLayout={onRevertLayout}
@@ -340,7 +339,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       {open && (
         <CoSceneLayoutDrawer
           currentLayoutId={currentLayoutId}
-          supportsEditProject={layoutManager.supportsEditProject}
+          supportsProjectWrite={layoutManager.supportsProjectWrite}
           open
           layouts={layouts.value}
           onSelectLayout={onSelectLayout}

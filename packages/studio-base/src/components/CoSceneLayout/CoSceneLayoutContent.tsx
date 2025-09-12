@@ -42,9 +42,9 @@ import { CopyLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout
 import { LayoutTableRow } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRow";
 import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
+import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
-import { LayoutID } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 import { RenameLayoutDialog } from "./RenameLayoutDialog";
 
@@ -118,7 +118,7 @@ const useStyles = makeStyles()((theme) => ({
 export function CoSceneLayoutContent({
   currentLayoutId,
   layouts,
-  supportsEditProject,
+  supportsProjectWrite,
   onSelectLayout,
   onDeleteLayout,
   onRenameLayout,
@@ -128,7 +128,7 @@ export function CoSceneLayoutContent({
   onCreateLayout,
 }: {
   currentLayoutId?: LayoutID;
-  supportsEditProject: boolean;
+  supportsProjectWrite: boolean;
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
@@ -235,7 +235,7 @@ export function CoSceneLayoutContent({
               onCreateLayout={onCreateLayout}
               personalFolders={layouts?.personalFolders ?? []}
               projectFolders={layouts?.projectFolders ?? []}
-              supportsEditProject={supportsEditProject}
+              supportsProjectWrite={supportsProjectWrite}
             />
           </Box>
 
@@ -423,7 +423,6 @@ export function CoSceneLayoutContent({
                       key={layout.id}
                       currentLayoutId={currentLayoutId}
                       layout={layout}
-                      supportsEditProject={supportsEditProject}
                       handleMenuOpen={handleMenuOpen}
                       onSelectLayout={onSelectLayout}
                       onOverwriteLayout={onOverwriteLayout}
@@ -448,7 +447,6 @@ export function CoSceneLayoutContent({
           anchorEl={menu.anchorEl}
           handleMenuClose={handleMenuClose}
           layout={menu.layout}
-          supportsEditProject={supportsEditProject}
           onDeleteLayout={onDeleteLayout}
           onExportLayout={onExportLayout}
           handleOpenDialog={handleOpenDialog}
@@ -470,6 +468,7 @@ export function CoSceneLayoutContent({
           open
           onClose={handleCloseDialog}
           onCreateLayout={onCreateLayout}
+          supportsProjectWrite={supportsProjectWrite}
         />
       )}
     </div>

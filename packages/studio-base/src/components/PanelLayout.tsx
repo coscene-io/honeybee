@@ -234,7 +234,7 @@ export default function PanelLayout(): React.JSX.Element {
       folder: "",
       name: "Default",
       data: layoutData,
-      permission: "CREATOR_WRITE",
+      permission: "PERSONAL_WRITE",
     });
     setSelectedLayoutId(layout.id);
   };

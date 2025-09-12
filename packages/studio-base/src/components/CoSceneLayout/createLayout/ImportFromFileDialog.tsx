@@ -42,20 +42,20 @@ export function ImportFromFileDialog({
   onCreateLayout,
   personalFolders,
   projectFolders,
-  supportsEditProject,
+  supportsProjectWrite,
 }: {
   open: boolean;
   onClose: () => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
   personalFolders: string[];
   projectFolders: string[];
-  supportsEditProject: boolean;
+  supportsProjectWrite: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
 
   const form = useForm<CreateLayoutParams & { selectedFile: string }>({
-    defaultValues: { name: "", folder: "", permission: "CREATOR_WRITE", selectedFile: "" },
+    defaultValues: { name: "", folder: "", permission: "PERSONAL_WRITE", selectedFile: "" },
   });
 
   const onSubmit = (data: CreateLayoutParams) => {
@@ -152,8 +152,8 @@ export function ImportFromFileDialog({
               name="permission"
               render={({ field }) => (
                 <Select label={t("type")} {...field}>
-                  <MenuItem value="CREATOR_WRITE">{t("personalLayout")}</MenuItem>
-                  <MenuItem value="ORG_WRITE" disabled={!supportsEditProject}>
+                  <MenuItem value="PERSONAL_WRITE">{t("personalLayout")}</MenuItem>
+                  <MenuItem value="PROJECT_WRITE" disabled={!supportsProjectWrite}>
                     {t("projectLayout")}
                   </MenuItem>
                 </Select>
@@ -166,7 +166,7 @@ export function ImportFromFileDialog({
             name="folder"
             render={({ field }) => (
               <SelectFolder
-                folders={permission === "CREATOR_WRITE" ? personalFolders : projectFolders}
+                folders={permission === "PERSONAL_WRITE" ? personalFolders : projectFolders}
                 onChange={(value) => {
                   field.onChange(value ?? "");
                 }}

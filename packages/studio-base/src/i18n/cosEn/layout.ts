@@ -21,7 +21,7 @@ export const cosLayout = {
   rename: "Rename",
   makeAPersonalCopy: "Make a personal copy",
   duplicate: "Duplicate",
-  export: "Export...",
+  export: "Export",
   delete: "Delete",
   saveChanges: "Save changes",
   revert: "Revert",

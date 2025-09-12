@@ -14,7 +14,11 @@ import { APP_BAR_HEIGHT } from "@foxglove/studio-base/components/AppBar/constant
 import Stack from "@foxglove/studio-base/components/Stack";
 import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import {
+  Layout,
+  layoutIsProject,
+  layoutIsRead,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
   textTruncate: {
@@ -46,9 +50,8 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-interface LayoutButtonProps {
+interface CurrentLayoutButtonProps {
   currentLayoutId?: LayoutID;
-  supportsEditProject: boolean;
   loading?: boolean;
   onClick: () => void;
   onOverwriteLayout: (layout: Layout) => void;
@@ -61,15 +64,14 @@ interface LayoutButtonProps {
   };
 }
 
-export function LayoutButton({
+export function CurrentLayoutButton({
   currentLayoutId,
   layouts,
-  supportsEditProject,
   loading,
   onClick,
   onOverwriteLayout,
   onRevertLayout,
-}: LayoutButtonProps): React.JSX.Element {
+}: CurrentLayoutButtonProps): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
 
@@ -81,8 +83,7 @@ export function LayoutButton({
 
   const deletedOnServer = currentLayout?.syncInfo?.status === "remotely-deleted";
   const hasModifications = currentLayout?.working != undefined;
-  const supportsEdit =
-    !!currentLayout && (supportsEditProject || currentLayout.permission === "CREATOR_WRITE");
+  const isRead = !!currentLayout && layoutIsRead(currentLayout);
 
   const getDisplayText = (): string => {
     if (loading === true) {
@@ -100,10 +101,10 @@ export function LayoutButton({
     if (loading === true) {
       return undefined;
     }
-    if (currentLayout?.permission === "CREATOR_WRITE") {
+    if (currentLayout?.permission === "PERSONAL_WRITE") {
       return t("personalLayout");
     }
-    if (currentLayout?.permission === "ORG_WRITE" || currentLayout?.permission === "ORG_READ") {
+    if (currentLayout && layoutIsProject(currentLayout)) {
       return t("projectLayout");
     }
     return t("layout");
@@ -140,7 +141,7 @@ export function LayoutButton({
       key: "saveChanges",
       text: t("saveChanges"),
       onClick: handleOverwrite,
-      disabled: deletedOnServer || !supportsEdit,
+      disabled: deletedOnServer || isRead,
       visible: hasModifications,
     },
     {
