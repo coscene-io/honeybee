@@ -61,7 +61,7 @@ class TransformPlayer implements Player {
     this.#listener = listener;
     void this.#run();
   }
-  public close(): void {
+  public async close(): Promise<void> {
     // no-op
   }
   public setSubscriptions(_subscriptions: SubscribePayload[]): void {}

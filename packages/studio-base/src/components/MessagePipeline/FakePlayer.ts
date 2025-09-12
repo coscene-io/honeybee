@@ -62,9 +62,9 @@ export default class FakePlayer implements Player {
     });
   }
 
-  public close = (): void => {
+  public async close(): Promise<void> {
     // no-op
-  };
+  }
   public setPlaybackSpeed = (): void => {
     // no-op
   };

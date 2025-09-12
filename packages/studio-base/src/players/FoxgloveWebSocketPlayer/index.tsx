@@ -10,6 +10,7 @@
 import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import * as _ from "lodash-es";
+import race from "race-as-promised";
 import { Trans } from "react-i18next";
 import { v4 as uuidv4 } from "uuid";
 
@@ -395,7 +396,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     });
 
     this.#client.on("kicked", (message) => {
-      this.close();
+      void this.close();
       void this.#confirm({
         title: t("cosWebsocket:notification"),
         prompt: (
@@ -1219,11 +1220,34 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#emitState();
   }
 
-  public close(): void {
-    this.#closed = true;
-    this.#client?.close();
-    this.#client = undefined;
+  public async close(): Promise<void> {
+    if (this.#closed) {
+      return;
+    }
 
+    this.#closed = true;
+
+    // If a client exists, wait for its "close" event so we know
+    // the websocket is fully closed before resolving.
+    const client = this.#client;
+    let waitForClose: Promise<void> | undefined;
+    if (client) {
+      waitForClose = new Promise<void>((resolve) => {
+        const onClose = () => {
+          client.off("close", onClose);
+          resolve();
+        };
+        client.on("close", onClose);
+      });
+
+      try {
+        client.close();
+      } catch {
+        // ignore; we'll still proceed to cleanup
+      }
+    }
+
+    // Clean up timers/intervals immediately while we wait for ws to close
     if (this.#openTimeout != undefined) {
       clearTimeout(this.#openTimeout);
       this.#openTimeout = undefined;
@@ -1232,11 +1256,26 @@ export default class FoxgloveWebSocketPlayer implements Player {
       clearInterval(this.#getParameterInterval);
       this.#getParameterInterval = undefined;
     }
+    if (this.#connectionAttemptTimeout != undefined) {
+      clearTimeout(this.#connectionAttemptTimeout);
+      this.#connectionAttemptTimeout = undefined;
+    }
 
-    // Clean up persistent cache
-    void this.#persistentCache?.close().catch((error: unknown) => {
+    // Await the close event with a timeout safeguard to avoid hanging
+    if (waitForClose) {
+      const timeoutMs = 5000;
+      await race([waitForClose, new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))]);
+    }
+
+    // Release client reference after we have observed the close (or timed out)
+    this.#client = undefined;
+
+    try {
+      // Clean up persistent cache
+      await this.#persistentCache?.close();
+    } catch (error) {
       log.debug("Error closing persistent cache:", error);
-    });
+    }
   }
 
   public reOpen(): void {

@@ -183,7 +183,7 @@ describe("IterablePlayer", () => {
       },
     ]);
 
-    player.close();
+    void player.close();
     await player.isClosed;
   });
 
@@ -288,7 +288,7 @@ describe("IterablePlayer", () => {
     // 1. a state update for moving to idle
     expect(playerStates).toEqual([withMessages, baseState]);
 
-    player.close();
+    void player.close();
     await player.isClosed;
   });
 
@@ -370,7 +370,7 @@ describe("IterablePlayer", () => {
     // 1. a state update for moving to idle
     expect(playerStates).toEqual([bufferingState, baseState, baseState]);
 
-    player.close();
+    void player.close();
     await player.isClosed;
   });
 
@@ -454,7 +454,7 @@ describe("IterablePlayer", () => {
     playerStates = await store.done;
     expect(playerStates.map(getIsPlaying)).toEqual([true]);
 
-    player.close();
+    void player.close();
     await player.isClosed;
   });
 
@@ -547,7 +547,7 @@ describe("IterablePlayer", () => {
     playerStates = await store.done;
     expect(playerStates.map(getIsPlaying)).toEqual([false, false]);
 
-    player.close();
+    void player.close();
 
     await player.isClosed;
   });
@@ -662,7 +662,7 @@ describe("IterablePlayer", () => {
       baseState,
     ]);
 
-    player.close();
+    void player.close();
     await player.isClosed;
   });
 
@@ -710,7 +710,7 @@ describe("IterablePlayer", () => {
       expect(playerStates.length).toEqual(1);
     }
 
-    player.close();
+    void player.close();
     await player.isClosed;
   });
 
@@ -760,7 +760,7 @@ describe("IterablePlayer", () => {
       await store.done;
     }
 
-    player.close();
+    void player.close();
     await player.isClosed;
   });
   it("should make a new message iterator when topic subscriptions change", async () => {
@@ -807,7 +807,7 @@ describe("IterablePlayer", () => {
       ],
     ]);
 
-    player.close();
+    void player.close();
     await player.isClosed;
   });
 
@@ -844,7 +844,7 @@ describe("IterablePlayer", () => {
       ],
     ]);
 
-    player.close();
+    void player.close();
     await player.isClosed;
   });
 
@@ -937,7 +937,7 @@ describe("IterablePlayer", () => {
       },
     ]);
 
-    player.close();
+    void player.close();
     await player.isClosed;
   });
 });

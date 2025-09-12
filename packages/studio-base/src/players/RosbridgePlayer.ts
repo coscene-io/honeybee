@@ -430,7 +430,7 @@ export default class RosbridgePlayer implements Player {
     this.#emitState();
   }
 
-  public close(): void {
+  public async close(): Promise<void> {
     this.#closed = true;
     if (this.#rosClient) {
       this.#rosClient.close();

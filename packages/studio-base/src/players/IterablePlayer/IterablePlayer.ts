@@ -412,7 +412,7 @@ export class IterablePlayer implements Player {
     throw new Error("Service calls are not supported by this data source");
   }
 
-  public close(): void {
+  public async close(): Promise<void> {
     try {
       void this.#iterableSource.terminate?.();
     } catch (e) {
