@@ -116,7 +116,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
             allLayouts = (await this.api.listProjectLayouts({ parent })).projectLayouts
           }
 
-          const modifiers: string[] = allLayouts.map((layout) => layout.modifier);
+          const modifiers: string[] = allLayouts.map((layout) => layout.modifier).filter((modifier): modifier is string => Boolean(modifier));
           const users = modifiers.length > 0 ? (await this.api.batchGetUsers(modifiers)).users : [];
 
           const projectWrite = this.getProjectWritePermission();
@@ -144,7 +144,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         layout = await this.api.getProjectLayout({ name });
       }
 
-      const users = await this.api.batchGetUsers([layout.modifier]);
+      const users = layout.modifier ? await this.api.batchGetUsers([layout.modifier]) : { users: [] };
       return convertGrpcLayoutToRemoteLayout({
         layout,
         users: users.users,
@@ -186,11 +186,11 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       ? await this.api.createUserLayout({ parent, layout })
       : await this.api.createProjectLayout({ parent, layout });
 
-    const users = await this.api.batchGetUsers([result.modifier]);
+    const users = result.modifier ? (await this.api.batchGetUsers([result.modifier])).users : [];
 
     return convertGrpcLayoutToRemoteLayout({
       layout: result,
-      users: users.users,
+      users,
       projectWrite: this.getProjectWritePermission(),
     });
   }
@@ -238,12 +238,12 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         ? await this.api.updateUserLayout({ layout: updatedLayout, updateMask })
         : await this.api.updateProjectLayout({ layout: updatedLayout, updateMask });
 
-      const users = await this.api.batchGetUsers([result.modifier]);
+      const users = result.modifier ? (await this.api.batchGetUsers([result.modifier])).users : [];
       return {
         status: "success",
         newLayout: convertGrpcLayoutToRemoteLayout({
           layout: result,
-          users: users.users,
+          users,
           projectWrite: this.getProjectWritePermission(),
         }),
       };
