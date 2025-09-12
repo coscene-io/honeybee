@@ -63,7 +63,7 @@ export function ProjectLayoutSelector({
     <Autocomplete
       options={options.value ?? []}
       onChange={(_event, option) => {
-        void getProjectLayout(option?.value as string | undefined);
+        void getProjectLayout(option?.value);
       }}
       renderInput={(params) => (
         <TextField required {...params} label={t("layoutToCopy")} error={error} />
