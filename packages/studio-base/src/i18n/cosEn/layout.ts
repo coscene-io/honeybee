@@ -69,6 +69,7 @@ export const cosLayout = {
   copyLayout: "Copy layout",
   loading: "Loading...",
   use: "Use",
+  useLayout: "Use layout",
   inUse: "In use",
   updater: "Updater",
   createNewFolder: "Create new folder",

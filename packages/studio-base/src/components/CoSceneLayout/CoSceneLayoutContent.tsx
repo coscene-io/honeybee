@@ -359,9 +359,10 @@ export function CoSceneLayoutContent({
 
             {/* Layouts Table */}
             <TableContainer component={Paper} variant="outlined">
-              <Table>
+              <Table size="small">
                 <TableHead>
                   <TableRow>
+                    <TableCell />
                     <TableCell>
                       <Box
                         className={classes.tableHeaderCell}

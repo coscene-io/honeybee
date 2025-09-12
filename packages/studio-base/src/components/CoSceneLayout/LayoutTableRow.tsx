@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { PlayArrow as PlayArrowIcon, Equalizer as EqualizerIcon } from "@mui/icons-material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import {
   Avatar,
@@ -15,6 +16,7 @@ import {
   TableCell,
   TableRow,
   Typography,
+  Tooltip,
 } from "@mui/material";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
@@ -24,6 +26,14 @@ import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { Layout, layoutIsRead } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
+  layoutIconTableCell: {
+    padding: 0,
+  },
+  layoutIconBox: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   layoutNameCell: {
     display: "flex",
     alignItems: "center",
@@ -98,17 +108,25 @@ export function LayoutTableRow({
       disabled: deletedOnServer,
       visible: hasModifications,
     },
-    {
-      key: "use",
-      text: t("use"),
-      onClick: handleUse,
-    },
-  ].filter((button) => button.visible ?? true);
+  ].filter((button) => button.visible);
 
   const savedAt = layout.baseline.savedAt;
 
   return (
     <TableRow key={layout.id} hover>
+      <TableCell className={classes.layoutIconTableCell}>
+        <Box className={classes.layoutIconBox}>
+          {currentLayoutId === layout.id ? (
+            <EqualizerIcon />
+          ) : (
+            <Tooltip placement="top" title={t("useLayout")}>
+              <IconButton onClick={handleUse}>
+                <PlayArrowIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      </TableCell>
       <TableCell>
         <Box className={classes.layoutNameCell}>
           {layout.name}
