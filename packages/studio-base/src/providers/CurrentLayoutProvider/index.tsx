@@ -17,7 +17,6 @@ import { useShallowMemo } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { VariableValue } from "@foxglove/studio";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useUserProfileStorage } from "@foxglove/studio-base/context/CoSceneUserProfileStorageContext";
 import CoSceneCurrentLayoutContext, {
@@ -52,8 +51,6 @@ const log = Logger.getLogger(__filename);
 
 export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
 
-const selectLoginStatus = (store: UserStore) => store.loginStatus;
-
 /**
  * Concrete implementation of CurrentLayoutContext.Provider which handles
  * automatically restoring the current layout from LayoutStorage.
@@ -62,11 +59,10 @@ export default function CurrentLayoutProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const { enqueueSnackbar } = useSnackbar();
-  const { getUserProfile, setUserProfile } = useUserProfileStorage();
+  const { setUserProfile } = useUserProfileStorage();
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
   const isMounted = useMountedState();
-  const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
 
   const [mosaicId] = useState(() => uuidv4());
 
@@ -128,7 +124,7 @@ export default function CurrentLayoutProvider({
       }
       try {
         setLayoutState({ selectedLayout: { id, loading: true, data: undefined } });
-        const layout = await layoutManager.getLayout(id);
+        const layout = await layoutManager.getLayout({ id });
         const layoutVersion = layout?.baseline.data.version;
         if (layoutVersion != undefined && layoutVersion > MAX_SUPPORTED_LAYOUT_VERSION) {
           setIncompatibleLayoutVersionError(true);
@@ -162,6 +158,8 @@ export default function CurrentLayoutProvider({
                 },
               );
             });
+
+            void layoutManager.putHistory({ id });
           }
         }
       } catch (error) {
@@ -256,8 +254,7 @@ export default function CurrentLayoutProvider({
       if (event.layoutId === layoutStateRef.current.selectedLayout.id) {
         // 删除后选择拥有的第一个layout
         const layouts = await layoutManager.getLayouts();
-        const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
-        await setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
+        await setSelectedLayoutId(layouts[0]?.id);
       }
     };
 
@@ -270,30 +267,38 @@ export default function CurrentLayoutProvider({
   // Load initial state by re-selecting the last selected layout from the UserProfile.
   useAsync(async () => {
     // Don't restore the layout if there's one specified in the app state url.
-    if (windowAppURLState()?.layoutId != undefined || currentUserLoginStatus !== "alreadyLogin") {
+    if (windowAppURLState()?.layoutId) {
       return;
     }
 
-    // Retreive the selected layout id from the user's profile. If there's no layout specified
-    // or we can't load it then save and select a default layout.
-    const { currentLayoutId } = await getUserProfile();
-
-    try {
-      const lastLayout = currentLayoutId
-        ? await layoutManager.getLayout(currentLayoutId)
-        : undefined;
-      if (lastLayout != undefined) {
-        log.debug(`Initializing layout from profile: ${currentLayoutId}`);
-        await setSelectedLayoutId(currentLayoutId, { saveToProfile: false });
-      } else {
-        const layouts = await layoutManager.getLayouts();
-        const targetLayout = layouts.find((layout) => layout.isProjectRecommended);
-        await setSelectedLayoutId(targetLayout?.id ?? layouts[0]?.id);
-      }
-    } catch (error) {
-      console.error(error);
+    // waiting for loading projectName done
+    if (windowAppURLState()?.dsParams?.key && layoutManager.projectName == undefined) {
+      return;
     }
-  }, [currentUserLoginStatus, getUserProfile, layoutManager, setSelectedLayoutId]);
+
+    const layout = await layoutManager.getHistory();
+    if (layout) {
+      await setSelectedLayoutId(layout.id);
+      return;
+    }
+
+    const layouts = await layoutManager.getLayouts();
+    if (layouts.length > 0) {
+      const sortedLayouts = [...layouts].sort((a, b) => {
+        // 优先显示 permission !== 'PERSONAL_WRITE' 的布局
+        if (a.permission !== "PERSONAL_WRITE" && b.permission === "PERSONAL_WRITE") {
+          return -1;
+        }
+        if (a.permission === "PERSONAL_WRITE" && b.permission !== "PERSONAL_WRITE") {
+          return 1;
+        }
+        // 如果permission相同，按名称排序
+        return a.name.localeCompare(b.name);
+      });
+      await setSelectedLayoutId(sortedLayouts[0]!.id);
+      return;
+    }
+  }, [layoutManager, setSelectedLayoutId]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({

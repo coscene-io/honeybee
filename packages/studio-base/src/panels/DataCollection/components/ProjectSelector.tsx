@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { FormControl, InputLabel, Select, MenuItem, Box, SelectChangeEvent } from "@mui/material";
-import { TFunction } from "i18next";
 import { memo } from "react";
 
 interface ProjectSelectorProps {
@@ -15,7 +14,7 @@ interface ProjectSelectorProps {
   onProjectChange: (projectName: string) => void;
   onClearFocusedTask: () => void;
   disabled?: boolean;
-  t: TFunction<"dataCollection">;
+  label: string;
 }
 
 export const ProjectSelector = memo(function ProjectSelector({
@@ -24,19 +23,19 @@ export const ProjectSelector = memo(function ProjectSelector({
   onProjectChange,
   onClearFocusedTask,
   disabled = false,
-  t,
+  label,
 }: ProjectSelectorProps) {
   return (
     <Box minWidth={200}>
       <FormControl fullWidth size="small">
         <InputLabel id="project-select-label" required>
-          {t("projectName")}
+          {label}
         </InputLabel>
         <Select
           labelId="project-select-label"
           id="project-select"
           value={projectName}
-          label={t("projectName")}
+          label={label}
           disabled={disabled}
           onChange={(event: SelectChangeEvent) => {
             onClearFocusedTask();

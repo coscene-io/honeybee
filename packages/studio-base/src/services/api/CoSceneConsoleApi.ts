@@ -48,6 +48,7 @@ import {
 import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { DeviceService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_connect";
 import {
@@ -62,6 +63,16 @@ import {
   DeleteEventRequest,
   UpdateEventRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_pb";
+import { LayoutService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_connect";
+import {
+  GetLayoutRequest,
+  CreateLayoutRequest,
+  UpdateLayoutRequest,
+  DeleteLayoutRequest,
+  ListLayoutsRequest,
+  ListLayoutsResponse,
+  ListLayoutsRequest_LayoutView,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
   GetRecordRequest,
@@ -131,7 +142,6 @@ import {
   CoordinatorConfig,
   ExternalInitConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
@@ -294,35 +304,12 @@ type CoverageResponse = {
   end: string;
 };
 
-export type LayoutID = string & { __brand: "LayoutID" };
-export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
-export type Permission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
-
-export type ConsoleApiLayout = {
-  id: LayoutID;
-  name: string;
-  createdAt: ISO8601Timestamp;
-  updatedAt: ISO8601Timestamp;
-  savedAt?: ISO8601Timestamp;
-  permission: Permission;
-  data?: Record<string, unknown>;
-  isProjectRecommended: boolean;
-  isRecordRecommended: boolean;
-};
-
 export enum MetricType {
   RecordPlaysTotal = "honeybee_record_plays_total",
   RecordPlaysEveryFiveSecondsTotal = "honeybee_record_plays_every_five_seconds_total",
 }
 
 type ApiResponse<T> = { status: number; json: T };
-
-type LayoutTemplatesIndex = {
-  [key: string]: {
-    path: string;
-    updateTime: string;
-  };
-};
 
 export type SingleFileGetEventsRequest = {
   projectName: string;
@@ -520,78 +507,100 @@ class CoSceneConsoleApi {
     return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
   }
 
-  public async getLayouts(options: { includeData: boolean }): Promise<readonly ConsoleApiLayout[]> {
-    return await this.#get<ConsoleApiLayout[]>("/bff/honeybee/layout/v2/layouts", {
-      includeData: options.includeData ? "true" : "false",
-      projectId: this.#baseInfo.projectId,
-      recordId: this.#baseInfo.recordId,
-    });
-  }
+  // gRPC Layout methods using protobuf interfaces
+  public getLayout = Object.assign(
+    async ({ name }: { name: string }): Promise<Layout> => {
+      const req = new GetLayoutRequest({ name });
+      return await getPromiseClient(LayoutService).getLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.GetLayout, this.#permissionList);
+      },
+    },
+  );
 
-  public async getLayout(
-    id: LayoutID,
-    options: { includeData: boolean },
-  ): Promise<ConsoleApiLayout | undefined> {
-    // if layout not found, return empty object
-    const res = await this.#get<ConsoleApiLayout>(`/bff/honeybee/layout/v2/layouts/${id}`, {
-      includeData: options.includeData ? "true" : "false",
-      projectId: this.#baseInfo.projectId,
-      recordId: this.#baseInfo.recordId,
-    });
+  public listLayouts = Object.assign(
+    async ({
+      parent,
+      filter,
+      view = ListLayoutsRequest_LayoutView.FULL,
+    }: {
+      parent: string;
+      filter?: string;
+      view?: ListLayoutsRequest_LayoutView;
+    }): Promise<ListLayoutsResponse> => {
+      const req = new ListLayoutsRequest({
+        parent,
+        filter,
+        view,
+      });
+      return await getPromiseClient(LayoutService).listLayouts(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.ListLayouts, this.#permissionList);
+      },
+    },
+  );
 
-    if (Object.keys(res).length === 0) {
-      return undefined;
-    }
+  public createLayout = Object.assign(
+    async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
+      const req = new CreateLayoutRequest({
+        parent,
+        layout,
+      });
+      return await getPromiseClient(LayoutService).createLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.CreateLayout, this.#permissionList);
+      },
+    },
+  );
 
-    return res;
-  }
+  // TODO: This is a temporary method to create a project layout, wating for the new API to be released
+  // public createProjectLayout = Object.assign(
+  //   async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
+  //     const req = new CreateLayoutRequest({
+  //       parent,
+  //       layout,
+  //     });
+  //     return await getPromiseClient(LayoutService).createLayout(req);
+  //   },
+  //   {
+  //     permission: () => {
+  //       return checkUserPermission(EndpointDataplatformV1alph2.CreateLayout, this.#permissionList);
+  //     },
+  //   },
+  // );
 
-  public async createLayout(layout: {
-    id: LayoutID | undefined;
-    savedAt: ISO8601Timestamp | undefined;
-    name: string | undefined;
-    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
-    data: Record<string, unknown> | undefined;
-  }): Promise<ConsoleApiLayout> {
-    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v2/layouts", {
-      ...layout,
-    });
-  }
+  public updateLayout = Object.assign(
+    async ({ layout, updateMask }: { layout: Layout; updateMask?: FieldMask }): Promise<Layout> => {
+      const req = new UpdateLayoutRequest({
+        layout,
+        updateMask,
+      });
+      return await getPromiseClient(LayoutService).updateLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.UpdateLayout, this.#permissionList);
+      },
+    },
+  );
 
-  public async createRecordLayout(layout: {
-    id: LayoutID | undefined;
-    savedAt: ISO8601Timestamp | undefined;
-    name: string | undefined;
-    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
-    data: Record<string, unknown> | undefined;
-  }): Promise<ConsoleApiLayout> {
-    return await this.#post<ConsoleApiLayout>("/bff/honeybee/layout/v2/recordLayout", {
-      ...layout,
-      recordId: this.#baseInfo.recordId,
-    });
-  }
-
-  public async updateLayout(layout: {
-    id: LayoutID;
-    savedAt: ISO8601Timestamp;
-    name: string | undefined;
-    permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
-    data: Record<string, unknown> | undefined;
-  }): Promise<{ status: "success"; newLayout: ConsoleApiLayout } | { status: "conflict" }> {
-    const { status, json: newLayout } = await this.#patch<ConsoleApiLayout>(
-      `/bff/honeybee/layout/v2/layouts/${layout.id}`,
-      { ...layout, projectId: this.#baseInfo.projectId },
-    );
-    if (status === 200) {
-      return { status: "success", newLayout };
-    } else {
-      return { status: "conflict" };
-    }
-  }
-
-  public async deleteLayout(id: LayoutID): Promise<boolean> {
-    return (await this.#delete(`/bff/honeybee/layout/v2/layouts/${id}`)).status === 200;
-  }
+  public deleteLayout = Object.assign(
+    async ({ name }: { name: string }): Promise<Empty> => {
+      const req = new DeleteLayoutRequest({ name });
+      return await getPromiseClient(LayoutService).deleteLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.DeleteLayout, this.#permissionList);
+      },
+    },
+  );
 
   public getRequectConfig(
     url: string,
@@ -711,14 +720,6 @@ class CoSceneConsoleApi {
         body: JSON.stringify(body),
       },
       { allowedStatuses: [409] },
-    );
-  }
-
-  async #delete<T>(apiPath: string, query?: Record<string, string>): Promise<ApiResponse<T>> {
-    return await this.#request<T>(
-      query == undefined ? apiPath : `${apiPath}?${new URLSearchParams(query).toString()}`,
-      { method: "DELETE" },
-      { allowedStatuses: [404] },
     );
   }
 
@@ -1012,14 +1013,6 @@ class CoSceneConsoleApi {
     return await getPromiseClient(ProjectService).getProject(req);
   }
 
-  public async getLayoutTemplatesIndex(layoutTemplatesUrl: string): Promise<LayoutTemplatesIndex> {
-    return await this.#get<LayoutTemplatesIndex>(layoutTemplatesUrl, undefined, true);
-  }
-
-  public async getLayoutTemplate(url: string): Promise<LayoutData> {
-    return await this.#get<LayoutData>(url, undefined, true);
-  }
-
   public async listUserProjects({
     userId,
     pageSize,
@@ -1182,24 +1175,6 @@ class CoSceneConsoleApi {
     });
 
     return key.id;
-  }
-
-  public async setProjectRecommendedLayouts(
-    layoutIds: LayoutID[],
-    currentProjectId: string,
-  ): Promise<{ status: "success" } | { status: "conflict" }> {
-    const { status } = await this.#patch(
-      `/bff/honeybee/layout/v2/recommend/project/${currentProjectId}`,
-      {
-        layoutIds,
-      },
-    );
-
-    if (status === 200) {
-      return { status: "success" };
-    }
-
-    return { status: "conflict" };
   }
 
   public async deleteFile(payload: PartialMessage<DeleteFileRequest>): Promise<void> {
