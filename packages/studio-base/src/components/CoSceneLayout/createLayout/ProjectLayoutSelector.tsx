@@ -39,7 +39,7 @@ export function ProjectLayoutSelector({
   }, [projectName, consoleApi]);
 
   const getProjectLayout = useCallback(
-    async (layoutName: string) => {
+    async (layoutName?: string) => {
       if (!layoutName) {
         onChange(undefined);
         return;
@@ -62,8 +62,8 @@ export function ProjectLayoutSelector({
   return (
     <Autocomplete
       options={options.value ?? []}
-      onChange={(_event, value) => {
-        void getProjectLayout(value?.value ?? "");
+      onChange={(_event, option) => {
+        void getProjectLayout(option?.value as string | undefined);
       }}
       renderInput={(params) => (
         <TextField required {...params} label={t("layoutToCopy")} error={error} />
