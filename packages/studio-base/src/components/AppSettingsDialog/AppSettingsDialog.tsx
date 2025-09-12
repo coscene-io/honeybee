@@ -41,7 +41,6 @@ import {
   AutoUpdate,
   ColorSchemeSettings,
   LanguageSettings,
-  MessageFramerate,
   TimeFormat,
   TimezoneSettings,
   CompatibilityMode,
@@ -244,7 +243,6 @@ export function AppSettingsDialog(
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
               <CompatibilityMode />
               <RetentionWindowMs />
-              <MessageFramerate />
               <InactivityTimeout />
               {showLanguageOptions && <LanguageSettings />}
               {supportsAppUpdates && <AutoUpdate />}
