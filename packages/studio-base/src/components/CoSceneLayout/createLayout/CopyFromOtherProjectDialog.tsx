@@ -25,7 +25,7 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
-import { LayoutSelector } from "./LayoutSelector";
+import { ProjectLayoutSelector } from "./ProjectLayoutSelector";
 import { ProjectSelector } from "./ProjectSselector";
 import { SelectFolder } from "./SelectFolder";
 
@@ -109,7 +109,7 @@ export function CopyFromOtherProjectDialog({
               required: true,
             }}
             render={({ field, fieldState }) => (
-              <LayoutSelector
+              <ProjectLayoutSelector
                 key={projectName}
                 projectName={projectName}
                 onChange={field.onChange}

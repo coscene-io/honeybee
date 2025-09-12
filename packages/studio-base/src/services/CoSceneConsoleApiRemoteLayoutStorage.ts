@@ -109,14 +109,21 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     try {
       const layouts = await Promise.all(
         parents.map(async (parent) => {
-          const layouts = await this.api.listLayouts({ parent });
-          const users = await this.api.batchGetUsers(
-            _uniq(layouts.layouts.map((layout) => layout.modifier)),
-          );
+          let allLayouts: Layout[] = [];
+          if (parent.startsWith("users/")) {
+            allLayouts = (await this.api.listUserLayouts({ parent })).userLayouts;
+          } else {
+            allLayouts = (await this.api.listProjectLayouts({ parent })).projectLayouts;
+          }
+
+          const modifiers: string[] = allLayouts
+            .map((layout) => layout.modifier)
+            .filter((modifier): modifier is string => Boolean(modifier));
+          const users = modifiers.length > 0 ? (await this.api.batchGetUsers(modifiers)).users : [];
 
           const projectWrite = this.getProjectWritePermission();
-          return layouts.layouts.map((layout) =>
-            convertGrpcLayoutToRemoteLayout({ layout, users: users.users, projectWrite }),
+          return allLayouts.map((layout) =>
+            convertGrpcLayoutToRemoteLayout({ layout, users, projectWrite }),
           );
         }),
       );
@@ -131,8 +138,17 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   public async getLayout(id: LayoutID, parent: string): Promise<RemoteLayout | undefined> {
     try {
       const name = `${parent}/layouts/${id}`;
-      const layout = await this.api.getLayout({ name });
-      const users = await this.api.batchGetUsers([layout.modifier]);
+
+      let layout;
+      if (parent.startsWith("users/")) {
+        layout = await this.api.getUserLayout({ name });
+      } else {
+        layout = await this.api.getProjectLayout({ name });
+      }
+
+      const users = layout.modifier
+        ? await this.api.batchGetUsers([layout.modifier])
+        : { users: [] };
       return convertGrpcLayoutToRemoteLayout({
         layout,
         users: users.users,
@@ -170,12 +186,16 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
           : LayoutScopeEnum_LayoutScope.PROJECT,
     });
 
-    const result = await this.api.createLayout({ parent, layout });
-    const users = await this.api.batchGetUsers([result.modifier]);
+    const result =
+      permission === "PERSONAL_WRITE"
+        ? await this.api.createUserLayout({ parent, layout })
+        : await this.api.createProjectLayout({ parent, layout });
+
+    const users = result.modifier ? (await this.api.batchGetUsers([result.modifier])).users : [];
 
     return convertGrpcLayoutToRemoteLayout({
       layout: result,
-      users: users.users,
+      users,
       projectWrite: this.getProjectWritePermission(),
     });
   }
@@ -219,13 +239,17 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         paths.push("data");
       }
 
-      const result = await this.api.updateLayout({ layout: updatedLayout, updateMask });
-      const users = await this.api.batchGetUsers([result.modifier]);
+      const result =
+        existingLayout.permission === "PERSONAL_WRITE"
+          ? await this.api.updateUserLayout({ layout: updatedLayout, updateMask })
+          : await this.api.updateProjectLayout({ layout: updatedLayout, updateMask });
+
+      const users = result.modifier ? (await this.api.batchGetUsers([result.modifier])).users : [];
       return {
         status: "success",
         newLayout: convertGrpcLayoutToRemoteLayout({
           layout: result,
-          users: users.users,
+          users,
           projectWrite: this.getProjectWritePermission(),
         }),
       };
@@ -237,8 +261,21 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
   public async deleteLayout(id: LayoutID, parent: string): Promise<boolean> {
     try {
+      // First get the existing layout to determine its type
+      const existingLayout = await this.getLayout(id, parent);
+      if (!existingLayout) {
+        return false;
+      }
+
       const name = `${parent}/layouts/${id}`;
-      await this.api.deleteLayout({ name });
+
+      // Use appropriate API based on layout's permission
+      if (existingLayout.permission === "PERSONAL_WRITE") {
+        await this.api.deleteUserLayout({ name });
+      } else {
+        await this.api.deleteProjectLayout({ name });
+      }
+
       return true;
     } catch (err) {
       log.error("Failed to delete layout:", err);

@@ -18,7 +18,7 @@ import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
 
 const useStyles = makeStyles()((theme) => ({
   drawerContainer: {
-    width: "100vw",
+    width: "75vw",
     height: "100%",
     maxWidth: "100vw",
     display: "flex",
