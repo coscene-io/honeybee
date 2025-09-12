@@ -68,11 +68,16 @@ enum Endpoint {
   CreateAuditLog = "coscene.dataplatform.v1alpha2.services.AuditLogService.CreateAuditLog",
 
   // Layout endpoints
-  CreateLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.CreateLayout",
-  DeleteLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.DeleteLayout",
-  GetLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.GetLayout",
-  ListLayouts = "coscene.dataplatform.v1alpha2.services.LayoutService.ListLayouts",
-  UpdateLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.UpdateLayout",
+  CreateUserLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.CreateUserLayout",
+  CreateProjectLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.CreateProjectLayout",
+  GetUserLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.GetUserLayout",
+  GetProjectLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.GetProjectLayout",
+  ListUserLayouts = "coscene.dataplatform.v1alpha2.services.LayoutService.ListUserLayouts",
+  ListProjectLayouts = "coscene.dataplatform.v1alpha2.services.LayoutService.ListProjectLayouts",
+  UpdateUserLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.UpdateUserLayout",
+  UpdateProjectLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.UpdateProjectLayout",
+  DeleteUserLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.DeleteUserLayout",
+  DeleteProjectLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.DeleteProjectLayout",
 }
 
 export default Endpoint;
