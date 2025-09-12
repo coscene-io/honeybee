@@ -68,6 +68,7 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   copyLayout: "复制布局",
   loading: "加载中...",
   use: "使用",
+  useLayout: "使用布局",
   inUse: "使用中",
   updater: "更新者",
   createNewFolder: "创建新文件夹",

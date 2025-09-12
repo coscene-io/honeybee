@@ -26,6 +26,11 @@ import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { Layout, layoutIsRead } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()((theme) => ({
+  tableRow: {
+    "&:hover .playArrowIcon": {
+      opacity: 1,
+    },
+  },
   layoutIconTableCell: {
     padding: 0,
   },
@@ -33,6 +38,9 @@ const useStyles = makeStyles()((theme) => ({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+  },
+  playArrowIcon: {
+    opacity: 0,
   },
   layoutNameCell: {
     display: "flex",
@@ -113,14 +121,14 @@ export function LayoutTableRow({
   const savedAt = layout.baseline.savedAt;
 
   return (
-    <TableRow key={layout.id} hover>
+    <TableRow key={layout.id} hover className={classes.tableRow}>
       <TableCell className={classes.layoutIconTableCell}>
         <Box className={classes.layoutIconBox}>
           {currentLayoutId === layout.id ? (
             <EqualizerIcon />
           ) : (
             <Tooltip placement="top" title={t("useLayout")}>
-              <IconButton onClick={handleUse}>
+              <IconButton onClick={handleUse} className={`${classes.playArrowIcon} playArrowIcon`}>
                 <PlayArrowIcon />
               </IconButton>
             </Tooltip>
