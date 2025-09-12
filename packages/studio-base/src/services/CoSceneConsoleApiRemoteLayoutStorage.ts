@@ -109,14 +109,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     try {
       const layouts = await Promise.all(
         parents.map(async (parent) => {
-          const layouts = await this.api.listLayouts({ parent });
-          const users = await this.api.batchGetUsers(
-            _uniq(layouts.layouts.map((layout) => layout.modifier)),
-          );
+          const layouts = await this.api.listUserLayouts({ parent });
+          const modifiers: string[] = layouts.userLayouts.map((layout) => layout.modifier);
+          const uniqueModifiers = [...new Set(modifiers)];
+          const users = uniqueModifiers.length > 0 ? (await this.api.batchGetUsers(uniqueModifiers)).users : [];
 
           const projectWrite = this.getProjectWritePermission();
-          return layouts.layouts.map((layout) =>
-            convertGrpcLayoutToRemoteLayout({ layout, users: users.users, projectWrite }),
+          return layouts.userLayouts.map((layout) =>
+            convertGrpcLayoutToRemoteLayout({ layout, users, projectWrite }),
           );
         }),
       );
@@ -131,7 +131,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   public async getLayout(id: LayoutID, parent: string): Promise<RemoteLayout | undefined> {
     try {
       const name = `${parent}/layouts/${id}`;
-      const layout = await this.api.getLayout({ name });
+      const layout = await this.api.getUserLayout({ name });
       const users = await this.api.batchGetUsers([layout.modifier]);
       return convertGrpcLayoutToRemoteLayout({
         layout,
@@ -219,7 +219,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         paths.push("data");
       }
 
-      const result = await this.api.updateLayout({ layout: updatedLayout, updateMask });
+      const result = await this.api.updateUserLayout({ layout: updatedLayout, updateMask });
       const users = await this.api.batchGetUsers([result.modifier]);
       return {
         status: "success",
@@ -238,7 +238,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   public async deleteLayout(id: LayoutID, parent: string): Promise<boolean> {
     try {
       const name = `${parent}/layouts/${id}`;
-      await this.api.deleteLayout({ name });
+      await this.api.deleteUserLayout({ name });
       return true;
     } catch (err) {
       log.error("Failed to delete layout:", err);

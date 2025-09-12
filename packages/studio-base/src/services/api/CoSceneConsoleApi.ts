@@ -45,6 +45,7 @@ import {
   BatchGetUsersResponse,
   ListOrganizationUsersRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
+import { LayoutViewEnum_LayoutView } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_view_pb";
 import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
@@ -65,13 +66,13 @@ import {
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_pb";
 import { LayoutService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_connect";
 import {
-  GetLayoutRequest,
-  CreateLayoutRequest,
-  UpdateLayoutRequest,
-  DeleteLayoutRequest,
-  ListLayoutsRequest,
-  ListLayoutsResponse,
-  ListLayoutsRequest_LayoutView,
+  GetUserLayoutRequest,
+  CreateUserLayoutRequest,
+  CreateProjectLayoutRequest,
+  UpdateUserLayoutRequest,
+  DeleteUserLayoutRequest,
+  ListUserLayoutsRequest,
+  ListUserLayoutsResponse,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_pb";
 import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
 import {
@@ -507,46 +508,46 @@ class CoSceneConsoleApi {
     return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
   }
 
-  // gRPC Layout methods using protobuf interfaces
-  public getLayout = Object.assign(
+  public getUserLayout = Object.assign(
     async ({ name }: { name: string }): Promise<Layout> => {
-      const req = new GetLayoutRequest({ name });
-      return await getPromiseClient(LayoutService).getLayout(req);
+      const req = new GetUserLayoutRequest({ name });
+      return await getPromiseClient(LayoutService).getUserLayout(req);
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.GetLayout, this.#permissionList);
+        return checkUserPermission(EndpointDataplatformV1alph2.GetUserLayout, this.#permissionList);
       },
     },
   );
 
-  public listLayouts = Object.assign(
+  public listUserLayouts = Object.assign(
     async ({
       parent,
       filter,
-      view = ListLayoutsRequest_LayoutView.FULL,
+      view = LayoutViewEnum_LayoutView.FULL,
     }: {
       parent: string;
       filter?: string;
-      view?: ListLayoutsRequest_LayoutView;
-    }): Promise<ListLayoutsResponse> => {
-      const req = new ListLayoutsRequest({
+      view?: LayoutViewEnum_LayoutView;
+    }): Promise<ListUserLayoutsResponse> => {
+      const req = new ListUserLayoutsRequest({
         parent,
         filter,
         view,
       });
-      return await getPromiseClient(LayoutService).listLayouts(req);
+      return await getPromiseClient(LayoutService).listUserLayouts(req);
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.ListLayouts, this.#permissionList);
+        return checkUserPermission(EndpointDataplatformV1alph2.ListUserLayouts, this.#permissionList);
       },
     },
   );
 
+  // Alias createLayout to use userLayout by default
   public createUserLayout = Object.assign(
     async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
-      const req = new CreateLayoutRequest({
+      const req = new CreateUserLayoutRequest({
         parent,
         layout,
       });
@@ -561,7 +562,7 @@ class CoSceneConsoleApi {
 
   public createProjectLayout = Object.assign(
     async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
-      const req = new CreateLayoutRequest({
+      const req = new CreateProjectLayoutRequest({
         parent,
         layout,
       });
@@ -574,29 +575,29 @@ class CoSceneConsoleApi {
     },
   );
 
-  public updateLayout = Object.assign(
+  public updateUserLayout = Object.assign(
     async ({ layout, updateMask }: { layout: Layout; updateMask?: FieldMask }): Promise<Layout> => {
-      const req = new UpdateLayoutRequest({
-        layout,
+      const req = new UpdateUserLayoutRequest({
+        userLayout: layout,
         updateMask,
       });
-      return await getPromiseClient(LayoutService).updateLayout(req);
+      return await getPromiseClient(LayoutService).updateUserLayout(req);
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.UpdateLayout, this.#permissionList);
+        return checkUserPermission(EndpointDataplatformV1alph2.UpdateUserLayout, this.#permissionList);
       },
     },
   );
 
-  public deleteLayout = Object.assign(
+  public deleteUserLayout = Object.assign(
     async ({ name }: { name: string }): Promise<Empty> => {
-      const req = new DeleteLayoutRequest({ name });
-      return await getPromiseClient(LayoutService).deleteLayout(req);
+      const req = new DeleteUserLayoutRequest({ name });
+      return await getPromiseClient(LayoutService).deleteUserLayout(req);
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.DeleteLayout, this.#permissionList);
+        return checkUserPermission(EndpointDataplatformV1alph2.DeleteUserLayout, this.#permissionList);
       },
     },
   );
