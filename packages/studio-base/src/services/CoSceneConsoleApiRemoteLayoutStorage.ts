@@ -97,7 +97,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly namespace: string,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
-  ) { }
+  ) {}
 
   public getProjectWritePermission(): boolean {
     // TODO: waiting for the new API to be released
@@ -111,12 +111,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         parents.map(async (parent) => {
           let allLayouts: Layout[] = [];
           if (parent.startsWith("users/")) {
-            allLayouts = (await this.api.listUserLayouts({ parent })).userLayouts
+            allLayouts = (await this.api.listUserLayouts({ parent })).userLayouts;
           } else {
-            allLayouts = (await this.api.listProjectLayouts({ parent })).projectLayouts
+            allLayouts = (await this.api.listProjectLayouts({ parent })).projectLayouts;
           }
 
-          const modifiers: string[] = allLayouts.map((layout) => layout.modifier).filter((modifier): modifier is string => Boolean(modifier));
+          const modifiers: string[] = allLayouts
+            .map((layout) => layout.modifier)
+            .filter((modifier): modifier is string => Boolean(modifier));
           const users = modifiers.length > 0 ? (await this.api.batchGetUsers(modifiers)).users : [];
 
           const projectWrite = this.getProjectWritePermission();
@@ -144,7 +146,9 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         layout = await this.api.getProjectLayout({ name });
       }
 
-      const users = layout.modifier ? await this.api.batchGetUsers([layout.modifier]) : { users: [] };
+      const users = layout.modifier
+        ? await this.api.batchGetUsers([layout.modifier])
+        : { users: [] };
       return convertGrpcLayoutToRemoteLayout({
         layout,
         users: users.users,
@@ -182,9 +186,10 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
           : LayoutScopeEnum_LayoutScope.PROJECT,
     });
 
-    const result = permission === "PERSONAL_WRITE"
-      ? await this.api.createUserLayout({ parent, layout })
-      : await this.api.createProjectLayout({ parent, layout });
+    const result =
+      permission === "PERSONAL_WRITE"
+        ? await this.api.createUserLayout({ parent, layout })
+        : await this.api.createProjectLayout({ parent, layout });
 
     const users = result.modifier ? (await this.api.batchGetUsers([result.modifier])).users : [];
 
@@ -234,9 +239,10 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         paths.push("data");
       }
 
-      const result = existingLayout.permission === "PERSONAL_WRITE"
-        ? await this.api.updateUserLayout({ layout: updatedLayout, updateMask })
-        : await this.api.updateProjectLayout({ layout: updatedLayout, updateMask });
+      const result =
+        existingLayout.permission === "PERSONAL_WRITE"
+          ? await this.api.updateUserLayout({ layout: updatedLayout, updateMask })
+          : await this.api.updateProjectLayout({ layout: updatedLayout, updateMask });
 
       const users = result.modifier ? (await this.api.batchGetUsers([result.modifier])).users : [];
       return {

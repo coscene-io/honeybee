@@ -393,11 +393,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-      orgPermissionList: [],
-      projectPermissionList: [],
-      orgDenyList: [],
-      projectDenyList: [],
-    };
+    orgPermissionList: [],
+    projectPermissionList: [],
+    orgDenyList: [],
+    projectDenyList: [],
+  };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -523,7 +523,10 @@ class CoSceneConsoleApi {
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.CreateUserLayout, this.#permissionList);
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.CreateUserLayout,
+          this.#permissionList,
+        );
       },
     },
   );
@@ -559,7 +562,10 @@ class CoSceneConsoleApi {
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.ListUserLayouts, this.#permissionList);
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.ListUserLayouts,
+          this.#permissionList,
+        );
       },
     },
   );
@@ -574,7 +580,10 @@ class CoSceneConsoleApi {
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.UpdateUserLayout, this.#permissionList);
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.UpdateUserLayout,
+          this.#permissionList,
+        );
       },
     },
   );
@@ -586,7 +595,10 @@ class CoSceneConsoleApi {
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.DeleteUserLayout, this.#permissionList);
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.DeleteUserLayout,
+          this.#permissionList,
+        );
       },
     },
   );
@@ -601,7 +613,10 @@ class CoSceneConsoleApi {
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.CreateProjectLayout, this.#permissionList);
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.CreateProjectLayout,
+          this.#permissionList,
+        );
       },
     },
   );
@@ -613,7 +628,10 @@ class CoSceneConsoleApi {
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.GetProjectLayout, this.#permissionList);
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.GetProjectLayout,
+          this.#permissionList,
+        );
       },
     },
   );
@@ -637,7 +655,10 @@ class CoSceneConsoleApi {
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.ListProjectLayouts, this.#permissionList);
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.ListProjectLayouts,
+          this.#permissionList,
+        );
       },
     },
   );
@@ -652,7 +673,10 @@ class CoSceneConsoleApi {
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.UpdateProjectLayout, this.#permissionList);
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.UpdateProjectLayout,
+          this.#permissionList,
+        );
       },
     },
   );
@@ -664,7 +688,10 @@ class CoSceneConsoleApi {
     },
     {
       permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.DeleteProjectLayout, this.#permissionList);
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.DeleteProjectLayout,
+          this.#permissionList,
+        );
       },
     },
   );
@@ -679,8 +706,8 @@ class CoSceneConsoleApi {
       customHost != undefined && customHost
         ? url
         : url.startsWith("/bff")
-          ? `${this.#bffUrl}${url}`
-          : `${this.#baseUrl}${url}`;
+        ? `${this.#bffUrl}${url}`
+        : `${this.#baseUrl}${url}`;
 
     const fullConfig: RequestInit = {
       ...config,
