@@ -18,11 +18,14 @@ import {
   Tooltip,
 } from "@mui/material";
 import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { Layout, layoutIsRead } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+
+dayjs.extend(relativeTime);
 
 const useStyles = makeStyles()((theme) => ({
   tableRow: {
@@ -141,7 +144,7 @@ export function LayoutTableRow({
       <TableCell>
         <Box className={classes.layoutNameCell}>{layout.name}</Box>
       </TableCell>
-      <TableCell>{savedAt ? dayjs(savedAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</TableCell>
+      <TableCell>{savedAt ? dayjs(savedAt).fromNow() : "-"}</TableCell>
       <TableCell>
         <Box className={classes.updaterCell}>
           <Avatar className={classes.avatar} src={layout.baseline.modifierAvatar}>
