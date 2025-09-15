@@ -105,12 +105,12 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
 }
 
 // protobuf => JsonObject is not support undefind type so we need to replace undefined with null
-export function replaceUndefinedWithNull(obj: Record<string, unknown>): Record<string, unknown> {
+export function removeUndefined(obj: Record<string, unknown>): Record<string, unknown> {
   Object.keys(obj).forEach((key) => {
     if (obj[key] != undefined && typeof obj[key] === "object") {
-      replaceUndefinedWithNull(obj[key] as Record<string, unknown>);
+      removeUndefined(obj[key] as Record<string, unknown>);
     } else if (obj[key] == undefined) {
-      obj[key] = ReactNull;
+      delete obj[key];
     }
   });
   return obj;
