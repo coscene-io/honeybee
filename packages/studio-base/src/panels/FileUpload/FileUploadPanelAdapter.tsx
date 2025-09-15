@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { StrictMode, useMemo, useCallback, useEffect } from "react";
+import { StrictMode, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 
 import { useCrash } from "@foxglove/hooks";

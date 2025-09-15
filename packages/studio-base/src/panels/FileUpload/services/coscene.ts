@@ -9,14 +9,10 @@ import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform
 import { Task, UploadTaskDetail } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { LinkTaskWrapper } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
 import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
-import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import { Timestamp } from "@bufbuild/protobuf";
 import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
 
 import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
-import { ListUserProjectsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
-import { ListLabelsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/label_pb";
-import { GenerateFileUploadUrlsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
 import { CosQuery } from "@foxglove/studio-base/util/coscene/cosel";
 

@@ -6,16 +6,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { PanelExtensionContext } from "@foxglove/studio";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ActionNameSelector, DurationInput, RecordButton } from "./components/ui";
 import ActionDetailModal from "./components/ActionDetailModal";
 import { defaultConfig } from "./settings";
 import { fetchAvailableActions, getActionDetail } from "./services";
-import type { PanelState, RecordingState, StartRecordReq, StopRecordReq, ActionNameConfig, ActionInfo } from "./types";
+import type { PanelState, StartRecordReq, StopRecordReq, ActionNameConfig, ActionInfo } from "./types";
 import type { FaultRecordConfig } from "./settings";
 
-import { isEqual } from "lodash";
 
 interface FaultRecordPanelProps {
   context: PanelExtensionContext;
@@ -592,35 +591,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps) {
   );
 }
 
-function getStatusColor(status: RecordingState): string {
-  switch (status) {
-    case "idle":
-      return "#6b7280";
-    case "starting":
-      return "#f59e0b";
-    case "recording":
-      return "#ef4444";
-    case "stopping":
-      return "#f59e0b";
-    default:
-      return "#6b7280";
-  }
-}
-
-function getStatusText(status: RecordingState): string {
-  switch (status) {
-    case "idle":
-      return "空闲";
-    case "starting":
-      return "启动中";
-    case "recording":
-      return "录制中";
-    case "stopping":
-      return "停止中";
-    default:
-      return "未知状态";
-  }
-}
 
 function getLogColor(type: "info" | "success" | "error" | "warn"): string {
   switch (type) {

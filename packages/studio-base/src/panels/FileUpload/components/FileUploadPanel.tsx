@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import React, { useCallback, useEffect, useState, useRef, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 
 import { PanelExtensionContext } from "@foxglove/studio";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
@@ -27,7 +26,7 @@ import type { BagFile, UploadConfig, CoSceneClient } from "../types";
 
 // Safe JSON stringify that handles BigInt values
 const safeStringify = (obj: any): string => {
-  const result = JSON.stringify(obj, (key, value) => 
+  const result = JSON.stringify(obj, (_key: string, value: any) => 
     typeof value === 'bigint' ? value.toString() : value
   );
   return result ?? 'null';
@@ -176,8 +175,7 @@ function createCoSceneClient(serviceType: string, consoleApi?: ConsoleApi): CoSc
   }
 }
 
-export function FileUploadPanel({ config: _config, context, serviceSettings, refreshButtonServiceName, consoleApi, device, user, organization, project }: FileUploadPanelProps) {
-  const { t } = useTranslation("dataCollection");
+export function FileUploadPanel({ config: _config, context, serviceSettings, refreshButtonServiceName, consoleApi, device, organization, project }: FileUploadPanelProps) {
   const logContainerRef = useRef<HTMLDivElement>(null);
   
   const [logs, setLogs] = useState<LogLine[]>([]);

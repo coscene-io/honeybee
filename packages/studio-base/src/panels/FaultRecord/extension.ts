@@ -10,8 +10,6 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 
 import FaultRecordPanel from "./FaultRecordPanel";
-import { defaultConfig } from "./settings";
-import type { FaultRecordConfig } from "./settings";
 
 export function activate(context: ExtensionContext) {
   context.registerPanel({
