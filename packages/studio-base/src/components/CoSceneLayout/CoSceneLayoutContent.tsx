@@ -149,7 +149,7 @@ export function CoSceneLayoutContent({
   const [selectedFolder, setSelectedFolder] = useState<{
     category: "all" | "personal" | "project";
     folder: string;
-  }>({ category: "personal", folder: "" });
+  }>({ category: "all", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [{ sortBy, sortOrder }, setSort] = useState<{
     sortBy: "name" | "updateTime";
