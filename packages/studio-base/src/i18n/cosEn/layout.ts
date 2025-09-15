@@ -23,7 +23,7 @@ export const cosLayout = {
   duplicate: "Duplicate",
   export: "Export",
   delete: "Delete",
-  saveChanges: "Save changes",
+  saveChanges: "Save",
   revert: "Revert",
   copyToPersonal: "Copy to personal",
   someoneElseHasDeletedThisLayout: "Someone else has deleted this layout",
