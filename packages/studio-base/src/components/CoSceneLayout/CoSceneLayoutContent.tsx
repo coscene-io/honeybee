@@ -12,6 +12,7 @@ import {
   Search as SearchIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
+  Dashboard as DashboardIcon,
 } from "@mui/icons-material";
 import {
   Box,
@@ -34,7 +35,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -225,21 +226,28 @@ export function CoSceneLayoutContent({
     return filtered;
   }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery, sortBy, sortOrder]);
 
-  const items = [
+  const items: {
+    category: "all" | "personal" | "project";
+    label: string;
+    icon: React.ReactNode;
+    folders?: string[];
+  }[] = [
     {
       category: "all",
       label: t("allLayout"),
-      icon: <PersonOutlinedIcon />,
+      icon: <DashboardIcon />,
     },
     {
       category: "personal",
       label: t("personalLayout"),
       icon: <PersonOutlinedIcon />,
+      folders: layouts?.personalFolders ?? [],
     },
     {
       category: "project",
       label: t("projectLayout"),
       icon: <BusinessCenterOutlinedIcon />,
+      folders: layouts?.projectFolders ?? [],
     },
   ];
 
@@ -258,94 +266,40 @@ export function CoSceneLayoutContent({
           </Box>
 
           <List className={classes.listPadding}>
-            <ListItem disablePadding>
-              <ListItemButton
-                selected={selectedFolder.category === "all"}
-                onClick={() => {
-                  setSelectedFolder({ category: "all", folder: "" });
-                }}
-              >
-                <ListItemIcon className={classes.listItemIcon}>
-                  <PersonOutlinedIcon />
-                </ListItemIcon>
-                <ListItemText primary={t("allLayout")} />
-              </ListItemButton>
-            </ListItem>
+            {items.map((item) => (
+              <Fragment key={item.category}>
+                <ListItem disablePadding>
+                  <ListItemButton
+                    selected={selectedFolder.category === item.category}
+                    onClick={() => {
+                      setSelectedFolder({ category: item.category, folder: "" });
+                    }}
+                  >
+                    <ListItemIcon className={classes.listItemIcon}>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                </ListItem>
 
-            {/* Personal Layouts */}
-            <ListItem disablePadding>
-              <ListItemButton
-                selected={selectedFolder.category === "personal"}
-                onClick={() => {
-                  setSelectedFolder({ category: "personal", folder: "" });
-                }}
-              >
-                <ListItemIcon className={classes.listItemIcon}>
-                  <PersonOutlinedIcon />
-                </ListItemIcon>
-                <ListItemText primary={t("personalLayout")} />
-              </ListItemButton>
-            </ListItem>
-
-            {/* Personal Layout Folders */}
-            {layouts?.personalFolders.map((folder) => (
-              <ListItem key={folder} disablePadding>
-                <ListItemButton
-                  className={classes.folderItem}
-                  selected={
-                    selectedFolder.category === "personal" && selectedFolder.folder === folder
-                  }
-                  onClick={() => {
-                    setSelectedFolder({ category: "personal", folder });
-                  }}
-                >
-                  <ListItemIcon className={classes.listItemIcon}>
-                    <FolderOutlinedIcon />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
-                    slotProps={{ primary: { noWrap: true } }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-
-            {/* Project Layouts */}
-            <ListItem disablePadding>
-              <ListItemButton
-                selected={selectedFolder.category === "project"}
-                onClick={() => {
-                  setSelectedFolder({ category: "project", folder: "" });
-                }}
-              >
-                <ListItemIcon className={classes.listItemIcon}>
-                  <BusinessCenterOutlinedIcon />
-                </ListItemIcon>
-                <ListItemText primary={t("projectLayout")} />
-              </ListItemButton>
-            </ListItem>
-
-            {/* Project Layout Folders */}
-            {layouts?.projectFolders.map((folder) => (
-              <ListItem key={folder} disablePadding>
-                <ListItemButton
-                  className={classes.folderItem}
-                  selected={
-                    selectedFolder.category === "project" && selectedFolder.folder === folder
-                  }
-                  onClick={() => {
-                    setSelectedFolder({ category: "project", folder });
-                  }}
-                >
-                  <ListItemIcon className={classes.listItemIcon}>
-                    <FolderOutlinedIcon />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
-                    slotProps={{ primary: { noWrap: true } }}
-                  />
-                </ListItemButton>
-              </ListItem>
+                {item.folders?.map((folder) => (
+                  <ListItem key={folder} disablePadding>
+                    <ListItemButton
+                      className={classes.folderItem}
+                      selected={
+                        selectedFolder.category === item.category &&
+                        selectedFolder.folder === folder
+                      }
+                      onClick={() => {
+                        setSelectedFolder({ category: item.category, folder });
+                      }}
+                    >
+                      <ListItemIcon className={classes.listItemIcon}>
+                        <FolderOutlinedIcon />
+                      </ListItemIcon>
+                      <ListItemText primary={folder} />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </Fragment>
             ))}
           </List>
         </div>
