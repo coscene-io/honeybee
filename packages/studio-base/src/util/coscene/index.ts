@@ -104,16 +104,32 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
   );
 }
 
-// protobuf => JsonObject is not support undefind type so we need to replace undefined with null
+// protobuf => JsonObject does not support undefined type, so we need to remove undefined values
 export function removeUndefined(obj: Record<string, unknown>): Record<string, unknown> {
-  Object.keys(obj).forEach((key) => {
-    if (obj[key] != undefined && typeof obj[key] === "object") {
-      removeUndefined(obj[key] as Record<string, unknown>);
-    } else if (obj[key] == undefined) {
-      delete obj[key];
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (value != undefined) {
+      // 递归处理嵌套对象
+      if (typeof value === "object" && !Array.isArray(value)) {
+        const nested = removeUndefined(value as Record<string, unknown>);
+        // 只有非空对象才添加
+        if (Object.keys(nested).length > 0) {
+          result[key] = nested;
+        }
+      } else if (Array.isArray(value)) {
+        // 处理数组，过滤掉 undefined 元素
+        const filteredArray = value.filter(item => item != undefined);
+        if (filteredArray.length > 0) {
+          result[key] = filteredArray;
+        }
+      } else {
+        result[key] = value;
+      }
     }
-  });
-  return obj;
+  }
+
+  return result;
 }
 
 // 将任意字符串映射为一颜色
