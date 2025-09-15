@@ -35,7 +35,6 @@ import { downloadTextFile } from "@foxglove/studio-base/util/download";
 import { CoSceneLayoutDrawer } from "./CoSceneLayoutDrawer";
 import { CurrentLayoutButton } from "./CurrentLayoutButton";
 import { useCurrentLayout } from "./hooks/useCurrentLayout";
-import { useDayjsLocale } from "./hooks/useDayjsLocale";
 
 const log = Logger.getLogger(__filename);
 
@@ -43,8 +42,6 @@ const layoutDrawerOpen = (store: WorkspaceContextStore) => store.layoutDrawer.op
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
 export function CoSceneLayoutButton(): React.JSX.Element {
-  useDayjsLocale();
-
   const open = useWorkspaceStore(layoutDrawerOpen);
   const { layoutDrawer } = useWorkspaceActions();
 
