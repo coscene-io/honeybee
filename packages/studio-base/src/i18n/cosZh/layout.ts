@@ -81,4 +81,5 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   projectName: "项目",
   layoutToCopy: "要复制的布局",
   noData: "暂无布局数据",
+  allLayout: "所有布局",
 };

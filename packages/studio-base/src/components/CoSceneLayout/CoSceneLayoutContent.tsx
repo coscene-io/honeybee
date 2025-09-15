@@ -146,7 +146,7 @@ export function CoSceneLayoutContent({
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
   const [selectedFolder, setSelectedFolder] = useState<{
-    category: "personal" | "project";
+    category: "all" | "personal" | "project";
     folder: string;
   }>({ category: "personal", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
@@ -225,6 +225,24 @@ export function CoSceneLayoutContent({
     return filtered;
   }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery, sortBy, sortOrder]);
 
+  const items = [
+    {
+      category: "all",
+      label: t("allLayout"),
+      icon: <PersonOutlinedIcon />,
+    },
+    {
+      category: "personal",
+      label: t("personalLayout"),
+      icon: <PersonOutlinedIcon />,
+    },
+    {
+      category: "project",
+      label: t("projectLayout"),
+      icon: <BusinessCenterOutlinedIcon />,
+    },
+  ];
+
   return (
     <div className={classes.root}>
       <div className={classes.gridContainer}>
@@ -240,6 +258,20 @@ export function CoSceneLayoutContent({
           </Box>
 
           <List className={classes.listPadding}>
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={selectedFolder.category === "all"}
+                onClick={() => {
+                  setSelectedFolder({ category: "all", folder: "" });
+                }}
+              >
+                <ListItemIcon className={classes.listItemIcon}>
+                  <PersonOutlinedIcon />
+                </ListItemIcon>
+                <ListItemText primary={t("allLayout")} />
+              </ListItemButton>
+            </ListItem>
+
             {/* Personal Layouts */}
             <ListItem disablePadding>
               <ListItemButton

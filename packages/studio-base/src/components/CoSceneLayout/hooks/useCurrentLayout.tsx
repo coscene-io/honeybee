@@ -39,6 +39,9 @@ export function useCurrentLayout(): AsyncState<{
         projectFolders: _.uniq(
           projectLayouts.map((layout) => layout.folder).filter((folder) => folder),
         ).sort(),
+        allLayouts: [...personalLayouts, ...projectLayouts].sort((a, b) =>
+          a.name.localeCompare(b.name),
+        ),
         personalLayouts: personalLayouts.sort((a, b) => a.name.localeCompare(b.name)),
         projectLayouts: projectLayouts.sort((a, b) => a.name.localeCompare(b.name)),
       };
