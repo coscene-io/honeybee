@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Logger from "@foxglove/log";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { RemoteLayout } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
 
 const log = Logger.getLogger(__filename);
@@ -43,7 +43,7 @@ export default function coSceneComputeLayoutSyncOperations(
           log.warn(
             `Remote layout is present but local has sync status: ${localLayout.syncInfo?.status}`,
           );
-          if (layoutIsShared(localLayout)) {
+          if (layoutIsProject(localLayout)) {
             log.warn(`Shared layout ${localLayout.id} shouldn't be untracked`);
             continue;
           }
@@ -58,11 +58,7 @@ export default function coSceneComputeLayoutSyncOperations(
             break;
           }
 
-          if (
-            localLayout.syncInfo.lastRemoteSavedAt !== remoteLayout.savedAt ||
-            localLayout.isProjectRecommended !== remoteLayout.isProjectRecommended ||
-            localLayout.isRecordRecommended !== remoteLayout.isRecordRecommended
-          ) {
+          if (localLayout.syncInfo.lastRemoteSavedAt !== remoteLayout.savedAt) {
             ops.push({
               local: true,
               type: "update-baseline",
@@ -72,7 +68,7 @@ export default function coSceneComputeLayoutSyncOperations(
           }
           break;
         case "locally-deleted":
-          if (layoutIsShared(localLayout)) {
+          if (layoutIsProject(localLayout)) {
             log.warn(`Shared layout ${localLayout.id} shouldn't be marked as locally deleted`);
           }
           ops.push({ local: false, type: "delete-remote", localLayout });
@@ -87,28 +83,28 @@ export default function coSceneComputeLayoutSyncOperations(
       switch (localLayout.syncInfo?.status) {
         case undefined:
         case "new":
-          if (layoutIsShared(localLayout)) {
+          if (layoutIsProject(localLayout)) {
             log.warn(`Shared layout ${localLayout.id} should have been uploaded at creation`);
             continue;
           }
           ops.push({ local: false, type: "upload-new", localLayout });
           break;
         case "updated":
-          if (!layoutIsShared(localLayout)) {
+          if (!layoutIsProject(localLayout)) {
             ops.push({ local: true, type: "delete-local", localLayout });
           } else {
             ops.push({ local: true, type: "mark-deleted", localLayout });
           }
           break;
         case "tracked":
-          if (localLayout.working == undefined || !layoutIsShared(localLayout)) {
+          if (localLayout.working == undefined || !layoutIsProject(localLayout)) {
             ops.push({ local: true, type: "delete-local", localLayout });
           } else {
             ops.push({ local: true, type: "mark-deleted", localLayout });
           }
           break;
         case "locally-deleted":
-          if (layoutIsShared(localLayout)) {
+          if (layoutIsProject(localLayout)) {
             log.warn(`Shared layout ${localLayout.id} shouldn't be marked as locally deleted`);
           }
           ops.push({ local: true, type: "delete-local", localLayout });

@@ -12,7 +12,7 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/a
 // https://github.com/microsoft/TypeScript/issues/4895
 export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
 
-export type LayoutPermission = "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE";
+export type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
 
 export type LayoutSyncStatus =
   | "new"
@@ -20,12 +20,13 @@ export type LayoutSyncStatus =
   | "tracked"
   | "locally-deleted"
   | "remotely-deleted";
+
 export type Layout = {
   id: LayoutID;
+  parent: string;
+  folder: string;
   name: string;
   permission: LayoutPermission;
-  isProjectRecommended: boolean;
-  isRecordRecommended: boolean;
 
   /** @deprecated old field name, migrated to working/baseline */
   data?: LayoutData;
@@ -36,6 +37,10 @@ export type Layout = {
   baseline: {
     data: LayoutData;
     savedAt: ISO8601Timestamp | undefined;
+
+    modifier: string | undefined;
+    modifierAvatar: string | undefined;
+    modifierNickname: string | undefined;
   };
 
   /**
@@ -52,10 +57,17 @@ export type Layout = {
   syncInfo:
     | {
         status: LayoutSyncStatus;
-        /** The last savedAt time returned by the server. */
+        /** The last savedAt returned by the server. */
         lastRemoteSavedAt: ISO8601Timestamp | undefined;
+        lastRemoteUpdatedAt: ISO8601Timestamp | undefined;
       }
     | undefined;
+};
+
+export type LayoutHistory = {
+  id: LayoutID;
+  parent: string;
+  savedAt: ISO8601Timestamp | undefined;
 };
 
 export interface ILayoutStorage {
@@ -74,18 +86,29 @@ export interface ILayoutStorage {
    * The layout manager will call this method to convert any local layouts to personal layouts when logging in.
    */
   importLayouts(params: { fromNamespace: string; toNamespace: string }): Promise<void>;
+
+  getHistory(namespace: string, parent: string): Promise<Layout | undefined>;
+  putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory>;
 }
 
-export function layoutPermissionIsShared(
+export function layoutPermissionIsProject(
   permission: LayoutPermission,
-): permission is Exclude<LayoutPermission, "CREATOR_WRITE"> {
-  return permission !== "CREATOR_WRITE";
+): permission is Exclude<LayoutPermission, "PERSONAL_WRITE"> {
+  return permission !== "PERSONAL_WRITE";
 }
 
-export function layoutIsShared(
+export function layoutIsProject(
   layout: Layout,
-): layout is Layout & { permission: Exclude<LayoutPermission, "CREATOR_WRITE"> } {
-  return layoutPermissionIsShared(layout.permission);
+): layout is Layout & { permission: Exclude<LayoutPermission, "PERSONAL_WRITE"> } {
+  return layoutPermissionIsProject(layout.permission);
+}
+
+export function layoutPermissionIsRead(permission: LayoutPermission): permission is "PROJECT_READ" {
+  return permission === "PROJECT_READ";
+}
+
+export function layoutIsRead(layout: Layout): layout is Layout & { permission: "PROJECT_READ" } {
+  return layoutPermissionIsRead(layout.permission);
 }
 
 export function layoutAppearsDeleted(layout: Layout): boolean {

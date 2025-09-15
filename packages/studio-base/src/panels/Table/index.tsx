@@ -25,6 +25,10 @@ import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import { useMessageDataItem } from "@foxglove/studio-base/components/MessagePathSyntax/useMessageDataItem";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
@@ -50,6 +54,8 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
+const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
+
 function TablePanel({ config, saveConfig }: Props) {
   const { topicPath } = config;
   const { classes } = useStyles();
@@ -60,6 +66,8 @@ function TablePanel({ config, saveConfig }: Props) {
     },
     [saveConfig],
   );
+
+  const seek = useMessagePipeline(selectSeek);
 
   // Use frame navigation hook
   const {
@@ -123,7 +131,7 @@ function TablePanel({ config, saveConfig }: Props) {
       <Stack flex="auto" overflow="hidden" position="relative">
         <PanelToolbar className={classes.toolbar}>
           <MessagePathInput index={0} path={topicPath} onChange={onTopicPathChange} />
-          {hasPreFrame && (
+          {hasPreFrame && seek && (
             <IconButton
               className={classes.iconButton}
               title={t("previousFrame")}
@@ -134,17 +142,19 @@ function TablePanel({ config, saveConfig }: Props) {
               <KeyboardArrowUpIcon fontSize="small" />
             </IconButton>
           )}
-          <IconButton
-            className={classes.iconButton}
-            title={t("nextFrame")}
-            onClick={() => {
-              handleNextFrame(messageDataItems);
-            }}
-            data-testid="next-frame"
-            size="small"
-          >
-            <KeyboardArrowDownIcon fontSize="small" />
-          </IconButton>
+          {seek && (
+            <IconButton
+              className={classes.iconButton}
+              title={t("nextFrame")}
+              onClick={() => {
+                handleNextFrame(messageDataItems);
+              }}
+              data-testid="next-frame"
+              size="small"
+            >
+              <KeyboardArrowDownIcon fontSize="small" />
+            </IconButton>
+          )}
         </PanelToolbar>
         {topicPath.length === 0 && <EmptyState>{t("noTopicSelected")}</EmptyState>}
         {topicPath.length !== 0 && cachedMessages.length === 0 && (

@@ -274,7 +274,7 @@ export default class VelodynePlayer implements Player {
     this.#emitState();
   }
 
-  public close(): void {
+  public async close(): Promise<void> {
     this.#closed = true;
     if (this.#socket) {
       void this.#socket.dispose();

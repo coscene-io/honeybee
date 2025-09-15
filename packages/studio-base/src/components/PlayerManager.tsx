@@ -340,6 +340,10 @@ export default function PlayerManager(
         return;
       }
 
+      if (playerInstances) {
+        await playerInstances.player.close();
+      }
+
       setCurrentSourceArgs(args);
       try {
         switch (args.type) {
@@ -498,6 +502,7 @@ export default function PlayerManager(
     [
       playerSources,
       metricsCollector,
+      playerInstances,
       constructPlayers,
       setDataSource,
       enqueueSnackbar,

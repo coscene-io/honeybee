@@ -26,7 +26,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   layoutDebuggingDescription:
     "レイアウトストレージの開発およびデバッグ用の追加コントロールを表示する。",
   light: "ライト",
-  messageRate: "メッセージレート",
   noExperimentalFeatures: "現在、実験的機能はありません。",
   openLinksIn: "リンクを開く",
   privacy: "プライバシー",

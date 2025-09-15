@@ -8,22 +8,39 @@
 import * as IDB from "idb";
 
 import Log from "@foxglove/log";
-import { Layout, LayoutID, ILayoutStorage, migrateLayout } from "@foxglove/studio-base";
+import {
+  Layout,
+  LayoutID,
+  ILayoutStorage,
+  migrateLayout,
+  LayoutHistory,
+} from "@foxglove/studio-base";
 
 const log = Log.getLogger(__filename);
 
-const DATABASE_NAME = "foxglove-layouts";
+const DATABASE_NAME = "coScene-layouts";
+const DATABASE_VERSION = 1;
 const OBJECT_STORE_NAME = "layouts";
+const HISTORY_STORE_NAME = "history";
 
 interface LayoutsDB extends IDB.DBSchema {
   layouts: {
-    key: [namespace: string, id: LayoutID];
+    key: [namespace: string, parent: string, id: LayoutID];
     value: {
       namespace: string;
       layout: Layout;
     };
     indexes: {
       namespace: string;
+      namespace_id: [namespace: string, id: LayoutID];
+      namespace_parent: [namespace: string, parent: string];
+    };
+  };
+  history: {
+    key: [namespace: string, parent: string];
+    value: {
+      namespace: string;
+      history: LayoutHistory;
     };
   };
 }
@@ -33,12 +50,34 @@ interface LayoutsDB extends IDB.DBSchema {
  * being the tuple of [namespace, id].
  */
 export class IdbLayoutStorage implements ILayoutStorage {
-  #db = IDB.openDB<LayoutsDB>(DATABASE_NAME, 1, {
-    upgrade(db) {
-      const store = db.createObjectStore(OBJECT_STORE_NAME, {
-        keyPath: ["namespace", "layout.id"],
-      });
-      store.createIndex("namespace", "namespace");
+  #db = IDB.openDB<LayoutsDB>(DATABASE_NAME, DATABASE_VERSION, {
+    upgrade(db, oldVersion) {
+      // Create object store if it doesn't exist
+      if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
+        const store = db.createObjectStore(OBJECT_STORE_NAME, {
+          keyPath: ["namespace", "layout.parent", "layout.id"],
+        });
+        store.createIndex("namespace", "namespace");
+        store.createIndex("namespace_id", ["namespace", "layout.id"]);
+        store.createIndex("namespace_parent", ["namespace", "layout.parent"]);
+      }
+
+      if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
+        db.createObjectStore(HISTORY_STORE_NAME, {
+          keyPath: ["namespace", "history.parent"],
+        });
+      }
+
+      // Clean up the old foxglove-layouts IndexedDB database (version 1)
+      if (oldVersion < 1) {
+        IDB.deleteDB("foxglove-layouts")
+          .then(() => {
+            log.info("Successfully removed old foxglove-layouts database");
+          })
+          .catch((error: unknown) => {
+            log.warn("Failed to remove old foxglove-layouts database:", error);
+          });
+      }
     },
   });
 
@@ -58,7 +97,9 @@ export class IdbLayoutStorage implements ILayoutStorage {
   }
 
   public async get(namespace: string, id: LayoutID): Promise<Layout | undefined> {
-    const record = await (await this.#db).get(OBJECT_STORE_NAME, [namespace, id]);
+    const record = await (
+      await this.#db
+    ).getFromIndex(OBJECT_STORE_NAME, "namespace_id", [namespace, id]);
     return record == undefined ? undefined : migrateLayout(record.layout);
   }
 
@@ -68,7 +109,13 @@ export class IdbLayoutStorage implements ILayoutStorage {
   }
 
   public async delete(namespace: string, id: LayoutID): Promise<void> {
-    await (await this.#db).delete(OBJECT_STORE_NAME, [namespace, id]);
+    const record = await (
+      await this.#db
+    ).getFromIndex(OBJECT_STORE_NAME, "namespace_id", [namespace, id]);
+    if (record == undefined) {
+      return;
+    }
+    await (await this.#db).delete(OBJECT_STORE_NAME, [namespace, record.layout.parent, id]);
   }
 
   public async importLayouts({
@@ -134,5 +181,20 @@ export class IdbLayoutStorage implements ILayoutStorage {
         log.error(err);
       }
     }
+  }
+
+  public async getHistory(namespace: string, parent: string): Promise<Layout | undefined> {
+    const record = await (await this.#db).get(HISTORY_STORE_NAME, [namespace, parent]);
+    if (record?.history == undefined) {
+      return undefined;
+    }
+
+    const layout = await this.get(namespace, record.history.id);
+    return layout;
+  }
+
+  public async putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory> {
+    await (await this.#db).put(HISTORY_STORE_NAME, { namespace, history });
+    return history;
   }
 }

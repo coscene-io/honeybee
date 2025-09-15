@@ -408,7 +408,7 @@ function DataCollectionContent(
                 draft.currentFocusedTask = undefined;
               });
             }}
-            t={t}
+            label={t("projectName")}
           />
 
           <TaskRelationInput

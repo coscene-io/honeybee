@@ -52,7 +52,6 @@ import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 const INFINITY_TIME = 1000 * 60 * 60 * 24 * 365 * 100;
-const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
 const TIMEOUT_MINUTES = [10, 20, 30, 60, 120, INFINITY_TIME];
 const RETENTION_WINDOW_MS = [
   0,
@@ -308,32 +307,6 @@ export function LaunchDefault(): React.ReactElement {
   );
 }
 
-export function MessageFramerate(): React.ReactElement {
-  const { t } = useTranslation("appSettings");
-  const [messageRate, setMessageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
-  const options = useMemo(
-    () => MESSAGE_RATES.map((rate) => ({ key: rate, text: `${rate}`, data: rate })),
-    [],
-  );
-
-  return (
-    <Stack>
-      <FormLabel>{t("messageRate")} (Hz):</FormLabel>
-      <Select
-        value={messageRate ?? 60}
-        fullWidth
-        onChange={(event) => void setMessageRate(event.target.value)}
-      >
-        {options.map((option) => (
-          <MenuItem key={option.key} value={option.key}>
-            {option.text}
-          </MenuItem>
-        ))}
-      </Select>
-    </Stack>
-  );
-}
-
 export function AutoUpdate(): React.ReactElement {
   const { t } = useTranslation("appSettings");
   const [updatesEnabled = true, setUpdatedEnabled] = useAppConfigurationValue<boolean>(
@@ -570,6 +543,9 @@ export function RetentionWindowMs(): React.ReactElement {
       <FormLabel>
         <Stack direction="row" alignItems="center" gap={0.5}>
           {t("retentionWindowMs")}:
+          <Tooltip title={t("retentionWindowDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
         </Stack>
       </FormLabel>
       <Select

@@ -66,6 +66,18 @@ enum Endpoint {
 
   ListAuditLogs = "coscene.dataplatform.v1alpha2.services.AuditLogService.ListAuditLogs",
   CreateAuditLog = "coscene.dataplatform.v1alpha2.services.AuditLogService.CreateAuditLog",
+
+  // Layout endpoints
+  CreateUserLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.CreateUserLayout",
+  CreateProjectLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.CreateProjectLayout",
+  GetUserLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.GetUserLayout",
+  GetProjectLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.GetProjectLayout",
+  ListUserLayouts = "coscene.dataplatform.v1alpha2.services.LayoutService.ListUserLayouts",
+  ListProjectLayouts = "coscene.dataplatform.v1alpha2.services.LayoutService.ListProjectLayouts",
+  UpdateUserLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.UpdateUserLayout",
+  UpdateProjectLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.UpdateProjectLayout",
+  DeleteUserLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.DeleteUserLayout",
+  DeleteProjectLayout = "coscene.dataplatform.v1alpha2.services.LayoutService.DeleteProjectLayout",
 }
 
 export default Endpoint;

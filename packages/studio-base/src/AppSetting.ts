@@ -10,7 +10,6 @@ export enum AppSetting {
   COLOR_SCHEME = "colorScheme",
   TIMEZONE = "timezone",
   TIME_FORMAT = "time.format",
-  MESSAGE_RATE = "messageRate",
   UPDATES_ENABLED = "updates.enabled",
   LANGUAGE = "language",
 

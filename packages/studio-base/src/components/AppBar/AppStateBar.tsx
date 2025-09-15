@@ -93,7 +93,7 @@ export function AppStateBar(): React.JSX.Element {
 
   const [showLoadingStatus, setShowLoadingStatus] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout | undefined>(undefined);
-  const { layoutActions } = useWorkspaceActions();
+  const { layoutDrawer } = useWorkspaceActions();
   const [layoutTipsOpen, setLayoutTipsOpen] = useState(false);
 
   const [fileLoadingToastId, setFileLoadingToastId] = useState<string | undefined>(undefined);
@@ -383,7 +383,7 @@ export function AppStateBar(): React.JSX.Element {
             <span>{t("layoutGuideliens")}</span>
             <Button
               onClick={() => {
-                layoutActions.setOpen(true);
+                layoutDrawer.open();
               }}
             >
               {t("toSetupLayout")}

@@ -297,19 +297,21 @@ export default function PlaybackControls(props: {
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
             {dataSource?.type === "persistent-cache" &&
               dataSource.previousRecentId != undefined && (
-                <IconButton
-                  component="button"
-                  size="small"
-                  onClick={() => {
-                    if (dataSource.previousRecentId != undefined) {
-                      selectRecent(dataSource.previousRecentId);
-                    }
-                  }}
-                >
-                  <Typography variant="body2" marginLeft="4px">
-                    {t("switchToRealTime", { ns: "cosWebsocket" })}
-                  </Typography>
-                </IconButton>
+                <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "cosWebsocket" })}>
+                  <IconButton
+                    component="button"
+                    size="small"
+                    onClick={() => {
+                      if (dataSource.previousRecentId != undefined) {
+                        selectRecent(dataSource.previousRecentId);
+                      }
+                    }}
+                  >
+                    <Typography variant="body2" marginLeft="4px">
+                      {t("switchToRealTime", { ns: "cosWebsocket" })}
+                    </Typography>
+                  </IconButton>
+                </Tooltip>
               )}
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
@@ -424,36 +426,56 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
 
           <Tooltip
             title={
-              <Trans
-                i18nKey="switchToPlaybackDesc"
-                ns="cosWebsocket"
-                values={{ duration: getDurationText(retentionWindowMs ?? 30 * 1000) }}
-                components={{
-                  ToSettings: (
-                    <Link
-                      href="#"
-                      onClick={() => {
-                        dialogActions.preferences.open("general");
-                      }}
-                    />
-                  ),
-                }}
-              />
+              retentionWindowMs === 0 ? (
+                <Trans
+                  i18nKey="noCacheSetPrompt"
+                  ns="cosWebsocket"
+                  components={{
+                    ToSettings: (
+                      <Link
+                        href="#"
+                        onClick={() => {
+                          dialogActions.preferences.open("general");
+                        }}
+                      />
+                    ),
+                  }}
+                />
+              ) : (
+                <Trans
+                  i18nKey="switchToPlaybackDesc"
+                  ns="cosWebsocket"
+                  values={{ duration: getDurationText(retentionWindowMs ?? 30 * 1000) }}
+                  components={{
+                    ToSettings: (
+                      <Link
+                        href="#"
+                        onClick={() => {
+                          dialogActions.preferences.open("general");
+                        }}
+                      />
+                    ),
+                  }}
+                />
+              )
             }
           >
-            <IconButton
-              component="button"
-              size="small"
-              onClick={() => {
-                selectSource("persistent-cache", {
-                  type: "persistent-cache",
-                });
-              }}
-            >
-              <Typography variant="body2" marginLeft="4px">
-                {t("switchToPlayback")}
-              </Typography>
-            </IconButton>
+            <span>
+              <IconButton
+                component="button"
+                size="small"
+                onClick={() => {
+                  selectSource("persistent-cache", {
+                    type: "persistent-cache",
+                  });
+                }}
+                disabled={retentionWindowMs === 0}
+              >
+                <Typography variant="body2" marginLeft="4px">
+                  {t("switchToPlayback")}
+                </Typography>
+              </IconButton>
+            </span>
           </Tooltip>
         </Stack>
       </Stack>
