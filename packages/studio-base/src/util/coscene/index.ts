@@ -119,7 +119,7 @@ export function removeUndefined(obj: Record<string, unknown>): Record<string, un
         }
       } else if (Array.isArray(value)) {
         // 处理数组，过滤掉 undefined 元素
-        const filteredArray = value.filter(item => item != undefined);
+        const filteredArray = value.filter((item) => item != undefined);
         if (filteredArray.length > 0) {
           result[key] = filteredArray;
         }
