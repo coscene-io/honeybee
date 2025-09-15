@@ -45,4 +45,7 @@ export const plot = {
   tooManyMessages:
     "The current number of messages on the panel is too large, which may lead to unexpected crashes. It is recommended to switch to playback by the current timestamp in 'Panel Settings - X Axis - Value'.",
   switchImmediately: "Switch immediately",
+  enableAllSeries: "Enable all",
+  disableAllSeries: "Disable all",
+  toggleAllSeries: "Toggle all",
 };

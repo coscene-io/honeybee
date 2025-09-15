@@ -100,6 +100,13 @@ const makeRootSeriesNode = memoizeWeak(
             makeSeriesNode(path, index, /*canDelete=*/ true, t),
           ]),
     );
+
+    // check if all series are enabled or disabled
+    const hasEnabledSeries = paths.some((path) => path.enabled);
+    const hasDisabledSeries = paths.some((path) => !path.enabled);
+
+    const shouldShowDisableAll = hasEnabledSeries && !hasDisabledSeries;
+
     return {
       label: t("series"),
       children,
@@ -110,6 +117,13 @@ const makeRootSeriesNode = memoizeWeak(
           label: t("addSeries"),
           display: "inline",
           icon: "Addchart",
+        },
+        {
+          type: "action",
+          id: "toggle-all-series",
+          label: shouldShowDisableAll ? t("disableAllSeries") : t("enableAllSeries"),
+          display: "inline",
+          icon: shouldShowDisableAll ? "VisibilityOff" : "Visibility",
         },
       ],
     };
@@ -304,6 +318,18 @@ export function usePlotPanelSettings(
           saveConfig(
             produce<PlotConfig>((draft) => {
               draft.paths.splice(Number(index), 1);
+            }),
+          );
+        } else if (action.payload.id === "toggle-all-series") {
+          saveConfig(
+            produce<PlotConfig>((draft) => {
+              const hasEnabledSeries = draft.paths.some((path) => path.enabled);
+              const hasDisabledSeries = draft.paths.some((path) => !path.enabled);
+              const shouldDisableAll = hasEnabledSeries && !hasDisabledSeries;
+
+              for (const path of draft.paths) {
+                path.enabled = !shouldDisableAll;
+              }
             }),
           );
         }
