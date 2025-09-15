@@ -18,8 +18,7 @@ const log = Logger.getLogger(__filename);
 export function useCurrentLayout(): AsyncState<{
   personalFolders: string[];
   projectFolders: string[];
-  personalLayouts: Layout[];
-  projectLayouts: Layout[];
+  allLayouts: Layout[];
 }> {
   const layoutManager = useLayoutManager();
 
@@ -39,8 +38,7 @@ export function useCurrentLayout(): AsyncState<{
         projectFolders: _.uniq(
           projectLayouts.map((layout) => layout.folder).filter((folder) => folder),
         ).sort(),
-        personalLayouts: personalLayouts.sort((a, b) => a.name.localeCompare(b.name)),
-        projectLayouts: projectLayouts.sort((a, b) => a.name.localeCompare(b.name)),
+        allLayouts: [...layouts].sort((a, b) => a.name.localeCompare(b.name)),
       };
     },
     [layoutManager],
