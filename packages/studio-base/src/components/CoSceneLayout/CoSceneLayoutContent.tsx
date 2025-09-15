@@ -63,6 +63,9 @@ const useStyles = makeStyles()((theme) => ({
     width: "20%",
     minWidth: 200,
     borderRight: `1px solid ${theme.palette.divider}`,
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
   },
   contentArea: {
     width: "80%",
@@ -101,18 +104,24 @@ const useStyles = makeStyles()((theme) => ({
       visibility: "visible",
     },
   },
-
   emptyState: {
     textAlign: "center",
     paddingTop: theme.spacing(4),
     paddingBottom: theme.spacing(4),
   },
-
   boxPadding: {
     paddingBottom: theme.spacing(2),
   },
   listPadding: {
     paddingTop: 0,
+  },
+  overflowContainter: {
+    overflow: "auto",
+    flex: 1,
+    minHeight: 0,
+  },
+  tableContainer: {
+    maxHeight: "calc(100vh - 190px)",
   },
 }));
 
@@ -268,45 +277,47 @@ export function CoSceneLayoutContent({
             />
           </Box>
 
-          <List className={classes.listPadding}>
-            {items.map((item) => (
-              <Fragment key={item.category}>
-                <ListItem disablePadding>
-                  <ListItemButton
-                    selected={
-                      selectedFolder.category === item.category && selectedFolder.folder === ""
-                    }
-                    onClick={() => {
-                      setSelectedFolder({ category: item.category, folder: "" });
-                    }}
-                  >
-                    <ListItemIcon className={classes.listItemIcon}>{item.icon}</ListItemIcon>
-                    <ListItemText primary={item.label} />
-                  </ListItemButton>
-                </ListItem>
-
-                {item.folders?.map((folder) => (
-                  <ListItem key={folder} disablePadding>
+          <Box className={classes.overflowContainter}>
+            <List className={classes.listPadding}>
+              {items.map((item) => (
+                <Fragment key={item.category}>
+                  <ListItem disablePadding>
                     <ListItemButton
-                      className={classes.folderItem}
                       selected={
-                        selectedFolder.category === item.category &&
-                        selectedFolder.folder === folder
+                        selectedFolder.category === item.category && selectedFolder.folder === ""
                       }
                       onClick={() => {
-                        setSelectedFolder({ category: item.category, folder });
+                        setSelectedFolder({ category: item.category, folder: "" });
                       }}
                     >
-                      <ListItemIcon className={classes.listItemIcon}>
-                        <FolderOutlinedIcon />
-                      </ListItemIcon>
-                      <ListItemText primary={folder} />
+                      <ListItemIcon className={classes.listItemIcon}>{item.icon}</ListItemIcon>
+                      <ListItemText primary={item.label} />
                     </ListItemButton>
                   </ListItem>
-                ))}
-              </Fragment>
-            ))}
-          </List>
+
+                  {item.folders?.map((folder) => (
+                    <ListItem key={folder} disablePadding>
+                      <ListItemButton
+                        className={classes.folderItem}
+                        selected={
+                          selectedFolder.category === item.category &&
+                          selectedFolder.folder === folder
+                        }
+                        onClick={() => {
+                          setSelectedFolder({ category: item.category, folder });
+                        }}
+                      >
+                        <ListItemIcon className={classes.listItemIcon}>
+                          <FolderOutlinedIcon />
+                        </ListItemIcon>
+                        <ListItemText primary={folder} />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                </Fragment>
+              ))}
+            </List>
+          </Box>
         </div>
 
         {/* Right Content Area */}
@@ -363,8 +374,8 @@ export function CoSceneLayoutContent({
             </Box>
 
             {/* Layouts Table */}
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" className={classes.tableContainer}>
+              <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
                     <TableCell />
