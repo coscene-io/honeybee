@@ -314,16 +314,30 @@ export function CoSceneLayoutContent({
           <Box className={classes.boxPadding}>
             {/* Breadcrumb */}
             <Breadcrumbs className={classes.breadcrumbs}>
-              <Link
-                color="inherit"
-                underline="hover"
-                onClick={() => {
-                  setSelectedFolder({ category: "personal", folder: "" });
-                }}
-              >
-                {selectedFolder.category === "personal" ? t("personalLayout") : t("projectLayout")}
-              </Link>
-              {selectedFolder.folder && <div>{selectedFolder.folder}</div>}
+              {selectedFolder.folder ? (
+                <Link
+                  color="inherit"
+                  underline="hover"
+                  onClick={() => {
+                    setSelectedFolder({ category: selectedFolder.category, folder: "" });
+                  }}
+                >
+                  {selectedFolder.category === "personal"
+                    ? t("personalLayout")
+                    : selectedFolder.category === "project"
+                    ? t("projectLayout")
+                    : t("allLayout")}
+                </Link>
+              ) : (
+                <Typography>
+                  {selectedFolder.category === "personal"
+                    ? t("personalLayout")
+                    : selectedFolder.category === "project"
+                    ? t("projectLayout")
+                    : t("allLayout")}
+                </Typography>
+              )}
+              {selectedFolder.folder && <Typography>{selectedFolder.folder}</Typography>}
             </Breadcrumbs>
 
             {/* Toolbar */}
