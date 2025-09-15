@@ -19,8 +19,6 @@ export function useCurrentLayout(): AsyncState<{
   personalFolders: string[];
   projectFolders: string[];
   allLayouts: Layout[];
-  personalLayouts: Layout[];
-  projectLayouts: Layout[];
 }> {
   const layoutManager = useLayoutManager();
 
@@ -41,8 +39,6 @@ export function useCurrentLayout(): AsyncState<{
           projectLayouts.map((layout) => layout.folder).filter((folder) => folder),
         ).sort(),
         allLayouts: [...layouts].sort((a, b) => a.name.localeCompare(b.name)),
-        personalLayouts: personalLayouts.sort((a, b) => a.name.localeCompare(b.name)),
-        projectLayouts: projectLayouts.sort((a, b) => a.name.localeCompare(b.name)),
       };
     },
     [layoutManager],
