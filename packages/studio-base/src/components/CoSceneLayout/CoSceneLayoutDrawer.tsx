@@ -33,7 +33,7 @@ const useStyles = makeStyles()((theme) => ({
   },
   drawerContent: {
     flex: 1,
-    overflow: "auto",
+    overflow: "hidden",
   },
 }));
 

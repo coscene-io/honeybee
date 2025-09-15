@@ -5,7 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { PlayArrow as PlayArrowIcon, Equalizer as EqualizerIcon } from "@mui/icons-material";
+import {
+  PlayArrow as PlayArrowIcon,
+  Equalizer as EqualizerIcon,
+  BusinessCenterOutlined as BusinessCenterOutlinedIcon,
+  PersonOutlined as PersonOutlinedIcon,
+} from "@mui/icons-material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import {
   Avatar,
@@ -51,6 +56,9 @@ const useStyles = makeStyles()((theme) => ({
     display: "flex",
     alignItems: "center",
     gap: theme.spacing(1),
+    "& svg": {
+      fontSize: "1rem",
+    },
   },
   updaterCell: {
     display: "flex",
@@ -150,7 +158,14 @@ export function LayoutTableRow({
         </Box>
       </TableCell>
       <TableCell>
-        <Box className={classes.layoutNameCell}>{layout.name}</Box>
+        <Box className={classes.layoutNameCell}>
+          {layout.permission === "PROJECT_WRITE" ? (
+            <PersonOutlinedIcon />
+          ) : (
+            <BusinessCenterOutlinedIcon />
+          )}
+          {layout.name}
+        </Box>
       </TableCell>
       <TableCell>{savedAt ? dayjs(savedAt).fromNow() : "-"}</TableCell>
       <TableCell>
