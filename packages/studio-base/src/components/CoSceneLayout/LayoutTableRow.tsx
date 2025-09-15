@@ -33,14 +33,8 @@ const useStyles = makeStyles()((theme) => ({
       opacity: 1,
     },
   },
-  tableRowActive: {
-    "& .activeIcon": {
-      opacity: 1,
-      color: theme.palette.primary.main,
-    },
-    td: {
-      backgroundColor: theme.palette.action.selected,
-    },
+  activeIcon: {
+    color: theme.palette.primary.main,
   },
   layoutIconTableCell: {
     padding: 0,
@@ -135,14 +129,13 @@ export function LayoutTableRow({
     <TableRow
       key={layout.id}
       hover
-      className={`${classes.tableRow} ${
-        currentLayoutId === layout.id ? classes.tableRowActive : ""
-      }`}
+      selected={currentLayoutId === layout.id}
+      className={classes.tableRow}
     >
       <TableCell className={classes.layoutIconTableCell}>
         <Box className={classes.layoutIconBox}>
           {currentLayoutId === layout.id ? (
-            <EqualizerIcon className="activeIcon" />
+            <EqualizerIcon className={classes.activeIcon} />
           ) : (
             <Tooltip placement="top" title={t("useLayout")}>
               <IconButton
