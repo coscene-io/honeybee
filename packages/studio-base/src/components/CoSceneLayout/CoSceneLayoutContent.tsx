@@ -45,7 +45,7 @@ import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayo
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import { RenameLayoutDialog } from "./RenameLayoutDialog";
 
@@ -133,8 +133,7 @@ export function CoSceneLayoutContent({
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
-    personalLayouts: Layout[];
-    projectLayouts: Layout[];
+    allLayouts: Layout[];
   };
   onSelectLayout: (layout: Layout) => void;
   onDeleteLayout: (layout: Layout) => void;
@@ -188,8 +187,12 @@ export function CoSceneLayoutContent({
       return [];
     }
 
-    let filtered: Layout[] =
-      selectedFolder.category === "personal" ? layouts.personalLayouts : layouts.projectLayouts;
+    let filtered: Layout[] = layouts.allLayouts;
+    if (selectedFolder.category === "personal") {
+      filtered = filtered.filter((l) => l.permission === "PERSONAL_WRITE");
+    } else if (selectedFolder.category === "project") {
+      filtered = filtered.filter((l) => layoutIsProject(l));
+    }
 
     if (selectedFolder.folder) {
       filtered = filtered.filter((l) => l.folder === selectedFolder.folder);
@@ -270,7 +273,9 @@ export function CoSceneLayoutContent({
               <Fragment key={item.category}>
                 <ListItem disablePadding>
                   <ListItemButton
-                    selected={selectedFolder.category === item.category}
+                    selected={
+                      selectedFolder.category === item.category && selectedFolder.folder === ""
+                    }
                     onClick={() => {
                       setSelectedFolder({ category: item.category, folder: "" });
                     }}
