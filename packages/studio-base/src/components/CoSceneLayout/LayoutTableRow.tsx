@@ -11,7 +11,6 @@ import {
   Avatar,
   Box,
   Button,
-  Chip,
   IconButton,
   TableCell,
   TableRow,
@@ -128,7 +127,11 @@ export function LayoutTableRow({
             <EqualizerIcon />
           ) : (
             <Tooltip placement="top" title={t("useLayout")}>
-              <IconButton onClick={handleUse} className={`${classes.playArrowIcon} playArrowIcon`}>
+              <IconButton
+                size="small"
+                onClick={handleUse}
+                className={`${classes.playArrowIcon} playArrowIcon`}
+              >
                 <PlayArrowIcon />
               </IconButton>
             </Tooltip>
