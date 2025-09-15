@@ -106,6 +106,9 @@ const useStyles = makeStyles()((theme) => ({
     "&.active": {
       visibility: "visible",
     },
+    "& svg": {
+      fontSize: "1rem",
+    },
   },
   emptyState: {
     textAlign: "center",
