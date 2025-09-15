@@ -15,10 +15,8 @@ import { ReactElement } from "react";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
-import {
-  Diagnostic,
-  DiagnosticSeverity,
-} from "@foxglove/studio-base/players/UserScriptPlayer/types";
+import { DIAGNOSTIC_SEVERITY } from "@foxglove/studio-base/players/UserScriptPlayer/constants";
+import { Diagnostic } from "@foxglove/studio-base/players/UserScriptPlayer/types";
 
 const severityIcons = {
   Hint: <HelpIcon fontSize="small" />,
@@ -56,7 +54,7 @@ const DiagnosticsSection = ({ diagnostics }: Props): ReactElement => {
     return (
       <Stack gap={0.5} padding={2}>
         <Typography variant="body2" color="text.secondary">
-          No problems to display.
+          No alerts to display.
         </Typography>
       </Stack>
     );
@@ -66,7 +64,7 @@ const DiagnosticsSection = ({ diagnostics }: Props): ReactElement => {
     <List dense disablePadding>
       {diagnostics.map(({ severity, message, source, startColumn, startLineNumber }, i) => {
         const severityLabel =
-          (_.invert(DiagnosticSeverity) as Record<string, keyof typeof DiagnosticSeverity>)[
+          (_.invert(DIAGNOSTIC_SEVERITY) as Record<string, keyof typeof DIAGNOSTIC_SEVERITY>)[
             severity
           ] ?? "Error";
 
@@ -84,10 +82,8 @@ const DiagnosticsSection = ({ diagnostics }: Props): ReactElement => {
               className={classes.listItemText}
               primary={message}
               secondary={`${source} ${errorLoc}`}
-              slotProps={{
-                secondary: {
-                  color: "text.secondary",
-                },
+              secondaryTypographyProps={{
+                color: "text.secondary",
               }}
             />
           </ListItem>

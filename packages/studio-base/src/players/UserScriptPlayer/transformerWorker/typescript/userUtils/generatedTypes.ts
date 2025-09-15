@@ -1,13 +1,13 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
-// SPDX-License-Identifier: MPL-2.0
-
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// placeholder
-type MessageTypeByTopic = object;
-// placeholder
-type MessageTypeBySchemaName = object;
+type MessageTypeByTopic = {
+  // placeholder
+};
+type MessageTypeBySchemaName = {
+  // placeholder
+};
 
-export type { MessageTypeByTopic, MessageTypeBySchemaName };
+export type { MessageTypeBySchemaName, MessageTypeByTopic };

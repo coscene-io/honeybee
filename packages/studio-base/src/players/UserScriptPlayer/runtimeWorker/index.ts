@@ -14,8 +14,8 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 import {
-  registerScript,
   processMessage,
+  registerScript,
 } from "@foxglove/studio-base/players/UserScriptPlayer/runtimeWorker/registry";
 import Rpc from "@foxglove/studio-base/util/Rpc";
 import { enforceFetchIsBlocked, inSharedWorker } from "@foxglove/studio-base/util/workers";
