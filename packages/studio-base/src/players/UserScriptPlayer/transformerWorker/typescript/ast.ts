@@ -156,7 +156,7 @@ export const findDefaultExportFunction = (
 
   const defaultExportSymbol = checker
     .getExportsOfModule(symbol)
-    .find((node) => node.escapedName === "default");
+    .find((node) => String(node.escapedName) === "default");
   if (!defaultExportSymbol) {
     throw new DatatypeExtractionError(noFuncError);
   }
@@ -455,7 +455,7 @@ export const constructDatatypes = (
         // ArrayTypeNode and recurse. Opting out of using 'Array' keyword for
         // now.
 
-        if (nextSymbol?.escapedName === "Array") {
+        if (String(nextSymbol?.escapedName) === "Array") {
           throw new DatatypeExtractionError(preferArrayLiteral);
         }
 

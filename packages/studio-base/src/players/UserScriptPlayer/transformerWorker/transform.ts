@@ -81,7 +81,7 @@ export const getInputTopics = (scriptData: ScriptData): ScriptData => {
 
   const inputsExport = typeChecker
     .getExportsOfModule(symbol)
-    .find((node) => node.escapedName === "inputs");
+    .find((node) => String(node.escapedName) === "inputs");
   if (!inputsExport) {
     const error: Diagnostic = {
       severity: DIAGNOSTIC_SEVERITY.Error,
