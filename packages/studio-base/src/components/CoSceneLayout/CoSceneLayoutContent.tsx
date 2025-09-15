@@ -12,6 +12,7 @@ import {
   Search as SearchIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
+  Dashboard as DashboardIcon,
 } from "@mui/icons-material";
 import {
   Box,
@@ -34,7 +35,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -44,7 +45,7 @@ import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayo
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import { RenameLayoutDialog } from "./RenameLayoutDialog";
 
@@ -132,8 +133,7 @@ export function CoSceneLayoutContent({
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
-    personalLayouts: Layout[];
-    projectLayouts: Layout[];
+    allLayouts: Layout[];
   };
   onSelectLayout: (layout: Layout) => void;
   onDeleteLayout: (layout: Layout) => void;
@@ -146,9 +146,9 @@ export function CoSceneLayoutContent({
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
   const [selectedFolder, setSelectedFolder] = useState<{
-    category: "personal" | "project";
+    category: "all" | "personal" | "project";
     folder: string;
-  }>({ category: "personal", folder: "" });
+  }>({ category: "all", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [{ sortBy, sortOrder }, setSort] = useState<{
     sortBy: "name" | "updateTime";
@@ -187,8 +187,12 @@ export function CoSceneLayoutContent({
       return [];
     }
 
-    let filtered: Layout[] =
-      selectedFolder.category === "personal" ? layouts.personalLayouts : layouts.projectLayouts;
+    let filtered: Layout[] = layouts.allLayouts;
+    if (selectedFolder.category === "personal") {
+      filtered = filtered.filter((l) => l.permission === "PERSONAL_WRITE");
+    } else if (selectedFolder.category === "project") {
+      filtered = filtered.filter((l) => layoutIsProject(l));
+    }
 
     if (selectedFolder.folder) {
       filtered = filtered.filter((l) => l.folder === selectedFolder.folder);
@@ -225,6 +229,31 @@ export function CoSceneLayoutContent({
     return filtered;
   }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery, sortBy, sortOrder]);
 
+  const items: {
+    category: "all" | "personal" | "project";
+    label: string;
+    icon: React.ReactNode;
+    folders?: string[];
+  }[] = [
+    {
+      category: "all",
+      label: t("allLayout"),
+      icon: <DashboardIcon />,
+    },
+    {
+      category: "personal",
+      label: t("personalLayout"),
+      icon: <PersonOutlinedIcon />,
+      folders: layouts?.personalFolders ?? [],
+    },
+    {
+      category: "project",
+      label: t("projectLayout"),
+      icon: <BusinessCenterOutlinedIcon />,
+      folders: layouts?.projectFolders ?? [],
+    },
+  ];
+
   return (
     <div className={classes.root}>
       <div className={classes.gridContainer}>
@@ -240,80 +269,42 @@ export function CoSceneLayoutContent({
           </Box>
 
           <List className={classes.listPadding}>
-            {/* Personal Layouts */}
-            <ListItem disablePadding>
-              <ListItemButton
-                selected={selectedFolder.category === "personal"}
-                onClick={() => {
-                  setSelectedFolder({ category: "personal", folder: "" });
-                }}
-              >
-                <ListItemIcon className={classes.listItemIcon}>
-                  <PersonOutlinedIcon />
-                </ListItemIcon>
-                <ListItemText primary={t("personalLayout")} />
-              </ListItemButton>
-            </ListItem>
+            {items.map((item) => (
+              <Fragment key={item.category}>
+                <ListItem disablePadding>
+                  <ListItemButton
+                    selected={
+                      selectedFolder.category === item.category && selectedFolder.folder === ""
+                    }
+                    onClick={() => {
+                      setSelectedFolder({ category: item.category, folder: "" });
+                    }}
+                  >
+                    <ListItemIcon className={classes.listItemIcon}>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                </ListItem>
 
-            {/* Personal Layout Folders */}
-            {layouts?.personalFolders.map((folder) => (
-              <ListItem key={folder} disablePadding>
-                <ListItemButton
-                  className={classes.folderItem}
-                  selected={
-                    selectedFolder.category === "personal" && selectedFolder.folder === folder
-                  }
-                  onClick={() => {
-                    setSelectedFolder({ category: "personal", folder });
-                  }}
-                >
-                  <ListItemIcon className={classes.listItemIcon}>
-                    <FolderOutlinedIcon />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
-                    slotProps={{ primary: { noWrap: true } }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-
-            {/* Project Layouts */}
-            <ListItem disablePadding>
-              <ListItemButton
-                selected={selectedFolder.category === "project"}
-                onClick={() => {
-                  setSelectedFolder({ category: "project", folder: "" });
-                }}
-              >
-                <ListItemIcon className={classes.listItemIcon}>
-                  <BusinessCenterOutlinedIcon />
-                </ListItemIcon>
-                <ListItemText primary={t("projectLayout")} />
-              </ListItemButton>
-            </ListItem>
-
-            {/* Project Layout Folders */}
-            {layouts?.projectFolders.map((folder) => (
-              <ListItem key={folder} disablePadding>
-                <ListItemButton
-                  className={classes.folderItem}
-                  selected={
-                    selectedFolder.category === "project" && selectedFolder.folder === folder
-                  }
-                  onClick={() => {
-                    setSelectedFolder({ category: "project", folder });
-                  }}
-                >
-                  <ListItemIcon className={classes.listItemIcon}>
-                    <FolderOutlinedIcon />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={folder.length > 20 ? `${folder.substring(0, 20)}...` : folder}
-                    slotProps={{ primary: { noWrap: true } }}
-                  />
-                </ListItemButton>
-              </ListItem>
+                {item.folders?.map((folder) => (
+                  <ListItem key={folder} disablePadding>
+                    <ListItemButton
+                      className={classes.folderItem}
+                      selected={
+                        selectedFolder.category === item.category &&
+                        selectedFolder.folder === folder
+                      }
+                      onClick={() => {
+                        setSelectedFolder({ category: item.category, folder });
+                      }}
+                    >
+                      <ListItemIcon className={classes.listItemIcon}>
+                        <FolderOutlinedIcon />
+                      </ListItemIcon>
+                      <ListItemText primary={folder} />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </Fragment>
             ))}
           </List>
         </div>
@@ -323,16 +314,30 @@ export function CoSceneLayoutContent({
           <Box className={classes.boxPadding}>
             {/* Breadcrumb */}
             <Breadcrumbs className={classes.breadcrumbs}>
-              <Link
-                color="inherit"
-                underline="hover"
-                onClick={() => {
-                  setSelectedFolder({ category: "personal", folder: "" });
-                }}
-              >
-                {selectedFolder.category === "personal" ? t("personalLayout") : t("projectLayout")}
-              </Link>
-              {selectedFolder.folder && <div>{selectedFolder.folder}</div>}
+              {selectedFolder.folder ? (
+                <Link
+                  color="inherit"
+                  underline="hover"
+                  onClick={() => {
+                    setSelectedFolder({ category: selectedFolder.category, folder: "" });
+                  }}
+                >
+                  {selectedFolder.category === "personal"
+                    ? t("personalLayout")
+                    : selectedFolder.category === "project"
+                    ? t("projectLayout")
+                    : t("allLayout")}
+                </Link>
+              ) : (
+                <Typography>
+                  {selectedFolder.category === "personal"
+                    ? t("personalLayout")
+                    : selectedFolder.category === "project"
+                    ? t("projectLayout")
+                    : t("allLayout")}
+                </Typography>
+              )}
+              {selectedFolder.folder && <Typography>{selectedFolder.folder}</Typography>}
             </Breadcrumbs>
 
             {/* Toolbar */}
@@ -359,9 +364,10 @@ export function CoSceneLayoutContent({
 
             {/* Layouts Table */}
             <TableContainer component={Paper} variant="outlined">
-              <Table>
+              <Table size="small">
                 <TableHead>
                   <TableRow>
+                    <TableCell />
                     <TableCell>
                       <Box
                         className={classes.tableHeaderCell}

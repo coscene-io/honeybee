@@ -23,7 +23,7 @@ export const cosLayout = {
   duplicate: "Duplicate",
   export: "Export",
   delete: "Delete",
-  saveChanges: "Save changes",
+  saveChanges: "Save",
   revert: "Revert",
   copyToPersonal: "Copy to personal",
   someoneElseHasDeletedThisLayout: "Someone else has deleted this layout",
@@ -69,6 +69,7 @@ export const cosLayout = {
   copyLayout: "Copy layout",
   loading: "Loading...",
   use: "Use",
+  useLayout: "Use layout",
   inUse: "In use",
   updater: "Updater",
   createNewFolder: "Create new folder",
@@ -81,4 +82,5 @@ export const cosLayout = {
   projectName: "Project",
   layoutToCopy: "Layout to copy",
   noData: "No layout data",
+  allLayout: "All layouts",
 };

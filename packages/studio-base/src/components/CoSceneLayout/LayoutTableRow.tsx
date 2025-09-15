@@ -5,25 +5,48 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { PlayArrow as PlayArrowIcon, Equalizer as EqualizerIcon } from "@mui/icons-material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import {
   Avatar,
   Box,
   Button,
-  Chip,
   IconButton,
   TableCell,
   TableRow,
   Typography,
+  Tooltip,
 } from "@mui/material";
 import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { Layout, layoutIsRead } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
+dayjs.extend(relativeTime);
+
 const useStyles = makeStyles()((theme) => ({
+  tableRow: {
+    "&:hover .playArrowIcon": {
+      opacity: 1,
+    },
+  },
+  activeIcon: {
+    color: theme.palette.primary.main,
+  },
+  layoutIconTableCell: {
+    padding: 0,
+  },
+  layoutIconBox: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playArrowIcon: {
+    opacity: 0,
+  },
   layoutNameCell: {
     display: "flex",
     alignItems: "center",
@@ -98,26 +121,38 @@ export function LayoutTableRow({
       disabled: deletedOnServer,
       visible: hasModifications,
     },
-    {
-      key: "use",
-      text: t("use"),
-      onClick: handleUse,
-    },
-  ].filter((button) => button.visible ?? true);
+  ].filter((button) => button.visible);
 
   const savedAt = layout.baseline.savedAt;
 
   return (
-    <TableRow key={layout.id} hover>
-      <TableCell>
-        <Box className={classes.layoutNameCell}>
-          {layout.name}
-          {currentLayoutId === layout.id && (
-            <Chip size="small" color="success" label={t("inUse")} />
+    <TableRow
+      key={layout.id}
+      hover
+      selected={currentLayoutId === layout.id}
+      className={classes.tableRow}
+    >
+      <TableCell className={classes.layoutIconTableCell}>
+        <Box className={classes.layoutIconBox}>
+          {currentLayoutId === layout.id ? (
+            <EqualizerIcon className={classes.activeIcon} />
+          ) : (
+            <Tooltip placement="top" title={t("useLayout")}>
+              <IconButton
+                size="small"
+                onClick={handleUse}
+                className={`${classes.playArrowIcon} playArrowIcon`}
+              >
+                <PlayArrowIcon />
+              </IconButton>
+            </Tooltip>
           )}
         </Box>
       </TableCell>
-      <TableCell>{savedAt ? dayjs(savedAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</TableCell>
+      <TableCell>
+        <Box className={classes.layoutNameCell}>{layout.name}</Box>
+      </TableCell>
+      <TableCell>{savedAt ? dayjs(savedAt).fromNow() : "-"}</TableCell>
       <TableCell>
         <Box className={classes.updaterCell}>
           <Avatar className={classes.avatar} src={layout.baseline.modifierAvatar}>

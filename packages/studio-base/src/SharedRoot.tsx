@@ -8,8 +8,10 @@
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import * as Sentry from "@sentry/browser";
+import dayjs from "dayjs";
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
@@ -95,6 +97,14 @@ export function SharedRoot(
   }
 
   const adapterLocale = i18n.language === "zh" ? "zh-cn" : i18n.language === "ja" ? "ja" : "en";
+
+  useEffect(() => {
+    if (i18n.language === "zh") {
+      dayjs.locale("zh-cn");
+    } else if (i18n.language === "en") {
+      dayjs.locale("en");
+    }
+  }, [i18n.language]);
 
   return (
     <AppConfigurationContext.Provider value={appConfiguration}>

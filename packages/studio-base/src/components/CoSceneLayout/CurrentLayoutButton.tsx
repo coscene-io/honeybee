@@ -59,8 +59,7 @@ interface CurrentLayoutButtonProps {
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
-    personalLayouts: Layout[];
-    projectLayouts: Layout[];
+    allLayouts: Layout[];
   };
 }
 
@@ -76,9 +75,7 @@ export function CurrentLayoutButton({
   const { classes } = useStyles();
 
   const currentLayout = useMemo(() => {
-    return [...(layouts?.personalLayouts ?? []), ...(layouts?.projectLayouts ?? [])].find(
-      (layout) => layout.id === currentLayoutId,
-    );
+    return [...(layouts?.allLayouts ?? [])].find((layout) => layout.id === currentLayoutId);
   }, [layouts, currentLayoutId]);
 
   const deletedOnServer = currentLayout?.syncInfo?.status === "remotely-deleted";

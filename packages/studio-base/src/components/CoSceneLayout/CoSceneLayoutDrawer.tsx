@@ -51,8 +51,7 @@ interface CoSceneLayoutDrawerProps extends DrawerProps {
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
-    personalLayouts: Layout[];
-    projectLayouts: Layout[];
+    allLayouts: Layout[];
   };
 }
 
@@ -87,8 +86,8 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
         <Box className={classes.drawerContent}>
           <CoSceneLayoutContent
             currentLayoutId={currentLayoutId}
-            layouts={layouts}
             supportsProjectWrite={supportsProjectWrite}
+            layouts={layouts}
             onSelectLayout={onSelectLayout}
             onDeleteLayout={onDeleteLayout}
             onRenameLayout={onRenameLayout}
