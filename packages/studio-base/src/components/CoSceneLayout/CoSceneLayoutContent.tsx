@@ -74,6 +74,9 @@ const useStyles = makeStyles()((theme) => ({
   },
   listItemIcon: {
     minWidth: 26,
+    "& svg": {
+      fontSize: "1rem",
+    },
   },
   folderItem: {
     paddingLeft: theme.spacing(4),
