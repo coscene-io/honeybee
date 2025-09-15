@@ -33,6 +33,15 @@ const useStyles = makeStyles()((theme) => ({
       opacity: 1,
     },
   },
+  tableRowActive: {
+    "& .activeIcon": {
+      opacity: 1,
+      color: theme.palette.primary.main,
+    },
+    td: {
+      backgroundColor: theme.palette.action.selected,
+    },
+  },
   layoutIconTableCell: {
     padding: 0,
   },
@@ -123,11 +132,17 @@ export function LayoutTableRow({
   const savedAt = layout.baseline.savedAt;
 
   return (
-    <TableRow key={layout.id} hover className={classes.tableRow}>
+    <TableRow
+      key={layout.id}
+      hover
+      className={`${classes.tableRow} ${
+        currentLayoutId === layout.id ? classes.tableRowActive : ""
+      }`}
+    >
       <TableCell className={classes.layoutIconTableCell}>
         <Box className={classes.layoutIconBox}>
           {currentLayoutId === layout.id ? (
-            <EqualizerIcon />
+            <EqualizerIcon className="activeIcon" />
           ) : (
             <Tooltip placement="top" title={t("useLayout")}>
               <IconButton
