@@ -14,9 +14,9 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { exportTypeScriptSchemas } from "@foxglove/schemas/internal";
 import * as _ from "lodash-es";
 
+import { exportTypeScriptSchemas } from "@foxglove/schemas/internal";
 import {
   lib_dts,
   lib_filename,
