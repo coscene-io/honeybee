@@ -52,7 +52,6 @@ import {
 } from "@foxglove/studio-base/players/types";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import rosDatatypesToMessageDefinition from "@foxglove/studio-base/util/rosDatatypesToMessageDefinition";
-import { getTimestampForMessage } from "@foxglove/studio-base/util/time";
 import {
   Channel,
   ChannelId,
@@ -198,9 +197,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #deviceName: string;
   #isReconnect: boolean = false;
   #authHeader: string;
-
-  /** Whether to use message header stamps as clock time */
-  #serverPublishesMessageTime = false;
 
   /** Persistent message cache for 5-minute historical data */
   #persistentCache?: PersistentMessageCache;
@@ -550,15 +546,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#name = `${this.#url}\n${event.name}`;
       this.#serverCapabilities = Array.isArray(event.capabilities) ? event.capabilities : [];
       this.#serverPublishesTime = this.#serverCapabilities.includes(ServerCapability.time);
-      this.#serverPublishesMessageTime = this.#serverCapabilities.includes(
-        ServerCapability.messageTime,
-      );
       this.#supportedEncodings = event.supportedEncodings;
       this.#datatypes = new Map();
 
       // If the server publishes the time we clear any existing clockTime we might have and let the
       // server override
-      if (this.#serverPublishesTime || this.#serverPublishesMessageTime) {
+      if (this.#serverPublishesTime) {
         this.#clockTime = undefined;
       }
 
@@ -786,16 +779,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
         const topic = chanInfo.channel.topic;
         const deserializedMessage = chanInfo.parsedChannel.deserialize(data);
 
-        // Extract timestamp from message header if configured to use message stamps
-        let messageStamp: Time | undefined;
-        if (this.#serverPublishesMessageTime) {
-          messageStamp = getTimestampForMessage(deserializedMessage);
-          if (messageStamp) {
-            // Update clock time with message timestamp and handle time jumps
-            this.#updateClockTimeFromMessage(messageStamp);
-          }
-        }
-
         // Lookup the size estimate for this topic or compute it if not found in the cache.
         let msgSizeEstimate = this.#messageSizeEstimateByTopic[topic];
         if (msgSizeEstimate == undefined) {
@@ -806,7 +789,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         const sizeInBytes = Math.max(data.byteLength, msgSizeEstimate);
         const messageEvent: MessageEvent = {
           topic,
-          receiveTime: messageStamp ?? receiveTime, // Use message stamp if available, otherwise fallback to current time
+          receiveTime,
           message: deserializedMessage,
           sizeInBytes,
           schemaName: chanInfo.channel.schemaName,
@@ -877,8 +860,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     });
 
     this.#client.on("time", ({ timestamp }) => {
-      // Only use server time if not using message stamps
-      if (!this.#serverPublishesTime || this.#serverPublishesMessageTime) {
+      if (!this.#serverPublishesTime) {
         return;
       }
 
@@ -1604,13 +1586,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   //
   // For servers which publish a clock, we return that time. If the server disconnects we continue
   // to return the last known time. For servers which do not publish a clock, we use wall time.
-  // When using message stamps as clock time, we use the latest message timestamp.
   #getCurrentTime(): Time {
-    if (this.#serverPublishesMessageTime) {
-      // When using message stamps, return the latest message timestamp or zero time if none available
-      return this.#clockTime ?? ZERO_TIME;
-    }
-
     // If the server does not publish the time, then we set the clock time to realtime as long as
     // the server is connected. When the server is not connected, time stops.
     if (!this.#serverPublishesTime) {
@@ -1966,26 +1942,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this.#client.login(this.#userId, this.#username);
       }
     }
-  }
-
-  /**
-   * Update clock time from message timestamp and handle time jumps
-   */
-  #updateClockTimeFromMessage(messageStamp: Time): void {
-    // Check for time jumps
-    if (this.#clockTime != undefined && isLessThan(messageStamp, this.#clockTime)) {
-      this.#numTimeSeeks++;
-      this.#parsedMessages = [];
-      this.#parsedMessagesBytes = 0;
-    }
-
-    // Override any previous start/end time when we set a clockTime for the first time
-    if (!this.#clockTime) {
-      this.#startTime = messageStamp;
-      this.#endTime = messageStamp;
-    }
-
-    this.#clockTime = messageStamp;
   }
 }
 
