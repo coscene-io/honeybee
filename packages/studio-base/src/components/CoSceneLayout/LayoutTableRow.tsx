@@ -159,7 +159,7 @@ export function LayoutTableRow({
       </TableCell>
       <TableCell>
         <Box className={classes.layoutNameCell}>
-          {layout.permission === "PROJECT_WRITE" ? (
+          {layout.permission === "PERSONAL_WRITE" ? (
             <PersonOutlinedIcon />
           ) : (
             <BusinessCenterOutlinedIcon />
