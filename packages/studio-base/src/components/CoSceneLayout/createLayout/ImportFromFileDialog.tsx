@@ -27,7 +27,10 @@ import { makeStyles } from "tss-react/mui";
 
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
-import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import {
+  CreateLayoutParams,
+  CreateLayoutForm,
+} from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { SelectFolder } from "./SelectFolder";
@@ -56,13 +59,18 @@ export function ImportFromFileDialog({
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
 
-  const form = useForm<CreateLayoutParams & { selectedFile: string }>({
-    defaultValues: { name: "", folder: "", permission: "PERSONAL_WRITE", selectedFile: "" },
+  const form = useForm<CreateLayoutForm & { selectedFile: string }>({
+    defaultValues: {
+      name: "",
+      folder: { value: "", isNewFolder: false },
+      permission: "PERSONAL_WRITE",
+      selectedFile: "",
+    },
   });
 
-  const onSubmit = (data: CreateLayoutParams) => {
+  const onSubmit = (data: CreateLayoutForm) => {
     onCreateLayout({
-      folder: data.folder,
+      folder: data.folder.value,
       name: data.name,
       permission: data.permission,
       data: data.data,
@@ -169,9 +177,8 @@ export function ImportFromFileDialog({
             render={({ field }) => (
               <SelectFolder
                 folders={permission === "PERSONAL_WRITE" ? personalFolders : projectFolders}
-                onChange={(value) => {
-                  field.onChange(value ?? "");
-                }}
+                value={field.value}
+                onChange={field.onChange}
               />
             )}
           />
