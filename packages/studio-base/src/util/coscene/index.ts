@@ -105,7 +105,33 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
 }
 
 export function convertJsonToStruct(json: Record<string, unknown>): Struct {
-  return Struct.fromJson(JSON.parse(JSON.stringify(json) ?? "{}") as JsonObject);
+  // 递归函数，将所有 undefined 替换为 null
+  function replaceUndefinedWithNull(obj: unknown): unknown {
+    // eslint-disable-next-line
+    if (obj === undefined) {
+      // eslint-disable-next-line no-restricted-syntax
+      return null;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(replaceUndefinedWithNull);
+    }
+
+    // eslint-disable-next-line
+    if (typeof obj === "object" && obj !== null) {
+      const result: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(obj)) {
+        result[key] = replaceUndefinedWithNull(value);
+      }
+      return result;
+    }
+
+    return obj;
+  }
+
+  // 先替换 undefined 为 null，然后转换为 Struct
+  const processedJson = replaceUndefinedWithNull(json) as JsonObject;
+  return Struct.fromJson(processedJson);
 }
 
 export function replaceNullWithUndefined(obj: unknown): unknown {
