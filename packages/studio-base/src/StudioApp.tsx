@@ -11,6 +11,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { DialogsStore, useDialogs } from "@foxglove/studio-base/context/DialogsContext";
 import { useSharedRootContext } from "@foxglove/studio-base/context/SharedRootContext";
+import { UserScriptStateProvider } from "@foxglove/studio-base/context/UserScriptStateContext";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
@@ -24,7 +25,6 @@ import MultiProvider from "./components/MultiProvider";
 import PlayerManager from "./components/PlayerManager";
 import SendNotificationToastAdapter from "./components/SendNotificationToastAdapter";
 import StudioToastProvider from "./components/StudioToastProvider";
-import { UserScriptStateProvider } from "./context/UserScriptStateContext";
 import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
 import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";

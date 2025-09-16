@@ -8,7 +8,7 @@
 import getPrettifiedCode from "@foxglove/studio-base/panels/UserScriptEditor/getPrettifiedCode";
 import { ScriptData } from "@foxglove/studio-base/players/UserScriptPlayer/types";
 
-import { generateTypesLib, generateTypesInterface } from "./generateTypesLib";
+import { generateTypesInterface, generateTypesLib } from "./generateTypesLib";
 import { compile } from "./transform";
 
 const baseNodeData: ScriptData = {

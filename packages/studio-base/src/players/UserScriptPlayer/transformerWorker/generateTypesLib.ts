@@ -173,4 +173,4 @@ function generateEmptyTypesLib(): string {
   return (emptyLib ??= generateTypesLib({ topics: [], datatypes: new Map() }));
 }
 
-export { generateTypesLib, generateEmptyTypesLib };
+export { generateEmptyTypesLib, generateTypesLib };
