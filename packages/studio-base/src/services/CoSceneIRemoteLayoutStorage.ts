@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Timestamp } from "@bufbuild/protobuf";
-
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
@@ -28,7 +26,6 @@ export type RemoteLayout = {
   savedAt: ISO8601Timestamp | undefined;
   updatedAt: ISO8601Timestamp | undefined;
 
-  modifyTime: Timestamp | undefined;
   modifier: string | undefined;
   modifierAvatar: string | undefined;
   modifierNickname: string | undefined;
