@@ -18,6 +18,11 @@ import ts from "typescript/lib/typescript";
 
 import { MessageDefinitionField } from "@foxglove/message-definition";
 import {
+  DIAGNOSTIC_SEVERITY,
+  SOURCES,
+  ERROR_CODES,
+} from "@foxglove/studio-base/players/UserScriptPlayer/constants";
+import {
   noFuncError,
   nonFuncError,
   badTypeReturnError,
@@ -33,12 +38,7 @@ import {
   limitedUnionsError,
   noNestedAny,
 } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/errors";
-import {
-  DiagnosticSeverity,
-  Sources,
-  ErrorCodes,
-  Diagnostic,
-} from "@foxglove/studio-base/players/UserScriptPlayer/types";
+import { Diagnostic } from "@foxglove/studio-base/players/UserScriptPlayer/types";
 import type { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 type TypeParam = {
@@ -156,8 +156,7 @@ export const findDefaultExportFunction = (
 
   const defaultExportSymbol = checker
     .getExportsOfModule(symbol)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-    .find((node) => node.escapedName === "default");
+    .find((node) => String(node.escapedName) === "default");
   if (!defaultExportSymbol) {
     throw new DatatypeExtractionError(noFuncError);
   }
@@ -455,8 +454,8 @@ export const constructDatatypes = (
         // One solution could potentially to 'cast' this node as an
         // ArrayTypeNode and recurse. Opting out of using 'Array' keyword for
         // now.
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-        if (nextSymbol?.escapedName === "Array") {
+
+        if (String(nextSymbol?.escapedName) === "Array") {
           throw new DatatypeExtractionError(preferArrayLiteral);
         }
 
@@ -562,10 +561,10 @@ export const constructDatatypes = (
         const symbol = locationType.symbol as ts.Symbol | undefined;
         if (symbol == undefined) {
           throw new DatatypeExtractionError({
-            severity: DiagnosticSeverity.Error,
+            severity: DIAGNOSTIC_SEVERITY.Error,
             message: `Unsupported type for member '${name}'.`,
-            source: Sources.DatatypeExtraction,
-            code: ErrorCodes.DatatypeExtraction.BAD_TYPE_RETURN,
+            source: SOURCES.DatatypeExtraction,
+            code: ERROR_CODES.DatatypeExtraction.BAD_TYPE_RETURN,
           });
         }
         const declaration = symbol.declarations?.[0];
@@ -582,30 +581,30 @@ export const constructDatatypes = (
   const rosMsgFields = members.map((member) => {
     if (!member.name) {
       throw new DatatypeExtractionError({
-        severity: DiagnosticSeverity.Error,
+        severity: DIAGNOSTIC_SEVERITY.Error,
         message: `Encountered type member with no name in ${interfaceName ?? currentDatatype}`,
-        source: Sources.DatatypeExtraction,
-        code: ErrorCodes.DatatypeExtraction.INVALID_PROPERTY,
+        source: SOURCES.DatatypeExtraction,
+        code: ERROR_CODES.DatatypeExtraction.INVALID_PROPERTY,
       });
     }
     if (!ts.isPropertySignature(member)) {
       throw new DatatypeExtractionError({
-        severity: DiagnosticSeverity.Error,
+        severity: DIAGNOSTIC_SEVERITY.Error,
         message: `Unexpected type member (kind ${member.kind}) in ${
           interfaceName ?? currentDatatype
         }`,
-        source: Sources.DatatypeExtraction,
-        code: ErrorCodes.DatatypeExtraction.INVALID_PROPERTY,
+        source: SOURCES.DatatypeExtraction,
+        code: ERROR_CODES.DatatypeExtraction.INVALID_PROPERTY,
       });
     }
     if (!member.type) {
       throw new DatatypeExtractionError({
-        severity: DiagnosticSeverity.Error,
+        severity: DIAGNOSTIC_SEVERITY.Error,
         message: `Member ${member.name.getText()} has no type in ${
           interfaceName ?? currentDatatype
         }`,
-        source: Sources.DatatypeExtraction,
-        code: ErrorCodes.DatatypeExtraction.INVALID_PROPERTY,
+        source: SOURCES.DatatypeExtraction,
+        code: ERROR_CODES.DatatypeExtraction.INVALID_PROPERTY,
       });
     }
     return getRosMsgField(

@@ -17,15 +17,20 @@
 import * as _ from "lodash-es";
 
 import { exportTypeScriptSchemas } from "@foxglove/schemas/internal";
+import {
+  lib_dts,
+  lib_filename,
+} from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/lib";
 import rawUserUtils from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/rawUserUtils";
 import {
   ros_lib_dts,
   ros_lib_filename,
 } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/ros";
+import {
+  UserScriptProjectConfig,
+  UserScriptProjectFile,
+} from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/types";
 import { DEFAULT_STUDIO_SCRIPT_PREFIX } from "@foxglove/studio-base/util/globalConstants";
-
-import { lib_dts, lib_filename } from "./lib";
-import { UserScriptProjectConfig, UserScriptProjectFile } from "./types";
 
 /**
  * Generates virtual ts files for each type exported by the @foxglove/schemas package.
