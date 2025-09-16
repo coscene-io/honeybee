@@ -214,11 +214,12 @@ export default class UserScriptPlayer implements Player {
     });
   }
   public reOpen(): void {
-    throw new Error("Method not implemented.");
+    this.#player.reOpen();
   }
 
-  public enableRepeatPlayback(): void {
-    throw new Error("Method not implemented.");
+  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  public enableRepeatPlayback(enable: boolean): void {
+    this.#player.enableRepeatPlayback?.(enable);
   }
 
   #getTopics = memoizeWeak((topics: readonly Topic[], scriptTopics: readonly Topic[]): Topic[] => [
