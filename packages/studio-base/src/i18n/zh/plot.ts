@@ -47,4 +47,7 @@ export const plot: Partial<TypeOptions["resources"]["plot"]> = {
   tooManyMessages:
     "当前面板消息数量过多，可能导致不可预期的崩溃，建议在「面板设置-X 轴-值」中切换为按当前时间戳播放",
   switchImmediately: "立即切换",
+  enableAllSeries: "启用所有",
+  disableAllSeries: "禁用所有",
+  toggleAllSeries: "切换全部",
 };
