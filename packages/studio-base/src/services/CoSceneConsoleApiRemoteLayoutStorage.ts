@@ -43,7 +43,7 @@ function convertGrpcLayoutToRemoteLayout({
 
   let data: LayoutData;
   try {
-    data = layout.data.toJson() as LayoutData;
+    data = removeNullOrUndefined(layout.data.toJson() as JsonObject) as LayoutData;
   } catch (err) {
     throw new Error(`Invalid layout data for ${layout.displayName}: ${err}`);
   }
@@ -84,8 +84,6 @@ function convertGrpcLayoutToRemoteLayout({
     data,
     savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
     updatedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
-    modifyTime: layout.modifyTime,
-
     modifier: layout.modifier,
     modifierAvatar: modifier?.avatar,
     modifierNickname: modifier?.nickname,
@@ -97,7 +95,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly namespace: string,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
-  ) { }
+  ) {}
 
   public getProjectWritePermission(): boolean {
     // TODO: waiting for the new API to be released
