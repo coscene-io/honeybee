@@ -208,9 +208,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #enablePersistentCache: boolean = true;
   #retentionWindowMs?: number;
 
-  /** Threshold for considering a backward time jump as a new logical session (in milliseconds) */
-  #timeRegressionResetThresholdMs: number = 5000; // 5 seconds
-
   public constructor({
     url,
     metricsCollector,
@@ -794,16 +791,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
         if (this.#serverPublishesMessageTime) {
           messageStamp = getTimestampForMessage(deserializedMessage);
           if (messageStamp) {
-            // If time regresses significantly, rotate logical session to clear downstream caches
-            if (
-              this.#clockTime != undefined &&
-              isLessThan(messageStamp, this.#clockTime) &&
-              toMillis(this.#clockTime) - toMillis(messageStamp) >
-                this.#timeRegressionResetThresholdMs
-            ) {
-              this.#id = uuidv4();
-              this.#resetSessionState();
-            }
             // Update clock time with message timestamp and handle time jumps
             this.#updateClockTimeFromMessage(messageStamp);
           }
