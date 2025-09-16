@@ -135,7 +135,7 @@ export function removeNullOrUndefined(obj: Record<string, unknown>): Record<stri
 }
 
 export function convertJsonToStruct(json: Record<string, unknown>): Struct {
-  return Struct.fromJson(JSON.parse(JSON.stringify(json) ?? '{}') as JsonObject);
+  return Struct.fromJson(JSON.parse(JSON.stringify(json) ?? "{}") as JsonObject);
 }
 
 export function replaceNullWithUndefined(obj: unknown): unknown {
