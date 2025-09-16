@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { JsonObject } from "@bufbuild/protobuf";
 import {
   Dialog,
   DialogTitle,
@@ -27,6 +28,7 @@ import { makeStyles } from "tss-react/mui";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import { replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { SelectFolder } from "./SelectFolder";
 
@@ -103,7 +105,7 @@ export function ImportFromFileDialog({
       enqueueSnackbar(`${file.name} is not a valid layout`, { variant: "error" });
       return;
     }
-    const data = parsedState as LayoutData;
+    const data = replaceNullWithUndefined(parsedState as JsonObject) as LayoutData;
     form.setValue("selectedFile", file.name);
     form.setValue("name", layoutName);
     form.setValue("data", data);

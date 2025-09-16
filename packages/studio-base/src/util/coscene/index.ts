@@ -8,7 +8,7 @@
 // coScene custom tools
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { ServiceType } from "@bufbuild/protobuf";
+import { JsonObject, ServiceType, Struct } from "@bufbuild/protobuf";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
@@ -104,32 +104,29 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
   );
 }
 
-// protobuf => JsonObject does not support undefined type, so we need to remove undefined values
-export function removeUndefined(obj: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
+export function convertJsonToStruct(json: Record<string, unknown>): Struct {
+  return Struct.fromJson(JSON.parse(JSON.stringify(json) ?? "{}") as JsonObject);
+}
 
-  for (const [key, value] of Object.entries(obj)) {
-    if (value != undefined) {
-      // 递归处理嵌套对象
-      if (typeof value === "object" && !Array.isArray(value)) {
-        const nested = removeUndefined(value as Record<string, unknown>);
-        // 只有非空对象才添加
-        if (Object.keys(nested).length > 0) {
-          result[key] = nested;
-        }
-      } else if (Array.isArray(value)) {
-        // 处理数组，过滤掉 undefined 元素
-        const filteredArray = value.filter((item) => item != undefined);
-        if (filteredArray.length > 0) {
-          result[key] = filteredArray;
-        }
-      } else {
-        result[key] = value;
-      }
-    }
+export function replaceNullWithUndefined(obj: unknown): unknown {
+  // eslint-disable-next-line no-restricted-syntax
+  if (obj == null) {
+    return undefined;
   }
 
-  return result;
+  if (Array.isArray(obj)) {
+    return obj.map(replaceNullWithUndefined);
+  }
+
+  if (typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = replaceNullWithUndefined(value);
+    }
+    return result;
+  }
+
+  return obj;
 }
 
 // 将任意字符串映射为一颜色
