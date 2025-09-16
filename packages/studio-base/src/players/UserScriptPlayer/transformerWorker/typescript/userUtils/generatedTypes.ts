@@ -5,9 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// placeholder
-type MessageTypeByTopic = object;
-// placeholder
-type MessageTypeBySchemaName = object;
+/* eslint-disable @typescript-eslint/no-empty-object-type */
+type MessageTypeByTopic = {
+  // placeholder
+};
+type MessageTypeBySchemaName = {
+  // placeholder
+};
 
-export type { MessageTypeByTopic, MessageTypeBySchemaName };
+export type { MessageTypeBySchemaName, MessageTypeByTopic };

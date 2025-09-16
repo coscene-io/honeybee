@@ -16,9 +16,17 @@
 
 import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
 import { useSnackbar } from "notistack";
-import { PropsWithChildren, useCallback, useEffect, useMemo, useState, useContext } from "react";
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useContext,
+  useLayoutEffect,
+} from "react";
 import { useTranslation } from "react-i18next";
-import { useMountedState } from "react-use";
+import { useLatest, useMountedState } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
 import { useWarnImmediateReRender } from "@foxglove/hooks";
@@ -28,10 +36,14 @@ import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { useSetShowtUrlKey } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  LayoutState,
+  useCurrentLayoutSelector,
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { ExtensionCatalogContext } from "@foxglove/studio-base/context/ExtensionCatalogContext";
+import { usePerformance } from "@foxglove/studio-base/context/PerformanceContext";
 import PlayerSelectionContext, {
   DataSourceArgs,
   IDataSourceFactory,
@@ -39,21 +51,38 @@ import PlayerSelectionContext, {
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useEntitlementWithDialog } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
+import {
+  UserScriptStore,
+  useUserScriptState,
+} from "@foxglove/studio-base/context/UserScriptStateContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import {
   TopicAliasFunctions,
   TopicAliasingPlayer,
 } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
+import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { UserScripts } from "@foxglove/studio-base/types/panels";
 
 const log = Logger.getLogger(__filename);
 
 type PlayerManagerProps = {
   playerSources: readonly IDataSourceFactory[];
 };
+
+const EMPTY_USER_NODES: UserScripts = Object.freeze({});
+const EMPTY_GLOBAL_VARIABLES: GlobalVariables = Object.freeze({});
+
+const userScriptsSelector = (state: LayoutState) =>
+  state.selectedLayout?.data?.userNodes ?? EMPTY_USER_NODES;
+const globalVariablesSelector = (state: LayoutState) =>
+  state.selectedLayout?.data?.globalVariables ?? EMPTY_GLOBAL_VARIABLES;
+
+const selectUserScriptActions = (store: UserScriptStore) => store.actions;
 
 const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
 const selectSetDataSource = (store: CoreDataStore) => store.setDataSource;
@@ -129,7 +158,7 @@ export default function PlayerManager(
   props: PropsWithChildren<PlayerManagerProps>,
 ): React.JSX.Element {
   const { children, playerSources } = props;
-  // const perfRegistry = usePerformance();
+  const perfRegistry = usePerformance();
   const [currentSourceArgs, setCurrentSourceArgs] = useState<DataSourceArgs | undefined>();
   const [currentSourceId, setCurrentSourceId] = useState<string | undefined>();
   const analytics = useAnalytics();
@@ -143,7 +172,7 @@ export default function PlayerManager(
 
   useWarnImmediateReRender();
 
-  const { wrapPlayer } = useAppContext();
+  const userScriptActions = useUserScriptState(selectUserScriptActions);
 
   const isMounted = useMountedState();
 
@@ -158,10 +187,14 @@ export default function PlayerManager(
   );
 
   const [playerInstances, setPlayerInstances] = useState<
-    { topicAliasPlayer: TopicAliasingPlayer; player: Player } | undefined
+    { topicAliasPlayer: TopicAliasingPlayer; player: UserScriptPlayer } | undefined
   >();
 
   const { recents, addRecent } = useIndexedDbRecents();
+
+  const userScripts = useCurrentLayoutSelector(userScriptsSelector);
+  const globalVariables = useCurrentLayoutSelector(globalVariablesSelector);
+  const globalVariablesRef = useLatest(globalVariables);
 
   const constructPlayers = useCallback(
     (newPlayer: Player | undefined) => {
@@ -171,13 +204,25 @@ export default function PlayerManager(
       }
 
       const topicAliasingPlayer = new TopicAliasingPlayer(newPlayer);
-      const finalPlayer = wrapPlayer(topicAliasingPlayer);
+      const userScriptPlayer = new UserScriptPlayer(
+        topicAliasingPlayer,
+        userScriptActions,
+        perfRegistry,
+      );
+
+      userScriptPlayer.setGlobalVariables(globalVariablesRef.current);
+
       setPlayerInstances({
         topicAliasPlayer: topicAliasingPlayer,
-        player: finalPlayer,
+        player: userScriptPlayer,
       });
     },
-    [wrapPlayer],
+    [globalVariablesRef, perfRegistry, userScriptActions],
+  );
+
+  useLayoutEffect(
+    () => void playerInstances?.player.setUserScripts(userScripts),
+    [playerInstances?.player, userScripts],
   );
 
   // Update the alias functions when they change. We do not need to re-render the player manager
