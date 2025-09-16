@@ -10,10 +10,14 @@ import { ActionInfo } from "../types";
 interface ActionDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  actionInfo: ActionInfo | null;
+  actionInfo: ActionInfo | undefined;
 }
 
-export default function ActionDetailModal({ isOpen, onClose, actionInfo }: ActionDetailModalProps) {
+export default function ActionDetailModal({
+  isOpen,
+  onClose,
+  actionInfo,
+}: ActionDetailModalProps): React.JSX.Element | null {
   if (!isOpen || !actionInfo) {
     return null;
   }
@@ -45,9 +49,18 @@ export default function ActionDetailModal({ isOpen, onClose, actionInfo }: Actio
           overflow: "auto",
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 20,
+          }}
+        >
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "#1f2937" }}>
             Action 详细信息
           </h2>
@@ -67,7 +80,9 @@ export default function ActionDetailModal({ isOpen, onClose, actionInfo }: Actio
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 12, marginBottom: 16 }}>
+          <div
+            style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 12, marginBottom: 16 }}
+          >
             <div style={{ fontWeight: 600, color: "#374151" }}>Action Name:</div>
             <div style={{ color: "#1f2937" }}>{actionInfo.action_name}</div>
 

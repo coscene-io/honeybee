@@ -45,6 +45,16 @@ export async function fetchAvailableActions(
 }
 
 /**
+ * Get available actions with full info for display.
+ */
+export async function fetchAvailableActionsWithInfo(
+  context: PanelExtensionContext,
+  serviceName?: string,
+): Promise<ActionInfo[]> {
+  return await fetchActionList(context, serviceName);
+}
+
+/**
  * Refresh action names; fallback handled inside fetchActionList.
  */
 export async function refreshActionNames(
