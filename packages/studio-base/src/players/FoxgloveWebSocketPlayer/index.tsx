@@ -21,14 +21,7 @@ import { MessageDefinition, isMsgDefEqual } from "@foxglove/message-definition";
 import CommonRosTypes from "@foxglove/rosmsg-msgs-common";
 import { MessageWriter as Ros1MessageWriter } from "@foxglove/rosmsg-serialization";
 import { MessageWriter as Ros2MessageWriter } from "@foxglove/rosmsg2-serialization";
-import {
-  fromMillis,
-  fromNanoSec,
-  isGreaterThan,
-  isLessThan,
-  Time,
-  toMillis,
-} from "@foxglove/rostime";
+import { fromNanoSec, isGreaterThan, isLessThan, Time, toMillis } from "@foxglove/rostime";
 import { ParameterValue } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
@@ -203,6 +196,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   /** Whether to enable persistent caching */
   #enablePersistentCache: boolean = true;
   #retentionWindowMs?: number;
+  #serverTime?: Time;
 
   public constructor({
     url,
@@ -759,7 +753,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#emitState();
     });
 
-    this.#client.on("message", ({ subscriptionId, data }) => {
+    this.#client.on("message", ({ subscriptionId, data, timestamp }) => {
       const chanInfo = this.#resolvedSubscriptionsById.get(subscriptionId);
       if (!chanInfo) {
         const wasRecentlyCanceled = this.#recentlyCanceledSubscriptions.has(subscriptionId);
@@ -772,6 +766,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         }
         return;
       }
+
+      this.#serverTime = fromNanoSec(timestamp);
 
       try {
         this.#receivedBytes += data.byteLength;
@@ -841,14 +837,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
         stats.numMessages++;
         this.#topicsStats = topicStats;
 
-        // const messageHeaderTime = getTimestampForMessage(deserializedMessage);
-
-        // if (messageHeaderTime && this.#timeOffset != undefined) {
-        //   this.#networkStatus = {
-        //     ...this.#networkStatus,
-        //     networkDelay: Date.now() - this.#timeOffset - toMillis(messageHeaderTime),
-        //   };
-        // }
+        if (this.#timeOffset != undefined) {
+          this.#networkStatus = {
+            ...this.#networkStatus,
+            networkDelay: Date.now() - this.#timeOffset - toMillis(this.#serverTime),
+          };
+        }
       } catch (error) {
         this.#problems.addProblem(`message:${chanInfo.channel.topic}`, {
           severity: "error",
@@ -1591,7 +1585,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     // the server is connected. When the server is not connected, time stops.
     if (!this.#serverPublishesTime) {
       this.#clockTime =
-        this.#presence === PlayerPresence.PRESENT ? fromMillis(Date.now()) : this.#clockTime;
+        this.#presence === PlayerPresence.PRESENT ? this.#serverTime : this.#clockTime;
     }
 
     return this.#clockTime ?? ZERO_TIME;
