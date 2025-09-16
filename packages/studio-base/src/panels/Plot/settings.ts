@@ -102,8 +102,9 @@ const makeRootSeriesNode = memoizeWeak(
     );
 
     // check if all series are enabled or disabled
-    const hasEnabledSeries = paths.some((path) => path.enabled);
-    const hasDisabledSeries = paths.some((path) => !path.enabled);
+    // when paths is empty, treat the default displayed series as enabled
+    const hasEnabledSeries = paths.length === 0 ? true : paths.some((path) => path.enabled);
+    const hasDisabledSeries = paths.length === 0 ? false : paths.some((path) => !path.enabled);
 
     const shouldShowDisableAll = hasEnabledSeries && !hasDisabledSeries;
 
@@ -323,6 +324,11 @@ export function usePlotPanelSettings(
         } else if (action.payload.id === "toggle-all-series") {
           saveConfig(
             produce<PlotConfig>((draft) => {
+              // if no paths exist, add the default path first
+              if (draft.paths.length === 0) {
+                draft.paths.push({ ...DEFAULT_PATH });
+              }
+
               const hasEnabledSeries = draft.paths.some((path) => path.enabled);
               const hasDisabledSeries = draft.paths.some((path) => !path.enabled);
               const shouldDisableAll = hasEnabledSeries && !hasDisabledSeries;
