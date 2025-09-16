@@ -8,7 +8,7 @@
 // coScene custom tools
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { ServiceType } from "@bufbuild/protobuf";
+import { JsonObject, ServiceType, Struct } from "@bufbuild/protobuf";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
@@ -132,6 +132,31 @@ export function removeNullOrUndefined(obj: Record<string, unknown>): Record<stri
   }
 
   return result;
+}
+
+export function convertJsonToStruct(json: Record<string, unknown>): Struct {
+  return Struct.fromJson(JSON.parse(JSON.stringify(json) ?? '{}') as JsonObject);
+}
+
+export function replaceNullWithUndefined(obj: unknown): unknown {
+  // eslint-disable-next-line no-restricted-syntax
+  if (obj == null) {
+    return undefined;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(replaceNullWithUndefined);
+  }
+
+  if (typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = replaceNullWithUndefined(value);
+    }
+    return result;
+  }
+
+  return obj;
 }
 
 // 将任意字符串映射为一颜色

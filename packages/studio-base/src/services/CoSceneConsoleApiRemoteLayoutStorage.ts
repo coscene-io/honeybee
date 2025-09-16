@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { FieldMask, Struct, JsonObject } from "@bufbuild/protobuf";
+import { FieldMask, JsonObject } from "@bufbuild/protobuf";
 import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
 import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
 import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
@@ -19,7 +19,7 @@ import {
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
-import { removeNullOrUndefined } from "@foxglove/studio-base/util/coscene";
+import { convertJsonToStruct, replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 
@@ -27,7 +27,6 @@ const log = Logger.getLogger(__filename);
 
 type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
 
-// Convert gRPC Layout to RemoteLayout
 function convertGrpcLayoutToRemoteLayout({
   layout,
   users,
@@ -43,7 +42,7 @@ function convertGrpcLayoutToRemoteLayout({
 
   let data: LayoutData;
   try {
-    data = removeNullOrUndefined(layout.data.toJson() as JsonObject) as LayoutData;
+    data = replaceNullWithUndefined(layout.data.toJson() as JsonObject) as LayoutData;
   } catch (err) {
     throw new Error(`Invalid layout data for ${layout.displayName}: ${err}`);
   }
@@ -95,7 +94,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly namespace: string,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
-  ) {}
+  ) { }
 
   public getProjectWritePermission(): boolean {
     // TODO: waiting for the new API to be released
@@ -177,7 +176,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       name: id ? `${parent}/layouts/${id}` : undefined,
       displayName: name,
       folder,
-      data: Struct.fromJson(removeNullOrUndefined(data) as JsonObject),
+      data: convertJsonToStruct(data),
       scope:
         permission === "PERSONAL_WRITE"
           ? LayoutScopeEnum_LayoutScope.PERSONAL
@@ -233,7 +232,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         paths.push("displayName");
       }
       if (data != undefined) {
-        updatedLayout.data = Struct.fromJson(removeNullOrUndefined(data) as JsonObject);
+        updatedLayout.data = convertJsonToStruct(data);
         paths.push("data");
       }
 
