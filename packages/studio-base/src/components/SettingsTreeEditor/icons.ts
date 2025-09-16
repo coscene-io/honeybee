@@ -43,6 +43,8 @@ import Collapse from "@mui/icons-material/UnfoldLess";
 import Expand from "@mui/icons-material/UnfoldMore";
 import Cells from "@mui/icons-material/ViewComfy";
 import Cube from "@mui/icons-material/ViewInAr";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import ImageProjection from "@mui/icons-material/Vrpano";
 
 import { SettingsIcon } from "@foxglove/studio";
@@ -87,6 +89,8 @@ const icons: Record<SettingsIcon, typeof Add> = {
   Topic,
   Walk,
   World,
+  Visibility,
+  VisibilityOff,
 };
 
 export { icons };

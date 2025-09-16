@@ -566,7 +566,9 @@ export type SettingsIcon =
   | "Timeline"
   | "Topic"
   | "Walk"
-  | "World";
+  | "World"
+  | "Visibility"
+  | "VisibilityOff";
 
 /**
  * A settings tree field specifies the input type and the value of a field
