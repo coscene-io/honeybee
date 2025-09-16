@@ -27,6 +27,7 @@ import { makeStyles } from "tss-react/mui";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import { removeNullOrUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { SelectFolder } from "./SelectFolder";
 
@@ -63,7 +64,7 @@ export function ImportFromFileDialog({
       folder: data.folder,
       name: data.name,
       permission: data.permission,
-      data: data.data,
+      data: removeNullOrUndefined(data.data ?? {}) as LayoutData,
     });
     onClose();
   };

@@ -19,7 +19,7 @@ import {
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
-import { removeUndefined } from "@foxglove/studio-base/util/coscene";
+import { removeNullOrUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 
@@ -97,7 +97,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly namespace: string,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
-  ) {}
+  ) { }
 
   public getProjectWritePermission(): boolean {
     // TODO: waiting for the new API to be released
@@ -179,7 +179,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       name: id ? `${parent}/layouts/${id}` : undefined,
       displayName: name,
       folder,
-      data: Struct.fromJson(removeUndefined(data) as JsonObject),
+      data: Struct.fromJson(removeNullOrUndefined(data) as JsonObject),
       scope:
         permission === "PERSONAL_WRITE"
           ? LayoutScopeEnum_LayoutScope.PERSONAL
@@ -235,7 +235,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         paths.push("displayName");
       }
       if (data != undefined) {
-        updatedLayout.data = Struct.fromJson(removeUndefined(data) as JsonObject);
+        updatedLayout.data = Struct.fromJson(removeNullOrUndefined(data) as JsonObject);
         paths.push("data");
       }
 

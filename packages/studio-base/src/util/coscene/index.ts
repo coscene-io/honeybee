@@ -105,14 +105,16 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
 }
 
 // protobuf => JsonObject does not support undefined type, so we need to remove undefined values
-export function removeUndefined(obj: Record<string, unknown>): Record<string, unknown> {
+export function removeNullOrUndefined(obj: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
-    if (value != undefined) {
+    // value not null or undefined
+    // eslint-disable-next-line no-restricted-syntax
+    if (value != null) {
       // 递归处理嵌套对象
       if (typeof value === "object" && !Array.isArray(value)) {
-        const nested = removeUndefined(value as Record<string, unknown>);
+        const nested = removeNullOrUndefined(value as Record<string, unknown>);
         // 只有非空对象才添加
         if (Object.keys(nested).length > 0) {
           result[key] = nested;
