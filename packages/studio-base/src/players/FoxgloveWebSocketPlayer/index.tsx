@@ -841,14 +841,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
         stats.numMessages++;
         this.#topicsStats = topicStats;
 
-        const messageHeaderTime = getTimestampForMessage(deserializedMessage);
+        // const messageHeaderTime = getTimestampForMessage(deserializedMessage);
 
-        if (messageHeaderTime && this.#timeOffset != undefined) {
-          this.#networkStatus = {
-            ...this.#networkStatus,
-            networkDelay: Date.now() - this.#timeOffset - toMillis(messageHeaderTime),
-          };
-        }
+        // if (messageHeaderTime && this.#timeOffset != undefined) {
+        //   this.#networkStatus = {
+        //     ...this.#networkStatus,
+        //     networkDelay: Date.now() - this.#timeOffset - toMillis(messageHeaderTime),
+        //   };
+        // }
       } catch (error) {
         this.#problems.addProblem(`message:${chanInfo.channel.topic}`, {
           severity: "error",
