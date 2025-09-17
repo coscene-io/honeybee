@@ -13,7 +13,13 @@ import ActionDetailModal from "./components/ActionDetailModal";
 import { ActionItem, DurationInput, RecordButton } from "./components/ui";
 import { fetchAvailableActionsWithInfo, getActionDetail } from "./services";
 import { defaultConfig, type FaultRecordConfig } from "./settings";
-import type { ActionInfo, PanelState, StartRecordReq, StopRecordReq } from "./types";
+import type {
+  ActionInfo,
+  ActionDurationConfig,
+  PanelState,
+  StartRecordReq,
+  StopRecordReq,
+} from "./types";
 
 interface FaultRecordPanelProps {
   context: PanelExtensionContext;
@@ -27,6 +33,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
     selectedActionName: "",
     preparationDuration: 30,
     recordDuration: 30,
+    actionDurations: {}, // Action特定的duration配置
     logs: [],
   });
 
@@ -46,15 +53,31 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
   const [_isLoadingActionDetail, setIsLoadingActionDetail] = useState(false);
   const hydratingRef = useRef(false);
 
-  // Inject mockService if not present - COMMENTED OUT FOR REAL SERVICE TESTING
-  // if (!("mockService" in context)) {
-  //   try {
-  //     (context as any).mockService = require("./mockService").mockService;
-  //   } catch (e) {
-  //     // eslint-disable-next-line no-console
-  //     console.error("mockService 注入失败", e);
-  //   }
-  // }
+  // 获取action特定的duration配置，如果没有则使用全局默认值
+  const getActionDurations = useCallback(
+    (actionName: string) => {
+      const actionConfig = state.actionDurations[actionName];
+      return {
+        preparationDuration: actionConfig?.preparationDuration ?? state.preparationDuration,
+        recordDuration: actionConfig?.recordDuration ?? state.recordDuration,
+      };
+    },
+    [state.actionDurations, state.preparationDuration, state.recordDuration],
+  );
+
+  // 更新action特定的duration配置
+  const updateActionDurations = useCallback(
+    (actionName: string, durations: ActionDurationConfig) => {
+      setState((prev) => ({
+        ...prev,
+        actionDurations: {
+          ...prev.actionDurations,
+          [actionName]: durations,
+        },
+      }));
+    },
+    [],
+  );
 
   // Add log line
   const addLog = useCallback((message: string, type: "info" | "success" | "error" = "info") => {
@@ -280,20 +303,23 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
   // Start record (async; do not block UI)
   const handleStartRecord = useCallback(
     async (actionName: string) => {
-      if (state.preparationDuration < 0) {
-        addLog("触发前数据时长不能小于0", "error");
+      if (!actionName) {
+        addLog("请选择要录制的Action", "error");
         return;
       }
 
-      if (!actionName) {
-        addLog("请选择要录制的Action", "error");
+      // 获取action特定的duration配置
+      const durations = getActionDurations(actionName);
+
+      if (durations.preparationDuration < 0) {
+        addLog("触发前数据时长不能小于0", "error");
         return;
       }
 
       setIsStartLoading(true);
       addLog(`开始录制 - Action: ${actionName}, Service: ${config.startRecordService.serviceName}`);
       addLog(
-        `开始录制参数 - 触发前时长: ${state.preparationDuration}s, 录制时长: ${state.recordDuration}s`,
+        `开始录制参数 - 触发前时长: ${durations.preparationDuration}s, 录制时长: ${durations.recordDuration}s`,
         "info",
       );
       addLog(
@@ -304,8 +330,8 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
       try {
         const req: StartRecordReq = {
           action_name: actionName,
-          preparation_duration_s: state.preparationDuration,
-          record_duration_s: state.recordDuration,
+          preparation_duration_s: durations.preparationDuration,
+          record_duration_s: durations.recordDuration,
         };
         addLog(`发送请求参数: ${JSON.stringify(req)}`, "info");
 
@@ -349,8 +375,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
       }
     },
     [
-      state.preparationDuration,
-      state.recordDuration,
+      getActionDurations,
       addLog,
       config.startRecordService.serviceName,
       config.startRecordService.serviceType,
@@ -501,26 +526,24 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
           <DurationInput
             value={state.preparationDuration}
-            onChange={(newValue) => {
-              addLog(`用户修改触发前时长: ${state.preparationDuration}s -> ${newValue}s`, "info");
-              setState((prev) => ({ ...prev, preparationDuration: newValue }));
+            onChange={() => {
+              // 不允许在面板中修改，只能通过左侧配置栏修改
             }}
-            label="触发前数据时长(秒)"
+            label="默认触发前时长(秒)"
             min={0}
             allowEmpty
-            disabled
+            disabled={true}
           />
 
           <DurationInput
             value={state.recordDuration}
-            onChange={(newValue) => {
-              addLog(`用户修改录制时长: ${state.recordDuration}s -> ${newValue}s`, "info");
-              setState((prev) => ({ ...prev, recordDuration: newValue }));
+            onChange={() => {
+              // 不允许在面板中修改，只能通过左侧配置栏修改
             }}
-            label="触发后数据时长(秒)"
+            label="默认录制时长(秒)"
             min={0}
             allowEmpty
-            disabled
+            disabled={true}
           />
         </div>
       </div>
@@ -581,9 +604,11 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
                 isRecording={isRecording && currentRecordingAction === action.action_name}
                 isStartLoading={isStartLoading && currentRecordingAction === action.action_name}
                 isStopLoading={isStopLoading && currentRecordingAction === action.action_name}
+                durations={getActionDurations(action.action_name)}
                 onStartRecord={handleStartRecord}
                 onStopRecord={handleStopRecord}
                 onShowDetail={handleShowActionDetail}
+                onUpdateDurations={updateActionDurations}
               />
             ))}
           </div>

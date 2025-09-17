@@ -5,17 +5,19 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ActionInfo } from "../types";
-import { Button } from "./ui";
+import { ActionInfo, ActionDurationConfig } from "../types";
+import { Button, DurationInput } from "./ui";
 
 interface ActionItemProps {
   action: ActionInfo;
   isRecording: boolean;
   isStartLoading: boolean;
   isStopLoading: boolean;
+  durations: ActionDurationConfig;
   onStartRecord: (actionName: string) => void;
   onStopRecord: (actionName: string) => void;
   onShowDetail: (actionName: string) => void;
+  onUpdateDurations: (actionName: string, durations: ActionDurationConfig) => void;
 }
 
 export default function ActionItem({
@@ -23,9 +25,11 @@ export default function ActionItem({
   isRecording,
   isStartLoading,
   isStopLoading,
+  durations,
   onStartRecord,
   onStopRecord,
   onShowDetail,
+  onUpdateDurations,
 }: ActionItemProps): React.JSX.Element {
   const isThisActionRecording = isRecording;
 
@@ -61,27 +65,42 @@ export default function ActionItem({
           </h4>
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "auto 1fr",
-              gap: "8px 16px",
               fontSize: 14,
               color: "#6b7280",
+              marginBottom: 12,
             }}
           >
-            <span style={{ fontWeight: 500 }}>Mode:</span>
-            <span>{action.mode}</span>
+            {action.topics.length} topics
+          </div>
 
-            <span style={{ fontWeight: 500 }}>Pre-trigger:</span>
-            <span>{action.preparation_duration_s}s</span>
-
-            <span style={{ fontWeight: 500 }}>Record Duration:</span>
-            <span>{action.record_duration_s}s</span>
-
-            <span style={{ fontWeight: 500 }}>Auto Upload:</span>
-            <span>{action.is_auto_upload ? "Yes" : "No"}</span>
-
-            <span style={{ fontWeight: 500 }}>Topics:</span>
-            <span>{action.topics.length} topics</span>
+          {/* Duration配置 */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <DurationInput
+              value={durations.preparationDuration}
+              onChange={(newValue) => {
+                onUpdateDurations(action.action_name, {
+                  ...durations,
+                  preparationDuration: newValue,
+                });
+              }}
+              label="触发前时长(秒)"
+              min={0}
+              allowEmpty
+              disabled={isThisActionRecording}
+            />
+            <DurationInput
+              value={durations.recordDuration}
+              onChange={(newValue) => {
+                onUpdateDurations(action.action_name, {
+                  ...durations,
+                  recordDuration: newValue,
+                });
+              }}
+              label="录制时长(秒)"
+              min={0}
+              allowEmpty
+              disabled={isThisActionRecording}
+            />
           </div>
         </div>
 
@@ -121,57 +140,6 @@ export default function ActionItem({
           </Button>
         </div>
       </div>
-
-      {/* Topics preview */}
-      {action.topics.length > 0 && (
-        <div
-          style={{
-            borderTop: "1px solid #f3f4f6",
-            paddingTop: 12,
-            marginTop: 12,
-          }}
-        >
-          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8, fontWeight: 500 }}>
-            Topics ({action.topics.length}):
-          </div>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 4,
-              maxHeight: 60,
-              overflow: "hidden",
-            }}
-          >
-            {action.topics.slice(0, 5).map((topic, index) => (
-              <span
-                key={index}
-                style={{
-                  padding: "2px 6px",
-                  backgroundColor: "#f3f4f6",
-                  borderRadius: 4,
-                  fontSize: 11,
-                  fontFamily: "monospace",
-                  color: "#374151",
-                }}
-              >
-                {topic}
-              </span>
-            ))}
-            {action.topics.length > 5 && (
-              <span
-                style={{
-                  padding: "2px 6px",
-                  color: "#6b7280",
-                  fontSize: 11,
-                }}
-              >
-                +{action.topics.length - 5} more
-              </span>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

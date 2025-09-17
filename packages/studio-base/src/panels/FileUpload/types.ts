@@ -11,22 +11,23 @@ export type FileCandidate = {
   id: string;
   name: string;
   sizeBytes: number;
-  createdAt: string;           // ISO string
+  createdAt: string; // ISO string
   kind: "recorded" | "other";
-  note?: string;               // 记录故障点时的备注（recorded 才会带）
+  note?: string; // 记录故障点时的备注（recorded 才会带）
 };
 
 // 新增：Bag文件信息
 export type BagFile = {
-  mode: string;                // "imd" | "signal" | ""
-  action_name: string;         // action名称，可能为空
-  path: string;                // 文件路径
+  mode: string; // "imd" | "signal" | ""
+  action_name: string; // action名称，可能为空
+  path: string; // 文件路径
+  type?: "file" | "folder"; // 文件类型，可选字段，后端明确标识
 };
 
 // 新增：获取Bag列表的请求
 export type GetBagListReq = {
-  mode: string;                // "" | "imd" | "signal"
-  action_name: string;         // "" 或具体的action名称
+  mode: string; // "" | "imd" | "signal"
+  action_name: string; // "" 或具体的action名称
 };
 
 // 新增：获取Bag列表的响应
@@ -56,20 +57,12 @@ export type UploadConfig = {
 
 export type LogLine = { id: string; ts: string; level: "info" | "warn" | "error"; msg: string };
 
-export interface RosService {
-  endTestAndCollect(): Promise<{ recorded: FileCandidate[]; others: FileCandidate[] }>;
-  // 新增：获取Bag文件列表
-  getBagList(req: GetBagListReq): Promise<GetBagListRsp>;
-  // 新增：提交选中的文件
-  submitFiles(req: SubmitFilesReq): Promise<CommonRsp>;
-}
-
 export interface CoSceneClient {
   listProjects(): Promise<{ id: string; name: string }[]>;
   listTags(projectId: string): Promise<Label[]>;
   upload(
     files: FileCandidate[],
     cfg: Partial<UploadConfig> & { projectId: string | null },
-    onProgress?: (p: number) => void
+    onProgress?: (p: number) => void,
   ): Promise<{ taskName?: string; recordName?: string; success: boolean }>;
 }

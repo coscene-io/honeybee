@@ -24,7 +24,7 @@ export interface CommonRsp {
 }
 
 // 录制状态
-export type RecordingState = 'idle' | 'starting' | 'recording' | 'stopping';
+export type RecordingState = "idle" | "starting" | "recording" | "stopping";
 
 // Action Name 配置
 export interface ActionNameConfig {
@@ -32,12 +32,19 @@ export interface ActionNameConfig {
   label: string;
 }
 
+// Action特定的duration配置
+export interface ActionDurationConfig {
+  preparationDuration: number;
+  recordDuration: number;
+}
+
 // 面板状态
 export interface PanelState {
   recordingState: RecordingState;
   selectedActionName: string;
-  preparationDuration: number;
-  recordDuration: number;
+  preparationDuration: number; // 全局默认值
+  recordDuration: number; // 全局默认值
+  actionDurations: Record<string, ActionDurationConfig>; // Action特定的配置
   logs: LogLine[];
 }
 
@@ -45,7 +52,7 @@ export interface PanelState {
 export interface LogLine {
   id: string;
   ts: string;
-  level: 'info' | 'warn' | 'error';
+  level: "info" | "warn" | "error";
   msg: string;
   type?: string;
 }
