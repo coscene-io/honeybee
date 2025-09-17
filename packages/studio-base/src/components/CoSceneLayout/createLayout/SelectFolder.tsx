@@ -20,15 +20,16 @@ export function SelectFolder({
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
 
-  const options: { label: string; value: string }[] = useMemo(() => {
+  const options: { label: string; value: string; isNewFolder: boolean }[] = useMemo(() => {
     return [
-      ...folders.map((folder) => ({ label: folder, value: folder })),
-      { label: t("createNewFolder"), value: "" },
+      // { label: t("personalLayout"), value: "", isNewFolder: false },
+      ...folders.map((folder) => ({ label: folder, value: folder, isNewFolder: false })),
+      { label: t("createNewFolder"), value: "", isNewFolder: true },
     ];
   }, [t, folders]);
 
-  const selectedOption = options.find((option) =>
-    value.isNewFolder ? option.value === "" : option.value !== "" && option.value === value.value,
+  const selectedOption = options.find(
+    (option) => option.isNewFolder === value.isNewFolder && option.value === value.value,
   );
 
   return (
@@ -39,7 +40,7 @@ export function SelectFolder({
         onChange={(_, option) => {
           onChange({
             value: option?.value ?? "",
-            isNewFolder: option?.value === "",
+            isNewFolder: option?.isNewFolder ?? false,
           });
         }}
         renderInput={(params) => <TextField {...params} label={t("folder")} />}
