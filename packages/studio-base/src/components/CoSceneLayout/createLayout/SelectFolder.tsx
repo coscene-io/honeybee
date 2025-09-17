@@ -22,7 +22,6 @@ export function SelectFolder({
 
   const options: { label: string; value: string; isNewFolder: boolean }[] = useMemo(() => {
     return [
-      // { label: t("personalLayout"), value: "", isNewFolder: false },
       ...folders.map((folder) => ({ label: folder, value: folder, isNewFolder: false })),
       { label: t("createNewFolder"), value: "", isNewFolder: true },
     ];

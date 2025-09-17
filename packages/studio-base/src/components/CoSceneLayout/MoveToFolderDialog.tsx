@@ -5,13 +5,21 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack } from "@mui/material";
-import { useMemo } from "react";
-import { Controller, useForm } from "react-hook-form";
+import {
+  Autocomplete,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  TextField,
+} from "@mui/material";
+import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { SelectFolder } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/SelectFolder";
 import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const useStyles = makeStyles()({
@@ -45,17 +53,21 @@ export function MoveToFolderDialog({
     return isProject ? projectFolders : personalFolders;
   }, [isProject, projectFolders, personalFolders]);
 
-  const form = useForm({
-    defaultValues: {
-      folder: {
-        value: "",
-        isNewFolder: false,
-      },
-    },
-  });
+  const [value, setValue] = useState({ value: "", isNewFolder: false });
+  const options: { label: string; value: string; isNewFolder: boolean }[] = useMemo(() => {
+    return [
+      { label: t("personalLayout"), value: "", isNewFolder: false },
+      ...folders.map((folder) => ({ label: folder, value: folder, isNewFolder: false })),
+      { label: t("createNewFolder"), value: "", isNewFolder: true },
+    ];
+  }, [t, folders]);
 
-  const onSubmit = (data: { folder: { value: string; isNewFolder: boolean } }) => {
-    onMoveLayout(layout, data.folder.value);
+  const selectedOption = options.find(
+    (option) => option.isNewFolder === value.isNewFolder && option.value === value.value,
+  );
+
+  const onSubmit = () => {
+    onMoveLayout(layout, value.value);
     onClose();
   };
 
@@ -64,25 +76,36 @@ export function MoveToFolderDialog({
       <DialogTitle>{t("moveToFolder")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
-          <Controller
-            control={form.control}
-            name="folder"
-            render={({ field }) => (
-              <SelectFolder folders={folders} value={field.value} onChange={field.onChange} />
-            )}
+          <Autocomplete
+            options={options}
+            value={selectedOption ?? null} // eslint-disable-line no-restricted-syntax
+            onChange={(_, option) => {
+              setValue({
+                value: option?.value ?? "",
+                isNewFolder: option?.isNewFolder ?? false,
+              });
+            }}
+            renderInput={(params) => <TextField {...params} label={t("folder")} />}
           />
+          {value.isNewFolder && (
+            <TextField
+              label={t("folder")}
+              value={value.value}
+              onChange={(e) => {
+                setValue({
+                  value: e.target.value,
+                  isNewFolder: true,
+                });
+              }}
+            />
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" onClick={onClose}>
           {t("cancel", { ns: "cosGeneral" })}
         </Button>
-        <Button
-          variant="contained"
-          onClick={() => {
-            void form.handleSubmit(onSubmit)();
-          }}
-        >
+        <Button disabled={value.value === ""} variant="contained" onClick={onSubmit}>
           {t("ok", { ns: "cosGeneral" })}
         </Button>
       </DialogActions>
