@@ -60,6 +60,7 @@ interface LayoutWithFolder {
   isFolder: boolean;
   category: "personal" | "project";
   layout?: Layout;
+  updateTime?: number;
 }
 
 const useStyles = makeStyles()((theme) => ({
@@ -252,43 +253,21 @@ export function CoSceneLayoutContent({
         })
         .sort((a, b) => a.name.localeCompare(b.name)),
       ...filtered
-        .map((layout) => ({
-          id: layout.id,
-          layout,
-          name: layout.name,
-          folder: layout.folder,
-          isFolder: false,
-          category:
-            layout.permission === "PERSONAL_WRITE" ? ("personal" as const) : ("project" as const),
-        }))
+        .map((layout) => {
+          const savedAt = layout.working?.savedAt ?? layout.baseline.savedAt;
+          return {
+            id: layout.id,
+            layout,
+            name: layout.name,
+            folder: layout.folder,
+            isFolder: false,
+            category:
+              layout.permission === "PERSONAL_WRITE" ? ("personal" as const) : ("project" as const),
+            updateTime: savedAt ? new Date(savedAt).getTime() : 0,
+          };
+        })
         .sort((a, b) => a.name.localeCompare(b.name)),
     ];
-
-    // Sort layouts
-    // if (sortModel.length > 0) {
-    //   const { field, sort } = sortModel[0]!;
-    //   filtered.sort((a, b) => {
-    //     if (field === "name") {
-    //       return sort === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
-    //     } else if (field === "updateTime") {
-    //       const timeA = a.working?.savedAt ?? a.baseline.savedAt;
-    //       const timeB = b.working?.savedAt ?? b.baseline.savedAt;
-    //       if (!timeA && !timeB) {
-    //         return 0;
-    //       }
-    //       if (!timeA) {
-    //         return 1;
-    //       }
-    //       if (!timeB) {
-    //         return -1;
-    //       }
-    //       return sort === "asc"
-    //         ? new Date(timeA).getTime() - new Date(timeB).getTime()
-    //         : new Date(timeB).getTime() - new Date(timeA).getTime();
-    //     }
-    //     return 0;
-    //   });
-    // }
   }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery]);
 
   // Define DataGrid columns
@@ -368,6 +347,9 @@ export function CoSceneLayoutContent({
         headerName: t("updateTime"),
         width: 150,
         sortable: true,
+        type: "number",
+        align: "left",
+        headerAlign: "left",
         renderCell: (params) => {
           const { layout } = params.row;
           if (!layout) {
