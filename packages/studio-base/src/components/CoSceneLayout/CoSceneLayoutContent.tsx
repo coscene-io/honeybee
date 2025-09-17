@@ -32,7 +32,13 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { DataGrid, GridColDef, GridActionsCellItem, GridSortModel } from "@mui/x-data-grid";
+import {
+  DataGrid,
+  GridColDef,
+  GridActionsCellItem,
+  GridSortModel,
+  GridCellParams,
+} from "@mui/x-data-grid";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useState, useMemo, useCallback, Fragment } from "react";
@@ -172,30 +178,12 @@ export function CoSceneLayoutContent({
     folder: string;
   }>({ category: "all", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
-  const [{ sortBy, sortOrder }, setSort] = useState<{
-    sortBy: "name" | "updateTime";
-    sortOrder: "asc" | "desc";
-  }>({ sortBy: "name", sortOrder: "asc" });
-
-  const handleSortModelChange = useCallback((model: GridSortModel) => {
-    if (model.length > 0) {
-      const { field, sort } = model[0]!;
-      if ((field === "name" || field === "updateTime") && (sort === "asc" || sort === "desc")) {
-        setSort({ sortBy: field, sortOrder: sort });
-      }
-    }
-  }, []);
-
-  // DataGrid sort model
-  const sortModel = useMemo(
-    () => [
-      {
-        field: sortBy,
-        sort: sortOrder,
-      },
-    ],
-    [sortBy, sortOrder],
-  );
+  const [sortModel, setSortModel] = useState<GridSortModel>([
+    {
+      field: "name",
+      sort: "asc",
+    },
+  ]);
 
   const [menu, setMenu] = useState<{
     anchorEl: HTMLElement | undefined;
@@ -247,29 +235,33 @@ export function CoSceneLayoutContent({
     }
 
     // Sort layouts
-    filtered.sort((a, b) => {
-      if (sortBy === "name") {
-        return sortOrder === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
-      } else {
-        const timeA = a.working?.savedAt ?? a.baseline.savedAt;
-        const timeB = b.working?.savedAt ?? b.baseline.savedAt;
-        if (!timeA && !timeB) {
-          return 0;
-        }
-        if (!timeA) {
-          return 1;
-        }
-        if (!timeB) {
-          return -1;
-        }
-        return sortOrder === "asc"
-          ? new Date(timeA).getTime() - new Date(timeB).getTime()
-          : new Date(timeB).getTime() - new Date(timeA).getTime();
-      }
-    });
+    // if (sortModel.length > 0) {
+    //   const { field, sort } = sortModel[0]!;
+    //   filtered.sort((a, b) => {
+    //     if (field === "name") {
+    //       return sort === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+    //     } else if (field === "updateTime") {
+    //       const timeA = a.working?.savedAt ?? a.baseline.savedAt;
+    //       const timeB = b.working?.savedAt ?? b.baseline.savedAt;
+    //       if (!timeA && !timeB) {
+    //         return 0;
+    //       }
+    //       if (!timeA) {
+    //         return 1;
+    //       }
+    //       if (!timeB) {
+    //         return -1;
+    //       }
+    //       return sort === "asc"
+    //         ? new Date(timeA).getTime() - new Date(timeB).getTime()
+    //         : new Date(timeB).getTime() - new Date(timeA).getTime();
+    //     }
+    //     return 0;
+    //   });
+    // }
 
     return filtered;
-  }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery, sortBy, sortOrder]);
+  }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery]);
 
   // Define DataGrid columns
   const columns: GridColDef[] = useMemo(
@@ -280,7 +272,6 @@ export function CoSceneLayoutContent({
         width: 50,
         align: "center",
         sortable: false,
-        disableColumnMenu: true,
         renderCell: (params) => {
           const layout = params.row as Layout;
           const isActive = currentLayoutId === layout.id;
@@ -330,6 +321,7 @@ export function CoSceneLayoutContent({
         field: "updateTime",
         headerName: t("updateTime"),
         width: 150,
+        sortable: true,
         renderCell: (params) => {
           const layout = params.row as Layout;
           const savedAt = layout.baseline.savedAt;
@@ -574,9 +566,10 @@ export function CoSceneLayoutContent({
                 rows={rows}
                 columns={columns}
                 sortModel={sortModel}
-                onSortModelChange={handleSortModelChange}
+                onSortModelChange={setSortModel}
                 disableRowSelectionOnClick
                 disableColumnResize
+                disableColumnMenu
                 hideFooter
                 className={classes.dataGrid}
                 rowSelection={false}
