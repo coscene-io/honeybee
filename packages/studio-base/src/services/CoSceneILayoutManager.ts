@@ -109,6 +109,7 @@ export interface ILayoutManager {
   updateLayout(params: {
     id: LayoutID;
     name?: string;
+    folder?: string;
     data?: LayoutData;
   }): Promise<Layout | undefined>;
 

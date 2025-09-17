@@ -57,6 +57,7 @@ export interface IRemoteLayoutStorage {
     id: LayoutID;
     parent: string;
     name?: string;
+    folder?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
   }) => Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }>;

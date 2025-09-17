@@ -94,7 +94,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly namespace: string,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
-  ) {}
+  ) { }
 
   public getProjectWritePermission(): boolean {
     // TODO: waiting for the new API to be released
@@ -201,12 +201,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     id,
     parent,
     name,
+    folder,
     data,
     permission: _permission,
   }: {
     id: LayoutID;
     parent: string;
     name?: string;
+    folder?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
@@ -230,6 +232,10 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       if (name != undefined && name) {
         updatedLayout.displayName = name;
         paths.push("displayName");
+      }
+      if (folder != undefined) {
+        updatedLayout.folder = folder;
+        paths.push("folder");
       }
       if (data != undefined) {
         updatedLayout.data = convertJsonToStruct(data);

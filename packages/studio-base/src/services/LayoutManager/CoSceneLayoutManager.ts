@@ -361,10 +361,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           working: undefined,
           syncInfo: this.#remote
             ? {
-                status: "new",
-                lastRemoteSavedAt: undefined,
-                lastRemoteUpdatedAt: undefined,
-              }
+              status: "new",
+              lastRemoteSavedAt: undefined,
+              lastRemoteUpdatedAt: undefined,
+            }
             : undefined,
         }),
     );
@@ -376,10 +376,12 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   public async updateLayout({
     id,
     name,
+    folder,
     data,
   }: {
     id: LayoutID;
     name: string | undefined;
+    folder: string | undefined;
     data: LayoutData | undefined;
   }): Promise<Layout | undefined> {
     const now = new Date().toISOString() as ISO8601Timestamp;
@@ -397,8 +399,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       data == undefined
         ? localLayout.working
         : isLayoutEqual(localLayout.baseline.data, data)
-        ? undefined
-        : { data, savedAt: now };
+          ? undefined
+          : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
     if (name != undefined && layoutIsProject(localLayout)) {
@@ -411,6 +413,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       const updatedBaseline = await updateOrFetchLayout(this.#remote, {
         id,
         name,
+        folder,
         parent: localLayout.parent,
       });
       const result = await this.#local.runExclusive(
@@ -419,6 +422,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             ...localLayout,
             parent: updatedBaseline.parent,
             name: updatedBaseline.name,
+            folder: updatedBaseline.folder,
             baseline: {
               data: updatedBaseline.data,
               savedAt: updatedBaseline.savedAt,
@@ -451,24 +455,25 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           await local.put({
             ...localLayout,
             name: name ?? localLayout.name,
+            folder: folder ?? localLayout.folder,
             working: newWorking,
 
             // If the name is being changed, we will need to upload to the server with a new savedAt
             baseline: isRename
               ? {
-                  ...localLayout.baseline,
-                  savedAt: now,
-                  modifier: localLayout.baseline.modifier,
-                  modifierAvatar: localLayout.baseline.modifierAvatar,
-                  modifierNickname: localLayout.baseline.modifierNickname,
-                }
+                ...localLayout.baseline,
+                savedAt: now,
+                modifier: localLayout.baseline.modifier,
+                modifierAvatar: localLayout.baseline.modifierAvatar,
+                modifierNickname: localLayout.baseline.modifierNickname,
+              }
               : localLayout.baseline,
             syncInfo: isRename
               ? {
-                  status: "updated",
-                  lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
-                  lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
-                }
+                status: "updated",
+                lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+                lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
+              }
               : localLayout.syncInfo,
           }),
       );
@@ -575,10 +580,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             syncInfo:
               this.#remote && localLayout.syncInfo?.status !== "new"
                 ? {
-                    status: "updated",
-                    lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
-                    lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
-                  }
+                  status: "updated",
+                  lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+                  lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
+                }
                 : localLayout.syncInfo,
           }),
       );

@@ -41,6 +41,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { CopyLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/CopyLayoutDialog";
 import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
+import { MoveToFolderDialog } from "@foxglove/studio-base/components/CoSceneLayout/MoveToFolderDialog";
 import { RenameLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/RenameLayoutDialog";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
@@ -159,6 +160,7 @@ export function CoSceneLayoutContent({
   onOverwriteLayout,
   onRevertLayout,
   onCreateLayout,
+  onMoveLayout,
 }: {
   currentLayoutId?: LayoutID;
   supportsProjectWrite: boolean;
@@ -174,6 +176,7 @@ export function CoSceneLayoutContent({
   onOverwriteLayout: (layout: Layout) => void;
   onRevertLayout: (layout: Layout) => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
+  onMoveLayout: (layout: Layout, newFolder: string) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
@@ -190,7 +193,7 @@ export function CoSceneLayoutContent({
   }>({ anchorEl: undefined, layout: undefined });
 
   const [dialog, setDialog] = useState<{
-    type: "rename" | "copy" | undefined;
+    type: "rename" | "copy" | "move" | undefined;
     layout: Layout | undefined;
   }>({ type: undefined, layout: undefined });
 
@@ -202,7 +205,7 @@ export function CoSceneLayoutContent({
     setMenu({ anchorEl: undefined, layout: undefined });
   }, []);
 
-  const handleOpenDialog = useCallback((type: "rename" | "copy", layout: Layout) => {
+  const handleOpenDialog = useCallback((type: "rename" | "copy" | "move", layout: Layout) => {
     setDialog({ type, layout });
   }, []);
 
@@ -650,6 +653,16 @@ export function CoSceneLayoutContent({
           onClose={handleCloseDialog}
           onCreateLayout={onCreateLayout}
           supportsProjectWrite={supportsProjectWrite}
+        />
+      )}
+      {dialog.layout && dialog.type === "move" && (
+        <MoveToFolderDialog
+          personalFolders={layouts?.personalFolders ?? []}
+          projectFolders={layouts?.projectFolders ?? []}
+          layout={dialog.layout}
+          open
+          onClose={handleCloseDialog}
+          onMoveLayout={onMoveLayout}
         />
       )}
     </div>
