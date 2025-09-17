@@ -378,7 +378,7 @@ export function CoSceneLayoutContent({
       {
         field: "updater",
         headerName: t("updater"),
-        width: 200,
+        width: 150,
         sortable: false,
         renderCell: (params) => {
           const { layout } = params.row;
@@ -402,8 +402,8 @@ export function CoSceneLayoutContent({
         field: "actions",
         type: "actions",
         headerName: "",
-        width: 120,
-        flex: 1,
+        width: 200,
+        minWidth: 200,
         align: "right",
         getActions: (params) => {
           const { layout } = params.row;
@@ -631,6 +631,7 @@ export function CoSceneLayoutContent({
                 className={classes.dataGrid}
                 rowSelection={false}
                 localeText={dataGridLocaleText}
+                density="compact"
                 getRowClassName={(params) =>
                   currentLayoutId === params.row.id ? "selected-row" : ""
                 }
