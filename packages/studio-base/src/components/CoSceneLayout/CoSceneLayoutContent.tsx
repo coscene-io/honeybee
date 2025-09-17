@@ -33,6 +33,7 @@ import {
   Typography,
 } from "@mui/material";
 import { DataGrid, GridColDef, GridActionsCellItem, GridSortModel } from "@mui/x-data-grid";
+import { zhCN, jaJP } from "@mui/x-data-grid/locales";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useState, useMemo, useCallback, Fragment } from "react";
@@ -178,7 +179,7 @@ export function CoSceneLayoutContent({
   onCreateLayout: (params: CreateLayoutParams) => void;
   onMoveLayout: (layout: Layout, newFolder: string) => void;
 }): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t, i18n } = useTranslation("cosLayout");
   const { classes } = useStyles();
   const [selectedFolder, setSelectedFolder] = useState<{
     category: "all" | "personal" | "project";
@@ -186,6 +187,18 @@ export function CoSceneLayoutContent({
   }>({ category: "all", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [sortModel, setSortModel] = useState<GridSortModel>([]);
+
+  // 根据当前语言获取DataGrid的locale文本
+  const dataGridLocaleText = useMemo(() => {
+    switch (i18n.language) {
+      case "zh":
+        return zhCN.components.MuiDataGrid.defaultProps.localeText;
+      case "ja":
+        return jaJP.components.MuiDataGrid.defaultProps.localeText;
+      default:
+        return undefined; // 使用默认英文
+    }
+  }, [i18n.language]);
 
   const [menu, setMenu] = useState<{
     anchorEl: HTMLElement | undefined;
@@ -617,6 +630,7 @@ export function CoSceneLayoutContent({
                 hideFooter
                 className={classes.dataGrid}
                 rowSelection={false}
+                localeText={dataGridLocaleText}
                 getRowClassName={(params) =>
                   currentLayoutId === params.row.id ? "selected-row" : ""
                 }
