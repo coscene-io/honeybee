@@ -32,13 +32,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import {
-  DataGrid,
-  GridColDef,
-  GridActionsCellItem,
-  GridSortModel,
-  GridCellParams,
-} from "@mui/x-data-grid";
+import { DataGrid, GridColDef, GridActionsCellItem, GridSortModel } from "@mui/x-data-grid";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useState, useMemo, useCallback, Fragment } from "react";
@@ -58,6 +52,15 @@ import {
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 dayjs.extend(relativeTime);
+
+interface LayoutWithFolder {
+  id: string;
+  name: string;
+  folder: string;
+  isFolder: boolean;
+  category: "personal" | "project";
+  layout?: Layout;
+}
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -178,12 +181,7 @@ export function CoSceneLayoutContent({
     folder: string;
   }>({ category: "all", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortModel, setSortModel] = useState<GridSortModel>([
-    {
-      field: "name",
-      sort: "asc",
-    },
-  ]);
+  const [sortModel, setSortModel] = useState<GridSortModel>([]);
 
   const [menu, setMenu] = useState<{
     anchorEl: HTMLElement | undefined;
@@ -212,7 +210,7 @@ export function CoSceneLayoutContent({
   }, []);
 
   // Filter layouts based on selection
-  const filteredLayouts = useMemo(() => {
+  const rows: LayoutWithFolder[] = useMemo(() => {
     if (!layouts) {
       return [];
     }
@@ -224,15 +222,47 @@ export function CoSceneLayoutContent({
       filtered = filtered.filter((l) => layoutIsProject(l));
     }
 
-    if (selectedFolder.folder) {
-      filtered = filtered.filter((l) => l.folder === selectedFolder.folder);
-    }
-
+    let folders: string[] = [];
     if (searchQuery) {
       filtered = filtered.filter((l) =>
         l.name.toLowerCase().includes(searchQuery.toLowerCase().trim()),
       );
+    } else {
+      filtered = filtered.filter((l) => l.folder === selectedFolder.folder);
+
+      if (!selectedFolder.folder) {
+        if (selectedFolder.category === "personal") {
+          folders = layouts.personalFolders;
+        } else if (selectedFolder.category === "project") {
+          folders = layouts.projectFolders;
+        }
+      }
     }
+
+    return [
+      ...folders
+        .map((folder) => {
+          return {
+            id: Math.random().toString(),
+            name: folder,
+            folder,
+            isFolder: true,
+            category: selectedFolder.category as "personal" | "project",
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      ...filtered
+        .map((layout) => ({
+          id: layout.id,
+          layout,
+          name: layout.name,
+          folder: layout.folder,
+          isFolder: false,
+          category:
+            layout.permission === "PERSONAL_WRITE" ? ("personal" as const) : ("project" as const),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    ];
 
     // Sort layouts
     // if (sortModel.length > 0) {
@@ -259,12 +289,10 @@ export function CoSceneLayoutContent({
     //     return 0;
     //   });
     // }
-
-    return filtered;
   }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery]);
 
   // Define DataGrid columns
-  const columns: GridColDef[] = useMemo(
+  const columns: GridColDef<LayoutWithFolder>[] = useMemo(
     () => [
       {
         field: "icon",
@@ -273,7 +301,10 @@ export function CoSceneLayoutContent({
         align: "center",
         sortable: false,
         renderCell: (params) => {
-          const layout = params.row as Layout;
+          const { layout } = params.row;
+          if (!layout) {
+            return;
+          }
           const isActive = currentLayoutId === layout.id;
 
           return (
@@ -304,7 +335,22 @@ export function CoSceneLayoutContent({
         minWidth: 200,
         sortable: true,
         renderCell: (params) => {
-          const layout = params.row as Layout;
+          const { layout, name, category } = params.row;
+          if (!layout) {
+            return (
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={1}
+                onClick={() => {
+                  setSelectedFolder({ category, folder: name });
+                }}
+              >
+                <FolderOutlinedIcon fontSize="small" />
+                <Typography variant="body2">{name}</Typography>
+              </Box>
+            );
+          }
           return (
             <Box display="flex" alignItems="center" gap={1}>
               {layout.permission === "PERSONAL_WRITE" ? (
@@ -323,7 +369,10 @@ export function CoSceneLayoutContent({
         width: 150,
         sortable: true,
         renderCell: (params) => {
-          const layout = params.row as Layout;
+          const { layout } = params.row;
+          if (!layout) {
+            return;
+          }
           const savedAt = layout.baseline.savedAt;
           return savedAt ? dayjs(savedAt).fromNow() : "-";
         },
@@ -334,7 +383,10 @@ export function CoSceneLayoutContent({
         width: 200,
         sortable: false,
         renderCell: (params) => {
-          const layout = params.row as Layout;
+          const { layout } = params.row;
+          if (!layout) {
+            return;
+          }
           return (
             <Box display="flex" alignItems="center" gap={1}>
               <Avatar
@@ -356,7 +408,11 @@ export function CoSceneLayoutContent({
         flex: 1,
         align: "right",
         getActions: (params) => {
-          const layout = params.row as Layout;
+          const { layout } = params.row;
+          if (!layout) {
+            return [];
+          }
+
           const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
           const hasModifications = layout.working != undefined;
           const isRead = layoutIsRead(layout);
@@ -417,13 +473,16 @@ export function CoSceneLayoutContent({
         },
       },
     ],
-    [currentLayoutId, t, onSelectLayout, onOverwriteLayout, onRevertLayout, handleMenuOpen],
+    [
+      currentLayoutId,
+      t,
+      setSelectedFolder,
+      onSelectLayout,
+      onOverwriteLayout,
+      onRevertLayout,
+      handleMenuOpen,
+    ],
   );
-
-  // Convert layouts to DataGrid rows
-  const rows = useMemo(() => {
-    return filteredLayouts.map((layout) => layout);
-  }, [filteredLayouts]);
 
   const items: {
     category: "all" | "personal" | "project";
