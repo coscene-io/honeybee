@@ -27,8 +27,8 @@ export function SelectFolder({
     ];
   }, [t, folders]);
 
-  const selectedOption = options.find(
-    (option) => option.isNewFolder === value.isNewFolder && option.value === value.value,
+  const selectedOption = options.find((option) =>
+    value.isNewFolder ? option.isNewFolder : option.value === value.value && !option.isNewFolder,
   );
 
   return (
