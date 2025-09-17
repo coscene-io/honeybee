@@ -104,18 +104,22 @@ const useStyles = makeStyles()((theme) => ({
     },
     "& .MuiDataGrid-cell": {
       borderColor: theme.palette.divider,
+      display: "flex",
+      alignItems: "center",
     },
     "& .MuiDataGrid-row:hover": {
       backgroundColor: theme.palette.action.hover,
+      "& .play-button": {
+        opacity: 1,
+      },
     },
     "& .selected-row": {
       backgroundColor: theme.palette.action.selected,
     },
-  },
-  emptyState: {
-    textAlign: "center",
-    paddingTop: theme.spacing(4),
-    paddingBottom: theme.spacing(4),
+    "& .play-button": {
+      opacity: 0,
+      transition: "opacity 0.2s ease-in-out",
+    },
   },
   boxPadding: {
     paddingBottom: theme.spacing(2),
@@ -173,6 +177,15 @@ export function CoSceneLayoutContent({
     sortOrder: "asc" | "desc";
   }>({ sortBy: "name", sortOrder: "asc" });
 
+  const handleSortModelChange = useCallback((model: GridSortModel) => {
+    if (model.length > 0) {
+      const { field, sort } = model[0]!;
+      if ((field === "name" || field === "updateTime") && (sort === "asc" || sort === "desc")) {
+        setSort({ sortBy: field, sortOrder: sort });
+      }
+    }
+  }, []);
+
   // DataGrid sort model
   const sortModel = useMemo(
     () => [
@@ -208,15 +221,6 @@ export function CoSceneLayoutContent({
 
   const handleCloseDialog = useCallback(() => {
     setDialog({ type: undefined, layout: undefined });
-  }, []);
-
-  const handleSortModelChange = useCallback((model: GridSortModel) => {
-    if (model.length > 0) {
-      const { field, sort } = model[0]!;
-      if ((field === "name" || field === "updateTime") && (sort === "asc" || sort === "desc")) {
-        setSort({ sortBy: field, sortOrder: sort });
-      }
-    }
   }, []);
 
   // Filter layouts based on selection
@@ -273,7 +277,8 @@ export function CoSceneLayoutContent({
       {
         field: "icon",
         headerName: "",
-        width: 80,
+        width: 50,
+        align: "center",
         sortable: false,
         disableColumnMenu: true,
         renderCell: (params) => {
@@ -288,6 +293,7 @@ export function CoSceneLayoutContent({
                 <Tooltip placement="top" title={t("useLayout")}>
                   <IconButton
                     size="small"
+                    className="play-button"
                     onClick={() => {
                       onSelectLayout(layout);
                     }}
@@ -305,6 +311,7 @@ export function CoSceneLayoutContent({
         headerName: t("layoutName"),
         flex: 1,
         minWidth: 200,
+        sortable: true,
         renderCell: (params) => {
           const layout = params.row as Layout;
           return (
@@ -354,6 +361,8 @@ export function CoSceneLayoutContent({
         type: "actions",
         headerName: "",
         width: 120,
+        flex: 1,
+        align: "right",
         getActions: (params) => {
           const layout = params.row as Layout;
           const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
@@ -576,12 +585,6 @@ export function CoSceneLayoutContent({
                 }
               />
             </div>
-
-            {filteredLayouts.length === 0 && (
-              <Box className={classes.emptyState}>
-                <Typography color="text.secondary">{t("noData")}</Typography>
-              </Box>
-            )}
           </Box>
         </div>
       </div>
