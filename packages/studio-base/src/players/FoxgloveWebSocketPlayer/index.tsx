@@ -21,7 +21,14 @@ import { MessageDefinition, isMsgDefEqual } from "@foxglove/message-definition";
 import CommonRosTypes from "@foxglove/rosmsg-msgs-common";
 import { MessageWriter as Ros1MessageWriter } from "@foxglove/rosmsg-serialization";
 import { MessageWriter as Ros2MessageWriter } from "@foxglove/rosmsg2-serialization";
-import { fromNanoSec, isGreaterThan, isLessThan, Time, toMillis } from "@foxglove/rostime";
+import {
+  fromMillis,
+  fromNanoSec,
+  isGreaterThan,
+  isLessThan,
+  Time,
+  toMillis,
+} from "@foxglove/rostime";
 import { ParameterValue } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
@@ -837,10 +844,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
         stats.numMessages++;
         this.#topicsStats = topicStats;
 
-        if (this.#timeOffset != undefined) {
+        const timeOffset = this.#timeOffset;
+        if (typeof timeOffset === "number") {
+          const serverTimeMs = toMillis(fromNanoSec(timestamp));
           this.#networkStatus = {
             ...this.#networkStatus,
-            networkDelay: Date.now() - this.#timeOffset - toMillis(this.#serverTime),
+            networkDelay: Date.now() - timeOffset - serverTimeMs,
           };
         }
       } catch (error) {
@@ -1584,8 +1593,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
     // If the server does not publish the time, then we set the clock time to realtime as long as
     // the server is connected. When the server is not connected, time stops.
     if (!this.#serverPublishesTime) {
-      this.#clockTime =
-        this.#presence === PlayerPresence.PRESENT ? this.#serverTime : this.#clockTime;
+      if (this.#presence === PlayerPresence.PRESENT) {
+        this.#clockTime = this.#serverTime ?? fromMillis(Date.now());
+      }
     }
 
     return this.#clockTime ?? ZERO_TIME;
