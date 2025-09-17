@@ -83,4 +83,5 @@ export const cosLayout = {
   layoutToCopy: "Layout to copy",
   noData: "No layout data",
   allLayout: "All layouts",
+  moveToFolder: "Move to folder",
 };

@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack } from "@mui/material";
+import { useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -40,13 +41,15 @@ export function MoveToFolderDialog({
   const { classes } = useStyles();
 
   const isProject = layoutIsProject(layout);
-  const availableFolders = isProject ? projectFolders : personalFolders;
+  const folders = useMemo(() => {
+    return isProject ? projectFolders : personalFolders;
+  }, [isProject, projectFolders, personalFolders]);
 
   const form = useForm({
     defaultValues: {
       folder: {
-        value: layout.folder,
-        isNewFolder: !availableFolders.includes(layout.folder),
+        value: "",
+        isNewFolder: false,
       },
     },
   });
@@ -58,18 +61,14 @@ export function MoveToFolderDialog({
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Move to Folder</DialogTitle>
+      <DialogTitle>{t("moveToFolder")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
           <Controller
             control={form.control}
             name="folder"
             render={({ field }) => (
-              <SelectFolder
-                folders={availableFolders}
-                value={field.value}
-                onChange={field.onChange}
-              />
+              <SelectFolder folders={folders} value={field.value} onChange={field.onChange} />
             )}
           />
         </Stack>

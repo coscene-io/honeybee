@@ -119,7 +119,7 @@ export function LayoutTableRowMenu({
     {
       type: "item",
       key: "move",
-      text: "Move to folder",
+      text: t("moveToFolder"),
       "data-testid": "move-layout",
       onClick: openMoveDialog,
       disabled,
