@@ -10,13 +10,16 @@ import {
   FolderOutlined as FolderOutlinedIcon,
   PersonOutlined as PersonOutlinedIcon,
   Search as SearchIcon,
-  ArrowUpward as ArrowUpwardIcon,
-  ArrowDownward as ArrowDownwardIcon,
   Dashboard as DashboardIcon,
+  PlayArrow as PlayArrowIcon,
+  Equalizer as EqualizerIcon,
+  MoreVert as MoreVertIcon,
 } from "@mui/icons-material";
 import {
+  Avatar,
   Box,
   Breadcrumbs,
+  Button,
   IconButton,
   InputAdornment,
   Link,
@@ -25,36 +28,37 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import { DataGrid, GridColDef, GridActionsCellItem, GridSortModel } from "@mui/x-data-grid";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
 import { useState, useMemo, useCallback, Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { CopyLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/CopyLayoutDialog";
-import { LayoutTableRow } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRow";
 import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
+import { RenameLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/RenameLayoutDialog";
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import {
+  Layout,
+  layoutIsProject,
+  layoutIsRead,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
-import { RenameLayoutDialog } from "./RenameLayoutDialog";
+dayjs.extend(relativeTime);
 
 const useStyles = makeStyles()((theme) => ({
   root: {
     height: "100%",
     width: "100%",
   },
-  gridContainer: {
+  layoutContainer: {
     display: "flex",
     height: "100%",
   },
@@ -93,21 +97,19 @@ const useStyles = makeStyles()((theme) => ({
     flexGrow: 1,
     maxWidth: 300,
   },
-  tableHeaderCell: {
-    display: "flex",
-    alignItems: "center",
-    cursor: "pointer",
-    "&:hover .sort-icon": {
-      visibility: "visible",
+  dataGrid: {
+    border: "none",
+    "& .MuiDataGrid-columnHeaders": {
+      backgroundColor: "transparent",
     },
-  },
-  sortIcon: {
-    visibility: "hidden",
-    "&.active": {
-      visibility: "visible",
+    "& .MuiDataGrid-cell": {
+      borderColor: theme.palette.divider,
     },
-    "& svg": {
-      fontSize: "1rem",
+    "& .MuiDataGrid-row:hover": {
+      backgroundColor: theme.palette.action.hover,
+    },
+    "& .selected-row": {
+      backgroundColor: theme.palette.action.selected,
     },
   },
   emptyState: {
@@ -126,8 +128,9 @@ const useStyles = makeStyles()((theme) => ({
     flex: 1,
     minHeight: 0,
   },
-  tableContainer: {
-    maxHeight: "calc(100vh - 190px)",
+  gridContainer: {
+    height: "calc(100vh - 190px)",
+    width: "100%",
   },
 }));
 
@@ -170,6 +173,17 @@ export function CoSceneLayoutContent({
     sortOrder: "asc" | "desc";
   }>({ sortBy: "name", sortOrder: "asc" });
 
+  // DataGrid sort model
+  const sortModel = useMemo(
+    () => [
+      {
+        field: sortBy,
+        sort: sortOrder,
+      },
+    ],
+    [sortBy, sortOrder],
+  );
+
   const [menu, setMenu] = useState<{
     anchorEl: HTMLElement | undefined;
     layout: Layout | undefined;
@@ -194,6 +208,15 @@ export function CoSceneLayoutContent({
 
   const handleCloseDialog = useCallback(() => {
     setDialog({ type: undefined, layout: undefined });
+  }, []);
+
+  const handleSortModelChange = useCallback((model: GridSortModel) => {
+    if (model.length > 0) {
+      const { field, sort } = model[0]!;
+      if ((field === "name" || field === "updateTime") && (sort === "asc" || sort === "desc")) {
+        setSort({ sortBy: field, sortOrder: sort });
+      }
+    }
   }, []);
 
   // Filter layouts based on selection
@@ -244,6 +267,163 @@ export function CoSceneLayoutContent({
     return filtered;
   }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery, sortBy, sortOrder]);
 
+  // Define DataGrid columns
+  const columns: GridColDef[] = useMemo(
+    () => [
+      {
+        field: "icon",
+        headerName: "",
+        width: 80,
+        sortable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => {
+          const layout = params.row as Layout;
+          const isActive = currentLayoutId === layout.id;
+
+          return (
+            <Box display="flex" alignItems="center" justifyContent="center">
+              {isActive ? (
+                <EqualizerIcon color="primary" />
+              ) : (
+                <Tooltip placement="top" title={t("useLayout")}>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      onSelectLayout(layout);
+                    }}
+                  >
+                    <PlayArrowIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+          );
+        },
+      },
+      {
+        field: "name",
+        headerName: t("layoutName"),
+        flex: 1,
+        minWidth: 200,
+        renderCell: (params) => {
+          const layout = params.row as Layout;
+          return (
+            <Box display="flex" alignItems="center" gap={1}>
+              {layout.permission === "PERSONAL_WRITE" ? (
+                <PersonOutlinedIcon fontSize="small" />
+              ) : (
+                <BusinessCenterOutlinedIcon fontSize="small" />
+              )}
+              <Typography variant="body2">{layout.name}</Typography>
+            </Box>
+          );
+        },
+      },
+      {
+        field: "updateTime",
+        headerName: t("updateTime"),
+        width: 150,
+        renderCell: (params) => {
+          const layout = params.row as Layout;
+          const savedAt = layout.baseline.savedAt;
+          return savedAt ? dayjs(savedAt).fromNow() : "-";
+        },
+      },
+      {
+        field: "updater",
+        headerName: t("updater"),
+        width: 200,
+        sortable: false,
+        renderCell: (params) => {
+          const layout = params.row as Layout;
+          return (
+            <Box display="flex" alignItems="center" gap={1}>
+              <Avatar
+                style={{ width: 24, height: 24, fontSize: "0.75rem" }}
+                src={layout.baseline.modifierAvatar}
+              >
+                {layout.baseline.modifierNickname?.split("/").pop()}
+              </Avatar>
+              <Typography variant="body2">{layout.baseline.modifierNickname}</Typography>
+            </Box>
+          );
+        },
+      },
+      {
+        field: "actions",
+        type: "actions",
+        headerName: "",
+        width: 120,
+        getActions: (params) => {
+          const layout = params.row as Layout;
+          const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
+          const hasModifications = layout.working != undefined;
+          const isRead = layoutIsRead(layout);
+
+          const actions = [];
+
+          if (hasModifications) {
+            actions.push(
+              <GridActionsCellItem
+                key="save"
+                icon={
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    disabled={deletedOnServer || isRead}
+                    onClick={() => {
+                      onOverwriteLayout(layout);
+                    }}
+                  >
+                    {t("saveChanges")}
+                  </Button>
+                }
+                label={t("saveChanges")}
+                disabled={deletedOnServer || isRead}
+              />,
+              <GridActionsCellItem
+                key="revert"
+                icon={
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    disabled={deletedOnServer}
+                    onClick={() => {
+                      onRevertLayout(layout);
+                    }}
+                  >
+                    {t("revert")}
+                  </Button>
+                }
+                label={t("revert")}
+                disabled={deletedOnServer}
+              />,
+            );
+          }
+
+          actions.push(
+            <GridActionsCellItem
+              key="menu"
+              icon={<MoreVertIcon />}
+              label="Menu"
+              onClick={(event) => {
+                handleMenuOpen(event, layout);
+              }}
+            />,
+          );
+
+          return actions;
+        },
+      },
+    ],
+    [currentLayoutId, t, onSelectLayout, onOverwriteLayout, onRevertLayout, handleMenuOpen],
+  );
+
+  // Convert layouts to DataGrid rows
+  const rows = useMemo(() => {
+    return filteredLayouts.map((layout) => layout);
+  }, [filteredLayouts]);
+
   const items: {
     category: "all" | "personal" | "project";
     label: string;
@@ -271,7 +451,7 @@ export function CoSceneLayoutContent({
 
   return (
     <div className={classes.root}>
-      <div className={classes.gridContainer}>
+      <div className={classes.layoutContainer}>
         {/* Left Navigation Sidebar */}
         <div className={classes.sidebar}>
           <Box className={classes.boxPadding}>
@@ -379,82 +559,23 @@ export function CoSceneLayoutContent({
               />
             </Box>
 
-            {/* Layouts Table */}
-            <TableContainer component={Paper} variant="outlined" className={classes.tableContainer}>
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell />
-                    <TableCell>
-                      <Box
-                        className={classes.tableHeaderCell}
-                        onClick={() => {
-                          setSort({
-                            sortBy: "name",
-                            sortOrder: sortBy === "name" && sortOrder === "asc" ? "desc" : "asc",
-                          });
-                        }}
-                      >
-                        {t("layoutName")}
-                        <IconButton
-                          size="small"
-                          className={`sort-icon ${classes.sortIcon} ${
-                            sortBy === "name" ? "active" : ""
-                          }`}
-                        >
-                          {sortBy === "name" && sortOrder === "desc" ? (
-                            <ArrowDownwardIcon />
-                          ) : (
-                            <ArrowUpwardIcon />
-                          )}
-                        </IconButton>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box
-                        className={classes.tableHeaderCell}
-                        onClick={() => {
-                          setSort({
-                            sortBy: "updateTime",
-                            sortOrder:
-                              sortBy === "updateTime" && sortOrder === "asc" ? "desc" : "asc",
-                          });
-                        }}
-                      >
-                        {t("updateTime")}
-                        <IconButton
-                          size="small"
-                          className={`sort-icon ${classes.sortIcon} ${
-                            sortBy === "updateTime" ? "active" : ""
-                          }`}
-                        >
-                          {sortBy === "updateTime" && sortOrder === "desc" ? (
-                            <ArrowDownwardIcon />
-                          ) : (
-                            <ArrowUpwardIcon />
-                          )}
-                        </IconButton>
-                      </Box>
-                    </TableCell>
-                    <TableCell>{t("updater")}</TableCell>
-                    <TableCell align="right" />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredLayouts.map((layout) => (
-                    <LayoutTableRow
-                      key={layout.id}
-                      currentLayoutId={currentLayoutId}
-                      layout={layout}
-                      handleMenuOpen={handleMenuOpen}
-                      onSelectLayout={onSelectLayout}
-                      onOverwriteLayout={onOverwriteLayout}
-                      onRevertLayout={onRevertLayout}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            {/* Layouts DataGrid */}
+            <div className={classes.gridContainer}>
+              <DataGrid
+                rows={rows}
+                columns={columns}
+                sortModel={sortModel}
+                onSortModelChange={handleSortModelChange}
+                disableRowSelectionOnClick
+                disableColumnResize
+                hideFooter
+                className={classes.dataGrid}
+                rowSelection={false}
+                getRowClassName={(params) =>
+                  currentLayoutId === params.row.id ? "selected-row" : ""
+                }
+              />
+            </div>
 
             {filteredLayouts.length === 0 && (
               <Box className={classes.emptyState}>
