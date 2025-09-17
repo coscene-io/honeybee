@@ -376,10 +376,12 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   public async updateLayout({
     id,
     name,
+    folder,
     data,
   }: {
     id: LayoutID;
     name: string | undefined;
+    folder: string | undefined;
     data: LayoutData | undefined;
   }): Promise<Layout | undefined> {
     const now = new Date().toISOString() as ISO8601Timestamp;
@@ -411,6 +413,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       const updatedBaseline = await updateOrFetchLayout(this.#remote, {
         id,
         name,
+        folder,
         parent: localLayout.parent,
       });
       const result = await this.#local.runExclusive(
@@ -419,6 +422,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             ...localLayout,
             parent: updatedBaseline.parent,
             name: updatedBaseline.name,
+            folder: updatedBaseline.folder,
             baseline: {
               data: updatedBaseline.data,
               savedAt: updatedBaseline.savedAt,
@@ -451,6 +455,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           await local.put({
             ...localLayout,
             name: name ?? localLayout.name,
+            folder: folder ?? localLayout.folder,
             working: newWorking,
 
             // If the name is being changed, we will need to upload to the server with a new savedAt

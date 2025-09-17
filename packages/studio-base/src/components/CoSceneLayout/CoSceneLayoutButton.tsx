@@ -207,6 +207,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     [analytics, layoutManager],
   );
 
+  const onMoveLayout = useCallbackWithToast(
+    async (item: Layout, newFolder: string) => {
+      await layoutManager.updateLayout({ id: item.id, folder: newFolder });
+      void analytics.logEvent(AppEvent.LAYOUT_MOVE, { permission: item.permission });
+    },
+    [analytics, layoutManager],
+  );
+
   const onDeleteLayout = useCallbackWithToast(
     async (item: Layout) => {
       if (state.selectedIds.length > 1) {
@@ -337,6 +345,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           onSelectLayout={onSelectLayout}
           onDeleteLayout={onDeleteLayout}
           onRenameLayout={onRenameLayout}
+          onMoveLayout={onMoveLayout}
           onExportLayout={onExportLayout}
           onOverwriteLayout={onOverwriteLayout}
           onRevertLayout={onRevertLayout}

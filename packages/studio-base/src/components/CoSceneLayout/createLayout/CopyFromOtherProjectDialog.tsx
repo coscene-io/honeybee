@@ -30,7 +30,7 @@ import { ProjectSelector } from "./ProjectSselector";
 import { SelectFolder } from "./SelectFolder";
 
 export type CreateProjectLayoutParams = {
-  folder: string;
+  folder: { value: string; isNewFolder: boolean };
   name: string;
   permission: LayoutPermission;
   data?: LayoutData;
@@ -63,12 +63,17 @@ export function CopyFromOtherProjectDialog({
   const { classes } = useStyles();
 
   const form = useForm<CreateProjectLayoutParams>({
-    defaultValues: { name: "", folder: "", permission: "PERSONAL_WRITE", projectName: "" },
+    defaultValues: {
+      name: "",
+      folder: { value: "", isNewFolder: false },
+      permission: "PERSONAL_WRITE",
+      projectName: "",
+    },
   });
 
   const onSubmit = (data: CreateProjectLayoutParams) => {
     onCreateLayout({
-      folder: data.folder,
+      folder: data.folder.value,
       name: data.name,
       permission: data.permission,
       data: data.data,
@@ -161,9 +166,8 @@ export function CopyFromOtherProjectDialog({
             render={({ field }) => (
               <SelectFolder
                 folders={permission === "PERSONAL_WRITE" ? personalFolders : projectFolders}
-                onChange={(value) => {
-                  field.onChange(value ?? "");
-                }}
+                value={field.value}
+                onChange={field.onChange}
               />
             )}
           />

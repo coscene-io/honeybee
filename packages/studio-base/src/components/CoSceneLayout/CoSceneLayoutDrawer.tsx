@@ -44,6 +44,7 @@ interface CoSceneLayoutDrawerProps extends DrawerProps {
   onSelectLayout: (layout: Layout) => Promise<void>;
   onDeleteLayout: (layout: Layout) => Promise<void>;
   onRenameLayout: (layout: Layout, newName: string) => Promise<void>;
+  onMoveLayout: (layout: Layout, newFolder: string) => Promise<void>;
   onExportLayout: (layout: Layout) => Promise<void>;
   onOverwriteLayout: (layout: Layout) => Promise<void>;
   onRevertLayout: (layout: Layout) => Promise<void>;
@@ -66,6 +67,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
     onSelectLayout,
     onDeleteLayout,
     onRenameLayout,
+    onMoveLayout,
     onExportLayout,
     onOverwriteLayout,
     onRevertLayout,
@@ -91,6 +93,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
             onSelectLayout={onSelectLayout}
             onDeleteLayout={onDeleteLayout}
             onRenameLayout={onRenameLayout}
+            onMoveLayout={onMoveLayout}
             onExportLayout={onExportLayout}
             onOverwriteLayout={onOverwriteLayout}
             onRevertLayout={onRevertLayout}
