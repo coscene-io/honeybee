@@ -6,57 +6,53 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { TextField, Autocomplete } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 export function SelectFolder({
   folders,
   onChange,
+  value,
 }: {
   folders: string[];
-  onChange: (value?: string) => void;
+  onChange: (args: { value: string; isNewFolder: boolean }) => void;
+  value: { value: string; isNewFolder: boolean };
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
-  const [selectedFolder, setSelectedFolder] = useState<
-    { label: string; value: string } | undefined
-  >(undefined);
-  const [newFolderName, setNewFolderName] = useState("");
 
-  const options: { label: string; value: string }[] = useMemo(() => {
+  const options: { label: string; value: string; isNewFolder: boolean }[] = useMemo(() => {
     return [
-      { label: t("createNewFolder"), value: "" },
-      ...folders.map((folder) => ({ label: folder, value: folder })),
+      ...folders.map((folder) => ({ label: folder, value: folder, isNewFolder: false })),
+      { label: t("createNewFolder"), value: "", isNewFolder: true },
     ];
   }, [t, folders]);
 
-  useEffect(() => {
-    setSelectedFolder(undefined);
-    setNewFolderName("");
-  }, [folders]);
-
-  useEffect(() => {
-    onChange(selectedFolder?.value === "" ? newFolderName : selectedFolder?.value);
-  }, [selectedFolder, newFolderName, onChange]);
+  const selectedOption = options.find((option) =>
+    value.isNewFolder ? option.isNewFolder : option.value === value.value && !option.isNewFolder,
+  );
 
   return (
     <>
       <Autocomplete
         options={options}
-        value={selectedFolder ?? null} // eslint-disable-line no-restricted-syntax
+        value={selectedOption ?? null} // eslint-disable-line no-restricted-syntax
         onChange={(_, option) => {
-          setSelectedFolder(option ?? undefined);
-          if (option?.value !== "") {
-            setNewFolderName("");
-          }
+          onChange({
+            value: option?.value ?? "",
+            isNewFolder: option?.isNewFolder ?? false,
+          });
         }}
         renderInput={(params) => <TextField {...params} label={t("folder")} />}
       />
-      {selectedFolder?.value === "" && (
+      {value.isNewFolder && (
         <TextField
           label={t("folder")}
-          value={newFolderName}
+          value={value.value}
           onChange={(e) => {
-            setNewFolderName(e.target.value);
+            onChange({
+              value: e.target.value,
+              isNewFolder: true,
+            });
           }}
         />
       )}

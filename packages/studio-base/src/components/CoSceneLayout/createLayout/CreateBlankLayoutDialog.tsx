@@ -21,7 +21,10 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import {
+  CreateLayoutForm,
+  CreateLayoutParams,
+} from "@foxglove/studio-base/services/CoSceneILayoutManager";
 
 import { SelectFolder } from "./SelectFolder";
 
@@ -49,13 +52,17 @@ export function CreateBlankLayoutDialog({
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
 
-  const form = useForm<CreateLayoutParams>({
-    defaultValues: { name: "", folder: "", permission: "PERSONAL_WRITE" },
+  const form = useForm<CreateLayoutForm>({
+    defaultValues: {
+      name: "",
+      folder: { value: "", isNewFolder: false },
+      permission: "PERSONAL_WRITE",
+    },
   });
 
-  const onSubmit = (data: CreateLayoutParams) => {
+  const onSubmit = (data: CreateLayoutForm) => {
     onCreateLayout({
-      folder: data.folder,
+      folder: data.folder.value,
       name: data.name,
       permission: data.permission,
     });
@@ -112,9 +119,8 @@ export function CreateBlankLayoutDialog({
             render={({ field }) => (
               <SelectFolder
                 folders={permission === "PERSONAL_WRITE" ? personalFolders : projectFolders}
-                onChange={(value) => {
-                  field.onChange(value ?? "");
-                }}
+                value={field.value}
+                onChange={field.onChange}
               />
             )}
           />

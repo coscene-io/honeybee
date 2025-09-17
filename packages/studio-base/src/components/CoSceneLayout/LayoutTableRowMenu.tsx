@@ -44,7 +44,7 @@ export function LayoutTableRowMenu({
   anchorEl: HTMLElement | undefined;
   layout: Layout;
   handleMenuClose: () => void;
-  handleOpenDialog: (type: "rename" | "copy", layout: Layout) => void;
+  handleOpenDialog: (type: "rename" | "copy" | "move", layout: Layout) => void;
   onDeleteLayout: (layout: Layout) => void;
   onExportLayout: (layout: Layout) => void;
 }): React.JSX.Element {
@@ -61,6 +61,10 @@ export function LayoutTableRowMenu({
 
   const openCopyDialog = useCallback(() => {
     handleOpenDialog("copy", layout);
+  }, [layout, handleOpenDialog]);
+
+  const openMoveDialog = useCallback(() => {
+    handleOpenDialog("move", layout);
   }, [layout, handleOpenDialog]);
 
   const confirmDelete = useCallback(() => {
@@ -111,6 +115,14 @@ export function LayoutTableRowMenu({
       text: t("copy"),
       "data-testid": "copy-layout",
       onClick: openCopyDialog,
+    },
+    {
+      type: "item",
+      key: "move",
+      text: t("moveToFolder"),
+      "data-testid": "move-layout",
+      onClick: openMoveDialog,
+      disabled,
     },
     {
       type: "item",
