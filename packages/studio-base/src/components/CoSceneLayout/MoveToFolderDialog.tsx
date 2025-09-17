@@ -16,7 +16,6 @@ import {
   TextField,
 } from "@mui/material";
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -53,21 +52,41 @@ export function MoveToFolderDialog({
     return isProject ? projectFolders : personalFolders;
   }, [isProject, projectFolders, personalFolders]);
 
-  const [value, setValue] = useState({ value: "", isNewFolder: false });
   const options: { label: string; value: string; isNewFolder: boolean }[] = useMemo(() => {
     return [
-      { label: t("personalLayout"), value: "", isNewFolder: false },
-      ...folders.map((folder) => ({ label: folder, value: folder, isNewFolder: false })),
+      ...(layout.folder
+        ? [
+            {
+              label:
+                layout.permission === "PERSONAL_WRITE" ? t("personalLayout") : t("projectLayout"),
+              value: "",
+              isNewFolder: false,
+            },
+          ]
+        : []),
+      ...folders
+        .filter((folder) => folder !== layout.folder)
+        .map((folder) => ({ label: folder, value: folder, isNewFolder: false })),
       { label: t("createNewFolder"), value: "", isNewFolder: true },
     ];
-  }, [t, folders]);
+  }, [t, folders, layout.folder, layout.permission]);
 
-  const selectedOption = options.find(
-    (option) => option.isNewFolder === value.isNewFolder && option.value === value.value,
-  );
+  const [selectedOption, setSelectedOption] = useState<
+    { label: string; value: string; isNewFolder: boolean } | undefined
+  >();
+
+  const [newFolderValue, setNewFolderValue] = useState("");
 
   const onSubmit = () => {
-    onMoveLayout(layout, value.value);
+    console.log("submit", selectedOption, newFolderValue);
+
+    if (!selectedOption) {
+      return;
+    }
+
+    const finalValue = selectedOption.isNewFolder ? newFolderValue : selectedOption.value;
+    console.log("submit", finalValue);
+    onMoveLayout(layout, finalValue.trim());
     onClose();
   };
 
@@ -78,24 +97,22 @@ export function MoveToFolderDialog({
         <Stack gap={2}>
           <Autocomplete
             options={options}
-            value={selectedOption ?? null} // eslint-disable-line no-restricted-syntax
+            value={selectedOption}
             onChange={(_, option) => {
-              setValue({
-                value: option?.value ?? "",
-                isNewFolder: option?.isNewFolder ?? false,
-              });
+              setSelectedOption(option ?? undefined);
+              // If switching to an existing folder, update the new folder value to match
+              if (option?.isNewFolder === false) {
+                setNewFolderValue("");
+              }
             }}
             renderInput={(params) => <TextField {...params} label={t("folder")} />}
           />
-          {value.isNewFolder && (
+          {selectedOption?.isNewFolder === true && (
             <TextField
               label={t("folder")}
-              value={value.value}
+              value={newFolderValue}
               onChange={(e) => {
-                setValue({
-                  value: e.target.value,
-                  isNewFolder: true,
-                });
+                setNewFolderValue(e.target.value);
               }}
             />
           )}
@@ -105,7 +122,14 @@ export function MoveToFolderDialog({
         <Button variant="outlined" onClick={onClose}>
           {t("cancel", { ns: "cosGeneral" })}
         </Button>
-        <Button disabled={value.value === ""} variant="contained" onClick={onSubmit}>
+        <Button
+          disabled={
+            selectedOption == undefined ||
+            (selectedOption.isNewFolder && newFolderValue.trim() === "")
+          }
+          variant="contained"
+          onClick={onSubmit}
+        >
           {t("ok", { ns: "cosGeneral" })}
         </Button>
       </DialogActions>
