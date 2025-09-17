@@ -116,6 +116,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#maxCacheSize = maxCacheSize;
     this.#currentSessionId = sessionId;
 
+    log.debug("Opening database", { dbName: DB_NAME, sessionId });
     this.#dbPromise = IDB.openDB<MessagesDB>(DB_NAME, 1, {
       upgrade(db) {
         const store = db.createObjectStore(STORE, {
@@ -140,6 +141,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
     void this.#dbPromise
       .then(async () => {
+        // Clean up old sessions (older than 3 days) before initializing current session
+        await this.#cleanupOldSessions();
+
         // Record current session creation time
         await this.#recordSessionCreation();
 
@@ -197,7 +201,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   }
 
   // Clean up sessions older than 3 days
-  public async cleanupOldSessions(): Promise<void> {
+  async #cleanupOldSessions(): Promise<void> {
     const cutoffTime = Date.now() - THREE_DAYS_MS;
 
     try {
@@ -639,7 +643,6 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     await this.#cleanupSessionData(this.#currentSessionId);
     this.#seqBySession.delete(this.#currentSessionId);
     this.#messageCount = 0; // Reset message count for current session
-    log.debug("cleared session: ", { sessionId: this.#currentSessionId });
   }
 
   public async clearAll(): Promise<void> {

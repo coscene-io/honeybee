@@ -177,6 +177,8 @@ function parseNalUnit(
   // Get NAL unit type (lower 5 bits)
   const nalType = frame[nalStart]! & 0x1f;
 
+  log.debug(`NAL Type: ${nalType} at position: ${nalStart}`);
+
   // Determine based on NAL unit type
   if (nalType === 5) {
     // IDR frames are always key frames
@@ -265,11 +267,15 @@ function isKeyFrame(frame: Uint8Array): "key" | "delta" | "b frame" | "unknown f
 
     if (result != undefined) {
       // Found definitive frame type
+      log.debug(`Frame type determined after ${searchAttempts} NAL unit(s)`);
       return result;
     }
 
     // Need to check next NAL unit
     nalStart = findNextNalStart(frame, nalStart + 1);
+    log.debug(
+      `Next NAL start at: ${nalStart} (attempt ${searchAttempts}/${MAX_NAL_SEARCH_ATTEMPTS})`,
+    );
   }
 
   // Safety mechanism triggered or traversed all NAL units without finding definitive frame type
@@ -317,6 +323,8 @@ function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void 
   let type: "delta" | "key" | "unknown frame" | "b frame" = "delta";
   if (data.length > 4) {
     type = isKeyFrame(data as Uint8Array);
+    log.debug("Frame data:", data.slice(0, 10)); // Only log first 10 bytes
+    log.debug("Detected frame type:", type);
   }
 
   if (type === "key" && !foundKeyFrame) {

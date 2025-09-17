@@ -202,6 +202,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #persistentCache?: PersistentMessageCache;
   /** Whether to enable persistent caching */
   #enablePersistentCache: boolean = true;
+  #retentionWindowMs?: number;
   #serverTime?: Time;
 
   public constructor({
@@ -248,16 +249,33 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#enablePersistentCache = enablePersistentCache ?? true;
 
     // Initialize persistent cache if enabled
-    if (this.#enablePersistentCache && retentionWindowMs != undefined && retentionWindowMs > 0) {
+    if (this.#enablePersistentCache) {
       try {
+        this.#retentionWindowMs = retentionWindowMs ?? 5 * 60 * 1000; // 5 minutes
         this.#persistentCache = new IndexedDbMessageStore({
-          retentionWindowMs,
+          retentionWindowMs: this.#retentionWindowMs, // 5 minutes
           sessionId: sessionId ?? `websocket-${this.#id}`,
         });
-        void this.#persistentCache.init().catch((error: unknown) => {
-          log.warn("Failed to initialize persistent cache:", error);
-          this.#persistentCache = undefined;
-        });
+        void this.#persistentCache
+          .init()
+          .then(() => {
+            // if retentionWindowMs is 0, close persistentCache when Old Sessions are cleaned up
+            if (retentionWindowMs === 0) {
+              void this.#persistentCache
+                ?.close()
+                .then(() => {
+                  this.#persistentCache = undefined;
+                })
+                .catch((error: unknown) => {
+                  log.warn("Failed to close persistent cache:", error);
+                  this.#persistentCache = undefined;
+                });
+            }
+          })
+          .catch((error: unknown) => {
+            log.warn("Failed to initialize persistent cache:", error);
+            this.#persistentCache = undefined;
+          });
       } catch (error) {
         log.warn("Failed to create persistent cache:", error);
         this.#persistentCache = undefined;
@@ -783,7 +801,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this.#parsedMessages.push(messageEvent);
 
         // Persist message to cache asynchronously (non-blocking)
-        if (this.#persistentCache) {
+        if (
+          this.#persistentCache &&
+          this.#retentionWindowMs != undefined &&
+          this.#retentionWindowMs > 0
+        ) {
           void this.#persistentCache.append([messageEvent]).catch((error: unknown) => {
             // Don't let cache errors affect real-time visualization
             log.debug("Failed to persist message to cache:", error);

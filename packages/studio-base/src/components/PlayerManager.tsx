@@ -59,7 +59,6 @@ import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
-import { IndexedDbMessageStore } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import {
   TopicAliasFunctions,
@@ -153,21 +152,6 @@ function useBeforeConnectionSource(): (
   );
 
   return beforeConnectionSource;
-}
-
-async function clearIdbCache(sessionId?: string) {
-  try {
-    const idbCache = new IndexedDbMessageStore({
-      sessionId,
-    });
-    if (sessionId != undefined) {
-      await idbCache.clear();
-    }
-    await idbCache.cleanupOldSessions();
-    await idbCache.close();
-  } catch (error) {
-    log.error("Failed to clear idb cache:", error);
-  }
 }
 
 export default function PlayerManager(
@@ -265,7 +249,6 @@ export default function PlayerManager(
   const projectState = useCoreData(selectProject);
   const jobRunState = useCoreData(selectJobRun);
   const dataSourceState = useCoreData(selectDataSource);
-  const setDataSource = useCoreData(selectSetDataSource);
 
   const recordDisplayName = useMemo(() => {
     return recordState.value?.title ?? "";
@@ -300,6 +283,8 @@ export default function PlayerManager(
   const { enqueueSnackbar } = useSnackbar();
 
   const [selectedSource, setSelectedSource] = useState<IDataSourceFactory | undefined>();
+
+  const setDataSource = useCoreData(selectSetDataSource);
 
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
 
@@ -360,11 +345,9 @@ export default function PlayerManager(
       }
 
       setCurrentSourceArgs(args);
-
       try {
         switch (args.type) {
           case "connection": {
-            await clearIdbCache(dataSourceState?.sessionId);
             const params: Record<string, string | undefined> = {
               ...args.params,
             };
@@ -442,7 +425,6 @@ export default function PlayerManager(
           }
 
           case "file": {
-            void clearIdbCache(dataSourceState?.sessionId);
             setCurrentSourceParams({ sourceId, args });
 
             const handle = args.handle;
