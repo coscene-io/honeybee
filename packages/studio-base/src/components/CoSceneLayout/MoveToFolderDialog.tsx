@@ -78,14 +78,11 @@ export function MoveToFolderDialog({
   const [newFolderValue, setNewFolderValue] = useState("");
 
   const onSubmit = () => {
-    console.log("submit", selectedOption, newFolderValue);
-
     if (!selectedOption) {
       return;
     }
 
     const finalValue = selectedOption.isNewFolder ? newFolderValue : selectedOption.value;
-    console.log("submit", finalValue);
     onMoveLayout(layout, finalValue.trim());
     onClose();
   };
