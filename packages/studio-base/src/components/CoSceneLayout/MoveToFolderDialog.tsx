@@ -94,7 +94,7 @@ export function MoveToFolderDialog({
         <Stack gap={2}>
           <Autocomplete
             options={options}
-            value={selectedOption}
+            value={selectedOption ?? null} // eslint-disable-line no-restricted-syntax
             onChange={(_, option) => {
               setSelectedOption(option ?? undefined);
               // If switching to an existing folder, update the new folder value to match
@@ -108,6 +108,7 @@ export function MoveToFolderDialog({
             <TextField
               label={t("folder")}
               value={newFolderValue}
+              slotProps={{ htmlInput: { maxLength: 60 } }}
               onChange={(e) => {
                 setNewFolderValue(e.target.value);
               }}
