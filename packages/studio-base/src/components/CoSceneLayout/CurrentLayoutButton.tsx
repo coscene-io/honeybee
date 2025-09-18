@@ -156,7 +156,7 @@ export function CurrentLayoutButton({
       onClick={onClick}
       disabled={loading}
     >
-      <Stack direction="row" alignItems="center" gap={0.5}>
+      <Stack direction="row" alignItems="center" gap={1}>
         <div className={classes.subIcon}>{getSubIcon()}</div>
         <div className={classes.textTruncate}>
           <TextMiddleTruncate text={getDisplayText()} />

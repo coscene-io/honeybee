@@ -95,13 +95,13 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
   layoutNameBox: {
-    display: "flex",
-    alignItems: "center",
-    gap: 1,
     flex: 1,
     minWidth: 0,
     overflow: "hidden",
     textOverflow: "ellipsis",
+    "& svg": {
+      color: theme.palette.text.secondary,
+    },
   },
   folderItem: {
     paddingLeft: theme.spacing(4),
