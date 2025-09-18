@@ -94,6 +94,15 @@ const useStyles = makeStyles()((theme) => ({
       fontSize: "1rem",
     },
   },
+  layoutNameBox: {
+    display: "flex",
+    alignItems: "center",
+    gap: 1,
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
   folderItem: {
     paddingLeft: theme.spacing(4),
   },
@@ -339,6 +348,7 @@ export function CoSceneLayoutContent({
                 display="flex"
                 alignItems="center"
                 gap={1}
+                className={classes.layoutNameBox}
                 onClick={() => {
                   setSelectedFolder({ category, folder: name });
                 }}
@@ -351,7 +361,7 @@ export function CoSceneLayoutContent({
             );
           }
           return (
-            <Box display="flex" alignItems="center" gap={1}>
+            <Box display="flex" alignItems="center" gap={1} className={classes.layoutNameBox}>
               {layout.permission === "PERSONAL_WRITE" ? (
                 <PersonOutlinedIcon fontSize="small" />
               ) : (
