@@ -268,7 +268,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
       if (layoutIsProject(item)) {
         const response = await confirm({
-          title: `${t("update")} " ${item.name}"?`,
+          title: `${t("update")} "${item.name}"?`,
           prompt: t("updateRemoteLayoutConfirm"),
           ok: t("save", {
             ns: "cosGeneral",
