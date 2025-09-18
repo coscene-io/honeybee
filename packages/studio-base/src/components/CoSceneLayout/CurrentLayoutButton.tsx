@@ -4,8 +4,12 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-
-import { Button, ButtonBase, Typography } from "@mui/material";
+import {
+  PersonOutlined as PersonOutlinedIcon,
+  BusinessCenterOutlined as BusinessCenterOutlinedIcon,
+  SpaceDashboardOutlined as SpaceDashboardOutlinedIcon,
+} from "@mui/icons-material";
+import { Button, ButtonBase } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -22,13 +26,11 @@ import {
 
 const useStyles = makeStyles()((theme) => ({
   textTruncate: {
-    maxWidth: "18vw",
+    maxWidth: "240px",
     overflow: "hidden",
     color: theme.palette.text.primary,
   },
-  subheader: {
-    fontSize: 8,
-    opacity: 0.6,
+  subIcon: {
     color: theme.palette.text.secondary,
   },
   layoutButton: {
@@ -94,17 +96,14 @@ export function CurrentLayoutButton({
     return currentLayout.name;
   };
 
-  const getSubheader = () => {
-    if (loading === true) {
-      return undefined;
-    }
+  const getSubIcon = () => {
     if (currentLayout?.permission === "PERSONAL_WRITE") {
-      return t("personalLayout");
+      return <PersonOutlinedIcon fontSize="small" />;
     }
     if (currentLayout && layoutIsProject(currentLayout)) {
-      return t("projectLayout");
+      return <BusinessCenterOutlinedIcon fontSize="small" />;
     }
-    return t("layout");
+    return <SpaceDashboardOutlinedIcon fontSize="small" />;
   };
 
   const handleOverwrite = useCallback(
@@ -157,12 +156,8 @@ export function CurrentLayoutButton({
       onClick={onClick}
       disabled={loading}
     >
-      <Stack alignItems="flex-start">
-        {getSubheader() && (
-          <Typography variant="overline" className={classes.subheader}>
-            {getSubheader()}
-          </Typography>
-        )}
+      <Stack direction="row" alignItems="center" gap={0.5}>
+        <div className={classes.subIcon}>{getSubIcon()}</div>
         <div className={classes.textTruncate}>
           <TextMiddleTruncate text={getDisplayText()} />
         </div>

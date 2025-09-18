@@ -10,7 +10,7 @@ import {
   FolderOutlined as FolderOutlinedIcon,
   PersonOutlined as PersonOutlinedIcon,
   Search as SearchIcon,
-  Dashboard as DashboardIcon,
+  SpaceDashboardOutlined as SpaceDashboardOutlinedIcon,
   PlayArrow as PlayArrowIcon,
   Equalizer as EqualizerIcon,
   MoreVert as MoreVertIcon,
@@ -495,6 +495,7 @@ export function CoSceneLayoutContent({
       onOverwriteLayout,
       onRevertLayout,
       handleMenuOpen,
+      classes.layoutNameBox,
     ],
   );
 
@@ -507,7 +508,7 @@ export function CoSceneLayoutContent({
     {
       category: "all",
       label: t("allLayout"),
-      icon: <DashboardIcon />,
+      icon: <SpaceDashboardOutlinedIcon />,
     },
     {
       category: "personal",
