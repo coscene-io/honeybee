@@ -245,7 +245,7 @@ export function CoSceneLayoutContent({
         l.name.toLowerCase().includes(searchQuery.toLowerCase().trim()),
       );
     } else {
-      if (selectedFolder.folder) {
+      if (selectedFolder.category !== "all") {
         filtered = filtered.filter((l) => l.folder === selectedFolder.folder);
       }
 
