@@ -268,7 +268,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
       if (layoutIsProject(item)) {
         const response = await confirm({
-          title: `${t("update")} " ${item.name}"?`,
+          title: `${t("update")} "${item.name}"?`,
           prompt: t("updateRemoteLayoutConfirm"),
           ok: t("save", {
             ns: "cosGeneral",
@@ -294,10 +294,23 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         return;
       }
 
+      const response = await confirm({
+        variant: "danger",
+        title: `${t("revert")} "${item.name}"?`,
+        prompt: t("revertLayoutConfirm"),
+        ok: t("discardChanges"),
+        cancel: t("cancel", {
+          ns: "cosGeneral",
+        }),
+      });
+      if (response !== "ok") {
+        return;
+      }
+
       await layoutManager.revertLayout({ id: item.id });
       void analytics.logEvent(AppEvent.LAYOUT_REVERT, { permission: item.permission });
     },
-    [analytics, dispatch, layoutManager, state.selectedIds.length],
+    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length, t],
   );
 
   const onCreateLayout = useCallbackWithToast(

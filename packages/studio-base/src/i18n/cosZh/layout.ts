@@ -53,7 +53,7 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   projectRecommandedLayout: "项目推荐布局",
   recordDefaultLayout: "记录推荐布局",
   update: "更新",
-  updateRemoteLayoutConfirm: "此操作将会覆盖远程布局，是否继续？",
+  updateRemoteLayoutConfirm: "您的更改将覆盖此远程布局，所有项目成员都会受到影响。此操作无法撤销。",
   notLayoutDesc: "您当前没有选择布局",
   createNewLayout: "创建新布局",
   publicLayouts: "公开布局",
@@ -83,4 +83,6 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   noData: "暂无布局数据",
   allLayout: "所有布局",
   moveToFolder: "移动到文件夹",
+  revertLayoutConfirm: "您的更改将被永久丢弃。此操作无法撤销。",
+  discardChanges: "放弃更改",
 };

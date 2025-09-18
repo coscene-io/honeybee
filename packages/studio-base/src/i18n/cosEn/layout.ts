@@ -54,7 +54,7 @@ export const cosLayout = {
   recordDefaultLayout: "Record preferred",
   update: "Update",
   updateRemoteLayoutConfirm:
-    "Your changes will overwrite this layout for all organization members. This cannot be undone.",
+    "Your changes will overwrite this remote layout for all project members. This cannot be undone.",
   notLayoutDesc: "You don't currently have a layout selected.",
   createNewLayout: "Create a new layout",
   publicLayouts: "Public layouts",
@@ -84,4 +84,6 @@ export const cosLayout = {
   noData: "No layout data",
   allLayout: "All layouts",
   moveToFolder: "Move to folder",
+  revertLayoutConfirm: "Your changes will be permanently discarded. This cannot be undone.",
+  discardChanges: "Discard changes",
 };
