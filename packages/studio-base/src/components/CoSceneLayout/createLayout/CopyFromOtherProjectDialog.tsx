@@ -117,7 +117,10 @@ export function CopyFromOtherProjectDialog({
               <ProjectLayoutSelector
                 key={projectName}
                 projectName={projectName}
-                onChange={field.onChange}
+                onChange={(data, name) => {
+                  field.onChange(data);
+                  form.setValue("name", name ?? "");
+                }}
                 error={!!fieldState.error}
               />
             )}
