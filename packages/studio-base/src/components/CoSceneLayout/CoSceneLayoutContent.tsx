@@ -344,7 +344,9 @@ export function CoSceneLayoutContent({
                 }}
               >
                 <FolderOutlinedIcon fontSize="small" />
-                <Typography variant="body2">{name}</Typography>
+                <Typography variant="body2" noWrap textOverflow="ellipsis">
+                  {name}
+                </Typography>
               </Box>
             );
           }
@@ -355,7 +357,9 @@ export function CoSceneLayoutContent({
               ) : (
                 <BusinessCenterOutlinedIcon fontSize="small" />
               )}
-              <Typography variant="body2">{layout.name}</Typography>
+              <Typography variant="body2" noWrap textOverflow="ellipsis">
+                {layout.name}
+              </Typography>
             </Box>
           );
         },
@@ -556,7 +560,15 @@ export function CoSceneLayoutContent({
                         <ListItemIcon className={classes.listItemIcon}>
                           <FolderOutlinedIcon />
                         </ListItemIcon>
-                        <ListItemText primary={folder} />
+                        <ListItemText
+                          primary={folder}
+                          slotProps={{
+                            primary: {
+                              noWrap: true,
+                              textOverflow: "ellipsis",
+                            },
+                          }}
+                        />
                       </ListItemButton>
                     </ListItem>
                   ))}
