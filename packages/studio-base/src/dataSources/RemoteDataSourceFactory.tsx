@@ -18,7 +18,9 @@ import {
   WorkerSerializedIterableSource,
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+
+const domainConfig = getDomainConfig();
 
 const initWorkers: Record<string, () => Worker> = {
   ".bag": () => {
@@ -82,11 +84,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
   public warning = (
     <>
       {t("openDialog:loadingLargeFilesOverHttpCanBeSlow")}
-      <Button
-        href={`https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}`}
-        target="_blank"
-        variant="text"
-      >
+      <Button href={`https://${domainConfig.webDomain}`} target="_blank" variant="text">
         {t("openDialog:coSceneDataPlatform")}
       </Button>
       .

@@ -35,9 +35,10 @@ import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 const ICON_SIZE = 18;
+const domainConfig = getDomainConfig();
 
 const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes) => ({
   sourceName: {
@@ -362,8 +363,8 @@ const RealTimeVizDataSource = () => {
               >
                 <Link
                   href={
-                    APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
-                      ? `https://${APP_CONFIG.DOMAIN_CONFIG.default.webDomain}/${organizationSlug}/${projectSlug}`
+                    domainConfig.webDomain
+                      ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
                       : "#"
                   }
                   target="_blank"
@@ -382,9 +383,7 @@ const RealTimeVizDataSource = () => {
           <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
             <Link
               href={
-                APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
-                  ? `https://${APP_CONFIG.DOMAIN_CONFIG.default.webDomain}/${deviceLink}`
-                  : "#"
+                domainConfig.webDomain ? `https://${domainConfig.webDomain}/${deviceLink}` : "#"
               }
               target="_blank"
               underline="hover"
@@ -419,7 +418,7 @@ const DataPlatformSource = () => {
   const projectHref =
     process.env.NODE_ENV === "development"
       ? `https://dev.coscene.cn/${organizationSlug}/${projectSlug}`
-      : `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${organizationSlug}/${projectSlug}`;
+      : `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`;
 
   const secondaryHref = `${projectHref}/records/${recordId}`;
 

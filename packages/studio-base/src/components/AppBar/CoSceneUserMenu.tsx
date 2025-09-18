@@ -32,7 +32,7 @@ import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectio
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { APP_CONFIG, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import {
   downloadLatestStudio,
   getCoStudioVersion,
@@ -41,6 +41,8 @@ import {
 } from "@foxglove/studio-base/util/download";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+
+const domainConfig = getDomainConfig();
 
 const useStyles = makeStyles()(() => ({
   menuList: {
@@ -219,9 +221,7 @@ export function UserMenu({
           <MenuItem
             onClick={() => {
               if (isDesktop && loginStatus === "notLogin") {
-                window.open(
-                  `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/studio/login`,
-                );
+                window.open(`https://${domainConfig.webDomain}/studio/login`);
               } else {
                 onSignoutClick();
               }
