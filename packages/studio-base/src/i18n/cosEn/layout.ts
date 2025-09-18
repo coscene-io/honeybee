@@ -84,4 +84,6 @@ export const cosLayout = {
   noData: "No layout data",
   allLayout: "All layouts",
   moveToFolder: "Move to folder",
+  revertLayoutConfirm: "Your changes will be permanently discarded. This cannot be undone.",
+  discardChanges: "Discard changes",
 };

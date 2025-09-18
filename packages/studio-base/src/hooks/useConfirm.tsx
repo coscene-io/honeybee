@@ -86,9 +86,9 @@ function ConfirmModal(props: ConfirmModalProps) {
       {props.ok ?? "OK"}
     </Button>,
   ];
-  if (props.variant === "danger") {
-    buttons.reverse();
-  }
+  // if (props.variant === "danger") {
+  //   buttons.reverse();
+  // }
 
   // Toast variant - positioned at top right
   if (props.variant === "toast") {
