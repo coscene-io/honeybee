@@ -154,7 +154,7 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: 0,
   },
   gridContainer: {
-    height: "calc(100vh - 190px)",
+    height: "calc(100vh - 230px)",
     width: "100%",
   },
 }));
