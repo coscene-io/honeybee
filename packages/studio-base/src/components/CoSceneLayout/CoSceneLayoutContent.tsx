@@ -10,7 +10,7 @@ import {
   FolderOutlined as FolderOutlinedIcon,
   PersonOutlined as PersonOutlinedIcon,
   Search as SearchIcon,
-  Dashboard as DashboardIcon,
+  SpaceDashboardOutlined as SpaceDashboardOutlinedIcon,
   PlayArrow as PlayArrowIcon,
   Equalizer as EqualizerIcon,
   MoreVert as MoreVertIcon,
@@ -94,6 +94,15 @@ const useStyles = makeStyles()((theme) => ({
       fontSize: "1rem",
     },
   },
+  layoutNameBox: {
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    "& svg": {
+      color: theme.palette.text.secondary,
+    },
+  },
   folderItem: {
     paddingLeft: theme.spacing(4),
   },
@@ -145,7 +154,7 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: 0,
   },
   gridContainer: {
-    height: "calc(100vh - 190px)",
+    height: "calc(100vh - 230px)",
     width: "100%",
   },
 }));
@@ -245,7 +254,7 @@ export function CoSceneLayoutContent({
         l.name.toLowerCase().includes(searchQuery.toLowerCase().trim()),
       );
     } else {
-      if (selectedFolder.folder) {
+      if (selectedFolder.category !== "all") {
         filtered = filtered.filter((l) => l.folder === selectedFolder.folder);
       }
 
@@ -339,23 +348,28 @@ export function CoSceneLayoutContent({
                 display="flex"
                 alignItems="center"
                 gap={1}
+                className={classes.layoutNameBox}
                 onClick={() => {
                   setSelectedFolder({ category, folder: name });
                 }}
               >
                 <FolderOutlinedIcon fontSize="small" />
-                <Typography variant="body2">{name}</Typography>
+                <Typography variant="body2" noWrap textOverflow="ellipsis">
+                  {name}
+                </Typography>
               </Box>
             );
           }
           return (
-            <Box display="flex" alignItems="center" gap={1}>
+            <Box display="flex" alignItems="center" gap={1} className={classes.layoutNameBox}>
               {layout.permission === "PERSONAL_WRITE" ? (
                 <PersonOutlinedIcon fontSize="small" />
               ) : (
                 <BusinessCenterOutlinedIcon fontSize="small" />
               )}
-              <Typography variant="body2">{layout.name}</Typography>
+              <Typography variant="body2" noWrap textOverflow="ellipsis">
+                {layout.name}
+              </Typography>
             </Box>
           );
         },
@@ -481,6 +495,7 @@ export function CoSceneLayoutContent({
       onOverwriteLayout,
       onRevertLayout,
       handleMenuOpen,
+      classes.layoutNameBox,
     ],
   );
 
@@ -493,7 +508,7 @@ export function CoSceneLayoutContent({
     {
       category: "all",
       label: t("allLayout"),
-      icon: <DashboardIcon />,
+      icon: <SpaceDashboardOutlinedIcon />,
     },
     {
       category: "personal",
@@ -556,7 +571,15 @@ export function CoSceneLayoutContent({
                         <ListItemIcon className={classes.listItemIcon}>
                           <FolderOutlinedIcon />
                         </ListItemIcon>
-                        <ListItemText primary={folder} />
+                        <ListItemText
+                          primary={folder}
+                          slotProps={{
+                            primary: {
+                              noWrap: true,
+                              textOverflow: "ellipsis",
+                            },
+                          }}
+                        />
                       </ListItemButton>
                     </ListItem>
                   ))}

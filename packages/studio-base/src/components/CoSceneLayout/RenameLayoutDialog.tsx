@@ -61,7 +61,13 @@ export function RenameLayoutDialog({
               required: true,
             }}
             render={({ field }) => (
-              <TextField autoFocus required label={t("layoutName")} {...field} />
+              <TextField
+                autoFocus
+                required
+                label={t("layoutName")}
+                slotProps={{ htmlInput: { maxLength: 60 } }}
+                {...field}
+              />
             )}
           />
         </Stack>
