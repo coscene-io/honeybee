@@ -35,6 +35,12 @@ const useStyles = makeStyles()((theme) => ({
     flex: 1,
     overflow: "hidden",
   },
+  drawer: {
+    "& .MuiDrawer-paper": {
+      top: "44px",
+      height: "calc(100% - 44px)",
+    },
+  },
 }));
 
 interface CoSceneLayoutDrawerProps extends DrawerProps {
@@ -76,7 +82,17 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
   } = props;
 
   return (
-    <Drawer anchor="right" open={open} onClose={onClose}>
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
+      className={classes.drawer}
+      ModalProps={{
+        BackdropProps: {
+          style: { opacity: 0 },
+        },
+      }}
+    >
       <Box className={classes.drawerContainer}>
         <Box className={classes.header}>
           <Typography variant="h6">{t("layout")}</Typography>

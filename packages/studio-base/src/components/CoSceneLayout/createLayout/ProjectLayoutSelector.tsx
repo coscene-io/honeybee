@@ -15,7 +15,7 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 
 interface LayoutSelectorProps {
   projectName: string;
-  onChange: (data?: LayoutData) => void;
+  onChange: (data?: LayoutData, name?: string) => void;
   error?: boolean;
 }
 
@@ -39,19 +39,19 @@ export function ProjectLayoutSelector({
   }, [projectName, consoleApi]);
 
   const getProjectLayout = useCallback(
-    async (layoutName?: string) => {
+    async (layoutName?: string, displayName?: string) => {
       if (!layoutName) {
-        onChange(undefined);
+        onChange(undefined, undefined);
         return;
       }
 
       try {
         const result = await consoleApi.getProjectLayout({ name: layoutName });
         const data = result.data?.toJson() as LayoutData;
-        onChange(data);
+        onChange(data, displayName);
       } catch (error) {
         console.error(error);
-        onChange(undefined);
+        onChange(undefined, undefined);
       }
 
       return;
@@ -63,7 +63,7 @@ export function ProjectLayoutSelector({
     <Autocomplete
       options={options.value ?? []}
       onChange={(_event, option) => {
-        void getProjectLayout(option?.value);
+        void getProjectLayout(option?.value, option?.label);
       }}
       renderInput={(params) => (
         <TextField required {...params} label={t("layoutToCopy")} error={error} />

@@ -88,6 +88,7 @@ export function CreateBlankLayoutDialog({
                 helperText={fieldState.error?.message}
                 required
                 label={t("layoutName")}
+                slotProps={{ htmlInput: { maxLength: 60 } }}
                 {...field}
               />
             )}

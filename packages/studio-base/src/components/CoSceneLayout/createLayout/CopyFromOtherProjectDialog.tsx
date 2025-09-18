@@ -117,7 +117,10 @@ export function CopyFromOtherProjectDialog({
               <ProjectLayoutSelector
                 key={projectName}
                 projectName={projectName}
-                onChange={field.onChange}
+                onChange={(data, name) => {
+                  field.onChange(data);
+                  form.setValue("name", name ?? "");
+                }}
                 error={!!fieldState.error}
               />
             )}
@@ -135,6 +138,7 @@ export function CopyFromOtherProjectDialog({
                 helperText={fieldState.error?.message}
                 required
                 label={t("layoutName")}
+                slotProps={{ htmlInput: { maxLength: 60 } }}
                 {...field}
               />
             )}

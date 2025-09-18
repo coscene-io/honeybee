@@ -47,6 +47,7 @@ export function SelectFolder({
       {value.isNewFolder && (
         <TextField
           label={t("folder")}
+          slotProps={{ htmlInput: { maxLength: 60 } }}
           value={value.value}
           onChange={(e) => {
             onChange({
