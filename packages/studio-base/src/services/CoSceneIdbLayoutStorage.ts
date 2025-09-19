@@ -130,6 +130,10 @@ export class IdbLayoutStorage implements ILayoutStorage {
 
     try {
       for await (const cursor of store.index("namespace").iterate(fromNamespace)) {
+        if (cursor.value.layout.parent === "local") {
+          cursor.value.layout.parent = `users/${toNamespace}`;
+        }
+
         await store.put({ namespace: toNamespace, layout: cursor.value.layout });
         await cursor.delete();
       }
