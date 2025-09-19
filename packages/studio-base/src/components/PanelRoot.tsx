@@ -101,9 +101,9 @@ const useStyles = makeStyles<Omit<PanelRootProps, "fullscreenState" | "selected"
       bottom: 0,
       // "z-index: 1" makes panel drag & drop work more reliably (see
       // https://github.com/foxglove/studio/pull/3355), but it also makes fullscreen panels get
-      // overlapped by other parts of the panel layout. So we turn it back to auto when a
-      // descendant is fullscreen.
-      zIndex: hasFullscreenDescendant ? "auto" : 1,
+      // overlapped by other parts of the panel layout. When a descendant is fullscreen we elevate
+      // this container so siblings (including tabs) cannot draw on top of the fullscreen panel.
+      zIndex: hasFullscreenDescendant ? 9999 : 1,
     },
   };
 });

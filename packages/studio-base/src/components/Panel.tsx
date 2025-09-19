@@ -614,6 +614,7 @@ export default function Panel<
             exitFullscreen,
             setHasFullscreenDescendant,
             isFullscreen: fullscreen,
+            hasFullscreenDescendant,
             tabId,
             // disallow dragging the root panel in a layout
             connectToolbarDragHandle: isTopLevelPanel ? undefined : connectToolbarDragHandle,

@@ -69,7 +69,7 @@ const useStyles = makeStyles()((theme) => ({
 type Props = { config: Config; saveConfig: SaveConfig<Config> };
 
 function Tab({ config, saveConfig }: Props) {
-  const panelId = usePanelContext().id;
+  const { id: panelId, hasFullscreenDescendant } = usePanelContext();
   const { classes } = useStyles();
 
   const { tabs, activeTabIdx } = config;
@@ -145,13 +145,15 @@ function Tab({ config, saveConfig }: Props) {
 
   return (
     <Stack flex="auto" overflow="hidden">
-      <TabbedToolbar
-        panelId={panelId}
-        tabs={tabs}
-        actions={actions}
-        activeTabIdx={activeTabIdx}
-        setDraggingTabState={setDraggingTabState}
-      />
+      {!hasFullscreenDescendant && (
+        <TabbedToolbar
+          panelId={panelId}
+          tabs={tabs}
+          actions={actions}
+          activeTabIdx={activeTabIdx}
+          setDraggingTabState={setDraggingTabState}
+        />
+      )}
       <Stack direction="row" flex="auto" overflow="hidden" position="relative">
         {/* Show EmptyPanelLayout when there are no tabs */}
         {tabs.length === 0 ? (
