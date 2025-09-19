@@ -72,9 +72,31 @@ export type LayoutHistory = {
 
 export interface ILayoutStorage {
   list(namespace: string): Promise<readonly Layout[]>;
+  listByParent(namespace: string, parent: string): Promise<readonly Layout[]>;
   get(namespace: string, id: LayoutID): Promise<Layout | undefined>;
   put(namespace: string, layout: Layout): Promise<Layout>;
   delete(namespace: string, id: LayoutID): Promise<void>;
+
+  /**
+   * If applicable, the layout manager will call this method to migrate any old existing local
+   * layouts into the new namespace used for local layouts.
+   */
+  migrateUnnamespacedLayouts?(namespace: string): Promise<void>;
+
+  /**
+   * The layout manager will call this method to convert any local layouts to personal layouts when logging in.
+   */
+  importLayouts(params: { fromNamespace: string; toNamespace: string }): Promise<void>;
+
+  getHistory(namespace: string, parent: string): Promise<Layout | undefined>;
+  putHistory(namespace: string, history: LayoutHistory): Promise<LayoutHistory>;
+}
+
+export interface ILayoutStorageCache {
+  list(namespace: string, parents: string[]): Promise<readonly Layout[]>;
+  get(namespace: string, parents: string[], id: LayoutID): Promise<Layout | undefined>;
+  put(namespace: string, parents: string[], layout: Layout): Promise<Layout>;
+  delete(namespace: string, parents: string[], id: LayoutID): Promise<void>;
 
   /**
    * If applicable, the layout manager will call this method to migrate any old existing local
