@@ -17,8 +17,10 @@ import {
 } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
+
+const domainConfig = getDomainConfig();
 
 export const REALTIME_VISUALIZATION_PORT = 21274;
 
@@ -121,8 +123,9 @@ export function useVizTargetSource(): (
 
         const fullName = targetDevice.displayName;
 
-        const deviceLink = `https://${APP_CONFIG.DOMAIN_CONFIG.default
-          ?.webDomain}/${organizationSlug}/${projectSlug}/devices/project-devices/${targetDevice.name
+        const deviceLink = `https://${
+          domainConfig.webDomain
+        }/${organizationSlug}/${projectSlug}/devices/project-devices/${targetDevice.name
           .split("/")
           .pop()}`;
 

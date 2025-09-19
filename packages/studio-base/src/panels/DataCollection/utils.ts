@@ -13,7 +13,7 @@ import { TFunction } from "i18next";
 
 import { PanelExtensionContext } from "@foxglove/studio";
 import { ConsoleApi } from "@foxglove/studio-base/index";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { LOG_TIMESTAMP_FORMAT } from "./constants";
 import {
@@ -26,6 +26,8 @@ import {
   CreateDataCollectionTaskParams,
   ProjectState,
 } from "./types";
+
+const domainConfig = getDomainConfig();
 
 // 工具函数：生成进度文本
 export function generateProgressText(uploadedFiles: number, totalFiles: number): string {
@@ -57,7 +59,7 @@ export async function handleRecordLink({
   if (task.tags.recordName != undefined && showRecordLink) {
     addLog(
       `[${dayjs().format(LOG_TIMESTAMP_FORMAT)}] ${t("saveToRecord")}：https://${
-        APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+        domainConfig.webDomain
       }/${targetOrg.slug}/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
 
