@@ -220,8 +220,8 @@ export function createMessagePipelineStore({
                 };
               }
 
-              if (urdfStorage.checkUriNeedsCache(uri)) {
-                await urdfStorage.set(uri, fetchedUrdfFile.etag ?? "", fetchedUrdfFile.data);
+              if (urdfStorage.checkUriNeedsCache(uri) && fetchedUrdfFile.etag) {
+                await urdfStorage.set(uri, fetchedUrdfFile.etag, fetchedUrdfFile.data);
               }
 
               return fetchedUrdfFile;
