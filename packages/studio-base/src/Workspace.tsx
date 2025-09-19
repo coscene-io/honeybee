@@ -77,7 +77,7 @@ import { useHandleFiles } from "@foxglove/studio-base/hooks/useHandleFiles";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -85,6 +85,7 @@ import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 import useNativeAppMenuEvent from "./hooks/useNativeAppMenuEvent";
 
 const log = Logger.getLogger(__filename);
+const domainConfig = getDomainConfig();
 
 const useStyles = makeStyles()({
   container: {
@@ -367,11 +368,11 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     if (
       isDesktopApp() &&
       parsedUrl?.ds === "coscene-data-platform" &&
-      url.hostname !== APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
+      url.hostname !== domainConfig.webDomain
     ) {
       dialogActions.dataSource.close();
       setTimeout(() => {
-        toast.error(t("invalidDomain", { domain: APP_CONFIG.DOMAIN_CONFIG.default?.webDomain }));
+        toast.error(t("invalidDomain", { domain: domainConfig.webDomain }));
       }, 1000);
       return undefined;
     }
@@ -394,7 +395,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       toast.error(t("pleaseLoginFirst", { ns: "openDialog" }));
       setTimeout(() => {
         if (isDesktopApp()) {
-          window.open(`https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/studio/login`);
+          window.open(`https://${domainConfig.webDomain}/studio/login`);
         } else {
           // In web environment, navigate to login page with redirect
           window.location.href = `/login?redirectToPath=${encodeURIComponent(

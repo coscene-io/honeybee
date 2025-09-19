@@ -29,10 +29,12 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
 import { CreateEventForm, CreateTaskForm } from "./types";
+
+const domainConfig = getDomainConfig();
 
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
@@ -71,7 +73,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
   const projectName = `warehouses/${externalInitConfig?.warehouseId}/projects/${externalInitConfig?.projectId}`;
   const recordName = `warehouses/${externalInitConfig?.warehouseId}/projects/${externalInitConfig?.projectId}/records/${externalInitConfig?.recordId}`;
-  const fieldConfigurationUrl = `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/${organizationSlug}/${projectSlug}/manage/advanced-settings/custom-field/moment-custom-field`;
+  const fieldConfigurationUrl = `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}/manage/advanced-settings/custom-field/moment-custom-field`;
 
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
 

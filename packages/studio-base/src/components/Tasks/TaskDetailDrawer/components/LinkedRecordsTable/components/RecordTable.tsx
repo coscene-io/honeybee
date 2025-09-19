@@ -49,7 +49,9 @@ import { useVizTargetSource } from "@foxglove/studio-base/components/Tasks/TaskD
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+
+const domainConfig = getDomainConfig();
 
 // 扩展Footer组件的props接口
 declare module "@mui/x-data-grid" {
@@ -395,10 +397,9 @@ export default function RecordTable({
               variant="body2"
               onClick={() => {
                 window.open(
-                  `https://${APP_CONFIG.DOMAIN_CONFIG.default
-                    ?.webDomain}/${organizationSlug}/${projectSlug}/records/${params.row.name
-                    .split("/")
-                    .pop()}`,
+                  `https://${
+                    domainConfig.webDomain
+                  }/${organizationSlug}/${projectSlug}/records/${params.row.name.split("/").pop()}`,
                   "_blank",
                 );
               }}

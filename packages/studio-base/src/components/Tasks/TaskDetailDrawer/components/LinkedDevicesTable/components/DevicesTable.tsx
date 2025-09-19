@@ -42,7 +42,9 @@ import { ConvertCustomFieldValue } from "@foxglove/studio-base/components/Custom
 import { useVizTargetSource } from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/useSelectSource";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+
+const domainConfig = getDomainConfig();
 
 // 扩展Footer组件的props接口
 declare module "@mui/x-data-grid" {
@@ -334,8 +336,9 @@ export default function DevicesTable({
               variant="body2"
               onClick={() => {
                 window.open(
-                  `https://${APP_CONFIG.DOMAIN_CONFIG.default
-                    ?.webDomain}/${organizationSlug}/${projectSlug}/devices/project-devices/${params.row.name
+                  `https://${
+                    domainConfig.webDomain
+                  }/${organizationSlug}/${projectSlug}/devices/project-devices/${params.row.name
                     .split("/")
                     .pop()}`,
 
