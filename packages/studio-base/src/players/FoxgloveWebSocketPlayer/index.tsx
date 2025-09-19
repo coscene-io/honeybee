@@ -1479,17 +1479,20 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     const nextPreFetchAssetRequestId = ++this.#nextPreFetchAssetRequestId;
 
-    promise = new Promise<string>((resolve, reject) => {
-      this.#preFetchAssetRequests.set(nextPreFetchAssetRequestId, (response) => {
-        if (response.status === FetchAssetStatus.SUCCESS) {
-          resolve(response.etag ?? "");
-        } else {
-          reject(new Error(`Failed to pre-fetch asset: ${response.error}`));
-        }
-      });
+    promise = race([
+      new Promise<string>((resolve, reject) => {
+        this.#preFetchAssetRequests.set(nextPreFetchAssetRequestId, (response) => {
+          if (response.status === FetchAssetStatus.SUCCESS) {
+            resolve(response.etag ?? "");
+          } else {
+            reject(new Error(`Failed to pre-fetch asset: ${response.error}`));
+          }
+        });
 
-      this.#client?.preFetchAsset(uri, nextPreFetchAssetRequestId);
-    });
+        this.#client?.preFetchAsset(uri, nextPreFetchAssetRequestId);
+      }),
+      new Promise<string>((resolve) => setTimeout(resolve, 2000)),
+    ]);
 
     this.#preFetchedAssets.set(uri, promise);
     return await promise;
@@ -1518,7 +1521,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
               response.data.byteOffset,
               response.data.byteLength,
             ),
-            etag: response.etag,
           };
           resolve(newAsset);
         } else {
@@ -1547,18 +1549,26 @@ export default class FoxgloveWebSocketPlayer implements Player {
       throw new Error(`Fetching assets (${uri}) is not supported for coSceneWebSocketPlayer`);
     }
 
+    let assetEtag = undefined;
+
     if (etag) {
-      const assetEtag = await this.#preFetchAsset(uri);
-      if (etag === assetEtag) {
-        return {
-          uri,
-          data: new Uint8Array(),
-          etag,
-        };
+      try {
+        assetEtag = await this.#preFetchAsset(uri);
+        if (etag === assetEtag) {
+          return {
+            uri,
+            data: new Uint8Array(),
+            etag,
+          };
+        }
+      } catch (err) {
+        log.debug("Failed to pre-fetch asset:", err);
       }
     }
 
-    return await this.#fetchAssetContent(uri);
+    const assetContent = await this.#fetchAssetContent(uri);
+
+    return { ...assetContent, etag: assetEtag };
   }
 
   public setGlobalVariables(): void {}
