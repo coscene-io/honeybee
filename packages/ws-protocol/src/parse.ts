@@ -53,9 +53,6 @@ export function parseServerMessage(buffer: ArrayBuffer, receiveTime: number): Se
       offset += 4;
       const status = view.getUint8(offset) as FetchAssetStatus;
       offset += 1;
-      // 8 * getUint8 but we just need file hash do not need to decode it
-      const etag = view.getBigUint64(offset, true);
-      offset += 8;
       const errorMsgLength = view.getUint32(offset, true);
       offset += 4;
       const error = textDecoder.decode(new DataView(buffer, offset, errorMsgLength));
@@ -64,7 +61,7 @@ export function parseServerMessage(buffer: ArrayBuffer, receiveTime: number): Se
       switch (status) {
         case FetchAssetStatus.SUCCESS: {
           const data = new DataView(buffer, offset, buffer.byteLength - offset);
-          return { op, requestId, status, data, etag: etag.toString(), receiveTime };
+          return { op, requestId, status, data, receiveTime };
         }
         case FetchAssetStatus.ERROR:
           return { op, requestId, status, error, receiveTime };
