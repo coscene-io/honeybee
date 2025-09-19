@@ -158,12 +158,25 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     projectName: string | undefined;
     currentUser: User | undefined;
   }) {
+    const parents: string[] = [];
+    if (currentUser?.userId) {
+      parents.push(`users/${currentUser.userId}`);
+    }
+    if (projectName) {
+      parents.push(projectName);
+    }
+
+    if (parents.length === 0 && remote == undefined) {
+      parents.push("");
+    }
+
     this.#local = new MutexLocked(
       new NamespacedLayoutStorage(
         new WriteThroughLayoutCache(local),
         remote
           ? CoSceneLayoutManager.REMOTE_STORAGE_NAMESPACE_PREFIX + remote.namespace
           : CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE,
+        parents,
         {
           migrateUnnamespacedLayouts: true,
 
@@ -184,6 +197,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         new NamespacedLayoutStorage(
           new WriteThroughLayoutCache(local),
           CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE,
+          parents,
           {
             migrateUnnamespacedLayouts: true,
 
