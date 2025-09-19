@@ -33,6 +33,7 @@ export type PanelContextType<T> = {
   enterFullscreen: () => void;
   exitFullscreen: () => void;
   isFullscreen: boolean;
+  hasFullscreenDescendant: boolean;
 
   /** Used to adjust z-index settings on parent panels when children are fullscreen */
   // eslint-disable-next-line @foxglove/no-boolean-parameters
