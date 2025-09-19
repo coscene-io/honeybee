@@ -9,6 +9,7 @@ import { LazilyInitialized } from "@foxglove/den/async";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   ILayoutStorage,
+  ILayoutStorageCache,
   Layout,
   LayoutHistory,
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
@@ -19,20 +20,20 @@ import {
  *
  * For this to be useful, we must assume nothing else is accessing the same underlying storage.
  */
-export default class CoSceneWriteThroughLayoutCache implements ILayoutStorage {
+export default class CoSceneWriteThroughLayoutCache implements ILayoutStorageCache {
   #cacheByNamespace = new Map<string, LazilyInitialized<Map<string, Layout>>>();
 
   public constructor(private storage: ILayoutStorage) {}
 
-  #getOrCreateCache(namespace: string): LazilyInitialized<Map<string, Layout>> {
+  #getOrCreateCache(namespace: string, parents: string[]): LazilyInitialized<Map<string, Layout>> {
     let cache = this.#cacheByNamespace.get(namespace);
     if (!cache) {
-      cache = new LazilyInitialized(
-        async () =>
-          await this.storage
-            .list(namespace)
-            .then((layouts) => new Map(layouts.map((layout) => [layout.id, layout]))),
-      );
+      cache = new LazilyInitialized(async () => {
+        const layouts = await Promise.all(
+          parents.map(async (parent) => await this.storage.listByParent(namespace, parent)),
+        );
+        return new Map(layouts.flat().map((layout) => [layout.id, layout]));
+      });
       this.#cacheByNamespace.set(namespace, cache);
     }
     return cache;
@@ -49,23 +50,31 @@ export default class CoSceneWriteThroughLayoutCache implements ILayoutStorage {
     await this.storage.migrateUnnamespacedLayouts?.(namespace);
   }
 
-  public async list(namespace: string): Promise<readonly Layout[]> {
-    return Array.from((await this.#getOrCreateCache(namespace).get()).values());
+  public async list(namespace: string, parents: string[]): Promise<readonly Layout[]> {
+    return Array.from((await this.#getOrCreateCache(namespace, parents).get()).values());
   }
 
-  public async get(namespace: string, id: LayoutID): Promise<Layout | undefined> {
-    return (await this.#getOrCreateCache(namespace).get()).get(id);
+  public async listByParent(namespace: string, parents: string[]): Promise<readonly Layout[]> {
+    return Array.from((await this.#getOrCreateCache(namespace, parents).get()).values());
   }
 
-  public async put(namespace: string, layout: Layout): Promise<Layout> {
+  public async get(
+    namespace: string,
+    parents: string[],
+    id: LayoutID,
+  ): Promise<Layout | undefined> {
+    return (await this.#getOrCreateCache(namespace, parents).get()).get(id);
+  }
+
+  public async put(namespace: string, parents: string[], layout: Layout): Promise<Layout> {
     const result = await this.storage.put(namespace, layout);
-    (await this.#getOrCreateCache(namespace).get()).set(result.id, result);
+    (await this.#getOrCreateCache(namespace, parents).get()).set(result.id, result);
     return result;
   }
 
-  public async delete(namespace: string, id: LayoutID): Promise<void> {
+  public async delete(namespace: string, parents: string[], id: LayoutID): Promise<void> {
     await this.storage.delete(namespace, id);
-    (await this.#getOrCreateCache(namespace).get()).delete(id);
+    (await this.#getOrCreateCache(namespace, parents).get()).delete(id);
   }
 
   public async getHistory(namespace: string, parent: string): Promise<Layout | undefined> {

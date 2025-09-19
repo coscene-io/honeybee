@@ -96,6 +96,21 @@ export class IdbLayoutStorage implements ILayoutStorage {
     return results;
   }
 
+  public async listByParent(namespace: string, parent: string): Promise<readonly Layout[]> {
+    const results: Layout[] = [];
+    const records = await (
+      await this.#db
+    ).getAllFromIndex(OBJECT_STORE_NAME, "namespace_parent", [namespace, parent]);
+    for (const record of records) {
+      try {
+        results.push(migrateLayout(record.layout));
+      } catch (err) {
+        log.error(err);
+      }
+    }
+    return results;
+  }
+
   public async get(namespace: string, id: LayoutID): Promise<Layout | undefined> {
     const record = await (
       await this.#db
@@ -130,6 +145,10 @@ export class IdbLayoutStorage implements ILayoutStorage {
 
     try {
       for await (const cursor of store.index("namespace").iterate(fromNamespace)) {
+        if (cursor.value.layout.parent === "") {
+          cursor.value.layout.parent = `users/${toNamespace}`;
+        }
+
         await store.put({ namespace: toNamespace, layout: cursor.value.layout });
         await cursor.delete();
       }
