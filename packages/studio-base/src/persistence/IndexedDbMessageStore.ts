@@ -107,7 +107,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
   public constructor(options: IndexedDbMessageStoreOptions = {}) {
     const {
-      retentionWindowMs = 5 * 60 * 1000, // 5 minutes default
+      retentionWindowMs = 30 * 1000, // 30 seconds default
       sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       maxCacheSize = 25 * 1024 * 1024 * 1024, // 25GB default
     } = options;
