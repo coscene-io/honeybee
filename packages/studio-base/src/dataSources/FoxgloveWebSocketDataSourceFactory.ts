@@ -86,7 +86,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       username: this.#username,
       deviceName: this.#deviceName,
       authHeader: args.consoleApi?.getAuthHeader() ?? "",
-      retentionWindowMs: args.retentionWindowMs,
+      retentionWindowMs: args.retentionWindowMs ?? 30 * 1000, // 30 seconds default
       sessionId,
     });
   }
