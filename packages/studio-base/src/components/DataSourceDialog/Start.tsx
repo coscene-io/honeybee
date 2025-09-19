@@ -19,8 +19,10 @@ import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoScene
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
+
+const domainConfig = getDomainConfig();
 
 const useStyles = makeStyles()((theme) => ({
   grid: {
@@ -199,7 +201,7 @@ function SidebarItems(): React.JSX.Element {
       ),
       actions: (
         <Button
-          href={`https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}`}
+          href={`https://${domainConfig.webDomain}`}
           target="_blank"
           className={classes.button}
           variant="outlined"
@@ -284,10 +286,7 @@ export default function Start(): React.JSX.Element {
           {loginStatus === "alreadyLogin" ? (
             user?.nickName
           ) : (
-            <Link
-              href={`https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/studio/login`}
-              target="_blank"
-            >
+            <Link href={`https://${domainConfig.webDomain}/studio/login`} target="_blank">
               {t("login")}
             </Link>
           )}
