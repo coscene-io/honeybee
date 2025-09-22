@@ -19,7 +19,6 @@ import {
   Avatar,
   Box,
   Breadcrumbs,
-  Button,
   IconButton,
   InputAdornment,
   Link,
@@ -47,11 +46,7 @@ import { RenameLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayo
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-import {
-  Layout,
-  layoutIsProject,
-  layoutIsRead,
-} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 dayjs.extend(relativeTime);
 
@@ -427,52 +422,7 @@ export function CoSceneLayoutContent({
             return [];
           }
 
-          const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
-          const hasModifications = layout.working != undefined;
-          const isRead = layoutIsRead(layout);
-
-          const actions = [];
-
-          if (hasModifications) {
-            actions.push(
-              <GridActionsCellItem
-                key="save"
-                icon={
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    disabled={deletedOnServer || isRead}
-                    onClick={() => {
-                      onOverwriteLayout(layout);
-                    }}
-                  >
-                    {t("saveChanges")}
-                  </Button>
-                }
-                label={t("saveChanges")}
-                disabled={deletedOnServer || isRead}
-              />,
-              <GridActionsCellItem
-                key="revert"
-                icon={
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    disabled={deletedOnServer}
-                    onClick={() => {
-                      onRevertLayout(layout);
-                    }}
-                  >
-                    {t("revert")}
-                  </Button>
-                }
-                label={t("revert")}
-                disabled={deletedOnServer}
-              />,
-            );
-          }
-
-          actions.push(
+          return [
             <GridActionsCellItem
               key="menu"
               icon={<MoreVertIcon />}
@@ -481,22 +431,11 @@ export function CoSceneLayoutContent({
                 handleMenuOpen(event, layout);
               }}
             />,
-          );
-
-          return actions;
+          ];
         },
       },
     ],
-    [
-      currentLayoutId,
-      t,
-      setSelectedFolder,
-      onSelectLayout,
-      onOverwriteLayout,
-      onRevertLayout,
-      handleMenuOpen,
-      classes.layoutNameBox,
-    ],
+    [currentLayoutId, t, setSelectedFolder, onSelectLayout, handleMenuOpen, classes.layoutNameBox],
   );
 
   const items: {
@@ -673,6 +612,8 @@ export function CoSceneLayoutContent({
           layout={menu.layout}
           onDeleteLayout={onDeleteLayout}
           onExportLayout={onExportLayout}
+          onOverwriteLayout={onOverwriteLayout}
+          onRevertLayout={onRevertLayout}
           handleOpenDialog={handleOpenDialog}
         />
       )}
