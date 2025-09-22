@@ -142,49 +142,52 @@ export function CoSceneLayoutButton(): React.JSX.Element {
    * @returns true if the original action should continue, false otherwise
    */
   const promptForUnsavedChanges = useCallback(async () => {
-    const currentLayout =
-      currentLayoutId != undefined
-        ? await layoutManager.getLayout({ id: currentLayoutId })
-        : undefined;
-    if (
-      currentLayout != undefined &&
-      layoutIsProject(currentLayout) &&
-      currentLayout.working != undefined
-    ) {
-      const result = await openUnsavedChangesPrompt(currentLayout);
-      switch (result.type) {
-        case "cancel":
-          return false;
-        case "discard":
-          await layoutManager.revertLayout({ id: currentLayout.id });
-          void analytics.logEvent(AppEvent.LAYOUT_REVERT, {
-            permission: currentLayout.permission,
-            context: "UnsavedChangesPrompt",
-          });
-          return true;
-        case "overwrite":
-          await layoutManager.overwriteLayout({ id: currentLayout.id });
-          void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, {
-            permission: currentLayout.permission,
-            context: "UnsavedChangesPrompt",
-          });
-          return true;
-        case "makePersonal":
-          // We don't use onMakePersonalCopy() here because it might need to prompt for unsaved changes, and we don't want to select the newly created layout
-          await layoutManager.makePersonalCopy({
-            id: currentLayout.id,
-            name: result.name,
-          });
-          void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
-            permission: currentLayout.permission,
-            syncStatus: currentLayout.syncInfo?.status,
-            context: "UnsavedChangesPrompt",
-          });
-          return true;
-      }
-    }
     return true;
-  }, [analytics, currentLayoutId, layoutManager, openUnsavedChangesPrompt]);
+  }, []);
+  // const promptForUnsavedChanges = useCallback(async () => {
+  //   const currentLayout =
+  //     currentLayoutId != undefined
+  //       ? await layoutManager.getLayout({ id: currentLayoutId })
+  //       : undefined;
+  //   if (
+  //     currentLayout != undefined &&
+  //     layoutIsProject(currentLayout) &&
+  //     currentLayout.working != undefined
+  //   ) {
+  //     const result = await openUnsavedChangesPrompt(currentLayout);
+  //     switch (result.type) {
+  //       case "cancel":
+  //         return false;
+  //       case "discard":
+  //         await layoutManager.revertLayout({ id: currentLayout.id });
+  //         void analytics.logEvent(AppEvent.LAYOUT_REVERT, {
+  //           permission: currentLayout.permission,
+  //           context: "UnsavedChangesPrompt",
+  //         });
+  //         return true;
+  //       case "overwrite":
+  //         await layoutManager.overwriteLayout({ id: currentLayout.id });
+  //         void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, {
+  //           permission: currentLayout.permission,
+  //           context: "UnsavedChangesPrompt",
+  //         });
+  //         return true;
+  //       case "makePersonal":
+  //         // We don't use onMakePersonalCopy() here because it might need to prompt for unsaved changes, and we don't want to select the newly created layout
+  //         await layoutManager.makePersonalCopy({
+  //           id: currentLayout.id,
+  //           name: result.name,
+  //         });
+  //         void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
+  //           permission: currentLayout.permission,
+  //           syncStatus: currentLayout.syncInfo?.status,
+  //           context: "UnsavedChangesPrompt",
+  //         });
+  //         return true;
+  //     }
+  //   }
+  //   return true;
+  // }, [analytics, currentLayoutId, layoutManager, openUnsavedChangesPrompt]);
 
   const onSelectLayout = useCallbackWithToast(
     async (item: Layout) => {
