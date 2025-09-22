@@ -96,7 +96,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly projectName: string | undefined,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
-  ) {}
+  ) { }
 
   public getProjectWritePermission(): boolean {
     // TODO: waiting for the new API to be released
@@ -119,6 +119,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
           let allLayouts: Layout[] = [];
           if (parent.startsWith("users/")) {
             allLayouts = (await this.api.listUserLayouts({ parent })).userLayouts;
+            console.log("allLayouts", allLayouts);
           } else {
             allLayouts = (await this.api.listProjectLayouts({ parent })).projectLayouts;
           }
