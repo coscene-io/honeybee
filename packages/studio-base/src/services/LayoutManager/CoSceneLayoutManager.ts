@@ -417,7 +417,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
-    if (name != undefined && layoutIsProject(localLayout)) {
+    if ((folder != undefined || name != undefined) && layoutIsProject(localLayout)) {
       if (!this.#remote) {
         throw new Error("Shared layouts are not supported without remote layout storage");
       }
@@ -458,9 +458,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       }
       return result;
     } else {
-      const isRename =
+      const isUpdateSavedAt =
         this.#remote != undefined &&
-        name != undefined &&
+        (name != undefined || folder != undefined) &&
         localLayout.syncInfo != undefined &&
         localLayout.syncInfo.status !== "new";
 
@@ -473,7 +473,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             working: newWorking,
 
             // If the name is being changed, we will need to upload to the server with a new savedAt
-            baseline: isRename
+            baseline: isUpdateSavedAt
               ? {
                   ...localLayout.baseline,
                   savedAt: now,
@@ -482,7 +482,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                   modifierNickname: localLayout.baseline.modifierNickname,
                 }
               : localLayout.baseline,
-            syncInfo: isRename
+            syncInfo: isUpdateSavedAt
               ? {
                   status: "updated",
                   lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
