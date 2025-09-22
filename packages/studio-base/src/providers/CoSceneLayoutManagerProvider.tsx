@@ -37,20 +37,15 @@ export default function CoSceneLayoutManagerProvider({
   const currentUser = useCurrentUser(selectUser);
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
-  const projectName =
-    externalInitConfig?.warehouseId && externalInitConfig.projectId
-      ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`
-      : undefined;
 
   const layoutManager = useMemo(
     () =>
       new LayoutManager({
         local: layoutStorage,
         remote: remoteLayoutStorage,
-        projectName,
         currentUser,
       }),
-    [layoutStorage, remoteLayoutStorage, projectName, currentUser],
+    [layoutStorage, remoteLayoutStorage, currentUser],
   );
 
   const { online = false } = useNetworkState();

@@ -92,6 +92,8 @@ function convertGrpcLayoutToRemoteLayout({
 export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayoutStorage {
   public constructor(
     public readonly namespace: string,
+    public readonly userName: string,
+    public readonly projectName: string | undefined,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
   ) {}
@@ -102,8 +104,16 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     return this.projectWritePermission;
   }
 
-  public async getLayouts(parents: string[]): Promise<readonly RemoteLayout[]> {
+  public async getLayouts(): Promise<readonly RemoteLayout[]> {
     try {
+      const parents = [this.userName];
+      if (this.projectName) {
+        parents.push(this.projectName);
+      }
+      if (parents.length === 0) {
+        return [];
+      }
+
       const layouts = await Promise.all(
         parents.map(async (parent) => {
           let allLayouts: Layout[] = [];
