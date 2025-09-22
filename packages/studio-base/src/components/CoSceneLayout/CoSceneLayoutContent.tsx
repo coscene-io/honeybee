@@ -97,6 +97,7 @@ const useStyles = makeStyles()((theme) => ({
     minWidth: 0,
     overflow: "hidden",
     textOverflow: "ellipsis",
+    textDecoration: "none",
     "& svg": {
       color: theme.palette.text.secondary,
     },
