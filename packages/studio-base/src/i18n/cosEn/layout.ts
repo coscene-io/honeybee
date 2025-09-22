@@ -85,7 +85,7 @@ export const cosLayout = {
   noData: "No layout data",
   allLayout: "All layouts",
   moveToFolder: "Move to folder",
-  moveToFolderDescription: "Move \"{{layoutName}}\" layout to a different folder.",
+  moveToFolderDescription: 'Move "{{layoutName}}" layout to a different folder.',
   revertLayoutConfirm: "Your changes will be permanently discarded. This cannot be undone.",
   discardChanges: "Discard changes",
 };

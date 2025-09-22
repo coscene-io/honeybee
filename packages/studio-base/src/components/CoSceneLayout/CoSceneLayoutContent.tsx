@@ -419,8 +419,8 @@ export function CoSceneLayoutContent({
         field: "actions",
         type: "actions",
         headerName: "",
-        width: 200,
-        minWidth: 200,
+        width: 48,
+        minWidth: 48,
         align: "right",
         getActions: (params) => {
           const { layout } = params.row;
