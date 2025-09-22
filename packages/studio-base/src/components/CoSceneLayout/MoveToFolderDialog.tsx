@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
+  DialogContentText,
   DialogTitle,
   Stack,
   TextField,
@@ -92,6 +93,9 @@ export function MoveToFolderDialog({
       <DialogTitle>{t("moveToFolder")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
+          <DialogContentText>
+            {t("moveToFolderDescription", { layoutName: layout.name })}
+          </DialogContentText>
           <Autocomplete
             options={options}
             value={selectedOption ?? null} // eslint-disable-line no-restricted-syntax
