@@ -25,8 +25,9 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   duplicate: "复制",
   export: "导出",
   delete: "删除",
+  save: "保存",
   saveChanges: "保存更改",
-  revert: "撤销更改",
+  revert: "撤销",
   copyToPersonal: "复制到个人",
   someoneElseHasDeletedThisLayout: "其他人已删除此布局",
   noPersonalLayouts: "添加一个新布局来开始使用！",
@@ -83,6 +84,7 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   noData: "暂无布局数据",
   allLayout: "所有布局",
   moveToFolder: "移动到文件夹",
+  moveToFolderDescription: '移动 "{{layoutName}}" 布局到...',
   revertLayoutConfirm: "您的更改将被永久丢弃。此操作无法撤销。",
   discardChanges: "放弃更改",
 };

@@ -135,7 +135,7 @@ export function CurrentLayoutButton({
   const buttons = [
     {
       key: "saveChanges",
-      text: t("saveChanges"),
+      text: t("save"),
       onClick: handleOverwrite,
       disabled: deletedOnServer || isRead,
       visible: hasModifications,

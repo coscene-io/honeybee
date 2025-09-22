@@ -40,6 +40,8 @@ export function LayoutTableRowMenu({
   handleOpenDialog,
   onDeleteLayout,
   onExportLayout,
+  onOverwriteLayout,
+  onRevertLayout,
 }: {
   anchorEl: HTMLElement | undefined;
   layout: Layout;
@@ -47,6 +49,8 @@ export function LayoutTableRowMenu({
   handleOpenDialog: (type: "rename" | "copy" | "move", layout: Layout) => void;
   onDeleteLayout: (layout: Layout) => void;
   onExportLayout: (layout: Layout) => void;
+  onOverwriteLayout: (layout: Layout) => void;
+  onRevertLayout: (layout: Layout) => void;
 }): React.JSX.Element {
   const confirm = useConfirm();
   const { t } = useTranslation("cosLayout");
@@ -54,6 +58,14 @@ export function LayoutTableRowMenu({
   const exportAction = useCallback(() => {
     onExportLayout(layout);
   }, [layout, onExportLayout]);
+
+  const saveChanges = useCallback(() => {
+    onOverwriteLayout(layout);
+  }, [layout, onOverwriteLayout]);
+
+  const revertChanges = useCallback(() => {
+    onRevertLayout(layout);
+  }, [layout, onRevertLayout]);
 
   const openRenameDialog = useCallback(() => {
     handleOpenDialog("rename", layout);
@@ -99,8 +111,39 @@ export function LayoutTableRowMenu({
   }, [confirm, layout, t, onDeleteLayout]);
 
   const disabled = layoutIsRead(layout);
+  const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
+  const hasModifications = layout.working != undefined;
 
-  const menuItems: LayoutActionMenuItem[] = [
+  const menuItems: LayoutActionMenuItem[] = [];
+
+  // Add save and revert items first if there are modifications
+  if (hasModifications) {
+    menuItems.push(
+      {
+        type: "item",
+        key: "save",
+        text: t("save"),
+        "data-testid": "save-changes",
+        onClick: saveChanges,
+        disabled: deletedOnServer || disabled,
+      },
+      {
+        type: "item",
+        key: "revert",
+        text: t("revert"),
+        "data-testid": "revert-changes",
+        onClick: revertChanges,
+        disabled: deletedOnServer,
+      },
+      {
+        type: "divider",
+        key: "modifications-divider",
+      },
+    );
+  }
+
+  // Add regular menu items
+  menuItems.push(
     {
       type: "item",
       key: "rename",
@@ -143,7 +186,7 @@ export function LayoutTableRowMenu({
       onClick: confirmDelete,
       disabled,
     },
-  ];
+  );
 
   return (
     <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>

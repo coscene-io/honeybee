@@ -19,7 +19,6 @@ import {
   Avatar,
   Box,
   Breadcrumbs,
-  Button,
   IconButton,
   InputAdornment,
   Link,
@@ -47,11 +46,7 @@ import { RenameLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayo
 import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-import {
-  Layout,
-  layoutIsProject,
-  layoutIsRead,
-} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 dayjs.extend(relativeTime);
 
@@ -95,10 +90,14 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
   layoutNameBox: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
     flex: 1,
     minWidth: 0,
     overflow: "hidden",
     textOverflow: "ellipsis",
+    textDecoration: "none",
     "& svg": {
       color: theme.palette.text.secondary,
     },
@@ -344,10 +343,7 @@ export function CoSceneLayoutContent({
           const { layout, name, category } = params.row;
           if (!layout) {
             return (
-              <Box
-                display="flex"
-                alignItems="center"
-                gap={1}
+              <Link
                 className={classes.layoutNameBox}
                 onClick={() => {
                   setSelectedFolder({ category, folder: name });
@@ -357,11 +353,16 @@ export function CoSceneLayoutContent({
                 <Typography variant="body2" noWrap textOverflow="ellipsis">
                   {name}
                 </Typography>
-              </Box>
+              </Link>
             );
           }
           return (
-            <Box display="flex" alignItems="center" gap={1} className={classes.layoutNameBox}>
+            <Link
+              className={classes.layoutNameBox}
+              onClick={() => {
+                onSelectLayout(layout);
+              }}
+            >
               {layout.permission === "PERSONAL_WRITE" ? (
                 <PersonOutlinedIcon fontSize="small" />
               ) : (
@@ -370,7 +371,7 @@ export function CoSceneLayoutContent({
               <Typography variant="body2" noWrap textOverflow="ellipsis">
                 {layout.name}
               </Typography>
-            </Box>
+            </Link>
           );
         },
       },
@@ -418,8 +419,8 @@ export function CoSceneLayoutContent({
         field: "actions",
         type: "actions",
         headerName: "",
-        width: 200,
-        minWidth: 200,
+        width: 48,
+        minWidth: 48,
         align: "right",
         getActions: (params) => {
           const { layout } = params.row;
@@ -427,52 +428,7 @@ export function CoSceneLayoutContent({
             return [];
           }
 
-          const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
-          const hasModifications = layout.working != undefined;
-          const isRead = layoutIsRead(layout);
-
-          const actions = [];
-
-          if (hasModifications) {
-            actions.push(
-              <GridActionsCellItem
-                key="save"
-                icon={
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    disabled={deletedOnServer || isRead}
-                    onClick={() => {
-                      onOverwriteLayout(layout);
-                    }}
-                  >
-                    {t("saveChanges")}
-                  </Button>
-                }
-                label={t("saveChanges")}
-                disabled={deletedOnServer || isRead}
-              />,
-              <GridActionsCellItem
-                key="revert"
-                icon={
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    disabled={deletedOnServer}
-                    onClick={() => {
-                      onRevertLayout(layout);
-                    }}
-                  >
-                    {t("revert")}
-                  </Button>
-                }
-                label={t("revert")}
-                disabled={deletedOnServer}
-              />,
-            );
-          }
-
-          actions.push(
+          return [
             <GridActionsCellItem
               key="menu"
               icon={<MoreVertIcon />}
@@ -481,22 +437,11 @@ export function CoSceneLayoutContent({
                 handleMenuOpen(event, layout);
               }}
             />,
-          );
-
-          return actions;
+          ];
         },
       },
     ],
-    [
-      currentLayoutId,
-      t,
-      setSelectedFolder,
-      onSelectLayout,
-      onOverwriteLayout,
-      onRevertLayout,
-      handleMenuOpen,
-      classes.layoutNameBox,
-    ],
+    [currentLayoutId, t, setSelectedFolder, onSelectLayout, handleMenuOpen, classes.layoutNameBox],
   );
 
   const items: {
@@ -673,6 +618,8 @@ export function CoSceneLayoutContent({
           layout={menu.layout}
           onDeleteLayout={onDeleteLayout}
           onExportLayout={onExportLayout}
+          onOverwriteLayout={onOverwriteLayout}
+          onRevertLayout={onRevertLayout}
           handleOpenDialog={handleOpenDialog}
         />
       )}
