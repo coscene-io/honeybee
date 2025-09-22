@@ -23,6 +23,7 @@ export const cosLayout = {
   duplicate: "Duplicate",
   export: "Export",
   delete: "Delete",
+  save: "Save",
   saveChanges: "Save",
   revert: "Revert",
   copyToPersonal: "Copy to personal",

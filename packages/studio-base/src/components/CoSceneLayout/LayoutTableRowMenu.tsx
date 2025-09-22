@@ -122,7 +122,7 @@ export function LayoutTableRowMenu({
       {
         type: "item",
         key: "save",
-        text: t("saveChanges"),
+        text: t("save"),
         "data-testid": "save-changes",
         onClick: saveChanges,
         disabled: deletedOnServer || disabled,
