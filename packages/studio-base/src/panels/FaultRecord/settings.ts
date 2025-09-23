@@ -21,8 +21,6 @@ export interface ServiceConfig {
 
 export interface FaultRecordConfig {
   [key: string]: unknown;
-  defaultPreparationDuration: number;
-  defaultRecordDuration: number;
   startRecordService: ServiceConfig;
   stopRecordService: ServiceConfig;
   actionListService: { serviceName: string };
@@ -31,8 +29,6 @@ export interface FaultRecordConfig {
 }
 
 export const defaultConfig: FaultRecordConfig = {
-  defaultPreparationDuration: 30,
-  defaultRecordDuration: 30,
   startRecordService: {
     serviceName: "/RecordPlayback/StartRecord",
     serviceType: "fault_record/StartRecord",
@@ -49,25 +45,6 @@ export const defaultConfig: FaultRecordConfig = {
 // Build settings tree (no action name configuration here)
 function buildSettingsTree(config: FaultRecordConfig): SettingsTreeNodes {
   return {
-    defaults: {
-      label: "Default Durations",
-      fields: {
-        defaultPreparationDuration: {
-          label: "Pre-trigger duration (s)",
-          input: "number",
-          value: config.defaultPreparationDuration,
-          min: 0,
-          step: 1,
-        },
-        defaultRecordDuration: {
-          label: "Post-trigger duration (s)",
-          input: "number",
-          value: config.defaultRecordDuration,
-          min: 0,
-          step: 1,
-        },
-      },
-    },
     serviceConfig: {
       label: "Service Configuration",
       fields: {
@@ -122,17 +99,6 @@ export function useFaultRecordPanelSettings(
           if (configPath) {
             _.set(draft, configPath, value);
             return;
-          }
-
-          // Update defaults
-          if (path[0] === "defaults") {
-            const key = path[1];
-            if (
-              key === "defaultPreparationDuration" ||
-              key === "defaultRecordDuration"
-            ) {
-              _.set(draft, key, value);
-            }
           }
         });
       });

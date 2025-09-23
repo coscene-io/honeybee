@@ -14,6 +14,7 @@ interface DurationInputProps {
   placeholder?: string;
   label?: string;
   min?: number;
+  max?: number;
   allowEmpty?: boolean;
 }
 
@@ -24,33 +25,35 @@ export default function DurationInput({
   placeholder = "输入时长(秒)",
   label,
   min = 0,
+  max,
   allowEmpty = false,
 }: DurationInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
-    
+
     // 如果允许空值且输入为空，则设置为0
     if (allowEmpty && inputValue === "") {
       onChange(0);
       return;
     }
-    
+
     // 解析数值
     const numValue = parseInt(inputValue, 10);
-    
+
     // 验证数值有效性
     if (!isNaN(numValue) && numValue >= min) {
-      onChange(numValue);
+      // 如果设置了max值且超过限制，则设置为max值
+      if (max !== undefined && numValue > max) {
+        onChange(max);
+      } else {
+        onChange(numValue);
+      }
     }
   };
 
   return (
     <div style={{ width: "100%" }}>
-      {label && (
-        <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
-          {label}
-        </div>
-      )}
+      {label && <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>{label}</div>}
       <input
         type="number"
         value={value}
@@ -58,6 +61,7 @@ export default function DurationInput({
         disabled={disabled}
         placeholder={placeholder}
         min={min}
+        max={max}
         style={{
           width: "100%",
           padding: "8px 12px",

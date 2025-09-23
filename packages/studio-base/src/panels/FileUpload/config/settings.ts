@@ -24,17 +24,18 @@ export function settingsReducer(config: Config, action: SettingsTreeAction): Con
   if (action.action !== "update") {
     return config;
   }
-  
+
   const { path, value } = action.payload;
-  
+
   return produce(config, (draft) => {
     _.set(draft, path.slice(1), value);
   });
 }
 
 export const defaultConfig = {
-  refreshButtonService: { serviceName: "/api/test/end_and_get_candidates" },
+  refreshButtonService: { serviceName: "/RecordPlayback/GetBagList" },
   actionListService: { serviceName: "/RecordPlayback/GetActionList" },
+  uploadAllowedService: { serviceName: "/RecordPlayback/GetUploadAllowed" },
   rosServiceUrl: "http://localhost:11311",
   coSceneApiUrl: "https://api.coscene.cn",
 } as const satisfies Config;
@@ -45,14 +46,16 @@ export function settingsActionReducer(config: Config, action: SettingsTreeAction
   if (action.action === "perform-node-action" && action.payload.id === "reset") {
     return { ...defaultConfig } as Config;
   }
-  
+
   // 处理字段更新
   if (action.action === "update" && action.payload.path && action.payload.value !== undefined) {
     const newConfig: Config = { ...config };
-    const pathArray = Array.isArray(action.payload.path) ? action.payload.path : [action.payload.path];
+    const pathArray = Array.isArray(action.payload.path)
+      ? action.payload.path
+      : [action.payload.path];
     const pathStr = pathArray.join(".");
     const value = action.payload.value;
-    
+
     // 刷新按钮服务配置更新
     if (pathStr === "general.refreshButtonService.serviceName") {
       newConfig.refreshButtonService = {
@@ -68,10 +71,18 @@ export function settingsActionReducer(config: Config, action: SettingsTreeAction
         serviceName: String(value),
       } as any;
     }
-    
+
+    // 上传状态检查服务配置更新
+    if (pathStr === "general.uploadAllowedService.serviceName") {
+      newConfig.uploadAllowedService = {
+        ...config.uploadAllowedService,
+        serviceName: String(value),
+      } as any;
+    }
+
     return newConfig;
   }
-  
+
   return config;
 }
 
@@ -82,7 +93,10 @@ export function buildSettingsTree(config: Config): SettingsTreeNodes {
 }
 
 // 生成设置树节点
-export function useSettingsNodes(config: Config, actionHandler?: (action: SettingsTreeAction) => void): Record<string, any> {
+export function useSettingsNodes(
+  config: Config,
+  actionHandler?: (action: SettingsTreeAction) => void,
+): Record<string, any> {
   return {
     general: {
       label: "刷新按钮配置",
@@ -111,9 +125,23 @@ export function useSettingsNodes(config: Config, actionHandler?: (action: Settin
             serviceName: {
               label: "服务名称",
               input: "string",
-              value: config.actionListService?.serviceName ?? "/RecordPlayback/GetActionList",
+              value: config.actionListService.serviceName ?? "/RecordPlayback/GetActionList",
               placeholder: "输入查询 Action 列表的服务名称",
               help: "获取可用 Action 名称列表的服务名称",
+            },
+          },
+        },
+        uploadAllowedService: {
+          label: "上传状态检查接口",
+          icon: "CheckCircle",
+          handler: actionHandler,
+          fields: {
+            serviceName: {
+              label: "服务名称",
+              input: "string",
+              value: config.uploadAllowedService.serviceName ?? "/RecordPlayback/GetUploadAllowed",
+              placeholder: "输入检查上传状态的服务名称",
+              help: "检查是否允许上传数据的服务名称",
             },
           },
         },

@@ -21,7 +21,7 @@ export type BagFile = {
   mode: string; // "imd" | "signal" | ""
   action_name: string; // action名称，可能为空
   path: string; // 文件路径
-  type?: "file" | "folder"; // 文件类型，可选字段，后端明确标识
+  type: "file" | "folder"; // 文件类型，必需字段，后端明确标识
 };
 
 // 新增：获取Bag列表的请求
@@ -45,6 +45,12 @@ export type SubmitFilesReq = {
 // 新增：通用响应
 export type CommonRsp = {
   code: number;
+  msg: string;
+};
+
+// 新增：获取上传状态响应
+export type GetUploadAllowedRsp = {
+  upload_allowed: boolean;
   msg: string;
 };
 

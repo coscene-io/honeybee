@@ -22,6 +22,10 @@ export default function ActionDetailModal({
     return null;
   }
 
+  // 计算Topics区域的高度：超过4个topic时启用滚动
+  const shouldShowScroll = actionInfo.topics.length > 4;
+  const topicsHeight = shouldShowScroll ? "200px" : "auto";
+
   return (
     <div
       style={{
@@ -30,38 +34,52 @@ export default function ActionDetailModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 1000,
+        padding: "20px",
       }}
       onClick={onClose}
     >
       <div
         style={{
           backgroundColor: "white",
-          borderRadius: 8,
-          padding: "min(24px, 3vw)",
-          width: "min(600px, 90%)",
-          maxWidth: "90%",
-          maxHeight: "80%",
-          overflow: "auto",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+          borderRadius: "12px",
+          padding: "32px",
+          width: "100%",
+          maxWidth: "700px",
+          maxHeight: "90vh",
+          overflow: "hidden",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+          display: "flex",
+          flexDirection: "column",
         }}
         onClick={(e) => {
           e.stopPropagation();
         }}
       >
+        {/* Header */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: 20,
+            marginBottom: "24px",
+            paddingBottom: "16px",
+            borderBottom: "1px solid #e5e7eb",
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "#1f2937" }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "24px",
+              fontWeight: 700,
+              color: "#111827",
+              letterSpacing: "-0.025em",
+            }}
+          >
             Action 详细信息
           </h2>
           <button
@@ -69,90 +87,226 @@ export default function ActionDetailModal({
             style={{
               background: "none",
               border: "none",
-              fontSize: 24,
+              fontSize: "28px",
               cursor: "pointer",
               color: "#6b7280",
-              padding: 4,
+              padding: "8px",
+              borderRadius: "6px",
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "40px",
+              height: "40px",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#f3f4f6";
+              e.currentTarget.style.color = "#374151";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "#6b7280";
             }}
           >
             ×
           </button>
         </div>
 
-        <div style={{ marginBottom: 20 }}>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 12, marginBottom: 16 }}
-          >
-            <div style={{ fontWeight: 600, color: "#374151" }}>Action Name:</div>
-            <div style={{ color: "#1f2937" }}>{actionInfo.action_name}</div>
-
-            <div style={{ fontWeight: 600, color: "#374151" }}>Mode:</div>
-            <div style={{ color: "#1f2937" }}>{actionInfo.mode}</div>
-
-            <div style={{ fontWeight: 600, color: "#374151" }}>Pre-trigger:</div>
-            <div style={{ color: "#1f2937" }}>{actionInfo.preparation_duration_s}s</div>
-
-            <div style={{ fontWeight: 600, color: "#374151" }}>Record Duration:</div>
-            <div style={{ color: "#1f2937" }}>{actionInfo.record_duration_s}s</div>
-
-            <div style={{ fontWeight: 600, color: "#374151" }}>Auto Upload:</div>
-            <div style={{ color: "#1f2937" }}>{actionInfo.is_auto_upload ? "Yes" : "No"}</div>
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <h3 style={{ margin: "0 0 12px 0", fontSize: 16, fontWeight: 600, color: "#1f2937" }}>
-            录制的 Topics ({actionInfo.topics.length} 个)
-          </h3>
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 6,
-              maxHeight: 300,
-              overflow: "auto",
-              backgroundColor: "#f9fafb",
-            }}
-          >
-            {actionInfo.topics.length === 0 ? (
-              <div style={{ padding: 16, color: "#6b7280", textAlign: "center" }}>
-                没有配置录制的 topics
+        {/* Content */}
+        <div style={{ flex: 1, overflow: "auto", paddingRight: "8px" }}>
+          {/* Basic Info */}
+          <div style={{ marginBottom: "24px" }}>
+            <h3
+              style={{
+                margin: "0 0 16px 0",
+                fontSize: "18px",
+                fontWeight: 600,
+                color: "#111827",
+              }}
+            >
+              基本信息
+            </h3>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "140px 1fr",
+                gap: "16px 24px",
+                padding: "20px",
+                backgroundColor: "#f9fafb",
+                borderRadius: "8px",
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              <div style={{ fontWeight: 600, color: "#374151", fontSize: "14px" }}>
+                Action Name:
               </div>
-            ) : (
-              <div style={{ padding: 8 }}>
-                {actionInfo.topics.map((topic, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      padding: "8px 12px",
-                      margin: "4px 0",
-                      backgroundColor: "white",
-                      borderRadius: 4,
-                      border: "1px solid #e5e7eb",
-                      fontFamily: "monospace",
-                      fontSize: 14,
-                      color: "#1f2937",
-                    }}
-                  >
-                    {topic}
-                  </div>
-                ))}
+              <div style={{ color: "#111827", fontSize: "14px", fontFamily: "monospace" }}>
+                {actionInfo.action_name}
+              </div>
+
+              <div style={{ fontWeight: 600, color: "#374151", fontSize: "14px" }}>Mode:</div>
+              <div style={{ color: "#111827", fontSize: "14px" }}>{actionInfo.mode}</div>
+
+              <div style={{ fontWeight: 600, color: "#374151", fontSize: "14px" }}>
+                Pre-trigger:
+              </div>
+              <div style={{ color: "#111827", fontSize: "14px" }}>
+                {actionInfo.preparation_duration_s}s
+              </div>
+
+              <div style={{ fontWeight: 600, color: "#374151", fontSize: "14px" }}>
+                Record Duration:
+              </div>
+              <div style={{ color: "#111827", fontSize: "14px" }}>
+                {actionInfo.record_duration_s}s
+              </div>
+
+              <div style={{ fontWeight: 600, color: "#374151", fontSize: "14px" }}>Method:</div>
+              <div style={{ color: "#111827", fontSize: "14px" }}>
+                {actionInfo.method || "未设置"}
+              </div>
+
+              <div style={{ fontWeight: 600, color: "#374151", fontSize: "14px" }}>
+                Max Record Duration:
+              </div>
+              <div style={{ color: "#111827", fontSize: "14px" }}>
+                {actionInfo.max_record_duration_s && actionInfo.max_record_duration_s > 0
+                  ? `${actionInfo.max_record_duration_s}s`
+                  : "未设置"}
+              </div>
+
+              <div style={{ fontWeight: 600, color: "#374151", fontSize: "14px" }}>
+                Auto Upload:
+              </div>
+              <div style={{ color: "#111827", fontSize: "14px" }}>
+                <span
+                  style={{
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    backgroundColor: actionInfo.is_auto_upload ? "#dcfce7" : "#fee2e2",
+                    color: actionInfo.is_auto_upload ? "#166534" : "#dc2626",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                  }}
+                >
+                  {actionInfo.is_auto_upload ? "Yes" : "No"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Topics */}
+          <div style={{ marginBottom: "24px" }}>
+            <h3
+              style={{
+                margin: "0 0 16px 0",
+                fontSize: "18px",
+                fontWeight: 600,
+                color: "#111827",
+              }}
+            >
+              录制的 Topics ({actionInfo.topics.length} 个)
+            </h3>
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                backgroundColor: "#ffffff",
+                height: topicsHeight,
+                overflow: shouldShowScroll ? "auto" : "visible",
+                position: "relative",
+              }}
+            >
+              {actionInfo.topics.length === 0 ? (
+                <div
+                  style={{
+                    padding: "32px",
+                    color: "#6b7280",
+                    textAlign: "center",
+                    fontSize: "14px",
+                    fontStyle: "italic",
+                  }}
+                >
+                  没有配置录制的 topics
+                </div>
+              ) : (
+                <div style={{ padding: "16px" }}>
+                  {actionInfo.topics.map((topic, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        padding: "12px 16px",
+                        margin: "0 0 8px 0",
+                        backgroundColor: "#f8fafc",
+                        borderRadius: "6px",
+                        border: "1px solid #e2e8f0",
+                        fontFamily: "monospace",
+                        fontSize: "13px",
+                        color: "#1e293b",
+                        wordBreak: "break-all",
+                        transition: "all 0.2s ease",
+                        cursor: "default",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "#f1f5f9";
+                        e.currentTarget.style.borderColor = "#cbd5e1";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "#f8fafc";
+                        e.currentTarget.style.borderColor = "#e2e8f0";
+                      }}
+                    >
+                      {topic}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {shouldShowScroll && (
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#6b7280",
+                  textAlign: "center",
+                  marginTop: "8px",
+                  fontStyle: "italic",
+                }}
+              >
+                滚动查看更多 topics
               </div>
             )}
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+        {/* Footer */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "12px",
+            paddingTop: "16px",
+            borderTop: "1px solid #e5e7eb",
+          }}
+        >
           <button
             onClick={onClose}
             style={{
-              padding: "8px 16px",
+              padding: "12px 24px",
               backgroundColor: "#3b82f6",
               color: "white",
               border: "none",
-              borderRadius: 6,
+              borderRadius: "8px",
               cursor: "pointer",
-              fontSize: 14,
+              fontSize: "14px",
               fontWeight: 500,
+              transition: "all 0.2s ease",
+              minWidth: "80px",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#2563eb";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "#3b82f6";
             }}
           >
             确定

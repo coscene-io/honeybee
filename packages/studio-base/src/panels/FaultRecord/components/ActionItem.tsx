@@ -78,6 +78,9 @@ export default function ActionItem({
             <DurationInput
               value={durations.preparationDuration}
               onChange={(newValue) => {
+                console.log(
+                  `[调试] Action ${action.action_name} preparation duration 变更: ${durations.preparationDuration} -> ${newValue}, max: ${action.preparation_duration_s}`,
+                );
                 onUpdateDurations(action.action_name, {
                   ...durations,
                   preparationDuration: newValue,
@@ -85,8 +88,8 @@ export default function ActionItem({
               }}
               label="触发前时长(秒)"
               min={0}
+              max={action.preparation_duration_s}
               allowEmpty
-              disabled={isThisActionRecording}
             />
             <DurationInput
               value={durations.recordDuration}
@@ -99,7 +102,6 @@ export default function ActionItem({
               label="录制时长(秒)"
               min={0}
               allowEmpty
-              disabled={isThisActionRecording}
             />
           </div>
         </div>
@@ -119,24 +121,24 @@ export default function ActionItem({
             onClick={() => {
               onStartRecord(action.action_name);
             }}
-            disabled={isStartLoading || isThisActionRecording}
-            loading={isStartLoading && isThisActionRecording}
+            disabled={isStartLoading}
+            loading={isStartLoading}
             variant="primary"
             size="default"
           >
-            {isStartLoading && isThisActionRecording ? "启动中..." : "开始录制"}
+            {isStartLoading ? "启动中..." : "开始录制"}
           </Button>
 
           <Button
             onClick={() => {
               onStopRecord(action.action_name);
             }}
-            disabled={isStopLoading || !isThisActionRecording}
-            loading={isStopLoading && isThisActionRecording}
+            disabled={isStopLoading}
+            loading={isStopLoading}
             variant="danger"
             size="default"
           >
-            {isStopLoading && isThisActionRecording ? "停止中..." : "停止录制"}
+            {isStopLoading ? "停止中..." : "停止录制"}
           </Button>
         </div>
       </div>

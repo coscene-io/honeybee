@@ -42,8 +42,6 @@ export interface ActionDurationConfig {
 export interface PanelState {
   recordingState: RecordingState;
   selectedActionName: string;
-  preparationDuration: number; // 全局默认值
-  recordDuration: number; // 全局默认值
   actionDurations: Record<string, ActionDurationConfig>; // Action特定的配置
   logs: LogLine[];
 }
@@ -61,8 +59,10 @@ export interface LogLine {
 export interface ActionInfo {
   mode: string;
   action_name: string;
+  method?: string; // 触发方式说明，可选字段
   preparation_duration_s: number;
   record_duration_s: number;
+  max_record_duration_s?: number; // 最大允许录制时长，可选字段
   topics: string[];
   is_enable: boolean;
   is_auto_upload: boolean;

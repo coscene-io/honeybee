@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { PanelExtensionContext } from "@foxglove/studio";
 
 import ActionDetailModal from "./components/ActionDetailModal";
-import { ActionItem, DurationInput, RecordButton } from "./components/ui";
+import { ActionItem, RecordButton } from "./components/ui";
 import { fetchAvailableActionsWithInfo, getActionDetail } from "./services";
 import { defaultConfig, type FaultRecordConfig } from "./settings";
 import type {
@@ -31,21 +31,14 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
   const [state, setState] = useState<PanelState>({
     recordingState: "idle",
     selectedActionName: "",
-    preparationDuration: 30,
-    recordDuration: 30,
     actionDurations: {}, // Action特定的duration配置
     logs: [],
   });
-
-  // 当前正在录制的action名称
-  const [currentRecordingAction, setCurrentRecordingAction] = useState<string>("");
 
   // Add initial log entry
   const [initialLogAdded, setInitialLogAdded] = useState(false);
   const [availableActions, setAvailableActions] = useState<ActionInfo[]>([]);
   const [isLoadingActions, setIsLoadingActions] = useState(false);
-  const [isStartLoading, setIsStartLoading] = useState(false);
-  const [isStopLoading, setIsStopLoading] = useState(false);
   const [showActionDetail, setShowActionDetail] = useState(false);
   const [selectedActionDetail, setSelectedActionDetail] = useState<ActionInfo | undefined>(
     undefined,
@@ -53,16 +46,23 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
   const [_isLoadingActionDetail, setIsLoadingActionDetail] = useState(false);
   const hydratingRef = useRef(false);
 
-  // 获取action特定的duration配置，如果没有则使用全局默认值
+  // 获取action特定的duration配置
   const getActionDurations = useCallback(
     (actionName: string) => {
       const actionConfig = state.actionDurations[actionName];
+      if (!actionConfig) {
+        // 如果没有配置，返回默认值（这种情况不应该发生，因为我们在加载时初始化了所有Action）
+        return {
+          preparationDuration: 30,
+          recordDuration: 30,
+        };
+      }
       return {
-        preparationDuration: actionConfig?.preparationDuration ?? state.preparationDuration,
-        recordDuration: actionConfig?.recordDuration ?? state.recordDuration,
+        preparationDuration: actionConfig.preparationDuration,
+        recordDuration: actionConfig.recordDuration,
       };
     },
-    [state.actionDurations, state.preparationDuration, state.recordDuration],
+    [state.actionDurations],
   );
 
   // 更新action特定的duration配置
@@ -111,10 +111,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
         `初始服务配置 - 开始: ${config.startRecordService.serviceName}, 停止: ${config.stopRecordService.serviceName}`,
         "info",
       );
-      addLog(
-        `初始时长配置 - 触发前: ${state.preparationDuration}s, 录制: ${state.recordDuration}s`,
-        "info",
-      );
+      addLog("FaultRecord面板已初始化", "info");
       setInitialLogAdded(true);
     }
   }, [
@@ -122,8 +119,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
     addLog,
     config.startRecordService.serviceName,
     config.stopRecordService.serviceName,
-    state.preparationDuration,
-    state.recordDuration,
   ]);
 
   // Load available actions
@@ -136,14 +131,34 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
       );
       setAvailableActions(actions);
 
-      // Validate current selection; clear if not available
+      // Initialize action durations with backend default values and validate current selection
       setState((prev) => {
+        const newActionDurations: Record<string, ActionDurationConfig> = {
+          ...prev.actionDurations,
+        };
+
+        // For each action, set default durations from backend if not already configured
+        actions.forEach((action: ActionInfo) => {
+          if (!newActionDurations[action.action_name]) {
+            newActionDurations[action.action_name] = {
+              preparationDuration: action.preparation_duration_s,
+              recordDuration: action.record_duration_s,
+            };
+            addLog(
+              `初始化Action "${action.action_name}" 默认时长: 触发前${action.preparation_duration_s}s, 录制${action.record_duration_s}s`,
+              "info",
+            );
+          }
+        });
+
+        // Validate current selection; clear if not available
         const prevName = prev.selectedActionName;
         if (prevName && !actions.some((action: ActionInfo) => action.action_name === prevName)) {
           addLog(`当前选择的action "${prevName}" 不再可用，已清空选择`, "error");
-          return { ...prev, selectedActionName: "" };
+          return { ...prev, selectedActionName: "", actionDurations: newActionDurations };
         }
-        return prev;
+
+        return { ...prev, actionDurations: newActionDurations };
       });
 
       addLog(`成功加载 ${actions.length} 个可用Action`, "success");
@@ -178,13 +193,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
           const newStartService = panelConfig.startRecordService.serviceName;
           const oldStopService = config.stopRecordService.serviceName;
           const newStopService = panelConfig.stopRecordService.serviceName;
-          const oldPreparationDuration = config.defaultPreparationDuration;
-          const newPreparationDuration = panelConfig.defaultPreparationDuration;
-          const oldRecordDuration = config.defaultRecordDuration;
-          const newRecordDuration = panelConfig.defaultRecordDuration;
-
           let hasServiceChanges = false;
-          let hasDurationChanges = false;
 
           if (oldStartService !== newStartService) {
             addLog(
@@ -197,12 +206,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
             addLog(`外部配置更新停止录制服务: "${oldStopService}" -> "${newStopService}"`, "info");
             hasServiceChanges = true;
           }
-          if (
-            oldPreparationDuration !== newPreparationDuration ||
-            oldRecordDuration !== newRecordDuration
-          ) {
-            hasDurationChanges = true;
-          }
 
           // Only log summary if there are actual changes
           if (hasServiceChanges) {
@@ -210,12 +213,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
               `配置更新完成 - 开始录制服务: ${newStartService || "undefined"}, 停止录制服务: ${
                 newStopService || "undefined"
               }`,
-              "info",
-            );
-          }
-          if (hasDurationChanges) {
-            addLog(
-              `配置更新完成 - 默认触发前时长: ${newPreparationDuration}s, 默认录制时长: ${newRecordDuration}s`,
               "info",
             );
           }
@@ -238,23 +235,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
 
             // Apply data from the host, overwriting what was in savedState.
             if (panelConfig) {
-              // Update the durations with type checking (without duplicate logging)
-              if (
-                typeof (panelConfig as { defaultPreparationDuration?: number })
-                  .defaultPreparationDuration === "number"
-              ) {
-                const newValue = (panelConfig as { defaultPreparationDuration: number })
-                  .defaultPreparationDuration;
-                nextState.preparationDuration = newValue;
-              }
-              if (
-                typeof (panelConfig as { defaultRecordDuration?: number }).defaultRecordDuration ===
-                "number"
-              ) {
-                const newValue = (panelConfig as { defaultRecordDuration: number })
-                  .defaultRecordDuration;
-                nextState.recordDuration = newValue;
-              }
+              // No default duration configuration needed anymore
             }
 
             return nextState;
@@ -316,7 +297,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
         return;
       }
 
-      setIsStartLoading(true);
       addLog(`开始录制 - Action: ${actionName}, Service: ${config.startRecordService.serviceName}`);
       addLog(
         `开始录制参数 - 触发前时长: ${durations.preparationDuration}s, 录制时长: ${durations.recordDuration}s`,
@@ -349,29 +329,24 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
               const msg =
                 typeof responseObj.msg === "string" ? responseObj.msg : "Unknown response";
               if (code === 0) {
-                setState((prev) => ({ ...prev, recordingState: "recording" }));
-                setCurrentRecordingAction(actionName);
-                addLog(msg, "success");
+                addLog(`录制开始成功: ${msg}`, "success");
               } else {
-                setState((prev) => ({ ...prev, recordingState: "idle" }));
-                addLog(`录制失败: ${msg}`, "error");
+                addLog(`录制开始失败: ${msg}`, "error");
               }
             })
             .catch((error: unknown) => {
-              setState((prev) => ({ ...prev, recordingState: "idle" }));
-              addLog(`录制失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
+              addLog(
+                `录制开始异常: ${error instanceof Error ? error.message : "未知错误"}`,
+                "error",
+              );
             });
         } else {
           addLog("录制失败: context.callService 未定义，无法调用真实服务", "error");
-          setIsStartLoading(false);
           return;
         }
-        addLog("录制请求已发送，可以继续选择其他action进行录制", "info");
+        addLog("录制请求已发送，后端会自动管理录制状态", "info");
       } catch (error: unknown) {
-        setState((prev) => ({ ...prev, recordingState: "idle" }));
-        addLog(`录制失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
-      } finally {
-        setIsStartLoading(false);
+        addLog(`录制开始异常: ${error instanceof Error ? error.message : "未知错误"}`, "error");
       }
     },
     [
@@ -391,7 +366,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
         return;
       }
 
-      setIsStopLoading(true);
       addLog(`停止录制 - Action: ${actionName}, Service: ${config.stopRecordService.serviceName}`);
       addLog(
         `实际调用服务: ${config.stopRecordService.serviceName} (类型: ${config.stopRecordService.serviceType})`,
@@ -418,26 +392,24 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
               const msg =
                 typeof responseObj.msg === "string" ? responseObj.msg : "Unknown response";
               if (code === 0) {
-                setState((prev) => ({ ...prev, recordingState: "idle" }));
-                setCurrentRecordingAction("");
-                addLog(msg, "success");
+                addLog(`停止录制成功: ${msg}`, "success");
               } else {
-                addLog(`停止失败: ${msg}`, "error");
+                addLog(`停止录制失败: ${msg}`, "error");
               }
             })
             .catch((error: unknown) => {
-              addLog(`停止失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
+              addLog(
+                `停止录制异常: ${error instanceof Error ? error.message : "未知错误"}`,
+                "error",
+              );
             });
         } else {
           addLog("停止失败: context.callService 未定义，无法调用真实服务", "error");
-          setIsStopLoading(false);
           return;
         }
-        addLog("停止录制请求已发送", "info");
+        addLog("停止录制请求已发送，后端会自动管理录制状态", "info");
       } catch (error: unknown) {
-        addLog(`停止失败: ${error instanceof Error ? error.message : "未知错误"}`, "error");
-      } finally {
-        setIsStopLoading(false);
+        addLog(`停止录制异常: ${error instanceof Error ? error.message : "未知错误"}`, "error");
       }
     },
     [addLog, config.stopRecordService.serviceName, config.stopRecordService.serviceType, context],
@@ -478,8 +450,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
     [addLog, context, config.actionListService.serviceName],
   );
 
-  const isRecording = state.recordingState === "recording";
-
   return (
     <div
       style={{
@@ -506,7 +476,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: 16,
           }}
         >
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>录制控制</h3>
@@ -521,30 +490,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
           >
             {isLoadingActions ? "刷新中..." : "手动刷新"}
           </RecordButton>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-          <DurationInput
-            value={state.preparationDuration}
-            onChange={() => {
-              // 不允许在面板中修改，只能通过左侧配置栏修改
-            }}
-            label="默认触发前时长(秒)"
-            min={0}
-            allowEmpty
-            disabled={true}
-          />
-
-          <DurationInput
-            value={state.recordDuration}
-            onChange={() => {
-              // 不允许在面板中修改，只能通过左侧配置栏修改
-            }}
-            label="默认录制时长(秒)"
-            min={0}
-            allowEmpty
-            disabled={true}
-          />
         </div>
       </div>
 
@@ -601,9 +546,9 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
               <ActionItem
                 key={action.action_name}
                 action={action}
-                isRecording={isRecording && currentRecordingAction === action.action_name}
-                isStartLoading={isStartLoading && currentRecordingAction === action.action_name}
-                isStopLoading={isStopLoading && currentRecordingAction === action.action_name}
+                isRecording={false}
+                isStartLoading={false}
+                isStopLoading={false}
                 durations={getActionDurations(action.action_name)}
                 onStartRecord={handleStartRecord}
                 onStopRecord={handleStopRecord}

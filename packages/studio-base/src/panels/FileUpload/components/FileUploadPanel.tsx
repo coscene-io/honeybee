@@ -17,7 +17,7 @@ import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import { ProjectAndTagPicker } from "./ProjectAndTagPicker";
 import type { Config } from "../config/types";
 import { MockCoSceneClient, RealCoSceneClient } from "../services/coscene";
-import type { BagFile, UploadConfig, CoSceneClient } from "../types";
+import type { BagFile, UploadConfig, CoSceneClient, GetUploadAllowedRsp } from "../types";
 
 // Remove selectors as we'll receive data via props
 
@@ -163,7 +163,7 @@ function createCoSceneClient(serviceType: string, consoleApi?: ConsoleApi): CoSc
 }
 
 export function FileUploadPanel({
-  config: _config,
+  config,
   context,
   serviceSettings,
   refreshButtonServiceName,
@@ -281,7 +281,7 @@ export function FileUploadPanel({
   // 加载可用的action名称
   const loadAvailableActionNames = useCallback(async () => {
     const defaultService = "/RecordPlayback/GetActionList";
-    const serviceName = _config.actionListService.serviceName || defaultService;
+    const serviceName = config.actionListService.serviceName || defaultService;
     try {
       if (typeof context.callService !== "function") {
         setAvailableActionNames([]);
@@ -335,7 +335,7 @@ export function FileUploadPanel({
       setAvailableActionNames([]);
       log("error", `[Action接口] ROS服务调用失败: ${error}`);
     }
-  }, [_config.actionListService.serviceName, context, log]);
+  }, [config.actionListService.serviceName, context, log]);
 
   // 组件加载时获取action列表
   useEffect(() => {
@@ -696,6 +696,13 @@ export function FileUploadPanel({
       return;
     }
 
+    // 先检查上传状态
+    const uploadAllowed = await checkUploadAllowed();
+    if (!uploadAllowed) {
+      log("error", "[上传失败] 当前状态不允许上传，请检查网络环境或交互状态");
+      return;
+    }
+
     try {
       const pathsArray = Array.from(selectedPaths);
       const uploadInfo = {
@@ -881,17 +888,38 @@ export function FileUploadPanel({
     }
   }, [selectedPaths, uploadConfig, coSceneClient, serviceSettings.submitFilesService, log]);
 
-  // 判断是否为文件（严谨方案）
+  // 判断是否为文件（使用后端返回的type字段）
   const isFile = useCallback((bagFile: BagFile) => {
-    // 优先使用后端返回的type字段
-    if (bagFile.type !== undefined) {
-      return bagFile.type === "file";
-    }
-
-    // 降级方案：通过路径特征判断
-    const lastPart = bagFile.path.split("/").pop() || "";
-    return lastPart.includes(".") && !lastPart.startsWith(".");
+    return bagFile.type === "file";
   }, []);
+
+  // 检查上传状态
+  const checkUploadAllowed = useCallback(async (): Promise<boolean> => {
+    try {
+      log("info", `[上传检查] 调用上传状态检查服务: ${config.uploadAllowedService.serviceName}`);
+
+      if (typeof context.callService === "function") {
+        const result = await context.callService(config.uploadAllowedService.serviceName, {});
+
+        log("info", `[上传检查] 服务返回: ${safeStringify(result)}`);
+
+        const response = result as GetUploadAllowedRsp;
+        if (response.upload_allowed) {
+          log("info", `[上传检查] 允许上传`);
+          return true;
+        } else {
+          log("warn", `[上传检查] 不允许上传: ${response.msg}`);
+          return false;
+        }
+      } else {
+        log("error", `[上传检查] context.callService 不可用，无法检查上传状态`);
+        return false; // 如果服务不可用，阻止上传
+      }
+    } catch (error: any) {
+      log("error", `[上传检查] 检查上传状态失败: ${error?.message || error}`);
+      return false; // 如果检查失败，阻止上传
+    }
+  }, [context, config.uploadAllowedService.serviceName, log]);
 
   // 获取显示名称（智能识别文件和文件夹）
   const getDisplayName = useCallback(
