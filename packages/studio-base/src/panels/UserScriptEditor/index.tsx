@@ -54,6 +54,7 @@ import BottomBar from "@foxglove/studio-base/panels/UserScriptEditor/BottomBar";
 import { Sidebar } from "@foxglove/studio-base/panels/UserScriptEditor/Sidebar";
 import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { SaveConfig, UserScripts } from "@foxglove/studio-base/types/panels";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 
 import Config from "./Config";
 import { Script } from "./script";
@@ -157,7 +158,7 @@ const WelcomeScreen = ({ addNewNode }: { addNewNode: (code?: string) => void }) 
             <Link
               color="primary"
               underline="hover"
-              href="https://foxglove.dev/docs/studio/panels/user-scripts"
+              href={getDocsLink("/viz/panel/user-scripts")}
               target="_blank"
             >
               docs
@@ -369,10 +370,12 @@ function UserScriptEditor(props: Props) {
           }}
           deleteScript={(scriptId) => {
             setUserScripts({ ...userScripts, [scriptId]: undefined });
-            saveConfig({
-              selectedNodeId:
-                Object.keys(userScripts).length > 1 ? Object.keys(userScripts)[0] : undefined,
-            });
+            if (scriptId === selectedNodeId) {
+              const ids = Object.keys(userScripts).filter((key) => key !== scriptId);
+              saveConfig({
+                selectedNodeId: ids.length > 1 ? ids[0] : undefined,
+              });
+            }
           }}
           selectedScriptId={selectedNodeId}
           userScripts={userScripts}
