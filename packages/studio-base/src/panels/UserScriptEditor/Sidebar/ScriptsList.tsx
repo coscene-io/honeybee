@@ -62,10 +62,19 @@ export function ScriptsList({
                 deleteScript(scriptId);
               }}
               onRename={(name: string) => {
-                if (selectedScriptId != undefined && selectedScript != undefined) {
+                if (
+                  selectedScriptId != undefined &&
+                  selectedScript != undefined &&
+                  scriptId === selectedScriptId
+                ) {
                   setUserScripts({
                     ...scripts,
-                    [selectedScriptId]: { ...selectedScript, name },
+                    [scriptId]: { ...selectedScript, name },
+                  });
+                } else if (scripts[scriptId] != undefined) {
+                  setUserScripts({
+                    ...scripts,
+                    [scriptId]: { ...scripts[scriptId], name },
                   });
                 }
               }}
