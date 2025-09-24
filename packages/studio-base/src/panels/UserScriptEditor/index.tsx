@@ -370,10 +370,12 @@ function UserScriptEditor(props: Props) {
           }}
           deleteScript={(scriptId) => {
             setUserScripts({ ...userScripts, [scriptId]: undefined });
-            saveConfig({
-              selectedNodeId:
-                Object.keys(userScripts).length > 1 ? Object.keys(userScripts)[0] : undefined,
-            });
+            if (scriptId === selectedNodeId) {
+              const ids = Object.keys(userScripts).filter((key) => key !== scriptId);
+              saveConfig({
+                selectedNodeId: ids.length > 1 ? ids[0] : undefined,
+              });
+            }
           }}
           selectedScriptId={selectedNodeId}
           userScripts={userScripts}
