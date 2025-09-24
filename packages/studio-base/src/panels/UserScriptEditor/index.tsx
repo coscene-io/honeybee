@@ -54,6 +54,7 @@ import BottomBar from "@foxglove/studio-base/panels/UserScriptEditor/BottomBar";
 import { Sidebar } from "@foxglove/studio-base/panels/UserScriptEditor/Sidebar";
 import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { SaveConfig, UserScripts } from "@foxglove/studio-base/types/panels";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 
 import Config from "./Config";
 import { Script } from "./script";
@@ -157,7 +158,7 @@ const WelcomeScreen = ({ addNewNode }: { addNewNode: (code?: string) => void }) 
             <Link
               color="primary"
               underline="hover"
-              href="https://foxglove.dev/docs/studio/panels/user-scripts"
+              href={getDocsLink("/viz/panel/user-scripts")}
               target="_blank"
             >
               docs
