@@ -10,16 +10,21 @@ import { APP_CONFIG } from "./appConfig";
 
 export function getDocsLink(path?: string): string {
   const lang = i18next.language === "zh" ? "zh" : "en";
-
   const env = APP_CONFIG.VITE_APP_PROJECT_ENV;
+  let url = APP_CONFIG.DOC_BASE_URL;
 
   const langPrefix = env === "aws" || env === "gcp" || lang === "zh" ? "" : lang;
-
-  if (!path) {
-    return `${APP_CONFIG.DOC_BASE_URL}/${langPrefix}`;
+  if (langPrefix) {
+    url += `/${langPrefix}`;
   }
-
-  return `${APP_CONFIG.DOC_BASE_URL}/${langPrefix}/docs${path}`;
+  if (path) {
+    url += "/docs";
+    if (!path.startsWith("/")) {
+      url += "/";
+    }
+    url += path;
+  }
+  return url;
 }
 
 export function getLegalDocsLink(type: "terms" | "privacy" | "security"): string {
