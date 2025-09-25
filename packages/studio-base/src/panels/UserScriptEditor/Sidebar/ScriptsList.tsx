@@ -71,11 +71,14 @@ export function ScriptsList({
                     ...scripts,
                     [scriptId]: { ...selectedScript, name },
                   });
-                } else if (scripts[scriptId] != undefined) {
-                  setUserScripts({
-                    ...scripts,
-                    [scriptId]: { ...scripts[scriptId], name },
-                  });
+                } else {
+                  const script = scripts[scriptId];
+                  if (script != undefined) {
+                    setUserScripts({
+                      ...scripts,
+                      [scriptId]: { ...script, name },
+                    });
+                  }
                 }
               }}
             />
