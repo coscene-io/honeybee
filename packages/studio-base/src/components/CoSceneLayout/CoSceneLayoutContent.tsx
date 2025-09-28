@@ -14,6 +14,7 @@ import {
   PlayArrow as PlayArrowIcon,
   Equalizer as EqualizerIcon,
   MoreVert as MoreVertIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import {
   Avatar,
@@ -106,8 +107,17 @@ const useStyles = makeStyles()((theme) => ({
   folderItem: {
     paddingLeft: theme.spacing(4),
   },
+  breadcrumbContainer: {
+    display: "flex",
+  },
   breadcrumbs: {
-    marginBottom: theme.spacing(2),
+    flex: 1,
+    marginBottom: theme.spacing(1),
+  },
+  closeButton: {
+    marginTop: theme.spacing(-1),
+    marginRight: theme.spacing(-1),
+    height: 0,
   },
   toolbar: {
     display: "flex",
@@ -171,6 +181,7 @@ export function CoSceneLayoutContent({
   onRevertLayout,
   onCreateLayout,
   onMoveLayout,
+  onClose,
 }: {
   currentLayoutId?: LayoutID;
   supportsProjectWrite: boolean;
@@ -187,6 +198,7 @@ export function CoSceneLayoutContent({
   onRevertLayout: (layout: Layout) => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
   onMoveLayout: (layout: Layout, newFolder: string) => void;
+  onClose: () => void;
 }): React.JSX.Element {
   const { t, i18n } = useTranslation("cosLayout");
   const { classes } = useStyles();
@@ -537,32 +549,39 @@ export function CoSceneLayoutContent({
         <div className={classes.contentArea}>
           <Box className={classes.boxPadding}>
             {/* Breadcrumb */}
-            <Breadcrumbs className={classes.breadcrumbs}>
-              {selectedFolder.folder ? (
-                <Link
-                  color="inherit"
-                  underline="hover"
-                  onClick={() => {
-                    setSelectedFolder({ category: selectedFolder.category, folder: "" });
-                  }}
-                >
-                  {selectedFolder.category === "personal"
-                    ? t("personalLayout")
-                    : selectedFolder.category === "project"
-                    ? t("projectLayout")
-                    : t("allLayout")}
-                </Link>
-              ) : (
-                <Typography>
-                  {selectedFolder.category === "personal"
-                    ? t("personalLayout")
-                    : selectedFolder.category === "project"
-                    ? t("projectLayout")
-                    : t("allLayout")}
-                </Typography>
-              )}
-              {selectedFolder.folder && <Typography>{selectedFolder.folder}</Typography>}
-            </Breadcrumbs>
+            <Box className={classes.breadcrumbContainer}>
+              <Breadcrumbs className={classes.breadcrumbs}>
+                {selectedFolder.folder ? (
+                  <Link
+                    color="inherit"
+                    underline="hover"
+                    onClick={() => {
+                      setSelectedFolder({ category: selectedFolder.category, folder: "" });
+                    }}
+                  >
+                    {selectedFolder.category === "personal"
+                      ? t("personalLayout")
+                      : selectedFolder.category === "project"
+                      ? t("projectLayout")
+                      : t("allLayout")}
+                  </Link>
+                ) : (
+                  <Typography>
+                    {selectedFolder.category === "personal"
+                      ? t("personalLayout")
+                      : selectedFolder.category === "project"
+                      ? t("projectLayout")
+                      : t("allLayout")}
+                  </Typography>
+                )}
+                {selectedFolder.folder && <Typography>{selectedFolder.folder}</Typography>}
+              </Breadcrumbs>
+              <Box className={classes.closeButton}>
+                <IconButton onClick={onClose}>
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+            </Box>
 
             {/* Toolbar */}
             <Box className={classes.toolbar}>
