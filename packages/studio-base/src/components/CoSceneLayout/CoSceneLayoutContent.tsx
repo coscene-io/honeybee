@@ -43,7 +43,7 @@ import { CopyLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout
 import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
 import { MoveToFolderDialog } from "@foxglove/studio-base/components/CoSceneLayout/MoveToFolderDialog";
 import { RenameLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/RenameLayoutDialog";
-import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
+import { CreateLayoutItems } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutItems";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
@@ -474,17 +474,14 @@ export function CoSceneLayoutContent({
       <div className={classes.layoutContainer}>
         {/* Left Navigation Sidebar */}
         <div className={classes.sidebar}>
-          <Box className={classes.boxPadding}>
-            <CreateLayoutButton
-              onCreateLayout={onCreateLayout}
-              personalFolders={layouts?.personalFolders ?? []}
-              projectFolders={layouts?.projectFolders ?? []}
-              supportsProjectWrite={supportsProjectWrite}
-            />
-          </Box>
-
           <Box className={classes.overflowContainter}>
             <List className={classes.listPadding}>
+              <CreateLayoutItems
+                onCreateLayout={onCreateLayout}
+                personalFolders={layouts?.personalFolders ?? []}
+                projectFolders={layouts?.projectFolders ?? []}
+                supportsProjectWrite={supportsProjectWrite}
+              />
               {items.map((item) => (
                 <Fragment key={item.category}>
                   <ListItem disablePadding>
