@@ -5,14 +5,29 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { List, ListItem, ListItemButton, ListItemText } from "@mui/material";
+import {
+  Add as AddIcon,
+  NoteAddOutlined as NoteAddOutlinedIcon,
+  LibraryAddOutlined as LibraryAddOutlinedIcon,
+} from "@mui/icons-material";
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import { CopyFromOtherProjectDialog } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CopyFromOtherProjectDialog";
 import { CreateBlankLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateBlankLayoutDialog";
 import { ImportFromFileDialog } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/ImportFromFileDialog";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+
+const useStyles = makeStyles()(() => ({
+  listItemIcon: {
+    minWidth: 26,
+    "& svg": {
+      fontSize: "1rem",
+    },
+  },
+}));
 
 export function CreateLayoutItems({
   onCreateLayout,
@@ -25,6 +40,7 @@ export function CreateLayoutItems({
   projectFolders: string[];
   supportsProjectWrite: boolean;
 }): React.JSX.Element {
+  const { classes } = useStyles();
   const [open, setOpen] = useState("");
   const handleClose = useCallback(() => {
     setOpen("");
@@ -32,36 +48,44 @@ export function CreateLayoutItems({
 
   const { t } = useTranslation("cosLayout");
 
+  const buttons = [
+    {
+      key: "createBlankLayout",
+      label: t("createBlankLayout"),
+      icon: <AddIcon />,
+      onClick: () => {
+        setOpen("createBlankLayout");
+      },
+    },
+    {
+      key: "copyFromOtherProject",
+      label: t("copyFromOtherProject"),
+      icon: <LibraryAddOutlinedIcon />,
+      onClick: () => {
+        setOpen("copyFromOtherProject");
+      },
+    },
+    {
+      key: "importFromFile",
+      label: t("importFromFile"),
+      icon: <NoteAddOutlinedIcon />,
+      onClick: () => {
+        setOpen("importFromFile");
+      },
+    },
+  ];
+
   return (
     <>
       <List>
-        <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => {
-              setOpen("createBlankLayout");
-            }}
-          >
-            <ListItemText primary={t("createBlankLayout")} />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => {
-              setOpen("copyFromOtherProject");
-            }}
-          >
-            <ListItemText primary={t("copyFromOtherProject")} />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => {
-              setOpen("importFromFile");
-            }}
-          >
-            <ListItemText primary={t("importFromFile")} />
-          </ListItemButton>
-        </ListItem>
+        {buttons.map((button) => (
+          <ListItem disablePadding key={button.label}>
+            <ListItemButton onClick={button.onClick}>
+              <ListItemIcon className={classes.listItemIcon}>{button.icon}</ListItemIcon>
+              <ListItemText primary={button.label} />
+            </ListItemButton>
+          </ListItem>
+        ))}
       </List>
       {open === "createBlankLayout" && (
         <CreateBlankLayoutDialog

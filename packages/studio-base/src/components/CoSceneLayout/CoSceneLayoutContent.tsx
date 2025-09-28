@@ -475,13 +475,13 @@ export function CoSceneLayoutContent({
         {/* Left Navigation Sidebar */}
         <div className={classes.sidebar}>
           <Box className={classes.overflowContainter}>
+            <CreateLayoutItems
+              onCreateLayout={onCreateLayout}
+              personalFolders={layouts?.personalFolders ?? []}
+              projectFolders={layouts?.projectFolders ?? []}
+              supportsProjectWrite={supportsProjectWrite}
+            />
             <List className={classes.listPadding}>
-              <CreateLayoutItems
-                onCreateLayout={onCreateLayout}
-                personalFolders={layouts?.personalFolders ?? []}
-                projectFolders={layouts?.projectFolders ?? []}
-                supportsProjectWrite={supportsProjectWrite}
-              />
               {items.map((item) => (
                 <Fragment key={item.category}>
                   <ListItem disablePadding>
