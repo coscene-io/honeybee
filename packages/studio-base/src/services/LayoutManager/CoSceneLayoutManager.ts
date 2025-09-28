@@ -136,17 +136,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.#emitter.emit("errorchange");
   }
 
-  #getRemoteLayoutParents(): string[] {
-    const parents = [];
-    if (this.userName) {
-      parents.push(this.userName);
-    }
-    if (this.projectName) {
-      parents.push(this.projectName);
-    }
-    return parents;
-  }
-
   public constructor({
     local,
     remote,
@@ -696,7 +685,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     const [localLayouts, remoteLayouts] = await Promise.all([
       this.#local.runExclusive(async (local) => await local.list()),
-      this.#remote.getLayouts(this.#getRemoteLayoutParents()),
+      this.#remote.getLayouts(),
     ]);
     if (abortSignal.aborted) {
       return;
