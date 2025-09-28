@@ -19,6 +19,7 @@ import {
   Avatar,
   Box,
   Breadcrumbs,
+  Divider,
   IconButton,
   InputAdornment,
   Link,
@@ -481,6 +482,7 @@ export function CoSceneLayoutContent({
               projectFolders={layouts?.projectFolders ?? []}
               supportsProjectWrite={supportsProjectWrite}
             />
+            <Divider />
             <List className={classes.listPadding}>
               {items.map((item) => (
                 <Fragment key={item.category}>
