@@ -120,7 +120,15 @@ export function ImportFromFileDialog({
   }, [enqueueSnackbar, form]);
 
   return (
-    <Dialog open={open} onClose={onClose}>
+    <Dialog
+      open={open}
+      onClose={(_event, reason) => {
+        if (reason === "backdropClick") {
+          return;
+        }
+        onClose();
+      }}
+    >
       <DialogTitle>{t("importFromFile")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>

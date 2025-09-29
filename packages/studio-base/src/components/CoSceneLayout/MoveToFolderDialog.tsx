@@ -89,7 +89,15 @@ export function MoveToFolderDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose}>
+    <Dialog
+      open={open}
+      onClose={(_event, reason) => {
+        if (reason === "backdropClick") {
+          return;
+        }
+        onClose();
+      }}
+    >
       <DialogTitle>{t("moveToFolder")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
