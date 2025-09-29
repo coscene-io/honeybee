@@ -6,34 +6,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import CloseIcon from "@mui/icons-material/Close";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Stack,
-  Select,
-  MenuItem,
-  FormLabel,
-  IconButton,
-} from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, Stack, IconButton } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { ProjectLayoutList } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/ProjectLayoutList";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import { ProjectSelector } from "./ProjectSselector";
-
-export type CreateProjectLayoutParams = {
-  folder: { value: string; isNewFolder: boolean };
-  name: string;
-  permission: LayoutPermission;
-  data?: LayoutData;
-  projectName: string;
-  templateName: string;
-};
 
 const useStyles = makeStyles()({
   dialogContent: {
@@ -45,25 +27,16 @@ export function CopyFromOtherProjectDialog({
   open,
   onClose,
   onCreateLayout,
+  supportsProjectWrite,
 }: {
   open: boolean;
   onClose: () => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
+  supportsProjectWrite: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
-
   const [projectName, setProjectName] = useState("");
-
-  // const onSubmit = (data: CreateProjectLayoutParams) => {
-  //   onCreateLayout({
-  //     folder: data.folder.value,
-  //     name: data.name,
-  //     permission: data.permission,
-  //     data: data.data,
-  //   });
-  //   onClose();
-  // };
 
   return (
     <Dialog
@@ -85,24 +58,23 @@ export function CopyFromOtherProjectDialog({
         <Stack gap={2}>
           <ProjectSelector value={projectName} onChange={setProjectName} />
 
-          {/* <Controller
-            control={form.control}
-            name="data"
-            rules={{
-              required: true,
+          <ProjectLayoutList
+            projectName={projectName}
+            supportsProjectWrite={supportsProjectWrite}
+            onChange={(layout, permission) => {
+              console.log("layout", layout);
+              console.log("permission", permission);
+
+              onCreateLayout({
+                folder: "",
+                name: layout.displayName,
+                permission,
+                data: layout.data?.toJson() as LayoutData,
+              });
+
+              onClose();
             }}
-            render={({ field, fieldState }) => (
-              <ProjectLayoutSelector
-                key={projectName}
-                projectName={projectName}
-                onChange={(data, name) => {
-                  // field.onChange(data);
-                  // form.setValue("name", name ?? "");
-                }}
-                error={!!fieldState.error}
-              />
-            )}
-          /> */}
+          />
         </Stack>
       </DialogContent>
     </Dialog>

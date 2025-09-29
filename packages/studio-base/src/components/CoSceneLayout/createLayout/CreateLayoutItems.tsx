@@ -98,7 +98,12 @@ export function CreateLayoutItems({
         />
       )}
       {open === "copyFromOtherProject" && (
-        <CopyFromOtherProjectDialog onCreateLayout={onCreateLayout} open onClose={handleClose} />
+        <CopyFromOtherProjectDialog
+          supportsProjectWrite={supportsProjectWrite}
+          onCreateLayout={onCreateLayout}
+          open
+          onClose={handleClose}
+        />
       )}
       {open === "importFromFile" && (
         <ImportFromFileDialog
