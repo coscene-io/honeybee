@@ -17,8 +17,12 @@ import { ActionNameConfig, ActionInfo } from "./types";
 export async function fetchActionList(
   context: PanelExtensionContext,
   serviceName: string = "/recordbag_5Fmsgs/srv/GetActionList",
+  retryCount = 0,
 ): Promise<ActionInfo[]> {
-  if (!context) {
+  const maxRetries = 3;
+  const retryDelay = 2000; // 2秒
+
+  if (context == undefined) {
     console.error("fetchActionList: context is undefined");
     return [];
   }
@@ -34,6 +38,19 @@ export async function fetchActionList(
     console.warn("fetchActionList: context.callService is not available, returning empty list");
     return [];
   } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+
+    // 检查是否是服务未启动的错误
+    if (errorMessage.includes("has not been advertised") && retryCount < maxRetries) {
+      console.warn(
+        `fetchActionList: ROS服务未启动，${retryDelay / 1000}秒后重试 (${
+          retryCount + 1
+        }/${maxRetries})`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      return await fetchActionList(context, serviceName, retryCount + 1);
+    }
+
     console.error("Failed to call GetActionList:", err);
     return [];
   }
