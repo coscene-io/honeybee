@@ -7,6 +7,10 @@
 
 import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import {
+  BusinessCenterOutlined as BusinessCenterOutlinedIcon,
+  Search as SearchIcon,
+} from "@mui/icons-material";
+import {
   Box,
   Button,
   List,
@@ -16,13 +20,45 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsync } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { LayoutPermission } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
+const useStyles = makeStyles()((theme) => ({
+  searchIcon: {
+    color: theme.palette.text.secondary,
+  },
+  listContainer: {
+    height: 240,
+    overflow: "auto",
+    border: `1px solid ${theme.palette.divider}`,
+  },
+  listItem: {
+    ":hover": {
+      backgroundColor: theme.palette.action.hover,
+    },
+    "&:hover .MuiStack-root": {
+      visibility: "visible",
+      display: "flex",
+    },
+    ".MuiStack-root": {
+      visibility: "hidden",
+      display: "none",
+    },
+  },
+  listItemText: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1),
+  },
+}));
 interface LayoutListProps {
   projectName: string;
   onChange: (data: Layout, permission: LayoutPermission) => void;
@@ -37,6 +73,7 @@ export function ProjectLayoutList({
   const { t } = useTranslation("cosLayout");
   const consoleApi = useConsoleApi();
   const [searchText, setSearchText] = useState("");
+  const { classes } = useStyles();
 
   const layouts = useAsync(async () => {
     if (!projectName) {
@@ -47,41 +84,31 @@ export function ProjectLayoutList({
     return result.projectLayouts;
   }, [projectName, consoleApi]);
 
-  // const getProjectLayout = useCallback(
-  //   async (layoutName: string, displayName?: string) => {
-  //     if (!layoutName) {
-  //       // onChange(undefined, undefined);
-  //       return;
-  //     }
-
-  //     try {
-  //       const result = await consoleApi.getProjectLayout({ name: layoutName });
-  //       const data = result.data?.toJson() as LayoutData;
-  //       onChange(data, displayName);
-  //     } catch (error) {
-  //       console.error(error);
-  //       // onChange(undefined, undefined);c
-  //     }
-
-  //     return;
-  //   },
-  //   [consoleApi, onChange],
-  // );
-
   return (
     <Box>
       <TextField
+        fullWidth
         label={t("layoutToCopy")}
         value={searchText}
         onChange={(e) => {
           setSearchText(e.target.value);
         }}
+        slotProps={{
+          input: {
+            startAdornment: <SearchIcon fontSize="small" className={classes.searchIcon} />,
+          },
+        }}
       />
-      <List>
+      <List dense className={classes.listContainer}>
         {layouts.value?.map((layout) => (
-          <ListItem key={layout.name}>
-            <ListItemText>{layout.displayName}</ListItemText>
-            <div>
+          <ListItem key={layout.name} className={classes.listItem} dense>
+            <BusinessCenterOutlinedIcon fontSize="small" />
+            <ListItemText className={classes.listItemText}>
+              <Typography variant="body2" noWrap textOverflow="ellipsis">
+                {layout.displayName}
+              </Typography>
+            </ListItemText>
+            <Stack direction="row" gap={1} flex="none">
               <Button
                 size="small"
                 variant="outlined"
@@ -102,22 +129,10 @@ export function ProjectLayoutList({
                   {t("copyToProject")}
                 </Button>
               )}
-            </div>
+            </Stack>
           </ListItem>
         ))}
       </List>
     </Box>
   );
-
-  // return (
-  //   <Autocomplete
-  //     options={options.value ?? []}
-  //     onChange={(_event, option) => {
-  //       void getProjectLayout(option?.value, option?.label);
-  //     }}
-  //     renderInput={(params) => (
-  //       <TextField required {...params} label={t("layoutToCopy")} error={error} />
-  //     )}
-  //   />
-  // );
 }

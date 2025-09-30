@@ -62,9 +62,6 @@ export function CopyFromOtherProjectDialog({
             projectName={projectName}
             supportsProjectWrite={supportsProjectWrite}
             onChange={(layout, permission) => {
-              console.log("layout", layout);
-              console.log("permission", permission);
-
               onCreateLayout({
                 folder: "",
                 name: layout.displayName,
