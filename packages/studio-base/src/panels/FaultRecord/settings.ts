@@ -5,12 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useCallback, useEffect } from "react";
-import _ from "lodash";
 import { produce } from "immer";
+import _ from "lodash";
+import { useCallback, useEffect } from "react";
 
-import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import type { SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
+import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
+
 import type { PanelState } from "./types";
 
 // Service config interface
@@ -30,15 +31,15 @@ export interface FaultRecordConfig {
 
 export const defaultConfig: FaultRecordConfig = {
   startRecordService: {
-    serviceName: "/RecordPlayback/StartRecord",
+    serviceName: "/recordbag_5Fmsgs/srv/StartRecord",
     serviceType: "fault_record/StartRecord",
   },
   stopRecordService: {
-    serviceName: "/RecordPlayback/StopRecord",
+    serviceName: "/recordbag_5Fmsgs/srv/StopRecord",
     serviceType: "fault_record/StopRecord",
   },
   actionListService: {
-    serviceName: "/RecordPlayback/GetActionList",
+    serviceName: "/recordbag_5Fmsgs/srv/GetActionList",
   },
 };
 

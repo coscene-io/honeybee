@@ -1,5 +1,13 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 // Service utilities for FaultRecord panel
 import type { PanelExtensionContext } from "@foxglove/studio";
+
 import { ActionNameConfig, ActionInfo } from "./types";
 
 /**
@@ -8,26 +16,24 @@ import { ActionNameConfig, ActionInfo } from "./types";
  */
 export async function fetchActionList(
   context: PanelExtensionContext,
-  serviceName: string = "/RecordPlayback/GetActionList",
+  serviceName: string = "/recordbag_5Fmsgs/srv/GetActionList",
 ): Promise<ActionInfo[]> {
   if (!context) {
-    // eslint-disable-next-line no-console
     console.error("fetchActionList: context is undefined");
     return [];
   }
   try {
     if (typeof context.callService === "function") {
-      const rsp = (await context.callService(serviceName, { mode: "all" })) as {
+      const rsp = (await context.callService(serviceName, {})) as {
         actions?: ActionInfo[];
       };
-      const actions: ActionInfo[] = Array.isArray(rsp?.actions) ? rsp.actions! : [];
-      return actions.filter((a) => a?.is_enable === true);
+      const actions: ActionInfo[] = Array.isArray(rsp.actions) ? rsp.actions : [];
+      return actions.filter((a) => a.is_enable);
     }
-    // eslint-disable-next-line no-console
+
     console.warn("fetchActionList: context.callService is not available, returning empty list");
     return [];
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("Failed to call GetActionList:", err);
     return [];
   }

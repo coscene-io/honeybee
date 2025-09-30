@@ -280,7 +280,7 @@ export function FileUploadPanel({
 
   // 加载可用的action名称
   const loadAvailableActionNames = useCallback(async () => {
-    const defaultService = "/RecordPlayback/GetActionList";
+    const defaultService = "/recordbag_5Fmsgs/srv/GetActionList";
     const serviceName = config.actionListService.serviceName || defaultService;
     try {
       if (typeof context.callService !== "function") {
@@ -295,7 +295,7 @@ export function FileUploadPanel({
           log("error", `获取action列表失败: context.callService 未定义`);
           return [];
         }
-        const result = (await callService(svc, { mode: "all" })) as {
+        const result = (await callService(svc, {})) as {
           actions?: Array<{ action_name: string; is_enable: boolean }>;
         };
         return Array.isArray(result.actions) ? result.actions : [];
@@ -348,7 +348,10 @@ export function FileUploadPanel({
       setPhase("loading");
       setSelectedPaths(new Set()); // 清空之前的选择状态
 
-      const requestParams = { mode: selectedMode, action_name: selectedActionName };
+      const requestParams =
+        selectedMode === "" && selectedActionName === ""
+          ? {}
+          : { mode: selectedMode, action_name: selectedActionName };
       log(
         "info",
         `[刷新按钮] 调用ROS服务: ${refreshButtonServiceName}, 参数: ${safeStringify(
@@ -457,7 +460,16 @@ export function FileUploadPanel({
           const resultObj = result as any;
 
           // 情况2：标准ROS2服务响应格式：{code, msg, bags}
-          if (resultObj.code === 0 && Array.isArray(resultObj.bags)) {
+          // 首先检查服务是否返回错误
+          if (resultObj.code !== undefined && resultObj.code !== 0) {
+            log(
+              "error",
+              `[刷新按钮] ROS服务返回错误: code=${resultObj.code}, msg=${resultObj.msg}`,
+            );
+            throw new Error(`ROS服务错误: ${resultObj.msg}`);
+          }
+
+          if (Array.isArray(resultObj.bags)) {
             console.log("[FileUpload] 处理标准ROS2服务响应格式，bags长度:", resultObj.bags.length);
             bags = resultObj.bags.map((item: any, index: number) => {
               console.log(`[FileUpload] 处理标准格式Bag ${index + 1}:`, item);
@@ -483,8 +495,8 @@ export function FileUploadPanel({
               const isFieldCorrect =
                 path.includes("/") &&
                 path.length > 10 &&
-                (mode === "imd" || mode === "signal") &&
-                action_name.includes("test_action") &&
+                action_name &&
+                action_name.length > 0 &&
                 (type === "file" || type === "folder");
 
               if (isFieldCorrect) {
@@ -617,7 +629,10 @@ export function FileUploadPanel({
               return reconstructedItem;
             });
             console.log("[FileUpload] 标准格式最终处理结果:", bags);
-            log("info", `[刷新按钮] 检测到标准ROS2服务响应格式，已处理`);
+            log(
+              "info",
+              `[刷新按钮] 检测到ROS2服务响应格式（code: ${resultObj.code}, msg: ${resultObj.msg}），已处理`,
+            );
           } else if (resultObj.code === 0 && Array.isArray(resultObj.data)) {
             // 情况3：备用格式：{code: 0, data: [...]}
             bags = resultObj.data.map((item: any) => ({
@@ -630,7 +645,7 @@ export function FileUploadPanel({
           } else {
             log(
               "error",
-              `[刷新按钮] ROS服务返回格式不正确，期望: {code: 0, msg: "ok", bags: [...]} 或直接返回数组，实际: ${safeStringify(
+              `[刷新按钮] ROS服务返回格式不正确，期望: {bags: [...]} 或直接返回数组，实际: ${safeStringify(
                 result,
               )}`,
             );
