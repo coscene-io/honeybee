@@ -11,7 +11,6 @@ import {
   Task,
   UploadTaskDetail,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
-import { LinkTaskWrapper } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
 
 import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { CosQuery } from "@foxglove/studio-base/util/coscene/cosel";
@@ -140,43 +139,13 @@ export class RealCoSceneClient implements CoSceneClient {
 
       onProgress?.(5);
 
-      // First, create a record for the uploaded files
-      let recordName = "";
+      // 准备任务创建信息
       let taskTitle = "";
       let deviceName = "";
 
       const currentUser = await this.api.getUser("users/current");
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
       taskTitle = `file-upload-${timestamp}`;
-
-      // Create a record for the uploaded files
-      const recordTitle = `Upload Record ${timestamp}`;
-      const recordDescription = `Record created for file upload containing ${files.length} file(s)`;
-
-      // Convert tags to Label[] for API compatibility
-      const labelMessages = (cfg.tags ?? []).map((tag) => {
-        if (typeof tag === "string") {
-          return new Label({ name: tag, displayName: tag });
-        }
-        return tag;
-      });
-
-      console.log(`[记录创建] 创建记录: ${recordTitle}`);
-      console.log(
-        `[记录创建] 标签信息: [${labelMessages.map((l) => l.displayName || l.name).join(", ")}]`,
-      );
-
-      const createdRecord = await this.api.createRecord({
-        parent: cfg.projectId,
-        record: {
-          title: recordTitle,
-          description: recordDescription,
-          labels: labelMessages, // Add labels to the record
-        },
-      });
-
-      recordName = createdRecord.name;
-      console.log(`[记录创建] 记录创建成功: ${recordName}`);
 
       onProgress?.(15);
 
@@ -192,11 +161,9 @@ export class RealCoSceneClient implements CoSceneClient {
       onProgress?.(80);
 
       // 文件路径已准备就绪，将通过任务传递给CoScene平台
-      console.log(
-        `[文件处理] ${files.length} 个文件路径已准备就绪，将通过任务传递给CoScene平台: ${recordName}`,
-      );
+      console.log(`[文件处理] ${files.length} 个文件路径已准备就绪，将通过任务传递给CoScene平台`);
 
-      // Now create a task and link it to the record
+      // 创建任务（不创建记录）
       let createdTaskName: string | undefined;
       if (cfg.projectId) {
         try {
@@ -254,7 +221,6 @@ export class RealCoSceneClient implements CoSceneClient {
 
             console.log(`[任务创建] 任务标题: ${taskTitle}`);
             console.log(`[任务创建] 使用项目名称: ${cfg.projectId}`);
-            console.log(`[任务创建] 关联记录: ${recordName}`);
 
             // 准备要上传的文件路径列表
             const filePaths = files.map((file) => {
@@ -266,7 +232,7 @@ export class RealCoSceneClient implements CoSceneClient {
             const newTask = new Task({
               assigner: `users/${currentUser.name.split("/").pop()}`,
               category: TaskCategoryEnum_TaskCategory.UPLOAD,
-              description: recordName ? `Files uploaded to record: ${recordName}` : "",
+              description: `Files uploaded containing ${files.length} file(s)`,
               detail: {
                 case: "uploadTaskDetail",
                 value: new UploadTaskDetail({
@@ -276,8 +242,6 @@ export class RealCoSceneClient implements CoSceneClient {
                 }),
               },
               title: taskTitle,
-              // Set tags to include recordName for proper linking
-              tags: recordName ? { recordName } : {},
             });
 
             // 打印任务创建前的详细信息
@@ -285,9 +249,7 @@ export class RealCoSceneClient implements CoSceneClient {
             console.log(`[任务信息] 任务标题: ${taskTitle}`);
             console.log(`[任务信息] 分配者: users/${currentUser.name.split("/").pop()}`);
             console.log(`[任务信息] 任务类别: UPLOAD`);
-            console.log(
-              `[任务信息] 任务描述: ${recordName ? `Files uploaded to record: ${recordName}` : ""}`,
-            );
+            console.log(`[任务信息] 任务描述: Files uploaded containing ${files.length} file(s)`);
             console.log(`[任务信息] 父级项目: ${cfg.projectId}`);
             console.log(`[任务信息] 设备信息: ${deviceName}`);
             console.log(`[任务信息] 文件路径列表 (${filePaths.length}个):`);
@@ -297,7 +259,6 @@ export class RealCoSceneClient implements CoSceneClient {
             console.log(
               `[任务信息] 标签列表 (${labelStrings.length}个): [${labelStrings.join(", ")}]`,
             );
-            console.log(`[任务信息] 记录关联: ${recordName ? recordName : "无"}`);
             console.log("========================");
 
             const createdTask = await this.api.createTask_v2({
@@ -327,36 +288,11 @@ export class RealCoSceneClient implements CoSceneClient {
               const uploadDetail = createdTask.detail.value;
               console.log(`[任务结果] 设备: ${uploadDetail.device || "未设置"}`);
               console.log(
-                `[任务结果] 附加文件数量: ${uploadDetail.additionalFiles.length > 0 || 0}`,
+                `[任务结果] 文件路径数量: ${uploadDetail.additionalFiles.length > 0 || 0}`,
               );
-              if (uploadDetail.additionalFiles && uploadDetail.additionalFiles.length > 0) {
-                console.log(`[任务结果] 附加文件列表:`);
-                uploadDetail.additionalFiles.forEach((file, index) => {
-                  console.log(`  ${index + 1}. ${file}`);
-                });
-              }
-              console.log(`[任务结果] 标签: [${uploadDetail.labels.join(", ") || "无"}]`);
+              console.log(`[任务结果] 标签数量: ${uploadDetail.labels.length > 0 || 0}`);
             }
             console.log("========================");
-
-            // Link the task to the record if both exist
-            if (recordName && createdTask.name) {
-              try {
-                console.log(`[任务关联] 将任务 ${createdTask.name} 关联到记录 ${recordName}`);
-                await this.api.linkTasks({
-                  project: cfg.projectId,
-                  linkTasks: [
-                    new LinkTaskWrapper({
-                      task: createdTask.name,
-                      target: { value: recordName, case: "record" },
-                    }),
-                  ],
-                });
-                console.log("[任务关联] 任务与记录关联成功");
-              } catch (linkError) {
-                console.warn("[任务关联] 任务与记录关联失败:", linkError);
-              }
-            }
           } else {
             console.log("[任务创建] 跳过任务创建，设备信息不可用");
           }
@@ -368,16 +304,15 @@ export class RealCoSceneClient implements CoSceneClient {
 
       onProgress?.(100);
 
-      // Return success with task and record information if created
-      // Use the actual created task name instead of constructed taskName
+      // Return success with task information if created
       return {
         success: true,
         taskName: createdTaskName || undefined,
-        recordName: recordName || undefined,
+        recordName: undefined, // 不创建记录
       };
     } catch (error) {
-      console.error("File upload failed:", error);
-      throw new Error(`Upload failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.error("[CoScene上传] 上传失败:", error);
+      throw error;
     }
   }
 }

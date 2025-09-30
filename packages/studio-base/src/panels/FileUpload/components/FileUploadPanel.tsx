@@ -750,12 +750,8 @@ export function FileUploadPanel({
       };
       log("info", `[上传文件] 开始上传, 配置: ${safeStringify(uploadInfo)}`);
 
-      // If using CoScene service and project/tags are configured, use CoScene upload
-      if (
-        (serviceSettings.submitFilesService === "coscene-real" ||
-          serviceSettings.submitFilesService === "coscene-mock") &&
-        uploadConfig.projectId
-      ) {
+      // Force using CoScene service for upload
+      if (uploadConfig.projectId) {
         // Convert paths to FileCandidate format for CoScene upload
         const filesCandidates = pathsArray.map((path, index) => {
           // 找到对应的BagFile对象
@@ -801,7 +797,7 @@ export function FileUploadPanel({
               }, 任务: ${uploadResult.taskName}, 标签: [${tagNames.join(", ")}]`,
             );
 
-            // Generate task and record URLs directly
+            // Generate task URL directly
             const webDomain = APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? "dev.coscene.cn";
             const taskId = uploadResult.taskName.split("/").pop();
 
@@ -811,10 +807,9 @@ export function FileUploadPanel({
 
             if ((!orgInfo || !projInfo) && consoleApi) {
               try {
-                // Extract warehouseId and projectId from taskName or recordName
-                const pathToExtract = uploadResult.taskName || uploadResult.recordName;
-                if (pathToExtract) {
-                  const pathParts = pathToExtract.split("/");
+                // Extract warehouseId and projectId from taskName
+                if (uploadResult.taskName) {
+                  const pathParts = uploadResult.taskName.split("/");
                   const warehouseIndex = pathParts.findIndex((part) => part === "warehouses");
                   const projectIndex = pathParts.findIndex((part) => part === "projects");
 
@@ -855,40 +850,19 @@ export function FileUploadPanel({
               }
             }
 
-            // Generate URLs with organization and project info if available
+            // Generate task URL with organization and project info if available
             if (orgInfo && projInfo) {
-              // Generate task URL
               const taskUrl = `https://${webDomain}/${orgInfo.slug}/${projInfo.slug}/devices/execution-history/${taskId}`;
               log("info", `[任务链接] ${taskUrl}`);
-
-              // Generate record URL if record information is available
-              if (uploadResult.recordName) {
-                const recordId = uploadResult.recordName.split("/").pop();
-                const recordUrl = `https://${webDomain}/${orgInfo.slug}/${projInfo.slug}/records/${recordId}/files`;
-                log("info", `[记录链接] ${recordUrl}`);
-              }
             } else {
-              // Generate URLs using available information
+              // Generate basic task URL if we have domain info
               log("info", `[任务ID] ${taskId}`);
               if (uploadConfig.projectId) {
                 log("info", `[项目ID] ${uploadConfig.projectId}`);
               }
 
-              if (uploadResult.recordName) {
-                const recordId = uploadResult.recordName.split("/").pop();
-                log("info", `[记录ID] ${recordId}`);
-              }
-
-              // Generate basic URLs if we have domain info
               if (taskId) {
                 log("info", `[任务链接] https://${webDomain}/tasks/${taskId}`);
-              }
-
-              if (uploadResult.recordName) {
-                const recordId = uploadResult.recordName.split("/").pop();
-                if (recordId) {
-                  log("info", `[记录链接] https://${webDomain}/records/${recordId}`);
-                }
               }
             }
           } else {
@@ -906,19 +880,7 @@ export function FileUploadPanel({
           log("error", `[上传失败] CoScene上传失败, 文件数: ${pathsArray.length}`);
         }
       } else {
-        // Use original bag service upload
-        const serviceName = bagServiceRef.current?.constructor?.name || "Unknown";
-        log("info", `[上传文件] 调用${serviceName}.submitFiles(), 文件数: ${pathsArray.length}`);
-
-        const result = await bagServiceRef.current.submitFiles({
-          paths: pathsArray,
-        });
-
-        if (result.code === 0) {
-          log("info", `[上传完成] ${serviceName}上传成功, 返回: ${safeStringify(result)}`);
-        } else {
-          log("error", `[上传失败] ${serviceName}上传失败: code=${result.code}, msg=${result.msg}`);
-        }
+        log("error", "上传失败: 必须选择项目才能上传文件");
       }
     } catch (e: any) {
       log("error", `[上传异常] 上传过程中发生异常: ${e?.message || e}`);
