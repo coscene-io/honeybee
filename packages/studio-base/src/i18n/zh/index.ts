@@ -30,3 +30,4 @@ export * from "./dataCollection";
 export * from "./task";
 export * from "./rawMessages";
 export * from "./table";
+export * from "./userScriptEditor";

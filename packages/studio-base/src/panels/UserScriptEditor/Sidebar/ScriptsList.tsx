@@ -7,6 +7,7 @@
 
 import AddIcon from "@mui/icons-material/Add";
 import { Button, List } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -44,16 +45,17 @@ export function ScriptsList({
   setUserScripts,
 }: ScriptsListProps): React.JSX.Element {
   const { classes } = useStyles();
+  const { t } = useTranslation("userScriptEditor");
 
   return (
     <Stack flex="auto">
-      <SidebarHeader title="Scripts" onClose={onClose} />
+      <SidebarHeader title={t("scriptsHeader")} onClose={onClose} />
       <List>
         {Object.keys(scripts).map((scriptId) => {
           return (
             <ScriptListItem
               key={scriptId}
-              title={scripts[scriptId]?.name ?? "Untitled script"}
+              title={scripts[scriptId]?.name ?? t("untitledScript")}
               selected={selectedScriptId === scriptId}
               onClick={() => {
                 selectScript(scriptId);
@@ -94,7 +96,7 @@ export function ScriptsList({
               addNewScript();
             }}
           >
-            New script
+            {t("newScript")}
           </Button>
         </li>
       </List>

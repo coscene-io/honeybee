@@ -22,6 +22,7 @@ import * as monacoApi from "monaco-editor/esm/vs/editor/editor.api";
 import { StandaloneServices } from "monaco-editor/esm/vs/editor/standalone/browser/standaloneServices";
 import * as path from "path";
 import React, { Suspense, ReactElement, useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import MonacoEditor, { EditorDidMount, EditorWillMount } from "react-monaco-editor";
 import { ResizePayload, useResizeDetector } from "react-resize-detector";
 import { useLatest } from "react-use";
@@ -91,6 +92,7 @@ const Editor = ({
   rosLib,
   typesLib,
 }: Props): ReactElement | ReactNull => {
+  const { t } = useTranslation("userScriptEditor");
   const editorRef = React.useRef<CodeEditor>(ReactNull);
   const autoFormatOnSaveRef = React.useRef(autoFormatOnSave);
   autoFormatOnSaveRef.current = autoFormatOnSave;
@@ -306,20 +308,23 @@ const Editor = ({
 
   const saveCodeRef = useRef(saveCode);
   saveCodeRef.current = saveCode;
-  const didMount = React.useCallback<EditorDidMount>((editor) => {
-    editorRef.current = editor;
-    editor.addAction({
-      id: "ctrl-s",
-      label: "Save current node",
-      keybindings: [monacoApi.KeyMod.CtrlCmd | monacoApi.KeyCode.KeyS],
+  const didMount = React.useCallback<EditorDidMount>(
+    (editor) => {
+      editorRef.current = editor;
+      editor.addAction({
+        id: "ctrl-s",
+        label: t("saveCurrentNode"),
+        keybindings: [monacoApi.KeyMod.CtrlCmd | monacoApi.KeyCode.KeyS],
 
-      // Because this didMount function only runs once, we need to store the saveCode function in a
-      // ref so the command can always access the latest version.
-      run: async () => {
-        await saveCodeRef.current();
-      },
-    });
-  }, []);
+        // Because this didMount function only runs once, we need to store the saveCode function in a
+        // ref so the command can always access the latest version.
+        run: async () => {
+          await saveCodeRef.current();
+        },
+      });
+    },
+    [t],
+  );
 
   // Refer to setScriptCode by reference so that the onChange callback isn't invalidated
   // on every edit.
@@ -360,7 +365,7 @@ const Editor = ({
   return (
     <div ref={sizeRef} style={{ width: "100%", height: "100%" }}>
       <ErrorBoundary>
-        <Suspense fallback={<p>Loading user script editor</p>}>
+        <Suspense fallback={<p>{t("loadingEditor")}</p>}>
           <MonacoEditor
             language="typescript"
             theme={editorTheme}
