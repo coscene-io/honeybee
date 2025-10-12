@@ -202,6 +202,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #persistentCache?: PersistentMessageCache;
   /** Whether to enable persistent caching */
   #enablePersistentCache: boolean = true;
+  #retentionWindowMs?: number;
+  #sessionId?: string;
   #serverTime?: Time;
 
   public constructor({
@@ -246,13 +248,19 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#deviceName = deviceName;
     this.#authHeader = authHeader;
     this.#enablePersistentCache = enablePersistentCache ?? true;
+    this.#retentionWindowMs = retentionWindowMs;
+    this.#sessionId = sessionId;
 
     // Initialize persistent cache if enabled
-    if (this.#enablePersistentCache && retentionWindowMs != undefined && retentionWindowMs > 0) {
+    if (
+      this.#enablePersistentCache &&
+      this.#retentionWindowMs != undefined &&
+      this.#retentionWindowMs > 0
+    ) {
       try {
         this.#persistentCache = new IndexedDbMessageStore({
-          retentionWindowMs,
-          sessionId: sessionId ?? `websocket-${this.#id}`,
+          retentionWindowMs: this.#retentionWindowMs,
+          sessionId: this.#sessionId ?? `websocket-${this.#id}`,
         });
         void this.#persistentCache.init().catch((error: unknown) => {
           log.warn("Failed to initialize persistent cache:", error);
@@ -1256,13 +1264,35 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     try {
       // Clean up persistent cache
+      await this.#persistentCache?.clear();
       await this.#persistentCache?.close();
+      this.#persistentCache = undefined;
     } catch (error) {
       log.debug("Error closing persistent cache:", error);
     }
   }
 
   public reOpen(): void {
+    // Initialize persistent cache if enabled
+    if (
+      this.#enablePersistentCache &&
+      this.#retentionWindowMs != undefined &&
+      this.#retentionWindowMs > 0
+    ) {
+      try {
+        this.#persistentCache = new IndexedDbMessageStore({
+          retentionWindowMs: this.#retentionWindowMs,
+          sessionId: this.#sessionId ?? `websocket-${this.#id}`,
+        });
+        void this.#persistentCache.init().catch((error: unknown) => {
+          log.warn("Failed to initialize persistent cache:", error);
+          this.#persistentCache = undefined;
+        });
+      } catch (error) {
+        log.warn("Failed to create persistent cache:", error);
+        this.#persistentCache = undefined;
+      }
+    }
     this.#closed = false;
     this.#open();
   }
