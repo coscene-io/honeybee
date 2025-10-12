@@ -1273,6 +1273,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
   }
 
   public reOpen(): void {
+    if (!this.#closed) {
+      return;
+    }
+
     // Initialize persistent cache if enabled
     if (
       this.#enablePersistentCache &&
