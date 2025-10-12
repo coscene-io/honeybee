@@ -35,8 +35,7 @@ export const userScriptEditor = {
   save: "Save",
   noAlerts: "No alerts to display.",
   noLogs: "No logs to display.",
-  invokeLogHint:
-    'Invoke <code>log(someValue)</code> in your node code to see data printed here.',
+  invokeLogHint: "Invoke <code>log(someValue)</code> in your node code to see data printed here.",
   saveCurrentNode: "Save current node",
   loadingEditor: "Loading user script editor",
 };

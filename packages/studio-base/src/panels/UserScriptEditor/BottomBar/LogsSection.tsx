@@ -7,8 +7,8 @@
 
 import { Link, List, ListItem, ListItemButton, ListItemText, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
-import Tree from "react-json-tree";
 import { Trans, useTranslation } from "react-i18next";
+import Tree from "react-json-tree";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
