@@ -45,7 +45,4 @@ export enum AppSetting {
 
   // Playback seek step (ms)
   SEEK_STEP_MS = "seekStepMs",
-
-  // Relative time playback mode
-  RELATIVE_TIME_MODE = "relativeTimeMode",
 }
