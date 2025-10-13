@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { List, ListItem, ListItemButton, ListItemText } from "@mui/material";
+import { useTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import templates from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/templates";
@@ -19,11 +20,12 @@ export function Templates({
   onClose: () => void;
   addNewNode: (template?: string) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("userScriptEditor");
   return (
     <Stack flex="auto">
       <SidebarHeader
-        title="Templates"
-        subheader="Create scripts from these templates, click a template to create a new script."
+        title={t("templatesHeader")}
+        subheader={t("templatesSubheader")}
         onClose={onClose}
       />
       <List dense>
