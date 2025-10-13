@@ -31,7 +31,6 @@ import {
   SubscriptionId,
   Time,
   ServerLogin,
-  Kicked,
   ChannelId,
   MessageData,
   ServerInfo,
@@ -63,7 +62,6 @@ type EventTypes = {
   preFetchAssetResponse: (event: PreFetchAssetResponse) => void;
   serviceCallFailure: (event: ServiceCallFailure) => void;
   login: (event: ServerLogin) => void;
-  kicked: (event: Kicked) => void;
   syncTime: (event: ServerSyncTime) => void;
   timeOffset: (event: TimeOffset) => void;
   networkStatistics: (event: NetworkStatistics) => void;
@@ -171,10 +169,6 @@ export default class FoxgloveClient {
 
         case "login":
           this.#emitter.emit("login", message);
-          return;
-
-        case "kicked":
-          this.#emitter.emit("kicked", message);
           return;
 
         case "syncTime":
