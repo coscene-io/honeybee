@@ -47,7 +47,9 @@ export function CopyFromOtherProjectDialog({
         onClose();
       }}
     >
-      <DialogTitle>
+      <DialogTitle
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+      >
         {t("copyFromOtherProject")}
         <IconButton onClick={onClose}>
           <CloseIcon />
