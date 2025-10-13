@@ -1,0 +1,36 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { alpha, filledInputClasses } from "@mui/material";
+export const MuiFilledInput = {
+    defaultProps: {
+        disableUnderline: true,
+    },
+    styleOverrides: {
+        input: ({ theme }) => ({
+            padding: theme.spacing(1, 1.125),
+        }),
+        sizeSmall: ({ theme }) => ({
+            [`& .${filledInputClasses.input}`]: {
+                padding: theme.spacing(0.75, 1),
+            },
+        }),
+        root: ({ theme }) => ({
+            borderRadius: theme.shape.borderRadius,
+            "&.Mui-focused": {
+                backgroundColor: theme.palette.action.focus,
+                [`&.${filledInputClasses.error}`]: {
+                    backgroundColor: alpha(theme.palette.error.main, theme.palette.action.focusOpacity),
+                },
+            },
+            "&.Mui-disabled": {
+                opacity: 0.5,
+            },
+            "&.Mui-error": {
+                backgroundColor: alpha(theme.palette.error.main, theme.palette.action.hoverOpacity),
+            },
+        }),
+    },
+};

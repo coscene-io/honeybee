@@ -45,11 +45,11 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
   const crash = useCrash();
   const userInfo = useCurrentUser(selectUser);
   const loginStatus = useCurrentUser(selectLoginStatus);
-  
+
   const consoleApi = useConsoleApi();
   const urlState = useMessagePipeline(selectUrlState);
   const dataSource = useCoreData(selectDataSource);
-  
+
   const project = useCoreData(selectProject);
   const projectSlug = useMemo(() => project.value?.slug, [project]);
   const organization = useCoreData(selectOrganization);
@@ -69,7 +69,7 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
 
   // Register settings tree
   useFileUploadPanelSettings(fileUploadConfig, saveConfig as SaveConfig<Config>);
-  
+
   // From config extract service settings; memoized for stable identity
   const serviceSettings = useMemo(
     () => ({
@@ -78,7 +78,7 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
     }),
     [],
   );
-  
+
   // Refresh button service config
   const refreshButtonServiceName =
     fileUploadConfig.refreshButtonService.serviceName || "/api/test/end_and_get_candidates";
@@ -121,7 +121,6 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
                 refreshButtonServiceName={rbsn}
                 consoleApi={ext.consoleApi}
                 device={ext.device}
-                user={ext.user}
                 organization={ext.organization}
                 project={ext.project}
               />

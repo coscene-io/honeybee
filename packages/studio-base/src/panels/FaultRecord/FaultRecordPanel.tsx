@@ -26,7 +26,7 @@ interface FaultRecordPanelProps {
 }
 
 export default function FaultRecordPanel({ context }: FaultRecordPanelProps): React.JSX.Element {
-  const logContainerRef = useRef<HTMLDivElement>(null);
+  const logContainerRef = useRef<HTMLDivElement>(null); // eslint-disable-line no-restricted-syntax
   const [config, setConfig] = useState<FaultRecordConfig>(defaultConfig);
   const [state, setState] = useState<PanelState>({
     recordingState: "idle",
@@ -106,20 +106,10 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
   // Add initial log when component mounts
   useEffect(() => {
     if (!initialLogAdded) {
-      addLog(`面板初始化 - 默认配置加载完成`, "info");
-      addLog(
-        `初始服务配置 - 开始: ${config.startRecordService.serviceName}, 停止: ${config.stopRecordService.serviceName}`,
-        "info",
-      );
       addLog("FaultRecord面板已初始化", "info");
       setInitialLogAdded(true);
     }
-  }, [
-    initialLogAdded,
-    addLog,
-    config.startRecordService.serviceName,
-    config.stopRecordService.serviceName,
-  ]);
+  }, [initialLogAdded, addLog]);
 
   // Load available actions
   const loadAvailableActions = useCallback(async () => {
@@ -144,17 +134,13 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
               preparationDuration: action.preparation_duration_s,
               recordDuration: action.record_duration_s,
             };
-            addLog(
-              `初始化Action "${action.action_name}" 默认时长: 触发前${action.preparation_duration_s}s, 录制${action.record_duration_s}s`,
-              "info",
-            );
           }
         });
 
         // Validate current selection; clear if not available
         const prevName = prev.selectedActionName;
         if (prevName && !actions.some((action: ActionInfo) => action.action_name === prevName)) {
-          addLog(`当前选择的action "${prevName}" 不再可用，已清空选择`, "error");
+          addLog(`Action "${prevName}" 不再可用，已清空选择`, "error");
           return { ...prev, selectedActionName: "", actionDurations: newActionDurations };
         }
 
@@ -188,34 +174,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
 
         // Update the separate config state if needed.
         if (panelConfig) {
-          // Check for service configuration changes
-          const oldStartService = config.startRecordService.serviceName;
-          const newStartService = panelConfig.startRecordService.serviceName;
-          const oldStopService = config.stopRecordService.serviceName;
-          const newStopService = panelConfig.stopRecordService.serviceName;
-          let hasServiceChanges = false;
-
-          if (oldStartService !== newStartService) {
-            addLog(
-              `外部配置更新开始录制服务: "${oldStartService}" -> "${newStartService}"`,
-              "info",
-            );
-            hasServiceChanges = true;
-          }
-          if (oldStopService !== newStopService) {
-            addLog(`外部配置更新停止录制服务: "${oldStopService}" -> "${newStopService}"`, "info");
-            hasServiceChanges = true;
-          }
-
-          // Only log summary if there are actual changes
-          if (hasServiceChanges) {
-            addLog(
-              `配置更新完成 - 开始录制服务: ${newStartService || "undefined"}, 停止录制服务: ${
-                newStopService || "undefined"
-              }`,
-              "info",
-            );
-          }
+          // Service configuration changes are handled silently
 
           setConfig(panelConfig);
         }
@@ -297,15 +256,7 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
         return;
       }
 
-      addLog(`开始录制 - Action: ${actionName}, Service: ${config.startRecordService.serviceName}`);
-      addLog(
-        `开始录制参数 - 触发前时长: ${durations.preparationDuration}s, 录制时长: ${durations.recordDuration}s`,
-        "info",
-      );
-      addLog(
-        `实际调用服务: ${config.startRecordService.serviceName} (类型: ${config.startRecordService.serviceType})`,
-        "info",
-      );
+      addLog(`开始录制 - Action: ${actionName}`);
 
       try {
         const req: StartRecordReq = {
@@ -313,14 +264,8 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
           preparation_duration_s: durations.preparationDuration,
           record_duration_s: durations.recordDuration,
         };
-        addLog(`发送请求参数: ${JSON.stringify(req)}`, "info");
-
         // Fire-and-forget service call - ONLY REAL SERVICE
         if (context.callService) {
-          addLog(
-            `使用 context.callService 调用真实服务: ${config.startRecordService.serviceName}`,
-            "info",
-          );
           context
             .callService(config.startRecordService.serviceName, req)
             .then((response: unknown) => {
@@ -341,21 +286,14 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
               );
             });
         } else {
-          addLog("录制失败: context.callService 未定义，无法调用真实服务", "error");
+          addLog("录制失败: 服务不可用", "error");
           return;
         }
-        addLog("录制请求已发送，后端会自动管理录制状态", "info");
       } catch (error: unknown) {
         addLog(`录制开始异常: ${error instanceof Error ? error.message : "未知错误"}`, "error");
       }
     },
-    [
-      getActionDurations,
-      addLog,
-      config.startRecordService.serviceName,
-      config.startRecordService.serviceType,
-      context,
-    ],
+    [getActionDurations, addLog, config.startRecordService.serviceName, context],
   );
 
   // Stop record (async)
@@ -366,24 +304,14 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
         return;
       }
 
-      addLog(`停止录制 - Action: ${actionName}, Service: ${config.stopRecordService.serviceName}`);
-      addLog(
-        `实际调用服务: ${config.stopRecordService.serviceName} (类型: ${config.stopRecordService.serviceType})`,
-        "info",
-      );
+      addLog(`停止录制 - Action: ${actionName}`);
 
       try {
         const req: StopRecordReq = {
           action_name: actionName,
         };
-        addLog(`发送停止请求参数: ${JSON.stringify(req)}`, "info");
-
         // Fire-and-forget service call - ONLY REAL SERVICE
         if (context.callService) {
-          addLog(
-            `使用 context.callService 调用真实停止服务: ${config.stopRecordService.serviceName}`,
-            "info",
-          );
           context
             .callService(config.stopRecordService.serviceName, req)
             .then((response: unknown) => {
@@ -404,15 +332,14 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
               );
             });
         } else {
-          addLog("停止失败: context.callService 未定义，无法调用真实服务", "error");
+          addLog("停止失败: 服务不可用", "error");
           return;
         }
-        addLog("停止录制请求已发送，后端会自动管理录制状态", "info");
       } catch (error: unknown) {
         addLog(`停止录制异常: ${error instanceof Error ? error.message : "未知错误"}`, "error");
       }
     },
-    [addLog, config.stopRecordService.serviceName, config.stopRecordService.serviceType, context],
+    [addLog, config.stopRecordService.serviceName, context],
   );
 
   // Handle showing action detail modal
@@ -423,7 +350,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
       }
 
       setIsLoadingActionDetail(true);
-      addLog(`获取Action详情: ${actionName}`, "info");
 
       try {
         const actionDetail = await getActionDetail(
@@ -434,9 +360,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
         if (actionDetail) {
           setSelectedActionDetail(actionDetail);
           setShowActionDetail(true);
-          addLog(`成功获取Action详情: ${actionName}`, "success");
-        } else {
-          addLog(`未找到Action详情: ${actionName}`, "error");
         }
       } catch (error: unknown) {
         addLog(
@@ -481,7 +404,6 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>录制控制</h3>
           <RecordButton
             onClick={() => {
-              addLog("用户点击手动刷新按钮", "info");
               void loadAvailableActions();
             }}
             disabled={isLoadingActions}

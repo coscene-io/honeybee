@@ -20,7 +20,7 @@ import { delay } from "../utils/format";
 
 /** Mock 版本：项目/标签查询 + 模拟上传进度 */
 export class MockCoSceneClient implements CoSceneClient {
-  async listProjects(): Promise<{ id: string; name: string }[]> {
+  public async listProjects(): Promise<{ id: string; name: string }[]> {
     await delay(100);
     return [
       { id: "proj-1", name: "Warehouse Nav Benchmark" },
@@ -29,21 +29,21 @@ export class MockCoSceneClient implements CoSceneClient {
     ];
   }
 
-  async listTags(projectId: string): Promise<Label[]> {
+  public async listTags(projectId: string): Promise<Label[]> {
     await delay(80);
     const map: Record<string, string[]> = {
       "proj-1": ["slam", "localization", "regression", "night-run"],
       "proj-2": ["navigation", "failpoint", "sensor", "charging"],
       "proj-3": ["demo", "warehouse", "dc-fast", "qa"],
     };
-    const tagNames = map[projectId] || [];
+    const tagNames = map[projectId] ?? [];
     // Convert string[] to Label[] for mock data
     return tagNames.map((name) => new Label({ name, displayName: name }));
   }
 
-  async upload(
+  public async upload(
     _files: FileCandidate[],
-    _cfg: Partial<UploadConfig> & { projectId: string | null },
+    _cfg: Partial<UploadConfig> & { projectId: string | undefined },
     onProgress?: (p: number) => void,
   ): Promise<{ taskName?: string; recordName?: string; success: boolean }> {
     const steps = 20;
@@ -59,19 +59,19 @@ export class MockCoSceneClient implements CoSceneClient {
  * Real API版本：使用CoSceneConsoleApi进行真实的API调用
  */
 export class RealCoSceneClient implements CoSceneClient {
-  private api: CoSceneConsoleApi;
+  #api: CoSceneConsoleApi;
 
-  constructor(api: CoSceneConsoleApi) {
-    this.api = api;
+  public constructor(api: CoSceneConsoleApi) {
+    this.#api = api;
   }
 
-  async listProjects(): Promise<{ id: string; name: string }[]> {
+  public async listProjects(): Promise<{ id: string; name: string }[]> {
     try {
       // Get current user to use their ID for listing projects
-      const currentUser = await this.api.getUser("users/current");
+      const currentUser = await this.#api.getUser("users/current");
       const userId = currentUser.name.split("/")[1] ?? "current";
 
-      const response = await this.api.listUserProjects({
+      const response = await this.#api.listUserProjects({
         userId,
         pageSize: 100,
         currentPage: 0,
@@ -79,7 +79,7 @@ export class RealCoSceneClient implements CoSceneClient {
 
       return response.userProjects.map((project) => ({
         id: project.name,
-        name: project.displayName || project.name.split("/").pop() || project.name,
+        name: project.displayName || project.name.split("/").pop()!,
       }));
     } catch (error) {
       console.error("Failed to list projects:", error);
@@ -87,7 +87,7 @@ export class RealCoSceneClient implements CoSceneClient {
     }
   }
 
-  async listTags(projectId: string): Promise<Label[]> {
+  public async listTags(projectId: string): Promise<Label[]> {
     try {
       // Extract warehouse ID and project ID from the full project name
       // Expected format: "warehouses/{warehouseId}/projects/{projectId}"
@@ -109,17 +109,12 @@ export class RealCoSceneClient implements CoSceneClient {
         actualProjectId = projectId;
       }
 
-      console.log(
-        `[标签获取] 解析项目路径: ${projectId} -> warehouseId: ${warehouseId}, projectId: ${actualProjectId}`,
-      );
-
-      const response = await this.api.listLabels({
+      const response = await this.#api.listLabels({
         pageSize: 100,
         warehouseId,
         projectId: actualProjectId,
       });
 
-      console.log(`[标签获取] 项目${projectId}获取到${response.labels.length}个标签`);
       return response.labels;
     } catch (error) {
       console.error("Failed to list tags:", error);
@@ -127,9 +122,9 @@ export class RealCoSceneClient implements CoSceneClient {
     }
   }
 
-  async upload(
+  public async upload(
     files: FileCandidate[],
-    cfg: Partial<UploadConfig> & { projectId: string | null },
+    cfg: Partial<UploadConfig> & { projectId: string | undefined },
     onProgress?: (p: number) => void,
   ): Promise<{ taskName?: string; recordName?: string; success: boolean }> {
     try {
@@ -143,7 +138,7 @@ export class RealCoSceneClient implements CoSceneClient {
       let taskTitle = "";
       let deviceName = "";
 
-      const currentUser = await this.api.getUser("users/current");
+      const currentUser = await this.#api.getUser("users/current");
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
       taskTitle = `file-upload-${timestamp}`;
 
@@ -152,16 +147,7 @@ export class RealCoSceneClient implements CoSceneClient {
       // 注意：我们不需要实际上传文件内容
       // 文件/文件夹路径会通过 additionalFiles 参数传递给CoScene平台
       // CoScene平台会自己扫描和处理这些路径
-      console.log(`[文件处理] 跳过文件内容上传，文件路径将通过additionalFiles传递给CoScene平台`);
-      console.log(
-        `[文件处理] 文件路径列表: [${files
-          .map((f) => (f as any).originalPath || f.name)
-          .join(", ")}]`,
-      );
       onProgress?.(80);
-
-      // 文件路径已准备就绪，将通过任务传递给CoScene平台
-      console.log(`[文件处理] ${files.length} 个文件路径已准备就绪，将通过任务传递给CoScene平台`);
 
       // 创建任务（不创建记录）
       let createdTaskName: string | undefined;
@@ -172,9 +158,9 @@ export class RealCoSceneClient implements CoSceneClient {
           const projectId = cfg.projectId.split("/")[3]!; // Extract only the project ID part
 
           // Extract device name from config - handle both string and object formats
-          const deviceInfo = cfg.device;
+          // const deviceInfo = cfg.device; // Unused variable
 
-          if (cfg.device) {
+          if (cfg.device != undefined) {
             if (typeof cfg.device === "object" && "name" in cfg.device && cfg.device.name) {
               // If device.name is a full path like "warehouses/xxx/projects/xxx/devices/device-id"
               deviceName = `devices/${cfg.device.name.split("/").pop()}`;
@@ -185,9 +171,8 @@ export class RealCoSceneClient implements CoSceneClient {
             }
           } else {
             // Try to get first device from project as fallback
-            console.warn("[任务创建] 设备信息不可用，尝试从项目获取第一个设备");
             try {
-              const projectDevicesResponse = await this.api.listProjectDevices({
+              const projectDevicesResponse = await this.#api.listProjectDevices({
                 warehouseId,
                 projectId,
                 filter: CosQuery.Companion.empty(),
@@ -198,36 +183,26 @@ export class RealCoSceneClient implements CoSceneClient {
               if (projectDevicesResponse.projectDevices.length > 0) {
                 const firstDevice = projectDevicesResponse.projectDevices[0]!;
                 deviceName = firstDevice.name;
-                console.log("[任务创建] 使用项目中的第一个设备:", deviceName);
               } else {
-                console.warn("[任务创建] 项目中没有找到设备，跳过任务创建");
                 deviceName = "";
               }
-            } catch (error) {
-              console.error("[任务创建] 获取项目设备失败:", error);
+            } catch {
               deviceName = "";
             }
           }
 
           // Only create task if we have device information
           if (deviceName) {
-            console.log("[任务创建] 设备信息:", deviceInfo);
-            console.log("[任务创建] 提取的设备名称:", deviceName);
             // Convert tags to string[] for task creation
             const labelStrings = (cfg.tags ?? []).map((tag) =>
               typeof tag === "string" ? tag : tag.displayName || tag.name,
             );
-            console.log(`[任务创建] 标签信息: [${labelStrings.join(", ")}]`);
-
-            console.log(`[任务创建] 任务标题: ${taskTitle}`);
-            console.log(`[任务创建] 使用项目名称: ${cfg.projectId}`);
 
             // 准备要上传的文件路径列表
             const filePaths = files.map((file) => {
               const fileWithPath = file as FileCandidate & { originalPath?: string };
               return fileWithPath.originalPath ?? file.name;
             });
-            console.log(`[任务创建] 文件路径列表: [${filePaths.join(", ")}]`);
 
             const newTask = new Task({
               assigner: `users/${currentUser.name.split("/").pop()}`,
@@ -244,57 +219,13 @@ export class RealCoSceneClient implements CoSceneClient {
               title: taskTitle,
             });
 
-            // 打印任务创建前的详细信息
-            console.log("=== 任务创建详细信息 ===");
-            console.log(`[任务信息] 任务标题: ${taskTitle}`);
-            console.log(`[任务信息] 分配者: users/${currentUser.name.split("/").pop()}`);
-            console.log(`[任务信息] 任务类别: UPLOAD`);
-            console.log(`[任务信息] 任务描述: Files uploaded containing ${files.length} file(s)`);
-            console.log(`[任务信息] 父级项目: ${cfg.projectId}`);
-            console.log(`[任务信息] 设备信息: ${deviceName}`);
-            console.log(`[任务信息] 文件路径列表 (${filePaths.length}个):`);
-            filePaths.forEach((path, index) => {
-              console.log(`  ${index + 1}. ${path}`);
-            });
-            console.log(
-              `[任务信息] 标签列表 (${labelStrings.length}个): [${labelStrings.join(", ")}]`,
-            );
-            console.log("========================");
-
-            const createdTask = await this.api.createTask_v2({
+            const createdTask = await this.#api.createTask_v2({
               parent: cfg.projectId,
               task: newTask,
             });
 
             // Store the actual created task name (this is the real task ID)
             createdTaskName = createdTask.name;
-            console.log(`[任务创建] 任务创建成功，任务ID: ${createdTaskName}`);
-
-            // 打印任务创建成功后的详细信息
-            console.log("=== 任务创建成功详情 ===");
-            console.log(`[任务结果] 任务ID: ${createdTaskName}`);
-            console.log(`[任务结果] 任务名称: ${createdTask.title || "未设置"}`);
-            console.log(`[任务结果] 任务状态: ${createdTask.state || "未设置"}`);
-            console.log(
-              `[任务结果] 创建时间: ${
-                createdTask.createTime
-                  ? new Date(Number(createdTask.createTime.seconds) * 1000).toISOString()
-                  : "未设置"
-              }`,
-            );
-            console.log(`[任务结果] 分配者: ${createdTask.assigner || "未设置"}`);
-            console.log(`[任务结果] 任务类别: ${createdTask.category || "未设置"}`);
-            if (createdTask.detail.case === "uploadTaskDetail") {
-              const uploadDetail = createdTask.detail.value;
-              console.log(`[任务结果] 设备: ${uploadDetail.device || "未设置"}`);
-              console.log(
-                `[任务结果] 文件路径数量: ${uploadDetail.additionalFiles.length > 0 || 0}`,
-              );
-              console.log(`[任务结果] 标签数量: ${uploadDetail.labels.length > 0 || 0}`);
-            }
-            console.log("========================");
-          } else {
-            console.log("[任务创建] 跳过任务创建，设备信息不可用");
           }
         } catch (taskError) {
           console.warn("Failed to create task for upload:", taskError);
@@ -307,7 +238,7 @@ export class RealCoSceneClient implements CoSceneClient {
       // Return success with task information if created
       return {
         success: true,
-        taskName: createdTaskName || undefined,
+        taskName: createdTaskName ?? undefined,
         recordName: undefined, // 不创建记录
       };
     } catch (error) {

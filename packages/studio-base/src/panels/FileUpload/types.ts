@@ -68,7 +68,7 @@ export interface CoSceneClient {
   listTags(projectId: string): Promise<Label[]>;
   upload(
     files: FileCandidate[],
-    cfg: Partial<UploadConfig> & { projectId: string | null },
+    cfg: Partial<UploadConfig> & { projectId: string | undefined },
     onProgress?: (p: number) => void,
   ): Promise<{ taskName?: string; recordName?: string; success: boolean }>;
 }

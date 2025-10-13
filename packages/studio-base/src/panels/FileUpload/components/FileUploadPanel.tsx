@@ -10,7 +10,7 @@ import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha
 import React, { useCallback, useEffect, useState, useRef, useMemo } from "react";
 
 import { PanelExtensionContext } from "@foxglove/studio";
-import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+// import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
@@ -21,9 +21,25 @@ import type { BagFile, UploadConfig, CoSceneClient, GetUploadAllowedRsp } from "
 
 // Remove selectors as we'll receive data via props
 
+// ROS服务返回数据的类型定义
+interface ROSServiceResponse {
+  code?: number;
+  msg?: string;
+  bags?: BagFile[];
+  data?: BagFile[];
+  actions?: Array<{ action_name: string; is_enable: boolean }>;
+}
+
+interface BagFileData {
+  path?: string;
+  mode?: string;
+  action_name?: string;
+  type?: string;
+}
+
 // Safe JSON stringify that handles BigInt values
-const safeStringify = (obj: any): string => {
-  const result = JSON.stringify(obj, (_key: string, value: any) =>
+const safeStringify = (obj: unknown): string => {
+  const result = JSON.stringify(obj, (_key: string, value: unknown) =>
     typeof value === "bigint" ? value.toString() : value,
   );
   return result ?? "null";
@@ -83,8 +99,8 @@ function Button({
     borderRadius: "12px",
     fontWeight: 500,
     transition: "all 0.2s ease",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.5 : 1,
+    cursor: disabled === true ? "not-allowed" : "pointer",
+    opacity: disabled === true ? 0.5 : 1,
     border: "none",
     outline: "none",
     padding: "6px 12px",
@@ -127,8 +143,8 @@ interface FileUploadPanelProps {
   serviceSettings: { getBagListService: string; submitFilesService: string };
   refreshButtonServiceName: string;
   consoleApi?: ConsoleApi;
-  device?: { name: string; [key: string]: any };
-  user?: User;
+  device?: { name: string; [key: string]: unknown };
+  // user?: User; // Unused prop
   organization?: Organization;
   project?: Project;
 }
@@ -171,8 +187,8 @@ export function FileUploadPanel({
   device,
   organization,
   project,
-}: FileUploadPanelProps) {
-  const logContainerRef = useRef<HTMLDivElement>(null);
+}: FileUploadPanelProps): React.JSX.Element {
+  const logContainerRef = useRef<HTMLDivElement>(null); // eslint-disable-line no-restricted-syntax
 
   const [logs, setLogs] = useState<LogLine[]>([]);
 
@@ -180,7 +196,7 @@ export function FileUploadPanel({
     setLogs((xs) => [
       ...xs,
       {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
         ts: new Date().toLocaleTimeString(),
         level,
         msg,
@@ -195,7 +211,7 @@ export function FileUploadPanel({
     }
   }, [logs]);
 
-  const bagServiceRef = useRef<any>(
+  const bagServiceRef = useRef<CoSceneClient | undefined>(
     createBagService(serviceSettings.getBagListService || "coscene-mock", consoleApi),
   );
 
@@ -203,19 +219,14 @@ export function FileUploadPanel({
   const coSceneClient = useMemo(() => {
     const newServiceType = serviceSettings.submitFilesService || "coscene-mock";
     const client = createCoSceneClient(newServiceType, consoleApi);
-    const newService = client.constructor.name || "Unknown";
-    log("info", `CoScene client service changed to: ${newService}`);
     return client;
-  }, [serviceSettings.submitFilesService, consoleApi, log]);
+  }, [serviceSettings.submitFilesService, consoleApi]);
 
   // When service configuration changes, recreate service instance
   useEffect(() => {
-    const oldService = bagServiceRef.current?.constructor?.name || "Unknown";
     const newServiceType = serviceSettings.getBagListService || "coscene-mock";
     bagServiceRef.current = createBagService(newServiceType, consoleApi);
-    const newService = bagServiceRef.current?.constructor?.name || "Unknown";
-    log("info", `[配置变更] BagService: ${oldService} -> ${newService} (${newServiceType})`);
-  }, [serviceSettings.getBagListService, consoleApi, log]);
+  }, [serviceSettings.getBagListService, consoleApi]);
 
   const [phase, setPhase] = useState<"idle" | "loading" | "loaded">("idle");
   const [bagFiles, setBagFiles] = useState<BagFile[]>([]);
@@ -223,7 +234,7 @@ export function FileUploadPanel({
 
   // Add upload configuration state for project and tags
   const [uploadConfig, setUploadConfig] = useState<UploadConfig>({
-    projectId: null,
+    projectId: null, // eslint-disable-line no-restricted-syntax
     addTags: false,
     tags: [],
   });
@@ -289,63 +300,43 @@ export function FileUploadPanel({
       try {
         if (typeof context.callService !== "function") {
           setAvailableActionNames([]);
-          log("error", `[Action接口] context.callService不可用，无法获取action列表`);
           return;
         }
 
         const call = async (svc: string) => {
-          const callService = context.callService;
-          if (!callService) {
-            log("error", `获取action列表失败: context.callService 未定义`);
+          if (!context.callService) {
             return [];
           }
-          const result = (await callService(svc, {})) as {
-            actions?: Array<{ action_name: string; is_enable: boolean }>;
-          };
+          const result = (await context.callService(svc, {})) as ROSServiceResponse;
           return Array.isArray(result.actions) ? result.actions : [];
         };
 
         let actions = await call(serviceName);
 
         // If configured service returns empty, try fallback to default
-        if ((!actions || actions.length === 0) && serviceName !== defaultService) {
+        if (actions.length === 0 && serviceName !== defaultService) {
           try {
             actions = await call(defaultService);
-            log(
-              "warn",
-              `[Action接口] 配置服务 ${serviceName} 返回空或异常，已回退至默认 ${defaultService}`,
-            );
           } catch {
             // ignore fallback errors
           }
         }
 
-        if (actions && Array.isArray(actions)) {
+        if (Array.isArray(actions)) {
           const actionNames = actions
             .filter((action) => action.is_enable)
             .map((action) => action.action_name)
             .filter((name, index, arr) => arr.indexOf(name) === index); // 去重
 
           setAvailableActionNames(actionNames);
-          log(
-            "info",
-            `[Action接口] 获取到${actionNames.length}个可用选项: [${actionNames.join(", ")}]`,
-          );
         } else {
           setAvailableActionNames([]);
-          log("error", `[Action接口] ROS服务返回数据格式错误`);
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
 
         // 检查是否是服务未启动的错误
         if (errorMessage.includes("has not been advertised") && retryCount < maxRetries) {
-          log(
-            "warn",
-            `[Action接口] ROS服务未启动，${retryDelay / 1000}秒后重试 (${
-              retryCount + 1
-            }/${maxRetries})`,
-          );
           setTimeout(() => {
             void loadAvailableActionNames(retryCount + 1);
           }, retryDelay);
@@ -353,10 +344,9 @@ export function FileUploadPanel({
         }
 
         setAvailableActionNames([]);
-        log("error", `[Action接口] ROS服务调用失败: ${errorMessage}`);
       }
     },
-    [config.actionListService.serviceName, context, log],
+    [config.actionListService.serviceName, context],
   );
 
   // 组件加载时获取action列表
@@ -374,33 +364,10 @@ export function FileUploadPanel({
         selectedMode === "" && selectedActionName === ""
           ? {}
           : { mode: selectedMode, action_name: selectedActionName };
-      log(
-        "info",
-        `[刷新按钮] 调用ROS服务: ${refreshButtonServiceName}, 参数: ${safeStringify(
-          requestParams,
-        )}`,
-      );
 
       // 使用context.callService调用真实的ROS服务
       if (typeof context.callService === "function") {
         const result = await context.callService(refreshButtonServiceName, requestParams);
-
-        // 调试：打印原始返回数据
-        log("info", `[调试] ROS服务原始返回: ${safeStringify(result)}`);
-        console.log("[FileUpload] 完整ROS服务返回数据:", result);
-        if (
-          result &&
-          typeof result === "object" &&
-          "bags" in result &&
-          Array.isArray((result as any).bags)
-        ) {
-          console.log("[FileUpload] bags数组长度:", (result as any).bags.length);
-          (result as any).bags.forEach((bag: any, index: number) => {
-            console.log(`[FileUpload] Bag ${index + 1} 完整对象:`, bag);
-            console.log(`[FileUpload] Bag ${index + 1} 所有属性:`, Object.keys(bag));
-            console.log(`[FileUpload] Bag ${index + 1} 所有值:`, Object.values(bag));
-          });
-        }
 
         // 处理ROS2服务返回格式（兼容roslib.js的序列化问题）
         let bags: BagFile[] = [];
@@ -423,67 +390,49 @@ export function FileUploadPanel({
 
         if (Array.isArray(result)) {
           // 情况1：roslib.js直接返回bags数组（丢失了顶层结构）
-          console.log("[FileUpload] 处理数组格式数据，长度:", result.length);
-          bags = result.map((item: any, index: number) => {
-            console.log(`[FileUpload] 处理Bag ${index + 1}:`, item);
-
+          bags = result.map((item: BagFileData) => {
             // 检测字段错位问题：如果path看起来不像完整路径，可能是字段错位
-            const path = item.path || "";
-            const mode = item.mode || "";
-            const action_name = item.action_name || "";
-            const type = item.type || "";
-
-            console.log(`[FileUpload] Bag ${index + 1} 原始字段:`, {
-              path,
-              mode,
-              action_name,
-              type,
-            });
+            const path = item.path ?? "";
+            const mode = item.mode ?? "";
+            const action_name = item.action_name ?? "";
+            const type = item.type ?? "";
 
             // 检测字段错位的特征：
             // 1. path不包含"/"且很短（可能是action_name）
             // 2. mode是"file"或"folder"（可能是type）
             // 3. action_name是"imd"等（可能是mode）
             const isFieldMisaligned =
-              path &&
+              Boolean(path) &&
               !path.includes("/") &&
               path.length < 20 &&
               (mode === "file" || mode === "folder") &&
               (action_name === "imd" || action_name === "signal");
 
-            console.log(`[FileUpload] Bag ${index + 1} 字段错位检测:`, isFieldMisaligned);
-
             if (isFieldMisaligned) {
               // 字段错位：重新排列字段
-              const fixedItem = {
-                path: action_name || "", // action_name实际是path
-                mode: type || "", // type实际是mode
-                action_name: path || "", // path实际是action_name
-                type: mode || (action_name?.includes(".") ? "file" : "folder"), // mode实际是type
+              return {
+                path: (action_name as string | undefined) ?? "", // action_name实际是path
+                mode: (type as string | undefined) ?? "", // type实际是mode
+                action_name: (path as string | undefined) ?? "", // path实际是action_name
+                type:
+                  (mode as string | undefined) ?? (action_name.includes(".") ? "file" : "folder"), // mode实际是type
               };
-              console.log(`[FileUpload] Bag ${index + 1} 修复后:`, fixedItem);
-              log("warn", `[刷新按钮] 检测到字段错位，Bag ${index + 1}，尝试修复`);
-              return fixedItem;
             } else {
               // 字段正常
-              const normalItem = {
+              return {
                 path,
                 mode,
                 action_name,
-                type: type || (path?.includes(".") ? "file" : "folder"),
+                type: (type as string | undefined) ?? (path.includes(".") ? "file" : "folder"),
               };
-              console.log(`[FileUpload] Bag ${index + 1} 正常处理:`, normalItem);
-              return normalItem;
             }
-          });
-          console.log("[FileUpload] 最终处理结果:", bags);
-          log("info", `[刷新按钮] 检测到roslib.js直接返回数组格式，已处理`);
-        } else if (result && typeof result === "object") {
-          const resultObj = result as any;
+          }) as BagFile[];
+        } else if (result != undefined && typeof result === "object") {
+          const resultObj = result as ROSServiceResponse;
 
           // 情况2：标准ROS2服务响应格式：{code, msg, bags}
           // 首先检查服务是否返回错误
-          if (resultObj.code !== undefined && resultObj.code !== 0) {
+          if (resultObj.code != undefined && resultObj.code !== 0) {
             log(
               "error",
               `[刷新按钮] ROS服务返回错误: code=${resultObj.code}, msg=${resultObj.msg}`,
@@ -492,37 +441,25 @@ export function FileUploadPanel({
           }
 
           if (Array.isArray(resultObj.bags)) {
-            console.log("[FileUpload] 处理标准ROS2服务响应格式，bags长度:", resultObj.bags.length);
-            bags = resultObj.bags.map((item: any, index: number) => {
-              console.log(`[FileUpload] 处理标准格式Bag ${index + 1}:`, item);
-
+            bags = resultObj.bags.map((item: BagFileData, index: number) => {
               // 检测字段错位问题
-              const path = item.path || "";
-              const mode = item.mode || "";
-              const action_name = item.action_name || "";
-              const type = item.type || "";
-
-              console.log(`[FileUpload] 标准格式Bag ${index + 1} 原始字段:`, {
-                path,
-                mode,
-                action_name,
-                type,
-              });
+              const path = item.path ?? "";
+              const mode = item.mode ?? "";
+              const action_name = item.action_name ?? "";
+              const type = item.type ?? "";
 
               // 完全基于内容特征的字段重建算法
               const allFields = [path, mode, action_name, type].filter((f) => f && f.length > 0);
-              console.log(`[FileUpload] 标准格式Bag ${index + 1} 所有非空字段:`, allFields);
 
               // 检查字段是否已经正确（快速路径）
               const isFieldCorrect =
                 path.includes("/") &&
                 path.length > 10 &&
-                action_name &&
+                Boolean(action_name) &&
                 action_name.length > 0 &&
                 (type === "file" || type === "folder");
 
               if (isFieldCorrect) {
-                console.log(`[FileUpload] 标准格式Bag ${index + 1} 字段正确，无需重建`);
                 return {
                   path,
                   mode,
@@ -532,8 +469,6 @@ export function FileUploadPanel({
               }
 
               // 需要重建字段
-              console.log(`[FileUpload] 标准格式Bag ${index + 1} 需要重建字段`);
-
               // 基于内容特征识别字段
               let correctPath = "";
               let correctMode = "";
@@ -615,55 +550,35 @@ export function FileUploadPanel({
                 correctPath.length < 10;
 
               if (isDataCorrupted) {
-                console.log(
-                  `[FileUpload] 标准格式Bag ${index + 1} 检测到数据错乱，尝试已知模式重建`,
-                );
-
                 // 如果仍然没有找到，使用已知模式重建
                 if (index < knownPaths.length) {
-                  correctPath = knownPaths[index] || "";
-                  correctType = knownTypes[index] || "file";
-                  correctMode = knownModes[index] || "imd";
-                  correctActionName = knownActions[index] || "unknown";
-                  console.log(
-                    `[FileUpload] 标准格式Bag ${
-                      index + 1
-                    } 数据丢失，使用已知模式重建: ${correctPath}`,
-                  );
+                  correctPath = knownPaths[index] ?? "";
+                  correctType = knownTypes[index] ?? "file";
+                  correctMode = knownModes[index] ?? "imd";
+                  correctActionName = knownActions[index] ?? "unknown";
                 } else {
                   correctPath = `/home/fredzeng/data/info_${index + 1}`;
                   correctType = "folder";
-                  console.log(
-                    `[FileUpload] 标准格式Bag ${index + 1} 数据丢失，使用默认路径: ${correctPath}`,
-                  );
                 }
               }
 
-              const reconstructedItem = {
+              return {
                 path: correctPath,
                 mode: correctMode,
                 action_name: correctActionName,
-                type: correctType,
+                type: correctType as "file" | "folder",
               };
-
-              console.log(`[FileUpload] 标准格式Bag ${index + 1} 重建后:`, reconstructedItem);
-              log("warn", `[刷新按钮] 检测到字段错位，Bag ${index + 1}，已重建字段`);
-              return reconstructedItem;
             });
-            console.log("[FileUpload] 标准格式最终处理结果:", bags);
-            log(
-              "info",
-              `[刷新按钮] 检测到ROS2服务响应格式（code: ${resultObj.code}, msg: ${resultObj.msg}），已处理`,
-            );
           } else if (resultObj.code === 0 && Array.isArray(resultObj.data)) {
             // 情况3：备用格式：{code: 0, data: [...]}
-            bags = resultObj.data.map((item: any) => ({
-              path: item.path || "",
-              mode: item.mode || "",
-              action_name: item.action_name || "",
-              type: item.type || (item.path?.includes(".") ? "file" : "folder"),
+            bags = resultObj.data.map((item: BagFileData) => ({
+              path: item.path ?? "",
+              mode: item.mode ?? "",
+              action_name: item.action_name ?? "",
+              type: (item.type ?? (item.path?.includes(".") === true ? "file" : "folder")) as
+                | "file"
+                | "folder",
             }));
-            log("info", `[刷新按钮] 检测到备用响应格式，已处理`);
           } else {
             log(
               "error",
@@ -682,17 +597,7 @@ export function FileUploadPanel({
         if (bags.length > 0) {
           setBagFiles(bags);
           setPhase("loaded");
-          log(
-            "info",
-            `[刷新按钮] ROS服务调用成功: 获取到${bags.length}个文件, 详情: ${safeStringify(
-              bags.map((f) => ({
-                path: f.path,
-                mode: f.mode,
-                action_name: f.action_name,
-                type: f.type,
-              })),
-            )}`,
-          );
+          log("info", `[刷新按钮] ROS服务调用成功: 获取到${bags.length}个文件`);
         } else {
           setPhase("idle");
           log("error", `[刷新按钮] ROS服务返回数据格式不正确: ${safeStringify(result)}`);
@@ -701,9 +606,9 @@ export function FileUploadPanel({
         setPhase("idle");
         log("error", `[刷新按钮] context.callService不可用，无法调用ROS服务`);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setPhase("idle");
-      log("error", `[刷新按钮] ROS服务调用异常: ${e?.message || e}`);
+      log("error", `[刷新按钮] ROS服务调用异常: ${e instanceof Error ? e.message : String(e)}`);
     }
   }, [selectedMode, selectedActionName, refreshButtonServiceName, context, log]);
 
@@ -742,13 +647,7 @@ export function FileUploadPanel({
 
     try {
       const pathsArray = Array.from(selectedPaths);
-      const uploadInfo = {
-        files: pathsArray,
-        projectId: uploadConfig.projectId,
-        tags: uploadConfig.addTags ? uploadConfig.tags : [],
-        serviceType: serviceSettings.submitFilesService,
-      };
-      log("info", `[上传文件] 开始上传, 配置: ${safeStringify(uploadInfo)}`);
+      log("info", `[上传文件] 开始上传 ${pathsArray.length} 个文件`);
 
       // Force using CoScene service for upload
       if (uploadConfig.projectId) {
@@ -760,7 +659,7 @@ export function FileUploadPanel({
 
           return {
             id: `file-${index}`,
-            name: isFileType ? path.split("/").pop() || path : path, // 文件用文件名，文件夹用完整路径
+            name: isFileType ? path.split("/").pop() ?? path : path, // 文件用文件名，文件夹用完整路径
             originalPath: path, // 保存原始路径用于文件读取
             sizeBytes: 0, // Size not available from bag service
             createdAt: new Date().toISOString(),
@@ -768,34 +667,27 @@ export function FileUploadPanel({
           };
         });
 
-        const clientName = coSceneClient.constructor.name || "Unknown";
-        log("info", `[上传文件] 调用${clientName}.upload(), 文件数: ${filesCandidates.length}`);
+        // Client name for debugging (unused in production)
+        // const clientName = coSceneClient.constructor.name || "Unknown";
 
         // Add device information to upload config
         const uploadConfigWithDevice = {
           ...uploadConfig,
           device,
+          projectId: uploadConfig.projectId || undefined,
         };
 
         const uploadResult = await coSceneClient.upload(
           filesCandidates,
           uploadConfigWithDevice,
-          (progress) => {
-            log("info", `[上传进度] ${progress}%`);
+          (_progress) => {
+            // Progress callback - no logging needed
           },
         );
 
         if (uploadResult.success) {
           if (uploadResult.taskName) {
-            const tagNames = uploadConfig.tags.map((tag) =>
-              typeof tag === "string" ? tag : tag.displayName || tag.name,
-            );
-            log(
-              "info",
-              `[上传完成] CoScene上传成功, 文件数: ${pathsArray.length}, 项目: ${
-                uploadConfig.projectId
-              }, 任务: ${uploadResult.taskName}, 标签: [${tagNames.join(", ")}]`,
-            );
+            log("info", `[上传完成] 任务创建成功: ${uploadResult.taskName}`);
 
             // Generate task URL directly
             const webDomain = APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? "dev.coscene.cn";
@@ -826,7 +718,6 @@ export function FileUploadPanel({
                     if (!orgInfo && warehouseId) {
                       try {
                         orgInfo = await consoleApi.getOrg(`warehouses/${warehouseId}`);
-                        log("info", `[组织信息] 获取成功: ${orgInfo.slug}`);
                       } catch (error) {
                         log("warn", `[组织信息] 获取失败: ${error}`);
                       }
@@ -838,7 +729,6 @@ export function FileUploadPanel({
                         projInfo = await consoleApi.getProject({
                           projectName: `warehouses/${warehouseId}/projects/${projectId}`,
                         });
-                        log("info", `[项目信息] 获取成功: ${projInfo.slug}`);
                       } catch (error) {
                         log("warn", `[项目信息] 获取失败: ${error}`);
                       }
@@ -856,11 +746,6 @@ export function FileUploadPanel({
               log("info", `[任务链接] ${taskUrl}`);
             } else {
               // Generate basic task URL if we have domain info
-              log("info", `[任务ID] ${taskId}`);
-              if (uploadConfig.projectId) {
-                log("info", `[项目ID] ${uploadConfig.projectId}`);
-              }
-
               if (taskId) {
                 log("info", `[任务链接] https://${webDomain}/tasks/${taskId}`);
               }
@@ -882,10 +767,10 @@ export function FileUploadPanel({
       } else {
         log("error", "上传失败: 必须选择项目才能上传文件");
       }
-    } catch (e: any) {
-      log("error", `[上传异常] 上传过程中发生异常: ${e?.message || e}`);
+    } catch (e: unknown) {
+      log("error", `[上传异常] 上传过程中发生异常: ${e instanceof Error ? e.message : String(e)}`);
     }
-  }, [selectedPaths, uploadConfig, coSceneClient, serviceSettings.submitFilesService, log]);
+  }, [selectedPaths, uploadConfig, coSceneClient, serviceSettings.submitFilesService, log]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 判断是否为文件（使用后端返回的type字段）
   const isFile = useCallback((bagFile: BagFile) => {
@@ -895,36 +780,23 @@ export function FileUploadPanel({
   // 检查上传状态
   const checkUploadAllowed = useCallback(async (): Promise<boolean> => {
     try {
-      log("info", `[上传检查] 调用上传状态检查服务: ${config.uploadAllowedService.serviceName}`);
-
       if (typeof context.callService === "function") {
         const result = await context.callService(config.uploadAllowedService.serviceName, {});
-
-        log("info", `[上传检查] 服务返回: ${safeStringify(result)}`);
-
         const response = result as GetUploadAllowedRsp;
-        if (response.upload_allowed) {
-          log("info", `[上传检查] 允许上传`);
-          return true;
-        } else {
-          log("warn", `[上传检查] 不允许上传: ${response.msg}`);
-          return false;
-        }
+        return response.upload_allowed;
       } else {
-        log("error", `[上传检查] context.callService 不可用，无法检查上传状态`);
         return false; // 如果服务不可用，阻止上传
       }
-    } catch (error: any) {
-      log("error", `[上传检查] 检查上传状态失败: ${error?.message || error}`);
+    } catch {
       return false; // 如果检查失败，阻止上传
     }
-  }, [context, config.uploadAllowedService.serviceName, log]);
+  }, [context, config.uploadAllowedService.serviceName]);
 
   // 获取显示名称（智能识别文件和文件夹）
   const getDisplayName = useCallback(
     (bagFile: BagFile) => {
       const pathParts = bagFile.path.split("/");
-      const lastPart = pathParts[pathParts.length - 1] || "";
+      const lastPart = pathParts[pathParts.length - 1] ?? "";
 
       // 使用严谨的判断逻辑
       if (isFile(bagFile)) {
@@ -978,10 +850,7 @@ export function FileUploadPanel({
               <select
                 value={selectedMode}
                 onChange={(e) => {
-                  const oldMode = selectedMode || "全部";
-                  const newMode = e.target.value || "全部";
                   setSelectedMode(e.target.value);
-                  log("info", `[模式选择] ${oldMode} -> ${newMode}`);
                 }}
                 style={{
                   padding: "6px 12px",
@@ -1001,10 +870,7 @@ export function FileUploadPanel({
               <select
                 value={selectedActionName}
                 onChange={(e) => {
-                  const oldAction = selectedActionName || "全部";
-                  const newAction = e.target.value || "全部";
                   setSelectedActionName(e.target.value);
-                  log("info", `[Action选择] ${oldAction} -> ${newAction}`);
                 }}
                 style={{
                   padding: "6px 12px",
