@@ -60,15 +60,18 @@ export function ProjectSelector({
     <Autocomplete
       options={options.value ?? []}
       renderOption={(props, option) => (
-        <li {...props}>
+        <li
+          {...props}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+        >
           <Typography variant="body2" noWrap textOverflow="ellipsis">
             {option.label}
           </Typography>
-          <Box>
+          <Box display="flex" alignItems="center" gap={0.5}>
             {option.project.isStarred ? (
-              <StarIcon color="warning" />
+              <StarIcon style={{ color: "#fbbf24" }} />
             ) : (
-              <StarOutlineIcon color="warning" />
+              <StarOutlineIcon />
             )}
             <ProjectVisibilityChip visibility={option.project.visibility} />
           </Box>
