@@ -96,7 +96,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly projectName: string | undefined,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
-  ) { }
+  ) {}
 
   public getProjectWritePermission(): boolean {
     // TODO: waiting for the new API to be released

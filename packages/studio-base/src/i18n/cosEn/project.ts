@@ -6,9 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export const cosProject = {
-    starredProject: "Starred project",
-    activeProject: "Active project",
-    private: "Private",
-    internal: "Internal",
-    public: "Public",
+  starredProject: "Starred project",
+  activeProject: "Active project",
+  private: "Private",
+  internal: "Internal",
+  public: "Public",
 };

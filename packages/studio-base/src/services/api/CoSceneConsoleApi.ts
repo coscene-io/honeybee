@@ -393,11 +393,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-      orgPermissionList: [],
-      projectPermissionList: [],
-      orgDenyList: [],
-      projectDenyList: [],
-    };
+    orgPermissionList: [],
+    projectPermissionList: [],
+    orgDenyList: [],
+    projectDenyList: [],
+  };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -555,7 +555,7 @@ class CoSceneConsoleApi {
     }): Promise<ListUserLayoutsResponse> => {
       const req = new ListUserLayoutsRequest({
         parent,
-        filter,//: 'update_time>2025-09-18T10:47:42.214Z',
+        filter, //: 'update_time>2025-09-18T10:47:42.214Z',
         view,
       });
       return await getPromiseClient(LayoutService).listUserLayouts(req);
@@ -706,8 +706,8 @@ class CoSceneConsoleApi {
       customHost != undefined && customHost
         ? url
         : url.startsWith("/bff")
-          ? `${this.#bffUrl}${url}`
-          : `${this.#baseUrl}${url}`;
+        ? `${this.#bffUrl}${url}`
+        : `${this.#baseUrl}${url}`;
 
     const fullConfig: RequestInit = {
       ...config,
