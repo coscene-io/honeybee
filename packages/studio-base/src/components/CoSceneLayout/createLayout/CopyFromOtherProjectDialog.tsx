@@ -12,10 +12,9 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { ProjectLayoutList } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/ProjectLayoutList";
+import { ProjectSelector } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/ProjectSelector";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-
-import { ProjectSelector } from "./ProjectSselector";
 
 const useStyles = makeStyles()({
   dialogContent: {

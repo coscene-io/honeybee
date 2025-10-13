@@ -5,13 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Autocomplete, TextField } from "@mui/material";
+import { Star as StarIcon, StarOutline as StarOutlineIcon } from "@mui/icons-material";
+import { Autocomplete, Box, TextField, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { useAsync } from "react-use";
 
+import { ProjectVisibilityChip } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/ProjectVisibility";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { MAX_PROJECTS_PAGE_SIZE } from "@foxglove/studio-base/panels/DataCollection/constants";
+import { BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene/cosel";
 
 interface ProjectSelectorProps {
   value: string;
@@ -24,7 +27,7 @@ export function ProjectSelector({
   value,
   onChange,
 }: ProjectSelectorProps): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation(["cosLayout", "cosProject"]);
   const consoleApi = useConsoleApi();
   const currentUser = useCurrentUser((store) => store.user);
   const userId = currentUser?.userId;
@@ -33,6 +36,9 @@ export function ProjectSelector({
     if (!userId) {
       return [];
     }
+
+    const filter = CosQuery.Companion.empty();
+    filter.setListField("id", BinaryOperator.EQ, [userId]);
 
     const response = await consoleApi.listUserProjects({
       userId,
@@ -45,13 +51,35 @@ export function ProjectSelector({
       .map((project) => ({
         label: project.displayName,
         value: project.name,
-      }));
+        project,
+      }))
+      .sort((a, _b) => (a.project.isStarred ? -1 : 1));
   }, [consoleApi, userId]);
 
   return (
     <Autocomplete
       options={options.value ?? []}
+      renderOption={(props, option) => (
+        <li {...props}>
+          <Typography variant="body2" noWrap textOverflow="ellipsis">
+            {option.label}
+          </Typography>
+          <Box>
+            {option.project.isStarred ? (
+              <StarIcon color="warning" />
+            ) : (
+              <StarOutlineIcon color="warning" />
+            )}
+            <ProjectVisibilityChip visibility={option.project.visibility} />
+          </Box>
+        </li>
+      )}
       value={options.value?.find((option) => option.value === value)}
+      groupBy={(option) =>
+        option.project.isStarred
+          ? t("starredProject", { ns: "cosProject" })
+          : t("activeProject", { ns: "cosProject" })
+      }
       onChange={(_event, value) => {
         onChange(value?.value ?? "");
       }}
