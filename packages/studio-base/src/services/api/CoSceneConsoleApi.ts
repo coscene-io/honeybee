@@ -555,7 +555,7 @@ class CoSceneConsoleApi {
     }): Promise<ListUserLayoutsResponse> => {
       const req = new ListUserLayoutsRequest({
         parent,
-        filter, //: 'update_time>2025-09-18T10:47:42.214Z',
+        filter,
         view,
       });
       return await getPromiseClient(LayoutService).listUserLayouts(req);
