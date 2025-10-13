@@ -248,7 +248,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     // We couldn't find an existing local layout for our id, so we attempt to load the remote one
     // const remoteLayout = await this.#remote?.getLayout(id, parent);
     const remoteLayouts = await this.#remote?.getLayouts();
-    console.log("remoteLayouts", remoteLayouts);
     const remoteLayout = remoteLayouts?.find((layout) => layout.id === id);
 
     if (!remoteLayout) {
