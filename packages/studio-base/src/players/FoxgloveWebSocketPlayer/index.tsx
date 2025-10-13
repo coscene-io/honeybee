@@ -116,6 +116,12 @@ interface DeviceInfo {
  */
 const CURRENT_FRAME_MAXIMUM_SIZE_BYTES = 400 * 1024 * 1024;
 
+const WEBSOCKET_KICKED_CODE = 4001;
+
+type KickedReason = {
+  username: string;
+};
+
 export default class FoxgloveWebSocketPlayer implements Player {
   readonly #sourceId: string;
 
@@ -399,39 +405,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
     });
 
-    this.#client.on("kicked", (message) => {
-      void this.close();
-      void this.#confirm({
-        title: t("cosWebsocket:notification"),
-        prompt: (
-          <Trans
-            t={t}
-            i18nKey="cosWebsocket:vizIsTkenNow"
-            values={{
-              deviceName: this.#deviceName,
-              username: message.username,
-            }}
-            components={{
-              strong: <strong />,
-            }}
-          />
-        ),
-        disableEscapeKeyDown: true,
-        disableBackdropClick: true,
-        ok: t("cosWebsocket:reconnect"),
-        cancel: t("cosWebsocket:exitAndClosePage"),
-        variant: "danger",
-      }).then((result) => {
-        if (result === "ok") {
-          this.#isReconnect = true;
-          this.reOpen();
-        }
-        if (result === "cancel") {
-          window.close();
-        }
-      });
-    });
-
     this.#client.on("error", (err) => {
       log.error(err);
 
@@ -467,57 +440,93 @@ export default class FoxgloveWebSocketPlayer implements Player {
           type: "close";
           data: CloseEventMessage;
         };
-      log.info("Connection closed:", realCloseEventMessage);
-      this.#presence = PlayerPresence.RECONNECTING;
 
-      if (this.#getParameterInterval != undefined) {
-        clearInterval(this.#getParameterInterval);
-        this.#getParameterInterval = undefined;
-      }
-      if (this.#connectionAttemptTimeout != undefined) {
-        clearTimeout(this.#connectionAttemptTimeout);
-      }
+      if (realCloseEventMessage.data.code === WEBSOCKET_KICKED_CODE) {
+        const message = JSON.parse(realCloseEventMessage.data.reason) as KickedReason;
 
-      this.#client?.close();
-      this.#client = undefined;
-
-      if (realCloseEventMessage.data.code !== 1000) {
-        this.#problems.addProblem("ws:connection-failed", {
-          severity: "error",
-          message: t("cosError:connectionFailed"),
-          tip: (
-            <span>
-              {t("cosError:insecureWebSocketConnectionMessage", {
-                url: this.#url,
-                version: "coscene.websocket.protocol",
-              })}
-              <br />
-              1. {t("cosError:checkNetworkConnection")}
-              <br />
-              2.{" "}
-              <Trans
-                t={t}
-                i18nKey="cosError:checkFoxgloveBridge"
-                components={{
-                  docLink: (
-                    <a
-                      style={{ color: "#2563eb" }}
-                      target="_blank"
-                      href="https://github.com/coscene-io/coBridge"
-                      rel="noopener"
-                    />
-                  ),
-                }}
-              />
-              <br />
-              3. {t("cosError:contactUs")}
-            </span>
+        void this.close();
+        void this.#confirm({
+          title: t("cosWebsocket:notification"),
+          prompt: (
+            <Trans
+              t={t}
+              i18nKey="cosWebsocket:vizIsTkenNow"
+              values={{
+                deviceName: this.#deviceName,
+                username: message.username,
+              }}
+              components={{
+                strong: <strong />,
+              }}
+            />
           ),
+          disableEscapeKeyDown: true,
+          disableBackdropClick: true,
+          ok: t("cosWebsocket:reconnect"),
+          cancel: t("cosWebsocket:exitAndClosePage"),
+          variant: "danger",
+        }).then((result) => {
+          if (result === "ok") {
+            this.#isReconnect = true;
+            this.reOpen();
+          }
+          if (result === "cancel") {
+            window.close();
+          }
         });
-      }
+      } else {
+        log.info("Connection closed:", realCloseEventMessage);
+        this.#presence = PlayerPresence.RECONNECTING;
 
-      this.#emitState();
-      this.#openTimeout = setTimeout(this.#open, 3000);
+        if (this.#getParameterInterval != undefined) {
+          clearInterval(this.#getParameterInterval);
+          this.#getParameterInterval = undefined;
+        }
+        if (this.#connectionAttemptTimeout != undefined) {
+          clearTimeout(this.#connectionAttemptTimeout);
+        }
+
+        this.#client?.close();
+        this.#client = undefined;
+
+        if (realCloseEventMessage.data.code !== 1000) {
+          this.#problems.addProblem("ws:connection-failed", {
+            severity: "error",
+            message: t("cosError:connectionFailed"),
+            tip: (
+              <span>
+                {t("cosError:insecureWebSocketConnectionMessage", {
+                  url: this.#url,
+                  version: "coscene.websocket.protocol",
+                })}
+                <br />
+                1. {t("cosError:checkNetworkConnection")}
+                <br />
+                2.{" "}
+                <Trans
+                  t={t}
+                  i18nKey="cosError:checkFoxgloveBridge"
+                  components={{
+                    docLink: (
+                      <a
+                        style={{ color: "#2563eb" }}
+                        target="_blank"
+                        href="https://github.com/coscene-io/coBridge"
+                        rel="noopener"
+                      />
+                    ),
+                  }}
+                />
+                <br />
+                3. {t("cosError:contactUs")}
+              </span>
+            ),
+          });
+        }
+
+        this.#emitState();
+        this.#openTimeout = setTimeout(this.#open, 3000);
+      }
     });
 
     this.#client.on("serverInfo", (event) => {
