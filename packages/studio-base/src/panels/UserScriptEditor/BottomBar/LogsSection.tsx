@@ -7,6 +7,7 @@
 
 import { Link, List, ListItem, ListItemButton, ListItemText, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import Tree from "react-json-tree";
 import { makeStyles } from "tss-react/mui";
 
@@ -24,6 +25,7 @@ const useStyles = makeStyles()({
 const LogsSection = ({ logs }: { logs: readonly UserScriptLog[] }): React.JSX.Element => {
   // Manage auto-scroll behavior when user is also manually scrolling the list.
   const [autoScroll, setAutoScroll] = useState(true);
+  const { t } = useTranslation("userScriptEditor");
 
   const { classes } = useStyles();
 
@@ -69,10 +71,16 @@ const LogsSection = ({ logs }: { logs: readonly UserScriptLog[] }): React.JSX.El
     return (
       <Stack gap={0.5} padding={2}>
         <Typography variant="body2" color="text.secondary">
-          No logs to display.
+          {t("noLogs")}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Invoke <code>log(someValue)</code> in your node code to see data printed here.
+          <Trans
+            ns="userScriptEditor"
+            i18nKey="invokeLogHint"
+            components={{
+              code: <code />,
+            }}
+          />
         </Typography>
       </Stack>
     );
