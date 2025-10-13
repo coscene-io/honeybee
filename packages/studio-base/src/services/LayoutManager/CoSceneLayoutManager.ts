@@ -223,7 +223,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   }
 
   public async getLayout({ id }: { id: LayoutID }): Promise<Layout | undefined> {
-    console.log("getLayout", id);
     const existingLocal = await this.#local.runExclusive(async (local) => {
       return await local.get(id);
     });
