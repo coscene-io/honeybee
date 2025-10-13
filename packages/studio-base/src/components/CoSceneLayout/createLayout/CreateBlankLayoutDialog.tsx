@@ -72,7 +72,15 @@ export function CreateBlankLayoutDialog({
   const permission = form.watch("permission");
 
   return (
-    <Dialog open={open} onClose={onClose}>
+    <Dialog
+      open={open}
+      onClose={(_event, reason) => {
+        if (reason === "backdropClick") {
+          return;
+        }
+        onClose();
+      }}
+    >
       <DialogTitle>{t("createBlankLayout")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>

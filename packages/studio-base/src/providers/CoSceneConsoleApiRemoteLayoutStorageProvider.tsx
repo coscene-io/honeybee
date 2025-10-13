@@ -15,7 +15,13 @@ import {
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import RemoteLayoutStorageContext from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import ConsoleApiRemoteLayoutStorage from "@foxglove/studio-base/services/CoSceneConsoleApiRemoteLayoutStorage";
+
+const selectProjectName = (state: CoreDataStore) =>
+  state.externalInitConfig?.projectId && state.externalInitConfig.warehouseId
+    ? `warehouses/${state.externalInitConfig.warehouseId}/projects/${state.externalInitConfig.projectId}`
+    : undefined;
 
 const selectUser = (store: UserStore) => store.user;
 const selectprojectWritePermission = (store: UserStore) =>
@@ -27,13 +33,20 @@ export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
   const api = useConsoleApi();
   const currentUser = useCurrentUser(selectUser);
   const projectWritePermission = useCurrentUser(selectprojectWritePermission);
+  const projectName = useCoreData(selectProjectName);
 
   const apiStorage = useMemo(
     () =>
       currentUser?.userId
-        ? new ConsoleApiRemoteLayoutStorage(currentUser.userId, api, projectWritePermission)
+        ? new ConsoleApiRemoteLayoutStorage(
+            currentUser.userId,
+            `users/${currentUser.userId}`,
+            projectName,
+            api,
+            projectWritePermission,
+          )
         : undefined,
-    [api, currentUser?.userId, projectWritePermission],
+    [api, currentUser?.userId, projectName, projectWritePermission],
   );
 
   return (

@@ -27,6 +27,7 @@ export const cosLayout = {
   saveChanges: "Save",
   revert: "Revert",
   copyToPersonal: "Copy to personal",
+  copyToProject: "Copy to project",
   someoneElseHasDeletedThisLayout: "Someone else has deleted this layout",
   noPersonalLayouts: "Add a new layout to get started!",
   noOrgnizationLayouts:

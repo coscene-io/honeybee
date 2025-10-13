@@ -76,7 +76,15 @@ export function CopyLayoutDialog({
   const permission = form.watch("permission");
 
   return (
-    <Dialog open={open} onClose={onClose}>
+    <Dialog
+      open={open}
+      onClose={(_event, reason) => {
+        if (reason === "backdropClick") {
+          return;
+        }
+        onClose();
+      }}
+    >
       <DialogTitle>{t("copyLayout")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>

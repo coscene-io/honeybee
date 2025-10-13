@@ -5,9 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import CloseIcon from "@mui/icons-material/Close";
-import { Drawer, DrawerProps, IconButton, Box, Typography } from "@mui/material";
-import { useTranslation } from "react-i18next";
+import { Drawer, DrawerProps, Box } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
@@ -16,20 +14,13 @@ import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
 
-const useStyles = makeStyles()((theme) => ({
+const useStyles = makeStyles()(() => ({
   drawerContainer: {
     width: "75vw",
     height: "100%",
     maxWidth: "100vw",
     display: "flex",
     flexDirection: "column",
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: theme.spacing(2),
-    borderBottom: `1px solid ${theme.palette.divider}`,
   },
   drawerContent: {
     flex: 1,
@@ -63,7 +54,6 @@ interface CoSceneLayoutDrawerProps extends DrawerProps {
 }
 
 export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
   const {
     currentLayoutId,
@@ -94,13 +84,6 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
       }}
     >
       <Box className={classes.drawerContainer}>
-        <Box className={classes.header}>
-          <Typography variant="h6">{t("layout")}</Typography>
-          <IconButton onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
-
         <Box className={classes.drawerContent}>
           <CoSceneLayoutContent
             currentLayoutId={currentLayoutId}
@@ -114,6 +97,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
             onOverwriteLayout={onOverwriteLayout}
             onRevertLayout={onRevertLayout}
             onCreateLayout={onCreateLayout}
+            onClose={onClose}
           />
         </Box>
       </Box>
