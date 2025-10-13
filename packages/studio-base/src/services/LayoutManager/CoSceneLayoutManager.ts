@@ -136,34 +136,29 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.#emitter.emit("errorchange");
   }
 
-  #getRemoteLayoutParents(): string[] {
-    const parents = [];
-    if (this.userName) {
-      parents.push(this.userName);
-    }
-    if (this.projectName) {
-      parents.push(this.projectName);
-    }
-    return parents;
-  }
-
   public constructor({
     local,
     remote,
-    projectName,
     currentUser,
   }: {
     local: ILayoutStorage;
     remote: IRemoteLayoutStorage | undefined;
-    projectName: string | undefined;
     currentUser: User | undefined;
   }) {
+    this.#remote = remote;
+    this.supportsSharing = remote != undefined;
+    this.projectName = remote?.projectName;
+    this.userName = remote?.userName;
+    this.#currentUser = currentUser;
+    this.supportsProjectWrite = remote?.getProjectWritePermission() ?? false;
+
     const parents: string[] = [];
-    if (currentUser?.userId) {
-      parents.push(`users/${currentUser.userId}`);
+    if (this.userName) {
+      parents.push(this.userName);
     }
-    if (projectName) {
-      parents.push(projectName);
+
+    if (this.projectName) {
+      parents.push(this.projectName);
     }
 
     if (parents.length === 0 && remote == undefined) {
@@ -185,12 +180,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         },
       ),
     );
-    this.#remote = remote;
-    this.projectName = projectName;
-    this.supportsSharing = remote != undefined;
-    this.#currentUser = currentUser;
-    this.userName = currentUser?.userId ? `users/${currentUser.userId}` : undefined;
-    this.supportsProjectWrite = remote?.getProjectWritePermission() ?? false;
 
     if (remote) {
       this.#backupLocal = new MutexLocked(
@@ -257,7 +246,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     log.debug(`Attempting to fetch from remote id:${id}`);
     // We couldn't find an existing local layout for our id, so we attempt to load the remote one
     // const remoteLayout = await this.#remote?.getLayout(id, parent);
-    const remoteLayouts = await this.#remote?.getLayouts(this.#getRemoteLayoutParents());
+    const remoteLayouts = await this.#remote?.getLayouts();
     const remoteLayout = remoteLayouts?.find((layout) => layout.id === id);
 
     if (!remoteLayout) {
@@ -694,7 +683,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     const [localLayouts, remoteLayouts] = await Promise.all([
       this.#local.runExclusive(async (local) => await local.list()),
-      this.#remote.getLayouts(this.#getRemoteLayoutParents()),
+      this.#remote.getLayouts(),
     ]);
     if (abortSignal.aborted) {
       return;
@@ -1001,13 +990,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     }
 
     await this.#local.runExclusive(async (local) => {
-      return await local.putHistory({ id, parent: this.projectName ?? this.userName ?? "local" });
+      return await local.putHistory({ id, parent: this.projectName ?? this.userName ?? "" });
     });
   }
 
   public async getHistory(): Promise<Layout | undefined> {
     return await this.#local.runExclusive(async (local) => {
-      const parents = [this.projectName, this.userName, "local"].filter(Boolean) as string[];
+      const parents = [this.projectName, this.userName, ""].filter(Boolean) as string[];
 
       for (const parent of parents) {
         const layout = await local.getHistory(parent);

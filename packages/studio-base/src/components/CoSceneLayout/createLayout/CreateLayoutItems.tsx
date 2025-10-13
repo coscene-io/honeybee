@@ -5,17 +5,31 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Add as AddIcon } from "@mui/icons-material";
-import { Button, Menu, MenuItem } from "@mui/material";
+import {
+  Add as AddIcon,
+  NoteAddOutlined as NoteAddOutlinedIcon,
+  LibraryAddOutlined as LibraryAddOutlinedIcon,
+} from "@mui/icons-material";
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import { CopyFromOtherProjectDialog } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CopyFromOtherProjectDialog";
 import { CreateBlankLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateBlankLayoutDialog";
 import { ImportFromFileDialog } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/ImportFromFileDialog";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 
-export function CreateLayoutButton({
+const useStyles = makeStyles()(() => ({
+  listItemIcon: {
+    minWidth: 26,
+    "& svg": {
+      fontSize: "1rem",
+    },
+  },
+}));
+
+export function CreateLayoutItems({
   onCreateLayout,
   personalFolders,
   projectFolders,
@@ -26,51 +40,53 @@ export function CreateLayoutButton({
   projectFolders: string[];
   supportsProjectWrite: boolean;
 }): React.JSX.Element {
+  const { classes } = useStyles();
   const [open, setOpen] = useState("");
   const handleClose = useCallback(() => {
     setOpen("");
   }, []);
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>(undefined);
-  const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleMenuClose = () => {
-    setAnchorEl(undefined);
-  };
+
   const { t } = useTranslation("cosLayout");
+
+  const buttons = [
+    {
+      key: "createBlankLayout",
+      label: t("createBlankLayout"),
+      icon: <AddIcon />,
+      onClick: () => {
+        setOpen("createBlankLayout");
+      },
+    },
+    {
+      key: "copyFromOtherProject",
+      label: t("copyFromOtherProject"),
+      icon: <LibraryAddOutlinedIcon />,
+      onClick: () => {
+        setOpen("copyFromOtherProject");
+      },
+    },
+    {
+      key: "importFromFile",
+      label: t("importFromFile"),
+      icon: <NoteAddOutlinedIcon />,
+      onClick: () => {
+        setOpen("importFromFile");
+      },
+    },
+  ];
 
   return (
     <>
-      <Button variant="outlined" startIcon={<AddIcon />} fullWidth onClick={handleOpenMenu}>
-        {t("createLayout")}
-      </Button>
-
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem
-          onClick={() => {
-            setOpen("createBlankLayout");
-            handleMenuClose();
-          }}
-        >
-          {t("createBlankLayout")}
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            setOpen("copyFromOtherProject");
-            handleMenuClose();
-          }}
-        >
-          {t("copyFromOtherProject")}
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            setOpen("importFromFile");
-            handleMenuClose();
-          }}
-        >
-          {t("importFromFile")}
-        </MenuItem>
-      </Menu>
+      <List>
+        {buttons.map((button) => (
+          <ListItem disablePadding key={button.label}>
+            <ListItemButton onClick={button.onClick}>
+              <ListItemIcon className={classes.listItemIcon}>{button.icon}</ListItemIcon>
+              <ListItemText primary={button.label} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
       {open === "createBlankLayout" && (
         <CreateBlankLayoutDialog
           supportsProjectWrite={supportsProjectWrite}
@@ -85,8 +101,6 @@ export function CreateLayoutButton({
         <CopyFromOtherProjectDialog
           supportsProjectWrite={supportsProjectWrite}
           onCreateLayout={onCreateLayout}
-          personalFolders={personalFolders}
-          projectFolders={projectFolders}
           open
           onClose={handleClose}
         />

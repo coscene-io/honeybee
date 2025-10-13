@@ -14,11 +14,13 @@ import {
   PlayArrow as PlayArrowIcon,
   Equalizer as EqualizerIcon,
   MoreVert as MoreVertIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import {
   Avatar,
   Box,
   Breadcrumbs,
+  Divider,
   IconButton,
   InputAdornment,
   Link,
@@ -43,7 +45,7 @@ import { CopyLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout
 import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayout/LayoutTableRowMenu";
 import { MoveToFolderDialog } from "@foxglove/studio-base/components/CoSceneLayout/MoveToFolderDialog";
 import { RenameLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/RenameLayoutDialog";
-import { CreateLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutButton";
+import { CreateLayoutItems } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutItems";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
@@ -105,8 +107,17 @@ const useStyles = makeStyles()((theme) => ({
   folderItem: {
     paddingLeft: theme.spacing(4),
   },
+  breadcrumbContainer: {
+    display: "flex",
+  },
   breadcrumbs: {
-    marginBottom: theme.spacing(2),
+    flex: 1,
+    marginBottom: theme.spacing(1),
+  },
+  closeButton: {
+    marginTop: theme.spacing(-1),
+    marginRight: theme.spacing(-1),
+    height: 0,
   },
   toolbar: {
     display: "flex",
@@ -170,6 +181,7 @@ export function CoSceneLayoutContent({
   onRevertLayout,
   onCreateLayout,
   onMoveLayout,
+  onClose,
 }: {
   currentLayoutId?: LayoutID;
   supportsProjectWrite: boolean;
@@ -186,6 +198,7 @@ export function CoSceneLayoutContent({
   onRevertLayout: (layout: Layout) => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
   onMoveLayout: (layout: Layout, newFolder: string) => void;
+  onClose: () => void;
 }): React.JSX.Element {
   const { t, i18n } = useTranslation("cosLayout");
   const { classes } = useStyles();
@@ -474,16 +487,14 @@ export function CoSceneLayoutContent({
       <div className={classes.layoutContainer}>
         {/* Left Navigation Sidebar */}
         <div className={classes.sidebar}>
-          <Box className={classes.boxPadding}>
-            <CreateLayoutButton
+          <Box className={classes.overflowContainter}>
+            <CreateLayoutItems
               onCreateLayout={onCreateLayout}
               personalFolders={layouts?.personalFolders ?? []}
               projectFolders={layouts?.projectFolders ?? []}
               supportsProjectWrite={supportsProjectWrite}
             />
-          </Box>
-
-          <Box className={classes.overflowContainter}>
+            <Divider />
             <List className={classes.listPadding}>
               {items.map((item) => (
                 <Fragment key={item.category}>
@@ -538,32 +549,39 @@ export function CoSceneLayoutContent({
         <div className={classes.contentArea}>
           <Box className={classes.boxPadding}>
             {/* Breadcrumb */}
-            <Breadcrumbs className={classes.breadcrumbs}>
-              {selectedFolder.folder ? (
-                <Link
-                  color="inherit"
-                  underline="hover"
-                  onClick={() => {
-                    setSelectedFolder({ category: selectedFolder.category, folder: "" });
-                  }}
-                >
-                  {selectedFolder.category === "personal"
-                    ? t("personalLayout")
-                    : selectedFolder.category === "project"
-                    ? t("projectLayout")
-                    : t("allLayout")}
-                </Link>
-              ) : (
-                <Typography>
-                  {selectedFolder.category === "personal"
-                    ? t("personalLayout")
-                    : selectedFolder.category === "project"
-                    ? t("projectLayout")
-                    : t("allLayout")}
-                </Typography>
-              )}
-              {selectedFolder.folder && <Typography>{selectedFolder.folder}</Typography>}
-            </Breadcrumbs>
+            <Box className={classes.breadcrumbContainer}>
+              <Breadcrumbs className={classes.breadcrumbs}>
+                {selectedFolder.folder ? (
+                  <Link
+                    color="inherit"
+                    underline="hover"
+                    onClick={() => {
+                      setSelectedFolder({ category: selectedFolder.category, folder: "" });
+                    }}
+                  >
+                    {selectedFolder.category === "personal"
+                      ? t("personalLayout")
+                      : selectedFolder.category === "project"
+                      ? t("projectLayout")
+                      : t("allLayout")}
+                  </Link>
+                ) : (
+                  <Typography>
+                    {selectedFolder.category === "personal"
+                      ? t("personalLayout")
+                      : selectedFolder.category === "project"
+                      ? t("projectLayout")
+                      : t("allLayout")}
+                  </Typography>
+                )}
+                {selectedFolder.folder && <Typography>{selectedFolder.folder}</Typography>}
+              </Breadcrumbs>
+              <Box className={classes.closeButton}>
+                <IconButton onClick={onClose}>
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+            </Box>
 
             {/* Toolbar */}
             <Box className={classes.toolbar}>
