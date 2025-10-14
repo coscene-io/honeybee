@@ -9,6 +9,7 @@ import { AppSetting } from "@foxglove/studio-base";
 import { Storage } from "@foxglove/studio-desktop/src/common/types";
 import { main as rendererMain } from "@foxglove/studio-desktop/src/renderer/index";
 import NativeStorageAppConfiguration from "@foxglove/studio-desktop/src/renderer/services/NativeStorageAppConfiguration";
+import { initializeCosConfig } from "@foxglove/studio-desktop/src/renderer/services/RemoteConfigLoader";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
@@ -21,6 +22,15 @@ async function main() {
       },
     },
   );
+
+  const remoteConfigUrl = appConfiguration.get(AppSetting.REMOTE_CONFIG_URL) as string | undefined;
+
+  if (remoteConfigUrl) {
+    await initializeCosConfig({
+      remoteUrl: remoteConfigUrl,
+      timeout: 5000,
+    });
+  }
 
   await rendererMain({ appConfiguration });
 }

@@ -70,8 +70,8 @@ let LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
   { key: "ja", value: "日本語" },
 ];
 
-LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter((language) =>
-  APP_CONFIG.LANGUAGE.options.includes(language.key),
+LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter(
+  (language) => APP_CONFIG.LANGUAGE?.options.includes(language.key),
 );
 
 const useStyles = makeStyles()((theme) => ({

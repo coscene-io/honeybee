@@ -109,7 +109,8 @@ const useStyles = makeStyles()((theme) => ({
 const CONTACT_EMAIL = "hi@coscene.io";
 const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
 
-const showLanguageOptions = APP_CONFIG.LANGUAGE.options.length > 1;
+const showLanguageOptions =
+  APP_CONFIG.LANGUAGE != undefined && APP_CONFIG.LANGUAGE.options.length > 1;
 
 type SectionKey = "contact" | "legal";
 

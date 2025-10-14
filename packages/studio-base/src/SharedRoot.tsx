@@ -33,7 +33,7 @@ const log = Logger.getLogger(__filename);
 if (
   APP_CONFIG.VITE_APP_PROJECT_ENV !== "aws" &&
   APP_CONFIG.VITE_APP_PROJECT_ENV !== "gcp" &&
-  APP_CONFIG.POSTHOG.token &&
+  APP_CONFIG.POSTHOG?.token &&
   APP_CONFIG.POSTHOG.api_host
 ) {
   posthog.init(APP_CONFIG.POSTHOG.token, {
@@ -70,7 +70,7 @@ export function SharedRoot(
     APP_CONFIG.VITE_APP_PROJECT_ENV !== "local" &&
     APP_CONFIG.VITE_APP_PROJECT_ENV !== "aws" &&
     APP_CONFIG.VITE_APP_PROJECT_ENV !== "gcp" &&
-    APP_CONFIG.SENTRY_ENABLED
+    APP_CONFIG.SENTRY_ENABLED != undefined
   ) {
     log.info("initializing Sentry");
     Sentry.init({

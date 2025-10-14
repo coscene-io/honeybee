@@ -11,7 +11,7 @@ import { APP_CONFIG } from "./appConfig";
 export function getDocsLink(path?: string): string {
   const lang = i18next.language === "zh" ? "zh" : "en";
   const env = APP_CONFIG.VITE_APP_PROJECT_ENV;
-  let url = APP_CONFIG.DOC_BASE_URL;
+  let url = APP_CONFIG.DOC_BASE_URL ?? "";
 
   const langPrefix = env === "aws" || env === "gcp" || lang === "zh" ? "" : lang;
   if (langPrefix) {

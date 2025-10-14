@@ -44,13 +44,15 @@ export async function initI18n(options?: { context?: "browser" | "electron-main"
   }
 
   await i18n.init({
-    lng: APP_CONFIG.LANGUAGE.options.length === 1 ? APP_CONFIG.LANGUAGE.default : undefined,
+    lng: APP_CONFIG.LANGUAGE?.options.length === 1 ? APP_CONFIG.LANGUAGE.default : undefined,
     resources: translations,
     detection:
-      context === "browser" && APP_CONFIG.LANGUAGE.options.length > 1
+      context === "browser" &&
+      APP_CONFIG.LANGUAGE?.options.length != undefined &&
+      APP_CONFIG.LANGUAGE.options.length > 1
         ? { order: ["localStorage"], caches: ["localStorage"] }
         : undefined,
-    fallbackLng: APP_CONFIG.LANGUAGE.default,
+    fallbackLng: APP_CONFIG.LANGUAGE?.default,
     defaultNS,
     interpolation: {
       escapeValue: false, // not needed for react as it escapes by default

@@ -22,8 +22,6 @@ import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 
-const domainConfig = getDomainConfig();
-
 const useStyles = makeStyles()((theme) => ({
   grid: {
     [theme.breakpoints.up("md")]: {
@@ -175,6 +173,8 @@ function SidebarItems(): React.JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("openDialog");
 
+  const domainConfig = getDomainConfig();
+
   const sidebarItems: SidebarItem[] = [
     {
       id: "new",
@@ -244,6 +244,8 @@ export default function Start(): React.JSX.Element {
   const { dialogActions } = useWorkspaceActions();
   const loginStatus = useCurrentUser(selectLoginStatus);
   const user = useCurrentUser(selectUser);
+
+  const domainConfig = getDomainConfig();
 
   const startItems = useMemo(() => {
     return [
