@@ -48,25 +48,25 @@ function convertGrpcLayoutToRemoteLayout({
   }
 
   // Parse layout name to extract ID and parent
-  const layoutNameParts = layout.name.split("/layouts/");
+  const id = layout.name as LayoutID;
+  const layoutNameParts = id.split("/layouts/");
   if (layoutNameParts.length !== 2 || !layoutNameParts[1] || !layoutNameParts[0]) {
     throw new Error(
       `Invalid layout name format: ${layout.name}. Expected format: '<parent>/layouts/<id>'`,
     );
   }
 
-  const layoutId = layoutNameParts[1];
   const parent = layoutNameParts[0];
 
   // Determine permission based on resource name pattern
   let permission: LayoutPermission;
-  if (parent.startsWith("warehouses/")) {
+  if (id.startsWith("warehouses/")) {
     if (projectWrite) {
       permission = "PROJECT_WRITE";
     } else {
       permission = "PROJECT_READ";
     }
-  } else if (parent.startsWith("users/")) {
+  } else if (id.startsWith("users/")) {
     permission = "PERSONAL_WRITE";
   } else {
     throw new Error(`Invalid parent for layout ${layout.displayName}: ${parent}`);
@@ -75,7 +75,7 @@ function convertGrpcLayoutToRemoteLayout({
   const modifier = users.find((user) => user.name === layout.modifier);
 
   return {
-    id: layoutId as LayoutID,
+    id,
     parent,
     folder: layout.folder,
     name: layout.displayName,
@@ -142,12 +142,10 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     }
   }
 
-  public async getLayout(id: LayoutID, parent: string): Promise<RemoteLayout | undefined> {
+  public async getLayout(name: LayoutID): Promise<RemoteLayout | undefined> {
     try {
-      const name = `${parent}/layouts/${id}`;
-
       let layout;
-      if (parent.startsWith("users/")) {
+      if (name.startsWith("users/")) {
         layout = await this.api.getUserLayout({ name });
       } else {
         layout = await this.api.getProjectLayout({ name });
@@ -209,14 +207,12 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
 
   public async updateLayout({
     id,
-    parent,
     name,
     folder,
     data,
     permission: _permission,
   }: {
     id: LayoutID;
-    parent: string;
     name?: string;
     folder?: string;
     data?: LayoutData;
@@ -224,14 +220,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
     try {
       // First get the existing layout to determine its current resource name
-      const existingLayout = await this.getLayout(id, parent);
+      const existingLayout = await this.getLayout(id);
       if (!existingLayout) {
         return { status: "conflict" };
       }
 
       // Create updated layout
       const updatedLayout = new Layout({
-        name: `${parent}/layouts/${id}`,
+        name: id,
       });
 
       // Create update mask for the fields we're updating
@@ -272,15 +268,13 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     }
   }
 
-  public async deleteLayout(id: LayoutID, parent: string): Promise<boolean> {
+  public async deleteLayout(name: LayoutID): Promise<boolean> {
     try {
       // First get the existing layout to determine its type
-      const existingLayout = await this.getLayout(id, parent);
+      const existingLayout = await this.getLayout(name);
       if (!existingLayout) {
         return false;
       }
-
-      const name = `${parent}/layouts/${id}`;
 
       // Use appropriate API based on layout's permission
       if (existingLayout.permission === "PERSONAL_WRITE") {

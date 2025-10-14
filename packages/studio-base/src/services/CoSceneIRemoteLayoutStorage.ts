@@ -44,7 +44,7 @@ export interface IRemoteLayoutStorage {
 
   getLayouts: () => Promise<readonly RemoteLayout[]>;
 
-  getLayout: (id: LayoutID, parent: string) => Promise<RemoteLayout | undefined>;
+  getLayout: (id: LayoutID) => Promise<RemoteLayout | undefined>;
 
   saveNewLayout: (params: {
     id: LayoutID | undefined;

@@ -36,7 +36,6 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   // Select layout from URL.
   // if loginStatus is alreadyLogin, we need to check if remoteLayoutStorage is rady
   useEffect(() => {
-    console.log("useSyncLayoutFromUrl", unappliedLayoutArgs?.layoutId);
     if (
       !unappliedLayoutArgs?.layoutId ||
       (loginStatus === "alreadyLogin" && remoteLayoutStorage == undefined)

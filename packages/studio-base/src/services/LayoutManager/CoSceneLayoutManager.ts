@@ -55,7 +55,7 @@ async function updateOrFetchLayout(
     case "success":
       return response.newLayout;
     case "conflict": {
-      const remoteLayout = await remote.getLayout(params.id, params.parent);
+      const remoteLayout = await remote.getLayout(params.id);
       if (!remoteLayout) {
         throw new Error(`Update rejected but layout is not present on server: ${params.id}`);
       }
@@ -245,9 +245,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     log.debug(`Attempting to fetch from remote id:${id}`);
     // We couldn't find an existing local layout for our id, so we attempt to load the remote one
-    // const remoteLayout = await this.#remote?.getLayout(id, parent);
-    const remoteLayouts = await this.#remote?.getLayouts();
-    const remoteLayout = remoteLayouts?.find((layout) => layout.id === id);
+    const remoteLayout = await this.#remote?.getLayout(id);
 
     if (!remoteLayout) {
       log.debug(`No remote layout with id:${id}`);
