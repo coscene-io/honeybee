@@ -58,21 +58,22 @@ export function CopyFromOtherProjectDialog({
       <DialogContent className={classes.dialogContent}>
         <Stack gap={2}>
           <ProjectSelector value={projectName} onChange={setProjectName} />
+          {projectName && (
+            <ProjectLayoutList
+              projectName={projectName}
+              supportsProjectWrite={supportsProjectWrite}
+              onChange={(layout, permission) => {
+                onCreateLayout({
+                  folder: "",
+                  name: layout.displayName,
+                  permission,
+                  data: layout.data?.toJson() as LayoutData,
+                });
 
-          <ProjectLayoutList
-            projectName={projectName}
-            supportsProjectWrite={supportsProjectWrite}
-            onChange={(layout, permission) => {
-              onCreateLayout({
-                folder: "",
-                name: layout.displayName,
-                permission,
-                data: layout.data?.toJson() as LayoutData,
-              });
-
-              onClose();
-            }}
-          />
+                onClose();
+              }}
+            />
+          )}
         </Stack>
       </DialogContent>
     </Dialog>

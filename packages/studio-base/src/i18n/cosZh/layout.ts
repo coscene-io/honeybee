@@ -88,4 +88,5 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   moveToFolderDescription: '移动 "{{layoutName}}" 布局到...',
   revertLayoutConfirm: "您的更改将被永久丢弃。此操作无法撤销。",
   discardChanges: "放弃更改",
+  searchLayoutName: "搜索布局名称",
 };
