@@ -18,7 +18,6 @@ import Logger from "@foxglove/log";
 import { VariableValue } from "@foxglove/studio";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { useUserProfileStorage } from "@foxglove/studio-base/context/CoSceneUserProfileStorageContext";
 import CoSceneCurrentLayoutContext, {
   ICurrentLayout,
   LayoutID,
