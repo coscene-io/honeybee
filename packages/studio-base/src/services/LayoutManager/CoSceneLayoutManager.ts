@@ -497,7 +497,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         if (!this.isOnline) {
           throw new Error("Cannot delete a shared layout while offline");
         }
-        await this.#remote.deleteLayout(id, localLayout.parent);
+        await this.#remote.deleteLayout(id);
       }
     }
     await this.#local.runExclusive(async (local) => {
@@ -806,7 +806,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           case "delete-remote": {
             const { localLayout } = operation;
             log.debug(`Deleting remote layout ${localLayout.id}`);
-            if (!(await remote.deleteLayout(localLayout.id, localLayout.parent))) {
+            if (!(await remote.deleteLayout(localLayout.id))) {
               log.warn(`Deleting layout ${localLayout.id} which was not present in remote storage`);
             }
             return async (local) => {
