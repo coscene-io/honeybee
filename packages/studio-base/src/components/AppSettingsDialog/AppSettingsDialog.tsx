@@ -33,7 +33,7 @@ import {
   useWorkspaceStore,
   WorkspaceContextStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import { getLegalDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -109,8 +109,9 @@ const useStyles = makeStyles()((theme) => ({
 const CONTACT_EMAIL = "hi@coscene.io";
 const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
 
+const appConfig = getAppConfig();
 const showLanguageOptions =
-  APP_CONFIG.LANGUAGE != undefined && APP_CONFIG.LANGUAGE.options.length > 1;
+  appConfig.LANGUAGE != undefined && appConfig.LANGUAGE.options.length > 1;
 
 type SectionKey = "contact" | "legal";
 

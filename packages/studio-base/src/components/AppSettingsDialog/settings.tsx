@@ -46,7 +46,7 @@ import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
@@ -63,16 +63,6 @@ const RETENTION_WINDOW_MS = [
   3 * 60 * 1000,
   5 * 60 * 1000,
 ];
-
-let LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
-  { key: "en", value: "English" },
-  { key: "zh", value: "中文" },
-  { key: "ja", value: "日本語" },
-];
-
-LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter(
-  (language) => APP_CONFIG.LANGUAGE?.options.includes(language.key),
-);
 
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
@@ -360,6 +350,18 @@ export function LanguageSettings(): React.ReactElement {
   const [, setSelectedLanguage] = useAppConfigurationValue<Language>(AppSetting.LANGUAGE);
   const selectedLanguage: Language = useMemo(() => i18n.language as Language, [i18n.language]);
 
+  const appConfig = getAppConfig();
+
+  const LANGUAGE_OPTIONS: { key: Language; value: string }[] = useMemo(
+    () =>
+      [
+        { key: "en", value: "English" },
+        { key: "zh", value: "中文" },
+        { key: "ja", value: "日本語" },
+      ].filter((language) => appConfig.LANGUAGE?.options.includes(language.key)),
+    [appConfig.LANGUAGE?.options],
+  ) as { key: Language; value: string }[];
+
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {
       const lang = event.target.value;
@@ -381,7 +383,7 @@ export function LanguageSettings(): React.ReactElement {
         text: language.value,
         data: language.key,
       })),
-    [],
+    [LANGUAGE_OPTIONS],
   );
 
   return (

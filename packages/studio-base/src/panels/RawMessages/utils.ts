@@ -23,7 +23,7 @@ import { diffLabels, DiffObject } from "@foxglove/studio-base/panels/RawMessages
 
 import type { NodeExpansion } from "./types";
 import { NodeState } from "./types";
-import { APP_CONFIG } from "../../util/appConfig";
+import { getAppConfig } from "../../util/appConfig";
 
 export const DATA_ARRAY_PREVIEW_LIMIT = 20;
 const ROS1_COMMON_MSG_PACKAGES = new Set(Object.keys(ros1).map((key) => key.split("/")[0]!));
@@ -135,11 +135,12 @@ const foxgloveDocsLinksByDatatype = new Map<string, string>();
 const getBaseLink = () => {
   const lang = i18next.language === "zh" ? "zh" : "en";
 
-  const env = APP_CONFIG.VITE_APP_PROJECT_ENV;
+  const appConfig = getAppConfig();
+  const env = appConfig.VITE_APP_PROJECT_ENV;
 
   const langPrefix = env === "aws" || env === "gcp" || lang === "zh" ? "" : lang;
 
-  return `${APP_CONFIG.DOC_BASE_URL}/${langPrefix}/docs/viz/message-schemas`;
+  return `${appConfig.DOC_BASE_URL}/${langPrefix}/docs/viz/message-schemas`;
 };
 
 for (const schema of Object.values(foxgloveMessageSchemas)) {
