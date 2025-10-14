@@ -61,7 +61,7 @@ export const cosLayout = {
   createNewLayout: "Create a new layout",
   publicLayouts: "Public layouts",
   noPublicLayouts: "No public layouts",
-  copyFromOtherProject: "Copy from other project",
+  copyFromProject: "Copy from project",
   importFromFile: "Import from file",
   personalLayout: "Personal layout",
   projectLayout: "Project layout",

@@ -50,7 +50,7 @@ export function CopyFromOtherProjectDialog({
       <DialogTitle
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
       >
-        {t("copyFromOtherProject")}
+        {t("copyFromProject")}
         <IconButton onClick={onClose}>
           <CloseIcon />
         </IconButton>

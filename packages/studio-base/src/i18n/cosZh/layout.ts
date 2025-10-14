@@ -60,7 +60,7 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   createNewLayout: "创建新布局",
   publicLayouts: "公开布局",
   noPublicLayouts: "没有公开布局",
-  copyFromOtherProject: "从其他项目复制布局",
+  copyFromProject: "从其他项目复制布局",
   importFromFile: "本地文件导入",
   personalLayout: "个人布局",
   projectLayout: "项目布局",
