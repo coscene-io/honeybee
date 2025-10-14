@@ -56,7 +56,7 @@ export function ImportFromFileDialog({
   projectFolders: string[];
   supportsProjectWrite: boolean;
 }): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation(["cosLayout", "general"]);
   const { classes } = useStyles();
 
   const form = useForm<CreateLayoutForm & { selectedFile: string }>({
@@ -154,6 +154,7 @@ export function ImportFromFileDialog({
                 helperText={fieldState.error?.message}
                 required
                 label={t("layoutName")}
+                placeholder={t("pleaseEnter", { ns: "general" })}
                 slotProps={{ htmlInput: { maxLength: 60 } }}
                 {...field}
               />

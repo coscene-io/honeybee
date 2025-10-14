@@ -27,7 +27,7 @@ export function ProjectSelector({
   value,
   onChange,
 }: ProjectSelectorProps): React.JSX.Element {
-  const { t } = useTranslation(["cosLayout", "cosProject"]);
+  const { t } = useTranslation(["cosLayout", "cosProject", "general"]);
   const consoleApi = useConsoleApi();
   const currentUser = useCurrentUser((store) => store.user);
   const userId = currentUser?.userId;
@@ -71,7 +71,7 @@ export function ProjectSelector({
             {option.project.isStarred ? (
               <StarIcon style={{ color: "#fbbf24" }} />
             ) : (
-              <StarOutlineIcon />
+              <StarOutlineIcon style={{ color: "#9ca3af" }} />
             )}
             <ProjectVisibilityChip visibility={option.project.visibility} />
           </Box>
@@ -87,7 +87,13 @@ export function ProjectSelector({
         onChange(value?.value ?? "");
       }}
       renderInput={(params) => (
-        <TextField required {...params} label={t("projectName")} error={error} />
+        <TextField
+          required
+          {...params}
+          label={t("projectName")}
+          error={error}
+          placeholder={t("pleaseSelect", { ns: "general" })}
+        />
       )}
     />
   );

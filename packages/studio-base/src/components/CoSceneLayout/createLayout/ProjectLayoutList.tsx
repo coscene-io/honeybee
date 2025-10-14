@@ -35,18 +35,22 @@ const useStyles = makeStyles()((theme) => ({
   listContainer: {
     height: 240,
     overflow: "auto",
-    border: `1px solid ${theme.palette.divider}`,
+    borderLeft: `1px solid ${theme.palette.divider}`,
+    borderRight: `1px solid ${theme.palette.divider}`,
+    borderBottom: `1px solid ${theme.palette.divider}`,
   },
   listItem: {
+    minHeight: 36,
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
     ":hover": {
       backgroundColor: theme.palette.action.hover,
     },
     "&:hover .MuiStack-root": {
-      visibility: "visible",
       display: "flex",
     },
     ".MuiStack-root": {
-      visibility: "hidden",
       display: "none",
     },
   },
@@ -93,6 +97,7 @@ export function ProjectLayoutList({
         onChange={(e) => {
           setSearchText(e.target.value);
         }}
+        placeholder={t("searchLayoutName")}
         slotProps={{
           input: {
             startAdornment: <SearchIcon fontSize="small" className={classes.searchIcon} />,

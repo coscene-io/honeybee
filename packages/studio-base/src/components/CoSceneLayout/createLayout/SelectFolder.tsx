@@ -18,7 +18,7 @@ export function SelectFolder({
   onChange: (args: { value: string; isNewFolder: boolean }) => void;
   value: { value: string; isNewFolder: boolean };
 }): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation(["cosLayout", "general"]);
 
   const options: { label: string; value: string; isNewFolder: boolean }[] = useMemo(() => {
     return [
@@ -42,7 +42,13 @@ export function SelectFolder({
             isNewFolder: option?.isNewFolder ?? false,
           });
         }}
-        renderInput={(params) => <TextField {...params} label={t("folder")} />}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label={t("folder")}
+            placeholder={t("pleaseSelect", { ns: "general" })}
+          />
+        )}
       />
       {value.isNewFolder && (
         <TextField

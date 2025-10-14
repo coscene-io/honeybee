@@ -57,7 +57,7 @@ export function CopyLayoutDialog({
 
   const form = useForm<CreateLayoutForm>({
     defaultValues: {
-      name: "",
+      name: layout.name,
       folder: { value: "", isNewFolder: false },
       permission: "PERSONAL_WRITE",
     },
