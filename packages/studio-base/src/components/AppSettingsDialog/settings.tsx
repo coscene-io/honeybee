@@ -30,7 +30,7 @@ import {
   Typography,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -341,6 +341,34 @@ export function RosPackagePath(): React.ReactElement {
       value={rosPackagePath ?? ""}
       onChange={(event) => void setRosPackagePath(event.target.value)}
     />
+  );
+}
+
+export function StudioRemoteConfigUrl(): React.ReactElement {
+  const [remoteConfigUrl, setRemoteConfigUrl] = useAppConfigurationValue<string>(
+    AppSetting.REMOTE_CONFIG_URL,
+  );
+  const { t } = useTranslation("cosSettings");
+
+  const { theme } = useStyles();
+  const initialValueRef = useRef(remoteConfigUrl ?? "");
+  const isChanged = (remoteConfigUrl ?? "") !== initialValueRef.current;
+
+  return (
+    <Stack gap={1}>
+      <TextField
+        fullWidth
+        label="REMOTE_CONFIG_URL"
+        placeholder="placeholder"
+        value={remoteConfigUrl ?? ""}
+        onChange={(event) => void setRemoteConfigUrl(event.target.value)}
+      />
+      {isChanged && (
+        <Typography variant="caption" color={theme.palette.warning.main}>
+          {t("willTakeEffectOnTheNextStartup")}
+        </Typography>
+      )}
+    </Stack>
   );
 }
 

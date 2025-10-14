@@ -47,6 +47,7 @@ import {
   RosPackagePath,
   InactivityTimeout,
   RetentionWindowMs,
+  StudioRemoteConfigUrl,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -251,6 +252,7 @@ export function AppSettingsDialog(
               {/* CoScene */}
               {/* {!isDesktopApp() && <LaunchDefault />} */}
               {isDesktopApp() && <RosPackagePath />}
+              {isDesktopApp() && <StudioRemoteConfigUrl />}
               {/* <Stack>
                 <FormLabel>{t("advanced")}:</FormLabel>
                 <FormControlLabel
