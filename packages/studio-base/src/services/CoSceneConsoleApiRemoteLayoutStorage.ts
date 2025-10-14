@@ -181,7 +181,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     permission: LayoutPermission;
   }): Promise<RemoteLayout> {
     const layout = new Layout({
-      name: id ? `${parent}/layouts/${id}` : undefined,
+      name: id,
       displayName: name,
       folder,
       data: convertJsonToStruct(data),
