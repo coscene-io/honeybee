@@ -90,4 +90,5 @@ export const cosLayout = {
   revertLayoutConfirm: "Your changes will be permanently discarded. This cannot be undone.",
   discardChanges: "Discard changes",
   searchLayoutName: "Search layout name",
+  copyLayoutSuccess: "Copy success, layout has been switched",
 };
