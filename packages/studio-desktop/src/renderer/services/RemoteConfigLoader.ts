@@ -60,7 +60,7 @@ async function loadRemoteConfig(options: RemoteConfigOptions): Promise<boolean> 
     const localConfig = { ...window.cosConfig };
 
     // 加载远程配置
-    const success = await loadScriptWithTimeout(remoteUrl, timeout);
+    const success = await loadScriptWithTimeout(`${remoteUrl}/cos-config.js`, timeout);
 
     if (success && window.cosConfig && typeof window.cosConfig === "object") {
       // 合并配置：远程配置优先
@@ -87,7 +87,7 @@ async function loadScriptWithTimeout(url: string, timeout: number): Promise<bool
   return await new Promise((resolve) => {
     const script = document.createElement("script");
     script.type = "text/javascript";
-    script.src = `${url}/cos-config.js?t=${window.buildTime}`;
+    script.src = `${url}?t=${window.buildTime}`;
 
     let completed = false;
     const timer = setTimeout(() => {
