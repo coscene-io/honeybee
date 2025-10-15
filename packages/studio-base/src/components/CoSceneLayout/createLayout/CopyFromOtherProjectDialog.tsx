@@ -7,6 +7,7 @@
 
 import CloseIcon from "@mui/icons-material/Close";
 import { Dialog, DialogTitle, DialogContent, Stack, IconButton } from "@mui/material";
+import { useSnackbar } from "notistack";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -35,6 +36,7 @@ export function CopyFromOtherProjectDialog({
 }): React.JSX.Element {
   const { t } = useTranslation("cosLayout");
   const { classes } = useStyles();
+  const { enqueueSnackbar } = useSnackbar();
   const [projectName, setProjectName] = useState("");
 
   return (
@@ -50,7 +52,7 @@ export function CopyFromOtherProjectDialog({
       <DialogTitle
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
       >
-        {t("copyFromOtherProject")}
+        {t("copyFromProject")}
         <IconButton onClick={onClose}>
           <CloseIcon />
         </IconButton>
@@ -69,7 +71,7 @@ export function CopyFromOtherProjectDialog({
                   permission,
                   data: layout.data?.toJson() as LayoutData,
                 });
-
+                enqueueSnackbar(t("copyLayoutSuccess"), { variant: "success" });
                 onClose();
               }}
             />

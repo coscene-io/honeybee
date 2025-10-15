@@ -18,7 +18,6 @@ import Logger from "@foxglove/log";
 import { VariableValue } from "@foxglove/studio";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { useUserProfileStorage } from "@foxglove/studio-base/context/CoSceneUserProfileStorageContext";
 import CoSceneCurrentLayoutContext, {
   ICurrentLayout,
   LayoutID,
@@ -59,7 +58,6 @@ export default function CurrentLayoutProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const { enqueueSnackbar } = useSnackbar();
-  const { setUserProfile } = useUserProfileStorage();
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
   const isMounted = useMountedState();
@@ -147,18 +145,6 @@ export default function CurrentLayoutProvider({
             },
           });
           if (saveToProfile) {
-            setUserProfile({ currentLayoutId: id }).catch((error: unknown) => {
-              console.error(error);
-              enqueueSnackbar(
-                `The current layout could not be saved. ${
-                  error instanceof Error ? error.message : String(error)
-                }`,
-                {
-                  variant: "error",
-                },
-              );
-            });
-
             void layoutManager.putHistory({ id });
           }
         }
@@ -171,7 +157,7 @@ export default function CurrentLayoutProvider({
         setLayoutState({ selectedLayout: undefined });
       }
     },
-    [enqueueSnackbar, isMounted, layoutManager, setLayoutState, setUserProfile],
+    [enqueueSnackbar, isMounted, layoutManager, setLayoutState],
   );
 
   const performAction = useCallback(

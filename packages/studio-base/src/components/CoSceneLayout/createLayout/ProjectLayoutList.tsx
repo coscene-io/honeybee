@@ -20,7 +20,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import PinyinMatch from "pinyin-match";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsync } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -88,6 +89,16 @@ export function ProjectLayoutList({
     return result.projectLayouts;
   }, [projectName, consoleApi]);
 
+  const filteredLayouts = useMemo(() => {
+    if (!searchText) {
+      return layouts.value;
+    }
+
+    return layouts.value?.filter(
+      (layout) => PinyinMatch.match(layout.displayName, searchText) !== false,
+    );
+  }, [layouts.value, searchText]);
+
   return (
     <Box>
       <TextField
@@ -105,7 +116,7 @@ export function ProjectLayoutList({
         }}
       />
       <List dense className={classes.listContainer}>
-        {layouts.value?.map((layout) => (
+        {filteredLayouts?.map((layout) => (
           <ListItem key={layout.name} className={classes.listItem} dense>
             <BusinessCenterOutlinedIcon fontSize="small" />
             <ListItemText className={classes.listItemText}>
