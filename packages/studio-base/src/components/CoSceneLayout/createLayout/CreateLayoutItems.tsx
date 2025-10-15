@@ -58,11 +58,11 @@ export function CreateLayoutItems({
       },
     },
     {
-      key: "copyFromOtherProject",
-      label: t("copyFromOtherProject"),
+      key: "copyFromProject",
+      label: t("copyFromProject"),
       icon: <LibraryAddOutlinedIcon />,
       onClick: () => {
-        setOpen("copyFromOtherProject");
+        setOpen("copyFromProject");
       },
     },
     {
@@ -97,7 +97,7 @@ export function CreateLayoutItems({
           onClose={handleClose}
         />
       )}
-      {open === "copyFromOtherProject" && (
+      {open === "copyFromProject" && (
         <CopyFromOtherProjectDialog
           supportsProjectWrite={supportsProjectWrite}
           onCreateLayout={onCreateLayout}

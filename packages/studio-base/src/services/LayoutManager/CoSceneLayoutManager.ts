@@ -55,7 +55,7 @@ async function updateOrFetchLayout(
     case "success":
       return response.newLayout;
     case "conflict": {
-      const remoteLayout = await remote.getLayout(params.id, params.parent);
+      const remoteLayout = await remote.getLayout(params.id);
       if (!remoteLayout) {
         throw new Error(`Update rejected but layout is not present on server: ${params.id}`);
       }
@@ -245,9 +245,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     log.debug(`Attempting to fetch from remote id:${id}`);
     // We couldn't find an existing local layout for our id, so we attempt to load the remote one
-    // const remoteLayout = await this.#remote?.getLayout(id, parent);
-    const remoteLayouts = await this.#remote?.getLayouts();
-    const remoteLayout = remoteLayouts?.find((layout) => layout.id === id);
+    const remoteLayout = await this.#remote?.getLayout(id);
 
     if (!remoteLayout) {
       log.debug(`No remote layout with id:${id}`);
@@ -311,7 +309,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       }
 
       const newLayout = await this.#remote.saveNewLayout({
-        id: uuidv4() as LayoutID,
+        id: `${parent}/layouts/${uuidv4()}` as LayoutID,
         parent,
         folder,
         name,
@@ -349,7 +347,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     const newLayout = await this.#local.runExclusive(
       async (local) =>
         await local.put({
-          id: uuidv4() as LayoutID,
+          id: `${parent}/layouts/${uuidv4()}` as LayoutID,
           parent,
           folder,
           name,
@@ -499,7 +497,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         if (!this.isOnline) {
           throw new Error("Cannot delete a shared layout while offline");
         }
-        await this.#remote.deleteLayout(id, localLayout.parent);
+        await this.#remote.deleteLayout(id);
       }
     }
     await this.#local.runExclusive(async (local) => {
@@ -620,9 +618,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       if (!layout) {
         throw new Error(`Cannot make a personal copy of layout id ${id} because it does not exist`);
       }
+
+      const parent = this.userName ?? "";
       const newLayout = await local.put({
-        id: uuidv4() as LayoutID,
-        parent: "",
+        id: `${parent}/layouts/${uuidv4()}` as LayoutID,
+        parent,
         folder: layout.folder,
         name,
         permission: "PERSONAL_WRITE",
@@ -808,7 +808,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           case "delete-remote": {
             const { localLayout } = operation;
             log.debug(`Deleting remote layout ${localLayout.id}`);
-            if (!(await remote.deleteLayout(localLayout.id, localLayout.parent))) {
+            if (!(await remote.deleteLayout(localLayout.id))) {
               log.warn(`Deleting layout ${localLayout.id} which was not present in remote storage`);
             }
             return async (local) => {

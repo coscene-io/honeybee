@@ -44,7 +44,7 @@ export interface IRemoteLayoutStorage {
 
   getLayouts: () => Promise<readonly RemoteLayout[]>;
 
-  getLayout: (id: LayoutID, parent: string) => Promise<RemoteLayout | undefined>;
+  getLayout: (id: LayoutID) => Promise<RemoteLayout | undefined>;
 
   saveNewLayout: (params: {
     id: LayoutID | undefined;
@@ -65,5 +65,5 @@ export interface IRemoteLayoutStorage {
   }) => Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }>;
 
   /** Returns true if the layout existed and was deleted, false if the layout did not exist. */
-  deleteLayout: (id: LayoutID, parent: string) => Promise<boolean>;
+  deleteLayout: (id: LayoutID) => Promise<boolean>;
 }
