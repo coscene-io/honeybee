@@ -268,22 +268,7 @@ export default function CurrentLayoutProvider({
       return;
     }
 
-    const layouts = await layoutManager.getLayouts();
-    if (layouts.length > 0) {
-      const sortedLayouts = [...layouts].sort((a, b) => {
-        // 优先显示 permission !== 'PERSONAL_WRITE' 的布局
-        if (a.permission !== "PERSONAL_WRITE" && b.permission === "PERSONAL_WRITE") {
-          return -1;
-        }
-        if (a.permission === "PERSONAL_WRITE" && b.permission !== "PERSONAL_WRITE") {
-          return 1;
-        }
-        // 如果permission相同，按名称排序
-        return a.name.localeCompare(b.name);
-      });
-      await setSelectedLayoutId(sortedLayouts[0]!.id);
-      return;
-    }
+    // todo: open layout drawer, let user select layout
   }, [layoutManager, setSelectedLayoutId]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
