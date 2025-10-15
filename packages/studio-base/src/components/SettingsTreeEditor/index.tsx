@@ -175,6 +175,13 @@ export default function SettingsTreeEditor({
             key={key}
             actionHandler={actionHandler}
             defaultOpen={root.defaultExpansionState === "collapsed" ? false : true}
+            open={
+              root.expansionState == undefined
+                ? undefined
+                : root.expansionState === "collapsed"
+                ? false
+                : true
+            }
             filter={filterText}
             focusedPath={focusedPath}
             path={makeStablePath(key)}

@@ -41,6 +41,7 @@ import { prepareSettingsNodes } from "./utils";
 type NodeEditorProps = {
   actionHandler: (action: SettingsTreeAction) => void;
   defaultOpen?: boolean;
+  open?: boolean;
   filter?: string;
   focusedPath?: readonly string[];
   path: readonly string[];
@@ -198,7 +199,7 @@ type State = {
 };
 
 function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
-  const { actionHandler, defaultOpen = true, filter, focusedPath, settings = {} } = props;
+  const { actionHandler, defaultOpen = true, open, filter, focusedPath, settings = {} } = props;
   const [state, setState] = useImmer<State>({
     editing: false,
     focusedPath: undefined,
@@ -213,6 +214,34 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
   const allowVisibilityToggle = props.settings?.visible != undefined;
   const visible = props.settings?.visible !== false;
   const selectVisibilityFilterEnabled = props.settings?.enableVisibilityFilter === true;
+
+  const isOpen = useMemo(() => {
+    if (open != undefined) {
+      return open;
+    }
+    return state.open;
+  }, [open, state.open]);
+
+  const setOpen = useCallback(
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    (openState: boolean) => {
+      setState((draft) => {
+        draft.open = openState;
+      });
+
+      if (open != undefined) {
+        actionHandler({
+          action: "update",
+          payload: {
+            path: [...props.path, "expansionState"],
+            input: "string",
+            value: openState ? "expanded" : "collapsed",
+          },
+        });
+      }
+    },
+    [actionHandler, open, props.path, setState],
+  );
 
   const selectVisibilityFilter = (action: SettingsTreeAction) => {
     if (action.action === "update" && action.payload.input === "select") {
@@ -240,15 +269,13 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
       focusedPath != undefined && _.isEqual(props.path, focusedPath.slice(0, props.path.length));
 
     if (isOnFocusedPath) {
-      setState((draft) => {
-        draft.open = true;
-      });
+      setOpen(true);
     }
 
     if (isFocused) {
       rootRef.current?.scrollIntoView();
     }
-  }, [focusedPath, isFocused, props.path, setState]);
+  }, [focusedPath, isFocused, props.path, setOpen, setState]);
 
   const { fields, children } = settings;
   const hasChildren = children != undefined && Object.keys(children).length > 0;
@@ -278,6 +305,13 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
       <NodeEditor
         actionHandler={actionHandler}
         defaultOpen={child.defaultExpansionState === "collapsed" ? false : true}
+        open={
+          child.expansionState == undefined
+            ? undefined
+            : child.expansionState === "collapsed"
+            ? false
+            : true
+        }
         filter={filter}
         focusedPath={focusedPath}
         key={key}
@@ -308,12 +342,8 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
   }, [setState]);
 
   const toggleOpen = useCallback(() => {
-    setState((draft) => {
-      if (!draft.editing) {
-        draft.open = !draft.open;
-      }
-    });
-  }, [setState]);
+    setOpen(!isOpen);
+  }, [isOpen, setOpen]);
 
   const onLabelKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -398,7 +428,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
           onClick={toggleOpen}
           data-testid={`settings__nodeHeaderToggle__${props.path.join("-")}`}
         >
-          {hasProperties && <ExpansionArrow expanded={state.open} />}
+          {hasProperties && <ExpansionArrow expanded={isOpen} />}
           {iconItem}
           {state.editing ? (
             <TextField
@@ -504,14 +534,14 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
           )}
         </Stack>
       </div>
-      {state.open && fieldEditors.length > 0 && (
+      {isOpen && fieldEditors.length > 0 && (
         <>
           <div className={classes.fieldPadding} />
           {fieldEditors}
           <div className={classes.fieldPadding} />
         </>
       )}
-      {state.open && selectVisibilityFilterEnabled && hasChildren && (
+      {isOpen && selectVisibilityFilterEnabled && hasChildren && (
         <>
           <Stack paddingBottom={0.5} style={{ gridColumn: "span 2" }} />
           <FieldEditor
@@ -522,7 +552,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
           />
         </>
       )}
-      {state.open && childNodes}
+      {isOpen && childNodes}
       {indent === 1 && <Divider style={{ gridColumn: "span 2" }} />}
     </>
   );

@@ -43,6 +43,7 @@ const makeSeriesNode = memoizeWeak(
         : [],
       label: plotPathDisplayName(path, index, t),
       visible: path.enabled,
+      expansionState: path.expansionState,
       fields: {
         value: {
           label: t("messagePath"),
@@ -108,6 +109,8 @@ const makeRootSeriesNode = memoizeWeak(
 
     const shouldShowDisableAll = hasEnabledSeries && !hasDisabledSeries;
 
+    const shouldCollapsedAll = paths.some((path) => path.expansionState === "expanded");
+
     return {
       label: t("series"),
       children,
@@ -125,6 +128,13 @@ const makeRootSeriesNode = memoizeWeak(
           label: shouldShowDisableAll ? t("disableAllSeries") : t("enableAllSeries"),
           display: "inline",
           icon: shouldShowDisableAll ? "VisibilityOff" : "Visibility",
+        },
+        {
+          type: "action",
+          id: "collapse-all-series",
+          label: shouldCollapsedAll ? t("collapseAllSeries") : t("expandAllSeries"),
+          display: "inline",
+          icon: shouldCollapsedAll ? "KeyboardDoubleArrowUpIcon" : "KeyboardDoubleArrowDownIcon",
         },
       ],
     };
@@ -335,6 +345,18 @@ export function usePlotPanelSettings(
 
               for (const path of draft.paths) {
                 path.enabled = !shouldDisableAll;
+              }
+            }),
+          );
+        } else if (action.payload.id === "collapse-all-series") {
+          saveConfig(
+            produce<PlotConfig>((draft) => {
+              const shouldCollapsedAll = draft.paths.some(
+                (path) => path.expansionState === "expanded",
+              );
+
+              for (const path of draft.paths) {
+                path.expansionState = shouldCollapsedAll ? "collapsed" : "expanded";
               }
             }),
           );

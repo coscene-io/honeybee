@@ -50,4 +50,6 @@ export const plot: Partial<TypeOptions["resources"]["plot"]> = {
   enableAllSeries: "启用所有",
   disableAllSeries: "禁用所有",
   toggleAllSeries: "切换全部",
+  collapseAllSeries: "全部收起",
+  expandAllSeries: "全部展开",
 };

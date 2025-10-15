@@ -48,4 +48,6 @@ export const plot = {
   enableAllSeries: "Enable all",
   disableAllSeries: "Disable all",
   toggleAllSeries: "Toggle all",
+  collapseAllSeries: "Collapse all",
+  expandAllSeries: "Expand all",
 };
