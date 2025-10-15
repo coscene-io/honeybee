@@ -151,8 +151,12 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       let layout;
       if (name.startsWith("users/")) {
         layout = await this.api.getUserLayout({ name });
-      } else {
+      } else if (name.startsWith("warehouses/")) {
         layout = await this.api.getProjectLayout({ name });
+      }
+
+      if (layout == undefined) {
+        return undefined;
       }
 
       const users = layout.modifier
