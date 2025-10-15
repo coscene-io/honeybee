@@ -40,8 +40,6 @@ export interface IRemoteLayoutStorage {
   readonly projectName: string | undefined;
   readonly userName: string;
 
-  getProjectWritePermission: () => boolean;
-
   getLayouts: () => Promise<readonly RemoteLayout[]>;
 
   getLayout: (id: LayoutID) => Promise<RemoteLayout | undefined>;
