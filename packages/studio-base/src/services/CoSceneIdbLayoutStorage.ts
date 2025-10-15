@@ -52,6 +52,11 @@ interface LayoutsDB extends IDB.DBSchema {
 export class IdbLayoutStorage implements ILayoutStorage {
   #db = IDB.openDB<LayoutsDB>(DATABASE_NAME, DATABASE_VERSION, {
     upgrade(db, oldVersion) {
+      if (oldVersion === 1) {
+        db.deleteObjectStore(OBJECT_STORE_NAME);
+        db.deleteObjectStore(HISTORY_STORE_NAME);
+      }
+
       // Create object store if it doesn't exist
       if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
         const store = db.createObjectStore(OBJECT_STORE_NAME, {
@@ -60,20 +65,12 @@ export class IdbLayoutStorage implements ILayoutStorage {
         store.createIndex("namespace", "namespace");
         store.createIndex("namespace_id", ["namespace", "layout.id"]);
         store.createIndex("namespace_parent", ["namespace", "layout.parent"]);
-      } else {
-        if (oldVersion === 1) {
-          db.deleteObjectStore(OBJECT_STORE_NAME);
-        }
       }
 
       if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
         db.createObjectStore(HISTORY_STORE_NAME, {
           keyPath: ["namespace", "history.parent"],
         });
-      } else {
-        if (oldVersion === 1) {
-          db.deleteObjectStore(HISTORY_STORE_NAME);
-        }
       }
 
       // Clean up the old foxglove-layouts IndexedDB database (version 1)
