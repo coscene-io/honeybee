@@ -96,7 +96,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly projectName: string | undefined,
     private api: ConsoleApi,
     private projectWritePermission: boolean,
-  ) {}
+  ) { }
 
   public getProjectWritePermission(): boolean {
     // TODO: waiting for the new API to be released
@@ -117,10 +117,14 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       const layouts = await Promise.all(
         parents.map(async (parent) => {
           let allLayouts: Layout[] = [];
-          if (parent.startsWith("users/")) {
-            allLayouts = (await this.api.listUserLayouts({ parent })).userLayouts;
-          } else {
-            allLayouts = (await this.api.listProjectLayouts({ parent })).projectLayouts;
+          try {
+            if (parent.startsWith("users/")) {
+              allLayouts = (await this.api.listUserLayouts({ parent })).userLayouts;
+            } else {
+              allLayouts = (await this.api.listProjectLayouts({ parent })).projectLayouts;
+            }
+          } catch (err) {
+            log.error("Failed to get layouts for parent:", parent, err);
           }
 
           const modifiers: string[] = allLayouts
