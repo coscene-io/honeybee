@@ -120,7 +120,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
           try {
             if (parent.startsWith("users/")) {
               allLayouts = (await this.api.listUserLayouts({ parent })).userLayouts;
-            } else {
+            } else if (parent.startsWith("warehouses/")) {
               allLayouts = (await this.api.listProjectLayouts({ parent })).projectLayouts;
             }
           } catch (err) {
