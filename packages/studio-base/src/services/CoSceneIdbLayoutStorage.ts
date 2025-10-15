@@ -19,7 +19,7 @@ import {
 const log = Log.getLogger(__filename);
 
 const DATABASE_NAME = "coScene-layouts";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 const OBJECT_STORE_NAME = "layouts";
 const HISTORY_STORE_NAME = "history";
 
@@ -60,12 +60,20 @@ export class IdbLayoutStorage implements ILayoutStorage {
         store.createIndex("namespace", "namespace");
         store.createIndex("namespace_id", ["namespace", "layout.id"]);
         store.createIndex("namespace_parent", ["namespace", "layout.parent"]);
+      } else {
+        if (oldVersion === 1) {
+          db.deleteObjectStore(OBJECT_STORE_NAME);
+        }
       }
 
       if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
         db.createObjectStore(HISTORY_STORE_NAME, {
           keyPath: ["namespace", "history.parent"],
         });
+      } else {
+        if (oldVersion === 1) {
+          db.deleteObjectStore(HISTORY_STORE_NAME);
+        }
       }
 
       // Clean up the old foxglove-layouts IndexedDB database (version 1)
