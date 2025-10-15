@@ -278,7 +278,7 @@ export async function main(): Promise<void> {
     // See: https://www.electronjs.org/docs/tutorial/security
     const contentSecurityPolicy: Record<string, string> = {
       "default-src": "'self'",
-      "script-src": `'self' 'unsafe-inline' 'unsafe-eval' https://*.coscene.cn https://*.coscene.io`,
+      "script-src": `'self' 'unsafe-inline' 'unsafe-eval' https://coscene.cn https://*.coscene.cn https://coscene.io https://*.coscene.io`,
       "worker-src": `'self' blob:`,
       "style-src": "'self' 'unsafe-inline'",
       "connect-src": "'self' ws: wss: http: https: package: blob: data: file:",

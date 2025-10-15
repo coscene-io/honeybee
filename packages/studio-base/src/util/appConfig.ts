@@ -62,7 +62,7 @@ declare global {
 export function getAppConfig(): NonNullable<Window["cosConfig"]> {
   const cosConfig = typeof window !== "undefined" ? window.cosConfig ?? {} : {};
 
-  return {
+  const appConfig = {
     VITE_APP_BASE_API_PORT:
       cosConfig.VITE_APP_BASE_API_PORT ?? process.env.VITE_APP_BASE_API_PORT ?? "443",
     VITE_APP_BASE_API_URL:
@@ -109,6 +109,15 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
 
     COORDINATOR_URL: cosConfig.COORDINATOR_URL ?? "https://coordinator.dev.coscene.cn",
   };
+
+  if (
+    typeof window !== "undefined" &&
+    (!window.cosConfig || Object.keys(window.cosConfig).length === 0)
+  ) {
+    window.cosConfig = appConfig;
+  }
+
+  return appConfig;
 }
 
 export function getDomainConfig(): DomainConfig {

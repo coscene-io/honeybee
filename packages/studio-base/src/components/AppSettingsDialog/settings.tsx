@@ -350,24 +350,64 @@ export function StudioRemoteConfigUrl(): React.ReactElement {
   );
   const { t } = useTranslation("cosSettings");
 
-  const { theme } = useStyles();
   const initialValueRef = useRef(remoteConfigUrl ?? "");
   const isChanged = (remoteConfigUrl ?? "") !== initialValueRef.current;
 
+  const appConfig = getAppConfig();
+  const env = appConfig.VITE_APP_PROJECT_ENV;
+
+  const placeholder =
+    env === "aws" || env === "gcp"
+      ? `${t("example")}: https://coscene.io/`
+      : `${t("example")}: https://coscene.cn/`;
+
+  const invalid = useMemo(() => {
+    const value = (remoteConfigUrl ?? "").trim();
+    if (value === "") {
+      return false;
+    }
+    const pattern = /^https:\/\/(?:[a-z0-9-]+\.)*coscene\.(?:io|cn)\/?$/i;
+    return !pattern.test(value);
+  }, [remoteConfigUrl]);
+
   return (
-    <Stack gap={1}>
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("domain")} :
+          <Tooltip title={t("domainDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+
       <TextField
         fullWidth
-        label="REMOTE_CONFIG_URL"
-        placeholder="placeholder"
+        placeholder={placeholder}
         value={remoteConfigUrl ?? ""}
         onChange={(event) => void setRemoteConfigUrl(event.target.value)}
+        error={invalid}
+        helperText={
+          invalid
+            ? t("invalidDomain")
+            : isChanged && (
+                <Trans
+                  t={t}
+                  i18nKey="willTakeEffectOnTheNextStartup"
+                  components={{
+                    Link: (
+                      <Link
+                        href="#"
+                        onClick={() => {
+                          window.location.reload();
+                        }}
+                      />
+                    ),
+                  }}
+                />
+              )
+        }
       />
-      {isChanged && (
-        <Typography variant="caption" color={theme.palette.warning.main}>
-          {t("willTakeEffectOnTheNextStartup")}
-        </Typography>
-      )}
     </Stack>
   );
 }

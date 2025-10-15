@@ -47,7 +47,9 @@ async function loadLocalConfig(): Promise<void> {
 async function loadRemoteConfig(options: RemoteConfigOptions): Promise<boolean> {
   const { remoteUrl, timeout = DEFAULT_TIMEOUT } = options;
 
-  if (!remoteUrl) {
+  const pattern = /^https:\/\/(?:[a-z0-9-]+\.)*coscene\.(?:io|cn)\/?$/i;
+
+  if (!remoteUrl || remoteUrl.trim() === "" || !pattern.test(remoteUrl)) {
     return false;
   }
 
@@ -85,7 +87,7 @@ async function loadScriptWithTimeout(url: string, timeout: number): Promise<bool
   return await new Promise((resolve) => {
     const script = document.createElement("script");
     script.type = "text/javascript";
-    script.src = `${url}?t=${window.buildTime}`;
+    script.src = `${url}/cos-config.js?t=${window.buildTime}`;
 
     let completed = false;
     const timer = setTimeout(() => {
