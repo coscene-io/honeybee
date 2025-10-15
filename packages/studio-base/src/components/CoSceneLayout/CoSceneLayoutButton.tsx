@@ -13,6 +13,7 @@ import Logger from "@foxglove/log";
 import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/CoSceneUnsavedChangesPrompt";
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
   useCurrentLayoutActions,
@@ -44,6 +45,8 @@ const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.i
 export function CoSceneLayoutButton(): React.JSX.Element {
   const open = useWorkspaceStore(layoutDrawerOpen);
   const { layoutDrawer } = useWorkspaceActions();
+
+  const consoleApi = useConsoleApi();
 
   const layouts = useCurrentLayout();
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
@@ -352,7 +355,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       {open && (
         <CoSceneLayoutDrawer
           currentLayoutId={currentLayoutId}
-          supportsProjectWrite={false}
+          supportsProjectWrite={consoleApi.createProjectLayout.permission()}
           open
           layouts={layouts.value}
           onSelectLayout={onSelectLayout}
