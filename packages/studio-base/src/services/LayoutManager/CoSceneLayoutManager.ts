@@ -82,7 +82,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   #remote: IRemoteLayoutStorage | undefined;
 
   public readonly supportsSharing: boolean;
-  public readonly supportsProjectWrite: boolean;
 
   #emitter = new EventEmitter<LayoutManagerEventTypes>();
 
@@ -150,7 +149,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.projectName = remote?.projectName;
     this.userName = remote?.userName;
     this.#currentUser = currentUser;
-    this.supportsProjectWrite = remote?.getProjectWritePermission() ?? false;
 
     const parents: string[] = [];
     if (this.userName) {
