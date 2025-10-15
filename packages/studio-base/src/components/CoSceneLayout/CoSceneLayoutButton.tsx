@@ -352,7 +352,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       {open && (
         <CoSceneLayoutDrawer
           currentLayoutId={currentLayoutId}
-          supportsProjectWrite={layoutManager.supportsProjectWrite}
+          supportsProjectWrite={false}
           open
           layouts={layouts.value}
           onSelectLayout={onSelectLayout}

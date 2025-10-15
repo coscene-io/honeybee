@@ -89,7 +89,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     public readonly userName: string,
     public readonly projectName: string | undefined,
     private api: ConsoleApi,
-  ) { }
+  ) {}
 
   public async getLayouts(): Promise<readonly RemoteLayout[]> {
     try {
@@ -119,9 +119,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
             .filter((modifier): modifier is string => Boolean(modifier));
           const users = modifiers.length > 0 ? (await this.api.batchGetUsers(modifiers)).users : [];
 
-          return allLayouts.map((layout) =>
-            convertGrpcLayoutToRemoteLayout({ layout, users }),
-          );
+          return allLayouts.map((layout) => convertGrpcLayoutToRemoteLayout({ layout, users }));
         }),
       );
 
