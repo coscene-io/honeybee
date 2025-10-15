@@ -11,7 +11,8 @@ export const cosSettings = {
   low: "Low",
   original: "Original",
   quality: "Quality & Frame Rate Optimization",
-  willTakeEffectOnTheNextStartup: "Will take effect on the next startup",
+  willTakeEffectOnTheNextStartup:
+    "Setting updated, will take effect on next startup <Link>Restart Now</Link>",
   relativeTime: "Relative Time",
   absoluteTime: "Absolute Time",
   off: "Off",
@@ -19,4 +20,9 @@ export const cosSettings = {
   auto: "Auto",
   understandFrameRateOptimization: "Understand Frame Rate Optimization",
   selectProjectSources: "Select Project Resources",
+  domain: "Domain",
+  domainDescription: "Configure or switch domain",
+  restartNow: "Restart Now",
+  example: "Example",
+  invalidDomain: "Invalid URL. Must start with https:// and end with coscene.io or coscene.cn",
 };

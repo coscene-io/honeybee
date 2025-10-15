@@ -18,7 +18,7 @@
 import getArch from "arch";
 import i18next from "i18next";
 
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 export function downloadTextFile(text: string, fileName: string): void {
@@ -52,6 +52,7 @@ export function downloadFiles(files: { blob: Blob; fileName: string }[]): void {
 export async function downloadLatestStudio(): Promise<void> {
   const arch = getArch() === "x64" ? "amd64" : "arm64";
   let platform = navigator.userAgent.toLowerCase();
+  const appConfig = getAppConfig();
 
   if (platform.includes("mac")) {
     platform = "mac";
@@ -63,23 +64,23 @@ export async function downloadLatestStudio(): Promise<void> {
 
   switch (platform) {
     case "mac": {
-      const downloadUrl = `${APP_CONFIG.COSTUDIO_DOWNLOAD_URL}/latest/coStudio_latest-mac_universal.dmg`;
+      const downloadUrl = `${appConfig.COSTUDIO_DOWNLOAD_URL}/latest/coStudio_latest-mac_universal.dmg`;
       window.open(downloadUrl);
       break;
     }
     case "windows": {
       const downloadUrl =
         arch === "amd64"
-          ? `${APP_CONFIG.COSTUDIO_DOWNLOAD_URL}/latest/coStudio_latest-win_x64.exe`
-          : `${APP_CONFIG.COSTUDIO_DOWNLOAD_URL}/latest/coStudio_latest-win_arm64.exe`;
+          ? `${appConfig.COSTUDIO_DOWNLOAD_URL}/latest/coStudio_latest-win_x64.exe`
+          : `${appConfig.COSTUDIO_DOWNLOAD_URL}/latest/coStudio_latest-win_arm64.exe`;
       window.open(downloadUrl);
       break;
     }
     case "linux": {
       const downloadUrl =
         arch === "amd64"
-          ? `${APP_CONFIG.COSTUDIO_DOWNLOAD_URL}/latest/coStudio_latest-linux_amd64.deb`
-          : `${APP_CONFIG.COSTUDIO_DOWNLOAD_URL}/latest/coStudio_latest-linux_arm64.deb`;
+          ? `${appConfig.COSTUDIO_DOWNLOAD_URL}/latest/coStudio_latest-linux_amd64.deb`
+          : `${appConfig.COSTUDIO_DOWNLOAD_URL}/latest/coStudio_latest-linux_arm64.deb`;
       window.open(downloadUrl);
       break;
     }
@@ -90,7 +91,9 @@ export async function downloadLatestStudio(): Promise<void> {
 
 export async function getCoStudioVersion(): Promise<string> {
   try {
-    const response = await fetch(`${APP_CONFIG.COSTUDIO_DOWNLOAD_URL}/latest.yml`);
+    const appConfig = getAppConfig();
+
+    const response = await fetch(`${appConfig.COSTUDIO_DOWNLOAD_URL}/latest.yml`);
     const text = await response.text();
 
     // 使用正则表达式匹配 version 行
@@ -109,12 +112,16 @@ export async function getCoStudioVersion(): Promise<string> {
 
 // first check current platform is not desktop, then check APP_CONFIG.COSTUDIO_DOWNLOAD_URL is not empty
 export function checkSupportCoStudioDownload(): boolean {
-  return !isDesktopApp() && !!APP_CONFIG.COSTUDIO_DOWNLOAD_URL;
+  const appConfig = getAppConfig();
+
+  return !isDesktopApp() && !!appConfig.COSTUDIO_DOWNLOAD_URL;
 }
 
 export function openUserFeedback(): void {
+  const appConfig = getAppConfig();
+
   const url =
-    APP_CONFIG.VITE_APP_PROJECT_ENV === "aws" || APP_CONFIG.VITE_APP_PROJECT_ENV === "gcp"
+    appConfig.VITE_APP_PROJECT_ENV === "aws" || appConfig.VITE_APP_PROJECT_ENV === "gcp"
       ? "https://form.typeform.com/to/mEjmjcNJ"
       : i18next.language === "zh"
       ? "https://coscene0.feishu.cn/share/base/form/shrcnlWpp89ToqBDtXhwa8dCrgh"

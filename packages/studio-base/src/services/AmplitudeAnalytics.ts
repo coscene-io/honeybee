@@ -13,7 +13,7 @@ import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger("Analytics");
 
@@ -72,6 +72,8 @@ export class AmplitudeAnalytics implements IAnalytics {
   }
 
   public setUser(user: User, organization: Organization): void {
+    const appConfig = getAppConfig();
+
     // log this user
     posthog.identify(user.userId, {
       nick_name: user.nickName,
@@ -79,7 +81,7 @@ export class AmplitudeAnalytics implements IAnalytics {
       phone: user.phoneNumber,
       org_id: organization.name.split("/").pop(),
       org_display_name: organization.displayName,
-      environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
+      environment: appConfig.VITE_APP_PROJECT_ENV,
     });
 
     posthog.register({

@@ -45,4 +45,7 @@ export enum AppSetting {
 
   // Playback seek step (ms)
   SEEK_STEP_MS = "seekStepMs",
+
+  // Remote Config
+  REMOTE_CONFIG_URL = "remoteConfigUrl",
 }

@@ -21,7 +21,7 @@ import {
   PersistentCacheDataSourceFactory,
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { useCoSceneInit } from "./CoSceneInit";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
@@ -33,7 +33,8 @@ export function WebRoot(props: {
   dataSources: IDataSourceFactory[] | undefined;
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
 }): React.JSX.Element {
-  const baseUrl = APP_CONFIG.CS_HONEYBEE_BASE_URL;
+  const appConfig = getAppConfig();
+  const baseUrl = appConfig.CS_HONEYBEE_BASE_URL ?? "";
   const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
 
   useCoSceneInit();
@@ -64,8 +65,8 @@ export function WebRoot(props: {
   }, [props.dataSources]);
 
   const consoleApi = useMemo(
-    () => new ConsoleApi(baseUrl, APP_CONFIG.VITE_APP_BFF_URL, jwt),
-    [baseUrl, jwt],
+    () => new ConsoleApi(baseUrl, appConfig.VITE_APP_BFF_URL ?? "", jwt),
+    [baseUrl, jwt, appConfig.VITE_APP_BFF_URL],
   );
 
   const coSceneProviders = SharedProviders({ consoleApi });
