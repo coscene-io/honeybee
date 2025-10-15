@@ -21,6 +21,8 @@ import FolderOpen from "@mui/icons-material/FolderOpen";
 import Grid from "@mui/icons-material/GridOn";
 import Hive from "@mui/icons-material/HiveOutlined";
 import Shapes from "@mui/icons-material/Interests";
+import KeyboardDoubleArrowDownIcon from "@mui/icons-material/KeyboardDoubleArrowDown";
+import KeyboardDoubleArrowUpIcon from "@mui/icons-material/KeyboardDoubleArrowUp";
 import World from "@mui/icons-material/Language";
 import Background from "@mui/icons-material/Layers";
 import Map from "@mui/icons-material/Map";
@@ -91,6 +93,8 @@ const icons: Record<SettingsIcon, typeof Add> = {
   World,
   Visibility,
   VisibilityOff,
+  KeyboardDoubleArrowDownIcon,
+  KeyboardDoubleArrowUpIcon,
 };
 
 export { icons };
