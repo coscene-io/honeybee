@@ -748,10 +748,11 @@ export type SettingsTreeNodeActionItem = {
 
   /**
    * Specifies whether the item is rendered as an inline action or as an item in the
-   * context menu. Defaults to "menu" if not specified. Inline items will be rendered
-   * as an icon only if their icon is specified.
+   * context menu or only show when hovering. Defaults to "menu" if not specified.
+   * Inline items will be rendered as an icon only if their icon is specified.
+   * Hover items will be rendered as an icon only when hovering over the node if their icon is specified.
    */
-  display?: "menu" | "inline";
+  display?: "menu" | "inline" | "hover";
 };
 
 export type SettingsTreeNodeActionDivider = { type: "divider" };
