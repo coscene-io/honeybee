@@ -117,6 +117,12 @@ export function LayoutTableRowMenu({
 
   const consoleApi = useConsoleApi();
   const isProject = layoutIsProject(layout);
+  const canUpdate = isProject
+    ? consoleApi.updateProjectLayout.permission()
+    : consoleApi.updateUserLayout.permission();
+  const canDelete = isProject
+    ? consoleApi.deleteProjectLayout.permission()
+    : consoleApi.deleteUserLayout.permission();
 
   const menuItems: LayoutActionMenuItem[] = [];
 
@@ -129,12 +135,7 @@ export function LayoutTableRowMenu({
         text: t("save"),
         "data-testid": "save-changes",
         onClick: saveChanges,
-        disabled:
-          deletedOnServer ||
-          disabled ||
-          !(isProject
-            ? consoleApi.createProjectLayout.permission()
-            : consoleApi.createUserLayout.permission()),
+        disabled: deletedOnServer || disabled || !canUpdate,
       },
       {
         type: "item",
@@ -142,11 +143,7 @@ export function LayoutTableRowMenu({
         text: t("revert"),
         "data-testid": "revert-changes",
         onClick: revertChanges,
-        disabled:
-          deletedOnServer ||
-          !(isProject
-            ? consoleApi.updateProjectLayout.permission()
-            : consoleApi.updateUserLayout.permission()),
+        disabled: deletedOnServer,
       },
       {
         type: "divider",
@@ -163,11 +160,7 @@ export function LayoutTableRowMenu({
       text: t("rename"),
       "data-testid": "rename-layout",
       onClick: openRenameDialog,
-      disabled:
-        disabled ||
-        !(isProject
-          ? consoleApi.updateProjectLayout.permission()
-          : consoleApi.updateUserLayout.permission()),
+      disabled: disabled || !canUpdate,
     },
     {
       type: "item",
@@ -182,11 +175,7 @@ export function LayoutTableRowMenu({
       text: t("moveToFolder"),
       "data-testid": "move-layout",
       onClick: openMoveDialog,
-      disabled:
-        disabled ||
-        !(isProject
-          ? consoleApi.updateProjectLayout.permission()
-          : consoleApi.updateUserLayout.permission()),
+      disabled: disabled || !canUpdate,
     },
     {
       type: "item",
@@ -205,11 +194,7 @@ export function LayoutTableRowMenu({
       text: t("delete"),
       "data-testid": "delete-layout",
       onClick: confirmDelete,
-      disabled:
-        disabled ||
-        !(isProject
-          ? consoleApi.deleteProjectLayout.permission()
-          : consoleApi.deleteUserLayout.permission()),
+      disabled: disabled || !canDelete,
     },
   );
 
