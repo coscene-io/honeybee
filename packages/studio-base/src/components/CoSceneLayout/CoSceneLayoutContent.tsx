@@ -167,8 +167,8 @@ const useStyles = makeStyles()((theme) => ({
     width: "100%",
   },
   workingIndicator: {
-    width: 8,
-    height: 8,
+    width: 6,
+    height: 6,
     borderRadius: "50%",
     backgroundColor: theme.palette.primary.main,
     flexShrink: 0,
@@ -390,7 +390,6 @@ export function CoSceneLayoutContent({
               <Typography variant="body2" noWrap textOverflow="ellipsis">
                 {layout.name}
               </Typography>
-              {layout.working != undefined && <Box className={classes.workingIndicator} />}
             </Link>
           );
         },
@@ -423,6 +422,20 @@ export function CoSceneLayoutContent({
             return;
           }
           return <Typography variant="body2">{layout.baseline.modifierNickname}</Typography>;
+        },
+      },
+      {
+        field: "status",
+        headerName: "",
+        width: 20,
+        sortable: false,
+        align: "center",
+        renderCell: (params) => {
+          const { layout } = params.row;
+          if (!layout?.working) {
+            return undefined;
+          }
+          return <Box className={classes.workingIndicator} />;
         },
       },
       {
