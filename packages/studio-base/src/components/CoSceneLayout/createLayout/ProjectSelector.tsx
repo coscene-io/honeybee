@@ -62,6 +62,7 @@ export function ProjectSelector({
       renderOption={(props, option) => (
         <li
           {...props}
+          key={option.value}
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
         >
           <Typography variant="body2" noWrap textOverflow="ellipsis">
