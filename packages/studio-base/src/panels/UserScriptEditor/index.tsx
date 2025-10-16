@@ -286,9 +286,9 @@ function UserScriptEditor(props: Props) {
   }, [currentScript, isCurrentScriptSelectedNode, selectedScript, selectedNodeId, setUserScripts]);
 
   const addNewNode = useCallback(
-    (code?: string) => {
+    (code?: string, scriptId?: string) => {
       saveCurrentNode();
-      const newScriptId = uuidv4();
+      const newScriptId = scriptId ?? uuidv4();
       const sourceCode = code ?? skeletonBody;
       setUserScripts({
         [newScriptId]: {
