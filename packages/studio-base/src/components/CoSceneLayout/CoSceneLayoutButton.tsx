@@ -8,6 +8,7 @@
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useAsync } from "react-use";
 
 import Logger from "@foxglove/log";
 import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/CoSceneUnsavedChangesPrompt";
@@ -31,6 +32,7 @@ import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
 import { CoSceneLayoutDrawer } from "./CoSceneLayoutDrawer";
@@ -89,6 +91,34 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       layoutManager.off("errorchange", errorListener);
     };
   }, [dispatch, layoutManager]);
+
+  useAsync(async () => {
+    const layoutId = windowAppURLState()?.layoutId;
+
+    // Don't restore the layout if there's one specified in the app state url.
+    if (layoutId) {
+      const urlLayout = await layoutManager.getLayout({ id: layoutId });
+      if (urlLayout) {
+        setSelectedLayoutId(layoutId);
+        return;
+      }
+    }
+
+    // waiting for loading projectName done
+    if (windowAppURLState()?.dsParams?.key && layoutManager.projectName == undefined) {
+      return;
+    }
+
+    const layout = await layoutManager.getHistory();
+    if (layout) {
+      setSelectedLayoutId(layout.id);
+      return;
+    }
+
+    // open drawer
+    layoutDrawer.open();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutManager, setSelectedLayoutId]);
 
   useEffect(() => {
     const processAction = async () => {

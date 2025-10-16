@@ -9,7 +9,7 @@ import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getNodeAtPath } from "react-mosaic-component";
-import { useAsync, useAsyncFn, useMountedState } from "react-use";
+import { useAsyncFn, useMountedState } from "react-use";
 import shallowequal from "shallowequal";
 import { v4 as uuidv4 } from "uuid";
 
@@ -41,7 +41,6 @@ import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
-import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
 import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert";
@@ -249,42 +248,6 @@ export default function CurrentLayoutProvider({
       layoutManager.off("change", listener);
     };
   }, [enqueueSnackbar, layoutManager, setSelectedLayoutId]);
-
-  // Load initial state by re-selecting the last selected layout from the UserProfile.
-  useAsync(async () => {
-    // Don't restore the layout if there's one specified in the app state url.
-    if (windowAppURLState()?.layoutId) {
-      return;
-    }
-
-    // waiting for loading projectName done
-    if (windowAppURLState()?.dsParams?.key && layoutManager.projectName == undefined) {
-      return;
-    }
-
-    const layout = await layoutManager.getHistory();
-    if (layout) {
-      await setSelectedLayoutId(layout.id);
-      return;
-    }
-
-    const layouts = await layoutManager.getLayouts();
-    if (layouts.length > 0) {
-      const sortedLayouts = [...layouts].sort((a, b) => {
-        // 优先显示 permission !== 'PERSONAL_WRITE' 的布局
-        if (a.permission !== "PERSONAL_WRITE" && b.permission === "PERSONAL_WRITE") {
-          return -1;
-        }
-        if (a.permission === "PERSONAL_WRITE" && b.permission !== "PERSONAL_WRITE") {
-          return 1;
-        }
-        // 如果permission相同，按名称排序
-        return a.name.localeCompare(b.name);
-      });
-      await setSelectedLayoutId(sortedLayouts[0]!.id);
-      return;
-    }
-  }, [layoutManager, setSelectedLayoutId]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({

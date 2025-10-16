@@ -12,6 +12,7 @@ import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoScene
 import RemoteLayoutStorageContext from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import ConsoleApiRemoteLayoutStorage from "@foxglove/studio-base/services/CoSceneConsoleApiRemoteLayoutStorage";
+import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectProjectName = (state: CoreDataStore) =>
   state.externalInitConfig?.projectId && state.externalInitConfig.warehouseId
@@ -27,9 +28,21 @@ export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
   const currentUser = useCurrentUser(selectUser);
   const projectName = useCoreData(selectProjectName);
 
+  const enabled = useMemo(() => {
+    if (currentUser?.userId == undefined) {
+      return false;
+    }
+
+    const urlState = windowAppURLState();
+    const hasDataSourceKey = urlState?.dsParams?.key != undefined;
+
+    // Enable if no data source key is present, or if both data source key and project name are present
+    return !hasDataSourceKey || projectName != undefined;
+  }, [currentUser?.userId, projectName]);
+
   const apiStorage = useMemo(
     () =>
-      currentUser?.userId
+      enabled && currentUser?.userId
         ? new ConsoleApiRemoteLayoutStorage(
             currentUser.userId,
             `users/${currentUser.userId}`,
@@ -37,7 +50,7 @@ export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
             api,
           )
         : undefined,
-    [api, currentUser?.userId, projectName],
+    [api, enabled, currentUser?.userId, projectName],
   );
 
   return (
