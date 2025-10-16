@@ -52,7 +52,6 @@ export function migrateLayout(value: unknown): Layout {
         data: layout.working.data,
         savedAt: layout.working.savedAt,
         modifier: undefined,
-        modifierAvatar: undefined,
         modifierNickname: undefined,
       };
     } else if (layout.data) {
@@ -60,7 +59,6 @@ export function migrateLayout(value: unknown): Layout {
         data: layout.data,
         savedAt: now,
         modifier: undefined,
-        modifierAvatar: undefined,
         modifierNickname: undefined,
       };
     } else if (layout.state) {
@@ -68,7 +66,6 @@ export function migrateLayout(value: unknown): Layout {
         data: layout.state,
         savedAt: now,
         modifier: undefined,
-        modifierAvatar: undefined,
         modifierNickname: undefined,
       };
     } else {

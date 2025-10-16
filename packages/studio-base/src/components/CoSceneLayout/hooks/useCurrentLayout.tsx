@@ -34,10 +34,10 @@ export function useCurrentLayout(): AsyncState<{
       return {
         personalFolders: _.uniq(
           personalLayouts.map((layout) => layout.folder).filter((folder) => folder),
-        ).sort(),
+        ).sort((a, b) => a.localeCompare(b)),
         projectFolders: _.uniq(
           projectLayouts.map((layout) => layout.folder).filter((folder) => folder),
-        ).sort(),
+        ).sort((a, b) => a.localeCompare(b)),
         allLayouts: [...layouts].sort((a, b) => a.name.localeCompare(b.name)),
       };
     },
