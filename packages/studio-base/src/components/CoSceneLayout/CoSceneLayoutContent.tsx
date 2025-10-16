@@ -166,6 +166,13 @@ const useStyles = makeStyles()((theme) => ({
     height: "calc(100vh - 150px)",
     width: "100%",
   },
+  workingIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: "50%",
+    backgroundColor: theme.palette.primary.main,
+    flexShrink: 0,
+  },
 }));
 
 export function CoSceneLayoutContent({
@@ -383,6 +390,7 @@ export function CoSceneLayoutContent({
               <Typography variant="body2" noWrap textOverflow="ellipsis">
                 {layout.name}
               </Typography>
+              {layout.working != undefined && <Box className={classes.workingIndicator} />}
             </Link>
           );
         },
@@ -443,7 +451,15 @@ export function CoSceneLayoutContent({
         },
       },
     ],
-    [currentLayoutId, t, setSelectedFolder, onSelectLayout, handleMenuOpen, classes.layoutNameBox],
+    [
+      currentLayoutId,
+      t,
+      setSelectedFolder,
+      onSelectLayout,
+      handleMenuOpen,
+      classes.layoutNameBox,
+      classes.workingIndicator,
+    ],
   );
 
   const items: {
