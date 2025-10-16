@@ -135,18 +135,16 @@ export function CurrentLayoutButton({
 
   const consoleApi = useConsoleApi();
   const isProject = currentLayout ? layoutIsProject(currentLayout) : false;
+  const canUpdate = isProject
+    ? consoleApi.updateProjectLayout.permission()
+    : consoleApi.updateUserLayout.permission();
 
   const buttons = [
     {
       key: "saveChanges",
       text: t("save"),
       onClick: handleOverwrite,
-      disabled:
-        deletedOnServer ||
-        isRead ||
-        !(isProject
-          ? consoleApi.createProjectLayout.permission()
-          : consoleApi.createUserLayout.permission()),
+      disabled: deletedOnServer || isRead || !canUpdate,
       visible: hasModifications,
     },
     {
