@@ -27,7 +27,6 @@ export type RemoteLayout = {
   updatedAt: ISO8601Timestamp | undefined;
 
   modifier: string | undefined;
-  modifierAvatar: string | undefined;
   modifierNickname: string | undefined;
 };
 
