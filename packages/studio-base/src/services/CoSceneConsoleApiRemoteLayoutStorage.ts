@@ -78,7 +78,6 @@ function convertGrpcLayoutToRemoteLayout({
     savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
     updatedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
     modifier: layout.modifier,
-    modifierAvatar: modifier?.avatar,
     modifierNickname: modifier?.nickname,
   };
 }

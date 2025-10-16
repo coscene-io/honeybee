@@ -39,7 +39,6 @@ export type Layout = {
     savedAt: ISO8601Timestamp | undefined;
 
     modifier: string | undefined;
-    modifierAvatar: string | undefined;
     modifierNickname: string | undefined;
   };
 

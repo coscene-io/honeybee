@@ -166,6 +166,13 @@ const useStyles = makeStyles()((theme) => ({
     height: "calc(100vh - 150px)",
     width: "100%",
   },
+  workingIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: "50%",
+    backgroundColor: theme.palette.primary.main,
+    flexShrink: 0,
+  },
 }));
 
 export function CoSceneLayoutContent({
@@ -418,6 +425,20 @@ export function CoSceneLayoutContent({
         },
       },
       {
+        field: "status",
+        headerName: "",
+        width: 20,
+        sortable: false,
+        align: "center",
+        renderCell: (params) => {
+          const { layout } = params.row;
+          if (!layout?.working) {
+            return undefined;
+          }
+          return <Box className={classes.workingIndicator} />;
+        },
+      },
+      {
         field: "actions",
         type: "actions",
         headerName: "",
@@ -443,7 +464,15 @@ export function CoSceneLayoutContent({
         },
       },
     ],
-    [currentLayoutId, t, setSelectedFolder, onSelectLayout, handleMenuOpen, classes.layoutNameBox],
+    [
+      currentLayoutId,
+      t,
+      setSelectedFolder,
+      onSelectLayout,
+      handleMenuOpen,
+      classes.layoutNameBox,
+      classes.workingIndicator,
+    ],
   );
 
   const items: {
