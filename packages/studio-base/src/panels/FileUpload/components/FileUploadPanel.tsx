@@ -687,8 +687,6 @@ export function FileUploadPanel({
 
         if (uploadResult.success) {
           if (uploadResult.taskName) {
-            log("info", `[上传完成] 任务创建成功: ${uploadResult.taskName}`);
-
             // Generate task URL directly
             const webDomain = APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? "dev.coscene.cn";
             const taskId = uploadResult.taskName.split("/").pop();
