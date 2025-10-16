@@ -17,6 +17,7 @@ import { makeStyles } from "tss-react/mui";
 import { APP_BAR_HEIGHT } from "@foxglove/studio-base/components/AppBar/constants";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   Layout,
@@ -132,12 +133,20 @@ export function CurrentLayoutButton({
     [currentLayout, onRevertLayout],
   );
 
+  const consoleApi = useConsoleApi();
+  const isProject = currentLayout ? layoutIsProject(currentLayout) : false;
+
   const buttons = [
     {
       key: "saveChanges",
       text: t("save"),
       onClick: handleOverwrite,
-      disabled: deletedOnServer || isRead,
+      disabled:
+        deletedOnServer ||
+        isRead ||
+        !(isProject
+          ? consoleApi.createProjectLayout.permission()
+          : consoleApi.createUserLayout.permission()),
       visible: hasModifications,
     },
     {

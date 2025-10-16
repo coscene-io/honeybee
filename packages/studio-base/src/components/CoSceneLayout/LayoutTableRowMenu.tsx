@@ -142,11 +142,7 @@ export function LayoutTableRowMenu({
         text: t("revert"),
         "data-testid": "revert-changes",
         onClick: revertChanges,
-        disabled:
-          deletedOnServer ||
-          !(isProject
-            ? consoleApi.updateProjectLayout.permission()
-            : consoleApi.updateUserLayout.permission()),
+        disabled: deletedOnServer,
       },
       {
         type: "divider",
