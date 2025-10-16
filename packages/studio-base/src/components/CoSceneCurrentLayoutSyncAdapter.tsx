@@ -70,6 +70,10 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
   // uses useEffect so it happens after DOM updates are complete.
   useAsync(async () => {
     const unsavedLayoutsSnapshot = { ...debouncedUnsavedLayouts };
+    if (Object.keys(unsavedLayoutsSnapshot).length === 0) {
+      return;
+    }
+
     setUnsavedLayouts(EMPTY_UNSAVED_LAYOUTS);
 
     for (const params of Object.values(unsavedLayoutsSnapshot)) {
@@ -87,7 +91,9 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
       }
     }
 
-    void analytics.logEvent(AppEvent.LAYOUT_UPDATE);
+    void analytics.logEvent(AppEvent.LAYOUT_UPDATE, {
+      count: Object.keys(unsavedLayoutsSnapshot).length,
+    });
   }, [analytics, debouncedUnsavedLayouts, isMounted, layoutManager]);
 
   return ReactNull;
