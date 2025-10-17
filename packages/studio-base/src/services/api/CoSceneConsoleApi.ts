@@ -513,95 +513,60 @@ class CoSceneConsoleApi {
     return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
   }
 
-  public createUserLayout = Object.assign(
-    async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
-      const req = new CreateUserLayoutRequest({
-        parent,
-        layout,
-      });
-      return await getPromiseClient(LayoutService).createUserLayout(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(
-          EndpointDataplatformV1alph2.CreateUserLayout,
-          this.#permissionList,
-        );
-      },
-    },
-  );
+  public async createUserLayout({
+    parent,
+    layout,
+  }: {
+    parent: string;
+    layout: Layout;
+  }): Promise<Layout> {
+    const req = new CreateUserLayoutRequest({
+      parent,
+      layout,
+    });
+    return await getPromiseClient(LayoutService).createUserLayout(req);
+  }
 
-  public getUserLayout = Object.assign(
-    async ({ name }: { name: string }): Promise<Layout> => {
-      const req = new GetUserLayoutRequest({ name });
-      return await getPromiseClient(LayoutService).getUserLayout(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.GetUserLayout, this.#permissionList);
-      },
-    },
-  );
+  public async getUserLayout({ name }: { name: string }): Promise<Layout> {
+    const req = new GetUserLayoutRequest({ name });
+    return await getPromiseClient(LayoutService).getUserLayout(req);
+  }
 
-  public listUserLayouts = Object.assign(
-    async ({
+  public async listUserLayouts({
+    parent,
+    filter,
+    view = LayoutViewEnum_LayoutView.FULL,
+  }: {
+    parent: string;
+    filter?: string;
+    view?: LayoutViewEnum_LayoutView;
+  }): Promise<ListUserLayoutsResponse> {
+    const req = new ListUserLayoutsRequest({
       parent,
       filter,
-      view = LayoutViewEnum_LayoutView.FULL,
-    }: {
-      parent: string;
-      filter?: string;
-      view?: LayoutViewEnum_LayoutView;
-    }): Promise<ListUserLayoutsResponse> => {
-      const req = new ListUserLayoutsRequest({
-        parent,
-        filter,
-        view,
-      });
-      return await getPromiseClient(LayoutService).listUserLayouts(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(
-          EndpointDataplatformV1alph2.ListUserLayouts,
-          this.#permissionList,
-        );
-      },
-    },
-  );
+      view,
+    });
+    return await getPromiseClient(LayoutService).listUserLayouts(req);
+  }
 
-  public updateUserLayout = Object.assign(
-    async ({ layout, updateMask }: { layout: Layout; updateMask?: FieldMask }): Promise<Layout> => {
-      const req = new UpdateUserLayoutRequest({
-        userLayout: layout,
-        updateMask,
-      });
-      return await getPromiseClient(LayoutService).updateUserLayout(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(
-          EndpointDataplatformV1alph2.UpdateUserLayout,
-          this.#permissionList,
-        );
-      },
-    },
-  );
+  public async updateUserLayout({
+    layout,
+    updateMask,
+  }: {
+    layout: Layout;
+    updateMask?: FieldMask;
+  }): Promise<Layout> {
+    const req = new UpdateUserLayoutRequest({
+      userLayout: layout,
+      updateMask,
+    });
+    return await getPromiseClient(LayoutService).updateUserLayout(req);
+  }
 
-  public deleteUserLayout = Object.assign(
-    async ({ name }: { name: string }): Promise<Empty> => {
-      const req = new DeleteUserLayoutRequest({ name });
-      return await getPromiseClient(LayoutService).deleteUserLayout(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(
-          EndpointDataplatformV1alph2.DeleteUserLayout,
-          this.#permissionList,
-        );
-      },
-    },
-  );
+  public async deleteUserLayout({ name }: { name: string }): Promise<Empty> {
+    const req = new DeleteUserLayoutRequest({ name });
+    return await getPromiseClient(LayoutService).deleteUserLayout(req);
+  }
 
   public createProjectLayout = Object.assign(
     async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
