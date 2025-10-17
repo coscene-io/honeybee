@@ -49,8 +49,6 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
         },
   );
 
-  // Select layout from URL.
-  // if loginStatus is alreadyLogin, we need to check if remoteLayoutStorage is ready
   useAsync(async () => {
     if (currentLayoutId || isInitialized) {
       return;
