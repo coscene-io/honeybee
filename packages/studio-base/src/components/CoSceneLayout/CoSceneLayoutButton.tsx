@@ -8,7 +8,6 @@
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useAsync } from "react-use";
 
 import Logger from "@foxglove/log";
 import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/CoSceneUnsavedChangesPrompt";
