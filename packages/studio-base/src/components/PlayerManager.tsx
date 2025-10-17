@@ -304,6 +304,8 @@ export default function PlayerManager(
   const [selectedSource, setSelectedSource] = useState<IDataSourceFactory | undefined>();
 
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
+  const [requestWindow] = useAppConfigurationValue<number>(AppSetting.REQUEST_WINDOW);
+  const [readAheadDuration] = useAppConfigurationValue<number>(AppSetting.READ_AHEAD_DURATION);
 
   const [currentSourceParams, setCurrentSourceParams] = useState<
     { sourceId: string; args?: DataSourceArgs } | undefined
@@ -389,6 +391,10 @@ export default function PlayerManager(
               consoleApi,
               sessionId,
               retentionWindowMs,
+              requestWindow:
+                requestWindow != undefined ? { sec: requestWindow, nsec: 0 } : undefined,
+              readAheadDuration:
+                readAheadDuration != undefined ? { sec: readAheadDuration, nsec: 0 } : undefined,
             });
 
             constructPlayers(newPlayer);
@@ -526,14 +532,16 @@ export default function PlayerManager(
       constructPlayers,
       setDataSource,
       enqueueSnackbar,
+      dataSourceState?.sessionId,
+      dataSourceState?.recentId,
       beforeConnectionSource,
       confirm,
       consoleApi,
       retentionWindowMs,
       addRecent,
       t,
-      dataSourceState?.sessionId,
-      dataSourceState?.recentId,
+      requestWindow,
+      readAheadDuration,
       setCurrentFile,
       isMounted,
     ],

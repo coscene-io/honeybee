@@ -47,6 +47,8 @@ import {
   RosPackagePath,
   InactivityTimeout,
   RetentionWindowMs,
+  RequestWindow,
+  ReadAheadDuration,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -244,8 +246,11 @@ export function AppSettingsDialog(
               <CompatibilityMode />
               <RetentionWindowMs />
               <InactivityTimeout />
+              <RequestWindow />
+              <ReadAheadDuration />
               {showLanguageOptions && <LanguageSettings />}
               {supportsAppUpdates && <AutoUpdate />}
+
               {/* CoScene */}
               {/* {!isDesktopApp() && <LaunchDefault />} */}
               {isDesktopApp() && <RosPackagePath />}

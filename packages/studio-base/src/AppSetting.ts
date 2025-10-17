@@ -45,4 +45,7 @@ export enum AppSetting {
 
   // Playback seek step (ms)
   SEEK_STEP_MS = "seekStepMs",
+
+  REQUEST_WINDOW = "requestWindow",
+  READ_AHEAD_DURATION = "readAheadDuration",
 }
