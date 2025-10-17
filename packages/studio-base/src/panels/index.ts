@@ -211,9 +211,9 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     module: async () => await import("./DataCollection"),
   },
   {
-    title: t("faultRecord"),
+    title: t("dataRecord"),
     type: "FaultRecord",
-    description: t("faultRecordDescription"),
+    description: t("dataRecordDescription"),
     thumbnail: faultRecordThumbnail,
     module: async () => await import("./FaultRecord/index"),
   },

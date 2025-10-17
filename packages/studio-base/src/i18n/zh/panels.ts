@@ -54,8 +54,8 @@ export const panels: Partial<TypeOptions["resources"]["panels"]> = {
   momentsBarDesc: "以卡片形式显示一刻信息",
   dataCollection: "数据采集",
   dataCollectionDescription: "通过实时连接，向设备的 service 发送指令采集数据",
-  faultRecord: "故障记录",
-  faultRecordDescription: "记录和显示系统故障信息",
+  dataRecord: "数据记录",
+  dataRecordDescription: "使用本体的录制功能，录制文件",
   fileUpload: "文件上传",
-  fileUploadDescription: "上传文件到指定位置",
+  fileUploadDescription: "上传和管理文件到数据平台，支持元数据和标签管理",
 };

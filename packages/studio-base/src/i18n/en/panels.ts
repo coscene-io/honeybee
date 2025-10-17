@@ -55,8 +55,9 @@ export const panels = {
   dataCollection: "Data Collection",
   dataCollectionDescription:
     "Send instructions to the device service through a live connection to collect data",
-  faultRecord: "Fault Record",
-  faultRecordDescription: "Display and manage fault records and diagnostic information",
+  dataRecord: "Data Record",
+  dataRecordDescription: "Use the built-in recording functionality to record files",
   fileUpload: "File Upload",
-  fileUploadDescription: "Upload files to the data source through a live connection",
+  fileUploadDescription:
+    "Upload and manage files to the data platform with metadata and label support",
 };
