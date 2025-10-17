@@ -140,6 +140,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
     void this.#dbPromise
       .then(async () => {
+        // If the store was closed before the DB finished opening, skip any init work
+        if (this.#closed) {
+          this.#initialized = true;
+          log.debug(
+            "Skipping IndexedDbMessageStore initialization because store is already closed",
+          );
+          return;
+        }
         // Record current session creation time
         await this.#recordSessionCreation();
 
@@ -157,6 +165,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   // Calculate the count of existing messages
   async #calculateExistingMessageCount(): Promise<void> {
     try {
+      if (this.#closed) {
+        return;
+      }
       const db = await this.#dbPromise;
       const tx = db.transaction(STORE, "readonly");
       const index = tx.store.index("bySession");
@@ -169,13 +180,17 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
       log.debug(`Calculated existing message count: ${messageCount} messages`);
     } catch (error) {
-      log.error("Failed to calculate existing message count:", error);
+      // This can happen if the database is being closed concurrently; treat as benign
+      log.debug("Failed to calculate existing message count:", error);
     }
   }
 
   // Record current session creation time
   async #recordSessionCreation(): Promise<void> {
     try {
+      if (this.#closed) {
+        return;
+      }
       const db = await this.#dbPromise;
       const tx = db.transaction(SESSIONS_STORE, "readwrite");
       const store = tx.objectStore(SESSIONS_STORE);
