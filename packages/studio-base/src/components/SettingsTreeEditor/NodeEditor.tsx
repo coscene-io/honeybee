@@ -104,6 +104,10 @@ const useStyles = makeStyles()((theme) => ({
         visibility: "hidden",
       },
 
+      "[data-node-function=inline-action-hover]": {
+        visibility: "hidden",
+      },
+
       "&:hover": {
         backgroundColor: theme.palette.action.hover,
 
@@ -112,6 +116,10 @@ const useStyles = makeStyles()((theme) => ({
         },
 
         "[data-node-function=edit-label]": {
+          visibility: "visible",
+        },
+
+        "[data-node-function=inline-action-hover]": {
           visibility: "visible",
         },
       },
@@ -329,7 +337,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
       _.partition(
         settings.actions,
         (action): action is SettingsTreeNodeActionItem =>
-          action.type === "action" && action.display === "inline",
+          action.type === "action" && (action.display === "inline" || action.display === "hover"),
       ),
     [settings.actions],
   );
@@ -477,12 +485,15 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
                 payload: { id: action.id, path: props.path },
               });
             };
+            const isHoverAction = action.display === "hover";
+
             return Icon ? (
               <IconButton
                 key={action.id}
                 onClick={handler}
                 title={action.label}
                 className={classes.actionButton}
+                data-node-function={isHoverAction ? "inline-action-hover" : undefined}
               >
                 <Icon fontSize="small" />
               </IconButton>
@@ -493,6 +504,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
                 size="small"
                 color="inherit"
                 className={classes.actionButton}
+                data-node-function={isHoverAction ? "inline-action-hover" : undefined}
               >
                 {action.label}
               </Button>
