@@ -215,7 +215,9 @@ export class IterablePlayer implements Player {
 
     this.#iterableSource = source;
     if (source.sourceType === "deserialized") {
-      this.#bufferImpl = new BufferedIterableSource(source);
+      this.#bufferImpl = new BufferedIterableSource(source, {
+        readAheadDuration,
+      });
       this.#bufferedSource = new DeserializedSourceWrapper(this.#bufferImpl);
     } else {
       const MEGABYTE_IN_BYTES = 1024 * 1024;

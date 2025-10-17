@@ -237,6 +237,7 @@ export type IterableSourceInitializeArgs = {
   url?: string;
   files?: File[];
   params?: Record<string, string | undefined>;
+  requestWindow?: Time;
 
   api?: {
     baseUrl: string;
