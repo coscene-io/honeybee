@@ -23,7 +23,6 @@ import { makeStyles } from "tss-react/mui";
 import { v4 as uuid } from "uuid";
 
 import { Immutable, SettingsTreeAction, SettingsTreeField } from "@foxglove/studio";
-import CoSceneDeduplicatedMessagePath from "@foxglove/studio-base/components/CoSceneDeduplicatedMessagePath/MessagePathInput";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import CommonResourceSelecter from "@foxglove/studio-base/components/SettingsTreeEditor/inputs/CommonResourceSelecter";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -312,23 +311,6 @@ function FieldInput({
             actionHandler({
               action: "update",
               payload: { path, input: "messagepath", value },
-            });
-          }}
-          validTypes={field.validTypes}
-        />
-      );
-    case "deduplicatedMessagePath":
-      return (
-        <CoSceneDeduplicatedMessagePath
-          variant="filled"
-          path={field.value ?? ""}
-          disabled={field.disabled}
-          readOnly={field.readonly}
-          supportsMathModifiers={field.supportsMathModifiers}
-          onChange={(value) => {
-            actionHandler({
-              action: "update",
-              payload: { path, input: "deduplicatedMessagePath", value },
             });
           }}
           validTypes={field.validTypes}

@@ -23,7 +23,6 @@ export const appSettings = {
   layoutDebugging: "Layout debugging",
   layoutDebuggingDescription: "Show extra controls for developing and debugging layout storage.",
   light: "Light",
-  messageRate: "Message rate",
   newAppMenu: "Enable unified navigation",
   newAppMenuDescription: "Show the new menu and navigation.",
   noExperimentalFeatures: "Currently there are no experimental features.",
@@ -44,7 +43,6 @@ export const appSettings = {
   security: "Security",
   updates: "Updates",
   automaticallyInstallUpdates: "Automatically install updates",
-  addTopicPrefix: "Add topic prefix",
   tfCompatibilityMode: "TF compatibility mode",
   on: "On",
   off: "Off",
@@ -57,4 +55,8 @@ export const appSettings = {
   neverDisconnect: "Never disconnect",
   retentionWindowMs: "Real-time visualization cache duration",
   noCache: "No cache",
+  retentionWindowNextEffectiveNotice:
+    "Setting updated, will take effect on next connection <Link>Reconnect now</Link>",
+  retentionWindowDescription:
+    "Set the cache duration of the real-time visualization, for playback of real-time data",
 };

@@ -206,9 +206,8 @@ export function CoreDataSyncAdapter(): ReactNull {
       externalInitConfig.deviceId
     ) {
       setDevice({ loading: true, value: undefined });
-      const deviceName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/devices/${externalInitConfig.deviceId}`;
+      const deviceName = `devices/${externalInitConfig.deviceId}`;
       const targetDevice = await consoleApi.getDevice({ deviceName });
-
       setDevice({ loading: false, value: targetDevice });
     }
   }, [externalInitConfig, setDevice, consoleApi]);

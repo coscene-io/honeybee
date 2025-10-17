@@ -31,7 +31,6 @@ import {
   SubscriptionId,
   Time,
   ServerLogin,
-  Kicked,
   ChannelId,
   MessageData,
   ServerInfo,
@@ -63,7 +62,6 @@ type EventTypes = {
   preFetchAssetResponse: (event: PreFetchAssetResponse) => void;
   serviceCallFailure: (event: ServiceCallFailure) => void;
   login: (event: ServerLogin) => void;
-  kicked: (event: Kicked) => void;
   syncTime: (event: ServerSyncTime) => void;
   timeOffset: (event: TimeOffset) => void;
   networkStatistics: (event: NetworkStatistics) => void;
@@ -112,13 +110,16 @@ export default class FoxgloveClient {
       }
       this.#emitter.emit("open");
     };
-    this.#ws.onmessage = (event: MessageEvent<ArrayBuffer | string>) => {
+    this.#ws.onmessage = (event: MessageEvent<ArrayBuffer | string> & { receiveTime?: number }) => {
       let message: ServerMessage;
       try {
         if (event.data instanceof ArrayBuffer) {
-          message = parseServerMessage(event.data);
+          message = parseServerMessage(event.data, event.receiveTime ?? Date.now());
         } else {
-          message = JSON.parse(event.data) as ServerMessage;
+          message = {
+            ...JSON.parse(event.data),
+            receiveTime: event.receiveTime ?? Date.now(),
+          } as ServerMessage;
         }
       } catch (error) {
         this.#emitter.emit("error", error as Error);
@@ -170,12 +171,8 @@ export default class FoxgloveClient {
           this.#emitter.emit("login", message);
           return;
 
-        case "kicked":
-          this.#emitter.emit("kicked", message);
-          return;
-
         case "syncTime":
-          this.#emitter.emit("syncTime", message);
+          this.#emitter.emit("syncTime", { ...message });
           return;
 
         case "timeOffset":
@@ -307,8 +304,8 @@ export default class FoxgloveClient {
     this.#send({ op: "login", userId, username });
   }
 
-  public clientSyncTime(serverTime: number, clientTime: number): void {
-    this.#send({ op: "syncTime", serverTime, clientTime });
+  public clientSyncTime(serverTime: number, clientTime: number, delayTime: number): void {
+    this.#send({ op: "syncTime", serverTime, clientTime, delayTime });
   }
 
   /**

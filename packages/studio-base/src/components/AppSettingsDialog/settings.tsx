@@ -27,9 +27,10 @@ import {
   ToggleButtonGroup,
   ToggleButtonGroupProps,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo } from "react";
+import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -37,7 +38,7 @@ import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
@@ -51,7 +52,6 @@ import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 const INFINITY_TIME = 1000 * 60 * 60 * 24 * 365 * 100;
-const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
 const TIMEOUT_MINUTES = [10, 20, 30, 60, 120, INFINITY_TIME];
 const RETENTION_WINDOW_MS = [
   0,
@@ -307,32 +307,6 @@ export function LaunchDefault(): React.ReactElement {
   );
 }
 
-export function MessageFramerate(): React.ReactElement {
-  const { t } = useTranslation("appSettings");
-  const [messageRate, setMessageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
-  const options = useMemo(
-    () => MESSAGE_RATES.map((rate) => ({ key: rate, text: `${rate}`, data: rate })),
-    [],
-  );
-
-  return (
-    <Stack>
-      <FormLabel>{t("messageRate")} (Hz):</FormLabel>
-      <Select
-        value={messageRate ?? 60}
-        fullWidth
-        onChange={(event) => void setMessageRate(event.target.value)}
-      >
-        {options.map((option) => (
-          <MenuItem key={option.key} value={option.key}>
-            {option.text}
-          </MenuItem>
-        ))}
-      </Select>
-    </Stack>
-  );
-}
-
 export function AutoUpdate(): React.ReactElement {
   const { t } = useTranslation("appSettings");
   const [updatesEnabled = true, setUpdatedEnabled] = useAppConfigurationValue<boolean>(
@@ -420,43 +394,6 @@ export function LanguageSettings(): React.ReactElement {
           </MenuItem>
         ))}
       </Select>
-    </Stack>
-  );
-}
-
-export function AddTopicPrefix(): React.ReactElement {
-  const [addTopicPrefix, setAddTopicPrefix] = useAppConfigurationValue<string>(
-    AppSetting.ADD_TOPIC_PREFIX,
-  );
-  const { reloadCurrentSource } = usePlayerSelection();
-  const consoleApi = useConsoleApi();
-
-  const { t } = useTranslation("appSettings");
-
-  return (
-    <Stack>
-      <FormLabel>{t("addTopicPrefix")}:</FormLabel>
-      <ToggleButtonGroup
-        color="primary"
-        size="small"
-        fullWidth
-        exclusive
-        value={addTopicPrefix}
-        onChange={async (_, value?: string) => {
-          if (value != undefined) {
-            await setAddTopicPrefix(value);
-            consoleApi.setAddTopicPrefix(value === "true" ? "true" : "false");
-            await reloadCurrentSource({ addTopicPrefix: value === "true" ? "true" : "false" });
-          }
-        }}
-      >
-        <ToggleButton value="false" data-testid="timeformat-seconds">
-          {t("off")}
-        </ToggleButton>
-        <ToggleButton value="true" data-testid="timeformat-local">
-          {t("on")}
-        </ToggleButton>
-      </ToggleButtonGroup>
     </Stack>
   );
 }
@@ -551,12 +488,18 @@ export function InactivityTimeout(): React.ReactElement {
   );
 }
 
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
+
 export function RetentionWindowMs(): React.ReactElement {
   const { t } = useTranslation("appSettings");
   const [retentionWindowMs, setRetentionWindowMs] = useAppConfigurationValue<number>(
     AppSetting.RETENTION_WINDOW_MS,
   );
+  const dataSource = useCoreData(selectDataSource);
+  const [showTips, setShowTips] = useState(false);
+  const { reloadCurrentSource } = usePlayerSelection();
 
+  const { theme } = useStyles();
   const getDurationText = useCallback(
     (ms: number) => {
       switch (ms) {
@@ -600,12 +543,20 @@ export function RetentionWindowMs(): React.ReactElement {
       <FormLabel>
         <Stack direction="row" alignItems="center" gap={0.5}>
           {t("retentionWindowMs")}:
+          <Tooltip title={t("retentionWindowDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
         </Stack>
       </FormLabel>
       <Select
         value={retentionWindowMs ?? 30 * 1000}
         fullWidth
-        onChange={(event) => void setRetentionWindowMs(event.target.value)}
+        onChange={(event) => {
+          void setRetentionWindowMs(event.target.value);
+          if (dataSource?.id === "coscene-websocket") {
+            setShowTips(true);
+          }
+        }}
       >
         {options.map((option) => (
           <MenuItem key={option.key} value={option.key}>
@@ -613,6 +564,27 @@ export function RetentionWindowMs(): React.ReactElement {
           </MenuItem>
         ))}
       </Select>
+      {showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="retentionWindowNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
     </Stack>
   );
 }

@@ -10,7 +10,14 @@ import { useMemo } from "react";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import RemoteLayoutStorageContext from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import ConsoleApiRemoteLayoutStorage from "@foxglove/studio-base/services/CoSceneConsoleApiRemoteLayoutStorage";
+import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
+
+const selectProjectName = (state: CoreDataStore) =>
+  state.externalInitConfig?.projectId && state.externalInitConfig.warehouseId
+    ? `warehouses/${state.externalInitConfig.warehouseId}/projects/${state.externalInitConfig.projectId}`
+    : undefined;
 
 const selectUser = (store: UserStore) => store.user;
 
@@ -19,10 +26,31 @@ export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
 }: React.PropsWithChildren): React.JSX.Element {
   const api = useConsoleApi();
   const currentUser = useCurrentUser(selectUser);
+  const projectName = useCoreData(selectProjectName);
+
+  const enabled = useMemo(() => {
+    if (currentUser?.userId == undefined) {
+      return false;
+    }
+
+    const urlState = windowAppURLState();
+    const hasDataSourceKey = urlState?.dsParams?.key != undefined;
+
+    // Enable if no data source key is present, or if both data source key and project name are present
+    return !hasDataSourceKey || projectName != undefined;
+  }, [currentUser?.userId, projectName]);
+
   const apiStorage = useMemo(
     () =>
-      currentUser?.userId ? new ConsoleApiRemoteLayoutStorage(currentUser.userId, api) : undefined,
-    [api, currentUser?.userId],
+      enabled && currentUser?.userId
+        ? new ConsoleApiRemoteLayoutStorage(
+            currentUser.userId,
+            `users/${currentUser.userId}`,
+            projectName,
+            api,
+          )
+        : undefined,
+    [api, enabled, currentUser?.userId, projectName],
   );
 
   return (

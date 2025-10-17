@@ -35,9 +35,10 @@ import WssErrorModal from "@foxglove/studio-base/components/WssErrorModal";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 const ICON_SIZE = 18;
+const domainConfig = getDomainConfig();
 
 const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes) => ({
   sourceName: {
@@ -128,7 +129,6 @@ const selectProject = (state: CoreDataStore) => state.project;
 const selectRecord = (state: CoreDataStore) => state.record;
 const selectDevice = (state: CoreDataStore) => state.device;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
-const selectEnableList = (state: CoreDataStore) => state.getEnableList();
 const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectJobRun = (state: CoreDataStore) => state.jobRun;
 
@@ -343,9 +343,7 @@ const RealTimeVizDataSource = () => {
 
   const hostName = urlState?.parameters?.hostName;
 
-  const deviceLink =
-    urlState?.parameters?.deviceLink ??
-    `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
+  const deviceLink = `${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
 
   const initializing = playerPresence === PlayerPresence.INITIALIZING;
 
@@ -365,8 +363,8 @@ const RealTimeVizDataSource = () => {
               >
                 <Link
                   href={
-                    APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
-                      ? `https://${APP_CONFIG.DOMAIN_CONFIG.default.webDomain}/${projectSlug}`
+                    domainConfig.webDomain
+                      ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
                       : "#"
                   }
                   target="_blank"
@@ -385,9 +383,7 @@ const RealTimeVizDataSource = () => {
           <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
             <Link
               href={
-                APP_CONFIG.DOMAIN_CONFIG.default?.webDomain
-                  ? `https://${APP_CONFIG.DOMAIN_CONFIG.default.webDomain}/${deviceLink}`
-                  : "#"
+                domainConfig.webDomain ? `https://${domainConfig.webDomain}/${deviceLink}` : "#"
               }
               target="_blank"
               underline="hover"
@@ -404,12 +400,11 @@ const RealTimeVizDataSource = () => {
   );
 };
 
-const CommonDataSource = () => {
+const DataPlatformSource = () => {
   const { classes } = useStyles();
 
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
-  const enableList = useCoreData(selectEnableList);
   const dataSource = useCoreData(selectDataSource);
   const organization = useCoreData(selectOrganization);
   const jobRun = useCoreData(selectJobRun);
@@ -423,7 +418,7 @@ const CommonDataSource = () => {
   const projectHref =
     process.env.NODE_ENV === "development"
       ? `https://dev.coscene.cn/${organizationSlug}/${projectSlug}`
-      : `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/${organizationSlug}/${projectSlug}`;
+      : `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`;
 
   const secondaryHref = `${projectHref}/records/${recordId}`;
 
@@ -451,19 +446,23 @@ const CommonDataSource = () => {
   ];
 
   return (
-    <>
-      <div className={classes.textTruncate}>
-        {enableList.uploadLocalFile === "ENABLE" ? (
-          <UploadFileComponent />
-        ) : (
-          <Stack direction="row" alignItems="center" gap={2}>
-            <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
-              {projectSlug && dataSource?.id === "coscene-data-platform" ? breadcrumbs : ""}
-            </Breadcrumbs>
-          </Stack>
-        )}
-      </div>
-    </>
+    <div className={classes.textTruncate}>
+      <Stack direction="row" alignItems="center" gap={2}>
+        <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+          {projectSlug && dataSource?.id === "coscene-data-platform" ? breadcrumbs : ""}
+        </Breadcrumbs>
+      </Stack>
+    </div>
+  );
+};
+
+const CommonDataSource = () => {
+  const { classes } = useStyles();
+
+  return (
+    <div className={classes.textTruncate}>
+      <UploadFileComponent />
+    </div>
   );
 };
 
@@ -484,13 +483,18 @@ export function DataSource(): React.JSX.Element {
       <WssErrorModal playerProblems={playerProblems} />
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
-          {dataSource?.type === "connection" ? (
-            <RealTimeVizDataSource />
-          ) : dataSource?.type === "persistent-cache" ? (
-            <>{t("realTimeVizPlayback", { ns: "cosWebsocket" })}</>
-          ) : (
-            <CommonDataSource />
-          )}
+          {(() => {
+            switch (dataSource?.id) {
+              case "coscene-websocket":
+                return <RealTimeVizDataSource />;
+              case "persistent-cache":
+                return <>{t("realTimeVizPlayback", { ns: "cosWebsocket" })}</>;
+              case "coscene-data-platform":
+                return <DataPlatformSource />;
+              default:
+                return <CommonDataSource />;
+            }
+          })()}
         </div>
         <Adornment />
       </Stack>

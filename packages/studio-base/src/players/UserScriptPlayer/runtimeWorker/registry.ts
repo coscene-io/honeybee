@@ -13,21 +13,24 @@
 //   This source code is licensed under the Apache License, Version 2.0,
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
+
 import path from "path";
 
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import {
+  DIAGNOSTIC_SEVERITY,
+  SOURCES,
+  ERROR_CODES,
+} from "@foxglove/studio-base/players/UserScriptPlayer/constants";
+import {
   Diagnostic,
-  DiagnosticSeverity,
-  ErrorCodes,
   ProcessMessageOutput,
   RegistrationOutput,
-  Sources,
   UserScriptLog,
 } from "@foxglove/studio-base/players/UserScriptPlayer/types";
 import { DEFAULT_STUDIO_SCRIPT_PREFIX } from "@foxglove/studio-base/util/globalConstants";
 
-// Each node runtime worker runs one node at a time, hence why we have one
+// Each script runtime worker runs one script at a time, hence why we have one
 // global declaration of 'nodeCallback'.
 let nodeCallback: (
   message: unknown,
@@ -160,19 +163,14 @@ export const processMessage = ({
   };
   try {
     const newMessage = nodeCallback(message, globalVariables);
-    return {
-      message: newMessage,
-      error: undefined,
-      userScriptLogs,
-      userScriptDiagnostics,
-    };
-  } catch (err) {
-    const error: string = err.toString();
+    return { message: newMessage, error: undefined, userScriptLogs, userScriptDiagnostics };
+  } catch (err: unknown) {
+    const error: string = (err as Error).toString();
     const diagnostic: Diagnostic = {
-      source: Sources.Runtime,
-      severity: DiagnosticSeverity.Error,
+      source: SOURCES.Runtime,
+      severity: DIAGNOSTIC_SEVERITY.Error,
       message: error.length > 0 ? error : "Unknown error encountered running this node.",
-      code: ErrorCodes.RUNTIME,
+      code: ERROR_CODES.RUNTIME,
     };
 
     return {

@@ -32,13 +32,27 @@ export type LayoutManagerEventTypes = {
   errorchange: () => void;
 };
 
+export type CreateLayoutParams = {
+  folder: string;
+  name: string;
+  permission: LayoutPermission;
+  data?: LayoutData;
+};
+
+export type CreateLayoutForm = {
+  folder: { value: string; isNewFolder: boolean };
+  name: string;
+  permission: LayoutPermission;
+  data?: LayoutData;
+};
+
 /**
  * The Layout Manager is a high-level interface on top of raw layout storage which maps more closely
  * to actions the user can take in the application.
  * @see LayoutManager concrete implementation
  */
 export interface ILayoutManager {
-  /** Indicates whether permissions other than "CREATOR_WRITE" are supported. */
+  /** Indicates whether permissions other than "PERSONAL_WRITE" are supported. */
   readonly supportsSharing: boolean;
 
   /** Indicates whether the layout manager is currently performing an async operation. */
@@ -49,6 +63,9 @@ export interface ILayoutManager {
 
   /** Indicates the error state of the layout manager, if any. */
   readonly error: undefined | Error;
+
+  readonly projectName: string | undefined;
+  readonly userName: string | undefined;
 
   /**
    * Inform the layout manager whether it is online or offline (and remote requests may be expected to fail).
@@ -71,13 +88,13 @@ export interface ILayoutManager {
 
   getLayouts(): Promise<readonly Layout[]>;
 
-  getLayout(id: LayoutID): Promise<Layout | undefined>;
+  getLayout(params: { id: LayoutID }): Promise<Layout | undefined>;
 
   saveNewLayout(params: {
+    folder: string;
     name: string;
     data: LayoutData;
     permission: LayoutPermission;
-    isRecordDefaultLayout?: boolean;
   }): Promise<Layout>;
 
   /**
@@ -89,6 +106,7 @@ export interface ILayoutManager {
   updateLayout(params: {
     id: LayoutID;
     name?: string;
+    folder?: string;
     data?: LayoutData;
   }): Promise<Layout | undefined>;
 
@@ -102,4 +120,8 @@ export interface ILayoutManager {
 
   /** Transfer a shared layout's working changes into a new personal layout. */
   makePersonalCopy(params: { id: LayoutID; name: string }): Promise<Layout>;
+
+  putHistory(params: { id: LayoutID }): Promise<void>;
+
+  getHistory(): Promise<Layout | undefined>;
 }

@@ -28,3 +28,6 @@ export * from "./workspace";
 export * from "./recordInfo";
 export * from "./dataCollection";
 export * from "./task";
+export * from "./rawMessages";
+export * from "./table";
+export * from "./userScriptEditor";

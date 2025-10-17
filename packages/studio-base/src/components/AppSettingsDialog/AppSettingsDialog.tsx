@@ -41,10 +41,8 @@ import {
   AutoUpdate,
   ColorSchemeSettings,
   LanguageSettings,
-  MessageFramerate,
   TimeFormat,
   TimezoneSettings,
-  AddTopicPrefix,
   CompatibilityMode,
   RosPackagePath,
   InactivityTimeout,
@@ -243,10 +241,8 @@ export function AppSettingsDialog(
               <ColorSchemeSettings />
               <TimezoneSettings />
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
-              <AddTopicPrefix />
               <CompatibilityMode />
               <RetentionWindowMs />
-              <MessageFramerate />
               <InactivityTimeout />
               {showLanguageOptions && <LanguageSettings />}
               {supportsAppUpdates && <AutoUpdate />}

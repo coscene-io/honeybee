@@ -7,8 +7,7 @@
 
 import { useEffect, useState } from "react";
 
-import { toDate, subtract, isLessThan, isGreaterThan, add, toSec } from "@foxglove/rostime";
-import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { toDate, subtract, isLessThan, isGreaterThan, toSec } from "@foxglove/rostime";
 import { convertCustomFieldValuesToMap } from "@foxglove/studio-base/components/CustomFieldProperty/utils/convertCustomFieldForm";
 import {
   BagFileInfo,
@@ -16,7 +15,6 @@ import {
   usePlaylist,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 
 import { CreateEventForm } from "./types";
 
@@ -26,8 +24,6 @@ const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 
 export const useGetPassingFile = (): BagFileInfo[] | undefined => {
   const bagFiles = usePlaylist(selectBagFiles);
-  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
-  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
   const eventMarks = useEvents(selectEventMarks);
 
   const markStartTime = eventMarks[0]?.time;
@@ -36,9 +32,8 @@ export const useGetPassingFile = (): BagFileInfo[] | undefined => {
     if (bag.startTime == undefined || bag.endTime == undefined) {
       return false;
     }
-    const bagStartTime = timeMode === "absoluteTime" ? bag.startTime : { sec: 0, nsec: 0 };
-    const bagEndTime =
-      timeMode === "absoluteTime" ? bag.endTime : subtract(bag.endTime, bag.startTime);
+    const bagStartTime = bag.startTime;
+    const bagEndTime = bag.endTime;
 
     return (
       bag.fileType !== "GHOST_RESULT_FILE" &&
@@ -90,34 +85,20 @@ export const useDefaultEventForm = (): CreateEventForm => {
   };
 };
 
-export const useTimeRange = (
-  fileName: string,
-): { startTime: Date | undefined; duration: number } => {
+export const useTimeRange = (): { startTime: Date | undefined; duration: number } => {
   const [startTime, setStartTime] = useState<Date | undefined>(undefined);
   const [duration, setDuration] = useState<number>(0);
 
   const eventMarks = useEvents(selectEventMarks);
-  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
-  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
   const markStartTime = eventMarks[0]?.time;
   const markEndTime = eventMarks[1]?.time;
 
-  const passingFile = useGetPassingFile();
-
-  const currentFile = passingFile?.find((bag) => bag.name === fileName);
-
   useEffect(() => {
-    setStartTime(
-      markStartTime
-        ? timeMode === "relativeTime"
-          ? toDate(add(markStartTime, currentFile?.startTime ?? { sec: 0, nsec: 0 }))
-          : toDate(markStartTime)
-        : undefined,
-    );
+    setStartTime(markStartTime ? toDate(markStartTime) : undefined);
 
     setDuration(markEndTime && markStartTime ? toSec(subtract(markEndTime, markStartTime)) : 0);
-  }, [markStartTime, markEndTime, timeMode]);
+  }, [markStartTime, markEndTime]);
 
   return { startTime, duration };
 };

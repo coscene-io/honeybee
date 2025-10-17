@@ -149,7 +149,9 @@ export function useMessageReducer<T>(props: Params<T>): T {
         const lastSeekTime = ctx.playerState.activeData?.lastSeekTime;
 
         let newReducedValue: T;
+        let isLastSeekTimeChanged = false;
         if (!state.current || lastSeekTime !== state.current.lastSeekTime) {
+          isLastSeekTimeChanged = true;
           newReducedValue = restore(undefined);
         } else if (
           restore !== state.current.restore ||
@@ -164,7 +166,8 @@ export function useMessageReducer<T>(props: Params<T>): T {
         if (
           messageEvents &&
           messageEvents.length > 0 &&
-          messageEvents !== state.current?.messageEvents
+          // 触发了 seek 操作后当前的 messageEvents 是 snapshort 数据，这一帧的数据需要保留
+          (messageEvents !== state.current?.messageEvents || isLastSeekTimeChanged)
         ) {
           if (addMessages) {
             if (messageEvents.length > 0) {

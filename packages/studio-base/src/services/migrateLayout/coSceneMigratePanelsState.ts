@@ -12,7 +12,7 @@ import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/a
 
 import { migrateLegacyToNew3DPanels } from "./migrateLegacyToNew3DPanels";
 import { migrateLegacyToNewImagePanels } from "./migrateLegacyToNewImagePanels";
-import { Layout, ISO8601Timestamp } from "../CoSceneILayoutStorage";
+import { ISO8601Timestamp, Layout } from "../CoSceneILayoutStorage";
 
 /**
  * Perform any necessary migrations on old layout data.
@@ -38,7 +38,7 @@ export function migrateLayout(value: unknown): Layout {
   if (typeof value !== "object" || value == undefined) {
     throw new Error("Invariant violation - layout item is not an object");
   }
-  const layout = value as Partial<Layout>;
+  const layout = value as Partial<Layout> & { name?: string };
   if (!("id" in layout) || !layout.id) {
     throw new Error("Invariant violation - layout item is missing an id");
   }
@@ -48,11 +48,26 @@ export function migrateLayout(value: unknown): Layout {
   let baseline = layout.baseline;
   if (!baseline) {
     if (layout.working) {
-      baseline = layout.working;
+      baseline = {
+        data: layout.working.data,
+        savedAt: layout.working.savedAt,
+        modifier: undefined,
+        modifierNickname: undefined,
+      };
     } else if (layout.data) {
-      baseline = { data: layout.data, savedAt: now };
+      baseline = {
+        data: layout.data,
+        savedAt: now,
+        modifier: undefined,
+        modifierNickname: undefined,
+      };
     } else if (layout.state) {
-      baseline = { data: layout.state, savedAt: now };
+      baseline = {
+        data: layout.state,
+        savedAt: now,
+        modifier: undefined,
+        modifierNickname: undefined,
+      };
     } else {
       throw new Error("Invariant violation - layout item is missing data");
     }
@@ -60,14 +75,14 @@ export function migrateLayout(value: unknown): Layout {
 
   return {
     id: layout.id,
+    parent: layout.parent ?? "",
+    folder: layout.folder ?? "",
     name: layout.name ?? `Unnamed (${now})`,
-    permission: layout.permission?.toUpperCase() ?? "CREATOR_WRITE",
+    permission: layout.permission?.toUpperCase() ?? "PERSONAL_WRITE",
     working: layout.working
       ? { ...layout.working, data: migratePanelsState(layout.working.data) }
       : undefined,
     baseline: { ...baseline, data: migratePanelsState(baseline.data) },
     syncInfo: layout.syncInfo,
-    isProjectRecommended: layout.isProjectRecommended ?? false,
-    isRecordRecommended: layout.isRecordRecommended ?? false,
   };
 }

@@ -92,7 +92,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
   const watchedValues = watch();
   const [imageObjectUrl, setImageObjectUrl] = useState<string | undefined>(undefined);
 
-  const { startTime, duration } = useTimeRange(watchedValues.fileName);
+  const { startTime, duration } = useTimeRange();
 
   // 使用 useFieldArray 管理 metadataEntries
   const { fields, append, remove, update } = useFieldArray({

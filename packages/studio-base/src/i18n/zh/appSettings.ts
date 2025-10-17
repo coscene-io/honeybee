@@ -25,7 +25,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   layoutDebugging: "布局调试",
   layoutDebuggingDescription: "显示用于开发和调试布局存储的额外控件。",
   light: "亮色",
-  messageRate: "消息速率",
   noExperimentalFeatures: "目前没有实验性的功能。",
   openLinksIn: "打开链接",
   ros: "ROS",
@@ -40,7 +39,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   security: "安全",
   updates: "自动更新",
   automaticallyInstallUpdates: "自动安装更新",
-  addTopicPrefix: "添加主题前缀",
   tfCompatibilityMode: "TF 兼容模式",
   on: "开",
   off: "关",
@@ -53,4 +51,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   neverDisconnect: "永不断连",
   retentionWindowMs: "实时可视化缓存时长",
   noCache: "不缓存",
+  retentionWindowNextEffectiveNotice: "设置已更新，将在下次连接时生效 <Link>立即重连</Link>",
+  retentionWindowDescription: "缓存指定时间长度的数据，用于回放已播的实时数据",
 };

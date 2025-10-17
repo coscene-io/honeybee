@@ -44,6 +44,7 @@ enum AppEvent {
   LAYOUT_CREATE = "layout_created",
   LAYOUT_DUPLICATE = "layout_duplicated",
   LAYOUT_RENAME = "layout_renamed",
+  LAYOUT_MOVE = "layout_moved",
   LAYOUT_DELETE = "layout_deleted",
   LAYOUT_SELECT = "layout_selected",
   LAYOUT_IMPORT = "layout_imported",

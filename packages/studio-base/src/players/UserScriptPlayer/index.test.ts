@@ -1,22 +1,13 @@
-/** @jest-environment jsdom */
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-//
-// This file incorporates work covered by the following copyright and
-// permission notice:
-//
-//   Copyright 2018-2021 Cruise LLC
-//
-//   This source code is licensed under the Apache License, Version 2.0,
-//   found at http://www.apache.org/licenses/LICENSE-2.0
-//   You may not use this file except in compliance with the License.
 
 import { signal } from "@foxglove/den/async";
 import FakePlayer from "@foxglove/studio-base/components/MessagePipeline/FakePlayer";
+import MockUserScriptPlayerWorker from "@foxglove/studio-base/players/UserScriptPlayer/MockUserScriptPlayerWorker";
 import {
   AdvertiseOptions,
   MessageEvent,
@@ -31,9 +22,8 @@ import delay from "@foxglove/studio-base/util/delay";
 import { DEFAULT_STUDIO_SCRIPT_PREFIX } from "@foxglove/studio-base/util/globalConstants";
 
 import UserScriptPlayer from ".";
-import MockUserScriptPlayerWorker from "./MockUserScriptPlayerWorker";
+import { DIAGNOSTIC_SEVERITY, SOURCES, ERROR_CODES } from "./constants";
 import exampleDatatypes from "./transformerWorker/fixtures/example-datatypes";
-import { Sources, DiagnosticSeverity, ErrorCodes } from "./types";
 
 const nodeId = "nodeId";
 
@@ -51,17 +41,6 @@ const nodeUserCodeWithCompileError = `
   export const inputs = ["/np_input"];
   export const output = "some_output";
   export default
-`;
-
-const nodeUserCodeWithPointClouds = `
-  import { convertToRangeView } from "./pointClouds";
-  import { RGBA } from "./types";
-  export const inputs = ["/np_input"];
-  export const output = "${DEFAULT_STUDIO_SCRIPT_PREFIX}1";
-  export default (message: { message: { payload: string } }): RGBA => {
-    const colors = convertToRangeView([{x:0.1, y:0.2, z:0.3}], 0.4, true);
-    return colors[0];
-  };
 `;
 
 const nodeUserCodeWithGlobalVars = `
@@ -106,6 +85,7 @@ const basicPlayerState: PlayerStateActiveData = {
   topics: [],
   topicStats: new Map(),
   datatypes: new Map(),
+  repeatEnabled: false,
 };
 
 const upstreamFirst = {
@@ -202,19 +182,6 @@ describe("UserScriptPlayer", () => {
       userScriptPlayer.pausePlayback();
       expect(fakePlayer.startPlayback).toHaveBeenCalled();
       expect(fakePlayer.pausePlayback).toHaveBeenCalled();
-    });
-
-    it("delegates setPlaybackSpeed to underlying player", () => {
-      const fakePlayer = new FakePlayer();
-      jest.spyOn(fakePlayer, "setPlaybackSpeed");
-      const userScriptPlayer = new UserScriptPlayer(fakePlayer, defaultUserScriptActions);
-      const messages = [];
-      userScriptPlayer.setListener(async (playerState) => {
-        messages.push(playerState);
-      });
-      expect(fakePlayer.setPlaybackSpeed).not.toHaveBeenCalled();
-      userScriptPlayer.setPlaybackSpeed(0.4);
-      expect(fakePlayer.setPlaybackSpeed).toHaveBeenCalledWith(0.4);
     });
 
     it("delegates seekPlayback to underlying player", () => {
@@ -324,10 +291,10 @@ describe("UserScriptPlayer", () => {
           nodeId,
           [
             {
-              code: ErrorCodes.InputTopicsChecker.NO_TOPIC_AVAIL,
+              code: ERROR_CODES.InputTopicsChecker.NO_TOPIC_AVAIL,
               message: `Input "/np_input" is not yet available`,
-              severity: DiagnosticSeverity.Error,
-              source: Sources.InputTopicsChecker,
+              severity: DIAGNOSTIC_SEVERITY.Error,
+              source: SOURCES.InputTopicsChecker,
             },
           ],
         ],
@@ -1031,53 +998,10 @@ describe("UserScriptPlayer", () => {
       // to read.
       expect(setUserNodeDiagnostics).toHaveBeenLastCalledWith(nodeId, [
         {
-          code: ErrorCodes.RUNTIME,
+          code: ERROR_CODES.RUNTIME,
           message: "Error: Error!",
-          severity: DiagnosticSeverity.Error,
-          source: Sources.Runtime,
-        },
-      ]);
-    });
-
-    it("provides access to './pointClouds' library for user input node code", async () => {
-      const fakePlayer = new FakePlayer();
-      const mockSetNodeDiagnostics = jest.fn();
-      const userScriptPlayer = new UserScriptPlayer(fakePlayer, {
-        ...defaultUserScriptActions,
-        setUserScriptDiagnostics: mockSetNodeDiagnostics,
-      });
-
-      const [done] = setListenerHelper(userScriptPlayer);
-
-      userScriptPlayer.setSubscriptions([{ topic: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1` }]);
-      await userScriptPlayer.setUserScripts({
-        [nodeId]: {
-          name: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`,
-          sourceCode: nodeUserCodeWithPointClouds,
-        },
-      });
-
-      await fakePlayer.emit({
-        activeData: {
-          ...basicPlayerState,
-          messages: [upstreamFirst],
-          currentTime: upstreamFirst.receiveTime,
-          topics: [{ name: "/np_input", schemaName: "std_msgs/Header" }],
-          datatypes: new Map(Object.entries({ "std_msgs/Header": { definitions: [] } })),
-        },
-      });
-
-      const { messages } = (await done)!;
-
-      expect(mockSetNodeDiagnostics).toHaveBeenCalledWith(nodeId, []);
-      expect(messages).toEqual([
-        upstreamFirst,
-        {
-          topic: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`,
-          receiveTime: upstreamFirst.receiveTime,
-          message: { a: 1, b: 0.7483314773547883, g: 0.7483314773547883, r: 1 },
-          schemaName: "/studio_script/1",
-          sizeInBytes: 0,
+          severity: DIAGNOSTIC_SEVERITY.Error,
+          source: SOURCES.Runtime,
         },
       ]);
     });
@@ -1187,10 +1111,10 @@ describe("UserScriptPlayer", () => {
       expect(mockSetNodeDiagnostics).toHaveBeenCalledWith(`${DEFAULT_STUDIO_SCRIPT_PREFIX}1`, []);
       expect(mockSetNodeDiagnostics).toHaveBeenCalledWith(`${DEFAULT_STUDIO_SCRIPT_PREFIX}2`, [
         {
-          source: Sources.OutputTopicChecker,
-          severity: DiagnosticSeverity.Error,
+          source: SOURCES.OutputTopicChecker,
+          severity: DIAGNOSTIC_SEVERITY.Error,
           message: `Output "${DEFAULT_STUDIO_SCRIPT_PREFIX}1" must be unique`,
-          code: ErrorCodes.OutputTopicChecker.NOT_UNIQUE,
+          code: ERROR_CODES.OutputTopicChecker.NOT_UNIQUE,
         },
       ]);
     });
@@ -1236,10 +1160,10 @@ describe("UserScriptPlayer", () => {
       ]);
       expect(mockSetNodeDiagnostics).toHaveBeenCalledWith(`${DEFAULT_STUDIO_SCRIPT_PREFIX}1`, [
         {
-          source: Sources.OutputTopicChecker,
-          severity: DiagnosticSeverity.Error,
+          source: SOURCES.OutputTopicChecker,
+          severity: DIAGNOSTIC_SEVERITY.Error,
           message: `Output topic "${DEFAULT_STUDIO_SCRIPT_PREFIX}1" is already present in the data source`,
-          code: ErrorCodes.OutputTopicChecker.EXISTING_TOPIC,
+          code: ERROR_CODES.OutputTopicChecker.EXISTING_TOPIC,
         },
       ]);
     });
@@ -1472,10 +1396,10 @@ describe("UserScriptPlayer", () => {
       const { topicNames, messages } = (await done)!;
       expect(mockSetNodeDiagnostics).toHaveBeenLastCalledWith(nodeId, [
         {
-          source: Sources.Runtime,
-          severity: DiagnosticSeverity.Error,
+          source: SOURCES.Runtime,
+          severity: DIAGNOSTIC_SEVERITY.Error,
           message: error,
-          code: ErrorCodes.RUNTIME,
+          code: ERROR_CODES.RUNTIME,
         },
       ]);
       // Sanity check to ensure none of the user node messages made it through if there was an error.
@@ -1551,10 +1475,10 @@ describe("UserScriptPlayer", () => {
       await done;
       expect(mockSetNodeDiagnostics).toHaveBeenLastCalledWith(nodeId, [
         {
-          severity: DiagnosticSeverity.Error,
+          severity: DIAGNOSTIC_SEVERITY.Error,
           message: expect.any(String),
-          source: Sources.InputTopicsChecker,
-          code: ErrorCodes.InputTopicsChecker.NO_TOPIC_AVAIL,
+          source: SOURCES.InputTopicsChecker,
+          code: ERROR_CODES.InputTopicsChecker.NO_TOPIC_AVAIL,
         },
       ]);
     });

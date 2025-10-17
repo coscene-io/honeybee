@@ -87,8 +87,8 @@ export class TopicAliasingPlayer implements Player {
     this.#skipAliasing = aliasFunctions.length === 0;
   }
 
-  public close(): void {
-    this.#player.close();
+  public async close(): Promise<void> {
+    await this.#player.close();
   }
 
   public setSubscriptions(subscriptions: SubscribePayload[]): void {
@@ -184,9 +184,9 @@ export class TopicAliasingPlayer implements Player {
     }
   }
 
-  public async fetchAsset(uri: string): Promise<Asset> {
+  public async fetchAsset(uri: string, etag?: string): Promise<Asset> {
     if (this.#player.fetchAsset) {
-      return await this.#player.fetchAsset(uri);
+      return await this.#player.fetchAsset(uri, etag);
     }
     throw Error("Player does not support fetching assets");
   }

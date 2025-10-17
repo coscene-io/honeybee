@@ -13,7 +13,6 @@ import { v4 as uuidv4 } from "uuid";
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, Time, toSec, fromNanoSec, add, isTimeInRangeInclusive } from "@foxglove/rostime";
-import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -23,7 +22,6 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import {
   CoScenePlaylistStore,
   usePlaylist,
-  BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
@@ -37,7 +35,6 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
@@ -57,8 +54,6 @@ const log = Logger.getLogger(__filename);
 
 async function positionEvents(
   events: EventList,
-  bagFiles: readonly BagFileInfo[],
-  timeMode: "relativeTime" | "absoluteTime",
   startTime: Time,
   endTime: Time,
   api: CoSceneConsoleApi,
@@ -73,26 +68,11 @@ async function positionEvents(
         throw new Error("Event does not have a trigger time");
       }
 
-      const bagFile = bagFiles.find((file) => {
-        if (!file.startTime || !file.endTime) {
-          return false;
-        }
-        if (file.name.includes(event.record)) {
-          return true;
-        }
-        return false;
-      });
-
-      let eventStartTime = fromNanoSec(
+      const eventStartTime = fromNanoSec(
         event.triggerTime.seconds * BigInt(1e9) + BigInt(event.triggerTime.nanos),
       );
 
-      let eventEndTime = add(eventStartTime, fromNanoSec(durationToNanoSeconds(event.duration)));
-
-      if (timeMode === "relativeTime" && bagFile?.startTime != undefined) {
-        eventStartTime = subtract(eventStartTime, bagFile.startTime);
-        eventEndTime = subtract(eventEndTime, bagFile.startTime);
-      }
+      const eventEndTime = add(eventStartTime, fromNanoSec(durationToNanoSeconds(event.duration)));
 
       const startTimeInSeconds = toSec(eventStartTime);
       const endTimeInSeconds = toSec(eventEndTime);
@@ -197,9 +177,6 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
   const setCustomFieldSchema = useEvents(selectSetCustomFieldSchema);
-
-  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
-  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
 
@@ -317,14 +294,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
           const eventList = await consoleApi.getEvents({ fileList: getEventsRequest });
           setEvents({
             loading: false,
-            value: await positionEvents(
-              eventList,
-              bagFiles.value,
-              timeMode,
-              startTime,
-              endTime,
-              consoleApi,
-            ),
+            value: await positionEvents(eventList, startTime, endTime, consoleApi),
           });
         } catch (error) {
           log.error(error);
@@ -334,7 +304,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
     }
     // Don't listen to bagFiles.value, because if generating media, it will cause infinite re-render
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bagFiles.loading, startTime, endTime, consoleApi, timeMode, setEvents]);
+  }, [bagFiles.loading, startTime, endTime, consoleApi, setEvents]);
 
   useEffect(() => {
     syncEvents().catch((error: unknown) => {

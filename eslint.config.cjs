@@ -137,7 +137,7 @@ module.exports = tslintPlugin.config(
         {
           selector: "CallExpression[callee.object.name='Promise'][callee.property.name='race']",
           message:
-            'Promise.race is banned\n  use `import { race } from "@foxglove/den/async"` instead\n\nSee:\n  https://github.com/nodejs/node/issues/17469#issuecomment-685216777\n  https://bugs.chromium.org/p/v8/issues/detail?id=9858"\n',
+            'Promise.race is banned\n  use `import race from "race-as-promised";` instead\n\nSee:\n  https://github.com/nodejs/node/issues/17469#issuecomment-685216777\n  https://bugs.chromium.org/p/v8/issues/detail?id=9858"\n',
         },
       ],
     },

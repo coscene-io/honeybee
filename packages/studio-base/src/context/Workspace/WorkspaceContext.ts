@@ -65,7 +65,7 @@ export type WorkspaceContextStore = {
       size: undefined | number;
     };
   };
-  layoutMenu: {
+  layoutDrawer: {
     open: boolean;
   };
 };

@@ -12,13 +12,12 @@ import WarningIcon from "@mui/icons-material/Warning";
 import { List, ListItem, ListItemIcon, ListItemText, Typography } from "@mui/material";
 import * as _ from "lodash-es";
 import { ReactElement } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
-import {
-  Diagnostic,
-  DiagnosticSeverity,
-} from "@foxglove/studio-base/players/UserScriptPlayer/types";
+import { DIAGNOSTIC_SEVERITY } from "@foxglove/studio-base/players/UserScriptPlayer/constants";
+import { Diagnostic } from "@foxglove/studio-base/players/UserScriptPlayer/types";
 
 const severityIcons = {
   Hint: <HelpIcon fontSize="small" />,
@@ -51,12 +50,13 @@ const useStyles = makeStyles()((theme) => ({
 
 const DiagnosticsSection = ({ diagnostics }: Props): ReactElement => {
   const { classes } = useStyles();
+  const { t } = useTranslation("userScriptEditor");
 
   if (diagnostics.length === 0) {
     return (
       <Stack gap={0.5} padding={2}>
         <Typography variant="body2" color="text.secondary">
-          No problems to display.
+          {t("noAlerts")}
         </Typography>
       </Stack>
     );
@@ -66,7 +66,7 @@ const DiagnosticsSection = ({ diagnostics }: Props): ReactElement => {
     <List dense disablePadding>
       {diagnostics.map(({ severity, message, source, startColumn, startLineNumber }, i) => {
         const severityLabel =
-          (_.invert(DiagnosticSeverity) as Record<string, keyof typeof DiagnosticSeverity>)[
+          (_.invert(DIAGNOSTIC_SEVERITY) as Record<string, keyof typeof DIAGNOSTIC_SEVERITY>)[
             severity
           ] ?? "Error";
 

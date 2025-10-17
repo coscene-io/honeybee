@@ -303,7 +303,7 @@ function EventViewComponent(params: {
 
   const deviceCreator = useMemo(() => {
     if (event.event.device?.name && event.event.device.name.length > 0) {
-      const deviceNavAddress = `/${organizationSlug}/${projectSlug}/devices/${event.event.device.name
+      const deviceNavAddress = `/${organizationSlug}/${projectSlug}/devices/project-devices/${event.event.device.name
         .split("/")
         .pop()}`;
 

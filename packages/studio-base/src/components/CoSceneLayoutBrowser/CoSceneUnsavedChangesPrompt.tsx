@@ -142,6 +142,7 @@ export function UnsavedChangesPrompt({
                 error={nameError != undefined}
                 helperText={nameError}
                 slotProps={{
+                  htmlInput: { maxLength: 60 },
                   formHelperText: {
                     variant: "standard",
                   },

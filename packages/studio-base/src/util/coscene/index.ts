@@ -8,17 +8,12 @@
 // coScene custom tools
 import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
 import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { ServiceType, Timestamp, Value, JsonObject } from "@bufbuild/protobuf";
-import {
-  Layout,
-  LayoutDetail,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import { JsonObject, ServiceType, Struct } from "@bufbuild/protobuf";
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
 
-import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
@@ -109,45 +104,56 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
   );
 }
 
-// protobuf => JsonObject is not support undefind type so we need to replace undefined with null
-function replaceUndefinedWithNull(obj: Record<string, unknown>) {
-  Object.keys(obj).forEach((key) => {
-    if (obj[key] != undefined && typeof obj[key] === "object") {
-      replaceUndefinedWithNull(obj[key] as Record<string, unknown>);
-    } else if (obj[key] == undefined) {
-      obj[key] = ReactNull;
+export function convertJsonToStruct(json: Record<string, unknown>): Struct {
+  // 递归函数，将所有 undefined 替换为 null
+  function replaceUndefinedWithNull(obj: unknown): unknown {
+    // eslint-disable-next-line
+    if (obj === undefined) {
+      // eslint-disable-next-line no-restricted-syntax
+      return null;
     }
-  });
-  return obj;
+
+    if (Array.isArray(obj)) {
+      return obj.map(replaceUndefinedWithNull);
+    }
+
+    // eslint-disable-next-line
+    if (typeof obj === "object" && obj !== null) {
+      const result: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(obj)) {
+        result[key] = replaceUndefinedWithNull(value);
+      }
+      return result;
+    }
+
+    return obj;
+  }
+
+  // 先替换 undefined 为 null，然后转换为 Struct
+  const processedJson = replaceUndefinedWithNull(json) as JsonObject;
+  return Struct.fromJson(processedJson);
 }
 
-export const getCoSceneLayout = (layout: {
-  id: LayoutID | undefined;
-  savedAt: ISO8601Timestamp | undefined;
-  name: string | undefined;
-  permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
-  data: Record<string, unknown> | undefined;
-  userId: string;
-}): Layout => {
-  const newLayout = new Layout();
-  newLayout.name =
-    layout.permission === "CREATOR_WRITE"
-      ? `users/${layout.userId}/layouts/${layout.id}`
-      : "layouts/" + (layout.id ?? "");
-  const layoutDetail = new LayoutDetail();
+export function replaceNullWithUndefined(obj: unknown): unknown {
+  // eslint-disable-next-line no-restricted-syntax
+  if (obj == null) {
+    return undefined;
+  }
 
-  layoutDetail.name = layout.name ?? "";
-  layoutDetail.permission = layout.permission ?? "";
-  layoutDetail.createTime = Timestamp.fromDate(new Date());
-  layoutDetail.updateTime = Timestamp.fromDate(new Date());
-  layoutDetail.saveTime = Timestamp.fromDate(new Date(layout.savedAt ?? ""));
+  if (Array.isArray(obj)) {
+    return obj.map(replaceNullWithUndefined);
+  }
 
-  layoutDetail.data = Value.fromJson(replaceUndefinedWithNull(layout.data ?? {}) as JsonObject);
+  if (typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = replaceNullWithUndefined(value);
+    }
+    return result;
+  }
 
-  newLayout.value = layoutDetail;
-
-  return newLayout;
-};
+  return obj;
+}
 
 // 将任意字符串映射为一颜色
 export function stringToColor(str: string): string {

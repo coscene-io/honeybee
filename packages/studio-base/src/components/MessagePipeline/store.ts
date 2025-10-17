@@ -28,6 +28,7 @@ import {
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
 import { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
+import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { FramePromise } from "./pauseFrameForPromise";
@@ -220,8 +221,8 @@ export function createMessagePipelineStore({
                 };
               }
 
-              if (urdfStorage.checkUriNeedsCache(uri)) {
-                await urdfStorage.set(uri, fetchedUrdfFile.etag ?? "", fetchedUrdfFile.data);
+              if (urdfStorage.checkUriNeedsCache(uri) && fetchedUrdfFile.etag) {
+                await urdfStorage.set(uri, fetchedUrdfFile.etag, fetchedUrdfFile.data);
               }
 
               return fetchedUrdfFile;
@@ -285,7 +286,7 @@ export function createMessagePipelineStore({
 
         if (player) {
           try {
-            player.close();
+            void player.close();
           } catch (error) {
             log.error("Error calling player.close():", error);
           }
@@ -583,7 +584,7 @@ async function builtinS3Fetch(
     s3Client = {
       key: project ?? "",
       client: new S3Client({
-        region: "dev-cn-shanghai",
+        region: APP_CONFIG.S3_REGION,
         endpoint: `https://${response.endpoint}`,
         forcePathStyle: true,
         credentials: {

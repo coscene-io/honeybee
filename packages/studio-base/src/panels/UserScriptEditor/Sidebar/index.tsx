@@ -13,6 +13,7 @@ import {
 import { Divider, Paper, Tab, Tabs, tabClasses, tabsClasses } from "@mui/material";
 import * as monacoApi from "monaco-editor/esm/vs/editor/editor.api";
 import { SyntheticEvent, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
@@ -82,6 +83,7 @@ export function Sidebar({
 }: SidebarProps): React.JSX.Element {
   const { classes } = useStyles();
   const [activeTab, setActiveTab] = useState<TabOption>(false);
+  const { t } = useTranslation("userScriptEditor");
 
   const gotoUtils = useCallback(
     (filePath: string) => {
@@ -160,7 +162,8 @@ export function Sidebar({
           <Tab
             disableRipple
             value="nodes"
-            title={`Scripts (${Object.keys(userScripts).length})`}
+            title={t("scriptsTabTooltip", { count: Object.keys(userScripts).length })}
+            aria-label={t("scriptsTabTooltip", { count: Object.keys(userScripts).length })}
             icon={<Script24Regular />}
             data-testid="node-explorer"
             onClick={activeTab === "nodes" ? handleClose : undefined}
@@ -168,7 +171,8 @@ export function Sidebar({
           <Tab
             disableRipple
             value="utils"
-            title="Utilities"
+            title={t("utilitiesTabTooltip")}
+            aria-label={t("utilitiesTabTooltip")}
             icon={<Toolbox24Regular />}
             data-testid="utils-explorer"
             onClick={activeTab === "utils" ? handleClose : undefined}
@@ -176,7 +180,8 @@ export function Sidebar({
           <Tab
             disableRipple
             value="templates"
-            title="Templates"
+            title={t("templatesTabTooltip")}
+            aria-label={t("templatesTabTooltip")}
             icon={<DocumentOnePageSparkle24Regular />}
             data-testid="templates-explorer"
             onClick={activeTab === "templates" ? handleClose : undefined}

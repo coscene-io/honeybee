@@ -28,7 +28,7 @@ import {
   RecordLabelsInput,
 } from "@foxglove/studio-base/panels/DataCollection/components";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { useDataCollectionContext } from "./DataCollectionContext";
 import { LOG_TIMESTAMP_FORMAT, POLLING_TIMEOUT } from "./constants";
@@ -51,6 +51,8 @@ import {
   handleStartCollectionPreLogic,
   handleServiceResponse,
 } from "./utils";
+
+const domainConfig = getDomainConfig();
 
 type Props = {
   context: PanelExtensionContext;
@@ -216,7 +218,7 @@ function DataCollectionContent(
 
         addLog(
           `[${dayjs().format(LOG_TIMESTAMP_FORMAT)}] ${t("progressLink")}：https://${
-            APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+            domainConfig.webDomain
           }/${targetOrg.slug}/${targetProject.slug}/devices/execution-history/${response.name
             .split("/")
             .pop()}`,
@@ -408,7 +410,7 @@ function DataCollectionContent(
                 draft.currentFocusedTask = undefined;
               });
             }}
-            t={t}
+            label={t("projectName")}
           />
 
           <TaskRelationInput

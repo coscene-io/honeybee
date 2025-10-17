@@ -21,9 +21,10 @@ import {
   User,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger(__filename);
+const domainConfig = getDomainConfig();
 
 const selectCurrentUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
@@ -72,7 +73,7 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         email: userInfo.email,
         nickName: userInfo.nickname,
         phoneNumber: userInfo.phoneNumber,
-        targetSite: `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}`,
+        targetSite: `https://${domainConfig.webDomain}`,
         userId,
       } as User);
     }

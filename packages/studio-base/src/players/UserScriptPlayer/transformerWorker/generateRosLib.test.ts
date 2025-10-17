@@ -19,8 +19,8 @@ import ts from "typescript/lib/typescript";
 import stressTestDatatypes from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/fixtures/example-datatypes";
 import generateRosLib, {
   generateTypeDefs,
-  typedArrayMap,
   InterfaceDeclarations,
+  typedArrayMap,
 } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/generateRosLib";
 import { compile } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/transform";
 import { ScriptData } from "@foxglove/studio-base/players/UserScriptPlayer/types";

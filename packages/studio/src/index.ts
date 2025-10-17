@@ -566,7 +566,9 @@ export type SettingsIcon =
   | "Timeline"
   | "Topic"
   | "Walk"
-  | "World";
+  | "World"
+  | "Visibility"
+  | "VisibilityOff";
 
 /**
  * A settings tree field specifies the input type and the value of a field
@@ -615,14 +617,6 @@ export type SettingsTreeFieldValue =
   | { input: "gradient"; value?: [string, string] }
   | {
       input: "messagepath";
-      value?: string;
-      validTypes?: string[];
-      /** True if the input should allow math modifiers like @abs. */
-      supportsMathModifiers?: boolean;
-    }
-  // CoScene custom input types
-  | {
-      input: "deduplicatedMessagePath";
       value?: string;
       validTypes?: string[];
       /** True if the input should allow math modifiers like @abs. */

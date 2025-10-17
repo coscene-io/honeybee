@@ -26,6 +26,7 @@ import { Immutable, SettingsTreeAction } from "@foxglove/studio";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import useGetItemStringWithTimezone from "@foxglove/studio-base/components/JsonTree/useGetItemStringWithTimezone";
+import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   messagePathStructures,
   traverseStructure,
@@ -35,6 +36,7 @@ import { useMessageDataItem } from "@foxglove/studio-base/components/MessagePath
 import Panel from "@foxglove/studio-base/components/Panel";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useFrameNavigation } from "@foxglove/studio-base/hooks";
 import { Toolbar } from "@foxglove/studio-base/panels/RawMessages/Toolbar";
 import getDiff, {
   DiffObject,
@@ -101,6 +103,19 @@ function RawMessages(props: Props) {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const { setMessagePathDropConfig } = usePanelContext();
 
+  // Use frame navigation hook
+  const {
+    hasPreFrame,
+    handlePreviousFrame,
+    handleNextFrame,
+    onRestore,
+    getEffectiveMessages,
+    updateRenderedTime,
+    keyDownHandlers,
+    keyUpHandlers,
+    panelRef,
+  } = useFrameNavigation();
+
   useEffect(() => {
     setMessagePathDropConfig({
       getDropStatus(paths) {
@@ -151,16 +166,27 @@ function RawMessages(props: Props) {
 
   // Pass an empty path to useMessageDataItem if our path doesn't resolve to a valid topic to avoid
   // spamming the message pipeline with useless subscription requests.
-  const matchedMessages = useMessageDataItem(topic ? topicPath : "", { historySize: 2 });
+  const matchedMessages = useMessageDataItem(topic ? topicPath : "", {
+    historySize: "all",
+    onRestore,
+  });
   const diffMessages = useMessageDataItem(diffEnabled ? diffTopicPath : "");
 
+  // Use effective messages from frame navigation hook
+  const effectiveMessages = getEffectiveMessages(matchedMessages);
+
   const diffTopicObj = diffMessages[0];
-  const currTickObj = matchedMessages[matchedMessages.length - 1];
-  const prevTickObj = matchedMessages[matchedMessages.length - 2];
+  const currTickObj = effectiveMessages[effectiveMessages.length - 1];
+  const prevTickObj = effectiveMessages[effectiveMessages.length - 2];
 
   const inTimetickDiffMode = diffEnabled && diffMethod === Constants.PREV_MSG_METHOD;
   const baseItem = inTimetickDiffMode ? prevTickObj : currTickObj;
   const diffItem = inTimetickDiffMode ? currTickObj : diffTopicObj;
+
+  // Update rendered time for frame navigation
+  useEffect(() => {
+    updateRenderedTime(matchedMessages);
+  }, [matchedMessages, updateRenderedTime]);
 
   const nodes = useMemo(() => {
     if (baseItem) {
@@ -679,21 +705,38 @@ function RawMessages(props: Props) {
   }, [actionHandler, fontSize, updatePanelSettingsTree]);
 
   return (
-    <Stack flex="auto" overflow="hidden" position="relative">
-      <Toolbar
-        canExpandAll={canExpandAll}
-        diffEnabled={diffEnabled}
-        diffMethod={diffMethod}
-        diffTopicPath={diffTopicPath}
-        onDiffTopicPathChange={onDiffTopicPathChange}
-        onToggleDiff={onToggleDiff}
-        onToggleExpandAll={onToggleExpandAll}
-        onTopicPathChange={onTopicPathChange}
-        saveConfig={saveConfig}
-        topicPath={topicPath}
-      />
-      {renderSingleTopicOrDiffOutput()}
-    </Stack>
+    <div
+      ref={panelRef}
+      tabIndex={0}
+      style={{
+        outline: "none",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+      }}
+    >
+      <Stack flex="auto" overflow="hidden" position="relative">
+        <Toolbar
+          canExpandAll={canExpandAll}
+          diffEnabled={diffEnabled}
+          diffMethod={diffMethod}
+          diffTopicPath={diffTopicPath}
+          onDiffTopicPathChange={onDiffTopicPathChange}
+          onToggleDiff={onToggleDiff}
+          onToggleExpandAll={onToggleExpandAll}
+          onTopicPathChange={onTopicPathChange}
+          onPreviousFrame={hasPreFrame ? handlePreviousFrame : undefined}
+          onNextFrame={() => {
+            handleNextFrame(matchedMessages);
+          }}
+          saveConfig={saveConfig}
+          topicPath={topicPath}
+        />
+        {renderSingleTopicOrDiffOutput()}
+        <KeyListener global keyDownHandlers={keyDownHandlers} keyUpHandlers={keyUpHandlers} />
+      </Stack>
+    </div>
   );
 }
 

@@ -10,6 +10,7 @@
 import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import * as _ from "lodash-es";
+import race from "race-as-promised";
 import { Trans } from "react-i18next";
 import { v4 as uuidv4 } from "uuid";
 
@@ -51,7 +52,6 @@ import {
 } from "@foxglove/studio-base/players/types";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import rosDatatypesToMessageDefinition from "@foxglove/studio-base/util/rosDatatypesToMessageDefinition";
-import { getTimestampForMessage } from "@foxglove/studio-base/util/time";
 import {
   Channel,
   ChannelId,
@@ -115,6 +115,12 @@ interface DeviceInfo {
  * 400MB
  */
 const CURRENT_FRAME_MAXIMUM_SIZE_BYTES = 400 * 1024 * 1024;
+
+const WEBSOCKET_KICKED_CODE = 4001;
+
+type KickedReason = {
+  username: string;
+};
 
 export default class FoxgloveWebSocketPlayer implements Player {
   readonly #sourceId: string;
@@ -198,13 +204,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #isReconnect: boolean = false;
   #authHeader: string;
 
-  /** Whether to use message header stamps as clock time */
-  #serverPublishesMessageTime = false;
-
   /** Persistent message cache for 5-minute historical data */
   #persistentCache?: PersistentMessageCache;
   /** Whether to enable persistent caching */
   #enablePersistentCache: boolean = true;
+  #retentionWindowMs?: number;
+  #sessionId?: string;
+  #serverTime?: Time;
 
   public constructor({
     url,
@@ -248,13 +254,19 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#deviceName = deviceName;
     this.#authHeader = authHeader;
     this.#enablePersistentCache = enablePersistentCache ?? true;
+    this.#retentionWindowMs = retentionWindowMs;
+    this.#sessionId = sessionId;
 
     // Initialize persistent cache if enabled
-    if (this.#enablePersistentCache) {
+    if (
+      this.#enablePersistentCache &&
+      this.#retentionWindowMs != undefined &&
+      this.#retentionWindowMs > 0
+    ) {
       try {
         this.#persistentCache = new IndexedDbMessageStore({
-          retentionWindowMs: retentionWindowMs ?? 5 * 60 * 1000, // 5 minutes
-          sessionId: sessionId ?? `websocket-${this.#id}`,
+          retentionWindowMs: this.#retentionWindowMs,
+          sessionId: this.#sessionId ?? `websocket-${this.#id}`,
         });
         void this.#persistentCache.init().catch((error: unknown) => {
           log.warn("Failed to initialize persistent cache:", error);
@@ -268,7 +280,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     this.#open();
   }
-
   #open = (): void => {
     if (this.#closed) {
       return;
@@ -394,39 +405,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
     });
 
-    this.#client.on("kicked", (message) => {
-      this.close();
-      void this.#confirm({
-        title: t("cosWebsocket:notification"),
-        prompt: (
-          <Trans
-            t={t}
-            i18nKey="cosWebsocket:vizIsTkenNow"
-            values={{
-              deviceName: this.#deviceName,
-              username: message.username,
-            }}
-            components={{
-              strong: <strong />,
-            }}
-          />
-        ),
-        disableEscapeKeyDown: true,
-        disableBackdropClick: true,
-        ok: t("cosWebsocket:reconnect"),
-        cancel: t("cosWebsocket:exitAndClosePage"),
-        variant: "danger",
-      }).then((result) => {
-        if (result === "ok") {
-          this.#isReconnect = true;
-          this.reOpen();
-        }
-        if (result === "cancel") {
-          window.close();
-        }
-      });
-    });
-
     this.#client.on("error", (err) => {
       log.error(err);
 
@@ -462,57 +440,93 @@ export default class FoxgloveWebSocketPlayer implements Player {
           type: "close";
           data: CloseEventMessage;
         };
-      log.info("Connection closed:", realCloseEventMessage);
-      this.#presence = PlayerPresence.RECONNECTING;
 
-      if (this.#getParameterInterval != undefined) {
-        clearInterval(this.#getParameterInterval);
-        this.#getParameterInterval = undefined;
-      }
-      if (this.#connectionAttemptTimeout != undefined) {
-        clearTimeout(this.#connectionAttemptTimeout);
-      }
+      if (realCloseEventMessage.data.code === WEBSOCKET_KICKED_CODE) {
+        const message = JSON.parse(realCloseEventMessage.data.reason) as KickedReason;
 
-      this.#client?.close();
-      this.#client = undefined;
-
-      if (realCloseEventMessage.data.code !== 1000) {
-        this.#problems.addProblem("ws:connection-failed", {
-          severity: "error",
-          message: t("cosError:connectionFailed"),
-          tip: (
-            <span>
-              {t("cosError:insecureWebSocketConnectionMessage", {
-                url: this.#url,
-                version: "coscene.websocket.protocol",
-              })}
-              <br />
-              1. {t("cosError:checkNetworkConnection")}
-              <br />
-              2.{" "}
-              <Trans
-                t={t}
-                i18nKey="cosError:checkFoxgloveBridge"
-                components={{
-                  docLink: (
-                    <a
-                      style={{ color: "#2563eb" }}
-                      target="_blank"
-                      href="https://github.com/coscene-io/coBridge"
-                      rel="noopener"
-                    />
-                  ),
-                }}
-              />
-              <br />
-              3. {t("cosError:contactUs")}
-            </span>
+        void this.close();
+        void this.#confirm({
+          title: t("cosWebsocket:notification"),
+          prompt: (
+            <Trans
+              t={t}
+              i18nKey="cosWebsocket:vizIsTkenNow"
+              values={{
+                deviceName: this.#deviceName,
+                username: message.username,
+              }}
+              components={{
+                strong: <strong />,
+              }}
+            />
           ),
+          disableEscapeKeyDown: true,
+          disableBackdropClick: true,
+          ok: t("cosWebsocket:reconnect"),
+          cancel: t("cosWebsocket:exitAndClosePage"),
+          variant: "danger",
+        }).then((result) => {
+          if (result === "ok") {
+            this.#isReconnect = true;
+            this.reOpen();
+          }
+          if (result === "cancel") {
+            window.close();
+          }
         });
-      }
+      } else {
+        log.info("Connection closed:", realCloseEventMessage);
+        this.#presence = PlayerPresence.RECONNECTING;
 
-      this.#emitState();
-      this.#openTimeout = setTimeout(this.#open, 3000);
+        if (this.#getParameterInterval != undefined) {
+          clearInterval(this.#getParameterInterval);
+          this.#getParameterInterval = undefined;
+        }
+        if (this.#connectionAttemptTimeout != undefined) {
+          clearTimeout(this.#connectionAttemptTimeout);
+        }
+
+        this.#client?.close();
+        this.#client = undefined;
+
+        if (realCloseEventMessage.data.code !== 1000) {
+          this.#problems.addProblem("ws:connection-failed", {
+            severity: "error",
+            message: t("cosError:connectionFailed"),
+            tip: (
+              <span>
+                {t("cosError:insecureWebSocketConnectionMessage", {
+                  url: this.#url,
+                  version: "coscene.websocket.protocol",
+                })}
+                <br />
+                1. {t("cosError:checkNetworkConnection")}
+                <br />
+                2.{" "}
+                <Trans
+                  t={t}
+                  i18nKey="cosError:checkFoxgloveBridge"
+                  components={{
+                    docLink: (
+                      <a
+                        style={{ color: "#2563eb" }}
+                        target="_blank"
+                        href="https://github.com/coscene-io/coBridge"
+                        rel="noopener"
+                      />
+                    ),
+                  }}
+                />
+                <br />
+                3. {t("cosError:contactUs")}
+              </span>
+            ),
+          });
+        }
+
+        this.#emitState();
+        this.#openTimeout = setTimeout(this.#open, 3000);
+      }
     });
 
     this.#client.on("serverInfo", (event) => {
@@ -532,15 +546,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#name = `${this.#url}\n${event.name}`;
       this.#serverCapabilities = Array.isArray(event.capabilities) ? event.capabilities : [];
       this.#serverPublishesTime = this.#serverCapabilities.includes(ServerCapability.time);
-      this.#serverPublishesMessageTime = this.#serverCapabilities.includes(
-        ServerCapability.messageTime,
-      );
       this.#supportedEncodings = event.supportedEncodings;
       this.#datatypes = new Map();
 
       // If the server publishes the time we clear any existing clockTime we might have and let the
       // server override
-      if (this.#serverPublishesTime || this.#serverPublishesMessageTime) {
+      if (this.#serverPublishesTime) {
         this.#clockTime = undefined;
       }
 
@@ -748,7 +759,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#emitState();
     });
 
-    this.#client.on("message", ({ subscriptionId, data }) => {
+    this.#client.on("message", ({ subscriptionId, data, timestamp }) => {
       const chanInfo = this.#resolvedSubscriptionsById.get(subscriptionId);
       if (!chanInfo) {
         const wasRecentlyCanceled = this.#recentlyCanceledSubscriptions.has(subscriptionId);
@@ -762,21 +773,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
         return;
       }
 
+      this.#serverTime = fromNanoSec(timestamp);
+
       try {
         this.#receivedBytes += data.byteLength;
         const receiveTime = this.#getCurrentTime();
         const topic = chanInfo.channel.topic;
         const deserializedMessage = chanInfo.parsedChannel.deserialize(data);
-
-        // Extract timestamp from message header if configured to use message stamps
-        let messageStamp: Time | undefined;
-        if (this.#serverPublishesMessageTime) {
-          messageStamp = getTimestampForMessage(deserializedMessage);
-          if (messageStamp) {
-            // Update clock time with message timestamp and handle time jumps
-            this.#updateClockTimeFromMessage(messageStamp);
-          }
-        }
 
         // Lookup the size estimate for this topic or compute it if not found in the cache.
         let msgSizeEstimate = this.#messageSizeEstimateByTopic[topic];
@@ -788,7 +791,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         const sizeInBytes = Math.max(data.byteLength, msgSizeEstimate);
         const messageEvent: MessageEvent = {
           topic,
-          receiveTime: messageStamp ?? receiveTime, // Use message stamp if available, otherwise fallback to current time
+          receiveTime,
           message: deserializedMessage,
           sizeInBytes,
           schemaName: chanInfo.channel.schemaName,
@@ -836,12 +839,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
         stats.numMessages++;
         this.#topicsStats = topicStats;
 
-        const messageHeaderTime = getTimestampForMessage(deserializedMessage);
-
-        if (messageHeaderTime && this.#timeOffset != undefined) {
+        const timeOffset = this.#timeOffset;
+        if (typeof timeOffset === "number") {
+          const serverTimeMs = toMillis(fromNanoSec(timestamp));
           this.#networkStatus = {
             ...this.#networkStatus,
-            networkDelay: Date.now() - toMillis(messageHeaderTime) + this.#timeOffset,
+            networkDelay: Date.now() - timeOffset - serverTimeMs,
           };
         }
       } catch (error) {
@@ -855,8 +858,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     });
 
     this.#client.on("time", ({ timestamp }) => {
-      // Only use server time if not using message stamps
-      if (!this.#serverPublishesTime || this.#serverPublishesMessageTime) {
+      if (!this.#serverPublishesTime) {
         return;
       }
 
@@ -1101,8 +1103,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#preFetchAssetRequests.delete(response.requestId);
     });
 
-    this.#client.on("syncTime", ({ serverTime }) => {
-      this.#client?.clientSyncTime(serverTime, Date.now());
+    this.#client.on("syncTime", ({ serverTime, receiveTime }) => {
+      this.#client?.clientSyncTime(serverTime, receiveTime, Date.now() - receiveTime);
     });
 
     // delay of client to server
@@ -1219,11 +1221,34 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#emitState();
   }
 
-  public close(): void {
-    this.#closed = true;
-    this.#client?.close();
-    this.#client = undefined;
+  public async close(): Promise<void> {
+    if (this.#closed) {
+      return;
+    }
 
+    this.#closed = true;
+
+    // If a client exists, wait for its "close" event so we know
+    // the websocket is fully closed before resolving.
+    const client = this.#client;
+    let waitForClose: Promise<void> | undefined;
+    if (client) {
+      waitForClose = new Promise<void>((resolve) => {
+        const onClose = () => {
+          client.off("close", onClose);
+          resolve();
+        };
+        client.on("close", onClose);
+      });
+
+      try {
+        client.close();
+      } catch {
+        // ignore; we'll still proceed to cleanup
+      }
+    }
+
+    // Clean up timers/intervals immediately while we wait for ws to close
     if (this.#openTimeout != undefined) {
       clearTimeout(this.#openTimeout);
       this.#openTimeout = undefined;
@@ -1232,14 +1257,55 @@ export default class FoxgloveWebSocketPlayer implements Player {
       clearInterval(this.#getParameterInterval);
       this.#getParameterInterval = undefined;
     }
+    if (this.#connectionAttemptTimeout != undefined) {
+      clearTimeout(this.#connectionAttemptTimeout);
+      this.#connectionAttemptTimeout = undefined;
+    }
 
-    // Clean up persistent cache
-    void this.#persistentCache?.close().catch((error: unknown) => {
+    // Await the close event with a timeout safeguard to avoid hanging
+    if (waitForClose) {
+      const timeoutMs = 5000;
+      await race([waitForClose, new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))]);
+    }
+
+    // Release client reference after we have observed the close (or timed out)
+    this.#client = undefined;
+
+    try {
+      // Clean up persistent cache
+      await this.#persistentCache?.clear();
+      await this.#persistentCache?.close();
+      this.#persistentCache = undefined;
+    } catch (error) {
       log.debug("Error closing persistent cache:", error);
-    });
+    }
   }
 
   public reOpen(): void {
+    if (!this.#closed) {
+      return;
+    }
+
+    // Initialize persistent cache if enabled
+    if (
+      this.#enablePersistentCache &&
+      this.#retentionWindowMs != undefined &&
+      this.#retentionWindowMs > 0
+    ) {
+      try {
+        this.#persistentCache = new IndexedDbMessageStore({
+          retentionWindowMs: this.#retentionWindowMs,
+          sessionId: this.#sessionId ?? `websocket-${this.#id}`,
+        });
+        void this.#persistentCache.init().catch((error: unknown) => {
+          log.warn("Failed to initialize persistent cache:", error);
+          this.#persistentCache = undefined;
+        });
+      } catch (error) {
+        log.warn("Failed to create persistent cache:", error);
+        this.#persistentCache = undefined;
+      }
+    }
     this.#closed = false;
     this.#open();
   }
@@ -1456,17 +1522,20 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     const nextPreFetchAssetRequestId = ++this.#nextPreFetchAssetRequestId;
 
-    promise = new Promise<string>((resolve, reject) => {
-      this.#preFetchAssetRequests.set(nextPreFetchAssetRequestId, (response) => {
-        if (response.status === FetchAssetStatus.SUCCESS) {
-          resolve(response.etag ?? "");
-        } else {
-          reject(new Error(`Failed to pre-fetch asset: ${response.error}`));
-        }
-      });
+    promise = race([
+      new Promise<string>((resolve, reject) => {
+        this.#preFetchAssetRequests.set(nextPreFetchAssetRequestId, (response) => {
+          if (response.status === FetchAssetStatus.SUCCESS) {
+            resolve(response.etag ?? "");
+          } else {
+            reject(new Error(`Failed to pre-fetch asset: ${response.error}`));
+          }
+        });
 
-      this.#client?.preFetchAsset(uri, nextPreFetchAssetRequestId);
-    });
+        this.#client?.preFetchAsset(uri, nextPreFetchAssetRequestId);
+      }),
+      new Promise<string>((resolve) => setTimeout(resolve, 2000)),
+    ]);
 
     this.#preFetchedAssets.set(uri, promise);
     return await promise;
@@ -1523,18 +1592,26 @@ export default class FoxgloveWebSocketPlayer implements Player {
       throw new Error(`Fetching assets (${uri}) is not supported for coSceneWebSocketPlayer`);
     }
 
+    let assetEtag = undefined;
+
     if (etag) {
-      const assetEtag = await this.#preFetchAsset(uri);
-      if (etag === assetEtag) {
-        return {
-          uri,
-          data: new Uint8Array(),
-          etag,
-        };
+      try {
+        assetEtag = await this.#preFetchAsset(uri);
+        if (etag === assetEtag) {
+          return {
+            uri,
+            data: new Uint8Array(),
+            etag,
+          };
+        }
+      } catch (err) {
+        log.debug("Failed to pre-fetch asset:", err);
       }
     }
 
-    return await this.#fetchAssetContent(uri);
+    const assetContent = await this.#fetchAssetContent(uri);
+
+    return { ...assetContent, etag: assetEtag };
   }
 
   public setGlobalVariables(): void {}
@@ -1543,18 +1620,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
   //
   // For servers which publish a clock, we return that time. If the server disconnects we continue
   // to return the last known time. For servers which do not publish a clock, we use wall time.
-  // When using message stamps as clock time, we use the latest message timestamp.
   #getCurrentTime(): Time {
-    if (this.#serverPublishesMessageTime) {
-      // When using message stamps, return the latest message timestamp or zero time if none available
-      return this.#clockTime ?? ZERO_TIME;
-    }
-
     // If the server does not publish the time, then we set the clock time to realtime as long as
     // the server is connected. When the server is not connected, time stops.
     if (!this.#serverPublishesTime) {
-      this.#clockTime =
-        this.#presence === PlayerPresence.PRESENT ? fromMillis(Date.now()) : this.#clockTime;
+      if (this.#presence === PlayerPresence.PRESENT) {
+        this.#clockTime = this.#serverTime ?? fromMillis(Date.now());
+      }
     }
 
     return this.#clockTime ?? ZERO_TIME;
@@ -1673,6 +1745,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     for (const [requestId, callback] of this.#fetchAssetRequests) {
       callback({
         op: BinaryOpcode.FETCH_ASSET_RESPONSE,
+        receiveTime: Date.now(),
         status: FetchAssetStatus.ERROR,
         requestId,
         error: "WebSocket connection reset",
@@ -1681,6 +1754,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     for (const [requestId, callback] of this.#preFetchAssetRequests) {
       callback({
         op: BinaryOpcode.PRE_FETCH_ASSET_RESPONSE,
+        receiveTime: Date.now(),
         status: FetchAssetStatus.ERROR,
         requestId,
         error: "WebSocket connection reset",
@@ -1690,13 +1764,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#preFetchAssetRequests.clear();
     this.#parameterTypeByName.clear();
     this.#messageSizeEstimateByTopic = {};
-
-    // Clear persistent cache on session reset
-    if (this.#persistentCache) {
-      void this.#persistentCache.clear().catch((error: unknown) => {
-        log.debug("Failed to clear persistent cache:", error);
-      });
-    }
   }
 
   #updateDataTypes(datatypes: MessageDefinitionMap): void {
@@ -1910,26 +1977,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this.#client.login(this.#userId, this.#username);
       }
     }
-  }
-
-  /**
-   * Update clock time from message timestamp and handle time jumps
-   */
-  #updateClockTimeFromMessage(messageStamp: Time): void {
-    // Check for time jumps
-    if (this.#clockTime != undefined && isLessThan(messageStamp, this.#clockTime)) {
-      this.#numTimeSeeks++;
-      this.#parsedMessages = [];
-      this.#parsedMessagesBytes = 0;
-    }
-
-    // Override any previous start/end time when we set a clockTime for the first time
-    if (!this.#clockTime) {
-      this.#startTime = messageStamp;
-      this.#endTime = messageStamp;
-    }
-
-    this.#clockTime = messageStamp;
   }
 }
 
