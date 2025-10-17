@@ -117,12 +117,8 @@ export function LayoutTableRowMenu({
 
   const consoleApi = useConsoleApi();
   const isProject = layoutIsProject(layout);
-  const canUpdate = isProject
-    ? consoleApi.updateProjectLayout.permission()
-    : consoleApi.updateUserLayout.permission();
-  const canDelete = isProject
-    ? consoleApi.deleteProjectLayout.permission()
-    : consoleApi.deleteUserLayout.permission();
+  const canUpdate = isProject ? consoleApi.updateProjectLayout.permission() : true;
+  const canDelete = isProject ? consoleApi.deleteProjectLayout.permission() : true;
 
   const menuItems: LayoutActionMenuItem[] = [];
 

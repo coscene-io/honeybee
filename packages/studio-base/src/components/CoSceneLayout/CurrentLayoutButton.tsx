@@ -135,9 +135,7 @@ export function CurrentLayoutButton({
 
   const consoleApi = useConsoleApi();
   const isProject = currentLayout ? layoutIsProject(currentLayout) : false;
-  const canUpdate = isProject
-    ? consoleApi.updateProjectLayout.permission()
-    : consoleApi.updateUserLayout.permission();
+  const canUpdate = isProject ? consoleApi.updateProjectLayout.permission() : true;
 
   const buttons = [
     {
