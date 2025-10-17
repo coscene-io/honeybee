@@ -71,4 +71,5 @@ window.cosConfig = {
   VITE_APP_BFF_WS_URL: "wss://bff.coscene.cn",
   VITE_APP_CR_DOMAIN: "cr.coscene.cn",
   VITE_APP_PROJECT_ENV: "saas",
+  S3_REGION: "cn-hangzhou",
 };
