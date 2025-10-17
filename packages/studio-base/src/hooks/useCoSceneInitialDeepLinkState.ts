@@ -14,7 +14,11 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { LayoutState, useCurrentLayoutActions, useCurrentLayoutSelector } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import {
+  LayoutState,
+  useCurrentLayoutActions,
+  useCurrentLayoutSelector,
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppURLState, parseAppURLState } from "@foxglove/studio-base/util/appURLState";
@@ -32,15 +36,17 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   const layoutManager = useLayoutManager();
 
   const [{ isInitialized, layoutId, dsParamsKey }, setUnappliedLayoutArgs] = useState(
-    targetUrlState ? {
-      isInitialized: false,
-      layoutId: targetUrlState.layoutId,
-      dsParamsKey: targetUrlState.dsParams?.key
-    } : {
-      isInitialized: false,
-      layoutId: undefined,
-      dsParamsKey: undefined
-    },
+    targetUrlState
+      ? {
+          isInitialized: false,
+          layoutId: targetUrlState.layoutId,
+          dsParamsKey: targetUrlState.dsParams?.key,
+        }
+      : {
+          isInitialized: false,
+          layoutId: undefined,
+          dsParamsKey: undefined,
+        },
   );
 
   // Select layout from URL.
@@ -55,7 +61,11 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
       const urlLayout = await layoutManager.getLayout({ id: layoutId });
       if (urlLayout) {
         setSelectedLayoutId(layoutId);
-        setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined, dsParamsKey: undefined });
+        setUnappliedLayoutArgs({
+          isInitialized: true,
+          layoutId: undefined,
+          dsParamsKey: undefined,
+        });
         return;
       }
     }
