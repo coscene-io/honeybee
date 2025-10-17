@@ -101,11 +101,10 @@ export function ImportFromFileDialog({
       return;
     }
 
-    if (handles.length === 0) {
+    const fileHandle = handles[0];
+    if (fileHandle == undefined) {
       return;
     }
-
-    const fileHandle = handles[0]!;
     const file = await fileHandle.getFile();
     const layoutName = path.basename(file.name, path.extname(file.name));
     const content = await file.text();
