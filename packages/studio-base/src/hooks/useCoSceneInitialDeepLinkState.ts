@@ -34,7 +34,6 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   const { setSelectedLayoutId } = useCurrentLayoutActions();
   const { layoutDrawer } = useWorkspaceActions();
   const layoutManager = useLayoutManager();
-
   const [{ isInitialized, layoutId, dsParamsKey }, setUnappliedLayoutArgs] = useState(
     targetUrlState
       ? {
@@ -54,6 +53,11 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
       return;
     }
 
+    // waiting for loading projectName done
+    if (dsParamsKey && layoutManager.projectName == undefined) {
+      return;
+    }
+
     // Don't restore the layout if there's one specified in the app state url.
     if (layoutId) {
       const urlLayout = await layoutManager.getLayout({ id: layoutId });
@@ -66,12 +70,6 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
         });
         return;
       }
-    }
-
-    // waiting for loading projectName done
-    if (dsParamsKey && layoutManager.projectName == undefined) {
-      setUnappliedLayoutArgs({ isInitialized: false, layoutId: undefined, dsParamsKey: undefined });
-      return;
     }
 
     const layout = await layoutManager.getHistory();
