@@ -15,7 +15,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { LayoutState, useCurrentLayoutActions, useCurrentLayoutSelector } from "@foxglove/studio-base/context/CurrentLayoutContext";
-// import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppURLState, parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
@@ -28,7 +28,7 @@ const log = Log.getLogger(__filename);
 function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const { setSelectedLayoutId } = useCurrentLayoutActions();
-  // const { layoutDrawer } = useWorkspaceActions();
+  const { layoutDrawer } = useWorkspaceActions();
   const layoutManager = useLayoutManager();
 
   const [{ isInitialized, layoutId, dsParamsKey }, setUnappliedLayoutArgs] = useState(
@@ -74,7 +74,7 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
     }
 
     // // open drawer
-    // layoutDrawer.open();
+    layoutDrawer.open();
     setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined, dsParamsKey: undefined });
   }, [
     currentLayoutId,
@@ -82,7 +82,8 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
     isInitialized,
     layoutId,
     dsParamsKey,
-    layoutManager
+    layoutManager,
+    layoutDrawer,
   ]);
 }
 
