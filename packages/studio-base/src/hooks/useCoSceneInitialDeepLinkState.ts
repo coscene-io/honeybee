@@ -32,8 +32,7 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   // const { layoutDrawer } = useWorkspaceActions();
   const layoutManager = useLayoutManager();
 
-
-  const playerPresence = useMessagePipeline(selectPlayerPresence);
+  // const playerPresence = useMessagePipeline(selectPlayerPresence);
   const [unappliedLayoutArgs, setUnappliedLayoutArgs] = useState(
     targetUrlState ? { layoutId: targetUrlState.layoutId, dsParamsKey: targetUrlState.dsParams?.key } : undefined,
   );
@@ -81,7 +80,7 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
     // setSelectedLayoutId(unappliedLayoutArgs.layoutId);
     // setUnappliedLayoutArgs({ layoutId: undefined, dsParamsKey: undefined });
   }, [
-    playerPresence,
+    // playerPresence,
     setSelectedLayoutId,
     unappliedLayoutArgs?.layoutId,
     unappliedLayoutArgs?.dsParamsKey,
