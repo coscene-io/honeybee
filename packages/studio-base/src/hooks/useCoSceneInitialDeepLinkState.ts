@@ -13,109 +13,77 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { LayoutState, useCurrentLayoutActions, useCurrentLayoutSelector } from "@foxglove/studio-base/context/CurrentLayoutContext";
+// import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppURLState, parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
-const selectLoginStatus = (store: UserStore) => store.loginStatus;
+const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
 const log = Log.getLogger(__filename);
 
 function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
+  const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const { setSelectedLayoutId } = useCurrentLayoutActions();
   // const { layoutDrawer } = useWorkspaceActions();
   const layoutManager = useLayoutManager();
 
-  // const playerPresence = useMessagePipeline(selectPlayerPresence);
-  const [unappliedLayoutArgs, setUnappliedLayoutArgs] = useState(
-    targetUrlState ? { layoutId: targetUrlState.layoutId, dsParamsKey: targetUrlState.dsParams?.key } : undefined,
+  const [{ isInitialized, layoutId, dsParamsKey }, setUnappliedLayoutArgs] = useState(
+    targetUrlState ? {
+      isInitialized: false,
+      layoutId: targetUrlState.layoutId,
+      dsParamsKey: targetUrlState.dsParams?.key
+    } : {
+      isInitialized: false,
+      layoutId: undefined,
+      dsParamsKey: undefined
+    },
   );
-  // const loginStatus = useCurrentUser(selectLoginStatus);
-  // const remoteLayoutStorage = useRemoteLayoutStorage();
-
 
   // Select layout from URL.
   // if loginStatus is alreadyLogin, we need to check if remoteLayoutStorage is ready
   useAsync(async () => {
-    const layoutId = unappliedLayoutArgs?.layoutId;
+    if (currentLayoutId || isInitialized) {
+      return;
+    }
 
     // Don't restore the layout if there's one specified in the app state url.
     if (layoutId) {
       const urlLayout = await layoutManager.getLayout({ id: layoutId });
       if (urlLayout) {
         setSelectedLayoutId(layoutId);
+        setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined, dsParamsKey: undefined });
         return;
       }
-      setUnappliedLayoutArgs({ layoutId: undefined, dsParamsKey: undefined });
     }
 
     // waiting for loading projectName done
-    if (unappliedLayoutArgs?.dsParamsKey && layoutManager.projectName == undefined) {
+    if (dsParamsKey && layoutManager.projectName == undefined) {
+      setUnappliedLayoutArgs({ isInitialized: false, layoutId: undefined, dsParamsKey: undefined });
       return;
     }
 
     const layout = await layoutManager.getHistory();
     if (layout) {
       setSelectedLayoutId(layout.id);
+      setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined, dsParamsKey: undefined });
       return;
     }
 
     // // open drawer
     // layoutDrawer.open();
-
-    // if (
-    //   !unappliedLayoutArgs?.layoutId ||
-    //   (loginStatus === "alreadyLogin" && remoteLayoutStorage == undefined)
-    // ) {
-    //   return;
-    // }
-
-    // log.debug(`Initializing layout from url: ${unappliedLayoutArgs.layoutId}`);
-    // setSelectedLayoutId(unappliedLayoutArgs.layoutId);
-    // setUnappliedLayoutArgs({ layoutId: undefined, dsParamsKey: undefined });
+    setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined, dsParamsKey: undefined });
   }, [
-    // playerPresence,
+    currentLayoutId,
     setSelectedLayoutId,
-    unappliedLayoutArgs?.layoutId,
-    unappliedLayoutArgs?.dsParamsKey,
-    // loginStatus,
-    // remoteLayoutStorage,
+    isInitialized,
+    layoutId,
+    dsParamsKey,
     layoutManager
   ]);
-
-  // useAsync(async () => {
-  //   const layoutId = windowAppURLState()?.layoutId;
-
-  //   // Don't restore the layout if there's one specified in the app state url.
-  //   if (layoutId) {
-  //     const urlLayout = await layoutManager.getLayout({ id: layoutId });
-  //     if (urlLayout) {
-  //       setSelectedLayoutId(layoutId);
-  //       return;
-  //     }
-  //   }
-
-  //   // waiting for loading projectName done
-  //   if (windowAppURLState()?.dsParams?.key && layoutManager.projectName == undefined) {
-  //     return;
-  //   }
-
-  //   const layout = await layoutManager.getHistory();
-  //   if (layout) {
-  //     setSelectedLayoutId(layout.id);
-  //     return;
-  //   }
-
-  //   // open drawer
-  //   layoutDrawer.open();
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [layoutManager, setSelectedLayoutId]);
 }
 
 function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined) {
