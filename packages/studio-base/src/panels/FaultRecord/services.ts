@@ -16,7 +16,7 @@ import { ActionNameConfig, ActionInfo } from "./types";
  */
 export async function fetchActionList(
   context: PanelExtensionContext | undefined,
-  serviceName: string = "/recordbag_5Fmsgs/srv/GetActionList",
+  serviceName: string = "/record_5Fplayback_5Fmsgs/srv/GetActionList",
   retryCount = 0,
 ): Promise<ActionInfo[]> {
   const maxRetries = 3;

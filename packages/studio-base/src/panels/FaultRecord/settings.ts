@@ -31,15 +31,15 @@ export interface FaultRecordConfig {
 
 export const defaultConfig: FaultRecordConfig = {
   startRecordService: {
-    serviceName: "/recordbag_5Fmsgs/srv/StartRecord",
-    serviceType: "fault_record/StartRecord",
+    serviceName: "/record_5Fplayback_5Fmsgs/srv/StartRecord",
+    serviceType: "record_playback_msgs/srv/StartRecord",
   },
   stopRecordService: {
-    serviceName: "/recordbag_5Fmsgs/srv/StopRecord",
-    serviceType: "fault_record/StopRecord",
+    serviceName: "/record_5Fplayback_5Fmsgs/srv/StopRecord",
+    serviceType: "record_playback_msgs/srv/StopRecord",
   },
   actionListService: {
-    serviceName: "/recordbag_5Fmsgs/srv/GetActionList",
+    serviceName: "/record_5Fplayback_5Fmsgs/srv/GetActionList",
   },
 };
 

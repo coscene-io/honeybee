@@ -11,29 +11,13 @@ window.cosConfig = {
   CS_HONEYBEE_BASE_URL: "https://viz.coscene.cn",
   DOC_BASE_URL: "https://docs.coscene.cn",
   DOMAIN_CONFIG: {
-    "agibot.coscene.cn": {
+    default: {
       authStatusCookieDomain: "coscene.cn",
       authStatusCookieName: "agibotAuthStatus",
       env: "saas",
       logo: "agibot",
       ssoDomain: "agibot.sso.coscene.cn",
       webDomain: "agibot.coscene.cn",
-    },
-    default: {
-      authStatusCookieDomain: "coscene.cn",
-      authStatusCookieName: "coSceneAuthStatus",
-      env: "saas",
-      logo: "coscene",
-      ssoDomain: "sso.coscene.cn",
-      webDomain: "coscene.cn",
-    },
-    "supor.coscene.cn": {
-      authStatusCookieDomain: "coscene.cn",
-      authStatusCookieName: "suporAuthStatus",
-      env: "saas",
-      logo: "supor",
-      ssoDomain: "supor.sso.coscene.cn",
-      webDomain: "supor.coscene.cn",
     },
   },
   FEATURE_FLAG_GROWTHBOOK: {

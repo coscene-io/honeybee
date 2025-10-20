@@ -33,9 +33,9 @@ export function settingsReducer(config: Config, action: SettingsTreeAction): Con
 }
 
 export const defaultConfig = {
-  refreshButtonService: { serviceName: "/recordbag_5Fmsgs/srv/GetBagList" },
-  actionListService: { serviceName: "/recordbag_5Fmsgs/srv/GetActionList" },
-  uploadAllowedService: { serviceName: "/recordbag_5Fmsgs/srv/GetUploadAllowed" },
+  refreshButtonService: { serviceName: "/record_5Fplayback_5Fmsgs/srv/GetBagList" },
+  actionListService: { serviceName: "/record_5Fplayback_5Fmsgs/srv/GetActionList" },
+  uploadAllowedService: { serviceName: "/record_5Fplayback_5Fmsgs/srv/GetUploadAllowed" },
   rosServiceUrl: "http://localhost:11311",
   coSceneApiUrl: "https://api.coscene.cn",
 } as const satisfies Config;
@@ -125,7 +125,9 @@ export function useSettingsNodes(
             serviceName: {
               label: "服务名称",
               input: "string",
-              value: config.actionListService.serviceName ?? "/recordbag_5Fmsgs/srv/GetActionList",
+              value:
+                config.actionListService.serviceName ??
+                "/record_5Fplayback_5Fmsgs/srv/GetActionList",
               placeholder: "输入查询 Action 列表的服务名称",
               help: "获取可用 Action 名称列表的服务名称",
             },
@@ -140,7 +142,8 @@ export function useSettingsNodes(
               label: "服务名称",
               input: "string",
               value:
-                config.uploadAllowedService.serviceName ?? "/recordbag_5Fmsgs/srv/GetUploadAllowed",
+                config.uploadAllowedService.serviceName ??
+                "/record_5Fplayback_5Fmsgs/srv/GetUploadAllowed",
               placeholder: "输入检查上传状态的服务名称",
               help: "检查是否允许上传数据的服务名称",
             },

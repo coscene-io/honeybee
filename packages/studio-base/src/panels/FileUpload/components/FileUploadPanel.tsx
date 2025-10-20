@@ -292,7 +292,7 @@ export function FileUploadPanel({
   // 加载可用的action名称
   const loadAvailableActionNames = useCallback(
     async (retryCount: number = 0) => {
-      const defaultService = "/recordbag_5Fmsgs/srv/GetActionList";
+      const defaultService = "/record_5Fplayback_5Fmsgs/srv/GetActionList";
       const serviceName = config.actionListService.serviceName || defaultService;
       const maxRetries = 3;
       const retryDelay = 2000; // 2秒
