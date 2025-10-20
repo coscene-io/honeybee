@@ -34,7 +34,7 @@ import {
 } from "@foxglove/studio-base";
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
@@ -64,9 +64,14 @@ export default function Root(props: {
 
   const authToken = localStorage.getItem("coScene_org_jwt");
 
+  const appConfig = getAppConfig();
   const consoleApi = useMemo(
     () =>
-      new ConsoleApi(APP_CONFIG.CS_HONEYBEE_BASE_URL, APP_CONFIG.VITE_APP_BFF_URL, authToken ?? ""),
+      new ConsoleApi(
+        appConfig.CS_HONEYBEE_BASE_URL ?? "",
+        appConfig.VITE_APP_BFF_URL ?? "",
+        authToken ?? "",
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );

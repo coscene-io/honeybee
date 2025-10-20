@@ -14,7 +14,7 @@ import * as cosZh from "./cosZh";
 import * as en from "./en";
 import * as ja from "./ja";
 import * as zh from "./zh";
-import { APP_CONFIG } from "../util/appConfig";
+import { getAppConfig } from "../util/appConfig";
 
 export const translations: {
   en: typeof en & typeof cosEn;
@@ -43,14 +43,18 @@ export async function initI18n(options?: { context?: "browser" | "electron-main"
     i18n.use(LanguageDetector);
   }
 
+  const appConfig = getAppConfig();
+
   await i18n.init({
-    lng: APP_CONFIG.LANGUAGE.options.length === 1 ? APP_CONFIG.LANGUAGE.default : undefined,
+    lng: appConfig.LANGUAGE?.options.length === 1 ? appConfig.LANGUAGE.default : undefined,
     resources: translations,
     detection:
-      context === "browser" && APP_CONFIG.LANGUAGE.options.length > 1
+      context === "browser" &&
+      appConfig.LANGUAGE?.options.length != undefined &&
+      appConfig.LANGUAGE.options.length > 1
         ? { order: ["localStorage"], caches: ["localStorage"] }
         : undefined,
-    fallbackLng: APP_CONFIG.LANGUAGE.default,
+    fallbackLng: appConfig.LANGUAGE?.default,
     defaultNS,
     interpolation: {
       escapeValue: false, // not needed for react as it escapes by default

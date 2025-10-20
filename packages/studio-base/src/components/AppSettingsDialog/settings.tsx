@@ -30,7 +30,7 @@ import {
   Typography,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -46,7 +46,7 @@ import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
@@ -63,16 +63,6 @@ const RETENTION_WINDOW_MS = [
   3 * 60 * 1000,
   5 * 60 * 1000,
 ];
-
-let LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
-  { key: "en", value: "English" },
-  { key: "zh", value: "中文" },
-  { key: "ja", value: "日本語" },
-];
-
-LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter((language) =>
-  APP_CONFIG.LANGUAGE.options.includes(language.key),
-);
 
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
@@ -354,11 +344,91 @@ export function RosPackagePath(): React.ReactElement {
   );
 }
 
+export function StudioRemoteConfigUrl(): React.ReactElement {
+  const [remoteConfigUrl, setRemoteConfigUrl] = useAppConfigurationValue<string>(
+    AppSetting.REMOTE_CONFIG_URL,
+  );
+  const { t } = useTranslation("cosSettings");
+
+  const initialValueRef = useRef(remoteConfigUrl ?? "");
+  const isChanged = (remoteConfigUrl ?? "") !== initialValueRef.current;
+
+  const appConfig = getAppConfig();
+  const env = appConfig.VITE_APP_PROJECT_ENV;
+
+  const placeholder =
+    env === "aws" || env === "gcp"
+      ? `${t("example")}: https://coscene.io/`
+      : `${t("example")}: https://coscene.cn/`;
+
+  const invalid = useMemo(() => {
+    const value = (remoteConfigUrl ?? "").trim();
+    if (value === "") {
+      return false;
+    }
+    const pattern = /^https:\/\/(?:[a-z0-9-]+\.)*coscene\.(?:io|cn)\/?$/i;
+    return !pattern.test(value);
+  }, [remoteConfigUrl]);
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("domain")} :
+          <Tooltip title={t("domainDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+
+      <TextField
+        fullWidth
+        placeholder={placeholder}
+        value={remoteConfigUrl ?? ""}
+        onChange={(event) => void setRemoteConfigUrl(event.target.value)}
+        error={invalid}
+        helperText={
+          invalid
+            ? t("invalidDomain")
+            : isChanged && (
+                <Trans
+                  t={t}
+                  i18nKey="willTakeEffectOnTheNextStartup"
+                  components={{
+                    Link: (
+                      <Link
+                        href="#"
+                        onClick={() => {
+                          window.location.reload();
+                        }}
+                      />
+                    ),
+                  }}
+                />
+              )
+        }
+      />
+    </Stack>
+  );
+}
+
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
 
   const [, setSelectedLanguage] = useAppConfigurationValue<Language>(AppSetting.LANGUAGE);
   const selectedLanguage: Language = useMemo(() => i18n.language as Language, [i18n.language]);
+
+  const appConfig = getAppConfig();
+
+  const LANGUAGE_OPTIONS: { key: Language; value: string }[] = useMemo(
+    () =>
+      [
+        { key: "en", value: "English" },
+        { key: "zh", value: "中文" },
+        { key: "ja", value: "日本語" },
+      ].filter((language) => appConfig.LANGUAGE?.options.includes(language.key)),
+    [appConfig.LANGUAGE?.options],
+  ) as { key: Language; value: string }[];
 
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {
@@ -381,7 +451,7 @@ export function LanguageSettings(): React.ReactElement {
         text: language.value,
         data: language.key,
       })),
-    [],
+    [LANGUAGE_OPTIONS],
   );
 
   return (

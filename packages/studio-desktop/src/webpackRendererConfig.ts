@@ -80,19 +80,11 @@ export const webpackRendererConfig =
   <html>
     <head>
       <meta charset="utf-8">
-      <script>
-        // 根据协议动态设置配置文件路径
-        const configPath = window.location.protocol === 'file:'
-          ? './cos-config.js'
-          : '/cos-config.js';
-        const script = document.createElement('script');
-        script.src = configPath + '?t=${buildTime}';
-        script.type = 'text/javascript';
-        document.head.appendChild(script);
-      </script>
     </head>
     <script>
       global = globalThis;
+      window.cosConfig = window.cosConfig || {};
+      window.buildTime = "${buildTime}";
     </script>
     <style>
       html, body {
