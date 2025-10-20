@@ -390,7 +390,7 @@ export default function DevicesTable({
     ],
     [
       t,
-      domainConfig,
+      domainConfig.webDomain,
       classes.deviceId,
       classes.vizButton,
       classes.playButton,
