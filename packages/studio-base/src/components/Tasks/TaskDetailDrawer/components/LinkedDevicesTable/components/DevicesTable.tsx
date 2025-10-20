@@ -44,8 +44,6 @@ import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDa
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
-const domainConfig = getDomainConfig();
-
 // 扩展Footer组件的props接口
 declare module "@mui/x-data-grid" {
   interface FooterPropsOverrides {
@@ -234,6 +232,7 @@ export default function DevicesTable({
   const { classes } = useStyles();
   const { i18n, t } = useTranslation("task");
   const deviceCustomFieldSchema = useCoreData(selectDeviceCustomFieldSchema);
+  const domainConfig = getDomainConfig();
 
   const organization = useCoreData(selectOrganization);
   const project = useCoreData(selectProject);
@@ -391,6 +390,7 @@ export default function DevicesTable({
     ],
     [
       t,
+      domainConfig.webDomain,
       classes.deviceId,
       classes.vizButton,
       classes.playButton,

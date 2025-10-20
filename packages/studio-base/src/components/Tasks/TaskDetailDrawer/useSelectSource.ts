@@ -20,8 +20,6 @@ import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext"
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
-const domainConfig = getDomainConfig();
-
 export const REALTIME_VISUALIZATION_PORT = 21274;
 
 function updateUrl(newState: AppURLState) {
@@ -60,6 +58,7 @@ export function useVizTargetSource(): (
 ) => Promise<void> {
   const { selectSource } = usePlayerSelection();
   const consoleApi = useConsoleApi();
+  const domainConfig = getDomainConfig();
   const currentUser = useCurrentUser(selectUser);
   const coordinatorConfig = useCoreData(selectCoordinatorConfig);
   const colinkApi = useCoreData(selectColinkApi);

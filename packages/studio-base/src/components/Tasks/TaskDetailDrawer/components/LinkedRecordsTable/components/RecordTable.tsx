@@ -51,8 +51,6 @@ import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDa
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
-const domainConfig = getDomainConfig();
-
 // 扩展Footer组件的props接口
 declare module "@mui/x-data-grid" {
   interface FooterPropsOverrides {
@@ -299,6 +297,7 @@ export default function RecordTable({
   const { classes } = useStyles();
   const { i18n, t } = useTranslation("task");
   const recordCustomFieldSchema = useCoreData(selectRecordCustomFieldSchema);
+  const domainConfig = getDomainConfig();
   const confirm = useConfirm();
   const selectVizTargetSource = useVizTargetSource();
 
@@ -487,6 +486,7 @@ export default function RecordTable({
       classes.vizButton,
       classes.playButton,
       disableSwitchSource,
+      domainConfig.webDomain,
       organizationSlug,
       projectSlug,
       handleVizTargetRecord,

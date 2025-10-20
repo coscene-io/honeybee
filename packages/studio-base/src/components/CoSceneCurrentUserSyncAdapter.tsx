@@ -24,7 +24,6 @@ import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDa
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger(__filename);
-const domainConfig = getDomainConfig();
 
 const selectCurrentUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
@@ -35,6 +34,8 @@ const selectSetUser = (store: UserStore) => store.setUser;
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 
 export function CoSceneCurrentUserSyncAdapter(): ReactNull {
+  const domainConfig = getDomainConfig();
+
   const loginStatus = useCurrentUser(selectLoginStatus);
   const currentUser = useCurrentUser(selectCurrentUser);
 
