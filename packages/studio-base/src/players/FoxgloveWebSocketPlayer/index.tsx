@@ -405,6 +405,39 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
     });
 
+    this.#client.on("kicked", (message) => {
+      void this.close();
+      void this.#confirm({
+        title: t("cosWebsocket:notification"),
+        prompt: (
+          <Trans
+            t={t}
+            i18nKey="cosWebsocket:vizIsTkenNow"
+            values={{
+              deviceName: this.#deviceName,
+              username: message.username,
+            }}
+            components={{
+              strong: <strong />,
+            }}
+          />
+        ),
+        disableEscapeKeyDown: true,
+        disableBackdropClick: true,
+        ok: t("cosWebsocket:reconnect"),
+        cancel: t("cosWebsocket:exitAndClosePage"),
+        variant: "danger",
+      }).then((result) => {
+        if (result === "ok") {
+          this.#isReconnect = true;
+          this.reOpen();
+        }
+        if (result === "cancel") {
+          window.close();
+        }
+      });
+    });
+
     this.#client.on("error", (err) => {
       log.error(err);
 

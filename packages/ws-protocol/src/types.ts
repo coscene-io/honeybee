@@ -302,6 +302,14 @@ export type ClientLogin = {
   username: string;
 };
 
+export type Kicked = {
+  op: "kicked";
+  receiveTime: number;
+  userId: string;
+  username: string;
+  message: string;
+};
+
 export type ServerSyncTime = {
   op: "syncTime";
   receiveTime: number;
@@ -352,6 +360,7 @@ export type ServerMessage =
   | PreFetchAssetResponse
   | ServiceCallFailure
   | ServerLogin
+  | Kicked
   | ServerSyncTime
   | NetworkStatistics
   | TimeOffset;
