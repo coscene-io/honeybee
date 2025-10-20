@@ -22,24 +22,42 @@ export async function fetchActionList(
   const maxRetries = 3;
   const retryDelay = 2000; // 2秒
 
+  console.debug(
+    `[FaultRecord] fetchActionList called with serviceName: ${serviceName}, retryCount: ${retryCount}`,
+  );
+
   if (context == undefined) {
+    console.warn(`[FaultRecord] fetchActionList: context is undefined`);
     return [];
   }
   try {
     if (typeof context.callService === "function") {
+      console.debug(`[FaultRecord] Calling service: ${serviceName}`);
       const rsp = (await context.callService(serviceName, {})) as {
         actions?: ActionInfo[];
       };
+      console.debug(`[FaultRecord] Service response:`, rsp);
       const actions: ActionInfo[] = Array.isArray(rsp.actions) ? rsp.actions : [];
-      return actions.filter((a) => a.is_enable);
+      const filteredActions = actions.filter((a) => a.is_enable);
+      console.debug(
+        `[FaultRecord] Total actions: ${actions.length}, filtered actions: ${filteredActions.length}`,
+      );
+      return filteredActions;
     }
 
+    console.warn(`[FaultRecord] fetchActionList: context.callService is not a function`);
     return [];
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error(`[FaultRecord] fetchActionList failed: ${errorMessage}`);
 
     // 检查是否是服务未启动的错误
     if (errorMessage.includes("has not been advertised") && retryCount < maxRetries) {
+      console.debug(
+        `[FaultRecord] Service not advertised, retrying in ${retryDelay}ms (attempt ${
+          retryCount + 1
+        }/${maxRetries})`,
+      );
       await new Promise((resolve) => setTimeout(resolve, retryDelay));
       return await fetchActionList(context, serviceName, retryCount + 1);
     }

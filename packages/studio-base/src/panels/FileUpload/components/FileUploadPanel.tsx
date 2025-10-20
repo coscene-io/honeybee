@@ -297,27 +297,44 @@ export function FileUploadPanel({
       const maxRetries = 3;
       const retryDelay = 2000; // 2秒
 
+      console.debug(
+        `[FileUpload] loadAvailableActionNames called with serviceName: ${serviceName}, retryCount: ${retryCount}`,
+      );
+
       try {
         if (typeof context.callService !== "function") {
+          console.warn(
+            `[FileUpload] loadAvailableActionNames: context.callService is not a function`,
+          );
           setAvailableActionNames([]);
           return;
         }
 
         const call = async (svc: string) => {
           if (!context.callService) {
+            console.warn(`[FileUpload] loadAvailableActionNames: context.callService is null`);
             return [];
           }
+          console.debug(`[FileUpload] Calling service: ${svc}`);
           const result = (await context.callService(svc, {})) as ROSServiceResponse;
-          return Array.isArray(result.actions) ? result.actions : [];
+          console.debug(`[FileUpload] Service response:`, result);
+          const actions = Array.isArray(result.actions) ? result.actions : [];
+          console.debug(`[FileUpload] Service returned ${actions.length} actions`);
+          return actions;
         };
 
         let actions = await call(serviceName);
 
         // If configured service returns empty, try fallback to default
         if (actions.length === 0 && serviceName !== defaultService) {
+          console.debug(
+            `[FileUpload] Configured service returned empty, trying fallback to default service: ${defaultService}`,
+          );
           try {
             actions = await call(defaultService);
-          } catch {
+            console.debug(`[FileUpload] Fallback service returned ${actions.length} actions`);
+          } catch (fallbackError) {
+            console.error(`[FileUpload] Fallback service failed:`, fallbackError);
             // ignore fallback errors
           }
         }
@@ -328,21 +345,34 @@ export function FileUploadPanel({
             .map((action) => action.action_name)
             .filter((name, index, arr) => arr.indexOf(name) === index); // 去重
 
+          console.debug(
+            `[FileUpload] Total actions: ${actions.length}, enabled actions: ${
+              actionNames.length
+            }, action names: ${actionNames.join(", ")}`,
+          );
           setAvailableActionNames(actionNames);
         } else {
+          console.warn(`[FileUpload] Actions is not an array:`, actions);
           setAvailableActionNames([]);
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[FileUpload] loadAvailableActionNames failed: ${errorMessage}`);
 
         // 检查是否是服务未启动的错误
         if (errorMessage.includes("has not been advertised") && retryCount < maxRetries) {
+          console.debug(
+            `[FileUpload] Service not advertised, retrying in ${retryDelay}ms (attempt ${
+              retryCount + 1
+            }/${maxRetries})`,
+          );
           setTimeout(() => {
             void loadAvailableActionNames(retryCount + 1);
           }, retryDelay);
           return;
         }
 
+        console.warn(`[FileUpload] Setting available action names to empty array due to error`);
         setAvailableActionNames([]);
       }
     },
