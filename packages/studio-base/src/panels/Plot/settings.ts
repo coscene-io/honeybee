@@ -34,9 +34,16 @@ const makeSeriesNode = memoizeWeak(
         ? [
             {
               type: "action",
+              id: "insert-series",
+              label: t("insertSeries"),
+              display: "hover",
+              icon: "Addchart",
+            },
+            {
+              type: "action",
               id: "delete-series",
               label: t("deleteSeries"),
-              display: "inline",
+              display: "hover",
               icon: "Clear",
             },
           ]
@@ -319,9 +326,16 @@ export function usePlotPanelSettings(
           saveConfig(
             produce<PlotConfig>((draft) => {
               if (draft.paths.length === 0) {
-                draft.paths.push({ ...DEFAULT_PATH });
+                draft.paths.unshift({ ...DEFAULT_PATH });
               }
-              draft.paths.push({ ...DEFAULT_PATH });
+              draft.paths.unshift({ ...DEFAULT_PATH });
+            }),
+          );
+        } else if (action.payload.id === "insert-series") {
+          const index = action.payload.path[1];
+          saveConfig(
+            produce<PlotConfig>((draft) => {
+              draft.paths.splice(Number(index) + 1, 0, { ...DEFAULT_PATH });
             }),
           );
         } else if (action.payload.id === "delete-series") {
@@ -336,7 +350,7 @@ export function usePlotPanelSettings(
             produce<PlotConfig>((draft) => {
               // if no paths exist, add the default path first
               if (draft.paths.length === 0) {
-                draft.paths.push({ ...DEFAULT_PATH });
+                draft.paths.unshift({ ...DEFAULT_PATH });
               }
 
               const hasEnabledSeries = draft.paths.some((path) => path.enabled);
