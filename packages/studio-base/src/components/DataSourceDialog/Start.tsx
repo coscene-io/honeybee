@@ -289,7 +289,8 @@ export default function Start(): React.JSX.Element {
             user?.nickName
           ) : (
             <Link href={`https://${domainConfig.webDomain}/studio/login`} target="_blank">
-              {t("login")}
+              {/* {t("login")} */}
+              {/* {domainConfig.webDomain} */}
             </Link>
           )}
         </Typography>

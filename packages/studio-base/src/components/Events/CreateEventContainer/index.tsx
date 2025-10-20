@@ -34,8 +34,6 @@ import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
 import { CreateEventForm, CreateTaskForm } from "./types";
 
-const domainConfig = getDomainConfig();
-
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
@@ -64,6 +62,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   const [enabledCreateNewTask, setEnabledCreateNewTask] = useState(false);
 
   const consoleApi = useConsoleApi();
+  const domainConfig = getDomainConfig();
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const project = useCoreData(selectProject);

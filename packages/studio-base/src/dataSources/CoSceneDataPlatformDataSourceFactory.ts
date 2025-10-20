@@ -16,8 +16,6 @@ import { Player } from "@foxglove/studio-base/players/types";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
-const domainConfig = getDomainConfig();
-
 class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-data-platform";
   public type: IDataSourceFactory["type"] = "connection";
@@ -27,19 +25,23 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public description = t("openDialog:coSceneDataPlatformDesc");
   public needLogin = true;
 
+  #domainConfig = getDomainConfig();
+
   public formConfig = {
     fields: [
       {
         id: "url",
         label: t("openDialog:dataPlatformUrl"),
-        placeholder: `https://${domainConfig.webDomain}/viz?ds=coscene-data-platform&ds.key=example_key`,
+        placeholder: `https://${
+          this.#domainConfig.webDomain
+        }/viz?ds=coscene-data-platform&ds.key=example_key`,
         validate: (newValue: string): Error | undefined => {
           try {
             const url = new URL(newValue);
-            if (url.hostname !== domainConfig.webDomain) {
+            if (url.hostname !== this.#domainConfig.webDomain) {
               return new Error(
                 t("openDialog:onlySupportDomain", {
-                  domain: domainConfig.webDomain,
+                  domain: this.#domainConfig.webDomain,
                 }),
               );
             }
