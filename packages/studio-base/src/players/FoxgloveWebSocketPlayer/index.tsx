@@ -1273,7 +1273,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     try {
       // Clean up persistent cache
-      await this.#persistentCache?.clear();
       await this.#persistentCache?.close();
       this.#persistentCache = undefined;
     } catch (error) {
