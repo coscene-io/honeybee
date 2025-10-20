@@ -42,8 +42,6 @@ import {
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
-const domainConfig = getDomainConfig();
-
 const useStyles = makeStyles()(() => ({
   menuList: {
     minWidth: 200,
@@ -95,6 +93,8 @@ export function UserMenu({
   const [latestVersion, setLatestVersion] = useState("");
   const setUser = useCoSceneCurrentUser(selectSetUser);
   const resetCoreDataStore = useCoreData(selectResetCoreDataStore);
+
+  const domainConfig = getDomainConfig();
 
   useEffect(() => {
     const appConfig = getAppConfig();

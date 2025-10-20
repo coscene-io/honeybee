@@ -27,8 +27,6 @@ import {
   ProjectState,
 } from "./types";
 
-const domainConfig = getDomainConfig();
-
 // 工具函数：生成进度文本
 export function generateProgressText(uploadedFiles: number, totalFiles: number): string {
   return !Number.isNaN(uploadedFiles) && !Number.isNaN(totalFiles) && totalFiles > 0
@@ -56,6 +54,8 @@ export async function handleRecordLink({
   focusedTask?: Task;
   consoleApi: ConsoleApi;
 }): Promise<boolean> {
+  const domainConfig = getDomainConfig();
+
   if (task.tags.recordName != undefined && showRecordLink) {
     addLog(
       `[${dayjs().format(LOG_TIMESTAMP_FORMAT)}] ${t("saveToRecord")}：https://${
