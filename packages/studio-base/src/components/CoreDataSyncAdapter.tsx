@@ -19,7 +19,7 @@ import {
 } from "@foxglove/studio-base/context/CoreDataContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { Configuration, DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectOrganization = (state: CoreDataStore) => state.organization;
@@ -287,9 +287,11 @@ export function CoreDataSyncAdapter(): ReactNull {
   // CoordinatorConfig
   useAsync(async () => {
     if (organization.value != undefined) {
+      const appConfig = getAppConfig();
+
       const coordinatorConfig: CoordinatorConfig = await consoleApi.getCoordinatorConfig({
         currentOrganizationId: organization.value.name.split("/").pop() ?? "",
-        coordinatorUrl: APP_CONFIG.COORDINATOR_URL,
+        coordinatorUrl: appConfig.COORDINATOR_URL ?? "",
       });
 
       setCoordinatorConfig(coordinatorConfig);

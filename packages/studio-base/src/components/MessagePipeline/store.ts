@@ -28,7 +28,7 @@ import {
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
 import { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { FramePromise } from "./pauseFrameForPromise";
@@ -574,6 +574,8 @@ async function builtinS3Fetch(
 ) {
   const pkgPath = url.slice("s3://".length);
 
+  const appConfig = getAppConfig();
+
   const project = pkgPath.split("/files/")[0];
   if (s3Client == undefined || s3Client.key !== project) {
     const response = await consoleApi.generateSecurityToken({
@@ -584,7 +586,7 @@ async function builtinS3Fetch(
     s3Client = {
       key: project ?? "",
       client: new S3Client({
-        region: APP_CONFIG.S3_REGION,
+        region: appConfig.S3_REGION,
         endpoint: `https://${response.endpoint}`,
         forcePathStyle: true,
         credentials: {
