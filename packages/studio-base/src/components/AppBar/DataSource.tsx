@@ -38,7 +38,6 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 const ICON_SIZE = 18;
-const domainConfig = getDomainConfig();
 
 const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes) => ({
   sourceName: {
@@ -328,6 +327,8 @@ const RealTimeVizDataSource = () => {
   const { classes } = useStyles();
   const { t } = useTranslation("appBar");
 
+  const domainConfig = getDomainConfig();
+
   const playerPresence = useMessagePipeline(selectPlayerPresence);
 
   const urlState = useMessagePipeline(selectUrlState);
@@ -402,6 +403,7 @@ const RealTimeVizDataSource = () => {
 
 const DataPlatformSource = () => {
   const { classes } = useStyles();
+  const domainConfig = getDomainConfig();
 
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
