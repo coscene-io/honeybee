@@ -20,8 +20,6 @@ import {
 import { Player } from "@foxglove/studio-base/players/types";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
-const domainConfig = getDomainConfig();
-
 const initWorkers: Record<string, () => Worker> = {
   ".bag": () => {
     return new Worker(
@@ -84,7 +82,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
   public warning = (
     <>
       {t("openDialog:loadingLargeFilesOverHttpCanBeSlow")}
-      <Button href={`https://${domainConfig.webDomain}`} target="_blank" variant="text">
+      <Button href={`https://${getDomainConfig().webDomain}`} target="_blank" variant="text">
         {t("openDialog:coSceneDataPlatform")}
       </Button>
       .

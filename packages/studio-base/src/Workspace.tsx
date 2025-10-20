@@ -85,7 +85,6 @@ import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 import useNativeAppMenuEvent from "./hooks/useNativeAppMenuEvent";
 
 const log = Logger.getLogger(__filename);
-const domainConfig = getDomainConfig();
 
 const useStyles = makeStyles()({
   container: {
@@ -169,6 +168,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
   const { t } = useTranslation("workspace");
   const { AppBarComponent = AppBar } = props;
+
+  const domainConfig = getDomainConfig();
 
   // file types we support for drag/drop
   const allowedDropExtensions = useMemo(() => {
@@ -407,7 +408,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         }
       }, 500);
     }, 1000);
-  }, [t]);
+  }, [t, domainConfig.webDomain]);
 
   // Load data source from URL.
   useEffect(() => {
