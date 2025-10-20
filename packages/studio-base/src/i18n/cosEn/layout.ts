@@ -61,7 +61,7 @@ export const cosLayout = {
   createNewLayout: "Create a new layout",
   publicLayouts: "Public layouts",
   noPublicLayouts: "No public layouts",
-  copyFromOtherProject: "Copy from other project",
+  copyFromProject: "Copy from project",
   importFromFile: "Import from file",
   personalLayout: "Personal layout",
   projectLayout: "Project layout",
@@ -89,4 +89,6 @@ export const cosLayout = {
   moveToFolderDescription: 'Move "{{layoutName}}" layout to a different folder.',
   revertLayoutConfirm: "Your changes will be permanently discarded. This cannot be undone.",
   discardChanges: "Discard changes",
+  searchLayoutName: "Search layout name",
+  copyLayoutSuccess: "Copy success, layout has been switched",
 };

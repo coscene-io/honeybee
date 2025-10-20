@@ -568,7 +568,9 @@ export type SettingsIcon =
   | "Walk"
   | "World"
   | "Visibility"
-  | "VisibilityOff";
+  | "VisibilityOff"
+  | "KeyboardDoubleArrowDownIcon"
+  | "KeyboardDoubleArrowUpIcon";
 
 /**
  * A settings tree field specifies the input type and the value of a field
@@ -776,6 +778,11 @@ export type SettingsTreeNode = {
    * Set to collapsed if the node should be initially collapsed.
    */
   defaultExpansionState?: "collapsed" | "expanded";
+
+  /**
+   * if expansionState is available defaultExpansionState will be ignored.
+   */
+  expansionState?: "collapsed" | "expanded";
 
   /**
    * Optional message indicating any error state for the node.

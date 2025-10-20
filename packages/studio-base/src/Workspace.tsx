@@ -161,6 +161,9 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const enableList = useCoreData(selectEnableList);
   const dataSource = useCoreData(selectDataSource);
 
+  // Initialize deep link state - must be called inside WorkspaceContextProvider
+  useInitialDeepLinkState(props.deepLinks ?? DEFAULT_DEEPLINKS);
+
   // coScene set demo layout in demo mode
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
@@ -551,8 +554,6 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
   const [showOpenDialogOnStartup = true] = useAppConfigurationValue<boolean>(
     AppSetting.SHOW_OPEN_DIALOG_ON_STARTUP,
   );
-
-  useInitialDeepLinkState(props.deepLinks ?? DEFAULT_DEEPLINKS);
 
   const { workspaceStoreCreator } = useAppContext();
 

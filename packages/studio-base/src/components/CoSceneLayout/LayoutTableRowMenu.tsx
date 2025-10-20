@@ -9,6 +9,7 @@ import { Divider, Menu, MenuItem, Typography } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation, Trans } from "react-i18next";
 
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import {
   Layout,
@@ -114,6 +115,11 @@ export function LayoutTableRowMenu({
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined;
 
+  const consoleApi = useConsoleApi();
+  const isProject = layoutIsProject(layout);
+  const canUpdate = isProject ? consoleApi.updateProjectLayout.permission() : true;
+  const canDelete = isProject ? consoleApi.deleteProjectLayout.permission() : true;
+
   const menuItems: LayoutActionMenuItem[] = [];
 
   // Add save and revert items first if there are modifications
@@ -125,7 +131,7 @@ export function LayoutTableRowMenu({
         text: t("save"),
         "data-testid": "save-changes",
         onClick: saveChanges,
-        disabled: deletedOnServer || disabled,
+        disabled: deletedOnServer || disabled || !canUpdate,
       },
       {
         type: "item",
@@ -150,7 +156,7 @@ export function LayoutTableRowMenu({
       text: t("rename"),
       "data-testid": "rename-layout",
       onClick: openRenameDialog,
-      disabled,
+      disabled: disabled || !canUpdate,
     },
     {
       type: "item",
@@ -165,7 +171,7 @@ export function LayoutTableRowMenu({
       text: t("moveToFolder"),
       "data-testid": "move-layout",
       onClick: openMoveDialog,
-      disabled,
+      disabled: disabled || !canUpdate,
     },
     {
       type: "item",
@@ -184,7 +190,7 @@ export function LayoutTableRowMenu({
       text: t("delete"),
       "data-testid": "delete-layout",
       onClick: confirmDelete,
-      disabled,
+      disabled: disabled || !canDelete,
     },
   );
 

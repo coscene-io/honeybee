@@ -17,7 +17,6 @@ import {
   Close as CloseIcon,
 } from "@mui/icons-material";
 import {
-  Avatar,
   Box,
   Breadcrumbs,
   Divider,
@@ -164,8 +163,15 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: 0,
   },
   gridContainer: {
-    height: "calc(100vh - 230px)",
+    height: "calc(100vh - 150px)",
     width: "100%",
+  },
+  workingIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: "50%",
+    backgroundColor: theme.palette.primary.main,
+    flexShrink: 0,
   },
 }));
 
@@ -415,17 +421,21 @@ export function CoSceneLayoutContent({
           if (!layout) {
             return;
           }
-          return (
-            <Box display="flex" alignItems="center" gap={1}>
-              <Avatar
-                style={{ width: 24, height: 24, fontSize: "0.75rem" }}
-                src={layout.baseline.modifierAvatar}
-              >
-                {layout.baseline.modifierNickname?.split("/").pop()}
-              </Avatar>
-              <Typography variant="body2">{layout.baseline.modifierNickname}</Typography>
-            </Box>
-          );
+          return <Typography variant="body2">{layout.baseline.modifierNickname}</Typography>;
+        },
+      },
+      {
+        field: "status",
+        headerName: "",
+        width: 20,
+        sortable: false,
+        align: "center",
+        renderCell: (params) => {
+          const { layout } = params.row;
+          if (!layout?.working) {
+            return undefined;
+          }
+          return <Box className={classes.workingIndicator} />;
         },
       },
       {
@@ -454,7 +464,15 @@ export function CoSceneLayoutContent({
         },
       },
     ],
-    [currentLayoutId, t, setSelectedFolder, onSelectLayout, handleMenuOpen, classes.layoutNameBox],
+    [
+      currentLayoutId,
+      t,
+      setSelectedFolder,
+      onSelectLayout,
+      handleMenuOpen,
+      classes.layoutNameBox,
+      classes.workingIndicator,
+    ],
   );
 
   const items: {

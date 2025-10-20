@@ -19,7 +19,7 @@ import {
 const log = Log.getLogger(__filename);
 
 const DATABASE_NAME = "coScene-layouts";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 const OBJECT_STORE_NAME = "layouts";
 const HISTORY_STORE_NAME = "history";
 
@@ -52,6 +52,11 @@ interface LayoutsDB extends IDB.DBSchema {
 export class IdbLayoutStorage implements ILayoutStorage {
   #db = IDB.openDB<LayoutsDB>(DATABASE_NAME, DATABASE_VERSION, {
     upgrade(db, oldVersion) {
+      if (oldVersion === 1) {
+        db.deleteObjectStore(OBJECT_STORE_NAME);
+        db.deleteObjectStore(HISTORY_STORE_NAME);
+      }
+
       // Create object store if it doesn't exist
       if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
         const store = db.createObjectStore(OBJECT_STORE_NAME, {

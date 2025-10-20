@@ -160,6 +160,8 @@ async function clearIdbCache(sessionId?: string) {
     const idbCache = new IndexedDbMessageStore({
       sessionId,
     });
+    // Ensure initialization completes to avoid racing init/close transactions
+    await idbCache.init();
     if (sessionId != undefined) {
       await idbCache.clear();
     }

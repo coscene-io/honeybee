@@ -60,7 +60,7 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   createNewLayout: "创建新布局",
   publicLayouts: "公开布局",
   noPublicLayouts: "没有公开布局",
-  copyFromOtherProject: "从其他项目复制布局",
+  copyFromProject: "从其他项目复制布局",
   importFromFile: "本地文件导入",
   personalLayout: "个人布局",
   projectLayout: "项目布局",
@@ -88,4 +88,6 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   moveToFolderDescription: '移动 "{{layoutName}}" 布局到...',
   revertLayoutConfirm: "您的更改将被永久丢弃。此操作无法撤销。",
   discardChanges: "放弃更改",
+  searchLayoutName: "搜索布局名称",
+  copyLayoutSuccess: "复制成功，布局已切换",
 };

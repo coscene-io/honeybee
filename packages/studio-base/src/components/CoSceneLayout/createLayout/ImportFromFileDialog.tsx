@@ -56,7 +56,7 @@ export function ImportFromFileDialog({
   projectFolders: string[];
   supportsProjectWrite: boolean;
 }): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation(["cosLayout", "general"]);
   const { classes } = useStyles();
 
   const form = useForm<CreateLayoutForm & { selectedFile: string }>({
@@ -83,19 +83,29 @@ export function ImportFromFileDialog({
   const { enqueueSnackbar } = useSnackbar();
 
   const importLayout = useCallbackWithToast(async () => {
-    const fileHandles = await showOpenFilePicker({
-      excludeAcceptAllOption: false,
-      types: [
-        {
-          description: "JSON Files",
-          accept: {
-            "application/json": [".json"],
+    let handles: FileSystemFileHandle[];
+    try {
+      handles = await showOpenFilePicker({
+        excludeAcceptAllOption: false,
+        types: [
+          {
+            description: "JSON Files",
+            accept: {
+              "application/json": [".json"],
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
+    } catch {
+      // 用户取消或其他文件选择器错误，静默处理
+      return;
+    }
 
-    const file = await fileHandles[0].getFile();
+    const fileHandle = handles[0];
+    if (fileHandle == undefined) {
+      return;
+    }
+    const file = await fileHandle.getFile();
     const layoutName = path.basename(file.name, path.extname(file.name));
     const content = await file.text();
 
@@ -154,6 +164,7 @@ export function ImportFromFileDialog({
                 helperText={fieldState.error?.message}
                 required
                 label={t("layoutName")}
+                placeholder={t("pleaseEnter", { ns: "general" })}
                 slotProps={{ htmlInput: { maxLength: 60 } }}
                 {...field}
               />

@@ -54,6 +54,7 @@ declare global {
       COSTUDIO_DOWNLOAD_URL?: string;
       OFFICIAL_WEB_URL?: string;
       COORDINATOR_URL?: string;
+      S3_REGION?: string;
     };
     buildTime?: string;
   }
@@ -108,6 +109,8 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
     OFFICIAL_WEB_URL: cosConfig.OFFICIAL_WEB_URL ?? "https://www.coscene.cn",
 
     COORDINATOR_URL: cosConfig.COORDINATOR_URL ?? "https://coordinator.dev.coscene.cn",
+
+    S3_REGION: cosConfig.S3_REGION ?? "dev-cn-shanghai",
   };
 
   if (
@@ -133,6 +136,3 @@ export function getDomainConfig(): DomainConfig {
 export function getAuthStatusCookieName(): string {
   return getDomainConfig().authStatusCookieName;
 }
-
-// @deprecated
-export const APP_CONFIG = getAppConfig();

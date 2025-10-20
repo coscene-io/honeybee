@@ -20,7 +20,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import PinyinMatch from "pinyin-match";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsync } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -35,18 +36,22 @@ const useStyles = makeStyles()((theme) => ({
   listContainer: {
     height: 240,
     overflow: "auto",
-    border: `1px solid ${theme.palette.divider}`,
+    borderLeft: `1px solid ${theme.palette.divider}`,
+    borderRight: `1px solid ${theme.palette.divider}`,
+    borderBottom: `1px solid ${theme.palette.divider}`,
   },
   listItem: {
+    minHeight: 36,
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
     ":hover": {
       backgroundColor: theme.palette.action.hover,
     },
     "&:hover .MuiStack-root": {
-      visibility: "visible",
       display: "flex",
     },
     ".MuiStack-root": {
-      visibility: "hidden",
       display: "none",
     },
   },
@@ -84,6 +89,16 @@ export function ProjectLayoutList({
     return result.projectLayouts;
   }, [projectName, consoleApi]);
 
+  const filteredLayouts = useMemo(() => {
+    if (!searchText) {
+      return layouts.value;
+    }
+
+    return layouts.value?.filter(
+      (layout) => PinyinMatch.match(layout.displayName, searchText) !== false,
+    );
+  }, [layouts.value, searchText]);
+
   return (
     <Box>
       <TextField
@@ -93,6 +108,7 @@ export function ProjectLayoutList({
         onChange={(e) => {
           setSearchText(e.target.value);
         }}
+        placeholder={t("searchLayoutName")}
         slotProps={{
           input: {
             startAdornment: <SearchIcon fontSize="small" className={classes.searchIcon} />,
@@ -100,7 +116,7 @@ export function ProjectLayoutList({
         }}
       />
       <List dense className={classes.listContainer}>
-        {layouts.value?.map((layout) => (
+        {filteredLayouts?.map((layout) => (
           <ListItem key={layout.name} className={classes.listItem} dense>
             <BusinessCenterOutlinedIcon fontSize="small" />
             <ListItemText className={classes.listItemText}>
