@@ -18,7 +18,7 @@ export function Templates({
   addNewNode,
 }: {
   onClose: () => void;
-  addNewNode: (template?: string) => void;
+  addNewNode: (template?: string, sourceCodeName?: string) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("userScriptEditor");
   return (
@@ -34,7 +34,7 @@ export function Templates({
             disablePadding
             key={name}
             onClick={() => {
-              addNewNode(template);
+              addNewNode(template, name);
             }}
           >
             <ListItemButton>
