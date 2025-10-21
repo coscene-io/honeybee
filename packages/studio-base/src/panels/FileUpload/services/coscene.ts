@@ -45,6 +45,7 @@ export class MockCoSceneClient implements CoSceneClient {
     _files: FileCandidate[],
     _cfg: Partial<UploadConfig> & { projectId: string | undefined },
     onProgress?: (p: number) => void,
+    _onLog?: (level: "info" | "warn" | "error", message: string) => void,
   ): Promise<{ taskName?: string; recordName?: string; success: boolean }> {
     const steps = 20;
     for (let i = 1; i <= steps; i++) {
@@ -126,6 +127,7 @@ export class RealCoSceneClient implements CoSceneClient {
     files: FileCandidate[],
     cfg: Partial<UploadConfig> & { projectId: string | undefined },
     onProgress?: (p: number) => void,
+    onLog?: (level: "info" | "warn" | "error", message: string) => void,
   ): Promise<{ taskName?: string; recordName?: string; success: boolean }> {
     try {
       if (!cfg.projectId) {
@@ -157,9 +159,7 @@ export class RealCoSceneClient implements CoSceneClient {
           const warehouseId = cfg.projectId.split("/")[1]!;
           const projectId = cfg.projectId.split("/")[3]!; // Extract only the project ID part
 
-          // Extract device name from config - handle both string and object formats
-          // const deviceInfo = cfg.device; // Unused variable
-
+          // 设备查找逻辑：优先使用cfg.device，如果没有则使用cfg.deviceSerialNumber查找
           if (cfg.device != undefined) {
             if (typeof cfg.device === "object" && "name" in cfg.device && cfg.device.name) {
               // If device.name is a full path like "warehouses/xxx/projects/xxx/devices/device-id"
@@ -169,26 +169,33 @@ export class RealCoSceneClient implements CoSceneClient {
               const deviceStr = cfg.device;
               deviceName = deviceStr.startsWith("devices/") ? deviceStr : `devices/${deviceStr}`;
             }
-          } else {
-            // Try to get first device from project as fallback
+          } else if (cfg.deviceSerialNumber) {
+            // 通过设备序列号查找设备
             try {
               const projectDevicesResponse = await this.#api.listProjectDevices({
                 warehouseId,
                 projectId,
                 filter: CosQuery.Companion.empty(),
-                pageSize: 1,
+                pageSize: 100,
                 currentPage: 0,
               });
 
-              if (projectDevicesResponse.projectDevices.length > 0) {
-                const firstDevice = projectDevicesResponse.projectDevices[0]!;
-                deviceName = firstDevice.name;
+              const matchingDevice = projectDevicesResponse.projectDevices.find(
+                (device) => device.serialNumber === cfg.deviceSerialNumber,
+              );
+
+              if (matchingDevice) {
+                deviceName = matchingDevice.name;
               } else {
-                deviceName = "";
+                throw new Error(`未找到序列号为 "${cfg.deviceSerialNumber}" 的设备`);
               }
-            } catch {
-              deviceName = "";
+            } catch (error) {
+              throw new Error(
+                `设备查找失败: ${error instanceof Error ? error.message : String(error)}`,
+              );
             }
+          } else {
+            throw new Error("必须提供设备信息或设备序列号");
           }
 
           // Only create task if we have device information
@@ -228,6 +235,10 @@ export class RealCoSceneClient implements CoSceneClient {
             createdTaskName = createdTask.name;
           }
         } catch (taskError) {
+          const errorMessage = `Failed to create task for upload: ${
+            taskError instanceof Error ? taskError.message : String(taskError)
+          }`;
+          onLog?.("error", errorMessage);
           console.warn("Failed to create task for upload:", taskError);
           // Don't fail the entire upload if task creation fails
         }

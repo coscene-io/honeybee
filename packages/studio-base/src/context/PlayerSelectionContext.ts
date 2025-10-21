@@ -87,6 +87,7 @@ export type RecentSource = {
   id: string;
   title: string;
   label?: string;
+  deviceSerialNumber?: string;
 };
 
 // File data sources accept either file instances or handles

@@ -50,6 +50,8 @@ import {
   Topic,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
+import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import { CosQuery } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import rosDatatypesToMessageDefinition from "@foxglove/studio-base/util/rosDatatypesToMessageDefinition";
 import {
@@ -201,6 +203,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #userId: string;
   #username: string;
   #deviceName: string;
+  #deviceSerialNumber?: string;
+  #consoleApi?: CoSceneConsoleApi;
+  #deviceValidationStatus: {
+    isValid: boolean;
+    deviceName?: string;
+    error?: string;
+  } = { isValid: false };
   #isReconnect: boolean = false;
   #authHeader: string;
 
@@ -221,6 +230,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
     userId,
     username,
     deviceName,
+    deviceSerialNumber,
+    consoleApi,
     authHeader,
     sessionId,
     enablePersistentCache,
@@ -234,6 +245,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
     userId: string;
     username: string;
     deviceName: string;
+    deviceSerialNumber?: string;
+    consoleApi?: CoSceneConsoleApi;
     authHeader: string;
     sessionId?: string;
     enablePersistentCache?: boolean;
@@ -252,6 +265,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#userId = userId;
     this.#username = username;
     this.#deviceName = deviceName;
+    this.#deviceSerialNumber = deviceSerialNumber;
+    this.#consoleApi = consoleApi;
     this.#authHeader = authHeader;
     this.#enablePersistentCache = enablePersistentCache ?? true;
     this.#retentionWindowMs = retentionWindowMs;
@@ -331,6 +346,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
       for (const topic of this.#resolvedSubscriptionsByTopic.keys()) {
         this.#unresolvedSubscriptions.add(topic);
       }
+
+      // 验证设备序列号
+      this.#validateDevice().catch((error: unknown) => {
+        console.error("Device validation failed:", error);
+      });
       this.#resolvedSubscriptionsById.clear();
       this.#resolvedSubscriptionsByTopic.clear();
 
@@ -1977,6 +1997,165 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this.#client.login(this.#userId, this.#username);
       }
     }
+  }
+
+  // 验证设备序列号
+  async #validateDevice(): Promise<void> {
+    // 检查是否是平台跳转连接（有key参数），如果是则跳过SN验证
+    if (this.#urlState?.parameters?.key) {
+      console.log(`[设备验证] 检测到平台跳转连接，跳过SN验证`);
+      this.#deviceValidationStatus = {
+        isValid: true, // 平台跳转连接默认有效
+        deviceName: undefined,
+      };
+      return;
+    }
+
+    // 如果没有提供设备序列号，跳过验证（设备序列号是可选的）
+    if (!this.#deviceSerialNumber || this.#deviceSerialNumber.trim() === "") {
+      console.log("[设备验证] 未提供设备序列号，跳过验证");
+      this.#deviceValidationStatus = {
+        isValid: true, // 没有提供序列号时，认为验证通过（但文件上传功能会被禁用）
+        deviceName: undefined,
+      };
+      return;
+    }
+
+    if (!this.#consoleApi) {
+      console.log("[设备验证] API未提供");
+      this.#deviceValidationStatus = {
+        isValid: false,
+        error: "API未提供",
+      };
+      return;
+    }
+
+    console.log(`[设备验证] 开始验证设备序列号: ${this.#deviceSerialNumber}`);
+
+    try {
+      // 获取用户的所有项目
+      const projectsResponse = await this.#consoleApi.listUserProjects({
+        userId: "current",
+        pageSize: 100,
+        currentPage: 0,
+      });
+      console.log(`[设备验证] 获取到项目数量: ${projectsResponse.userProjects.length > 0 || 0}`);
+
+      if (!projectsResponse.userProjects || projectsResponse.userProjects.length === 0) {
+        console.log("[设备验证] 用户没有关联的项目");
+        this.#deviceValidationStatus = {
+          isValid: false,
+          error: "用户没有关联的项目",
+        };
+        return;
+      }
+
+      // 在所有项目中查找匹配的设备
+      for (const project of projectsResponse.userProjects) {
+        try {
+          // 从项目名称中提取warehouseId和projectId
+          const projectName = project.name;
+          console.log(`[设备验证] 检查项目: ${projectName}`);
+          const match = projectName.match(/warehouses\/([^/]+)\/projects\/([^/]+)/);
+          if (!match) {
+            console.log(`[设备验证] 项目名称格式不匹配: ${projectName}`);
+            continue;
+          }
+          const warehouseId = match[1];
+          const projectId = match[2];
+          console.log(`[设备验证] 提取到 warehouseId: ${warehouseId}, projectId: ${projectId}`);
+
+          const devicesResponse = await this.#consoleApi.listProjectDevices({
+            warehouseId: warehouseId!,
+            projectId: projectId!,
+            filter: CosQuery.Companion.empty(),
+            pageSize: 100,
+            currentPage: 0,
+          });
+          console.log(
+            `[设备验证] 项目 ${projectName} 中的设备数量: ${
+              devicesResponse.projectDevices.length > 0 || 0
+            }`,
+          );
+
+          if (devicesResponse.projectDevices) {
+            for (const device of devicesResponse.projectDevices) {
+              console.log(`[设备验证] 检查设备: ${device.name}, 序列号: ${device.serialNumber}`);
+              if (device.serialNumber === this.#deviceSerialNumber) {
+                console.log(`[设备验证] 找到匹配的设备: ${device.name}`);
+                this.#deviceValidationStatus = {
+                  isValid: true,
+                  deviceName: (device as any).deviceName,
+                };
+
+                // 将设备验证结果写入 localStorage，供文件上传面板使用
+                const validationData = {
+                  isValid: true,
+                  deviceName: (device as any).deviceName,
+                  deviceId: device.name,
+                  serialNumber: this.#deviceSerialNumber ?? "",
+                  timestamp: Date.now(),
+                };
+                localStorage.setItem(
+                  "coscene-device-validation",
+                  JSON.stringify(validationData) ?? "",
+                );
+                console.log(`[设备验证] 设备验证成功并已缓存`);
+                return;
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`[设备验证] 检查项目 ${project.name} 时出错:`, error);
+        }
+      }
+
+      console.log(`[设备验证] 未找到序列号为 "${this.#deviceSerialNumber}" 的设备`);
+      this.#deviceValidationStatus = {
+        isValid: false,
+        error: `未找到序列号为 "${this.#deviceSerialNumber}" 的设备`,
+      };
+
+      // 将验证失败结果写入 localStorage
+      const validationData = {
+        isValid: false,
+        error: `未找到序列号为 "${this.#deviceSerialNumber}" 的设备`,
+        serialNumber: this.#deviceSerialNumber ?? "",
+        timestamp: Date.now(),
+      };
+      localStorage.setItem("coscene-device-validation", JSON.stringify(validationData) ?? "");
+      console.log(`[设备验证] 验证失败结果已缓存:`, validationData);
+    } catch (error) {
+      console.error(`[设备验证] 验证失败:`, error);
+      this.#deviceValidationStatus = {
+        isValid: false,
+        error: `设备验证失败: ${error instanceof Error ? error.message : String(error)}`,
+      };
+
+      // 将异常结果写入 localStorage
+      const validationData = {
+        isValid: false,
+        error: `设备验证失败: ${error instanceof Error ? error.message : String(error)}`,
+        serialNumber: this.#deviceSerialNumber ?? "",
+        timestamp: Date.now(),
+      };
+      localStorage.setItem("coscene-device-validation", JSON.stringify(validationData) ?? "");
+      console.log(`[设备验证] 异常结果已缓存:`, validationData);
+    }
+  }
+
+  // 获取设备验证状态
+  public getDeviceValidationStatus(): {
+    isValid: boolean;
+    deviceName?: string;
+    error?: string;
+  } {
+    return this.#deviceValidationStatus;
+  }
+
+  // 获取设备序列号
+  public getDeviceSerialNumber(): string | undefined {
+    return this.#deviceSerialNumber;
   }
 }
 

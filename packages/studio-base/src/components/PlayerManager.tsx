@@ -550,7 +550,18 @@ export default function PlayerManager(
   // Make a RecentSources array for the PlayerSelectionContext
   const recentSources = useMemo(() => {
     return recents.map((item) => {
-      return { id: item.id, title: item.title, label: item.label };
+      // 对于连接类型的数据源，提取设备序列号
+      let deviceSerialNumber: string | undefined;
+      if (item.type === "connection" && item.extra?.deviceSerialNumber) {
+        deviceSerialNumber = item.extra.deviceSerialNumber;
+      }
+
+      return {
+        id: item.id,
+        title: item.title,
+        label: item.label,
+        deviceSerialNumber,
+      };
     });
   }, [recents]);
 

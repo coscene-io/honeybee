@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { StrictMode, useMemo } from "react";
+import { StrictMode, useMemo, useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
 import { useCrash } from "@foxglove/hooks";
@@ -57,6 +57,124 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
   const device = useCoreData(selectDevice);
   const deviceId = useMemo(() => device.value?.name.split("/").pop(), [device]);
 
+  // 检查设备验证状态（仅对IP+端口连接的coscene-websocket数据源）
+  const [deviceValidationStatus, setDeviceValidationStatus] = useState(() => {
+    if (dataSource?.type === "connection" && (dataSource as any).id === "coscene-websocket") {
+      // 检查是否有key参数，如果有说明是平台跳转连接，不需要SN验证
+      const urlState = (dataSource as any).urlState;
+      if (urlState?.parameters?.key) {
+        return { isValid: true }; // 平台跳转连接默认有效
+      }
+
+      // 没有key参数说明是IP+端口连接，需要检查SN验证状态
+      const player = (dataSource as any).player;
+      if (player && typeof player.getDeviceValidationStatus === "function") {
+        return player.getDeviceValidationStatus();
+      }
+    }
+    return { isValid: true }; // 非websocket连接默认有效
+  });
+
+  // 获取设备序列号（仅对IP+端口连接的coscene-websocket数据源）
+  const [deviceSerialNumber, setDeviceSerialNumber] = useState(() => {
+    if (dataSource?.type === "connection" && (dataSource as any).id === "coscene-websocket") {
+      // 检查是否有key参数，如果有说明是平台跳转连接，不需要SN
+      const urlState = (dataSource as any).urlState;
+      if (urlState?.parameters?.key) {
+        return undefined; // 平台跳转连接不需要SN
+      }
+
+      // 没有key参数说明是IP+端口连接，需要获取SN
+      const player = (dataSource as any).player;
+      if (player && typeof player.getDeviceSerialNumber === "function") {
+        return player.getDeviceSerialNumber();
+      }
+    }
+    return undefined;
+  });
+
+  // 定期检查设备验证状态的变化（仅对IP+端口连接）
+  useEffect(() => {
+    if (dataSource?.type === "connection" && (dataSource as any).id === "coscene-websocket") {
+      // 检查是否有key参数，如果有说明是平台跳转连接，不需要SN验证
+      const urlState = (dataSource as any).urlState;
+      if (urlState?.parameters?.key) {
+        console.log(`[FileUploadPanelAdapter] 检测到平台跳转连接，跳过SN验证`);
+        return; // 平台跳转连接不需要SN验证
+      }
+
+      console.log(`[FileUploadPanelAdapter] 检测到IP+端口连接，开始SN验证`);
+
+      // 从 localStorage 读取设备验证信息
+      const checkValidationFromCache = () => {
+        try {
+          const cachedData = localStorage.getItem("coscene-device-validation");
+          if (cachedData) {
+            const validationData = JSON.parse(cachedData);
+
+            // 检查缓存是否过期（5分钟内有效）
+            const now = Date.now();
+            const cacheAge = now - validationData.timestamp;
+            if (cacheAge > 5 * 60 * 1000) {
+              console.log(`[FileUploadPanelAdapter] 缓存已过期，清除缓存`);
+              localStorage.removeItem("coscene-device-validation");
+              return;
+            }
+
+            const newStatus = {
+              isValid: validationData.isValid,
+              deviceName: validationData.deviceName,
+              error: validationData.error,
+            };
+
+            setDeviceValidationStatus((prevStatus: any) => {
+              if (JSON.stringify(prevStatus) !== JSON.stringify(newStatus)) {
+                console.log(`[FileUploadPanelAdapter] 设备验证状态已更新:`, newStatus);
+                return newStatus;
+              }
+              return prevStatus;
+            });
+
+            const newSerialNumber = validationData.serialNumber;
+            setDeviceSerialNumber((prevSerialNumber: any) => {
+              if (prevSerialNumber !== newSerialNumber) {
+                console.log(`[FileUploadPanelAdapter] 设备序列号已更新:`, newSerialNumber);
+                return newSerialNumber;
+              }
+              return prevSerialNumber;
+            });
+          } else {
+            // 只在第一次没有缓存时打印日志
+            setDeviceValidationStatus((prevStatus: any) => {
+              if (prevStatus.isValid !== false || prevStatus.error !== "未找到设备验证信息") {
+                console.log(`[FileUploadPanelAdapter] 缓存中无设备验证信息`);
+                const defaultStatus = {
+                  isValid: false,
+                  deviceName: undefined,
+                  error: "未找到设备验证信息",
+                };
+                return defaultStatus;
+              }
+              return prevStatus;
+            });
+          }
+        } catch (error) {
+          console.error(`[FileUploadPanelAdapter] 读取缓存失败:`, error);
+        }
+      };
+
+      // 立即检查一次
+      checkValidationFromCache();
+
+      // 每500ms检查一次缓存变化
+      const interval = setInterval(checkValidationFromCache, 500);
+      return () => {
+        clearInterval(interval);
+      };
+    }
+    return undefined;
+  }, [dataSource]);
+
   const deviceLink =
     urlState?.parameters?.deviceLink ??
     `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
@@ -102,11 +220,11 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
 
         // Skip rendering if root is unmounted
         if (isUnmounted || !root) {
-          done?.();
+          done();
           return;
         }
 
-        const ext = (renderState?.extensionData ?? {}) as any;
+        const ext = (renderState.extensionData ?? {}) as any;
         const cfg: Config = { ...defaultConfig, ...(ext.fileUploadConfig ?? {}) };
         const svc = ext.serviceSettings ?? serviceSettings;
         const rbsn: string = ext.refreshButtonServiceName ?? refreshButtonServiceName;
@@ -123,12 +241,14 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
                 device={ext.device}
                 organization={ext.organization}
                 project={ext.project}
+                deviceValidationStatus={ext.deviceValidationStatus}
+                deviceSerialNumber={ext.deviceSerialNumber}
               />
             </CaptureErrorBoundary>
           </StrictMode>,
         );
         // Signal render completion to resume the frame.
-        done?.();
+        done();
       };
 
       return () => {
@@ -152,6 +272,8 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
       project: project.value,
       organization: organization.value,
       device: device.value,
+      deviceValidationStatus,
+      deviceSerialNumber,
       // Panel props for inner tree, routed via onRender to avoid initPanel recreation
       fileUploadConfig,
       serviceSettings,
@@ -166,6 +288,8 @@ function FileUploadPanelAdapter({ config, saveConfig }: Props) {
       project.value,
       organization.value,
       device.value,
+      deviceValidationStatus,
+      deviceSerialNumber,
       fileUploadConfig,
       serviceSettings,
       refreshButtonServiceName,

@@ -19,8 +19,8 @@ export async function fetchActionList(
   serviceName: string = "/record_5Fplayback_5Fmsgs/srv/GetActionList",
   retryCount = 0,
 ): Promise<ActionInfo[]> {
-  const maxRetries = 3;
-  const retryDelay = 2000; // 2秒
+  const maxRetries = 1; // 减少重试次数
+  const retryDelay = 1000; // 减少延迟到1秒
 
   console.debug(
     `[FaultRecord] fetchActionList called with serviceName: ${serviceName}, retryCount: ${retryCount}`,
@@ -49,7 +49,11 @@ export async function fetchActionList(
     return [];
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error(`[FaultRecord] fetchActionList failed: ${errorMessage}`);
+
+    // 只在第一次失败时打印错误日志
+    if (retryCount === 0) {
+      console.error(`[FaultRecord] fetchActionList failed: ${errorMessage}`);
+    }
 
     // 检查是否是服务未启动的错误
     if (errorMessage.includes("has not been advertised") && retryCount < maxRetries) {

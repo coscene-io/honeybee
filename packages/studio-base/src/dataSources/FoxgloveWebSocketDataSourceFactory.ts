@@ -63,11 +63,26 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
           }
         },
       },
+      {
+        id: "deviceSerialNumber",
+        label: "设备序列号（可选）",
+        placeholder: "请输入设备序列号",
+        description: "如需使用文件上传功能，请提供设备序列号",
+        validate: (newValue: string): Error | undefined => {
+          // 设备序列号是可选的，只有在提供时才进行验证
+          if (newValue && newValue.trim() !== "" && newValue.trim().length < 3) {
+            return new Error("设备序列号长度至少3位");
+          }
+
+          return undefined;
+        },
+      },
     ],
   };
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const url = args.params?.url;
+    const deviceSerialNumber = args.params?.deviceSerialNumber;
     const sessionId = args.sessionId;
     if (!url) {
       return;
@@ -85,6 +100,8 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       userId: this.#userId,
       username: this.#username,
       deviceName: this.#deviceName,
+      deviceSerialNumber,
+      consoleApi: args.consoleApi,
       authHeader: args.consoleApi?.getAuthHeader() ?? "",
       retentionWindowMs: args.retentionWindowMs ?? 30 * 1000, // 30 seconds default
       sessionId,

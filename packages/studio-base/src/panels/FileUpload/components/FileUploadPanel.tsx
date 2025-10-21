@@ -147,6 +147,12 @@ interface FileUploadPanelProps {
   // user?: User; // Unused prop
   organization?: Organization;
   project?: Project;
+  deviceValidationStatus?: {
+    isValid: boolean;
+    deviceName?: string;
+    error?: string;
+  };
+  deviceSerialNumber?: string;
 }
 
 // Service factory functions
@@ -187,6 +193,8 @@ export function FileUploadPanel({
   device,
   organization,
   project,
+  deviceValidationStatus,
+  deviceSerialNumber,
 }: FileUploadPanelProps): React.JSX.Element {
   const logContainerRef = useRef<HTMLDivElement>(null); // eslint-disable-line no-restricted-syntax
 
@@ -704,6 +712,7 @@ export function FileUploadPanel({
         const uploadConfigWithDevice = {
           ...uploadConfig,
           device,
+          deviceSerialNumber,
           projectId: uploadConfig.projectId || undefined,
         };
 
@@ -712,6 +721,10 @@ export function FileUploadPanel({
           uploadConfigWithDevice,
           (_progress) => {
             // Progress callback - no logging needed
+          },
+          (level, message) => {
+            // Log callback - send to panel log
+            log(level, message);
           },
         );
 
@@ -850,6 +863,44 @@ export function FileUploadPanel({
         fontFamily: "system-ui, sans-serif",
       }}
     >
+      {/* 设备验证状态显示 */}
+      {deviceValidationStatus && !deviceValidationStatus.isValid && (
+        <div
+          style={{
+            backgroundColor: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: 8,
+            padding: 16,
+            color: "#dc2626",
+          }}
+        >
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>文件上传面板不可用</div>
+          <div style={{ fontSize: 14 }}>{deviceValidationStatus.error ?? "设备验证失败"}</div>
+          <div style={{ fontSize: 12, marginTop: 8, color: "#7f1d1d" }}>
+            如需要使用此面板，请重新填写正确的设备序列号并重新连接。
+          </div>
+        </div>
+      )}
+
+      {/* 没有提供设备序列号时的提示 */}
+      {deviceValidationStatus && deviceValidationStatus.isValid && !deviceSerialNumber && (
+        <div
+          style={{
+            backgroundColor: "#f0f9ff",
+            border: "1px solid #bae6fd",
+            borderRadius: 8,
+            padding: 16,
+            color: "#0369a1",
+          }}
+        >
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>文件上传功能受限</div>
+          <div style={{ fontSize: 14 }}>当前连接未提供设备序列号，文件上传功能不可用。</div>
+          <div style={{ fontSize: 12, marginTop: 8, color: "#0c4a6e" }}>
+            如需使用文件上传功能，请在连接时提供设备序列号。
+          </div>
+        </div>
+      )}
+
       {/* Bag文件管理区域 */}
       <div
         style={{
@@ -1010,6 +1061,10 @@ export function FileUploadPanel({
                           onChange={() => {
                             toggleFileSelection(file.path);
                           }}
+                          disabled={
+                            (deviceValidationStatus && !deviceValidationStatus.isValid) ||
+                            !deviceSerialNumber
+                          }
                           style={{ cursor: "pointer" }}
                         />
                       </td>
@@ -1101,7 +1156,10 @@ export function FileUploadPanel({
                 variant="primary"
                 onClick={onUploadFiles}
                 disabled={
-                  selectedPaths.size === 0 || (uploadConfig.addTags && !uploadConfig.projectId)
+                  selectedPaths.size === 0 ||
+                  (uploadConfig.addTags && !uploadConfig.projectId) ||
+                  (deviceValidationStatus && !deviceValidationStatus.isValid) ||
+                  !deviceSerialNumber
                 }
               >
                 上传选中文件 ({selectedPaths.size})

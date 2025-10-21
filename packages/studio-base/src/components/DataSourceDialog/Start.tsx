@@ -331,10 +331,21 @@ export default function Start(): React.JSX.Element {
                             }}
                             className={classes.recentListItemButton}
                           >
-                            <TextMiddleTruncate
-                              className={classes.recentSourceSecondary}
-                              text={recent.title}
-                            />
+                            <Stack direction="column" style={{ width: "100%", gap: "4px" }}>
+                              <TextMiddleTruncate
+                                className={classes.recentSourceSecondary}
+                                text={recent.title}
+                              />
+                              {recent.deviceSerialNumber && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  style={{ fontSize: "0.75rem", opacity: 0.8 }}
+                                >
+                                  SN: {recent.deviceSerialNumber}
+                                </Typography>
+                              )}
+                            </Stack>
                           </ListItemButton>
                         </ListItem>
                       ))}

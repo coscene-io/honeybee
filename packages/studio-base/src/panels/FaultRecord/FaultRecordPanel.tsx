@@ -156,10 +156,14 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
     }
   }, [addLog, context, config.actionListService.serviceName]);
 
-  // Fetch on mount only
+  // Fetch on mount only - 使用 useRef 确保只在组件挂载时调用一次
+  const hasLoadedActions = useRef(false);
   useEffect(() => {
-    void loadAvailableActions();
-  }, [loadAvailableActions]);
+    if (!hasLoadedActions.current) {
+      hasLoadedActions.current = true;
+      void loadAvailableActions();
+    }
+  }, []); // 空依赖数组，只在挂载时执行一次
 
   // Wire onRender to hydrate config and state from renderState
   useEffect(() => {

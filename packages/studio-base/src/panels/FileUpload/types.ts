@@ -59,6 +59,7 @@ export type UploadConfig = {
   addTags: boolean;
   tags: Label[];
   device?: { name: string; [key: string]: any } | string;
+  deviceSerialNumber?: string;
 };
 
 export type LogLine = { id: string; ts: string; level: "info" | "warn" | "error"; msg: string };
@@ -70,5 +71,6 @@ export interface CoSceneClient {
     files: FileCandidate[],
     cfg: Partial<UploadConfig> & { projectId: string | undefined },
     onProgress?: (p: number) => void,
+    onLog?: (level: "info" | "warn" | "error", message: string) => void,
   ): Promise<{ taskName?: string; recordName?: string; success: boolean }>;
 }
