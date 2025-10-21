@@ -35,6 +35,9 @@ export type ExternalInitConfig = {
   taskId?: string;
   // if has targetFileName, set seek to the target file
   targetFileName?: string;
+  // Current organization slug, if the data is from a public project,
+  // this is the data publisher's organization slug
+  organizationSlug?: string;
 };
 
 export type DataSource = {
