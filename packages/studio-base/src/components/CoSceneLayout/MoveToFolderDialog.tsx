@@ -118,6 +118,7 @@ export function MoveToFolderDialog({
           />
           {selectedOption?.isNewFolder === true && (
             <TextField
+              autoFocus
               label={t("folder")}
               value={newFolderValue}
               slotProps={{ htmlInput: { maxLength: 60 } }}
