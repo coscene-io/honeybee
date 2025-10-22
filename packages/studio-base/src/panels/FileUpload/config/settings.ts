@@ -1,0 +1,185 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import { produce } from "immer";
+import _ from "lodash";
+import { useCallback, useEffect } from "react";
+
+import { SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
+import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
+
+import type { Config } from "./types";
+
+// Config interface imported from types.ts
+export type { Config } from "./types";
+export const settingsActionTypes = {
+  UPDATE: "update" as const,
+};
+
+export function settingsReducer(config: Config, action: SettingsTreeAction): Config {
+  if (action.action !== "update") {
+    return config;
+  }
+
+  const { path, value } = action.payload;
+
+  return produce(config, (draft) => {
+    _.set(draft, path.slice(1), value);
+  });
+}
+
+export const defaultConfig = {
+  refreshButtonService: { serviceName: "/recordbag_5Fmsgs/srv/GetBagList" },
+  actionListService: { serviceName: "/recordbag_5Fmsgs/srv/GetActionList" },
+  uploadAllowedService: { serviceName: "/recordbag_5Fmsgs/srv/GetUploadAllowed" },
+  rosServiceUrl: "http://localhost:11311",
+  coSceneApiUrl: "https://api.coscene.cn",
+} as const satisfies Config;
+
+// 处理设置树更新动作
+export function settingsActionReducer(config: Config, action: SettingsTreeAction): Config {
+  // 处理重置操作 - 当用户点击"重置默认值"时
+  if (action.action === "perform-node-action" && action.payload.id === "reset") {
+    return { ...defaultConfig } as Config;
+  }
+
+  // 处理字段更新
+  if (action.action === "update" && action.payload.path && action.payload.value !== undefined) {
+    const newConfig: Config = { ...config };
+    const pathArray = Array.isArray(action.payload.path)
+      ? action.payload.path
+      : [action.payload.path];
+    const pathStr = pathArray.join(".");
+    const value = action.payload.value;
+
+    // 刷新按钮服务配置更新
+    if (pathStr === "general.refreshButtonService.serviceName") {
+      newConfig.refreshButtonService = {
+        ...config.refreshButtonService,
+        serviceName: String(value),
+      };
+    }
+
+    // Action 列表服务配置更新
+    if (pathStr === "general.actionListService.serviceName") {
+      newConfig.actionListService = {
+        ...config.actionListService,
+        serviceName: String(value),
+      } as any;
+    }
+
+    // 上传状态检查服务配置更新
+    if (pathStr === "general.uploadAllowedService.serviceName") {
+      newConfig.uploadAllowedService = {
+        ...config.uploadAllowedService,
+        serviceName: String(value),
+      } as any;
+    }
+
+    return newConfig;
+  }
+
+  return config;
+}
+
+// 构建设置树
+export function buildSettingsTree(config: Config): SettingsTreeNodes {
+  const actionHandler = undefined; // 将在usePanelSettingsTreeUpdate中设置
+  return useSettingsNodes(config, actionHandler);
+}
+
+// 生成设置树节点
+export function useSettingsNodes(
+  config: Config,
+  actionHandler?: (action: SettingsTreeAction) => void,
+): Record<string, any> {
+  return {
+    general: {
+      label: "刷新按钮配置",
+      icon: "Settings",
+      handler: actionHandler,
+      children: {
+        refreshButtonService: {
+          label: "刷新按钮",
+          icon: "Refresh",
+          handler: actionHandler,
+          fields: {
+            serviceName: {
+              label: "服务名称",
+              input: "string",
+              value: config.refreshButtonService.serviceName,
+              placeholder: "输入刷新按钮调用的服务名称",
+              help: "刷新按钮点击时调用的ROS服务名称",
+            },
+          },
+        },
+        actionListService: {
+          label: "Action 列表接口",
+          icon: "List",
+          handler: actionHandler,
+          fields: {
+            serviceName: {
+              label: "服务名称",
+              input: "string",
+              value: config.actionListService.serviceName ?? "/recordbag_5Fmsgs/srv/GetActionList",
+              placeholder: "输入查询 Action 列表的服务名称",
+              help: "获取可用 Action 名称列表的服务名称",
+            },
+          },
+        },
+        uploadAllowedService: {
+          label: "上传状态检查接口",
+          icon: "CheckCircle",
+          handler: actionHandler,
+          fields: {
+            serviceName: {
+              label: "服务名称",
+              input: "string",
+              value:
+                config.uploadAllowedService.serviceName ?? "/recordbag_5Fmsgs/srv/GetUploadAllowed",
+              placeholder: "输入检查上传状态的服务名称",
+              help: "检查是否允许上传数据的服务名称",
+            },
+          },
+        },
+      },
+      actions: [
+        {
+          type: "action",
+          id: "reset",
+          label: "重置默认值",
+          icon: "Reset",
+        },
+      ],
+    },
+  };
+}
+
+// 面板设置钩子
+export function useFileUploadPanelSettings(
+  config: Config,
+  saveConfig: (config: Config) => void,
+): void {
+  const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
+
+  const actionHandler = useCallback(
+    (action: SettingsTreeAction) => {
+      const newConfig = settingsActionReducer(config, action);
+      if (newConfig !== config) {
+        saveConfig(newConfig);
+      }
+    },
+    [config, saveConfig],
+  );
+
+  useEffect(() => {
+    updatePanelSettingsTree({
+      actionHandler,
+      nodes: useSettingsNodes(config, actionHandler),
+    });
+  }, [actionHandler, config, updatePanelSettingsTree]);
+}
