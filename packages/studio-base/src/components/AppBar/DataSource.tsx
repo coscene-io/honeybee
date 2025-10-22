@@ -124,6 +124,7 @@ const selectNetworkStatus = (ctx: MessagePipelineContext) =>
   ctx.playerState.activeData?.networkStatus;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectProject = (state: CoreDataStore) => state.project;
 const selectRecord = (state: CoreDataStore) => state.record;
 const selectDevice = (state: CoreDataStore) => state.device;
@@ -405,22 +406,21 @@ const DataPlatformSource = () => {
   const { classes } = useStyles();
   const domainConfig = getDomainConfig();
 
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
   const dataSource = useCoreData(selectDataSource);
-  const organization = useCoreData(selectOrganization);
   const jobRun = useCoreData(selectJobRun);
 
   const recordId = useMemo(() => record.value?.name.split("/").pop(), [record]);
   const recordDisplayName = useMemo(() => record.value?.title, [record]);
   const projectSlug = useMemo(() => project.value?.slug, [project]);
-  const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
   const jobRunDisplayName = useMemo(() => jobRun.value?.spec?.spec?.name, [jobRun]);
 
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://dev.coscene.cn/${organizationSlug}/${projectSlug}`
-      : `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`;
+      ? `https://dev.coscene.cn/${externalInitConfig?.organizationSlug}/${projectSlug}`
+      : `https://${domainConfig.webDomain}/${externalInitConfig?.organizationSlug}/${projectSlug}`;
 
   const secondaryHref = `${projectHref}/records/${recordId}`;
 
