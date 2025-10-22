@@ -8,6 +8,7 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { ComlinkWrap } from "@foxglove/den/worker";
+import Logger from "@foxglove/log";
 import { MessagePath } from "@foxglove/message-path";
 import { toSec, subtract as subtractTime } from "@foxglove/rostime";
 import { Immutable, MessageEvent, Time } from "@foxglove/studio";
@@ -31,6 +32,8 @@ import type {
 } from "./TimestampDatasetsBuilderImpl";
 import { getChartValue, isChartValue } from "../datum";
 import { MathFunction, mathFunctions } from "../mathFunctions";
+
+const log = Logger.getLogger(__filename);
 
 // If the datasets builder is garbage collected we also need to cleanup the worker
 // This registry ensures the worker is cleaned up when the builder is garbage collected
@@ -81,9 +84,11 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       new URL("./TimestampDatasetsBuilderImpl.worker", import.meta.url),
     );
     worker.onerror = (event) => {
+      log.error("[TimestampDatasetsBuilder] Worker error:", event);
       handleWorkerError?.(event);
     };
     worker.onmessageerror = (event) => {
+      log.error("[TimestampDatasetsBuilder] Worker message error:", event);
       handleWorkerError?.(event);
     };
     const { remote, dispose } =
