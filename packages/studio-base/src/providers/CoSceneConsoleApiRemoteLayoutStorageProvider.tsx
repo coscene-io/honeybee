@@ -20,16 +20,18 @@ const selectProjectName = (state: CoreDataStore) =>
     : undefined;
 
 const selectUser = (store: UserStore) => store.user;
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const api = useConsoleApi();
   const currentUser = useCurrentUser(selectUser);
+  const loginStatus = useCurrentUser(selectLoginStatus);
   const projectName = useCoreData(selectProjectName);
 
   const enabled = useMemo(() => {
-    if (currentUser?.userId == undefined) {
+    if (currentUser?.userId == undefined || loginStatus !== "alreadyLogin") {
       return false;
     }
 
@@ -38,7 +40,7 @@ export default function CoSceneConsoleApiRemoteLayoutStorageProvider({
 
     // Enable if no data source key is present, or if both data source key and project name are present
     return !hasDataSourceKey || projectName != undefined;
-  }, [currentUser?.userId, projectName]);
+  }, [currentUser?.userId, loginStatus, projectName]);
 
   const apiStorage = useMemo(
     () =>
