@@ -584,7 +584,7 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
         | undefined
     )?.settings?.language;
 
-    if (userLanguage !== i18n.language) {
+    if (userLanguage != undefined && userLanguage !== i18n.language) {
       void i18n.changeLanguage(userLanguage);
 
       void setSelectedLanguage(userLanguage as Language);
