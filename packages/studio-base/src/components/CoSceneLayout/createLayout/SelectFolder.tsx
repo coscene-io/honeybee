@@ -52,6 +52,7 @@ export function SelectFolder({
       />
       {value.isNewFolder && (
         <TextField
+          autoFocus
           label={t("folder")}
           slotProps={{ htmlInput: { maxLength: 60 } }}
           value={value.value}
