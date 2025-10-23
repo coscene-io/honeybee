@@ -161,7 +161,11 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     blocks: Immutable<(MessageBlock | undefined)[]>,
     progress: () => Promise<boolean>,
   ): Promise<void> {
-    // identify if series need resetting because
+    if (this.#xAxisMode === "partialTimestamp") {
+      return;
+    }
+
+    // identify if series need resetting because of the blocks
     for (const series of this.#series) {
       if (series.blockCursor.nextWillReset(blocks)) {
         this.#pendingDispatch.push({
