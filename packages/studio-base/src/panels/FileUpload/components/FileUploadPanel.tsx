@@ -240,16 +240,83 @@ export function FileUploadPanel({
   const [bagFiles, setBagFiles] = useState<BagFile[]>([]);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
 
-  // Add upload configuration state for project and tags
-  const [uploadConfig, setUploadConfig] = useState<UploadConfig>({
-    projectId: null, // eslint-disable-line no-restricted-syntax
-    addTags: false,
-    tags: [],
-  });
-
   // 过滤条件
   const [selectedMode, setSelectedMode] = useState<string>(""); // "" | "imd" | "signal"
   const [selectedActionName, setSelectedActionName] = useState<string>(""); // "" 或具体action名称
+
+  // 新增筛选条件
+  const [pathFilter, setPathFilter] = useState<string>(""); // 路径筛选
+  const [nameFilter, setNameFilter] = useState<string>(""); // 名称筛选
+  const [sortBy, setSortBy] = useState<"path" | "mode" | "action_name" | "name">("path"); // 排序字段
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc"); // 排序方向
+
+  // 筛选和排序后的文件列表
+  const filteredAndSortedFiles = useMemo(() => {
+    const filtered = bagFiles.filter((file) => {
+      // Mode筛选
+      if (selectedMode && file.mode !== selectedMode) {
+        return false;
+      }
+
+      // Action Name筛选
+      if (selectedActionName && file.action_name !== selectedActionName) {
+        return false;
+      }
+
+      // Path筛选（模糊匹配）
+      if (pathFilter && !file.path.toLowerCase().includes(pathFilter.toLowerCase())) {
+        return false;
+      }
+
+      // 名称筛选（模糊匹配）- 使用文件名而不是name属性
+      const fileName = file.path.split("/").pop() ?? "";
+      if (nameFilter && !fileName.toLowerCase().includes(nameFilter.toLowerCase())) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // 排序
+    filtered.sort((a, b) => {
+      let aValue: string;
+      let bValue: string;
+
+      switch (sortBy) {
+        case "path":
+          aValue = a.path;
+          bValue = b.path;
+          break;
+        case "mode":
+          aValue = a.mode;
+          bValue = b.mode;
+          break;
+        case "action_name":
+          aValue = a.action_name;
+          bValue = b.action_name;
+          break;
+        case "name":
+          aValue = a.path.split("/").pop() ?? "";
+          bValue = b.path.split("/").pop() ?? "";
+          break;
+        default:
+          aValue = a.path;
+          bValue = b.path;
+      }
+
+      const comparison = aValue.localeCompare(bValue);
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [bagFiles, selectedMode, selectedActionName, pathFilter, nameFilter, sortBy, sortOrder]);
+
+  // Add upload configuration state for project and tags
+  const [uploadConfig, setUploadConfig] = useState<UploadConfig>({
+    projectId: undefined,
+    addTags: false,
+    tags: [],
+  });
 
   // 获取所有可用的action_name选项 - 使用真实ROS服务调用
   const [availableActionNames, setAvailableActionNames] = useState<string[]>([]);
@@ -267,6 +334,10 @@ export function FileUploadPanel({
         uploadConfig: UploadConfig;
         selectedMode: string;
         selectedActionName: string;
+        pathFilter: string;
+        nameFilter: string;
+        sortBy: "path" | "mode" | "action_name" | "name";
+        sortOrder: "asc" | "desc";
       }>;
       if (st.selectedPaths && Array.isArray(st.selectedPaths)) {
         setSelectedPaths(new Set(st.selectedPaths));
@@ -280,6 +351,21 @@ export function FileUploadPanel({
       if (typeof st.selectedActionName === "string") {
         setSelectedActionName(st.selectedActionName);
       }
+      if (typeof st.pathFilter === "string") {
+        setPathFilter(st.pathFilter);
+      }
+      if (typeof st.nameFilter === "string") {
+        setNameFilter(st.nameFilter);
+      }
+      if (
+        typeof st.sortBy === "string" &&
+        ["path", "mode", "action_name", "name"].includes(st.sortBy)
+      ) {
+        setSortBy(st.sortBy);
+      }
+      if (typeof st.sortOrder === "string" && ["asc", "desc"].includes(st.sortOrder)) {
+        setSortOrder(st.sortOrder);
+      }
     } catch {
       // Ignore malformed initialState
     }
@@ -292,10 +378,24 @@ export function FileUploadPanel({
       uploadConfig,
       selectedMode,
       selectedActionName,
+      pathFilter,
+      nameFilter,
+      sortBy,
+      sortOrder,
     };
     // saveState is provided by PanelExtensionContext; optional chaining to be safe
     context.saveState(uiState);
-  }, [selectedPaths, uploadConfig, selectedMode, selectedActionName, context]);
+  }, [
+    selectedPaths,
+    uploadConfig,
+    selectedMode,
+    selectedActionName,
+    pathFilter,
+    nameFilter,
+    sortBy,
+    sortOrder,
+    context,
+  ]);
 
   // 加载可用的action名称
   const loadAvailableActionNames = useCallback(
@@ -663,6 +763,39 @@ export function FileUploadPanel({
     });
   }, []);
 
+  // 批量选择功能
+  const selectAllFiltered = useCallback(() => {
+    const allPaths = new Set(filteredAndSortedFiles.map((file) => file.path));
+    setSelectedPaths(allPaths);
+  }, [filteredAndSortedFiles]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedPaths(new Set());
+  }, []);
+
+  const invertSelection = useCallback(() => {
+    setSelectedPaths((prev) => {
+      const newSet = new Set<string>();
+      filteredAndSortedFiles.forEach((file) => {
+        if (!prev.has(file.path)) {
+          newSet.add(file.path);
+        }
+      });
+      return newSet;
+    });
+  }, [filteredAndSortedFiles]);
+
+  // 按模式批量选择
+  const selectByMode = useCallback(
+    (mode: string) => {
+      const modePaths = new Set(
+        filteredAndSortedFiles.filter((file) => file.mode === mode).map((file) => file.path),
+      );
+      setSelectedPaths(modePaths);
+    },
+    [filteredAndSortedFiles],
+  );
+
   // Modified upload function to include project and tag information
   const onUploadFiles = useCallback(async () => {
     if (selectedPaths.size === 0) {
@@ -882,24 +1015,28 @@ export function FileUploadPanel({
         </div>
       )}
 
-      {/* 没有提供设备序列号时的提示 */}
-      {deviceValidationStatus && deviceValidationStatus.isValid && !deviceSerialNumber && (
-        <div
-          style={{
-            backgroundColor: "#f0f9ff",
-            border: "1px solid #bae6fd",
-            borderRadius: 8,
-            padding: 16,
-            color: "#0369a1",
-          }}
-        >
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>文件上传功能受限</div>
-          <div style={{ fontSize: 14 }}>当前连接未提供设备序列号，文件上传功能不可用。</div>
-          <div style={{ fontSize: 12, marginTop: 8, color: "#0c4a6e" }}>
-            如需使用文件上传功能，请在连接时提供设备序列号。
+      {/* 没有提供设备序列号时的提示（仅对IP+端口连接显示） */}
+      {deviceValidationStatus &&
+        deviceValidationStatus.isValid &&
+        !deviceSerialNumber &&
+        deviceValidationStatus.error !== "未找到设备验证信息" &&
+        deviceValidationStatus.error !== "平台跳转连接" && (
+          <div
+            style={{
+              backgroundColor: "#f0f9ff",
+              border: "1px solid #bae6fd",
+              borderRadius: 8,
+              padding: 16,
+              color: "#0369a1",
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>文件上传功能受限</div>
+            <div style={{ fontSize: 14 }}>当前连接未提供设备序列号，文件上传功能不可用。</div>
+            <div style={{ fontSize: 12, marginTop: 8, color: "#0c4a6e" }}>
+              如需使用文件上传功能，请在连接时提供设备序列号。
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Bag文件管理区域 */}
       <div
@@ -918,12 +1055,44 @@ export function FileUploadPanel({
             marginBottom: 16,
           }}
         >
-          <div style={{ fontSize: 18, fontWeight: 600 }}>Bag文件管理</div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>文件管理</div>
         </div>
 
         {/* 过滤条件 */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 16,
+              alignItems: "center",
+              marginBottom: 12,
+              flexWrap: "wrap",
+              padding: "12px",
+              backgroundColor: "#f9fafb",
+              borderRadius: 6,
+              border: "1px solid #e5e7eb",
+            }}
+          >
+            {/* 显示当前连接的机器人SN */}
+            {deviceSerialNumber && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <label style={{ fontSize: 14, fontWeight: 500, color: "#059669" }}>当前SN:</label>
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#059669",
+                    backgroundColor: "#d1fae5",
+                    padding: "4px 8px",
+                    borderRadius: 4,
+                    border: "1px solid #a7f3d0",
+                  }}
+                >
+                  {deviceSerialNumber}
+                </span>
+              </div>
+            )}
+
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <label style={{ fontSize: 14, fontWeight: 500 }}>模式:</label>
               <select
@@ -967,10 +1136,202 @@ export function FileUploadPanel({
               </select>
             </div>
 
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ fontSize: 14, fontWeight: 500 }}>路径筛选:</label>
+              <input
+                type="text"
+                value={pathFilter}
+                onChange={(e) => {
+                  setPathFilter(e.target.value);
+                }}
+                placeholder="输入路径关键词..."
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 4,
+                  fontSize: 14,
+                  width: "200px",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ fontSize: 14, fontWeight: 500 }}>名称筛选:</label>
+              <input
+                type="text"
+                value={nameFilter}
+                onChange={(e) => {
+                  setNameFilter(e.target.value);
+                }}
+                placeholder="输入文件名关键词..."
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 4,
+                  fontSize: 14,
+                  width: "200px",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ fontSize: 14, fontWeight: 500 }}>排序:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value as "path" | "mode" | "action_name" | "name");
+                }}
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 4,
+                  fontSize: 14,
+                }}
+              >
+                <option value="path">按路径</option>
+                <option value="mode">按模式</option>
+                <option value="action_name">按Action Name</option>
+                <option value="name">按名称</option>
+              </select>
+              <button
+                onClick={() => {
+                  setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                }}
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 4,
+                  fontSize: 14,
+                  backgroundColor: "white",
+                  cursor: "pointer",
+                }}
+              >
+                {sortOrder === "asc" ? "↑" : "↓"}
+              </button>
+            </div>
+
             <Button variant="primary" onClick={onGetBagList} disabled={phase === "loading"}>
               {phase === "loading" ? "刷新中..." : "刷新"}
             </Button>
+
+            <button
+              onClick={() => {
+                setPathFilter("");
+                setNameFilter("");
+                setSelectedMode("");
+                setSelectedActionName("");
+              }}
+              style={{
+                padding: "6px 12px",
+                border: "1px solid #d1d5db",
+                borderRadius: 4,
+                fontSize: 14,
+                backgroundColor: "white",
+                cursor: "pointer",
+              }}
+            >
+              清除筛选
+            </button>
           </div>
+
+          {/* 批量选择操作 */}
+          {phase === "loaded" && filteredAndSortedFiles.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                marginBottom: 12,
+                padding: "8px 12px",
+                backgroundColor: "#f0f9ff",
+                borderRadius: 6,
+                border: "1px solid #bae6fd",
+              }}
+            >
+              <span style={{ fontSize: 14, fontWeight: 500 }}>
+                已选择 {selectedPaths.size} / {filteredAndSortedFiles.length} 个文件
+              </span>
+              <button
+                onClick={selectAllFiltered}
+                style={{
+                  padding: "4px 8px",
+                  border: "1px solid #3b82f6",
+                  borderRadius: 4,
+                  fontSize: 12,
+                  backgroundColor: "#3b82f6",
+                  color: "white",
+                  cursor: "pointer",
+                }}
+              >
+                全选筛选结果
+              </button>
+              <button
+                onClick={deselectAll}
+                style={{
+                  padding: "4px 8px",
+                  border: "1px solid #6b7280",
+                  borderRadius: 4,
+                  fontSize: 12,
+                  backgroundColor: "white",
+                  color: "#6b7280",
+                  cursor: "pointer",
+                }}
+              >
+                取消全选
+              </button>
+              <button
+                onClick={invertSelection}
+                style={{
+                  padding: "4px 8px",
+                  border: "1px solid #6b7280",
+                  borderRadius: 4,
+                  fontSize: 12,
+                  backgroundColor: "white",
+                  color: "#6b7280",
+                  cursor: "pointer",
+                }}
+              >
+                反选
+              </button>
+
+              {/* 按模式批量选择 */}
+              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>按模式:</span>
+                <button
+                  onClick={() => {
+                    selectByMode("imd");
+                  }}
+                  style={{
+                    padding: "4px 8px",
+                    border: "1px solid #10b981",
+                    borderRadius: 4,
+                    fontSize: 12,
+                    backgroundColor: "white",
+                    color: "#10b981",
+                    cursor: "pointer",
+                  }}
+                >
+                  选择imd
+                </button>
+                <button
+                  onClick={() => {
+                    selectByMode("signal");
+                  }}
+                  style={{
+                    padding: "4px 8px",
+                    border: "1px solid #f59e0b",
+                    borderRadius: 4,
+                    fontSize: 12,
+                    backgroundColor: "white",
+                    color: "#f59e0b",
+                    cursor: "pointer",
+                  }}
+                >
+                  选择signal
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 文件列表表格 */}
@@ -1006,9 +1367,19 @@ export function FileUploadPanel({
                         fontSize: 14,
                         fontWeight: 600,
                         minWidth: "200px",
+                        cursor: "pointer",
+                        backgroundColor: sortBy === "path" ? "#e0f2fe" : "transparent",
+                      }}
+                      onClick={() => {
+                        if (sortBy === "path") {
+                          setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                        } else {
+                          setSortBy("path");
+                          setSortOrder("asc");
+                        }
                       }}
                     >
-                      Path
+                      Path {sortBy === "path" && (sortOrder === "asc" ? "↑" : "↓")}
                     </th>
                     <th
                       style={{
@@ -1017,9 +1388,19 @@ export function FileUploadPanel({
                         fontSize: 14,
                         fontWeight: 600,
                         width: "100px",
+                        cursor: "pointer",
+                        backgroundColor: sortBy === "mode" ? "#e0f2fe" : "transparent",
+                      }}
+                      onClick={() => {
+                        if (sortBy === "mode") {
+                          setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                        } else {
+                          setSortBy("mode");
+                          setSortOrder("asc");
+                        }
                       }}
                     >
-                      Mode
+                      Mode {sortBy === "mode" && (sortOrder === "asc" ? "↑" : "↓")}
                     </th>
                     <th
                       style={{
@@ -1028,9 +1409,19 @@ export function FileUploadPanel({
                         fontSize: 14,
                         fontWeight: 600,
                         width: "150px",
+                        cursor: "pointer",
+                        backgroundColor: sortBy === "action_name" ? "#e0f2fe" : "transparent",
+                      }}
+                      onClick={() => {
+                        if (sortBy === "action_name") {
+                          setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                        } else {
+                          setSortBy("action_name");
+                          setSortOrder("asc");
+                        }
                       }}
                     >
-                      Action Name
+                      Action Name {sortBy === "action_name" && (sortOrder === "asc" ? "↑" : "↓")}
                     </th>
                     <th
                       style={{
@@ -1039,14 +1430,24 @@ export function FileUploadPanel({
                         fontSize: 14,
                         fontWeight: 600,
                         width: "200px",
+                        cursor: "pointer",
+                        backgroundColor: sortBy === "name" ? "#e0f2fe" : "transparent",
+                      }}
+                      onClick={() => {
+                        if (sortBy === "name") {
+                          setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                        } else {
+                          setSortBy("name");
+                          setSortOrder("asc");
+                        }
                       }}
                     >
-                      名称
+                      名称 {sortBy === "name" && (sortOrder === "asc" ? "↑" : "↓")}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {bagFiles.map((file, index) => (
+                  {filteredAndSortedFiles.map((file, index) => (
                     <tr
                       key={file.path}
                       style={{
@@ -1062,7 +1463,7 @@ export function FileUploadPanel({
                             toggleFileSelection(file.path);
                           }}
                           disabled={
-                            (deviceValidationStatus && !deviceValidationStatus.isValid) ||
+                            (deviceValidationStatus && !deviceValidationStatus.isValid) ??
                             !deviceSerialNumber
                           }
                           style={{ cursor: "pointer" }}
@@ -1121,6 +1522,19 @@ export function FileUploadPanel({
               </table>
             </div>
 
+            {filteredAndSortedFiles.length === 0 && bagFiles.length > 0 && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: 32,
+                  color: "#6b7280",
+                  fontSize: 14,
+                }}
+              >
+                没有找到符合条件的文件（共 {bagFiles.length} 个文件）
+              </div>
+            )}
+
             {bagFiles.length === 0 && (
               <div
                 style={{
@@ -1130,14 +1544,14 @@ export function FileUploadPanel({
                   fontSize: 14,
                 }}
               >
-                没有找到符合条件的文件
+                请点击刷新按钮获取文件列表
               </div>
             )}
           </div>
         )}
 
         {/* Project and Tag Selection */}
-        {phase === "loaded" && bagFiles.length > 0 && (
+        {phase === "loaded" && filteredAndSortedFiles.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <ProjectAndTagPicker
               client={coSceneClient}
@@ -1149,7 +1563,7 @@ export function FileUploadPanel({
         )}
 
         {/* 上传按钮 */}
-        {phase === "loaded" && bagFiles.length > 0 && (
+        {phase === "loaded" && filteredAndSortedFiles.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <Button
@@ -1158,8 +1572,8 @@ export function FileUploadPanel({
                 disabled={
                   selectedPaths.size === 0 ||
                   (uploadConfig.addTags && !uploadConfig.projectId) ||
-                  (deviceValidationStatus && !deviceValidationStatus.isValid) ||
-                  !deviceSerialNumber
+                  ((deviceValidationStatus && !deviceValidationStatus.isValid) ??
+                    !deviceSerialNumber)
                 }
               >
                 上传选中文件 ({selectedPaths.size})

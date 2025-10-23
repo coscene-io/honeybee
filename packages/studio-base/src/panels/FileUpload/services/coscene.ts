@@ -13,7 +13,8 @@ import {
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
 
 import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
-import { CosQuery } from "@foxglove/studio-base/util/coscene/cosel";
+import { BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene/cosel";
+import { QueryFields } from "@foxglove/studio-base/util/queries";
 
 import type { CoSceneClient, FileCandidate, UploadConfig } from "../types";
 import { delay } from "../utils/format";
@@ -39,6 +40,19 @@ export class MockCoSceneClient implements CoSceneClient {
     const tagNames = map[projectId] ?? [];
     // Convert string[] to Label[] for mock data
     return tagNames.map((name) => new Label({ name, displayName: name }));
+  }
+
+  public async createLabel(
+    _projectId: string,
+    labelName: string,
+    displayName?: string,
+  ): Promise<Label> {
+    await delay(100);
+    // Mock implementation: return a new label with the provided name
+    return new Label({
+      name: labelName,
+      displayName: displayName ?? labelName,
+    });
   }
 
   public async upload(
@@ -123,6 +137,51 @@ export class RealCoSceneClient implements CoSceneClient {
     }
   }
 
+  public async createLabel(
+    projectId: string,
+    labelName: string,
+    displayName?: string,
+  ): Promise<Label> {
+    try {
+      // Extract warehouse ID and project ID from the full project name
+      // Expected format: "warehouses/{warehouseId}/projects/{projectId}"
+      let warehouseId: string;
+      let actualProjectId: string;
+
+      if (projectId.includes("/")) {
+        const match = projectId.match(/warehouses\/([^/]+)\/projects\/([^/]+)/);
+        if (match) {
+          warehouseId = match[1]!;
+          actualProjectId = match[2]!;
+        } else {
+          // Fallback: assume it's just the project ID
+          warehouseId = "default";
+          actualProjectId = projectId.split("/").pop() ?? projectId;
+        }
+      } else {
+        warehouseId = "default";
+        actualProjectId = projectId;
+      }
+
+      // Create the label using the CoScene API
+      const parent = `warehouses/${warehouseId}/projects/${actualProjectId}`;
+      const label = new Label({
+        name: labelName,
+        displayName: displayName ?? labelName,
+      });
+
+      const response = await this.#api.createLabel({
+        parent,
+        label,
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Failed to create label:", error);
+      throw error;
+    }
+  }
+
   public async upload(
     files: FileCandidate[],
     cfg: Partial<UploadConfig> & { projectId: string | undefined },
@@ -170,22 +229,25 @@ export class RealCoSceneClient implements CoSceneClient {
               deviceName = deviceStr.startsWith("devices/") ? deviceStr : `devices/${deviceStr}`;
             }
           } else if (cfg.deviceSerialNumber) {
-            // 通过设备序列号查找设备
+            // 通过设备序列号查找设备，使用filter直接匹配
             try {
+              const filter = CosQuery.Companion.empty();
+              filter.setField(
+                QueryFields.SERIAL_NUMBER,
+                [BinaryOperator.EQ],
+                [cfg.deviceSerialNumber],
+              );
+
               const projectDevicesResponse = await this.#api.listProjectDevices({
                 warehouseId,
                 projectId,
-                filter: CosQuery.Companion.empty(),
+                filter,
                 pageSize: 100,
                 currentPage: 0,
               });
 
-              const matchingDevice = projectDevicesResponse.projectDevices.find(
-                (device) => device.serialNumber === cfg.deviceSerialNumber,
-              );
-
-              if (matchingDevice) {
-                deviceName = matchingDevice.name;
+              if (projectDevicesResponse.projectDevices.length > 0) {
+                deviceName = projectDevicesResponse.projectDevices[0]!.name;
               } else {
                 throw new Error(`未找到序列号为 "${cfg.deviceSerialNumber}" 的设备`);
               }

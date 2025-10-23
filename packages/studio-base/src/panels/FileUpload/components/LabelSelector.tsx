@@ -50,6 +50,8 @@ interface LabelSelectorProps {
   options: Label[];
   onChange: (labels: Label[]) => void;
   disabled?: boolean;
+  onCreateLabel?: (labelName: string) => Promise<Label>;
+  projectId?: string;
 }
 
 export default function LabelSelector({
@@ -57,27 +59,86 @@ export default function LabelSelector({
   options,
   onChange,
   disabled = false,
+  onCreateLabel,
+  projectId,
 }: LabelSelectorProps): ReactElement {
   const { classes } = useStyles();
   const [inputValue, setInputValue] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
   return (
     <Stack direction="row" alignItems="center" gap={1}>
       <Autocomplete
         multiple
         size="small"
-        disabled={disabled}
+        disabled={disabled || isCreating}
+        freeSolo
         options={options}
         value={value}
         inputValue={inputValue}
         onInputChange={(_, newInputValue) => {
           setInputValue(newInputValue);
         }}
-        onChange={(_, newValue) => {
-          onChange(newValue);
+        onChange={async (_, newValue) => {
+          // Handle both Label objects and string values (for new labels)
+          const processedValue: Label[] = [];
+
+          for (const item of newValue) {
+            if (typeof item === "string") {
+              // This is a new label that needs to be created
+              if (onCreateLabel && projectId && item.trim()) {
+                try {
+                  setIsCreating(true);
+                  const newLabel = await onCreateLabel(item.trim());
+                  processedValue.push(newLabel);
+                } catch (error) {
+                  console.error("Failed to create label:", error);
+                  // Continue with other labels even if one fails
+                } finally {
+                  setIsCreating(false);
+                }
+              }
+            } else {
+              // This is an existing Label object
+              processedValue.push(item);
+            }
+          }
+
+          onChange(processedValue);
         }}
-        getOptionLabel={(option) => option.displayName ?? option.name ?? ""}
-        isOptionEqualToValue={(option, val) => option.name === val.name}
+        getOptionLabel={(option) => {
+          if (typeof option === "string") {
+            return option;
+          }
+          return option.displayName ?? option.name ?? "";
+        }}
+        isOptionEqualToValue={(option, val) => {
+          if (typeof option === "string" || typeof val === "string") {
+            return option === val;
+          }
+          return option.name === val.name;
+        }}
+        filterOptions={(options, { inputValue }) => {
+          const filtered = options.filter((option) =>
+            (option.displayName ?? option.name ?? "")
+              .toLowerCase()
+              .includes(inputValue.toLowerCase()),
+          );
+
+          // Add option to create new label if input doesn't match existing options
+          if (
+            inputValue &&
+            !filtered.some(
+              (option) =>
+                (option.displayName ?? option.name ?? "").toLowerCase() ===
+                inputValue.toLowerCase(),
+            )
+          ) {
+            filtered.push(inputValue as any);
+          }
+
+          return filtered;
+        }}
         renderTags={(tagValue, getTagProps) =>
           tagValue.map((option, index) => {
             const { key, ...tagProps } = getTagProps({ index });
@@ -97,7 +158,7 @@ export default function LabelSelector({
           <TextField
             {...params}
             variant="outlined"
-            placeholder="Select labels"
+            placeholder={isCreating ? "创建标签中..." : "选择或创建标签"}
             size="small"
             sx={{
               minWidth: 150,

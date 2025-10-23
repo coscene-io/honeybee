@@ -55,10 +55,10 @@ export type GetUploadAllowedRsp = {
 };
 
 export type UploadConfig = {
-  projectId: string | null;
+  projectId: string | undefined;
   addTags: boolean;
   tags: Label[];
-  device?: { name: string; [key: string]: any } | string;
+  device?: { name: string; [key: string]: unknown } | string;
   deviceSerialNumber?: string;
 };
 
@@ -67,6 +67,7 @@ export type LogLine = { id: string; ts: string; level: "info" | "warn" | "error"
 export interface CoSceneClient {
   listProjects(): Promise<{ id: string; name: string }[]>;
   listTags(projectId: string): Promise<Label[]>;
+  createLabel(projectId: string, labelName: string, displayName?: string): Promise<Label>;
   upload(
     files: FileCandidate[],
     cfg: Partial<UploadConfig> & { projectId: string | undefined },

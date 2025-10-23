@@ -94,6 +94,29 @@ export function ProjectAndTagPicker({
     [value, onChange],
   );
 
+  const handleCreateLabel = useCallback(
+    async (labelName: string): Promise<Label> => {
+      if (!value.projectId) {
+        throw new Error("请先选择项目");
+      }
+
+      try {
+        const newLabel = await client.createLabel(value.projectId, labelName);
+        log?.("info", `成功创建标签: ${labelName}`);
+
+        // Refresh the available tags list to include the new label
+        const updatedTags = await client.listTags(value.projectId);
+        setAvailableTags(updatedTags);
+
+        return newLabel;
+      } catch (error) {
+        log?.("error", `创建标签失败: ${error}`);
+        throw error;
+      }
+    },
+    [client, value.projectId, log],
+  );
+
   return (
     <Section
       title="上传目标配置"
@@ -124,7 +147,7 @@ export function ProjectAndTagPicker({
             }}
             value={value.projectId || ""}
             onChange={(e) => {
-              onChange({ ...value, projectId: e.target.value || null });
+              onChange({ ...value, projectId: e.target.value || undefined });
             }}
           >
             <option value="">请选择项目</option>
@@ -169,7 +192,7 @@ export function ProjectAndTagPicker({
                   justifyContent: "space-between",
                 }}
               >
-                <span>可选标签（来自所选项目）</span>
+                <span style={{ fontWeight: 500 }}>标签来自所选项目，可直接输入创建新标签</span>
                 <span style={{ fontSize: "12px", color: "#9ca3af" }}>
                   {loadingTags ? "加载中…" : `${availableTags.length} 项`}
                 </span>
@@ -178,14 +201,18 @@ export function ProjectAndTagPicker({
                 <div style={{ fontSize: "12px", color: "#9ca3af" }}>请选择项目后再选择标签</div>
               )}
               {value.projectId && availableTags.length === 0 && !loadingTags && (
-                <div style={{ fontSize: "12px", color: "#9ca3af" }}>该项目暂无可用标签</div>
+                <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "8px" }}>
+                  该项目暂无可用标签，您可以直接输入创建新标签
+                </div>
               )}
-              {availableTags.length > 0 && (
+              {value.projectId && (
                 <LabelSelector
                   value={value.tags}
                   options={availableTags}
                   onChange={handleTagsChange}
                   disabled={loadingTags}
+                  onCreateLabel={handleCreateLabel}
+                  projectId={value.projectId}
                 />
               )}
             </div>
