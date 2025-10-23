@@ -188,7 +188,7 @@ export const mainConfig =
       devtool: isDev ? "eval-cheap-module-source-map" : params.prodSourceMap,
 
       output: {
-        publicPath: "/viz/",
+        publicPath: isServe ? "auto" : "/viz/",
 
         // Output filenames should include content hashes in order to cache bust when new versions are available
         filename: isDev ? "[name].js" : "[name].[contenthash].js",
@@ -212,7 +212,9 @@ export const mainConfig =
               <meta property="og:title" content="coScene"/>
               <meta property="og:description" content="visualization and debugging tool for robotics"/>
               <meta property="og:type" content="website"/>
-              <script src="/viz/cos-config.js?t=${buildTime}" type="text/javascript"></script>
+              <script src="${
+                isServe ? "/" : "/viz/"
+              }cos-config.js?t=${buildTime}" type="text/javascript"></script>
               <title>coScene</title>
               <style type="text/css" id="loading-styles">
                 body {

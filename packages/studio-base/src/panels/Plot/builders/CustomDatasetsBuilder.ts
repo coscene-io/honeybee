@@ -8,6 +8,7 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { ComlinkWrap } from "@foxglove/den/worker";
+import Logger from "@foxglove/log";
 import { MessagePath } from "@foxglove/message-path";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
@@ -30,6 +31,8 @@ import {
 } from "./IDatasetsBuilder";
 import { getChartValue, isChartValue } from "../datum";
 import { MathFunction, mathFunctions } from "../mathFunctions";
+
+const log = Logger.getLogger(__filename);
 
 type CustomDatasetsSeriesItem = {
   config: Immutable<SeriesItem>;
@@ -66,9 +69,11 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
       new URL("./CustomDatasetsBuilderImpl.worker", import.meta.url),
     );
     worker.onerror = (event) => {
+      log.error("[CustomDatasetsBuilder] Worker error:", event);
       handleWorkerError?.(event);
     };
     worker.onmessageerror = (event) => {
+      log.error("[CustomDatasetsBuilder] Worker message error:", event);
       handleWorkerError?.(event);
     };
     const { remote, dispose } =

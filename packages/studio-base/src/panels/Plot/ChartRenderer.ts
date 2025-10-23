@@ -14,9 +14,12 @@ import { unwrap } from "@foxglove/den/monads";
 import { Immutable } from "@foxglove/studio";
 import { Bounds, Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
-import { fontMonospace } from "@foxglove/theme";
 
 import { OriginalValue } from "./datum";
+
+// Define fontMonospace locally to avoid importing @foxglove/theme which includes React dependencies
+// that cannot be loaded in a Worker context
+const fontMonospace = "'IBM Plex Mono'";
 
 export type Scale = {
   min: number;

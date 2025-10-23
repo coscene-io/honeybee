@@ -397,11 +397,6 @@ export function Plot(props: Props): React.JSX.Element {
     return () => {
       resizeObserver.disconnect();
       plotCoordinator.destroy();
-      // Also explicitly destroy renderer if it hasn't been destroyed yet
-      if (!renderer.isDestroyed()) {
-        renderer.destroy();
-      }
-
       // Debug logging to verify cleanup
       if (process.env.NODE_ENV === "development") {
         console.debug("[Plot] Cleanup completed - coordinator and renderer destroyed");
