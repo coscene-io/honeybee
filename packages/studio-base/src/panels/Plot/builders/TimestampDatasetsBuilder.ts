@@ -56,7 +56,9 @@ type TimestampSeriesItem = {
  * downsampled data.
  */
 export class TimestampDatasetsBuilder implements IDatasetsBuilder {
-  #datasetsBuilderRemote: Comlink.Remote<Comlink.RemoteObject<TimestampDatasetsBuilderImpl>>;
+  #datasetsBuilderRemote?:
+    | Comlink.Remote<Comlink.RemoteObject<TimestampDatasetsBuilderImpl>>
+    | undefined;
 
   #pendingDispatch: Immutable<UpdateDataAction>[] = [];
 
@@ -107,11 +109,17 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       return;
     }
     this.#destroyed = true;
-    this.#dispose?.();
+    this.#pendingDispatch = [];
+    const dispose = this.#dispose;
     this.#dispose = undefined;
+    this.#datasetsBuilderRemote = undefined;
+    dispose?.();
   }
 
   public handlePlayerState(state: Immutable<PlayerState>): Bounds1D | undefined {
+    if (this.#destroyed) {
+      return;
+    }
     const activeData = state.activeData;
     if (!activeData) {
       return;
@@ -161,6 +169,9 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     blocks: Immutable<(MessageBlock | undefined)[]>,
     progress: () => Promise<boolean>,
   ): Promise<void> {
+    if (this.#destroyed) {
+      return;
+    }
     if (this.#xAxisMode === "partialTimestamp") {
       return;
     }
@@ -222,6 +233,9 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   }
 
   public setSeries(series: Immutable<SeriesItem[]>): void {
+    if (this.#destroyed) {
+      return;
+    }
     this.#series = series.map((item) => {
       const existing = this.#series.find((existingItem) => existingItem.config.key === item.key);
       return {
@@ -239,22 +253,49 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   public async getViewportDatasets(
     viewport: Immutable<Viewport>,
   ): Promise<GetViewportDatasetsResult> {
+    if (this.#destroyed || !this.#datasetsBuilderRemote) {
+      return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
+    }
+
+    const remote = this.#datasetsBuilderRemote;
     const dispatch = this.#pendingDispatch;
     if (dispatch.length > 0) {
       this.#pendingDispatch = [];
-      await this.#datasetsBuilderRemote.applyActions(dispatch);
+      await remote.applyActions(dispatch);
+      if (this.#datasetsBuilderRemote !== remote) {
+        return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
+      }
     }
 
-    const datasets = await this.#datasetsBuilderRemote.getViewportDatasets(viewport);
+    const datasets = await remote.getViewportDatasets(viewport);
+    if (this.#datasetsBuilderRemote !== remote) {
+      return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
+    }
     return { datasetsByConfigIndex: datasets, pathsWithMismatchedDataLengths: emptyPaths };
   }
 
   public async getCsvData(): Promise<CsvDataset[]> {
-    return await this.#datasetsBuilderRemote.getCsvData();
+    if (this.#destroyed || !this.#datasetsBuilderRemote) {
+      return [];
+    }
+    const remote = this.#datasetsBuilderRemote;
+    const data = await remote.getCsvData();
+    if (this.#datasetsBuilderRemote !== remote) {
+      return [];
+    }
+    return data;
   }
 
   public async getXRange(): Promise<Bounds1D | undefined> {
-    return await this.#datasetsBuilderRemote.getXRange();
+    if (this.#destroyed || !this.#datasetsBuilderRemote) {
+      return undefined;
+    }
+    const remote = this.#datasetsBuilderRemote;
+    const range = await remote.getXRange();
+    if (this.#datasetsBuilderRemote !== remote) {
+      return undefined;
+    }
+    return range;
   }
 }
 
