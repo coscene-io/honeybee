@@ -46,11 +46,17 @@ import {
   ListOrganizationUsersRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
 import { LayoutViewEnum_LayoutView } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_view_pb";
+import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
 import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
+import {
+  GetConfigMapRequest,
+  UpsertConfigMapRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
 import { DeviceService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_connect";
 import {
   GetDeviceRequest,
@@ -1623,6 +1629,30 @@ class CoSceneConsoleApi {
 
     return config;
   }
+
+  public upsertOrgConfigMap = Object.assign(
+    async (payload: PartialMessage<UpsertConfigMapRequest>): Promise<void> => {
+      const req = new UpsertConfigMapRequest(payload);
+      await getPromiseClient(ConfigMapService).upsertConfigMap(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.UpsertOrgConfigMap, this.#permissionList);
+      },
+    },
+  );
+
+  public getOrgConfigMap = Object.assign(
+    async (payload: PartialMessage<GetConfigMapRequest>): Promise<ConfigMap> => {
+      const req = new GetConfigMapRequest(payload);
+      return await getPromiseClient(ConfigMapService).getConfigMap(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.GetOrgConfigMap, this.#permissionList);
+      },
+    },
+  );
 }
 
 export type { Org, DeviceCodeResponse, Session, CoverageResponse };

@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { JsonValue } from "@bufbuild/protobuf";
+import { Value } from "@bufbuild/protobuf";
 import Brightness5Icon from "@mui/icons-material/Brightness5";
 import ComputerIcon from "@mui/icons-material/Computer";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
@@ -38,6 +40,8 @@ import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
@@ -63,6 +67,7 @@ const RETENTION_WINDOW_MS = [
   3 * 60 * 1000,
   5 * 60 * 1000,
 ];
+const PERSONAL_INFO_CONFIG_ID = "personalInfo";
 
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
@@ -412,6 +417,8 @@ export function StudioRemoteConfigUrl(): React.ReactElement {
   );
 }
 
+const selectUser = (store: UserStore) => store.user;
+
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
 
@@ -419,6 +426,8 @@ export function LanguageSettings(): React.ReactElement {
   const selectedLanguage: Language = useMemo(() => i18n.language as Language, [i18n.language]);
 
   const appConfig = getAppConfig();
+  const consoleApi = useConsoleApi();
+  const currentUser = useCurrentUser(selectUser);
 
   const LANGUAGE_OPTIONS: { key: Language; value: string }[] = useMemo(
     () =>
@@ -439,9 +448,38 @@ export function LanguageSettings(): React.ReactElement {
         console.error("Failed to switch languages", error);
         reportError(error as Error);
       });
+
+      if (consoleApi.upsertOrgConfigMap.permission()) {
+        const configName = `users/${currentUser?.userId}/configMaps/${PERSONAL_INFO_CONFIG_ID}`;
+
+        const userConfig = await consoleApi.getOrgConfigMap({
+          name: configName,
+        });
+
+        const settings = {
+          ...(userConfig.value?.toJson() as
+            | {
+                settings?: {
+                  language?: string;
+                };
+              }
+            | undefined),
+          settings: {
+            language: lang,
+          },
+        };
+
+        void consoleApi.upsertOrgConfigMap({
+          configMap: {
+            name: configName,
+            value:
+              Object.keys(settings).length > 0 ? Value.fromJson(settings as JsonValue) : undefined,
+          },
+        });
+      }
     },
 
-    [i18n, setSelectedLanguage],
+    [consoleApi, currentUser?.userId, i18n, setSelectedLanguage],
   );
 
   const options: { key: string; text: string; data: string }[] = useMemo(
