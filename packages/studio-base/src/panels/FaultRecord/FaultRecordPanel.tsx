@@ -33,6 +33,8 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
     selectedActionName: "",
     actionDurations: {}, // Action特定的duration配置
     logs: [],
+    recordingTimers: {}, // 录制定时器，用于录制结束提醒
+    actionRecordingStates: {}, // 每个Action的录制状态
   });
 
   // Add initial log entry
@@ -45,6 +47,12 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
   );
   const [_isLoadingActionDetail, setIsLoadingActionDetail] = useState(false);
   const hydratingRef = useRef(false);
+  const stateRef = useRef(state);
+
+  // 同步 stateRef
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // 获取action特定的duration配置
   const getActionDurations = useCallback(
@@ -163,7 +171,18 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
       hasLoadedActions.current = true;
       void loadAvailableActions();
     }
-  }, []); // 空依赖数组，只在挂载时执行一次
+  }, [loadAvailableActions]); // 添加 loadAvailableActions 依赖
+
+  // 组件卸载时清理所有定时器
+  useEffect(() => {
+    // 仅在组件卸载时清理所有存活的定时器
+    return () => {
+      const timers = Object.values(stateRef.current.recordingTimers ?? {});
+      timers.forEach((timer) => {
+        clearTimeout(timer);
+      });
+    };
+  }, []); // 不要加依赖
 
   // Wire onRender to hydrate config and state from renderState
   useEffect(() => {
@@ -245,60 +264,128 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
   }, [state, context]);
 
   // Start record (async; do not block UI)
-  const handleStartRecord = useCallback(
-    async (actionName: string) => {
-      if (!actionName) {
-        addLog("请选择要录制的Action", "error");
-        return;
-      }
+  const handleStartRecord = async (actionName: string) => {
+    if (!actionName) {
+      addLog("请选择要录制的Action", "error");
+      return;
+    }
 
-      // 获取action特定的duration配置
-      const durations = getActionDurations(actionName);
+    // 检查该Action是否已经在录制中
+    if (stateRef.current.actionRecordingStates[actionName] === true) {
+      addLog(`Action: ${actionName} 录制已在进行中，请先停止录制`, "error");
+      console.debug(
+        `[DEBUG] Action ${actionName} 录制状态:`,
+        stateRef.current.actionRecordingStates[actionName],
+      );
+      console.debug(`[DEBUG] 当前所有录制状态:`, stateRef.current.actionRecordingStates);
+      return;
+    }
 
-      if (durations.preparationDuration < 0) {
-        addLog("触发前数据时长不能小于0", "error");
-        return;
-      }
+    // 获取action特定的duration配置
+    const durations = getActionDurations(actionName);
 
-      addLog(`开始录制 - Action: ${actionName}`);
+    if (durations.preparationDuration < 0) {
+      addLog("触发前数据时长不能小于0", "error");
+      return;
+    }
 
-      try {
-        const req: StartRecordReq = {
-          action_name: actionName,
-          preparation_duration_s: durations.preparationDuration,
-          record_duration_s: durations.recordDuration,
-        };
-        // Fire-and-forget service call - ONLY REAL SERVICE
-        if (context.callService) {
-          context
-            .callService(config.startRecordService.serviceName, req)
-            .then((response: unknown) => {
-              const responseObj = response as { code?: number; msg?: string };
-              const code = typeof responseObj.code === "number" ? responseObj.code : -1;
-              const msg =
-                typeof responseObj.msg === "string" ? responseObj.msg : "Unknown response";
-              if (code === 0) {
-                addLog(`录制开始成功: ${msg}`, "success");
-              } else {
-                addLog(`录制开始失败: ${msg}`, "error");
-              }
-            })
-            .catch((error: unknown) => {
-              addLog(
-                `录制开始异常: ${error instanceof Error ? error.message : "未知错误"}`,
-                "error",
+    addLog(`开始录制 - Action: ${actionName}`);
+
+    try {
+      const req: StartRecordReq = {
+        action_name: actionName,
+        preparation_duration_s: durations.preparationDuration,
+        record_duration_s: durations.recordDuration,
+      };
+      // Fire-and-forget service call - ONLY REAL SERVICE
+      if (context.callService) {
+        context
+          .callService(config.startRecordService.serviceName, req)
+          .then((response: unknown) => {
+            const responseObj = response as { code?: number; msg?: string };
+            const code = typeof responseObj.code === "number" ? responseObj.code : -1;
+            const msg = typeof responseObj.msg === "string" ? responseObj.msg : "Unknown response";
+            if (code === 0) {
+              addLog(`录制开始成功: ${msg}`, "success");
+
+              // 启动录制结束定时器，用于提醒用户录制已完成
+              console.log(
+                `[DEBUG] 创建定时器 - Action: ${actionName}, 时长: ${durations.recordDuration}秒`,
               );
-            });
-        } else {
-          addLog("录制失败: 服务不可用", "error");
-          return;
-        }
-      } catch (error: unknown) {
-        addLog(`录制开始异常: ${error instanceof Error ? error.message : "未知错误"}`, "error");
+
+              // 立即捕获所有需要的变量和函数，避免闭包问题
+              const currentActionName = actionName;
+              const currentRecordDuration = durations.recordDuration;
+              const currentAddLog = addLog;
+              const currentSetState = setState;
+
+              console.log(
+                `[DEBUG] 准备创建定时器 - Action: ${currentActionName}, 时长: ${currentRecordDuration}秒`,
+              );
+
+              const timerId = setTimeout(() => {
+                console.log(`[DEBUG] 定时器到期 - Action: ${currentActionName}`);
+
+                currentAddLog(
+                  `🔴 录制已结束 - Action: ${currentActionName}，录制时长: ${currentRecordDuration}秒，请检查数据`,
+                  "error",
+                );
+
+                // 录制结束，更新状态
+                currentSetState((prev) => {
+                  console.log(
+                    `[DEBUG] 更新状态 - Action: ${currentActionName}, 当前状态:`,
+                    prev.actionRecordingStates[currentActionName],
+                  );
+                  const newTimers = { ...prev.recordingTimers };
+                  delete newTimers[currentActionName];
+                  return {
+                    ...prev,
+                    actionRecordingStates: {
+                      ...prev.actionRecordingStates,
+                      [currentActionName]: false,
+                    },
+                    recordingTimers: newTimers,
+                  };
+                });
+              }, currentRecordDuration * 1000);
+
+              console.log(
+                `[DEBUG] 定时器已创建 - Action: ${currentActionName}, TimerID: ${timerId}`,
+              );
+
+              // 立即保存定时器ID和录制状态，避免异步覆盖
+              setState((prev) => {
+                console.log(
+                  `[DEBUG] 保存定时器 - Action: ${currentActionName}, 当前定时器:`,
+                  Object.keys(prev.recordingTimers),
+                );
+                const newTimers = { ...prev.recordingTimers };
+                newTimers[currentActionName] = timerId;
+                return {
+                  ...prev,
+                  recordingTimers: newTimers,
+                  actionRecordingStates: {
+                    ...prev.actionRecordingStates,
+                    [currentActionName]: true,
+                  },
+                };
+              });
+            } else {
+              addLog(`录制开始失败: ${msg}`, "error");
+            }
+          })
+          .catch((error: unknown) => {
+            addLog(`录制开始异常: ${error instanceof Error ? error.message : "未知错误"}`, "error");
+          });
+      } else {
+        addLog("录制失败: 服务不可用", "error");
+        return;
       }
-    },
-    [getActionDurations, addLog, config.startRecordService.serviceName, context],
-  );
+    } catch (error: unknown) {
+      addLog(`录制开始异常: ${error instanceof Error ? error.message : "未知错误"}`, "error");
+    }
+  };
 
   // Stop record (async)
   const handleStopRecord = useCallback(
@@ -309,6 +396,27 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
       }
 
       addLog(`停止录制 - Action: ${actionName}`);
+
+      // 检查该Action是否在录制中
+      const isRecording = stateRef.current.actionRecordingStates[actionName];
+
+      // 清理该Action的录制结束定时器
+      const existingTimer = stateRef.current.recordingTimers[actionName];
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        setState((prev) => {
+          const newTimers = { ...prev.recordingTimers };
+          delete newTimers[actionName];
+          return {
+            ...prev,
+            recordingTimers: newTimers,
+            actionRecordingStates: {
+              ...prev.actionRecordingStates,
+              [actionName]: false,
+            },
+          };
+        });
+      }
 
       try {
         const req: StopRecordReq = {
@@ -324,7 +432,11 @@ export default function FaultRecordPanel({ context }: FaultRecordPanelProps): Re
               const msg =
                 typeof responseObj.msg === "string" ? responseObj.msg : "Unknown response";
               if (code === 0) {
-                addLog(`停止录制成功: ${msg}`, "success");
+                if (isRecording === true) {
+                  addLog(`停止录制成功: ${msg}`, "success");
+                } else {
+                  addLog(`Action: ${actionName} 并未在录制中，请继续操作`, "error");
+                }
               } else {
                 addLog(`停止录制失败: ${msg}`, "error");
               }

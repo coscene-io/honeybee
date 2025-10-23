@@ -44,6 +44,8 @@ export interface PanelState {
   selectedActionName: string;
   actionDurations: Record<string, ActionDurationConfig>; // Action特定的配置
   logs: LogLine[];
+  recordingTimers: Record<string, NodeJS.Timeout | undefined>; // 录制定时器，用于录制结束提醒
+  actionRecordingStates: Record<string, boolean>; // 每个Action的录制状态
 }
 
 // 日志行
