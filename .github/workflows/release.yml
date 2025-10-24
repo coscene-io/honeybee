@@ -63,11 +63,11 @@ jobs:
           lfs: true
           fetch-depth: 0
 
-      - name: Set cos config file
-        id: set_cos_config_file
-        run: |
-          curl ${{ vars.CONFIG_FILE_URL }} > packages/studio-desktop/src/public/cos-config.js
-          cat packages/studio-desktop/src/public/cos-config.js
+      # - name: Set cos config file
+      #   id: set_cos_config_file
+      #   run: |
+      #     curl ${{ vars.CONFIG_FILE_URL }} > packages/studio-desktop/src/public/cos-config.js
+      #     cat packages/studio-desktop/src/public/cos-config.js
 
       - name: Prepare postinst script
         if: matrix.os == 'linux'
