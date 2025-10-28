@@ -562,13 +562,19 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
   const [, setSelectedLanguage] = useAppConfigurationValue<Language>(AppSetting.LANGUAGE);
   const consoleApi = useConsoleApi();
   const currentUser = useCurrentUser(selectUser);
+  const loginStatus = useCurrentUser(selectUserLoginStatus);
 
   const { workspaceStoreCreator } = useAppContext();
 
   const isPlayerPresent = useMessagePipeline(selectPlayerIsPresent);
 
   const syncLanguageWithOrgConfigMap = useCallback(async () => {
-    const configName = `users/${currentUser?.userId}/configMaps/${PERSONAL_INFO_CONFIG_ID}`;
+    // Only sync language if user is logged in
+    if (loginStatus !== "alreadyLogin" || !currentUser?.userId) {
+      return;
+    }
+
+    const configName = `users/${currentUser.userId}/configMaps/${PERSONAL_INFO_CONFIG_ID}`;
 
     const userConfig = await consoleApi.getOrgConfigMap({
       name: configName,
@@ -590,7 +596,7 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
       void setSelectedLanguage(userLanguage as Language);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loginStatus, currentUser?.userId]);
 
   useEffect(() => {
     void syncLanguageWithOrgConfigMap();
