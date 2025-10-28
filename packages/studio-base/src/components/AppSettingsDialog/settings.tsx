@@ -721,9 +721,7 @@ export function AutoConnectToLan(): React.ReactElement {
         exclusive
         value={autoConnectToLan}
         onChange={(_, value?: string) => {
-          if (value != undefined) {
-            void setAutoConnectToLan(value === "true");
-          }
+          void setAutoConnectToLan(value === "true");
         }}
       >
         <ToggleButton value="false" data-testid="timeformat-seconds">
