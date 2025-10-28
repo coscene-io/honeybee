@@ -700,7 +700,7 @@ export function RetentionWindowMs(): React.ReactElement {
 
 export function AutoConnectToLan(): React.ReactElement {
   const { t } = useTranslation("appSettings");
-  const [autoConnectToLan, setAutoConnectToLan] = useAppConfigurationValue<string>(
+  const [autoConnectToLan = true, setAutoConnectToLan] = useAppConfigurationValue<boolean>(
     AppSetting.AUTO_CONNECT_LAN,
   );
 
@@ -719,10 +719,10 @@ export function AutoConnectToLan(): React.ReactElement {
         size="small"
         fullWidth
         exclusive
-        value={autoConnectToLan === "true" ? "true" : "false"}
+        value={autoConnectToLan}
         onChange={(_, value?: string) => {
           if (value != undefined) {
-            void setAutoConnectToLan(value);
+            void setAutoConnectToLan(value === "true");
           }
         }}
       >
