@@ -29,6 +29,8 @@ export const cosWebsocket = {
   lanAvailable: "LAN Available",
   lanConnectionPrompt:
     "Detected that you and the current device are on the same LAN, you can use LAN connection to improve network speed",
+  lanConnectionPromptAutoConnect:
+    "Detected that you and the current device are on the same LAN, automatically switched to LAN connection",
   switchNow: "Switch Now",
   keepCurrent: "Keep Current",
   switchToPlayback: "Switch to playback mode",

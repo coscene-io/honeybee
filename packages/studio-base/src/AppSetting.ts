@@ -48,4 +48,7 @@ export enum AppSetting {
 
   // Remote Config
   REMOTE_CONFIG_URL = "remoteConfigUrl",
+
+  // Auto Connect Lan
+  AUTO_CONNECT_LAN = "autoConnectLan",
 }

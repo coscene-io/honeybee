@@ -697,3 +697,42 @@ export function RetentionWindowMs(): React.ReactElement {
     </Stack>
   );
 }
+
+export function AutoConnectToLan(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [autoConnectToLan, setAutoConnectToLan] = useAppConfigurationValue<string>(
+    AppSetting.AUTO_CONNECT_LAN,
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("autoConnectToLan")} :
+          <Tooltip title={t("autoConnectToLanDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={autoConnectToLan === "true" ? "true" : "false"}
+        onChange={(_, value?: string) => {
+          if (value != undefined) {
+            void setAutoConnectToLan(value);
+          }
+        }}
+      >
+        <ToggleButton value="false" data-testid="timeformat-seconds">
+          {t("off")}
+        </ToggleButton>
+        <ToggleButton value="true" data-testid="timeformat-local">
+          {t("on")}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}

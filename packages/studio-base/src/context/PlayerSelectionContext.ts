@@ -22,6 +22,7 @@ export type DataSourceFactoryInitializeArgs = {
   params?: Record<string, string | undefined>;
   consoleApi?: ConsoleApi;
   confirm?: confirmTypes;
+  autoConnectToLan?: boolean;
 } & PersistentCacheSourceInitializeArgs;
 
 export type DataSourceFactoryType = "file" | "connection" | "sample" | "persistent-cache";

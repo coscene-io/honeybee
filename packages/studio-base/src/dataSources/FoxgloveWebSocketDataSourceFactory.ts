@@ -72,6 +72,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const url = args.params?.url;
     const sessionId = args.sessionId;
+    const autoConnectToLan = args.autoConnectToLan ?? true;
     if (!url) {
       return;
     }
@@ -93,6 +94,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       authHeader: args.consoleApi?.getAuthHeader() ?? "",
       retentionWindowMs: args.retentionWindowMs ?? 30 * 1000, // 30 seconds default
       sessionId,
+      autoConnectToLan,
     });
   }
 }
