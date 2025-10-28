@@ -449,8 +449,9 @@ export function LanguageSettings(): React.ReactElement {
         reportError(error as Error);
       });
 
-      if (consoleApi.upsertOrgConfigMap.permission()) {
-        const configName = `users/${currentUser?.userId}/configMaps/${PERSONAL_INFO_CONFIG_ID}`;
+      // Only sync to config map if user is logged in and has permission
+      if (consoleApi.upsertOrgConfigMap.permission() && currentUser?.userId) {
+        const configName = `users/${currentUser.userId}/configMaps/${PERSONAL_INFO_CONFIG_ID}`;
 
         const userConfig = await consoleApi.getOrgConfigMap({
           name: configName,
