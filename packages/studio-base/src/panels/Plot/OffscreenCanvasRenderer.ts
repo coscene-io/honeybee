@@ -9,11 +9,14 @@ import * as Comlink from "@coscene-io/comlink";
 import type { Theme } from "@mui/material";
 
 import { ComlinkWrap } from "@foxglove/den/worker";
+import Logger from "@foxglove/log";
 import { Immutable } from "@foxglove/studio";
 import { Bounds } from "@foxglove/studio-base/types/Bounds";
 
 import { ChartRenderer, Dataset, HoverElement, Scale, UpdateAction } from "./ChartRenderer";
 import type { Service } from "./ChartRenderer.worker";
+
+const log = Logger.getLogger(__filename);
 
 // If the datasets builder is garbage collected we also need to cleanup the worker
 // This registry ensures the worker is cleaned up when the builder is garbage collected
@@ -41,9 +44,11 @@ export class OffscreenCanvasRenderer {
       new URL("./ChartRenderer.worker", import.meta.url),
     );
     worker.onerror = (event) => {
+      log.error("[OffscreenCanvasRenderer] Worker error:", event);
       handleWorkerError?.(event);
     };
     worker.onmessageerror = (event) => {
+      log.error("[OffscreenCanvasRenderer] Worker message error:", event);
       handleWorkerError?.(event);
     };
 
