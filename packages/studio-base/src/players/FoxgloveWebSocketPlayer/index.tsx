@@ -1916,11 +1916,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
           }
         }
 
-        if (this.#autoConnectToLan) {
-          toast.success(t("cosWebsocket:lanConnectionPromptAutoConnect"));
-          await this.#reconnectWithNewUrl(reachableResult?.candidate ?? "");
-          return;
-        } else if (reachableResult) {
+        if (reachableResult) {
+          if (this.#autoConnectToLan) {
+            toast.success(t("cosWebsocket:lanConnectionPromptAutoConnect"));
+            await this.#reconnectWithNewUrl(reachableResult.candidate);
+            return;
+          }
+
           // 找到匹配的IP地址，重新连接WebSocket
           // 弹窗询问用户是否使用局域网连接
           const result = await this.#confirm({
