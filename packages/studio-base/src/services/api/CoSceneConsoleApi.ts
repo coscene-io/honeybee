@@ -400,11 +400,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-    orgPermissionList: [],
-    projectPermissionList: [],
-    orgDenyList: [],
-    projectDenyList: [],
-  };
+      orgPermissionList: [],
+      projectPermissionList: [],
+      orgDenyList: [],
+      projectDenyList: [],
+    };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -678,8 +678,8 @@ class CoSceneConsoleApi {
       customHost != undefined && customHost
         ? url
         : url.startsWith("/bff")
-        ? `${this.#bffUrl}${url}`
-        : `${this.#baseUrl}${url}`;
+          ? `${this.#bffUrl}${url}`
+          : `${this.#baseUrl}${url}`;
 
     const fullConfig: RequestInit = {
       ...config,
@@ -969,8 +969,11 @@ class CoSceneConsoleApi {
     return await getPromiseClient(OrganizationService).getOrganization(request);
   }
 
-  public async getActiveOrganizationSubscription(): Promise<Subscription | undefined> {
-    const request = new ListOrganizationSubscriptionsRequest({});
+  public async getActiveOrganizationSubscription(orgName: string): Promise<Subscription | undefined> {
+    const request = new ListOrganizationSubscriptionsRequest({
+      parent: orgName,
+      pageSize: 1000,
+    });
     const result =
       await getPromiseClient(SubscriptionService).listOrganizationSubscriptions(request);
     return result.subscriptions.find((subscription) => subscription.active);
