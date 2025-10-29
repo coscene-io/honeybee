@@ -130,18 +130,22 @@ function CreateCoreDataStore() {
     },
 
     getEnableList: () => {
-      const { dataSource, project, externalInitConfig } = get();
+      const { dataSource, project, externalInitConfig, subscription } = get();
+      const code = subscription.value?.plan?.code.toLowerCase();
+      const isSubscriptionNotFree = !!code && code !== "free";
 
       return {
         event:
-          dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
+          isSubscriptionNotFree &&
+          dataSource?.type === "connection" &&
+          dataSource.id === "coscene-data-platform"
             ? "ENABLE"
             : "DISABLE",
         playlist:
           dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
             ? "ENABLE"
             : "DISABLE",
-        task: project.value != undefined ? "ENABLE" : "DISABLE",
+        task: isSubscriptionNotFree && project.value != undefined ? "ENABLE" : "DISABLE",
         layoutSync:
           externalInitConfig?.warehouseId && externalInitConfig.projectId ? "ENABLE" : "DISABLE",
         recordInfo:
