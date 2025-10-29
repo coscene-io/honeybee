@@ -53,4 +53,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   noCache: "不缓存",
   retentionWindowNextEffectiveNotice: "设置已更新，将在下次连接时生效 <Link>立即重连</Link>",
   retentionWindowDescription: "缓存指定时间长度的数据，用于回放已播的实时数据",
+  autoConnectToLan: "实时可视化自动连接局域网",
+  autoConnectToLanDescription: "检测到与设备处于同一局域网时，自动连接局域网地址，无需手动确认",
 };
