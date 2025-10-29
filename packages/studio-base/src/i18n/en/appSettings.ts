@@ -59,4 +59,7 @@ export const appSettings = {
     "Setting updated, will take effect on next connection <Link>Reconnect now</Link>",
   retentionWindowDescription:
     "Set the cache duration of the real-time visualization, for playback of real-time data",
+  autoConnectToLan: "Real-time visualization auto connect to LAN",
+  autoConnectToLanDescription:
+    "When detected to be on the same LAN as the device, automatically connect to the LAN address, no need to manually confirm",
 };
