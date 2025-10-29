@@ -25,6 +25,7 @@ const selectRecord = (store: CoreDataStore) => store.record;
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 const selectRefreshRecord = (store: CoreDataStore) => store.refreshRecord;
 const selectRecordCustomFieldSchema = (store: CoreDataStore) => store.recordCustomFieldSchema;
+const selectDeviceCustomFieldSchema = (store: CoreDataStore) => store.deviceCustomFieldSchema;
 const selectOrganization = (store: CoreDataStore) => store.organization;
 const selectProject = (store: CoreDataStore) => store.project;
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
@@ -38,6 +39,7 @@ export default function RecordInfo(): ReactElement {
   const record = useCoreData(selectRecord);
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const recordCustomFieldSchema = useCoreData(selectRecordCustomFieldSchema);
+  const deviceCustomFieldSchema = useCoreData(selectDeviceCustomFieldSchema);
   const organization = useCoreData(selectOrganization);
   const project = useCoreData(selectProject);
 
@@ -57,14 +59,6 @@ export default function RecordInfo(): ReactElement {
       deviceName: record.value.device.name,
     });
   }, [consoleApi, record.value?.device?.name, paid]);
-
-  const [deviceCustomFieldSchema, getDeviceCustomFieldSchema] = useAsyncFn(async () => {
-    if (paid === "DISABLE") {
-      return;
-    }
-
-    return await consoleApi.getDeviceCustomFieldSchema();
-  }, [consoleApi, paid]);
 
   const [creator, getCreator] = useAsyncFn(async () => {
     if (!record.value?.creator) {
@@ -95,14 +89,6 @@ export default function RecordInfo(): ReactElement {
       });
     }
   }, [record.value?.device?.name, getDeviceInfo]);
-
-  useEffect(() => {
-    if (paid === "ENABLE" || record.value?.device?.name) {
-      getDeviceCustomFieldSchema().catch((error: unknown) => {
-        log.error(error);
-      });
-    }
-  }, [record.value?.device?.name, getDeviceCustomFieldSchema, paid]);
 
   useEffect(() => {
     if (record.value?.creator) {
@@ -155,7 +141,7 @@ export default function RecordInfo(): ReactElement {
 
             <CustomFieldValuesFields
               variant="secondary"
-              properties={deviceCustomFieldSchema.value?.properties ?? []}
+              properties={deviceCustomFieldSchema?.properties ?? []}
               customFieldValues={deviceInfo.value?.customFieldValues ?? []}
               readonly
               ignoreProperties
