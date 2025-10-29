@@ -130,6 +130,7 @@ export type CoreDataStore = {
   resetCoreDataStore: () => void;
 
   getEnableList: () => {
+    paid: "ENABLE" | "DISABLE";
     event: "ENABLE" | "DISABLE";
     playlist: "ENABLE" | "DISABLE";
     task: "ENABLE" | "DISABLE";

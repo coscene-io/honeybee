@@ -27,11 +27,14 @@ const selectRefreshRecord = (store: CoreDataStore) => store.refreshRecord;
 const selectRecordCustomFieldSchema = (store: CoreDataStore) => store.recordCustomFieldSchema;
 const selectOrganization = (store: CoreDataStore) => store.organization;
 const selectProject = (store: CoreDataStore) => store.project;
+const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 
 const log = Logger.getLogger(__filename);
 
 export default function RecordInfo(): ReactElement {
   const consoleApi = useConsoleApi();
+  const { paid } = useCoreData(selectEnableList);
+
   const record = useCoreData(selectRecord);
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const recordCustomFieldSchema = useCoreData(selectRecordCustomFieldSchema);
@@ -46,18 +49,22 @@ export default function RecordInfo(): ReactElement {
   const { t } = useTranslation("recordInfo");
 
   const [deviceInfo, getDeviceInfo] = useAsyncFn(async () => {
-    if (!record.value?.device?.name) {
+    if (paid === "DISABLE" || !record.value?.device?.name) {
       return;
     }
 
     return await consoleApi.getDevice({
       deviceName: record.value.device.name,
     });
-  }, [consoleApi, record.value?.device?.name]);
+  }, [consoleApi, record.value?.device?.name, paid]);
 
   const [deviceCustomFieldSchema, getDeviceCustomFieldSchema] = useAsyncFn(async () => {
+    if (paid === "DISABLE") {
+      return;
+    }
+
     return await consoleApi.getDeviceCustomFieldSchema();
-  }, [consoleApi]);
+  }, [consoleApi, paid]);
 
   const [creator, getCreator] = useAsyncFn(async () => {
     if (!record.value?.creator) {
@@ -90,12 +97,12 @@ export default function RecordInfo(): ReactElement {
   }, [record.value?.device?.name, getDeviceInfo]);
 
   useEffect(() => {
-    if (record.value?.device?.name) {
+    if (paid === "ENABLE" || record.value?.device?.name) {
       getDeviceCustomFieldSchema().catch((error: unknown) => {
         log.error(error);
       });
     }
-  }, [record.value?.device?.name, getDeviceCustomFieldSchema]);
+  }, [record.value?.device?.name, getDeviceCustomFieldSchema, paid]);
 
   useEffect(() => {
     if (record.value?.creator) {
@@ -125,34 +132,36 @@ export default function RecordInfo(): ReactElement {
   return (
     <>
       <Stack flex="auto" overflowX="auto" gap={2} padding={1}>
-        <Stack gap={1}>
-          <Typography variant="h6" gutterBottom>
-            {t("deviceInfo")}
-          </Typography>
-          <Stack>
-            <ProjectDeviceSelector updateRecord={updateRecord} />
-          </Stack>
-          <Stack>
-            <FormLabel>{t("deviceId")}</FormLabel>
-            <Link
-              variant="body2"
-              underline="hover"
-              data-testid={deviceInfo.value?.serialNumber}
-              href={`/${organizationSlug}/${projectSlug}/${deviceInfo.value?.name}`}
-              target="_blank"
-            >
-              {deviceInfo.value?.serialNumber}
-            </Link>
-          </Stack>
+        {paid === "ENABLE" && (
+          <Stack gap={1}>
+            <Typography variant="h6" gutterBottom>
+              {t("deviceInfo")}
+            </Typography>
+            <Stack>
+              <ProjectDeviceSelector updateRecord={updateRecord} />
+            </Stack>
+            <Stack>
+              <FormLabel>{t("deviceId")}</FormLabel>
+              <Link
+                variant="body2"
+                underline="hover"
+                data-testid={deviceInfo.value?.serialNumber}
+                href={`/${organizationSlug}/${projectSlug}/${deviceInfo.value?.name}`}
+                target="_blank"
+              >
+                {deviceInfo.value?.serialNumber}
+              </Link>
+            </Stack>
 
-          <CustomFieldValuesFields
-            variant="secondary"
-            properties={deviceCustomFieldSchema.value?.properties ?? []}
-            customFieldValues={deviceInfo.value?.customFieldValues ?? []}
-            readonly
-            ignoreProperties
-          />
-        </Stack>
+            <CustomFieldValuesFields
+              variant="secondary"
+              properties={deviceCustomFieldSchema.value?.properties ?? []}
+              customFieldValues={deviceInfo.value?.customFieldValues ?? []}
+              readonly
+              ignoreProperties
+            />
+          </Stack>
+        )}
 
         <Stack gap={1}>
           <Typography variant="h6" gutterBottom>
@@ -192,24 +201,26 @@ export default function RecordInfo(): ReactElement {
             </Stack>
           </Stack>
 
-          {record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
-            <CustomFieldValuesFields
-              variant="secondary"
-              properties={recordCustomFieldSchema.properties}
-              customFieldValues={record.value.customFieldValues}
-              readonly={!consoleApi.updateRecord.permission()}
-              onChange={(customFieldValues) => {
-                if (!record.value) {
-                  return;
-                }
+          {paid === "ENABLE" &&
+            record.value?.customFieldValues &&
+            recordCustomFieldSchema?.properties && (
+              <CustomFieldValuesFields
+                variant="secondary"
+                properties={recordCustomFieldSchema.properties}
+                customFieldValues={record.value.customFieldValues}
+                readonly={!consoleApi.updateRecord.permission()}
+                onChange={(customFieldValues) => {
+                  if (!record.value) {
+                    return;
+                  }
 
-                void updateRecord({
-                  record: { name: record.value.name, customFieldValues },
-                  updateMask: { paths: ["customFieldValues"] },
-                });
-              }}
-            />
-          )}
+                  void updateRecord({
+                    record: { name: record.value.name, customFieldValues },
+                    updateMask: { paths: ["customFieldValues"] },
+                  });
+                }}
+              />
+            )}
 
           {record.value?.createTime && (
             <Stack>
