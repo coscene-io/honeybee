@@ -83,12 +83,12 @@ export default function RecordInfo(): ReactElement {
   }, [consoleApi, externalInitConfig?.warehouseId, externalInitConfig?.projectId]);
 
   useEffect(() => {
-    if (record.value?.device?.name) {
+    if (paid === "ENABLE" && record.value?.device?.name) {
       getDeviceInfo().catch((error: unknown) => {
         log.error(error);
       });
     }
-  }, [record.value?.device?.name, getDeviceInfo]);
+  }, [record.value?.device?.name, getDeviceInfo, paid]);
 
   useEffect(() => {
     if (record.value?.creator) {
