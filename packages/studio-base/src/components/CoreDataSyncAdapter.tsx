@@ -111,8 +111,11 @@ export function CoreDataSyncAdapter(): ReactNull {
       const subscription = await consoleApi.getActiveOrganizationSubscription(
         organization.value.name,
       );
+
       if (subscription != undefined) {
         setSubscription({ loading: false, value: subscription });
+      } else {
+        setSubscription({ loading: false, value: undefined });
       }
     }
   }, [organization.value?.name, consoleApi, setSubscription]);
