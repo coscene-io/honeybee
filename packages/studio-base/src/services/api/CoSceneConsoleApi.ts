@@ -11,6 +11,7 @@ import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
 import type { Role } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
 import { Policy_Effect } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
+import { Subscription } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/subscription_pb";
 import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
 import { LabelService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/label_connect";
 import {
@@ -966,6 +967,13 @@ class CoSceneConsoleApi {
   public async getOrg(orgName: string): Promise<Organization> {
     const request = new GetOrganizationRequest({ name: orgName });
     return await getPromiseClient(OrganizationService).getOrganization(request);
+  }
+
+  public async getActiveOrganizationSubscription(): Promise<Subscription | undefined> {
+    const request = new ListOrganizationSubscriptionsRequest({});
+    const result =
+      await getPromiseClient(SubscriptionService).listOrganizationSubscriptions(request);
+    return result.subscriptions.find((subscription) => subscription.active);
   }
 
   public createTask = Object.assign(
