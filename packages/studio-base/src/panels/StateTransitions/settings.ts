@@ -62,7 +62,7 @@ const makeSeriesNode = memoizeWeak(
             },
           ],
       label: stateTransitionPathDisplayName(path, index),
-      expansionState: path.expansionState,
+      expansionState: path.expansionState ?? "collapsed",
       fields: {
         value: {
           label: "Message path",
