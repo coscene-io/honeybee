@@ -14,6 +14,7 @@ export const plot: Partial<TypeOptions["resources"]["plot"]> = {
   color: "颜色",
   currentPath: "地址（当前）",
   deleteSeries: "删除数据系列",
+  insertSeries: "向下插入",
   floating: "浮动",
   general: "通用",
   headerStamp: "头时间戳",
@@ -50,4 +51,6 @@ export const plot: Partial<TypeOptions["resources"]["plot"]> = {
   enableAllSeries: "启用所有",
   disableAllSeries: "禁用所有",
   toggleAllSeries: "切换全部",
+  collapseAllSeries: "全部收起",
+  expandAllSeries: "全部展开",
 };

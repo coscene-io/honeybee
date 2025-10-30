@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { JsonValue } from "@bufbuild/protobuf";
+import { Value } from "@bufbuild/protobuf";
 import Brightness5Icon from "@mui/icons-material/Brightness5";
 import ComputerIcon from "@mui/icons-material/Computer";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
@@ -30,7 +32,7 @@ import {
   Typography,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -38,6 +40,8 @@ import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
@@ -46,7 +50,7 @@ import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
@@ -63,16 +67,7 @@ const RETENTION_WINDOW_MS = [
   3 * 60 * 1000,
   5 * 60 * 1000,
 ];
-
-let LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
-  { key: "en", value: "English" },
-  { key: "zh", value: "中文" },
-  { key: "ja", value: "日本語" },
-];
-
-LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter((language) =>
-  APP_CONFIG.LANGUAGE.options.includes(language.key),
-);
+const PERSONAL_INFO_CONFIG_ID = "personalInfo";
 
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
@@ -354,11 +349,95 @@ export function RosPackagePath(): React.ReactElement {
   );
 }
 
+export function StudioRemoteConfigUrl(): React.ReactElement {
+  const [remoteConfigUrl, setRemoteConfigUrl] = useAppConfigurationValue<string>(
+    AppSetting.REMOTE_CONFIG_URL,
+  );
+  const { t } = useTranslation("cosSettings");
+
+  const initialValueRef = useRef(remoteConfigUrl ?? "");
+  const isChanged = (remoteConfigUrl ?? "") !== initialValueRef.current;
+
+  const appConfig = getAppConfig();
+  const env = appConfig.VITE_APP_PROJECT_ENV;
+
+  const placeholder =
+    env === "aws" || env === "gcp"
+      ? `${t("example")}: https://coscene.io/`
+      : `${t("example")}: https://coscene.cn/`;
+
+  const invalid = useMemo(() => {
+    const value = (remoteConfigUrl ?? "").trim();
+    if (value === "") {
+      return false;
+    }
+    const pattern = /^https:\/\/(?:[a-z0-9-]+\.)*coscene\.(?:io|cn)\/?$/i;
+    return !pattern.test(value);
+  }, [remoteConfigUrl]);
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("domain")} :
+          <Tooltip title={t("domainDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+
+      <TextField
+        fullWidth
+        placeholder={placeholder}
+        value={remoteConfigUrl ?? ""}
+        onChange={(event) => void setRemoteConfigUrl(event.target.value)}
+        error={invalid}
+        helperText={
+          invalid
+            ? t("invalidDomain")
+            : isChanged && (
+                <Trans
+                  t={t}
+                  i18nKey="willTakeEffectOnTheNextStartup"
+                  components={{
+                    Link: (
+                      <Link
+                        href="#"
+                        onClick={() => {
+                          window.location.reload();
+                        }}
+                      />
+                    ),
+                  }}
+                />
+              )
+        }
+      />
+    </Stack>
+  );
+}
+
+const selectUser = (store: UserStore) => store.user;
+
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
 
   const [, setSelectedLanguage] = useAppConfigurationValue<Language>(AppSetting.LANGUAGE);
   const selectedLanguage: Language = useMemo(() => i18n.language as Language, [i18n.language]);
+
+  const appConfig = getAppConfig();
+  const consoleApi = useConsoleApi();
+  const currentUser = useCurrentUser(selectUser);
+
+  const LANGUAGE_OPTIONS: { key: Language; value: string }[] = useMemo(
+    () =>
+      [
+        { key: "en", value: "English" },
+        { key: "zh", value: "中文" },
+        { key: "ja", value: "日本語" },
+      ].filter((language) => appConfig.LANGUAGE?.options.includes(language.key)),
+    [appConfig.LANGUAGE?.options],
+  ) as { key: Language; value: string }[];
 
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {
@@ -369,9 +448,39 @@ export function LanguageSettings(): React.ReactElement {
         console.error("Failed to switch languages", error);
         reportError(error as Error);
       });
+
+      // Only sync to config map if user is logged in and has permission
+      if (consoleApi.upsertOrgConfigMap.permission() && currentUser?.userId) {
+        const configName = `users/${currentUser.userId}/configMaps/${PERSONAL_INFO_CONFIG_ID}`;
+
+        const userConfig = await consoleApi.getOrgConfigMap({
+          name: configName,
+        });
+
+        const settings = {
+          ...(userConfig.value?.toJson() as
+            | {
+                settings?: {
+                  language?: string;
+                };
+              }
+            | undefined),
+          settings: {
+            language: lang,
+          },
+        };
+
+        void consoleApi.upsertOrgConfigMap({
+          configMap: {
+            name: configName,
+            value:
+              Object.keys(settings).length > 0 ? Value.fromJson(settings as JsonValue) : undefined,
+          },
+        });
+      }
     },
 
-    [i18n, setSelectedLanguage],
+    [consoleApi, currentUser?.userId, i18n, setSelectedLanguage],
   );
 
   const options: { key: string; text: string; data: string }[] = useMemo(
@@ -381,7 +490,7 @@ export function LanguageSettings(): React.ReactElement {
         text: language.value,
         data: language.key,
       })),
-    [],
+    [LANGUAGE_OPTIONS],
   );
 
   return (
@@ -618,5 +727,42 @@ export function ReadAheadDuration(): React.ReactElement {
       type="number"
       onChange={(event) => void setReadAheadDuration(Number(event.target.value))}
     />
+  );
+}
+
+export function AutoConnectToLan(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [autoConnectToLan = true, setAutoConnectToLan] = useAppConfigurationValue<boolean>(
+    AppSetting.AUTO_CONNECT_LAN,
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("autoConnectToLan")} :
+          <Tooltip title={t("autoConnectToLanDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={autoConnectToLan}
+        onChange={(_, value?: string) => {
+          void setAutoConnectToLan(value === "true");
+        }}
+      >
+        <ToggleButton value="false" data-testid="timeformat-seconds">
+          {t("off")}
+        </ToggleButton>
+        <ToggleButton value="true" data-testid="timeformat-local">
+          {t("on")}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
   );
 }

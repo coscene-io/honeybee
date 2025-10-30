@@ -12,6 +12,7 @@ export const plot = {
   color: "Color",
   currentPath: "Path (current)",
   deleteSeries: "Delete series",
+  insertSeries: "Insert down",
   floating: "Floating",
   general: "General",
   headerStamp: "Header Stamp",
@@ -48,4 +49,6 @@ export const plot = {
   enableAllSeries: "Enable all",
   disableAllSeries: "Disable all",
   toggleAllSeries: "Toggle all",
+  collapseAllSeries: "Collapse all",
+  expandAllSeries: "Expand all",
 };

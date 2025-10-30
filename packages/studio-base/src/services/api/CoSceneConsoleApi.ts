@@ -46,11 +46,17 @@ import {
   ListOrganizationUsersRequest,
 } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
 import { LayoutViewEnum_LayoutView } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_view_pb";
+import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
 import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
+import {
+  GetConfigMapRequest,
+  UpsertConfigMapRequest,
+} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
 import { DeviceService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_connect";
 import {
   GetDeviceRequest,
@@ -513,95 +519,60 @@ class CoSceneConsoleApi {
     return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
   }
 
-  public createUserLayout = Object.assign(
-    async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
-      const req = new CreateUserLayoutRequest({
-        parent,
-        layout,
-      });
-      return await getPromiseClient(LayoutService).createUserLayout(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(
-          EndpointDataplatformV1alph2.CreateUserLayout,
-          this.#permissionList,
-        );
-      },
-    },
-  );
+  public async createUserLayout({
+    parent,
+    layout,
+  }: {
+    parent: string;
+    layout: Layout;
+  }): Promise<Layout> {
+    const req = new CreateUserLayoutRequest({
+      parent,
+      layout,
+    });
+    return await getPromiseClient(LayoutService).createUserLayout(req);
+  }
 
-  public getUserLayout = Object.assign(
-    async ({ name }: { name: string }): Promise<Layout> => {
-      const req = new GetUserLayoutRequest({ name });
-      return await getPromiseClient(LayoutService).getUserLayout(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(EndpointDataplatformV1alph2.GetUserLayout, this.#permissionList);
-      },
-    },
-  );
+  public async getUserLayout({ name }: { name: string }): Promise<Layout> {
+    const req = new GetUserLayoutRequest({ name });
+    return await getPromiseClient(LayoutService).getUserLayout(req);
+  }
 
-  public listUserLayouts = Object.assign(
-    async ({
+  public async listUserLayouts({
+    parent,
+    filter,
+    view = LayoutViewEnum_LayoutView.FULL,
+  }: {
+    parent: string;
+    filter?: string;
+    view?: LayoutViewEnum_LayoutView;
+  }): Promise<ListUserLayoutsResponse> {
+    const req = new ListUserLayoutsRequest({
       parent,
       filter,
-      view = LayoutViewEnum_LayoutView.FULL,
-    }: {
-      parent: string;
-      filter?: string;
-      view?: LayoutViewEnum_LayoutView;
-    }): Promise<ListUserLayoutsResponse> => {
-      const req = new ListUserLayoutsRequest({
-        parent,
-        filter,
-        view,
-      });
-      return await getPromiseClient(LayoutService).listUserLayouts(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(
-          EndpointDataplatformV1alph2.ListUserLayouts,
-          this.#permissionList,
-        );
-      },
-    },
-  );
+      view,
+    });
+    return await getPromiseClient(LayoutService).listUserLayouts(req);
+  }
 
-  public updateUserLayout = Object.assign(
-    async ({ layout, updateMask }: { layout: Layout; updateMask?: FieldMask }): Promise<Layout> => {
-      const req = new UpdateUserLayoutRequest({
-        userLayout: layout,
-        updateMask,
-      });
-      return await getPromiseClient(LayoutService).updateUserLayout(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(
-          EndpointDataplatformV1alph2.UpdateUserLayout,
-          this.#permissionList,
-        );
-      },
-    },
-  );
+  public async updateUserLayout({
+    layout,
+    updateMask,
+  }: {
+    layout: Layout;
+    updateMask?: FieldMask;
+  }): Promise<Layout> {
+    const req = new UpdateUserLayoutRequest({
+      userLayout: layout,
+      updateMask,
+    });
+    return await getPromiseClient(LayoutService).updateUserLayout(req);
+  }
 
-  public deleteUserLayout = Object.assign(
-    async ({ name }: { name: string }): Promise<Empty> => {
-      const req = new DeleteUserLayoutRequest({ name });
-      return await getPromiseClient(LayoutService).deleteUserLayout(req);
-    },
-    {
-      permission: () => {
-        return checkUserPermission(
-          EndpointDataplatformV1alph2.DeleteUserLayout,
-          this.#permissionList,
-        );
-      },
-    },
-  );
+  public async deleteUserLayout({ name }: { name: string }): Promise<Empty> {
+    const req = new DeleteUserLayoutRequest({ name });
+    return await getPromiseClient(LayoutService).deleteUserLayout(req);
+  }
 
   public createProjectLayout = Object.assign(
     async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
@@ -1658,6 +1629,30 @@ class CoSceneConsoleApi {
 
     return config;
   }
+
+  public upsertOrgConfigMap = Object.assign(
+    async (payload: PartialMessage<UpsertConfigMapRequest>): Promise<void> => {
+      const req = new UpsertConfigMapRequest(payload);
+      await getPromiseClient(ConfigMapService).upsertConfigMap(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.UpsertOrgConfigMap, this.#permissionList);
+      },
+    },
+  );
+
+  public getOrgConfigMap = Object.assign(
+    async (payload: PartialMessage<GetConfigMapRequest>): Promise<ConfigMap> => {
+      const req = new GetConfigMapRequest(payload);
+      return await getPromiseClient(ConfigMapService).getConfigMap(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.GetOrgConfigMap, this.#permissionList);
+      },
+    },
+  );
 }
 
 export type { Org, DeviceCodeResponse, Session, CoverageResponse };

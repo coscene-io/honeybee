@@ -34,15 +34,23 @@ const makeSeriesNode = memoizeWeak(
         ? [
             {
               type: "action",
+              id: "insert-series",
+              label: t("insertSeries"),
+              display: "hover",
+              icon: "Addchart",
+            },
+            {
+              type: "action",
               id: "delete-series",
               label: t("deleteSeries"),
-              display: "inline",
+              display: "hover",
               icon: "Clear",
             },
           ]
         : [],
       label: plotPathDisplayName(path, index, t),
       visible: path.enabled,
+      expansionState: path.expansionState,
       fields: {
         value: {
           label: t("messagePath"),
@@ -108,6 +116,8 @@ const makeRootSeriesNode = memoizeWeak(
 
     const shouldShowDisableAll = hasEnabledSeries && !hasDisabledSeries;
 
+    const shouldCollapsedAll = paths.some((path) => path.expansionState === "expanded");
+
     return {
       label: t("series"),
       children,
@@ -125,6 +135,13 @@ const makeRootSeriesNode = memoizeWeak(
           label: shouldShowDisableAll ? t("disableAllSeries") : t("enableAllSeries"),
           display: "inline",
           icon: shouldShowDisableAll ? "VisibilityOff" : "Visibility",
+        },
+        {
+          type: "action",
+          id: "collapse-all-series",
+          label: shouldCollapsedAll ? t("collapseAllSeries") : t("expandAllSeries"),
+          display: "inline",
+          icon: shouldCollapsedAll ? "KeyboardDoubleArrowUpIcon" : "KeyboardDoubleArrowDownIcon",
         },
       ],
     };
@@ -309,9 +326,16 @@ export function usePlotPanelSettings(
           saveConfig(
             produce<PlotConfig>((draft) => {
               if (draft.paths.length === 0) {
-                draft.paths.push({ ...DEFAULT_PATH });
+                draft.paths.unshift({ ...DEFAULT_PATH });
               }
-              draft.paths.push({ ...DEFAULT_PATH });
+              draft.paths.unshift({ ...DEFAULT_PATH });
+            }),
+          );
+        } else if (action.payload.id === "insert-series") {
+          const index = action.payload.path[1];
+          saveConfig(
+            produce<PlotConfig>((draft) => {
+              draft.paths.splice(Number(index) + 1, 0, { ...DEFAULT_PATH });
             }),
           );
         } else if (action.payload.id === "delete-series") {
@@ -326,7 +350,7 @@ export function usePlotPanelSettings(
             produce<PlotConfig>((draft) => {
               // if no paths exist, add the default path first
               if (draft.paths.length === 0) {
-                draft.paths.push({ ...DEFAULT_PATH });
+                draft.paths.unshift({ ...DEFAULT_PATH });
               }
 
               const hasEnabledSeries = draft.paths.some((path) => path.enabled);
@@ -335,6 +359,18 @@ export function usePlotPanelSettings(
 
               for (const path of draft.paths) {
                 path.enabled = !shouldDisableAll;
+              }
+            }),
+          );
+        } else if (action.payload.id === "collapse-all-series") {
+          saveConfig(
+            produce<PlotConfig>((draft) => {
+              const shouldCollapsedAll = draft.paths.some(
+                (path) => path.expansionState === "expanded",
+              );
+
+              for (const path of draft.paths) {
+                path.expansionState = shouldCollapsedAll ? "collapsed" : "expanded";
               }
             }),
           );

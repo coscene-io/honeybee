@@ -11,6 +11,7 @@ import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import * as _ from "lodash-es";
 import race from "race-as-promised";
+import toast from "react-hot-toast";
 import { Trans } from "react-i18next";
 import { v4 as uuidv4 } from "uuid";
 
@@ -212,6 +213,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #sessionId?: string;
   #serverTime?: Time;
 
+  #autoConnectToLan: boolean;
+
   public constructor({
     url,
     metricsCollector,
@@ -225,6 +228,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     sessionId,
     enablePersistentCache,
     retentionWindowMs,
+    autoConnectToLan,
   }: {
     url: string;
     metricsCollector: PlayerMetricsCollectorInterface;
@@ -238,6 +242,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     sessionId?: string;
     enablePersistentCache?: boolean;
     retentionWindowMs?: number;
+    autoConnectToLan: boolean;
   }) {
     this.#metricsCollector = metricsCollector;
     this.#url = url;
@@ -256,6 +261,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#enablePersistentCache = enablePersistentCache ?? true;
     this.#retentionWindowMs = retentionWindowMs;
     this.#sessionId = sessionId;
+    this.#autoConnectToLan = autoConnectToLan;
 
     // Initialize persistent cache if enabled
     if (
@@ -403,6 +409,39 @@ export default class FoxgloveWebSocketPlayer implements Player {
           message.linkType ?? "unknown",
         );
       }
+    });
+
+    this.#client.on("kicked", (message) => {
+      void this.close();
+      void this.#confirm({
+        title: t("cosWebsocket:notification"),
+        prompt: (
+          <Trans
+            t={t}
+            i18nKey="cosWebsocket:vizIsTkenNow"
+            values={{
+              deviceName: this.#deviceName,
+              username: message.username,
+            }}
+            components={{
+              strong: <strong />,
+            }}
+          />
+        ),
+        disableEscapeKeyDown: true,
+        disableBackdropClick: true,
+        ok: t("cosWebsocket:reconnect"),
+        cancel: t("cosWebsocket:exitAndClosePage"),
+        variant: "danger",
+      }).then((result) => {
+        if (result === "ok") {
+          this.#isReconnect = true;
+          this.reOpen();
+        }
+        if (result === "cancel") {
+          window.close();
+        }
+      });
     });
 
     this.#client.on("error", (err) => {
@@ -1273,7 +1312,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     try {
       // Clean up persistent cache
-      await this.#persistentCache?.clear();
       await this.#persistentCache?.close();
       this.#persistentCache = undefined;
     } catch (error) {
@@ -1879,6 +1917,12 @@ export default class FoxgloveWebSocketPlayer implements Player {
         }
 
         if (reachableResult) {
+          if (this.#autoConnectToLan) {
+            toast.success(t("cosWebsocket:lanConnectionPromptAutoConnect"));
+            await this.#reconnectWithNewUrl(reachableResult.candidate);
+            return;
+          }
+
           // 找到匹配的IP地址，重新连接WebSocket
           // 弹窗询问用户是否使用局域网连接
           const result = await this.#confirm({

@@ -29,7 +29,6 @@ import {
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
@@ -93,8 +92,6 @@ export function AppStateBar(): React.JSX.Element {
 
   const [showLoadingStatus, setShowLoadingStatus] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout | undefined>(undefined);
-  const { layoutDrawer } = useWorkspaceActions();
-  const [layoutTipsOpen, setLayoutTipsOpen] = useState(false);
 
   const [fileLoadingToastId, setFileLoadingToastId] = useState<string | undefined>(undefined);
 
@@ -194,13 +191,6 @@ export function AppStateBar(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, fileLoadingToastId]);
 
-  useEffect(() => {
-    const layoutTipsOpenTag = localStorage.getItem("CoScene_noMoreLayoutTips");
-    if (layoutTipsOpenTag !== "true") {
-      setLayoutTipsOpen(true);
-    }
-  }, []);
-
   // Reset visibility when media generation conditions change
   useEffect(() => {
     setShowGeneratingMedia(true);
@@ -213,11 +203,6 @@ export function AppStateBar(): React.JSX.Element {
   useEffect(() => {
     setShowGeneratingMediaError(true);
   }, [isGeneratingMediaError]);
-
-  const handleNoMoreTips = () => {
-    localStorage.setItem("CoScene_noMoreLayoutTips", "true");
-    setLayoutTipsOpen(false);
-  };
 
   useEffect(() => {
     if (showLoadingStatus && loading && fileLoadingToastId == undefined) {
@@ -374,31 +359,6 @@ export function AppStateBar(): React.JSX.Element {
           >
             <CloseIcon />
           </IconButton>
-        </Stack>
-      )}
-
-      {layoutTipsOpen && (
-        <Stack direction="row" alignItems="center" justifyContent="center" position="relative">
-          <Stack direction="row" alignItems="center">
-            <span>{t("layoutGuideliens")}</span>
-            <Button
-              onClick={() => {
-                layoutDrawer.open();
-              }}
-            >
-              {t("toSetupLayout")}
-            </Button>
-          </Stack>
-          <Stack direction="row" alignItems="center" position="absolute" right={8}>
-            <Button onClick={handleNoMoreTips}>{t("noMoreTips")}</Button>
-            <IconButton
-              onClick={() => {
-                setLayoutTipsOpen(false);
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Stack>
         </Stack>
       )}
     </>

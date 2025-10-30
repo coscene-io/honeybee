@@ -13,9 +13,10 @@ import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 export type SubscriptionEntitlementStore = {
+  paid: boolean;
   subscription: Subscription | undefined;
   setSubscription: (subscription: Subscription | undefined) => void;
   getEntitlement: (feature: PlanFeatureEnum_PlanFeature) => Entitlement | undefined;
@@ -69,7 +70,9 @@ export function useEntitlementWithDialog(
     })
       .then((result) => {
         if (result === "ok") {
-          window.open(`${APP_CONFIG.OFFICIAL_WEB_URL}/pricing`, "_blank");
+          const appConfig = getAppConfig();
+
+          window.open(`${appConfig.OFFICIAL_WEB_URL}/pricing`, "_blank");
         }
       })
       .catch((error: unknown) => {

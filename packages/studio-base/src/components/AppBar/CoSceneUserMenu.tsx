@@ -32,7 +32,7 @@ import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectio
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { APP_CONFIG, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import {
   downloadLatestStudio,
   getCoStudioVersion,
@@ -41,8 +41,6 @@ import {
 } from "@foxglove/studio-base/util/download";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
-
-const domainConfig = getDomainConfig();
 
 const useStyles = makeStyles()(() => ({
   menuList: {
@@ -66,7 +64,8 @@ const selectSetLoginStatus = (store: UserStore) => store.setLoginStatus;
 const selectResetCoreDataStore = (store: CoreDataStore) => store.resetCoreDataStore;
 
 function CoStudioEnvBadge() {
-  const projectEnv = APP_CONFIG.VITE_APP_PROJECT_ENV;
+  const appConfig = getAppConfig();
+  const projectEnv = appConfig.VITE_APP_PROJECT_ENV;
 
   switch (projectEnv) {
     case "aws":
@@ -95,8 +94,12 @@ export function UserMenu({
   const setUser = useCoSceneCurrentUser(selectSetUser);
   const resetCoreDataStore = useCoreData(selectResetCoreDataStore);
 
+  const domainConfig = getDomainConfig();
+
   useEffect(() => {
-    if (APP_CONFIG.COSTUDIO_DOWNLOAD_URL) {
+    const appConfig = getAppConfig();
+
+    if (appConfig.COSTUDIO_DOWNLOAD_URL) {
       void getCoStudioVersion().then((version) => {
         setLatestVersion(version);
       });

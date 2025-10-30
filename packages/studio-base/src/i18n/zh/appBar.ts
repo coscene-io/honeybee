@@ -43,7 +43,6 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
     "已将所有 media 文件生成，刷新页面即可播放全部文件 ({{count}}/{{count}})",
   mediaGenerationError: "播放列表中存在无法生成索引的文件，请检查文件内容",
   loadingTips: "正在全速加载播放数据，请稍候...",
-  layoutGuideliens: "新建「布局」自定义你的可视化视图，或直接使用组织共享布局",
   toSetupLayout: "前往设置布局",
   noMoreTips: "不再提示",
   loginSuccess: "登录成功",

@@ -14,7 +14,6 @@ import {
   Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
-import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -77,24 +76,36 @@ export default function SeekStepControls({
   }, [editingSeekStep, effectiveSeekMs]);
 
   const commitSeekStep = useCallback(() => {
-    const sec = Number(seekStepInput.trim());
-    const minSec = MIN_SEEK_STEP_MS / 1000; // Convert ms to seconds for comparison
-    const maxSec = MAX_SEEK_STEP_MS / 1000; // Convert ms to seconds for comparison
+    const trimmed = seekStepInput.trim();
+    const minSec = MIN_SEEK_STEP_MS / 1000;
+    const maxSec = MAX_SEEK_STEP_MS / 1000;
 
-    if (!Number.isFinite(sec) || sec < minSec || sec > maxSec) {
-      // Reset to a sensible default and inform the user
+    if (trimmed === "") {
       void setSeekStepMs(100);
       setSeekStepInput("0.1");
-      toast.error(t("invalidSeekStep", { ns: "cosGeneral" }));
       setEditingSeekStep(false);
       return;
     }
 
-    // Preserve sub-millisecond precision by avoiding integer rounding
-    const nMs = Math.max(MIN_SEEK_STEP_MS, sec * 1000);
-    void setSeekStepMs(nMs);
+    const sec = Number(trimmed);
+    if (!Number.isFinite(sec)) {
+      void setSeekStepMs(100);
+      setSeekStepInput("0.1");
+      setEditingSeekStep(false);
+      return;
+    }
+
+    let clampedSec = sec;
+    if (sec < minSec) {
+      clampedSec = 0.001;
+    } else if (sec > maxSec) {
+      clampedSec = 5;
+    }
+
+    void setSeekStepMs(clampedSec * 1000);
+    setSeekStepInput(clampedSec.toFixed(9).replace(/\.?0+$/, ""));
     setEditingSeekStep(false);
-  }, [seekStepInput, setSeekStepMs, t]);
+  }, [seekStepInput, setSeekStepMs]);
 
   const startEditing = useCallback(() => {
     setEditingSeekStep(true);

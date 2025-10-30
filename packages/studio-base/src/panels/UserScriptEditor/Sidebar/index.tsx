@@ -16,6 +16,7 @@ import { SyntheticEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
+import { v4 as uuidv4 } from "uuid";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { Script } from "@foxglove/studio-base/panels/UserScriptEditor/script";
@@ -59,7 +60,7 @@ type TabOption =
   | "templates";
 
 type SidebarProps = {
-  addNewScript: (sourceCode?: string) => void;
+  addNewScript: (sourceCode?: string, scriptId?: string) => void;
   selectScript: (scriptId: string) => void;
   deleteScript: (scriptId: string) => void;
   setScriptOverride: (script: Script, maxDepth?: number) => void;
@@ -84,6 +85,15 @@ export function Sidebar({
   const { classes } = useStyles();
   const [activeTab, setActiveTab] = useState<TabOption>(false);
   const { t } = useTranslation("userScriptEditor");
+
+  const handleAddNewNode = useCallback(
+    (sourceCode?: string, sourceCodeName?: string) => {
+      const uuid = uuidv4();
+      addNewNode(sourceCode, sourceCodeName ? `${sourceCodeName}-${uuid}` : uuid);
+      setActiveTab("nodes");
+    },
+    [addNewNode],
+  );
 
   const gotoUtils = useCallback(
     (filePath: string) => {
@@ -127,7 +137,7 @@ export function Sidebar({
           scripts={userScripts}
           selectScript={selectScript}
           deleteScript={deleteScript}
-          addNewScript={addNewNode}
+          addNewScript={handleAddNewNode}
           onClose={handleClose}
           selectedScriptId={selectedScriptId}
           selectedScript={selectedScript}
@@ -135,10 +145,10 @@ export function Sidebar({
         />
       ),
       utils: <Utilities onClose={handleClose} gotoUtils={gotoUtils} script={script} />,
-      templates: <Templates onClose={handleClose} addNewNode={addNewNode} />,
+      templates: <Templates onClose={handleClose} addNewNode={handleAddNewNode} />,
     }),
     [
-      addNewNode,
+      handleAddNewNode,
       deleteScript,
       gotoUtils,
       script,

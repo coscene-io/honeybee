@@ -33,7 +33,7 @@ import {
   useWorkspaceStore,
   WorkspaceContextStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import { getLegalDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -49,6 +49,8 @@ import {
   RetentionWindowMs,
   RequestWindow,
   ReadAheadDuration,
+  StudioRemoteConfigUrl,
+  AutoConnectToLan,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -111,7 +113,9 @@ const useStyles = makeStyles()((theme) => ({
 const CONTACT_EMAIL = "hi@coscene.io";
 const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
 
-const showLanguageOptions = APP_CONFIG.LANGUAGE.options.length > 1;
+const appConfig = getAppConfig();
+const showLanguageOptions =
+  appConfig.LANGUAGE != undefined && appConfig.LANGUAGE.options.length > 1;
 
 type SectionKey = "contact" | "legal";
 
@@ -249,11 +253,13 @@ export function AppSettingsDialog(
               <RequestWindow />
               <ReadAheadDuration />
               {showLanguageOptions && <LanguageSettings />}
+              <AutoConnectToLan />
               {supportsAppUpdates && <AutoUpdate />}
 
               {/* CoScene */}
               {/* {!isDesktopApp() && <LaunchDefault />} */}
               {isDesktopApp() && <RosPackagePath />}
+              {isDesktopApp() && <StudioRemoteConfigUrl />}
               {/* <Stack>
                 <FormLabel>{t("advanced")}:</FormLabel>
                 <FormControlLabel

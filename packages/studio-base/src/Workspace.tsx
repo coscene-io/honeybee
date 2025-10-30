@@ -14,7 +14,7 @@
 //   You may not use this file except in compliance with the License.
 
 import * as _ from "lodash-es";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -56,6 +56,7 @@ import { TopicList } from "@foxglove/studio-base/components/TopicList";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
@@ -63,6 +64,7 @@ import {
   DataSourceArgs,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import { SubscriptionEntitlementStore } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import {
   LeftSidebarItemKey,
   RightSidebarItemKey,
@@ -74,6 +76,7 @@ import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useCoSceneI
 import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDefaultWebLaunchPreference";
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
 import { useHandleFiles } from "@foxglove/studio-base/hooks/useHandleFiles";
+import { Language } from "@foxglove/studio-base/i18n";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
@@ -81,11 +84,12 @@ import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
+import { useSubscriptionEntitlement } from "./context/SubscriptionEntitlementContext";
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 import useNativeAppMenuEvent from "./hooks/useNativeAppMenuEvent";
 
 const log = Logger.getLogger(__filename);
-const domainConfig = getDomainConfig();
+const PERSONAL_INFO_CONFIG_ID = "personalInfo";
 
 const useStyles = makeStyles()({
   container: {
@@ -140,6 +144,7 @@ const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
@@ -161,11 +166,18 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const enableList = useCoreData(selectEnableList);
   const dataSource = useCoreData(selectDataSource);
 
+  const paid = useSubscriptionEntitlement(selectPaid);
+
+  // Initialize deep link state - must be called inside WorkspaceContextProvider
+  useInitialDeepLinkState(props.deepLinks ?? DEFAULT_DEEPLINKS);
+
   // coScene set demo layout in demo mode
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
   const { t } = useTranslation("workspace");
   const { AppBarComponent = AppBar } = props;
+
+  const domainConfig = getDomainConfig();
 
   // file types we support for drag/drop
   const allowedDropExtensions = useMemo(() => {
@@ -241,7 +253,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         {
           title: t("moment", { ns: "cosWorkspace" }),
           component: EventsList,
-          hidden: enableList.event === "DISABLE",
+          hidden: !paid || enableList.event === "DISABLE",
         },
       ],
       [
@@ -249,7 +261,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         {
           title: t("tasks", { ns: "cosWorkspace" }),
           component: TasksList,
-          hidden: enableList.task === "DISABLE",
+          hidden: !paid || enableList.task === "DISABLE",
         },
       ],
       [
@@ -272,7 +284,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       items.filter(([, item]) => item.hidden == undefined || !item.hidden),
     );
     return cleanItems;
-  }, [enableList.event, enableList.playlist, enableList.task, playerProblems, t]);
+  }, [enableList.event, enableList.playlist, enableList.task, playerProblems, t, paid]);
 
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
@@ -404,7 +416,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         }
       }, 500);
     }, 1000);
-  }, [t]);
+  }, [t, domainConfig.webDomain]);
 
   // Load data source from URL.
   useEffect(() => {
@@ -551,12 +563,49 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
   const [showOpenDialogOnStartup = true] = useAppConfigurationValue<boolean>(
     AppSetting.SHOW_OPEN_DIALOG_ON_STARTUP,
   );
-
-  useInitialDeepLinkState(props.deepLinks ?? DEFAULT_DEEPLINKS);
+  const { i18n } = useTranslation();
+  const [, setSelectedLanguage] = useAppConfigurationValue<Language>(AppSetting.LANGUAGE);
+  const consoleApi = useConsoleApi();
+  const currentUser = useCurrentUser(selectUser);
+  const loginStatus = useCurrentUser(selectUserLoginStatus);
 
   const { workspaceStoreCreator } = useAppContext();
 
   const isPlayerPresent = useMessagePipeline(selectPlayerIsPresent);
+
+  const syncLanguageWithOrgConfigMap = useCallback(async () => {
+    // Only sync language if user is logged in
+    if (loginStatus !== "alreadyLogin" || !currentUser?.userId) {
+      return;
+    }
+
+    const configName = `users/${currentUser.userId}/configMaps/${PERSONAL_INFO_CONFIG_ID}`;
+
+    const userConfig = await consoleApi.getOrgConfigMap({
+      name: configName,
+    });
+
+    const userLanguage = (
+      userConfig.value?.toJson() as
+        | {
+            settings?: {
+              language?: string;
+            };
+          }
+        | undefined
+    )?.settings?.language;
+
+    if (userLanguage != undefined && userLanguage !== i18n.language) {
+      void i18n.changeLanguage(userLanguage);
+
+      void setSelectedLanguage(userLanguage as Language);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loginStatus, currentUser?.userId]);
+
+  useEffect(() => {
+    void syncLanguageWithOrgConfigMap();
+  }, [syncLanguageWithOrgConfigMap]);
 
   const initialItem: undefined | DataSourceDialogItem =
     isPlayerPresent || !showOpenDialogOnStartup ? undefined : "start";

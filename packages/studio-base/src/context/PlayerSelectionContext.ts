@@ -25,6 +25,7 @@ export type DataSourceFactoryInitializeArgs = {
   confirm?: confirmTypes;
   requestWindow?: Time;
   readAheadDuration?: Time;
+  autoConnectToLan?: boolean;
 } & PersistentCacheSourceInitializeArgs;
 
 export type DataSourceFactoryType = "file" | "connection" | "sample" | "persistent-cache";

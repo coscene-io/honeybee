@@ -52,8 +52,6 @@ import {
   handleServiceResponse,
 } from "./utils";
 
-const domainConfig = getDomainConfig();
-
 type Props = {
   context: PanelExtensionContext;
 };
@@ -63,6 +61,7 @@ const log = Log.getLogger(__dirname);
 function DataCollectionContent(
   props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
 ): React.JSX.Element {
+  const domainConfig = getDomainConfig();
   const { context, setColorScheme } = props;
   const { userInfo, consoleApi, deviceLink } = useDataCollectionContext();
 
@@ -244,7 +243,15 @@ function DataCollectionContent(
         addLog(`[ERROR] ${t("uploadFileFail")}`);
       }
     },
-    [collectionStartTime, consoleApi, userInfo.userId, deviceLink, addLog, t],
+    [
+      collectionStartTime,
+      consoleApi,
+      userInfo.userId,
+      deviceLink,
+      addLog,
+      t,
+      domainConfig.webDomain,
+    ],
   );
 
   const callServiceClicked = useCallback(

@@ -48,4 +48,10 @@ export enum AppSetting {
 
   REQUEST_WINDOW = "requestWindow",
   READ_AHEAD_DURATION = "readAheadDuration",
+
+  // Remote Config
+  REMOTE_CONFIG_URL = "remoteConfigUrl",
+
+  // Auto Connect Lan
+  AUTO_CONNECT_LAN = "autoConnectLan",
 }

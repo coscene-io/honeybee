@@ -27,6 +27,7 @@ export type PlotPath = BasePlotPath & {
   timestampMethod: TimestampMethod;
   showLine?: boolean;
   lineSize?: number;
+  expansionState?: "collapsed" | "expanded";
 };
 
 export type PlotXAxisVal =
