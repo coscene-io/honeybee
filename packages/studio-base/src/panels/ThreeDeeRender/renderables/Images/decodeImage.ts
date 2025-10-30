@@ -114,6 +114,7 @@ export async function decodeCompressedImageToBitmap(
   }
 
   // handle ROS compressedDepth header: [uint32_le headerLen][header bytes][image bytes...]
+  // https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html
   if (isCompressedDepth) {
     if (codec === "rvl") {
       throw new Error(
