@@ -17,6 +17,10 @@ import {
   useCoreData,
   CoordinatorConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { Configuration, DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
@@ -51,7 +55,7 @@ const selectReloadSubscriptionTrigger = (state: CoreDataStore) => state.reloadSu
 
 const selectLoginStatus = (state: UserStore) => state.loginStatus;
 const selectSetFocusedTask = (state: TaskStore) => state.setFocusedTask;
-const selectEnableList = (store: CoreDataStore) => store.getEnableList();
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 const log = Logger.getLogger(__filename);
 
@@ -86,7 +90,7 @@ export function CoreDataSyncAdapter(): ReactNull {
 
   const loginStatus = useCurrentUser(selectLoginStatus);
 
-  const { paid } = useCoreData(selectEnableList);
+  const paid = useSubscriptionEntitlement(selectPaid);
 
   const consoleApi = useConsoleApi();
 
@@ -231,7 +235,7 @@ export function CoreDataSyncAdapter(): ReactNull {
   // Device
   const [, syncDevice] = useAsyncFn(async () => {
     if (
-      paid === "ENABLE" &&
+      paid &&
       externalInitConfig?.warehouseId &&
       externalInitConfig.projectId &&
       externalInitConfig.deviceId
@@ -245,7 +249,7 @@ export function CoreDataSyncAdapter(): ReactNull {
 
   useEffect(() => {
     if (
-      paid === "ENABLE" &&
+      paid &&
       externalInitConfig?.warehouseId &&
       externalInitConfig.projectId &&
       externalInitConfig.deviceId
@@ -265,7 +269,7 @@ export function CoreDataSyncAdapter(): ReactNull {
 
   // RecordCustomFieldSchema
   const [, syncRecordCustomFieldSchema] = useAsyncFn(async () => {
-    if (paid === "ENABLE" && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+    if (paid && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       const customFieldSchema = await consoleApi.getRecordCustomFieldSchema(
         `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`,
       );
@@ -280,7 +284,7 @@ export function CoreDataSyncAdapter(): ReactNull {
   ]);
 
   useEffect(() => {
-    if (paid === "ENABLE" && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+    if (paid && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       syncRecordCustomFieldSchema().catch((error: unknown) => {
         log.error(error);
       });
@@ -295,7 +299,7 @@ export function CoreDataSyncAdapter(): ReactNull {
 
   // DeviceCustomFieldSchema
   const [, syncDevideCustomFieldSchema] = useAsyncFn(async () => {
-    if (paid === "ENABLE" && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+    if (paid && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       const customFieldSchema = await consoleApi.getDeviceCustomFieldSchema();
       setDeviceCustomFieldSchema(customFieldSchema);
     }
@@ -308,7 +312,7 @@ export function CoreDataSyncAdapter(): ReactNull {
   ]);
 
   useEffect(() => {
-    if (paid === "ENABLE" && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+    if (paid && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       syncDevideCustomFieldSchema().catch((error: unknown) => {
         log.error(error);
       });
