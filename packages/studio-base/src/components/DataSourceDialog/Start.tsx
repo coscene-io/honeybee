@@ -16,8 +16,11 @@ import { TaskPanel } from "@foxglove/studio-base/components/Tasks/TaskPanel";
 import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
@@ -236,7 +239,7 @@ function SidebarItems(): React.JSX.Element {
 
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectUser = (store: UserStore) => store.user;
-const selectEnableList = (store: CoreDataStore) => store.getEnableList();
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 export default function Start(): React.JSX.Element {
   const { recentSources, selectRecent } = usePlayerSelection();
@@ -249,7 +252,7 @@ export default function Start(): React.JSX.Element {
 
   const domainConfig = getDomainConfig();
 
-  const { paid } = useCoreData(selectEnableList);
+  const paid = useSubscriptionEntitlement(selectPaid);
 
   const startItems = useMemo(() => {
     return [
@@ -314,7 +317,7 @@ export default function Start(): React.JSX.Element {
             ))}
           </Stack>
           <Stack direction="row" gap={2} style={{ minWidth: 500, height: 500 }} fullWidth>
-            {paid === "ENABLE" && (
+            {paid && (
               <Stack style={{ width: "350px" }}>
                 <TaskPanel />
               </Stack>

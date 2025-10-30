@@ -16,6 +16,7 @@ import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 export type SubscriptionEntitlementStore = {
+  paid: boolean;
   subscription: Subscription | undefined;
   setSubscription: (subscription: Subscription | undefined) => void;
   getEntitlement: (feature: PlanFeatureEnum_PlanFeature) => Entitlement | undefined;
