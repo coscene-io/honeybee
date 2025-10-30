@@ -2,6 +2,17 @@
 
 Honeybee is an integrated visualization and diagnosis tool for robotics, available in browser or as a desktop app on Linux, Windows, and macOS.
 
+Honeybee helps robotics teams visualize, debug, and analyze logs and live telemetry through a rich set of panels and tools.
+
+![Honeybee](./resources/play-nuScene.gif)
+
+## Availability and Access
+
+- The source code of Honeybee is publicly available.
+- The application depends on private npm packages, so it cannot run out-of-the-box outside our organization.
+- To try Honeybee, visit our hosted version at [coscene.cn](https://coscene.cn/).
+- Internal contributors can follow the Initialization section below to set up the development environment.
+
 **Supported development environments:** Linux, Windows, macOS
 
 **Dependencies:**
