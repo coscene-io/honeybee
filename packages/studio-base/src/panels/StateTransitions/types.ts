@@ -12,6 +12,7 @@ export type StateTransitionPath = {
   value: string;
   label?: string;
   enabled?: boolean;
+  expansionState?: "collapsed" | "expanded";
   timestampMethod: TimestampMethod;
 };
 
