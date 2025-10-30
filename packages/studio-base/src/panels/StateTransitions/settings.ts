@@ -39,14 +39,30 @@ const makeSeriesNode = memoizeWeak(
         ? [
             {
               type: "action",
+              id: "insert-series",
+              label: "Insert series",
+              display: "hover",
+              icon: "Addchart",
+            },
+            {
+              type: "action",
               id: "delete-series",
               label: "Delete series",
-              display: "inline",
+              display: "hover",
               icon: "Clear",
             },
           ]
-        : [],
+        : [
+            {
+              type: "action",
+              id: "insert-series",
+              label: "Insert series",
+              display: "hover",
+              icon: "Addchart",
+            },
+          ],
       label: stateTransitionPathDisplayName(path, index),
+      expansionState: path.expansionState,
       fields: {
         value: {
           label: "Message path",
@@ -87,6 +103,9 @@ const makeRootSeriesNode = memoizeWeak((paths: PathState[]): SettingsTreeNode =>
           }),
         ]),
   );
+
+  const shouldCollapsedAll = paths.some(({ path }) => path.expansionState === "expanded");
+
   return {
     label: "Series",
     children,
@@ -97,6 +116,13 @@ const makeRootSeriesNode = memoizeWeak((paths: PathState[]): SettingsTreeNode =>
         label: "Add series",
         display: "inline",
         icon: "Addchart",
+      },
+      {
+        type: "action",
+        id: "collapse-all-series",
+        label: shouldCollapsedAll ? "Collapse all series" : "Expand all series",
+        display: "inline",
+        icon: shouldCollapsedAll ? "KeyboardDoubleArrowUpIcon" : "KeyboardDoubleArrowDownIcon",
       },
     ],
   };
@@ -203,9 +229,16 @@ export function useStateTransitionsPanelSettings(
           saveConfig(
             produce((draft) => {
               if (draft.paths.length === 0) {
-                draft.paths.push({ ...DEFAULT_PATH });
+                draft.paths.unshift({ ...DEFAULT_PATH });
               }
-              draft.paths.push({ ...DEFAULT_PATH });
+              draft.paths.unshift({ ...DEFAULT_PATH });
+            }),
+          );
+        } else if (action.payload.id === "insert-series") {
+          const index = action.payload.path[1];
+          saveConfig(
+            produce((draft) => {
+              draft.paths.splice(Number(index) + 1, 0, { ...DEFAULT_PATH });
             }),
           );
         } else if (action.payload.id === "delete-series") {
@@ -213,6 +246,16 @@ export function useStateTransitionsPanelSettings(
           saveConfig(
             produce((draft) => {
               draft.paths.splice(Number(index), 1);
+            }),
+          );
+        } else if (action.payload.id === "collapse-all-series") {
+          saveConfig(
+            produce<StateTransitionConfig>((draft) => {
+              const shouldCollapsedAll = draft.paths.some((p) => p.expansionState === "expanded");
+
+              for (const p of draft.paths) {
+                p.expansionState = shouldCollapsedAll ? "collapsed" : "expanded";
+              }
             }),
           );
         }
