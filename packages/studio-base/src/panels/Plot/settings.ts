@@ -50,7 +50,7 @@ const makeSeriesNode = memoizeWeak(
         : [],
       label: plotPathDisplayName(path, index, t),
       visible: path.enabled,
-      expansionState: path.expansionState,
+      expansionState: path.expansionState ?? "collapsed",
       fields: {
         value: {
           label: t("messagePath"),
