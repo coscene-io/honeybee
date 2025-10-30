@@ -17,6 +17,10 @@ import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTrunc
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
@@ -235,6 +239,7 @@ function SidebarItems(): React.JSX.Element {
 
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectUser = (store: UserStore) => store.user;
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 export default function Start(): React.JSX.Element {
   const { recentSources, selectRecent } = usePlayerSelection();
@@ -246,6 +251,8 @@ export default function Start(): React.JSX.Element {
   const user = useCurrentUser(selectUser);
 
   const domainConfig = getDomainConfig();
+
+  const paid = useSubscriptionEntitlement(selectPaid);
 
   const startItems = useMemo(() => {
     return [
@@ -310,11 +317,13 @@ export default function Start(): React.JSX.Element {
             ))}
           </Stack>
           <Stack direction="row" gap={2} style={{ minWidth: 500, height: 500 }} fullWidth>
-            <Stack style={{ width: "350px" }}>
-              <TaskPanel />
-            </Stack>
+            {paid && (
+              <Stack style={{ width: "350px" }}>
+                <TaskPanel />
+              </Stack>
+            )}
             {recentSources.length > 0 && (
-              <Stack style={{ minWidth: 200 }}>
+              <Stack style={{ minWidth: 200, width: "100%" }}>
                 <Stack gap={1} fullHeight>
                   <Typography variant="h5" gutterBottom>
                     {t("recentDataSources")}

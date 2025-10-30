@@ -21,9 +21,12 @@ import {
 
 function createSubscriptionEntitlementStore() {
   return createStore<SubscriptionEntitlementStore>((set, get) => ({
+    paid: false,
     subscription: undefined,
     setSubscription: (subscription: Subscription | undefined) => {
-      set({ subscription });
+      const code = subscription?.plan?.code.toLowerCase();
+      const paid = !!code && code !== "free";
+      set({ subscription, paid });
     },
     getEntitlement: (feature: PlanFeatureEnum_PlanFeature) => {
       const data = get().subscription;
