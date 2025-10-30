@@ -27,6 +27,10 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
+import {
   useClearHoverValue,
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
@@ -67,6 +71,7 @@ const selectRanges = (ctx: MessagePipelineContext) =>
   ctx.playerState.progress.fullyLoadedFractionRanges;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 type Props = {
   onSeek: (seekTo: Time) => void;
@@ -88,6 +93,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const ranges = useMessagePipeline(selectRanges);
 
   const enableList = useCoreData(selectEnableList);
+  const paid = useSubscriptionEntitlement(selectPaid);
 
   const setHoverValue = useSetHoverValue();
 
@@ -254,7 +260,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
           />
         </Stack>
         <BagsOverlay />
-        {enableList.event === "ENABLE" && consoleApi.createEvent.permission() && (
+        {paid && enableList.event === "ENABLE" && consoleApi.createEvent.permission() && (
           <EventsOverlay
             componentId={hoverComponentId}
             isDragging={isDragging}

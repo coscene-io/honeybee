@@ -122,20 +122,17 @@ function CreateCoreDataStore() {
 
     getEnableList: () => {
       const { dataSource, project, externalInitConfig } = get();
-      // TODO: paid status should be retrieved from SubscriptionEntitlementContext
-      // For now, we set paid to false as a default until components are updated
-      const paid = false;
 
       return {
         event:
-          paid && dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
+          dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
             ? "ENABLE"
             : "DISABLE",
         playlist:
-          paid && dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
+          dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
             ? "ENABLE"
             : "DISABLE",
-        task: paid && project.value != undefined ? "ENABLE" : "DISABLE",
+        task: project.value != undefined ? "ENABLE" : "DISABLE",
         layoutSync:
           externalInitConfig?.warehouseId && externalInitConfig.projectId ? "ENABLE" : "DISABLE",
         recordInfo:
