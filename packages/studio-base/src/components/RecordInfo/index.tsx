@@ -20,6 +20,10 @@ import RecordLabelSelector from "@foxglove/studio-base/components/RecordInfo/Rec
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 
 const selectRecord = (store: CoreDataStore) => store.record;
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
@@ -28,13 +32,13 @@ const selectRecordCustomFieldSchema = (store: CoreDataStore) => store.recordCust
 const selectDeviceCustomFieldSchema = (store: CoreDataStore) => store.deviceCustomFieldSchema;
 const selectOrganization = (store: CoreDataStore) => store.organization;
 const selectProject = (store: CoreDataStore) => store.project;
-const selectEnableList = (store: CoreDataStore) => store.getEnableList();
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 const log = Logger.getLogger(__filename);
 
 export default function RecordInfo(): ReactElement {
   const consoleApi = useConsoleApi();
-  const { paid } = useCoreData(selectEnableList);
+  const paid = useSubscriptionEntitlement(selectPaid);
 
   const record = useCoreData(selectRecord);
   const externalInitConfig = useCoreData(selectExternalInitConfig);
@@ -51,7 +55,7 @@ export default function RecordInfo(): ReactElement {
   const { t } = useTranslation("recordInfo");
 
   const [deviceInfo, getDeviceInfo] = useAsyncFn(async () => {
-    if (paid === "DISABLE" || !record.value?.device?.name) {
+    if (paid || !record.value?.device?.name) {
       return;
     }
 
@@ -83,7 +87,7 @@ export default function RecordInfo(): ReactElement {
   }, [consoleApi, externalInitConfig?.warehouseId, externalInitConfig?.projectId]);
 
   useEffect(() => {
-    if (paid === "ENABLE" && record.value?.device?.name) {
+    if (paid && record.value?.device?.name) {
       getDeviceInfo().catch((error: unknown) => {
         log.error(error);
       });
@@ -118,7 +122,7 @@ export default function RecordInfo(): ReactElement {
   return (
     <>
       <Stack flex="auto" overflowX="auto" gap={2} padding={1}>
-        {paid === "ENABLE" && (
+        {paid && (
           <Stack gap={1}>
             <Typography variant="h6" gutterBottom>
               {t("deviceInfo")}
@@ -187,26 +191,24 @@ export default function RecordInfo(): ReactElement {
             </Stack>
           </Stack>
 
-          {paid === "ENABLE" &&
-            record.value?.customFieldValues &&
-            recordCustomFieldSchema?.properties && (
-              <CustomFieldValuesFields
-                variant="secondary"
-                properties={recordCustomFieldSchema.properties}
-                customFieldValues={record.value.customFieldValues}
-                readonly={!consoleApi.updateRecord.permission()}
-                onChange={(customFieldValues) => {
-                  if (!record.value) {
-                    return;
-                  }
+          {paid && record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
+            <CustomFieldValuesFields
+              variant="secondary"
+              properties={recordCustomFieldSchema.properties}
+              customFieldValues={record.value.customFieldValues}
+              readonly={!consoleApi.updateRecord.permission()}
+              onChange={(customFieldValues) => {
+                if (!record.value) {
+                  return;
+                }
 
-                  void updateRecord({
-                    record: { name: record.value.name, customFieldValues },
-                    updateMask: { paths: ["customFieldValues"] },
-                  });
-                }}
-              />
-            )}
+                void updateRecord({
+                  record: { name: record.value.name, customFieldValues },
+                  updateMask: { paths: ["customFieldValues"] },
+                });
+              }}
+            />
+          )}
 
           {record.value?.createTime && (
             <Stack>
