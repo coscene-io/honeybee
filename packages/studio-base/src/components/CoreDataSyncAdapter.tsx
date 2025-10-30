@@ -40,7 +40,6 @@ const selectSetDeviceCustomFieldSchema = (state: CoreDataStore) => state.setDevi
 const selectSetCoordinatorConfig = (state: CoreDataStore) => state.setCoordinatorConfig;
 const selectSetColinkApi = (state: CoreDataStore) => state.setColinkApi;
 const selectSetOrganization = (state: CoreDataStore) => state.setOrganization;
-const selectSetSubscription = (state: CoreDataStore) => state.setSubscription;
 
 const selectReloadRecordTrigger = (state: CoreDataStore) => state.reloadRecordTrigger;
 const selectReloadProjectTrigger = (state: CoreDataStore) => state.reloadProjectTrigger;
@@ -51,7 +50,6 @@ const selectReloadRecordCustomFieldSchemaTrigger = (state: CoreDataStore) =>
 const selectReloadDeviceCustomFieldSchemaTrigger = (state: CoreDataStore) =>
   state.reloadDeviceCustomFieldSchemaTrigger;
 const selectReloadOrganizationTrigger = (state: CoreDataStore) => state.reloadOrganizationTrigger;
-const selectReloadSubscriptionTrigger = (state: CoreDataStore) => state.reloadSubscriptionTrigger;
 
 const selectLoginStatus = (state: UserStore) => state.loginStatus;
 const selectSetFocusedTask = (state: TaskStore) => state.setFocusedTask;
@@ -65,7 +63,6 @@ export function CoreDataSyncAdapter(): ReactNull {
   const coordinatorConfig = useCoreData(selectCoordinatorConfig);
 
   const setOrganization = useCoreData(selectSetOrganization);
-  const setSubscription = useCoreData(selectSetSubscription);
   const setRecord = useCoreData(selectSetRecord);
   const setDevice = useCoreData(selectSetDevice);
   const setProject = useCoreData(selectSetProject);
@@ -86,7 +83,6 @@ export function CoreDataSyncAdapter(): ReactNull {
     selectReloadDeviceCustomFieldSchemaTrigger,
   );
   const reloadOrganizationTrigger = useCoreData(selectReloadOrganizationTrigger);
-  const reloadSubscriptionTrigger = useCoreData(selectReloadSubscriptionTrigger);
 
   const loginStatus = useCurrentUser(selectLoginStatus);
 
@@ -108,29 +104,6 @@ export function CoreDataSyncAdapter(): ReactNull {
       });
     }
   }, [syncOrganization, reloadOrganizationTrigger, loginStatus]);
-
-  // Subscription
-  const [, syncSubscription] = useAsyncFn(async () => {
-    if (organization.value?.name != undefined) {
-      const subscription = await consoleApi.getActiveOrganizationSubscription(
-        organization.value.name,
-      );
-
-      if (subscription != undefined) {
-        setSubscription({ loading: false, value: subscription });
-      } else {
-        setSubscription({ loading: false, value: undefined });
-      }
-    }
-  }, [organization.value?.name, consoleApi, setSubscription]);
-
-  useEffect(() => {
-    if (organization.value?.name != undefined) {
-      syncSubscription().catch((error: unknown) => {
-        log.error(error);
-      });
-    }
-  }, [syncSubscription, reloadSubscriptionTrigger, organization.value?.name]);
 
   // Project
   const [, syncProjects] = useAsyncFn(async () => {

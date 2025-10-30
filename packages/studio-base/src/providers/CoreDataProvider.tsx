@@ -10,7 +10,6 @@
 
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { Subscription } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/subscription_pb";
 import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { CustomFieldSchema } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
@@ -34,7 +33,6 @@ const defaultCoreDataStore = {
   dataSource: undefined,
 
   organization: { loading: true, value: undefined },
-  subscription: { loading: true, value: undefined },
   project: { loading: true, value: undefined },
   device: { loading: true, value: undefined },
   record: { loading: true, value: undefined },
@@ -47,7 +45,6 @@ const defaultCoreDataStore = {
   colinkApi: undefined,
 
   reloadRecordTrigger: 0,
-  reloadSubscriptionTrigger: 0,
   reloadProjectTrigger: 0,
   reloadDeviceTrigger: 0,
   reloadJobRunTrigger: 0,
@@ -71,9 +68,6 @@ function CreateCoreDataStore() {
     },
     setOrganization: (organization: AsyncState<Organization>) => {
       set({ organization });
-    },
-    setSubscription: (subscription: AsyncState<Subscription>) => {
-      set({ subscription });
     },
     setRecord: (record: AsyncState<Record>) => {
       set({ record });
@@ -103,9 +97,6 @@ function CreateCoreDataStore() {
     refreshOrganization: () => {
       set({ reloadOrganizationTrigger: get().reloadOrganizationTrigger + 1 });
     },
-    refreshSubscription: () => {
-      set({ reloadSubscriptionTrigger: get().reloadSubscriptionTrigger + 1 });
-    },
     refreshProject: () => {
       set({ reloadProjectTrigger: get().reloadProjectTrigger + 1 });
     },
@@ -130,9 +121,10 @@ function CreateCoreDataStore() {
     },
 
     getEnableList: () => {
-      const { dataSource, project, externalInitConfig, subscription } = get();
-      const code = subscription.value?.plan?.code.toLowerCase();
-      const paid = !!code && code !== "free";
+      const { dataSource, project, externalInitConfig } = get();
+      // TODO: paid status should be retrieved from SubscriptionEntitlementContext
+      // For now, we set paid to false as a default until components are updated
+      const paid = false;
 
       return {
         paid: paid ? "ENABLE" : "DISABLE",

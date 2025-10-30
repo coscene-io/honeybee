@@ -7,7 +7,6 @@
 // 外部传入的初始化配置数据
 import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { Subscription } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/subscription_pb";
 import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { CustomFieldSchema } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
@@ -79,7 +78,6 @@ export type CoreDataStore = {
   dataSource?: DataSource;
 
   organization: AsyncState<Organization>;
-  subscription: AsyncState<Subscription>;
   project: AsyncState<Project>;
   device: AsyncState<Device>;
   record: AsyncState<Record>;
@@ -93,7 +91,6 @@ export type CoreDataStore = {
   colinkApi?: ReturnType<typeof DevicesApiFactory>;
 
   reloadRecordTrigger: number;
-  reloadSubscriptionTrigger: number;
   reloadProjectTrigger: number;
   reloadDeviceTrigger: number;
   reloadJobRunTrigger: number;
@@ -116,7 +113,6 @@ export type CoreDataStore = {
   setCoordinatorConfig: (coordinatorConfig: CoordinatorConfig) => void;
   setColinkApi: (colinkApi: ReturnType<typeof DevicesApiFactory>) => void;
   setOrganization: (organization: AsyncState<Organization>) => void;
-  setSubscription: (subscription: AsyncState<Subscription>) => void;
 
   refreshProject: () => void;
   refreshDevice: () => void;
@@ -125,12 +121,10 @@ export type CoreDataStore = {
   refreshRecordCustomFieldSchema: () => void;
   refreshDeviceCustomFieldSchema: () => void;
   refreshOrganization: () => void;
-  refreshSubscription: () => void;
 
   resetCoreDataStore: () => void;
 
   getEnableList: () => {
-    paid: "ENABLE" | "DISABLE";
     event: "ENABLE" | "DISABLE";
     playlist: "ENABLE" | "DISABLE";
     task: "ENABLE" | "DISABLE";
