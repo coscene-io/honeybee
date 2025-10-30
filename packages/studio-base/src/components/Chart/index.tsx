@@ -95,6 +95,40 @@ type RpcSend = <T>(
   transferables?: Transferable[],
 ) => Promise<T>;
 
+function isRpcTerminatedError(error: unknown): error is Error {
+  return error instanceof Error && error.message === "Rpc terminated";
+}
+
+type SafeRpcSendResult<T> =
+  | {
+      status: "ok";
+      value: T;
+    }
+  | {
+      status: "terminated";
+    };
+
+async function safeRpcSend<T>(
+  send: RpcSend | undefined,
+  topic: string,
+  payload?: Record<string, unknown>,
+  transferables?: Transferable[],
+): Promise<SafeRpcSendResult<T>> {
+  if (!send) {
+    return { status: "terminated" };
+  }
+
+  try {
+    const value = await send<T>(topic, payload, transferables);
+    return { status: "ok", value };
+  } catch (error) {
+    if (isRpcTerminatedError(error)) {
+      return { status: "terminated" };
+    }
+    throw error;
+  }
+}
+
 // Chart component renders data using workers with chartjs offscreen canvas
 
 const supportsOffscreenCanvas =
@@ -264,9 +298,13 @@ function Chart(props: Props): React.JSX.Element {
         // possible when we fall behind
         const coalesced = R.mergeAll(updates);
         onStartRender?.();
-        const scales = await send<RpcScales>("update", coalesced);
-        maybeUpdateScales(scales);
+        const result = await safeRpcSend<RpcScales>(send, "update", coalesced);
         onFinishRender?.();
+        if (result.status !== "ok") {
+          queuedUpdates.current = [];
+          break;
+        }
+        maybeUpdateScales(result.value);
         queuedUpdates.current = queuedUpdates.current.slice(updates.length);
       }
 
@@ -304,7 +342,8 @@ function Chart(props: Props): React.JSX.Element {
         typeof canvas.transferControlToOffscreen === "function"
           ? canvas.transferControlToOffscreen()
           : canvas;
-      const scales = await sendWrapperRef.current<RpcScales>(
+      const initializeResult = await safeRpcSend<RpcScales>(
+        sendWrapperRef.current,
         "initialize",
         {
           node: offscreenCanvas,
@@ -322,8 +361,15 @@ function Chart(props: Props): React.JSX.Element {
           offscreenCanvas as OffscreenCanvas,
         ],
       );
-      maybeUpdateScales(scales);
       onFinishRender?.();
+      if (initializeResult.status !== "ok") {
+        initialized.current = false;
+        canvasRef.current.remove();
+        canvasRef.current = undefined;
+        queuedUpdates.current = [];
+        return;
+      }
+      maybeUpdateScales(initializeResult.value);
 
       // We cannot rely solely on the call to `initialize`, since it doesn't
       // actually produce the first frame. However, if we append this update to
@@ -379,7 +425,7 @@ function Chart(props: Props): React.JSX.Element {
       }
 
       const boundingRect = event.target.getBoundingClientRect();
-      await rpcSendRef.current<RpcScales>("panstart", {
+      await safeRpcSend<RpcScales>(rpcSendRef.current, "panstart", {
         event: {
           cancelable: false,
           deltaY: event.deltaY,
@@ -401,7 +447,7 @@ function Chart(props: Props): React.JSX.Element {
       }
 
       const boundingRect = event.target.getBoundingClientRect();
-      const scales = await rpcSendRef.current<RpcScales>("panmove", {
+      const panMoveResult = await safeRpcSend<RpcScales>(rpcSendRef.current, "panmove", {
         event: {
           cancelable: false,
           deltaY: event.deltaY,
@@ -411,7 +457,10 @@ function Chart(props: Props): React.JSX.Element {
           },
         },
       });
-      maybeUpdateScales(scales, { userInteraction: true });
+      if (panMoveResult.status !== "ok") {
+        return;
+      }
+      maybeUpdateScales(panMoveResult.value, { userInteraction: true });
     });
 
     hammerManager.on("panend", async (event) => {
@@ -420,7 +469,7 @@ function Chart(props: Props): React.JSX.Element {
       }
 
       const boundingRect = event.target.getBoundingClientRect();
-      const scales = await rpcSendRef.current<RpcScales>("panend", {
+      const panEndResult = await safeRpcSend<RpcScales>(rpcSendRef.current, "panend", {
         event: {
           cancelable: false,
           deltaY: event.deltaY,
@@ -430,7 +479,10 @@ function Chart(props: Props): React.JSX.Element {
           },
         },
       });
-      maybeUpdateScales(scales, { userInteraction: true });
+      if (panEndResult.status !== "ok") {
+        return;
+      }
+      maybeUpdateScales(panEndResult.value, { userInteraction: true });
     });
 
     return () => {
@@ -445,7 +497,7 @@ function Chart(props: Props): React.JSX.Element {
       }
 
       const boundingRect = event.currentTarget.getBoundingClientRect();
-      const scales = await rpcSendRef.current<RpcScales>("wheel", {
+      const wheelResult = await safeRpcSend<RpcScales>(rpcSendRef.current, "wheel", {
         event: {
           cancelable: false,
           deltaY: event.deltaY,
@@ -457,7 +509,10 @@ function Chart(props: Props): React.JSX.Element {
           },
         },
       });
-      maybeUpdateScales(scales, { userInteraction: true });
+      if (wheelResult.status !== "ok") {
+        return;
+      }
+      maybeUpdateScales(wheelResult.value, { userInteraction: true });
     },
     [zoomEnabled, maybeUpdateScales],
   );
@@ -470,11 +525,15 @@ function Chart(props: Props): React.JSX.Element {
         return;
       }
 
-      const scales = await rpcSendRef.current<RpcScales>("mousedown", {
+      const mouseDownResult = await safeRpcSend<RpcScales>(rpcSendRef.current, "mousedown", {
         event: rpcMouseEvent(event),
       });
 
-      maybeUpdateScales(scales);
+      if (mouseDownResult.status !== "ok") {
+        return;
+      }
+
+      maybeUpdateScales(mouseDownResult.value);
     },
     [maybeUpdateScales],
   );
@@ -484,7 +543,7 @@ function Chart(props: Props): React.JSX.Element {
       return;
     }
 
-    return await rpcSendRef.current("mouseup", {
+    await safeRpcSend(rpcSendRef.current, "mouseup", {
       event: rpcMouseEvent(event),
     });
   }, []);
@@ -503,15 +562,23 @@ function Chart(props: Props): React.JSX.Element {
         return;
       }
 
-      const elements = await rpcSendRef.current<RpcElement[]>("getElementsAtEvent", {
-        event: rpcMouseEvent(event),
-      });
+      const elementsResult = await safeRpcSend<RpcElement[]>(
+        rpcSendRef.current,
+        "getElementsAtEvent",
+        {
+          event: rpcMouseEvent(event),
+        },
+      );
+
+      if (elementsResult.status !== "ok") {
+        return;
+      }
 
       // Check mouse presence again in case the mouse has left the canvas while we
       // were waiting for the RPC call.
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (isMounted() && mousePresentRef.current) {
-        onHover(elements);
+        onHover(elementsResult.value);
       }
     },
     [onHover, isMounted],
@@ -543,9 +610,13 @@ function Chart(props: Props): React.JSX.Element {
 
       // maybe we should forward the click event and add support for datalabel listeners
       // the rpc channel doesn't have a way to send rpc back...
-      const datalabel = await rpcSendRef.current("getDatalabelAtEvent", {
+      const datalabelResult = await safeRpcSend(rpcSendRef.current, "getDatalabelAtEvent", {
         event: { x: mouseX, y: mouseY, type: "click" },
       });
+
+      if (datalabelResult.status !== "ok") {
+        return;
+      }
 
       let xVal: number | undefined;
       let yVal: number | undefined;
@@ -565,7 +636,7 @@ function Chart(props: Props): React.JSX.Element {
       }
 
       props.onClick({
-        datalabel,
+        datalabel: datalabelResult.value,
         x: xVal,
         y: yVal,
       });
