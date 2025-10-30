@@ -55,13 +55,11 @@ export default function RecordInfo(): ReactElement {
   const { t } = useTranslation("recordInfo");
 
   const [deviceInfo, getDeviceInfo] = useAsyncFn(async () => {
-    if (paid || !record.value?.device?.name) {
-      return;
+    if (paid && record.value?.device?.name) {
+      return await consoleApi.getDevice({
+        deviceName: record.value.device.name,
+      });
     }
-
-    return await consoleApi.getDevice({
-      deviceName: record.value.device.name,
-    });
   }, [consoleApi, record.value?.device?.name, paid]);
 
   const [creator, getCreator] = useAsyncFn(async () => {
