@@ -122,22 +122,7 @@ export async function decodeCompressedImageToBitmap(
       );
     }
 
-    // 尝试按 headerLen 剥离（带健壮性校验）
-    if (bytes.byteLength >= 8) {
-      try {
-        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-        const headerLen = view.getUint32(0, true);
-        const MAX_HEADER = Math.min(4 * 1024 * 1024, Math.floor(bytes.byteLength * 0.25));
-        const offset = 4 + headerLen;
-        if (headerLen > 0 && headerLen <= MAX_HEADER && offset < bytes.byteLength) {
-          bytes = bytes.subarray(offset);
-        }
-      } catch {
-        // ignore, fallback to signature search
-      }
-    }
-
-    // 保险：按签名定位真实起始（防止 headerLen 不一致或存在额外字段）
+    // 按签名定位真实起始
     const ensureStartsWithSignature = () => {
       if (codec === "png") {
         if (!startsWith(bytes, PNG_SIG)) {
