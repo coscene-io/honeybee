@@ -16,6 +16,7 @@ import { TaskPanel } from "@foxglove/studio-base/components/Tasks/TaskPanel";
 import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
@@ -235,6 +236,7 @@ function SidebarItems(): React.JSX.Element {
 
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectUser = (store: UserStore) => store.user;
+const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 
 export default function Start(): React.JSX.Element {
   const { recentSources, selectRecent } = usePlayerSelection();
@@ -246,6 +248,8 @@ export default function Start(): React.JSX.Element {
   const user = useCurrentUser(selectUser);
 
   const domainConfig = getDomainConfig();
+
+  const { paid } = useCoreData(selectEnableList);
 
   const startItems = useMemo(() => {
     return [
@@ -310,11 +314,13 @@ export default function Start(): React.JSX.Element {
             ))}
           </Stack>
           <Stack direction="row" gap={2} style={{ minWidth: 500, height: 500 }} fullWidth>
-            <Stack style={{ width: "350px" }}>
-              <TaskPanel />
-            </Stack>
+            {paid === "ENABLE" && (
+              <Stack style={{ width: "350px" }}>
+                <TaskPanel />
+              </Stack>
+            )}
             {recentSources.length > 0 && (
-              <Stack style={{ minWidth: 200 }}>
+              <Stack style={{ minWidth: 200, width: "100%" }}>
                 <Stack gap={1} fullHeight>
                   <Typography variant="h5" gutterBottom>
                     {t("recentDataSources")}
