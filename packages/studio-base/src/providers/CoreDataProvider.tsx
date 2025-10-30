@@ -127,7 +127,6 @@ function CreateCoreDataStore() {
       const paid = false;
 
       return {
-        paid: paid ? "ENABLE" : "DISABLE",
         event:
           paid && dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
             ? "ENABLE"
