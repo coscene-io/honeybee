@@ -64,6 +64,7 @@ import {
   DataSourceArgs,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import { SubscriptionEntitlementStore } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import {
   LeftSidebarItemKey,
   RightSidebarItemKey,
@@ -83,6 +84,7 @@ import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
+import { useSubscriptionEntitlement } from "./context/SubscriptionEntitlementContext";
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 import useNativeAppMenuEvent from "./hooks/useNativeAppMenuEvent";
 
@@ -142,6 +144,7 @@ const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
@@ -162,6 +165,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
   const enableList = useCoreData(selectEnableList);
   const dataSource = useCoreData(selectDataSource);
+
+  const paid = useSubscriptionEntitlement(selectPaid);
 
   // Initialize deep link state - must be called inside WorkspaceContextProvider
   useInitialDeepLinkState(props.deepLinks ?? DEFAULT_DEEPLINKS);
@@ -248,7 +253,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         {
           title: t("moment", { ns: "cosWorkspace" }),
           component: EventsList,
-          hidden: enableList.event === "DISABLE",
+          hidden: !paid || enableList.event === "DISABLE",
         },
       ],
       [
@@ -256,7 +261,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         {
           title: t("tasks", { ns: "cosWorkspace" }),
           component: TasksList,
-          hidden: enableList.task === "DISABLE",
+          hidden: !paid || enableList.task === "DISABLE",
         },
       ],
       [
@@ -279,7 +284,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       items.filter(([, item]) => item.hidden == undefined || !item.hidden),
     );
     return cleanItems;
-  }, [enableList.event, enableList.playlist, enableList.task, playerProblems, t]);
+  }, [enableList.event, enableList.playlist, enableList.task, playerProblems, t, paid]);
 
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([

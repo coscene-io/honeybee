@@ -49,6 +49,10 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
+import {
   WorkspaceContextStore,
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
@@ -92,6 +96,7 @@ const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
 const selectDataSource = (store: CoreDataStore) => store.dataSource;
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
@@ -154,6 +159,7 @@ export default function PlaybackControls(props: {
   const record = useCoreData(selectRecord);
 
   const dataSource = useCoreData(selectDataSource);
+  const paid = useSubscriptionEntitlement(selectPaid);
   const { selectRecent } = usePlayerSelection();
 
   const projectIsArchived = useMemo(() => project.value?.isArchived, [project]);
@@ -265,7 +271,8 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            {enableList.event === "ENABLE" &&
+            {paid &&
+              enableList.event === "ENABLE" &&
               consoleApi.createEvent.permission() &&
               projectIsArchived === false &&
               recordIsArchived === false && (
