@@ -153,7 +153,7 @@ function useIndexedDbRecents(): IRecentsStore {
 
       return id;
     },
-    [save],
+    [save, loading],
   );
 
   return useMemo<IRecentsStore>(() => {
