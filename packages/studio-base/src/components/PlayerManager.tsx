@@ -402,7 +402,7 @@ export default function PlayerManager(
             constructPlayers(newPlayer);
 
             let recentId = undefined;
-            if (args.params?.url || args.params?.key) {
+            if (args.params?.key) {
               recentId = addRecent({
                 type: "connection",
                 sourceId: foundSource.id,
