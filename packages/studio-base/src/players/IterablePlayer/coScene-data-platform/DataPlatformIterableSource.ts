@@ -48,6 +48,7 @@ type DataPlatformSourceParameters = {
 type DataPlatformIterableSourceOptions = {
   api: DataPlatformInterableSourceConsoleApi;
   params: DataPlatformSourceParameters;
+  requestWindow?: Time;
 };
 
 export class DataPlatformIterableSource implements IIterableSource {
@@ -57,6 +58,8 @@ export class DataPlatformIterableSource implements IIterableSource {
   #params: DataPlatformSourceParameters;
   #start?: Time;
   #end?: Time;
+
+  #requestWindow: Time = { sec: 5, nsec: 0 };
 
   /**
    * Cached readers for each schema so we don't have to re-parse definitions on each stream request.
@@ -70,6 +73,8 @@ export class DataPlatformIterableSource implements IIterableSource {
   public constructor(options: DataPlatformIterableSourceOptions) {
     this.#consoleApi = options.api;
     this.#params = options.params;
+
+    this.#requestWindow = options.requestWindow ?? { sec: 5, nsec: 0 };
   }
 
   public async initialize(): Promise<Initalization> {
@@ -249,7 +254,7 @@ export class DataPlatformIterableSource implements IIterableSource {
     }
 
     let localStart = streamStart;
-    let localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
+    let localEnd = clampTime(addTime(localStart, this.#requestWindow), streamStart, streamEnd);
 
     for (;;) {
       const streamByParams: StreamParams = {
@@ -309,7 +314,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       }
 
       localStart = clampTime(localStart, streamStart, streamEnd);
-      localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
+      localEnd = clampTime(addTime(localStart, this.#requestWindow), streamStart, streamEnd);
     }
   }
 
@@ -364,7 +369,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 }
 
 export function initialize(args: IterableSourceInitializeArgs): DataPlatformIterableSource {
-  const { api, params } = args;
+  const { api, params, requestWindow } = args;
   if (!params) {
     throw new Error("params is required for data platform source");
   }
@@ -399,5 +404,6 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   return new DataPlatformIterableSource({
     api: consoleApi,
     params: dpSourceParams,
+    requestWindow,
   });
 }
