@@ -70,7 +70,7 @@ import { IndexDatasetsBuilder } from "./builders/IndexDatasetsBuilder";
 import { TimestampDatasetsBuilder } from "./builders/TimestampDatasetsBuilder";
 import { isReferenceLinePlotPathType, PlotConfig } from "./config";
 import { downloadCSV } from "./csv";
-import { usePlotPanelSettings } from "./settings";
+import { DEFAULT_PATH, usePlotPanelSettings } from "./settings";
 import { pathToSubscribePayload } from "./subscription";
 
 export const defaultSidebarDimension = 240;
@@ -188,6 +188,20 @@ export function Plot(props: Props): React.JSX.Element {
   }>();
 
   usePlotPanelSettings(config, saveConfig, focusedPath);
+
+  useEffect(() => {
+    if (config.paths.length === 0) {
+      saveConfig((prevConfig) => {
+        if (prevConfig.paths.length > 0) {
+          return prevConfig;
+        }
+        return {
+          ...prevConfig,
+          paths: [{ ...DEFAULT_PATH }],
+        };
+      });
+    }
+  }, [config.paths.length, saveConfig]);
 
   const setHoverValue = useSetHoverValue();
   const clearHoverValue = useClearHoverValue();
