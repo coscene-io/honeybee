@@ -42,6 +42,7 @@ import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TimeBasedChart from "@foxglove/studio-base/components/TimeBasedChart";
 import { ChartDatasets } from "@foxglove/studio-base/components/TimeBasedChart/types";
+import { DEFAULT_PATH } from "@foxglove/studio-base/panels/Plot/settings";
 import { PathLegend } from "@foxglove/studio-base/panels/StateTransitions/PathLegend";
 import { subscribePayloadFromMessagePath } from "@foxglove/studio-base/players/subscribePayloadFromMessagePath";
 import { SubscribePayload } from "@foxglove/studio-base/players/types";
@@ -401,6 +402,20 @@ function StateTransitions(props: Props) {
   );
 
   useStateTransitionsPanelSettings(config, saveConfig, pathState, focusedPath);
+
+  useEffect(() => {
+    if (config.paths.length === 0) {
+      saveConfig((prevConfig) => {
+        if (prevConfig.paths.length > 0) {
+          return prevConfig;
+        }
+        return {
+          ...prevConfig,
+          paths: [{ ...DEFAULT_PATH }],
+        };
+      });
+    }
+  }, [config.paths.length, saveConfig]);
 
   return (
     <Stack flexGrow={1} overflow="hidden" style={{ zIndex: 0 }}>
