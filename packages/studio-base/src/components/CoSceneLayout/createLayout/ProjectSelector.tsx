@@ -7,6 +7,7 @@
 
 import { Star as StarIcon, StarOutline as StarOutlineIcon } from "@mui/icons-material";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsync } from "react-use";
 
@@ -20,12 +21,14 @@ interface ProjectSelectorProps {
   value: string;
   onChange: (value: string) => void;
   error?: boolean;
+  showLabel?: boolean;
 }
 
 export function ProjectSelector({
   error,
   value,
   onChange,
+  showLabel = true,
 }: ProjectSelectorProps): React.JSX.Element {
   const { t } = useTranslation(["cosLayout", "cosProject", "general"]);
   const consoleApi = useConsoleApi();
@@ -56,8 +59,14 @@ export function ProjectSelector({
       .sort((a, _b) => (a.project.isStarred ? -1 : 1));
   }, [consoleApi, userId]);
 
+  const selectedValue = useMemo(() => {
+    return options.value?.find((option) => option.value === value);
+  }, [options.value, value]);
+
   return (
     <Autocomplete
+      key={selectedValue ? "selected" : "unselected"}
+      disableClearable
       options={options.value ?? []}
       renderOption={(props, option) => (
         <li
@@ -78,20 +87,21 @@ export function ProjectSelector({
           </Box>
         </li>
       )}
-      value={options.value?.find((option) => option.value === value)}
+      value={selectedValue}
       groupBy={(option) =>
         option.project.isStarred
           ? t("starredProject", { ns: "cosProject" })
           : t("activeProject", { ns: "cosProject" })
       }
       onChange={(_event, value) => {
-        onChange(value?.value ?? "");
+        onChange(value.value);
       }}
       renderInput={(params) => (
         <TextField
           required
           {...params}
-          label={t("projectName")}
+          style={{ minWidth: "240px" }}
+          label={showLabel ? t("projectName") : undefined}
           error={error}
           placeholder={t("pleaseSelect", { ns: "general" })}
         />
