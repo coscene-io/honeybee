@@ -20,12 +20,14 @@ interface ProjectSelectorProps {
   value: string;
   onChange: (value: string) => void;
   error?: boolean;
+  showLabel?: boolean;
 }
 
 export function ProjectSelector({
   error,
   value,
   onChange,
+  showLabel = true,
 }: ProjectSelectorProps): React.JSX.Element {
   const { t } = useTranslation(["cosLayout", "cosProject", "general"]);
   const consoleApi = useConsoleApi();
@@ -58,6 +60,7 @@ export function ProjectSelector({
 
   return (
     <Autocomplete
+      disableClearable
       options={options.value ?? []}
       renderOption={(props, option) => (
         <li
@@ -85,13 +88,13 @@ export function ProjectSelector({
           : t("activeProject", { ns: "cosProject" })
       }
       onChange={(_event, value) => {
-        onChange(value?.value ?? "");
+        onChange(value.value ?? "");
       }}
       renderInput={(params) => (
         <TextField
           required
           {...params}
-          label={t("projectName")}
+          label={showLabel ? t("projectName") : undefined}
           error={error}
           placeholder={t("pleaseSelect", { ns: "general" })}
         />
