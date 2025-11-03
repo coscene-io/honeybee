@@ -97,9 +97,9 @@ export default function SeekStepControls({
 
     let clampedSec = sec;
     if (sec < minSec) {
-      clampedSec = 0.001;
+      clampedSec = MIN_SEEK_STEP_MS / 1000;
     } else if (sec > maxSec) {
-      clampedSec = 5;
+      clampedSec = MAX_SEEK_STEP_MS / 1000;
     }
 
     void setSeekStepMs(clampedSec * 1000);
@@ -118,7 +118,7 @@ export default function SeekStepControls({
 
   if (editingSeekStep) {
     return (
-      <ClickAwayListener onClickAway={commitSeekStep}>
+      <ClickAwayListener mouseEvent="onMouseDown" onClickAway={commitSeekStep}>
         <TextField
           inputRef={seekInputRef}
           autoFocus
