@@ -6,19 +6,19 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ProjectSelector } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/ProjectSelector";
+import { useSetExternalInitConfig } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
-const selectSetExternalInitConfig = (state: CoreDataStore) => state.setExternalInitConfig;
 
 export function AppBarProject(): React.JSX.Element {
   const consoleApi = useConsoleApi();
   const { selectSource, selectedSource } = usePlayerSelection();
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
-  const setExternalInitConfig = useCoreData(selectSetExternalInitConfig);
+  const setExternalInitConfig = useSetExternalInitConfig();
 
   const projectName =
     externalInitConfig?.warehouseId && externalInitConfig.projectId
@@ -38,7 +38,8 @@ export function AppBarProject(): React.JSX.Element {
         if (selectedSource?.type !== "file") {
           selectSource(undefined);
         }
-        setExternalInitConfig(newExternalInitConfig);
+
+        void setExternalInitConfig(newExternalInitConfig);
         void consoleApi.setApiBaseInfo(newExternalInitConfig);
       }}
     />
