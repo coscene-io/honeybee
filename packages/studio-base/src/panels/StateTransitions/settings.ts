@@ -62,7 +62,7 @@ const makeSeriesNode = memoizeWeak(
             },
           ],
       label: stateTransitionPathDisplayName(path, index),
-      expansionState: path.expansionState ?? "collapsed",
+      expansionState: path.expansionState ?? "expanded",
       fields: {
         value: {
           label: "Message path",
@@ -104,7 +104,7 @@ const makeRootSeriesNode = memoizeWeak((paths: PathState[]): SettingsTreeNode =>
         ]),
   );
 
-  const shouldCollapsedAll = paths.some(({ path }) => path.expansionState === "expanded");
+  const shouldCollapsedAll = paths.some(({ path }) => path.expansionState !== "collapsed");
 
   return {
     label: "Series",
@@ -251,7 +251,7 @@ export function useStateTransitionsPanelSettings(
         } else if (action.payload.id === "collapse-all-series") {
           saveConfig(
             produce<StateTransitionConfig>((draft) => {
-              const shouldCollapsedAll = draft.paths.some((p) => p.expansionState === "expanded");
+              const shouldCollapsedAll = draft.paths.some((p) => p.expansionState !== "collapsed");
 
               for (const p of draft.paths) {
                 p.expansionState = shouldCollapsedAll ? "collapsed" : "expanded";
