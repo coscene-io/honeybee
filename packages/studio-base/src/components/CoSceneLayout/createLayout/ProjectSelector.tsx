@@ -88,12 +88,13 @@ export function ProjectSelector({
           : t("activeProject", { ns: "cosProject" })
       }
       onChange={(_event, value) => {
-        onChange(value.value ?? "");
+        onChange(value.value);
       }}
       renderInput={(params) => (
         <TextField
           required
           {...params}
+          style={{ minWidth: "240px" }}
           label={showLabel ? t("projectName") : undefined}
           error={error}
           placeholder={t("pleaseSelect", { ns: "general" })}
