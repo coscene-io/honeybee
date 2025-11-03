@@ -15,7 +15,7 @@ const selectSetExternalInitConfig = (state: CoreDataStore) => state.setExternalI
 
 export function AppBarProject(): React.JSX.Element {
   const consoleApi = useConsoleApi();
-  const { selectSource } = usePlayerSelection();
+  const { selectSource, selectedSource } = usePlayerSelection();
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const setExternalInitConfig = useCoreData(selectSetExternalInitConfig);
@@ -35,7 +35,9 @@ export function AppBarProject(): React.JSX.Element {
           warehouseId: array[1],
           projectId: array[3],
         };
-        selectSource(undefined);
+        if (selectedSource?.type !== "file") {
+          selectSource(undefined);
+        }
         setExternalInitConfig(newExternalInitConfig);
         void consoleApi.setApiBaseInfo(newExternalInitConfig);
       }}
