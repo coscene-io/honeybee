@@ -7,6 +7,7 @@
 
 import { Star as StarIcon, StarOutline as StarOutlineIcon } from "@mui/icons-material";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsync } from "react-use";
 
@@ -58,8 +59,13 @@ export function ProjectSelector({
       .sort((a, _b) => (a.project.isStarred ? -1 : 1));
   }, [consoleApi, userId]);
 
+  const selectedValue = useMemo(() => {
+    return options.value?.find((option) => option.value === value);
+  }, [options.value, value]);
+
   return (
     <Autocomplete
+      key={selectedValue ? "selected" : "unselected"}
       disableClearable
       options={options.value ?? []}
       renderOption={(props, option) => (
@@ -81,7 +87,7 @@ export function ProjectSelector({
           </Box>
         </li>
       )}
-      value={options.value?.find((option) => option.value === value)}
+      value={selectedValue}
       groupBy={(option) =>
         option.project.isStarred
           ? t("starredProject", { ns: "cosProject" })
