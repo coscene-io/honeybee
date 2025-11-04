@@ -431,12 +431,12 @@ const CommonDataSource = () => {
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
   return (
-    <Stack direction="row" alignItems="center" gap={1} style={{ overflow: "hidden", minWidth: 0 }}>
+    <>
       <span className={classes.ellipsis}>{playerDisplayName}</span>
       <span className={classes.uploadFileIcon}>
         <UploadFile />
       </span>
-    </Stack>
+    </>
   );
 };
 
