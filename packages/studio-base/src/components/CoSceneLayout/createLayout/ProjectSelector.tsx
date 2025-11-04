@@ -29,7 +29,7 @@ export function ProjectSelector({
   onChange,
   showLabel = true,
 }: ProjectSelectorProps): React.JSX.Element {
-  const { t } = useTranslation(["cosLayout", "cosProject", "general"]);
+  const { t } = useTranslation(["cosLayout", "cosProject"]);
   const consoleApi = useConsoleApi();
   const currentUser = useCurrentUser((store) => store.user);
   const userId = currentUser?.userId;
@@ -100,7 +100,7 @@ export function ProjectSelector({
           style={{ minWidth: "240px" }}
           label={showLabel ? t("projectName") : undefined}
           error={error}
-          placeholder={t("pleaseSelect", { ns: "general" })}
+          placeholder={t("pleaseSelectProject")}
         />
       )}
     />

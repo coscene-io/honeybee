@@ -90,4 +90,5 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   discardChanges: "放弃更改",
   searchLayoutName: "搜索布局名称",
   copyLayoutSuccess: "复制成功，布局已切换",
+  pleaseSelectProject: "请选择项目",
 };
