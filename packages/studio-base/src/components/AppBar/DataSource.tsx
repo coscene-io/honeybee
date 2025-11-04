@@ -406,7 +406,6 @@ const DataPlatformSource = () => {
   const { classes } = useStyles();
   const domainConfig = getDomainConfig();
 
-  const externalInitConfig = useCoreData(selectExternalInitConfig);
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
   const dataSource = useCoreData(selectDataSource);
@@ -417,10 +416,13 @@ const DataPlatformSource = () => {
   const projectSlug = useMemo(() => project.value?.slug, [project]);
   const jobRunDisplayName = useMemo(() => jobRun.value?.spec?.spec?.name, [jobRun]);
 
+  const organization = useCoreData(selectOrganization);
+  const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
+
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://dev.coscene.cn/${externalInitConfig?.organizationSlug}/${projectSlug}`
-      : `https://${domainConfig.webDomain}/${externalInitConfig?.organizationSlug}/${projectSlug}`;
+      ? `https://dev.coscene.cn/${organizationSlug}/${projectSlug}`
+      : `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`;
 
   const secondaryHref = `${projectHref}/records/${recordId}`;
 
