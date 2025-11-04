@@ -34,6 +34,7 @@ export function SelectFolder({
   return (
     <>
       <Autocomplete
+        size="small"
         options={options}
         value={selectedOption ?? null} // eslint-disable-line no-restricted-syntax
         onChange={(_, option) => {
