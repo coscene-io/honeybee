@@ -45,9 +45,14 @@ import { LayoutTableRowMenu } from "@foxglove/studio-base/components/CoSceneLayo
 import { MoveToFolderDialog } from "@foxglove/studio-base/components/CoSceneLayout/MoveToFolderDialog";
 import { RenameLayoutDialog } from "@foxglove/studio-base/components/CoSceneLayout/RenameLayoutDialog";
 import { CreateLayoutItems } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/CreateLayoutItems";
+import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+
+const selectLoginStatus = (store: UserStore) => store.loginStatus;
+const selectNoProject = (state: CoreDataStore) => !state.externalInitConfig?.projectId;
 
 dayjs.extend(relativeTime);
 
@@ -206,7 +211,10 @@ export function CoSceneLayoutContent({
   onMoveLayout: (layout: Layout, newFolder: string) => void;
   onClose: () => void;
 }): React.JSX.Element {
-  const { t, i18n } = useTranslation("cosLayout");
+  const loginStatus = useCurrentUser(selectLoginStatus);
+  const noProject = useCoreData(selectNoProject);
+
+  const { t, i18n } = useTranslation(["cosLayout", "openDialog"]);
   const { classes } = useStyles();
   const [selectedFolder, setSelectedFolder] = useState<{
     category: "all" | "personal" | "project";
@@ -500,6 +508,15 @@ export function CoSceneLayoutContent({
     },
   ];
 
+  let empty: React.ReactNode | undefined;
+  if (selectedFolder.category === "project") {
+    if (loginStatus === "notLogin") {
+      empty = <Typography>{t("pleaseLoginFirst", { ns: "openDialog" })}</Typography>;
+    } else if (noProject) {
+      empty = <Typography>{t("pleaseSelectProject")}</Typography>;
+    }
+  }
+
   return (
     <div className={classes.root}>
       <div className={classes.layoutContainer}>
@@ -601,48 +618,52 @@ export function CoSceneLayoutContent({
               </Box>
             </Box>
 
-            {/* Toolbar */}
-            <Box className={classes.toolbar}>
-              <TextField
-                placeholder={t("layoutName")}
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                }}
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-                size="small"
-                className={classes.searchField}
-              />
-            </Box>
+            {empty ?? (
+              <>
+                {/* Toolbar */}
+                <Box className={classes.toolbar}>
+                  <TextField
+                    placeholder={t("layoutName")}
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                    }}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                    size="small"
+                    className={classes.searchField}
+                  />
+                </Box>
 
-            {/* Layouts DataGrid */}
-            <div className={classes.gridContainer}>
-              <DataGrid
-                rows={rows}
-                columns={columns}
-                sortModel={sortModel}
-                onSortModelChange={setSortModel}
-                disableRowSelectionOnClick
-                disableColumnResize
-                disableColumnMenu
-                hideFooter
-                className={classes.dataGrid}
-                rowSelection={false}
-                localeText={dataGridLocaleText}
-                density="compact"
-                getRowClassName={(params) =>
-                  currentLayoutId === params.row.id ? "selected-row" : ""
-                }
-              />
-            </div>
+                {/* Layouts DataGrid */}
+                <div className={classes.gridContainer}>
+                  <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    sortModel={sortModel}
+                    onSortModelChange={setSortModel}
+                    disableRowSelectionOnClick
+                    disableColumnResize
+                    disableColumnMenu
+                    hideFooter
+                    className={classes.dataGrid}
+                    rowSelection={false}
+                    localeText={dataGridLocaleText}
+                    density="compact"
+                    getRowClassName={(params) =>
+                      currentLayoutId === params.row.id ? "selected-row" : ""
+                    }
+                  />
+                </div>
+              </>
+            )}
           </Box>
         </div>
       </div>
