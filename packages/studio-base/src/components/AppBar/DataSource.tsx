@@ -36,6 +36,7 @@ import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDa
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const ICON_SIZE = 18;
 
@@ -82,7 +83,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     display: "flex",
     minWidth: 0,
   },
-  playerName: {
+  ellipsis: {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
@@ -156,7 +157,7 @@ const UploadFileComponent = () => {
 
   return (
     <Stack direction="row" alignItems="center" gap={1} style={{ overflow: "hidden", minWidth: 0 }}>
-      <span className={classes.playerName}>{playerDisplayName}</span>
+      <span className={classes.ellipsis}>{playerDisplayName}</span>
       <span className={classes.uploadFileIcon}>
         <UploadFile />
       </span>
@@ -453,6 +454,22 @@ const DataPlatformSource = () => {
 
   const secondaryHref = `${projectHref}/records/${recordId}`;
 
+  if (isDesktopApp()) {
+    return (
+      <div className={classes.textTruncate}>
+        <Link
+          href={secondaryHref}
+          target="_blank"
+          underline="hover"
+          key="2"
+          color="inherit"
+          className={classes.ellipsis}
+        >
+          {jobRunDisplayName ?? recordDisplayName}
+        </Link>
+      </div>
+    );
+  }
   const breadcrumbs = [
     <Link
       href={projectHref}
@@ -477,7 +494,7 @@ const DataPlatformSource = () => {
   ];
 
   return (
-    <div className={classes.textTruncate} style={{ minWidth: 0 }}>
+    <div className={classes.textTruncate}>
       <Stack
         direction="row"
         alignItems="center"
