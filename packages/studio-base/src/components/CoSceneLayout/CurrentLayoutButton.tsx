@@ -56,8 +56,9 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
   button: {
-    padding: theme.spacing(0.5, 0.5),
     flexShrink: 0,
+    minWidth: "auto",
+    padding: theme.spacing(0.5, 1),
   },
   leftContent: {
     overflow: "hidden",
