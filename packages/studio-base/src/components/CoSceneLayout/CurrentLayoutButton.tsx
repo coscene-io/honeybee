@@ -16,7 +16,6 @@ import { makeStyles } from "tss-react/mui";
 
 import { APP_BAR_HEIGHT } from "@foxglove/studio-base/components/AppBar/constants";
 import Stack from "@foxglove/studio-base/components/Stack";
-import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
@@ -30,6 +29,8 @@ const useStyles = makeStyles()((theme) => ({
     maxWidth: "240px",
     overflow: "hidden",
     color: theme.palette.text.primary,
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   subIcon: {
     color: theme.palette.text.secondary,
@@ -41,7 +42,7 @@ const useStyles = makeStyles()((theme) => ({
     justifyContent: "space-between",
     minWidth: 120,
     padding: theme.spacing(1.125, 1.5),
-    gap: theme.spacing(1.5),
+    gap: theme.spacing(0.5),
     borderRadius: 0,
 
     ":hover": {
@@ -50,6 +51,9 @@ const useStyles = makeStyles()((theme) => ({
     "&.Mui-selected": {
       backgroundColor: theme.palette.background.hover,
     },
+  },
+  button: {
+    padding: theme.spacing(0.5, 0.5),
   },
 }));
 
@@ -163,12 +167,17 @@ export function CurrentLayoutButton({
     >
       <Stack direction="row" alignItems="center" gap={1}>
         <div className={classes.subIcon}>{getSubIcon()}</div>
-        <div className={classes.textTruncate}>
-          <TextMiddleTruncate text={getDisplayText()} />
-        </div>
+        <div className={classes.textTruncate}>{getDisplayText()}</div>
       </Stack>
       {buttons.map((button) => (
-        <Button key={button.key} onClick={button.onClick} disabled={button.disabled}>
+        <Button
+          key={button.key}
+          size="small"
+          onClick={button.onClick}
+          disabled={button.disabled}
+          variant="outlined"
+          className={classes.button}
+        >
           {button.text}
         </Button>
       ))}
