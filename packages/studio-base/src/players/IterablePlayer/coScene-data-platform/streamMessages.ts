@@ -17,6 +17,7 @@ import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsole
 import { IteratorResult } from "../IIterableSource";
 
 const log = Logger.getLogger(__filename);
+const streamCycleCompletionById = new Map<string, number>();
 
 /**
  * Information necessary to match a Channel & Schema record in the MCAP data to one that we received
@@ -79,6 +80,27 @@ export async function* streamMessages({
   const connectionIdByTopic: Record<string, number> = {};
   let nextConnectionId = 0;
 
+  const requestStartTime = performance.now();
+  const previousCycleEnd = streamCycleCompletionById.get(params.id);
+  if (previousCycleEnd != undefined) {
+    log.debug("streamMessages:sincePreviousRequest", {
+      streamId: params.id,
+      elapsedMs: requestStartTime - previousCycleEnd,
+      topics: params.topics,
+      topicsCount: params.topics.length,
+    });
+  }
+
+  log.debug("streamMessages:requestStart", {
+    streamId: params.id,
+    range: {
+      start: params.start,
+      end: params.end,
+    },
+    topics: params.topics,
+    topicsCount: params.topics.length,
+  });
+
   const controller = new AbortController();
   const abortHandler = () => {
     log.debug("Manual abort of streamMessages", params);
@@ -88,7 +110,7 @@ export async function* streamMessages({
   const decompressHandlers = await loadDecompressHandlers();
 
   log.debug("streamMessages", params);
-  const startTimer = performance.now();
+  const startTimer = requestStartTime;
 
   if (controller.signal.aborted) {
     return;
@@ -96,6 +118,10 @@ export async function* streamMessages({
 
   let totalMessages = 0;
   let results: IteratorResult[] = [];
+  let totalYieldCount = 0;
+  let firstProgressTimestamp: number | undefined;
+  let firstProgressBatchStats: { messages: number; problems: number } | undefined;
+  let lastYieldTimestamp: number | undefined;
   const schemasById = new Map<number, McapTypes.TypedMcapRecords["Schema"]>();
   const channelInfoById = new Map<
     number,
@@ -238,6 +264,12 @@ export async function* streamMessages({
     // Since every request is signed with a new token, there's no benefit to caching.
     fetchStartTime = performance.now();
 
+    log.debug("streamMessages:fetch:start", {
+      streamId: params.id,
+      topics: params.topics,
+      topicsCount: params.topics.length,
+    });
+
     const response = await api.getStreams({
       start: toMillis(params.start),
       end: toMillis(params.end),
@@ -250,10 +282,32 @@ export async function* streamMessages({
 
     fetchEndTime = performance.now();
 
+    log.debug("streamMessages:fetch:complete", {
+      streamId: params.id,
+      fetchDurationMs: fetchEndTime - fetchStartTime,
+      status: response.status,
+    });
+
     if (response.status === 401) {
       throw new Error("Login expired, please login again");
     }
     if (response.status === 404) {
+      decodeEndTime = performance.now();
+      log.debug("streamMessages:summary", {
+        streamId: params.id,
+        totalMessages,
+        fetchDurationMs: fetchEndTime - fetchStartTime,
+        decodeDurationMs: decodeEndTime - fetchEndTime,
+        totalDurationMs: decodeEndTime - startTimer,
+        firstProgressLatencyMs:
+          firstProgressTimestamp != undefined ? firstProgressTimestamp - fetchStartTime : undefined,
+        timeFromFirstProgressToCompleteMs:
+          firstProgressTimestamp != undefined ? decodeEndTime - firstProgressTimestamp : undefined,
+        totalYieldCount,
+        firstProgressBatch: firstProgressBatchStats,
+        reason: "not_found",
+      });
+      streamCycleCompletionById.set(params.id, decodeEndTime);
       return;
     } else if (response.status !== 200) {
       const errorBody = (await response.json()) as { message?: string };
@@ -282,6 +336,41 @@ export async function* streamMessages({
 
         // 统一输出结果，保持时序
         if (results.length > 0) {
+          const now = performance.now();
+          const messageEvents = results.filter((item) => item.type === "message-event").length;
+          const problemEvents = results.filter((item) => item.type === "problem").length;
+
+          totalYieldCount++;
+
+          if (firstProgressTimestamp == undefined) {
+            firstProgressTimestamp = now;
+            firstProgressBatchStats = {
+              messages: messageEvents,
+              problems: problemEvents,
+            };
+
+            log.debug("streamMessages:firstProgressDispatch", {
+              streamId: params.id,
+              elapsedSinceFetchStartMs: now - fetchStartTime,
+              elapsedSinceRequestStartMs: now - startTimer,
+              batchSize: results.length,
+              messageEvents,
+              problemEvents,
+            });
+          }
+
+          log.debug("streamMessages:yieldBatch", {
+            streamId: params.id,
+            batchSize: results.length,
+            messageEvents,
+            problemEvents,
+            elapsedSinceLastYieldMs:
+              lastYieldTimestamp != undefined ? now - lastYieldTimestamp : undefined,
+            elapsedSinceRequestStartMs: now - startTimer,
+          });
+
+          lastYieldTimestamp = now;
+
           yield results;
           results = [];
         }
@@ -312,16 +401,19 @@ export async function* streamMessages({
 
   decodeEndTime = performance.now();
 
-  log.debug(
-    "message",
-    results,
-    "total message",
+  log.debug("streamMessages:summary", {
+    streamId: params.id,
     totalMessages,
-    "fetch time",
-    `${(fetchEndTime - fetchStartTime) / 1000}s`,
-    "decode time",
-    `${(decodeEndTime - fetchEndTime) / 1000}s`,
-    "total time",
-    `${(decodeEndTime - startTimer) / 1000}s`,
-  );
+    fetchDurationMs: fetchEndTime - fetchStartTime,
+    decodeDurationMs: decodeEndTime - fetchEndTime,
+    totalDurationMs: decodeEndTime - startTimer,
+    firstProgressLatencyMs:
+      firstProgressTimestamp != undefined ? firstProgressTimestamp - fetchStartTime : undefined,
+    timeFromFirstProgressToCompleteMs:
+      firstProgressTimestamp != undefined ? decodeEndTime - firstProgressTimestamp : undefined,
+    totalYieldCount,
+    firstProgressBatch: firstProgressBatchStats,
+  });
+
+  streamCycleCompletionById.set(params.id, decodeEndTime);
 }
