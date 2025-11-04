@@ -78,7 +78,6 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     margin: "auto",
   },
   textTruncate: {
-    maxWidth: "240px",
     overflow: "hidden",
     display: "flex",
     minWidth: 0,
@@ -380,37 +379,27 @@ const RealTimeVizDataSource = () => {
           gap={2}
           style={{ overflow: "hidden", minWidth: 0 }}
         >
-          {projectDisplayName && (
-            <>
-              <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" />}
-                aria-label="breadcrumb"
-                style={{ flexShrink: 0 }}
-              >
-                <Link
-                  href={
-                    domainConfig.webDomain
-                      ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
-                      : "#"
-                  }
-                  target="_blank"
-                  underline="hover"
-                  key="1"
-                  color="inherit"
-                  className={classes.breadcrumbs}
-                >
-                  {projectDisplayName}
-                </Link>
-              </Breadcrumbs>
-
-              <span>/</span>
-            </>
-          )}
           <Breadcrumbs
             separator={<NavigateNextIcon fontSize="small" />}
             aria-label="breadcrumb"
             style={{ flexShrink: 1, minWidth: 0 }}
           >
+            {projectDisplayName && !isDesktopApp() && (
+              <Link
+                href={
+                  domainConfig.webDomain
+                    ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
+                    : "#"
+                }
+                target="_blank"
+                underline="hover"
+                key="1"
+                color="inherit"
+                className={classes.breadcrumbs}
+              >
+                a{projectDisplayName}
+              </Link>
+            )}
             <Link
               href={
                 domainConfig.webDomain ? `https://${domainConfig.webDomain}/${deviceLink}` : "#"
@@ -541,6 +530,8 @@ export function DataSource(): React.JSX.Element {
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
           {(() => {
+            return <RealTimeVizDataSource />;
+
             switch (dataSource?.id) {
               case "coscene-websocket":
                 return <RealTimeVizDataSource />;
