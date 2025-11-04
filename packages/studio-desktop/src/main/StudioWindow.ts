@@ -76,8 +76,8 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
     backgroundColor: getWindowBackgroundColor(),
     height: 800,
     width: 1200,
-    minWidth: 350,
-    minHeight: 250,
+    minWidth: 1200,
+    minHeight: 800,
     // autoHideMenuBar: true,
     autoHideMenuBar: false,
     title: COSCENE_PRODUCT_NAME,
@@ -310,15 +310,15 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
       { role: "paste", label: t("desktopWindow:paste") },
       ...(isMac
         ? [
-            { role: "pasteAndMatchStyle", label: t("desktopWindow:pasteAndMatchStyle") } as const,
-            { role: "delete", label: t("desktopWindow:delete") } as const,
-            { role: "selectAll", label: t("desktopWindow:selectAll") } as const,
-          ]
+          { role: "pasteAndMatchStyle", label: t("desktopWindow:pasteAndMatchStyle") } as const,
+          { role: "delete", label: t("desktopWindow:delete") } as const,
+          { role: "selectAll", label: t("desktopWindow:selectAll") } as const,
+        ]
         : [
-            { role: "delete", label: t("desktopWindow:delete") } as const,
-            { type: "separator" } as const,
-            { role: "selectAll", label: t("desktopWindow:selectAll") } as const,
-          ]),
+          { role: "delete", label: t("desktopWindow:delete") } as const,
+          { type: "separator" } as const,
+          { role: "selectAll", label: t("desktopWindow:selectAll") } as const,
+        ]),
     ],
   });
 
@@ -331,15 +331,15 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
       workers.length === 0
         ? [{ label: t("desktopWindow:noSharedWorkers"), enabled: false }]
         : workers.map(
-            (worker) =>
-              new MenuItem({
-                label: worker.url,
-                click() {
-                  browserWindow.webContents.closeDevTools();
-                  browserWindow.webContents.inspectSharedWorkerById(worker.id);
-                },
-              }),
-          ),
+          (worker) =>
+            new MenuItem({
+              label: worker.url,
+              click() {
+                browserWindow.webContents.closeDevTools();
+                browserWindow.webContents.inspectSharedWorkerById(worker.id);
+              },
+            }),
+        ),
     ).popup();
   };
 
