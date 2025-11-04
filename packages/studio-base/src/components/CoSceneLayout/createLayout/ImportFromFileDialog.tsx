@@ -160,6 +160,7 @@ export function ImportFromFileDialog({
             }}
             render={({ field, fieldState }) => (
               <TextField
+                size="small"
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message}
                 required
@@ -181,7 +182,7 @@ export function ImportFromFileDialog({
               control={form.control}
               name="permission"
               render={({ field }) => (
-                <Select label={t("type")} {...field}>
+                <Select size="small" label={t("type")} {...field}>
                   <MenuItem value="PERSONAL_WRITE">{t("personalLayout")}</MenuItem>
                   <MenuItem value="PROJECT_WRITE" disabled={!supportsProjectWrite}>
                     {t("projectLayout")}

@@ -65,6 +65,7 @@ export function ProjectSelector({
 
   return (
     <Autocomplete
+      size="small"
       key={selectedValue ? "selected" : "unselected"}
       disableClearable
       options={options.value ?? []}
