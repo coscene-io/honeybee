@@ -294,11 +294,19 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   setAppMenuEl(undefined);
                 }}
               />
-              <Divider orientation="vertical" flexItem />
+              <Divider
+                orientation="vertical"
+                flexItem
+                style={{ marginTop: 10, marginBottom: 10 }}
+              />
               {isDesktopApp() && (
                 <>
                   <AppBarProject />
-                  <Divider orientation="vertical" flexItem />
+                  <Divider
+                    orientation="vertical"
+                    flexItem
+                    style={{ marginTop: 10, marginBottom: 10 }}
+                  />
                 </>
               )}
               <DataSource />
