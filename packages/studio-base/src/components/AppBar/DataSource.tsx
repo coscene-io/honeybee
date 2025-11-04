@@ -124,7 +124,6 @@ const selectNetworkStatus = (ctx: MessagePipelineContext) =>
   ctx.playerState.activeData?.networkStatus;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
-const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectProject = (state: CoreDataStore) => state.project;
 const selectRecord = (state: CoreDataStore) => state.record;
 const selectDevice = (state: CoreDataStore) => state.device;
