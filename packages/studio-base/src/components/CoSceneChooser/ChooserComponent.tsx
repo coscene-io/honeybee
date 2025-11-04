@@ -259,6 +259,8 @@ export function ChooserComponent({
       [projectsPagination.debouncedFilter],
     );
 
+    filter.setField(QueryFields.IS_ARCHIVED, [BinaryOperator.EQ], ["false"]);
+
     try {
       return await consoleApi.listUserProjects({
         userId,
