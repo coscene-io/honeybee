@@ -6,9 +6,27 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export const stateTransitions = {
+  addSeries: "Add series",
+  arrayError: "This path resolves to more than one value",
+  clickToAddSeries: "Click to add a series",
+  collapseAllSeries: "Collapse all series",
+  deleteSeries: "Delete series",
+  expandAllSeries: "Expand all series",
+  general: "General",
+  insertSeries: "Insert series",
+  label: "Series name",
   max: "Max",
   maxXError: "X max must be greater than X min.",
   min: "Min",
+  messagePath: "Message path",
+  series: "Series",
+  seriesDefaultName: "Series {{index}}",
+  showPoints: "Show points",
+  showPointsHelp: "Display a point for every state transition message",
+  syncWithOtherPlots: "Sync with other plots",
   secondsRange: "Range (seconds)",
+  timestamp: "Timestamp",
+  timestampHeaderStamp: "Header Stamp",
+  timestampReceiveTime: "Receive Time",
   xAxis: "X Axis",
 };
