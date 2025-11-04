@@ -45,12 +45,10 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     fontSize: theme.typography.body2.fontSize,
     display: "flex",
     alignItems: "center",
-    gap: theme.spacing(0.5),
-    padding: theme.spacing(1.5),
+    gap: theme.spacing(1),
     paddingInlineEnd: theme.spacing(0.75),
     whiteSpace: "nowrap",
     maxHeight: "44px",
-    // maxWidth: "240px",
     minWidth: 0,
     overflow: "hidden",
     color: theme.palette.appBar.text,
@@ -76,16 +74,10 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     bottom: 0,
     margin: "auto",
   },
-  textTruncate: {
-    overflow: "hidden",
-    display: "flex",
-    minWidth: 0,
-  },
   ellipsis: {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    // flex: 1,
     minWidth: 0,
     maxWidth: "240px",
   },
@@ -137,25 +129,6 @@ const selectDevice = (state: CoreDataStore) => state.device;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
 const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectJobRun = (state: CoreDataStore) => state.jobRun;
-
-const UploadFileComponent = () => {
-  const { classes } = useStyles();
-  const playerPresence = useMessagePipeline(selectPlayerPresence);
-  const playerName = useMessagePipeline(selectPlayerName);
-
-  const initializing = playerPresence === PlayerPresence.INITIALIZING;
-  const playerDisplayName =
-    initializing && playerName == undefined ? "Initializing..." : playerName;
-
-  return (
-    <Stack direction="row" alignItems="center" gap={1} style={{ overflow: "hidden", minWidth: 0 }}>
-      <span className={classes.ellipsis}>{playerDisplayName}</span>
-      <span className={classes.uploadFileIcon}>
-        <UploadFile />
-      </span>
-    </Stack>
-  );
-};
 
 const Adornment = () => {
   const { classes, cx } = useStyles();
@@ -364,9 +337,7 @@ const RealTimeVizDataSource = () => {
 
   return (
     <>
-      xxxyyyy
       <RealTimeVizLinkState />
-      {/* <div className={classes.textTruncate} style={{ minWidth: 0 }}> */}
       {projectDisplayName && !isDesktopApp() && (
         <>
           <Link
@@ -382,7 +353,7 @@ const RealTimeVizDataSource = () => {
           >
             {projectDisplayName}
           </Link>
-          <Divider orientation="vertical" flexItem />
+          <Divider orientation="vertical" flexItem style={{ height: "24px" }} />
         </>
       )}
       <Link
@@ -394,7 +365,6 @@ const RealTimeVizDataSource = () => {
       >
         {hostName ?? playerDisplayName ?? t("unknown")}
       </Link>
-      {/* </div> */}
     </>
   );
 };
@@ -423,7 +393,7 @@ const DataPlatformSource = () => {
   const secondaryHref = `${projectHref}/records/${recordId}`;
 
   return (
-    <div className={classes.textTruncate}>
+    <>
       {!isDesktopApp() && (
         <>
           <Link
@@ -435,7 +405,7 @@ const DataPlatformSource = () => {
           >
             {project.value?.displayName}
           </Link>
-          <Divider orientation="vertical" flexItem />
+          <Divider orientation="vertical" flexItem style={{ height: "24px" }} />
         </>
       )}
       <Link
@@ -447,17 +417,26 @@ const DataPlatformSource = () => {
       >
         {jobRunDisplayName ?? recordDisplayName}
       </Link>
-    </div>
+    </>
   );
 };
 
 const CommonDataSource = () => {
   const { classes } = useStyles();
+  const playerPresence = useMessagePipeline(selectPlayerPresence);
+  const playerName = useMessagePipeline(selectPlayerName);
+
+  const initializing = playerPresence === PlayerPresence.INITIALIZING;
+  const playerDisplayName =
+    initializing && playerName == undefined ? "Initializing..." : playerName;
 
   return (
-    <div className={classes.textTruncate}>
-      <UploadFileComponent />
-    </div>
+    <Stack direction="row" alignItems="center" gap={1} style={{ overflow: "hidden", minWidth: 0 }}>
+      <span className={classes.ellipsis}>{playerDisplayName}</span>
+      <span className={classes.uploadFileIcon}>
+        <UploadFile />
+      </span>
+    </Stack>
   );
 };
 
@@ -477,11 +456,8 @@ export function DataSource(): React.JSX.Element {
     <>
       <WssErrorModal playerProblems={playerProblems} />
       <Stack direction="row" alignItems="center">
-        xxxyyy
         <div className={classes.sourceName}>
           {(() => {
-            return <RealTimeVizDataSource />;
-
             switch (dataSource?.id) {
               case "coscene-websocket":
                 return <RealTimeVizDataSource />;
