@@ -328,43 +328,52 @@ const RealTimeVizDataSource = () => {
 
   const hostName = urlState?.parameters?.hostName;
 
-  const deviceLink = `${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
-
   const initializing = playerPresence === PlayerPresence.INITIALIZING;
 
   const playerDisplayName =
     initializing && playerName == undefined ? "Initializing..." : playerName;
+
+  const projectHref =
+    domainConfig.webDomain && organizationSlug && projectSlug
+      ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
+      : undefined;
+  const deviceHref =
+    projectHref && deviceId ? `${projectHref}/devices/project-devices/${deviceId}` : undefined;
 
   return (
     <>
       <RealTimeVizLinkState />
       {projectDisplayName && !isDesktopApp() && (
         <>
-          <Link
-            href={
-              domainConfig.webDomain
-                ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
-                : "#"
-            }
-            target="_blank"
-            underline="hover"
-            color="inherit"
-            className={classes.ellipsis}
-          >
-            {projectDisplayName}
-          </Link>
+          {projectHref ? (
+            <Link
+              href={projectHref}
+              target="_blank"
+              underline="hover"
+              color="inherit"
+              className={classes.ellipsis}
+            >
+              {project.value?.displayName}
+            </Link>
+          ) : (
+            <div className={classes.ellipsis}>{project.value?.displayName}</div>
+          )}
           <Divider orientation="vertical" flexItem style={{ height: "24px" }} />
         </>
       )}
-      <Link
-        href={domainConfig.webDomain ? `https://${domainConfig.webDomain}/${deviceLink}` : "#"}
-        target="_blank"
-        underline="hover"
-        color="inherit"
-        className={classes.ellipsis}
-      >
-        {hostName ?? playerDisplayName ?? t("unknown")}
-      </Link>
+      {deviceHref ? (
+        <Link
+          href={deviceHref}
+          target="_blank"
+          underline="hover"
+          color="inherit"
+          className={classes.ellipsis}
+        >
+          {hostName ?? playerDisplayName ?? t("unknown")}
+        </Link>
+      ) : (
+        <div className={classes.ellipsis}>{hostName ?? playerDisplayName ?? t("unknown")}</div>
+      )}
     </>
   );
 };
