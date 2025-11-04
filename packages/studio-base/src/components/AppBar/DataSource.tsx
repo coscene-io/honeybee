@@ -387,36 +387,48 @@ const DataPlatformSource = () => {
 
   const projectHref =
     process.env.NODE_ENV === "development"
-      ? `https://dev.coscene.cn/${organizationSlug}/${projectSlug}`
-      : `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`;
+      ? organizationSlug && projectSlug
+        ? `https://dev.coscene.cn/${organizationSlug}/${projectSlug}`
+        : undefined
+      : domainConfig.webDomain && organizationSlug && projectSlug
+      ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
+      : undefined;
 
-  const secondaryHref = `${projectHref}/records/${recordId}`;
+  const secondaryHref = projectHref && recordId ? `${projectHref}/records/${recordId}` : undefined;
 
   return (
     <>
       {!isDesktopApp() && (
         <>
-          <Link
-            href={projectHref}
-            target="_blank"
-            underline="hover"
-            color="inherit"
-            className={classes.ellipsis}
-          >
-            {project.value?.displayName}
-          </Link>
+          {projectHref ? (
+            <Link
+              href={projectHref}
+              target="_blank"
+              underline="hover"
+              color="inherit"
+              className={classes.ellipsis}
+            >
+              {project.value?.displayName}
+            </Link>
+          ) : (
+            <div className={classes.ellipsis}>{project.value?.displayName}</div>
+          )}
           <Divider orientation="vertical" flexItem style={{ height: "24px" }} />
         </>
       )}
-      <Link
-        href={secondaryHref}
-        target="_blank"
-        underline="hover"
-        color="inherit"
-        className={classes.ellipsis}
-      >
-        {jobRunDisplayName ?? recordDisplayName}
-      </Link>
+      {secondaryHref ? (
+        <Link
+          href={secondaryHref}
+          target="_blank"
+          underline="hover"
+          color="inherit"
+          className={classes.ellipsis}
+        >
+          {jobRunDisplayName ?? recordDisplayName}
+        </Link>
+      ) : (
+        <div className={classes.ellipsis}>{jobRunDisplayName ?? recordDisplayName}</div>
+      )}
     </>
   );
 };
