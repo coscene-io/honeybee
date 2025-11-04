@@ -15,7 +15,6 @@ import { ProjectVisibilityChip } from "@foxglove/studio-base/components/CoSceneL
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { MAX_PROJECTS_PAGE_SIZE } from "@foxglove/studio-base/panels/DataCollection/constants";
-import { BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene/cosel";
 
 interface ProjectSelectorProps {
   value: string;
@@ -40,9 +39,6 @@ export function ProjectSelector({
       return [];
     }
 
-    const filter = CosQuery.Companion.empty();
-    filter.setListField("id", BinaryOperator.EQ, [userId]);
-
     const response = await consoleApi.listUserProjects({
       userId,
       pageSize: MAX_PROJECTS_PAGE_SIZE,
@@ -65,6 +61,7 @@ export function ProjectSelector({
 
   return (
     <Autocomplete
+      size="small"
       key={selectedValue ? "selected" : "unselected"}
       disableClearable
       options={options.value ?? []}
