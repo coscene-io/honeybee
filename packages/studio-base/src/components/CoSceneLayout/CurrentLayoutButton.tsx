@@ -26,14 +26,16 @@ import {
 
 const useStyles = makeStyles()((theme) => ({
   textTruncate: {
-    maxWidth: "240px",
     overflow: "hidden",
     color: theme.palette.text.primary,
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
+    flex: 1,
+    minWidth: 0,
   },
   subIcon: {
     color: theme.palette.text.secondary,
+    flexShrink: 0,
   },
   layoutButton: {
     font: "inherit",
@@ -41,6 +43,7 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: theme.typography.body2.fontSize,
     justifyContent: "space-between",
     minWidth: 120,
+    maxWidth: "240px",
     padding: theme.spacing(1.125, 1.5),
     gap: theme.spacing(0.5),
     borderRadius: 0,
@@ -54,6 +57,12 @@ const useStyles = makeStyles()((theme) => ({
   },
   button: {
     padding: theme.spacing(0.5, 0.5),
+    flexShrink: 0,
+  },
+  leftContent: {
+    overflow: "hidden",
+    minWidth: 0,
+    flex: 1,
   },
 }));
 
@@ -165,10 +174,12 @@ export function CurrentLayoutButton({
       onClick={onClick}
       disabled={loading}
     >
-      <Stack direction="row" alignItems="center" gap={1}>
-        <div className={classes.subIcon}>{getSubIcon()}</div>
-        <div className={classes.textTruncate}>{getDisplayText()}</div>
-      </Stack>
+      <div className={classes.leftContent}>
+        <Stack direction="row" alignItems="center" gap={1}>
+          <div className={classes.subIcon}>{getSubIcon()}</div>
+          <div className={classes.textTruncate}>{getDisplayText()}</div>
+        </Stack>
+      </div>
       {buttons.map((button) => (
         <Button
           key={button.key}
