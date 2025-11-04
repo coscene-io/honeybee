@@ -358,7 +358,7 @@ const RealTimeVizDataSource = () => {
           ) : (
             <div className={classes.ellipsis}>{project.value?.displayName}</div>
           )}
-          <Divider orientation="vertical" flexItem style={{ height: "24px" }} />
+          <Divider orientation="vertical" flexItem style={{ height: "16px" }} />
         </>
       )}
       {deviceHref ? (
@@ -422,7 +422,7 @@ const DataPlatformSource = () => {
           ) : (
             <div className={classes.ellipsis}>{project.value?.displayName}</div>
           )}
-          <Divider orientation="vertical" flexItem style={{ height: "24px" }} />
+          <Divider orientation="vertical" flexItem style={{ height: "16px" }} />
         </>
       )}
       {secondaryHref ? (

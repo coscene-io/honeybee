@@ -297,7 +297,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
               <Divider
                 orientation="vertical"
                 flexItem
-                style={{ marginTop: 10, marginBottom: 10 }}
+                style={{ marginTop: 14, marginBottom: 14 }}
               />
               {isDesktopApp() && (
                 <>
@@ -305,7 +305,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   <Divider
                     orientation="vertical"
                     flexItem
-                    style={{ marginTop: 10, marginBottom: 10 }}
+                    style={{ marginTop: 14, marginBottom: 14 }}
                   />
                 </>
               )}
