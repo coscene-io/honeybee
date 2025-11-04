@@ -982,7 +982,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   public async getHistory(): Promise<Layout | undefined> {
     return await this.#local.runExclusive(async (local) => {
-      const parents = [this.projectName, this.userName, ""].filter(Boolean) as string[];
+      const parents = [this.projectName, this.userName, ""].filter(
+        (parent): parent is string => parent != undefined,
+      );
 
       for (const parent of parents) {
         const layout = await local.getHistory(parent);
