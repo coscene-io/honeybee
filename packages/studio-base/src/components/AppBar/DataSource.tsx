@@ -50,7 +50,9 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     paddingInlineEnd: theme.spacing(0.75),
     whiteSpace: "nowrap",
     maxHeight: "44px",
+    maxWidth: "240px",
     minWidth: 0,
+    overflow: "hidden",
     color: theme.palette.appBar.text,
   },
   adornment: {
@@ -75,8 +77,20 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     margin: "auto",
   },
   textTruncate: {
-    maxWidth: "60vw",
+    maxWidth: "240px",
     overflow: "hidden",
+    display: "flex",
+    minWidth: 0,
+  },
+  playerName: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    flex: 1,
+    minWidth: 0,
+  },
+  uploadFileIcon: {
+    flexShrink: 0,
   },
   iconButton: {
     padding: 0,
@@ -132,6 +146,7 @@ const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectJobRun = (state: CoreDataStore) => state.jobRun;
 
 const UploadFileComponent = () => {
+  const { classes } = useStyles();
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerName = useMessagePipeline(selectPlayerName);
 
@@ -140,8 +155,11 @@ const UploadFileComponent = () => {
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
   return (
-    <Stack direction="row" alignItems="center" gap={1}>
-      {playerDisplayName} <UploadFile />
+    <Stack direction="row" alignItems="center" gap={1} style={{ overflow: "hidden", minWidth: 0 }}>
+      <span className={classes.playerName}>{playerDisplayName}</span>
+      <span className={classes.uploadFileIcon}>
+        <UploadFile />
+      </span>
     </Stack>
   );
 };
@@ -354,13 +372,19 @@ const RealTimeVizDataSource = () => {
   return (
     <>
       <RealTimeVizLinkState />
-      <div className={classes.textTruncate}>
-        <Stack direction="row" alignItems="center" gap={2}>
+      <div className={classes.textTruncate} style={{ minWidth: 0 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          gap={2}
+          style={{ overflow: "hidden", minWidth: 0 }}
+        >
           {projectDisplayName && (
             <>
               <Breadcrumbs
                 separator={<NavigateNextIcon fontSize="small" />}
                 aria-label="breadcrumb"
+                style={{ flexShrink: 0 }}
               >
                 <Link
                   href={
@@ -381,7 +405,11 @@ const RealTimeVizDataSource = () => {
               <span>/</span>
             </>
           )}
-          <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+          <Breadcrumbs
+            separator={<NavigateNextIcon fontSize="small" />}
+            aria-label="breadcrumb"
+            style={{ flexShrink: 1, minWidth: 0 }}
+          >
             <Link
               href={
                 domainConfig.webDomain ? `https://${domainConfig.webDomain}/${deviceLink}` : "#"
@@ -449,9 +477,18 @@ const DataPlatformSource = () => {
   ];
 
   return (
-    <div className={classes.textTruncate}>
-      <Stack direction="row" alignItems="center" gap={2}>
-        <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+    <div className={classes.textTruncate} style={{ minWidth: 0 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        gap={2}
+        style={{ overflow: "hidden", minWidth: 0 }}
+      >
+        <Breadcrumbs
+          separator={<NavigateNextIcon fontSize="small" />}
+          aria-label="breadcrumb"
+          style={{ flexShrink: 1, minWidth: 0 }}
+        >
           {projectSlug && dataSource?.id === "coscene-data-platform" ? breadcrumbs : ""}
         </Breadcrumbs>
       </Stack>
