@@ -78,6 +78,7 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
       onClose={onClose}
       className={classes.drawer}
       ModalProps={{
+        disableEnforceFocus: true,
         BackdropProps: {
           style: { opacity: 0 },
         },
