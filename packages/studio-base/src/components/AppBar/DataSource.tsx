@@ -7,18 +7,17 @@
 
 import { ErrorCircle16Filled, LinkMultipleFilled } from "@fluentui/react-icons";
 import HelpIcon from "@mui/icons-material/HelpOutlined";
-import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import SignalCellularAltIcon from "@mui/icons-material/SignalCellularAlt";
 import {
   CircularProgress,
   IconButton,
   Link,
-  Breadcrumbs,
   Popover,
   Typography,
   Box,
   Paper,
   Tooltip,
+  Divider,
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -51,7 +50,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     paddingInlineEnd: theme.spacing(0.75),
     whiteSpace: "nowrap",
     maxHeight: "44px",
-    maxWidth: "240px",
+    // maxWidth: "240px",
     minWidth: 0,
     overflow: "hidden",
     color: theme.palette.appBar.text,
@@ -86,8 +85,9 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    flex: 1,
+    // flex: 1,
     minWidth: 0,
+    maxWidth: "240px",
   },
   uploadFileIcon: {
     flexShrink: 0,
@@ -101,24 +101,6 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     "svg:not(.MuiSvgIcon-root)": {
       fontSize: "1rem",
     },
-  },
-  breadcrumbs: {
-    overflow: "hidden",
-    minWidth: 0,
-    "& .MuiBreadcrumbs-ol": {
-      flexWrap: "nowrap",
-    },
-    "& .MuiBreadcrumbs-li": {
-      overflow: "hidden",
-      minWidth: 0,
-    },
-  },
-  breadcrumbLink: {
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    display: "block",
-    color: theme.palette.appBar.text,
   },
   networkStatusPopover: {
     padding: theme.spacing(2),
@@ -382,41 +364,37 @@ const RealTimeVizDataSource = () => {
 
   return (
     <>
+      xxxyyyy
       <RealTimeVizLinkState />
-      <div className={classes.textTruncate} style={{ minWidth: 0 }}>
-        <Breadcrumbs
-          separator={<NavigateNextIcon fontSize="small" />}
-          aria-label="breadcrumb"
-          className={classes.breadcrumbs}
-        >
-          {projectDisplayName && !isDesktopApp() && (
-            <Link
-              href={
-                domainConfig.webDomain
-                  ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
-                  : "#"
-              }
-              target="_blank"
-              underline="hover"
-              key="1"
-              color="inherit"
-              className={classes.breadcrumbLink}
-            >
-              {projectDisplayName}
-            </Link>
-          )}
+      {/* <div className={classes.textTruncate} style={{ minWidth: 0 }}> */}
+      {projectDisplayName && !isDesktopApp() && (
+        <>
           <Link
-            href={domainConfig.webDomain ? `https://${domainConfig.webDomain}/${deviceLink}` : "#"}
+            href={
+              domainConfig.webDomain
+                ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
+                : "#"
+            }
             target="_blank"
             underline="hover"
-            key="2"
             color="inherit"
-            className={classes.breadcrumbLink}
+            className={classes.ellipsis}
           >
-            {hostName ?? playerDisplayName ?? t("unknown")}
+            {projectDisplayName}
           </Link>
-        </Breadcrumbs>
-      </div>
+          <Divider orientation="vertical" flexItem />
+        </>
+      )}
+      <Link
+        href={domainConfig.webDomain ? `https://${domainConfig.webDomain}/${deviceLink}` : "#"}
+        target="_blank"
+        underline="hover"
+        color="inherit"
+        className={classes.ellipsis}
+      >
+        {hostName ?? playerDisplayName ?? t("unknown")}
+      </Link>
+      {/* </div> */}
     </>
   );
 };
@@ -445,35 +423,30 @@ const DataPlatformSource = () => {
   const secondaryHref = `${projectHref}/records/${recordId}`;
 
   return (
-    <div className={classes.textTruncate} style={{ minWidth: 0 }}>
-      <Breadcrumbs
-        separator={<NavigateNextIcon fontSize="small" />}
-        aria-label="breadcrumb"
-        className={classes.breadcrumbs}
-      >
-        {!isDesktopApp() && (
+    <div className={classes.textTruncate}>
+      {!isDesktopApp() && (
+        <>
           <Link
             href={projectHref}
             target="_blank"
             underline="hover"
-            key="1"
             color="inherit"
-            className={classes.breadcrumbLink}
+            className={classes.ellipsis}
           >
             {project.value?.displayName}
           </Link>
-        )}
-        <Link
-          href={secondaryHref}
-          target="_blank"
-          underline="hover"
-          key="2"
-          color="inherit"
-          className={classes.breadcrumbLink}
-        >
-          {jobRunDisplayName ?? recordDisplayName}
-        </Link>
-      </Breadcrumbs>
+          <Divider orientation="vertical" flexItem />
+        </>
+      )}
+      <Link
+        href={secondaryHref}
+        target="_blank"
+        underline="hover"
+        color="inherit"
+        className={classes.ellipsis}
+      >
+        {jobRunDisplayName ?? recordDisplayName}
+      </Link>
     </div>
   );
 };
@@ -504,8 +477,11 @@ export function DataSource(): React.JSX.Element {
     <>
       <WssErrorModal playerProblems={playerProblems} />
       <Stack direction="row" alignItems="center">
+        xxxyyy
         <div className={classes.sourceName}>
           {(() => {
+            return <RealTimeVizDataSource />;
+
             switch (dataSource?.id) {
               case "coscene-websocket":
                 return <RealTimeVizDataSource />;
