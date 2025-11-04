@@ -103,10 +103,21 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     },
   },
   breadcrumbs: {
-    display: "flex",
+    overflow: "hidden",
+    minWidth: 0,
+    "& .MuiBreadcrumbs-ol": {
+      flexWrap: "nowrap",
+    },
+    "& .MuiBreadcrumbs-li": {
+      overflow: "hidden",
+      minWidth: 0,
+    },
+  },
+  breadcrumbLink: {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
+    display: "block",
     color: theme.palette.appBar.text,
   },
   networkStatusPopover: {
@@ -373,47 +384,38 @@ const RealTimeVizDataSource = () => {
     <>
       <RealTimeVizLinkState />
       <div className={classes.textTruncate} style={{ minWidth: 0 }}>
-        <Stack
-          direction="row"
-          alignItems="center"
-          gap={2}
-          style={{ overflow: "hidden", minWidth: 0 }}
+        <Breadcrumbs
+          separator={<NavigateNextIcon fontSize="small" />}
+          aria-label="breadcrumb"
+          className={classes.breadcrumbs}
         >
-          <Breadcrumbs
-            separator={<NavigateNextIcon fontSize="small" />}
-            aria-label="breadcrumb"
-            style={{ flexShrink: 1, minWidth: 0 }}
-          >
-            {projectDisplayName && !isDesktopApp() && (
-              <Link
-                href={
-                  domainConfig.webDomain
-                    ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
-                    : "#"
-                }
-                target="_blank"
-                underline="hover"
-                key="1"
-                color="inherit"
-                className={classes.breadcrumbs}
-              >
-                a{projectDisplayName}
-              </Link>
-            )}
+          {projectDisplayName && !isDesktopApp() && (
             <Link
               href={
-                domainConfig.webDomain ? `https://${domainConfig.webDomain}/${deviceLink}` : "#"
+                domainConfig.webDomain
+                  ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
+                  : "#"
               }
               target="_blank"
               underline="hover"
               key="1"
               color="inherit"
-              className={classes.breadcrumbs}
+              className={classes.breadcrumbLink}
             >
-              {hostName ?? playerDisplayName ?? t("unknown")}
+              {projectDisplayName}
             </Link>
-          </Breadcrumbs>
-        </Stack>
+          )}
+          <Link
+            href={domainConfig.webDomain ? `https://${domainConfig.webDomain}/${deviceLink}` : "#"}
+            target="_blank"
+            underline="hover"
+            key="2"
+            color="inherit"
+            className={classes.breadcrumbLink}
+          >
+            {hostName ?? playerDisplayName ?? t("unknown")}
+          </Link>
+        </Breadcrumbs>
       </div>
     </>
   );
@@ -425,7 +427,6 @@ const DataPlatformSource = () => {
 
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
-  const dataSource = useCoreData(selectDataSource);
   const jobRun = useCoreData(selectJobRun);
 
   const recordId = useMemo(() => record.value?.name.split("/").pop(), [record]);
@@ -443,61 +444,36 @@ const DataPlatformSource = () => {
 
   const secondaryHref = `${projectHref}/records/${recordId}`;
 
-  if (isDesktopApp()) {
-    return (
-      <div className={classes.textTruncate}>
+  return (
+    <div className={classes.textTruncate} style={{ minWidth: 0 }}>
+      <Breadcrumbs
+        separator={<NavigateNextIcon fontSize="small" />}
+        aria-label="breadcrumb"
+        className={classes.breadcrumbs}
+      >
+        {!isDesktopApp() && (
+          <Link
+            href={projectHref}
+            target="_blank"
+            underline="hover"
+            key="1"
+            color="inherit"
+            className={classes.breadcrumbLink}
+          >
+            {project.value?.displayName}
+          </Link>
+        )}
         <Link
           href={secondaryHref}
           target="_blank"
           underline="hover"
           key="2"
           color="inherit"
-          className={classes.ellipsis}
+          className={classes.breadcrumbLink}
         >
           {jobRunDisplayName ?? recordDisplayName}
         </Link>
-      </div>
-    );
-  }
-  const breadcrumbs = [
-    <Link
-      href={projectHref}
-      target="_blank"
-      underline="hover"
-      key="1"
-      color="inherit"
-      className={classes.breadcrumbs}
-    >
-      {project.value?.displayName}
-    </Link>,
-    <Link
-      href={secondaryHref}
-      target="_blank"
-      underline="hover"
-      key="2"
-      color="inherit"
-      className={classes.breadcrumbs}
-    >
-      {jobRunDisplayName ?? recordDisplayName}
-    </Link>,
-  ];
-
-  return (
-    <div className={classes.textTruncate}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        gap={2}
-        style={{ overflow: "hidden", minWidth: 0 }}
-      >
-        <Breadcrumbs
-          separator={<NavigateNextIcon fontSize="small" />}
-          aria-label="breadcrumb"
-          style={{ flexShrink: 1, minWidth: 0 }}
-        >
-          {projectSlug && dataSource?.id === "coscene-data-platform" ? breadcrumbs : ""}
-        </Breadcrumbs>
-      </Stack>
+      </Breadcrumbs>
     </div>
   );
 };
@@ -530,8 +506,6 @@ export function DataSource(): React.JSX.Element {
       <Stack direction="row" alignItems="center">
         <div className={classes.sourceName}>
           {(() => {
-            return <RealTimeVizDataSource />;
-
             switch (dataSource?.id) {
               case "coscene-websocket":
                 return <RealTimeVizDataSource />;
