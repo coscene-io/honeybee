@@ -42,7 +42,6 @@ const useStyles = makeStyles()((theme) => ({
     height: APP_BAR_HEIGHT - 2,
     fontSize: theme.typography.body2.fontSize,
     justifyContent: "space-between",
-    minWidth: 120,
     maxWidth: "240px",
     padding: theme.spacing(1.125, 1.5),
     gap: theme.spacing(0.5),
