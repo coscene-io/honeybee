@@ -249,7 +249,7 @@ export function AppSettingsDialog(
               <RetentionWindowMs />
               <InactivityTimeout />
               {showLanguageOptions && <LanguageSettings />}
-              <AutoConnectToLan />
+              {isDesktopApp() && <AutoConnectToLan />}
               {supportsAppUpdates && <AutoUpdate />}
               {/* CoScene */}
               {/* {!isDesktopApp() && <LaunchDefault />} */}
