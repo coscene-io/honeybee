@@ -7,14 +7,12 @@
 
 import { ProjectSelector } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/ProjectSelector";
 import { useSetExternalInitConfig } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 
 export function AppBarProject(): React.JSX.Element {
-  const consoleApi = useConsoleApi();
   const { selectSource, selectedSource } = usePlayerSelection();
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
@@ -40,10 +38,7 @@ export function AppBarProject(): React.JSX.Element {
         }
 
         void setExternalInitConfig(newExternalInitConfig);
-        void consoleApi.setApiBaseInfo(newExternalInitConfig);
       }}
     />
   );
-
-  return <></>;
 }
