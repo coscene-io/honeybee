@@ -335,7 +335,7 @@ const RealTimeVizDataSource = () => {
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
   const projectHref =
-    domainConfig.webDomain && organizationSlug && projectSlug
+    organizationSlug && projectSlug
       ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
       : undefined;
   const deviceHref =
@@ -397,13 +397,11 @@ const DataPlatformSource = () => {
   const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
 
   const projectHref =
-    process.env.NODE_ENV === "development"
-      ? `https://dev.coscene.cn/${
+    (externalInitConfig?.organizationSlug ?? organizationSlug) && organizationSlug
+      ? `https://${domainConfig.webDomain}/${
           externalInitConfig?.organizationSlug ?? organizationSlug
         }/${projectSlug}`
-      : `https://${domainConfig.webDomain}/${
-          externalInitConfig?.organizationSlug ?? organizationSlug
-        }/${projectSlug}`;
+      : undefined;
 
   const secondaryHref = projectHref && recordId ? `${projectHref}/records/${recordId}` : undefined;
 
