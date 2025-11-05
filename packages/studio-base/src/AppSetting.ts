@@ -51,4 +51,7 @@ export enum AppSetting {
 
   // Auto Connect Lan
   AUTO_CONNECT_LAN = "autoConnectLan",
+
+  // externalInitConfig
+  LAST_EXTERNAL_INIT_CONFIG = "lastExternalInitConfig",
 }
