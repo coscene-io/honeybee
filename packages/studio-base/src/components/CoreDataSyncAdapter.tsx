@@ -79,7 +79,7 @@ export function useSetExternalInitConfig(): (
       recordId: externalInitConfig.recordId,
     });
 
-    setExternalInitConfig(externalInitConfig);
+    setExternalInitConfig({ ...externalInitConfig, isInitialized: true });
 
     if (externalInitConfig.taskId) {
       const task = await consoleApi.getTask({
