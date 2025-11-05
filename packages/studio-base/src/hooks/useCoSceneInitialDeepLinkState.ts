@@ -14,6 +14,7 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
   useCurrentLayoutActions,
@@ -23,6 +24,7 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppURLState, parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
@@ -34,6 +36,7 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   const { setSelectedLayoutId } = useCurrentLayoutActions();
   const { layoutDrawer } = useWorkspaceActions();
   const layoutManager = useLayoutManager();
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
   const [{ isInitialized, layoutId, dsParamsKey }, setUnappliedLayoutArgs] = useState(
     targetUrlState
       ? {
@@ -49,12 +52,7 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   );
 
   useAsync(async () => {
-    if (currentLayoutId || isInitialized) {
-      return;
-    }
-
-    // waiting for loading projectName done
-    if (dsParamsKey && layoutManager.projectName == undefined) {
+    if (currentLayoutId || isInitialized || externalInitConfig?.isInitialized !== true) {
       return;
     }
 
@@ -79,7 +77,7 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
       return;
     }
 
-    // // open drawer
+    // open drawer
     layoutDrawer.open();
     setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined, dsParamsKey: undefined });
   }, [
@@ -90,6 +88,7 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
     dsParamsKey,
     layoutManager,
     layoutDrawer,
+    externalInitConfig?.isInitialized,
   ]);
 }
 
