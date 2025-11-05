@@ -353,11 +353,14 @@ const RealTimeVizDataSource = () => {
               underline="hover"
               color="inherit"
               className={classes.ellipsis}
+              title={project.value?.displayName}
             >
               {project.value?.displayName}
             </Link>
           ) : (
-            <div className={classes.ellipsis}>{project.value?.displayName}</div>
+            <div className={classes.ellipsis} title={project.value?.displayName}>
+              {project.value?.displayName}
+            </div>
           )}
           <Divider orientation="vertical" flexItem style={{ height: "16px" }} />
         </>
@@ -369,11 +372,14 @@ const RealTimeVizDataSource = () => {
           underline="hover"
           color="inherit"
           className={classes.ellipsis}
+          title={hostName ?? playerDisplayName ?? t("unknown")}
         >
           {hostName ?? playerDisplayName ?? t("unknown")}
         </Link>
       ) : (
-        <div className={classes.ellipsis}>{hostName ?? playerDisplayName ?? t("unknown")}</div>
+        <div className={classes.ellipsis} title={hostName ?? playerDisplayName ?? t("unknown")}>
+          {hostName ?? playerDisplayName ?? t("unknown")}
+        </div>
       )}
     </>
   );
@@ -418,11 +424,14 @@ const DataPlatformSource = () => {
               underline="hover"
               color="inherit"
               className={classes.ellipsis}
+              title={project.value?.displayName}
             >
               {project.value?.displayName}
             </Link>
           ) : (
-            <div className={classes.ellipsis}>{project.value?.displayName}</div>
+            <div className={classes.ellipsis} title={project.value?.displayName}>
+              {project.value?.displayName}
+            </div>
           )}
           <Divider orientation="vertical" flexItem style={{ height: "16px" }} />
         </>
@@ -434,11 +443,14 @@ const DataPlatformSource = () => {
           underline="hover"
           color="inherit"
           className={classes.ellipsis}
+          title={jobRunDisplayName ?? recordDisplayName}
         >
           {jobRunDisplayName ?? recordDisplayName}
         </Link>
       ) : (
-        <div className={classes.ellipsis}>{jobRunDisplayName ?? recordDisplayName}</div>
+        <div className={classes.ellipsis} title={jobRunDisplayName ?? recordDisplayName}>
+          {jobRunDisplayName ?? recordDisplayName}
+        </div>
       )}
     </>
   );
@@ -455,7 +467,9 @@ const CommonDataSource = () => {
 
   return (
     <>
-      <span className={classes.ellipsis}>{playerDisplayName}</span>
+      <span className={classes.ellipsis} title={playerDisplayName}>
+        {playerDisplayName}
+      </span>
       <span className={classes.uploadFileIcon}>
         <UploadFile />
       </span>
