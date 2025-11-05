@@ -177,7 +177,9 @@ export function CurrentLayoutButton({
       <div className={classes.leftContent}>
         <Stack direction="row" alignItems="center" gap={1}>
           <div className={classes.subIcon}>{getSubIcon()}</div>
-          <div className={classes.textTruncate}>{getDisplayText()}</div>
+          <div className={classes.textTruncate} title={getDisplayText()}>
+            {getDisplayText()}
+          </div>
         </Stack>
       </div>
       {buttons.map((button) => (
