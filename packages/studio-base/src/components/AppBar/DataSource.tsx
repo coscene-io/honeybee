@@ -335,7 +335,7 @@ const RealTimeVizDataSource = () => {
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
   const projectHref =
-    organizationSlug && projectSlug
+    domainConfig.webDomain && organizationSlug && projectSlug
       ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
       : undefined;
   const deviceHref =
@@ -397,7 +397,9 @@ const DataPlatformSource = () => {
   const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
 
   const projectHref =
-    (externalInitConfig?.organizationSlug ?? organizationSlug) && organizationSlug
+    domainConfig.webDomain &&
+    (externalInitConfig?.organizationSlug ?? organizationSlug) &&
+    organizationSlug
       ? `https://${domainConfig.webDomain}/${
           externalInitConfig?.organizationSlug ?? organizationSlug
         }/${projectSlug}`
