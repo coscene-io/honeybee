@@ -71,7 +71,6 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
     }
 
     const layout = await layoutManager.getHistory();
-
     if (layout) {
       setSelectedLayoutId(layout.id);
       setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined, dsParamsKey: undefined });
