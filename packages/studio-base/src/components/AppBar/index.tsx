@@ -16,9 +16,10 @@ import {
   Desktop24Regular,
 } from "@fluentui/react-icons";
 import PersonIcon from "@mui/icons-material/Person";
-import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography } from "@mui/material";
+import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography, Divider } from "@mui/material";
 import { useCallback, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
+// import { Separator } from "react-mosaic-component";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
@@ -108,13 +109,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     startInner: {
       display: "flex",
       alignItems: "center",
-      ...NOT_DRAGGABLE_STYLE, // make buttons clickable for desktop app
-    },
-    middle: {
-      gridArea: "middle",
-      justifySelf: "center",
-      overflow: "hidden",
-      maxWidth: "100%",
+      gap: theme.spacing(1),
       ...NOT_DRAGGABLE_STYLE, // make buttons clickable for desktop app
     },
     end: {
@@ -299,12 +294,23 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   setAppMenuEl(undefined);
                 }}
               />
-              {isDesktopApp() && <AppBarProject />}
+              <Divider
+                orientation="vertical"
+                flexItem
+                style={{ marginTop: 14, marginBottom: 14 }}
+              />
+              {isDesktopApp() && (
+                <>
+                  <AppBarProject />
+                  <Divider
+                    orientation="vertical"
+                    flexItem
+                    style={{ marginTop: 14, marginBottom: 14 }}
+                  />
+                </>
+              )}
+              <DataSource />
             </div>
-          </div>
-
-          <div className={classes.middle}>
-            <DataSource />
           </div>
 
           <div className={classes.end}>
