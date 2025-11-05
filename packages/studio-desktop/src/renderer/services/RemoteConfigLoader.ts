@@ -23,7 +23,9 @@ export async function initializeCosConfig(options: RemoteConfigOptions): Promise
   // local config
   await loadLocalConfig();
 
-  await loadRemoteConfig(options);
+  if (options.remoteUrl) {
+    await loadRemoteConfig(options);
+  }
 }
 
 async function loadLocalConfig(): Promise<void> {
