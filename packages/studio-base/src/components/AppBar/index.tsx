@@ -19,7 +19,6 @@ import PersonIcon from "@mui/icons-material/Person";
 import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography, Divider } from "@mui/material";
 import { useCallback, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-// import { Separator } from "react-mosaic-component";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
@@ -174,6 +173,7 @@ const selectLeftSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.l
 const selectRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.right.open;
 
 const selectUser = (store: UserStore) => store.user;
+const selectLoginStatus = (state: UserStore) => state.loginStatus;
 
 export function AppBar(props: AppBarProps): React.JSX.Element {
   const {
@@ -190,6 +190,8 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
   const { classes, cx, theme } = useStyles({ debugDragRegion });
   const { currentUser } = useCurrentUser();
   const { t } = useTranslation("appBar");
+
+  const loginStatus = useCoSceneCurrentUser(selectLoginStatus);
 
   const { appBarLayoutButton } = useAppContext();
 
@@ -299,7 +301,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                 flexItem
                 style={{ marginTop: 14, marginBottom: 14 }}
               />
-              {isDesktopApp() && (
+              {isDesktopApp() && loginStatus === "alreadyLogin" && (
                 <>
                   <AppBarProject />
                   <Divider
