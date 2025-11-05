@@ -25,12 +25,10 @@ async function main() {
 
   const remoteConfigUrl = appConfiguration.get(AppSetting.REMOTE_CONFIG_URL) as string | undefined;
 
-  if (remoteConfigUrl) {
-    await initializeCosConfig({
-      remoteUrl: remoteConfigUrl,
-      timeout: 5000,
-    });
-  }
+  await initializeCosConfig({
+    remoteUrl: remoteConfigUrl,
+    timeout: 5000,
+  });
 
   await rendererMain({ appConfiguration });
 }
