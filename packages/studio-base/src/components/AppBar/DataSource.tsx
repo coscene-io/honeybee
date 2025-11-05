@@ -124,6 +124,7 @@ const selectNetworkStatus = (ctx: MessagePipelineContext) =>
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const selectProject = (state: CoreDataStore) => state.project;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectRecord = (state: CoreDataStore) => state.record;
 const selectDevice = (state: CoreDataStore) => state.device;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
@@ -382,6 +383,7 @@ const DataPlatformSource = () => {
   const { classes } = useStyles();
   const domainConfig = getDomainConfig();
 
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
   const jobRun = useCoreData(selectJobRun);
@@ -395,12 +397,12 @@ const DataPlatformSource = () => {
   const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
 
   const projectHref =
-    process.env.NODE_ENV === "development"
-      ? organizationSlug && projectSlug
-        ? `https://dev.coscene.cn/${organizationSlug}/${projectSlug}`
-        : undefined
-      : domainConfig.webDomain && organizationSlug && projectSlug
-      ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
+    domainConfig.webDomain &&
+    (externalInitConfig?.organizationSlug ?? organizationSlug) &&
+    organizationSlug
+      ? `https://${domainConfig.webDomain}/${
+          externalInitConfig?.organizationSlug ?? organizationSlug
+        }/${projectSlug}`
       : undefined;
 
   const secondaryHref = projectHref && recordId ? `${projectHref}/records/${recordId}` : undefined;
