@@ -132,6 +132,21 @@ export async function* streamMessages({
     }
   >();
 
+  const performanceStats = {
+    readDurationMs: 0,
+    appendDurationMs: 0,
+    nextRecordDurationMs: 0,
+    processRecordDurationMs: 0,
+    deserializeMessageDurationMs: 0,
+    maxDeserializeDurationMs: 0,
+    messageDeserializeCount: 0,
+    messageDeserializeErrorCount: 0,
+    bytesRead: 0,
+    chunkCount: 0,
+  };
+
+  const recordTypeCounts: Record<string, number> = {};
+
   function processRecord(record: McapTypes.TypedMcapRecord) {
     switch (record.type) {
       default:
@@ -209,8 +224,16 @@ export async function* streamMessages({
         const receiveTime = fromNanoSec(record.logTime);
         totalMessages++;
 
+        const deserializeStart = performance.now();
         try {
           const deserializedMessage = info.parsedChannel.deserialize(record.data);
+          const deserializeDuration = performance.now() - deserializeStart;
+          performanceStats.deserializeMessageDurationMs += deserializeDuration;
+          performanceStats.messageDeserializeCount++;
+          performanceStats.maxDeserializeDurationMs = Math.max(
+            performanceStats.maxDeserializeDurationMs,
+            deserializeDuration,
+          );
           results.push({
             type: "message-event",
             msgEvent: {
@@ -222,6 +245,14 @@ export async function* streamMessages({
             },
           });
         } catch (err) {
+          const deserializeDuration = performance.now() - deserializeStart;
+          performanceStats.deserializeMessageDurationMs += deserializeDuration;
+          performanceStats.messageDeserializeCount++;
+          performanceStats.messageDeserializeErrorCount++;
+          performanceStats.maxDeserializeDurationMs = Math.max(
+            performanceStats.maxDeserializeDurationMs,
+            deserializeDuration,
+          );
           // Similar to DeserializingIterableSource error handling - create a problem for the main thread
           console.error(`Failed to deserialize message on topic ${info.channel.topic}:`, err);
           captureException(err, {
@@ -322,16 +353,51 @@ export async function* streamMessages({
     const streamReader = response.body.getReader();
 
     let normalReturn = false;
-    parseLoop: try {
+    try {
       const reader = new McapStreamReader({ decompressHandlers });
-      for (let result; (result = await streamReader.read()), !result.done; ) {
-        reader.append(result.value);
-        for (let record; (record = reader.nextRecord()); ) {
+      let dataEndReached = false;
+
+      const readChunk = async () => {
+        const readStart = performance.now();
+        const chunkResult = await streamReader.read();
+        const readDuration = performance.now() - readStart;
+        performanceStats.readDurationMs += readDuration;
+        return chunkResult;
+      };
+
+      let result = await readChunk();
+      while (!result.done) {
+        performanceStats.chunkCount++;
+        const chunk = result.value;
+        performanceStats.bytesRead += chunk.byteLength;
+        const appendStart = performance.now();
+        reader.append(chunk);
+        performanceStats.appendDurationMs += performance.now() - appendStart;
+
+        const nextRecordWithTiming = () => {
+          const nextRecordStart = performance.now();
+          const nextRecord = reader.nextRecord();
+          const nextRecordDuration = performance.now() - nextRecordStart;
+          performanceStats.nextRecordDurationMs += nextRecordDuration;
+          return nextRecord;
+        };
+
+        for (
+          let record = nextRecordWithTiming();
+          record != undefined;
+          record = nextRecordWithTiming()
+        ) {
+          recordTypeCounts[record.type] = (recordTypeCounts[record.type] ?? 0) + 1;
+
           if (record.type === "DataEnd") {
             normalReturn = true;
+            dataEndReached = true;
             break;
           }
+
+          const processStart = performance.now();
           processRecord(record);
+          performanceStats.processRecordDurationMs += performance.now() - processStart;
         }
 
         // 统一输出结果，保持时序
@@ -375,14 +441,18 @@ export async function* streamMessages({
           results = [];
         }
 
-        if (normalReturn) {
-          break parseLoop;
+        if (dataEndReached) {
+          break;
         }
+
+        result = await readChunk();
       }
-      if (!reader.done()) {
-        throw new Error("Incomplete mcap file");
+      if (!dataEndReached) {
+        if (!reader.done()) {
+          throw new Error("Incomplete mcap file");
+        }
+        normalReturn = true;
       }
-      normalReturn = true;
     } finally {
       if (!normalReturn) {
         // If the caller called generator.return() in between body chunks, automatically cancel the request.
@@ -401,11 +471,17 @@ export async function* streamMessages({
 
   decodeEndTime = performance.now();
 
+  const decodeDurationMs = decodeEndTime - fetchEndTime;
+  const averageDeserializeDurationMs =
+    performanceStats.messageDeserializeCount > 0
+      ? performanceStats.deserializeMessageDurationMs / performanceStats.messageDeserializeCount
+      : undefined;
+
   log.debug("streamMessages:summary", {
     streamId: params.id,
     totalMessages,
     fetchDurationMs: fetchEndTime - fetchStartTime,
-    decodeDurationMs: decodeEndTime - fetchEndTime,
+    decodeDurationMs,
     totalDurationMs: decodeEndTime - startTimer,
     firstProgressLatencyMs:
       firstProgressTimestamp != undefined ? firstProgressTimestamp - fetchStartTime : undefined,
@@ -413,7 +489,69 @@ export async function* streamMessages({
       firstProgressTimestamp != undefined ? decodeEndTime - firstProgressTimestamp : undefined,
     totalYieldCount,
     firstProgressBatch: firstProgressBatchStats,
+    decodePerformance: {
+      chunkCount: performanceStats.chunkCount,
+      bytesRead: performanceStats.bytesRead,
+      recordTypeCounts,
+      breakdownMs: {
+        read: performanceStats.readDurationMs,
+        append: performanceStats.appendDurationMs,
+        nextRecord: performanceStats.nextRecordDurationMs,
+        processRecord: performanceStats.processRecordDurationMs,
+        messageDeserialize: performanceStats.deserializeMessageDurationMs,
+      },
+      messageDeserializeCount: performanceStats.messageDeserializeCount,
+      messageDeserializeErrorCount: performanceStats.messageDeserializeErrorCount,
+      averageDeserializeDurationMs,
+      maxDeserializeDurationMs: performanceStats.maxDeserializeDurationMs,
+      decodeDurationResidualMs:
+        decodeDurationMs -
+        (performanceStats.readDurationMs +
+          performanceStats.appendDurationMs +
+          performanceStats.nextRecordDurationMs +
+          performanceStats.processRecordDurationMs),
+    },
   });
+
+  //   {
+  //     "streamId": "gtgXwDFmwN468Z1dSsktA",
+  //     "totalMessages": 1558,
+  //     "fetchDurationMs": 363.14999997615814,
+  //     "decodeDurationMs": 4622.645000040531,
+  //     "totalDurationMs": 4986.040000021458,
+  //     "firstProgressLatencyMs": 394.25,
+  //     "timeFromFirstProgressToCompleteMs": 4591.545000016689,
+  //     "totalYieldCount": 1,
+  //     "firstProgressBatch": {
+  //         "messages": 1558,
+  //         "problems": 0
+  //     },
+  //     "decodePerformance": {
+  //         "chunkCount": 6,
+  //         "bytesRead": 93092,
+  //         "recordTypeCounts": {
+  //             "Header": 1,
+  //             "Schema": 1,
+  //             "Channel": 1,
+  //             "Message": 1558,
+  //             "MessageIndex": 1,
+  //             "ChunkIndex": 1,
+  //             "DataEnd": 1
+  //         },
+  //         "breakdownMs": {
+  //             "read": 19.680000007152557,
+  //             "append": 0.04999995231628418,
+  //             "nextRecord": 2.095000147819519,
+  //             "processRecord": 8.939999878406525,
+  //             "messageDeserialize": 8.434999644756317
+  //         },
+  //         "messageDeserializeCount": 1558,
+  //         "messageDeserializeErrorCount": 0,
+  //         "averageDeserializeDurationMs": 0.005413992069805081,
+  //         "maxDeserializeDurationMs": 0.050000011920928955,
+  //         "decodeDurationResidualMs": 4591.880000054836
+  //     }
+  // }
 
   streamCycleCompletionById.set(params.id, decodeEndTime);
 }
