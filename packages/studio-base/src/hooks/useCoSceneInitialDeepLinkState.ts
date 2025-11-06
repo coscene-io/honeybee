@@ -37,17 +37,15 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
   const { layoutDrawer } = useWorkspaceActions();
   const layoutManager = useLayoutManager();
   const externalInitConfig = useCoreData(selectExternalInitConfig);
-  const [{ isInitialized, layoutId, dsParamsKey }, setUnappliedLayoutArgs] = useState(
+  const [{ isInitialized, layoutId }, setUnappliedLayoutArgs] = useState(
     targetUrlState
       ? {
           isInitialized: false,
           layoutId: targetUrlState.layoutId,
-          dsParamsKey: targetUrlState.dsParams?.key,
         }
       : {
           isInitialized: false,
           layoutId: undefined,
-          dsParamsKey: undefined,
         },
   );
 
@@ -64,7 +62,6 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
         setUnappliedLayoutArgs({
           isInitialized: true,
           layoutId: undefined,
-          dsParamsKey: undefined,
         });
         return;
       }
@@ -73,19 +70,18 @@ function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined) {
     const layout = await layoutManager.getHistory();
     if (layout) {
       setSelectedLayoutId(layout.id);
-      setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined, dsParamsKey: undefined });
+      setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined });
       return;
     }
 
     // open drawer
     layoutDrawer.open();
-    setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined, dsParamsKey: undefined });
+    setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined });
   }, [
     currentLayoutId,
     setSelectedLayoutId,
     isInitialized,
     layoutId,
-    dsParamsKey,
     layoutManager,
     layoutDrawer,
     externalInitConfig?.isInitialized,
