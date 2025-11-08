@@ -35,12 +35,34 @@ export type ParsedChannelAndEncodings = {
 export type StreamParams = {
   start: Time;
   end: Time;
+  requestId?: string;
   id: string;
   projectName?: string;
   replayPolicy?: "lastPerChannel" | "";
   replayLookbackSeconds?: number;
   topics: string[];
   fetchCompleteTopicState?: "complete" | "incremental";
+};
+
+export type StreamTimingSummary = {
+  requestId: string;
+  fetchMs: number;
+  decodeMs: number;
+  totalMs: number;
+  yieldedBlocks: number;
+  yieldedResults: number;
+  yieldedMessages: number;
+  // Detailed breakdown of decode phase
+  breakdown?: {
+    chunkWaitMs: number; // Time waiting for network chunks
+    appendMs: number; // Time appending chunks to reader
+    parseMs: number; // Time parsing records
+    deserializeMs: number; // Time deserializing messages
+    yieldMs: number; // Time yielding results
+    totalChunks: number; // Number of chunks received
+    avgChunkBytes: number; // Average chunk size
+    totalBytes: number; // Total bytes received
+  };
 };
 
 /**
@@ -56,6 +78,7 @@ export async function* streamMessages({
   signal,
   parsedChannelsByTopic,
   params,
+  onSummary,
 }: {
   api: StreamMessageApi;
   /**
@@ -74,20 +97,22 @@ export async function* streamMessages({
    * parsedChannelsByTopic (thus mutating parsedChannelsByTopic).
    */
   parsedChannelsByTopic: Map<string, ParsedChannelAndEncodings[]>;
+  onSummary?: (summary: StreamTimingSummary) => void;
 }): AsyncGenerator<IteratorResult[]> {
+  const requestId = params.requestId ?? "stream";
+
   // Local connection ID management for this streaming session
   const connectionIdByTopic: Record<string, number> = {};
   let nextConnectionId = 0;
 
   const controller = new AbortController();
   const abortHandler = () => {
-    log.debug("Manual abort of streamMessages", params);
+    log.debug(`Manual abort of streamMessages (${requestId})`, params);
     controller.abort();
   };
   signal?.addEventListener("abort", abortHandler);
   const decompressHandlers = await loadDecompressHandlers();
 
-  log.debug("streamMessages", params);
   const startTimer = performance.now();
 
   if (controller.signal.aborted) {
@@ -95,7 +120,15 @@ export async function* streamMessages({
   }
 
   let totalMessages = 0;
+  let yieldedBlocks = 0;
+  let yieldedResults = 0;
+
   let results: IteratorResult[] = [];
+
+  // Limit batch size to avoid blocking consumer too long
+  const MAX_BATCH_SIZE = 100; // Yield every 100 messages
+  const MAX_BATCH_TIME_MS = 50; // Or every 50ms, whichever comes first
+  let lastYieldTime = performance.now();
   const schemasById = new Map<number, McapTypes.TypedMcapRecords["Schema"]>();
   const channelInfoById = new Map<
     number,
@@ -184,7 +217,10 @@ export async function* streamMessages({
         totalMessages++;
 
         try {
+          const deserializeStart = performance.now();
           const deserializedMessage = info.parsedChannel.deserialize(record.data);
+          deserializeMs += performance.now() - deserializeStart;
+
           results.push({
             type: "message-event",
             msgEvent: {
@@ -233,6 +269,45 @@ export async function* streamMessages({
   let fetchStartTime = 0;
   let fetchEndTime = 0;
   let decodeEndTime = 0;
+  let summarySent = false;
+
+  // Detailed breakdown timing
+  let chunkWaitMs = 0;
+  let appendMs = 0;
+  let parseMs = 0;
+  let deserializeMs = 0;
+  let yieldMs = 0;
+  let totalChunks = 0;
+  let totalBytes = 0;
+
+  const sendSummary = () => {
+    if (summarySent) {
+      return;
+    }
+    summarySent = true;
+    const fetchMs = Math.max(0, fetchEndTime - fetchStartTime);
+    const decodeMs = Math.max(0, decodeEndTime - fetchEndTime);
+    const totalMs = Math.max(0, decodeEndTime - startTimer);
+    onSummary?.({
+      requestId,
+      fetchMs,
+      decodeMs,
+      totalMs,
+      yieldedBlocks,
+      yieldedResults,
+      yieldedMessages: totalMessages,
+      breakdown: {
+        chunkWaitMs,
+        appendMs,
+        parseMs,
+        deserializeMs,
+        yieldMs,
+        totalChunks,
+        avgChunkBytes: totalChunks > 0 ? totalBytes / totalChunks : 0,
+        totalBytes,
+      },
+    });
+  };
 
   try {
     // Since every request is signed with a new token, there's no benefit to caching.
@@ -254,6 +329,8 @@ export async function* streamMessages({
       throw new Error("Login expired, please login again");
     }
     if (response.status === 404) {
+      decodeEndTime = fetchEndTime;
+      sendSummary();
       return;
     } else if (response.status !== 200) {
       const errorBody = (await response.json()) as { message?: string };
@@ -270,25 +347,62 @@ export async function* streamMessages({
     let normalReturn = false;
     parseLoop: try {
       const reader = new McapStreamReader({ decompressHandlers });
+      let chunkReadStart = performance.now();
+
       for (let result; (result = await streamReader.read()), !result.done; ) {
+        const chunkReadEnd = performance.now();
+        chunkWaitMs += chunkReadEnd - chunkReadStart;
+        totalChunks++;
+        totalBytes += result.value.byteLength;
+
+        const appendStart = performance.now();
         reader.append(result.value);
+        appendMs += performance.now() - appendStart;
+
+        const parseStart = performance.now();
         for (let record; (record = reader.nextRecord()); ) {
           if (record.type === "DataEnd") {
             normalReturn = true;
             break;
           }
           processRecord(record);
-        }
 
-        // 统一输出结果，保持时序
+          // Yield early if batch is too large or too much time has passed
+          const now = performance.now();
+          const timeSinceLastYield = now - lastYieldTime;
+          if (results.length >= MAX_BATCH_SIZE || timeSinceLastYield >= MAX_BATCH_TIME_MS) {
+            if (results.length > 0) {
+              parseMs += now - parseStart;
+              const yieldStart = performance.now();
+              yieldedBlocks++;
+              yieldedResults += results.length;
+              yield results;
+              yieldMs += performance.now() - yieldStart;
+              results = [];
+              lastYieldTime = performance.now();
+              continue;
+            }
+          }
+        }
+        parseMs += performance.now() - parseStart;
+
+        // Yield remaining results after processing all records in chunk
         if (results.length > 0) {
+          const yieldStart = performance.now();
+          yieldedBlocks++;
+          yieldedResults += results.length;
           yield results;
+          yieldMs += performance.now() - yieldStart;
           results = [];
+          lastYieldTime = performance.now();
         }
 
         if (normalReturn) {
           break parseLoop;
         }
+
+        // Start timing next chunk read
+        chunkReadStart = performance.now();
       }
       if (!reader.done()) {
         throw new Error("Incomplete mcap file");
@@ -305,23 +419,13 @@ export async function* streamMessages({
   } catch (err) {
     // Capture errors from manually aborting the request via the abort controller.
     if (err instanceof DOMException && err.message === "The user aborted a request.") {
+      decodeEndTime = performance.now();
+      sendSummary();
       return;
     }
     throw err;
   }
 
   decodeEndTime = performance.now();
-
-  log.debug(
-    "message",
-    results,
-    "total message",
-    totalMessages,
-    "fetch time",
-    `${(fetchEndTime - fetchStartTime) / 1000}s`,
-    "decode time",
-    `${(decodeEndTime - fetchEndTime) / 1000}s`,
-    "total time",
-    `${(decodeEndTime - startTimer) / 1000}s`,
-  );
+  sendSummary();
 }

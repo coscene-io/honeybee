@@ -1169,9 +1169,14 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   }
 
   #frameHandler = (currentTime: bigint): void => {
+    const frameStart = performance.now();
     this.#rendering = true;
     this.currentTime = currentTime;
+
+    const handleQueuesStart = performance.now();
     this.#handleSubscriptionQueues();
+    const handleQueuesTime = performance.now() - handleQueuesStart;
+
     this.#updateFrameErrors();
     this.#updateFixedFrameId();
     this.#updateResolution();
@@ -1189,10 +1194,13 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
         : CoordinateFrame.FALLBACK_FRAME_ID;
     const fixedFrameId = this.fixedFrameId ?? CoordinateFrame.FALLBACK_FRAME_ID;
 
+    const extensionsStart = performance.now();
     for (const sceneExtension of this.sceneExtensions.values()) {
       sceneExtension.startFrame(currentTime, renderFrameId, fixedFrameId);
     }
+    const extensionsTime = performance.now() - extensionsStart;
 
+    const renderStart = performance.now();
     this.gl.render(this.#scene, camera);
 
     if (this.#selectedRenderable) {
@@ -1201,39 +1209,101 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       camera.layers.set(LAYER_SELECTED);
       this.gl.render(this.#scene, camera);
     }
+    const renderTime = performance.now() - renderStart;
 
     this.emit("endFrame", currentTime, this);
 
     this.gl.info.reset();
+
+    const totalFrameTime = performance.now() - frameStart;
+    if (totalFrameTime > 30) {
+      const queuesPct = ((handleQueuesTime / totalFrameTime) * 100).toFixed(1);
+      const extensionsPct = ((extensionsTime / totalFrameTime) * 100).toFixed(1);
+      const renderPct = ((renderTime / totalFrameTime) * 100).toFixed(1);
+      log.info(
+        `[Renderer:frame] total=${totalFrameTime.toFixed(1)}ms queues=${handleQueuesTime.toFixed(
+          1,
+        )}ms(${queuesPct}%) extensions=${extensionsTime.toFixed(
+          1,
+        )}ms(${extensionsPct}%) render=${renderTime.toFixed(1)}ms(${renderPct}%)`,
+      );
+    }
   };
 
   /** iterates through all subscription message queues, processes them, and calls their handler for each message in the frame */
   #handleSubscriptionQueues(): void {
-    for (const subscriptions of this.topicSubscriptions.values()) {
+    const startTime = performance.now();
+    let totalMsgCount = 0;
+    let totalHandlerTime = 0;
+    const handlerTimings: Array<{ topic: string; count: number; time: number }> = [];
+
+    for (const [topic, subscriptions] of this.topicSubscriptions.entries()) {
       for (const subscription of subscriptions) {
         if (!subscription.queue) {
           continue;
         }
         const { queue, filterQueue } = subscription;
         const processedQueue = filterQueue ? filterQueue(queue) : queue;
+        const msgCount = processedQueue.length;
+        totalMsgCount += msgCount;
         subscription.queue = undefined;
+
+        const handlerStart = performance.now();
         for (const messageEvent of processedQueue) {
           subscription.handler(messageEvent);
+        }
+        const handlerTime = performance.now() - handlerStart;
+        totalHandlerTime += handlerTime;
+
+        if (msgCount > 0 && handlerTime > 5) {
+          handlerTimings.push({ topic, count: msgCount, time: handlerTime });
         }
       }
     }
-    for (const subscriptions of this.schemaSubscriptions.values()) {
+    for (const [schemaName, subscriptions] of this.schemaSubscriptions.entries()) {
       for (const subscription of subscriptions) {
         if (!subscription.queue) {
           continue;
         }
         const { queue, filterQueue } = subscription;
         const processedQueue = filterQueue ? filterQueue(queue) : queue;
+        const msgCount = processedQueue.length;
+        totalMsgCount += msgCount;
         subscription.queue = undefined;
+
+        const handlerStart = performance.now();
         for (const messageEvent of processedQueue) {
           subscription.handler(messageEvent);
         }
+        const handlerTime = performance.now() - handlerStart;
+        totalHandlerTime += handlerTime;
+
+        if (msgCount > 0 && handlerTime > 5) {
+          handlerTimings.push({
+            topic: `schema:${schemaName}`,
+            count: msgCount,
+            time: handlerTime,
+          });
+        }
       }
+    }
+
+    const totalTime = performance.now() - startTime;
+    if (totalMsgCount > 0 && totalTime > 20) {
+      // Sort by time desc and get top 5
+      handlerTimings.sort((a, b) => b.time - a.time);
+      const topHandlers = handlerTimings
+        .slice(0, 5)
+        .map((h) => `${h.topic}(${h.count}msg,${h.time.toFixed(1)}ms)`)
+        .join(" ");
+
+      log.info(
+        `[Renderer:handleQueues] total=${totalTime.toFixed(
+          1,
+        )}ms msgs=${totalMsgCount} handlerTime=${totalHandlerTime.toFixed(
+          1,
+        )}ms topHandlers=[${topHandlers}]`,
+      );
     }
   }
 

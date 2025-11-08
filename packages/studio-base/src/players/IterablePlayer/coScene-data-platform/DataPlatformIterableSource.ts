@@ -20,7 +20,12 @@ import {
 import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
-import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";
+import {
+  streamMessages,
+  ParsedChannelAndEncodings,
+  StreamParams,
+  StreamTimingSummary,
+} from "./streamMessages";
 import {
   IIterableSource,
   Initalization,
@@ -31,6 +36,8 @@ import {
 } from "../IIterableSource";
 
 const log = Logger.getLogger(__filename);
+
+const formatTime = (time: Time): string => `${time.sec}.${time.nsec.toString().padStart(9, "0")}`;
 
 /**
  * The console api methods used by DataPlatformIterableSource.
@@ -198,6 +205,8 @@ export class DataPlatformIterableSource implements IIterableSource {
       throw new Error("DataPlatformIterableSource not initialized");
     }
 
+    let requestSequence = 0;
+
     const parsedChannelsByTopic = this.#parsedChannelsByTopic;
 
     // Data platform treats topic array length 0 as "all topics". Until that is changed, we filter out
@@ -220,26 +229,65 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamEnd = clampTime(args.end ?? this.#end, this.#start, this.#end);
 
     if (args.consumptionType === "full") {
+      const requestFetchState = fetchCompleteTopicState;
       const streamByParams: StreamParams = {
         start: streamStart,
         end: streamEnd,
+        requestId: `req-${Date.now().toString(36)}-${requestSequence++}`,
         id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
         fetchCompleteTopicState,
       };
 
+      const requestStart = performance.now();
+      let timingSummary: StreamTimingSummary | undefined;
       const stream = streamMessages({
         api: this.#consoleApi,
         parsedChannelsByTopic,
         params: streamByParams,
+        onSummary: (summary) => {
+          timingSummary = summary;
+        },
       });
 
+      let yieldedBlocks = 0;
+      let yieldedResults = 0;
+      let yieldedMessages = 0;
       for await (const messages of stream) {
+        yieldedBlocks++;
+        yieldedResults += messages.length;
         for (const message of messages) {
+          if (message.type === "message-event") {
+            yieldedMessages++;
+          }
           yield message;
         }
       }
+
+      const requestEnd = performance.now();
+      const totalDuration = requestEnd - requestStart;
+      const summary: StreamTimingSummary = timingSummary ?? {
+        requestId: streamByParams.requestId ?? "stream",
+        fetchMs: totalDuration,
+        decodeMs: 0,
+        totalMs: totalDuration,
+        yieldedBlocks,
+        yieldedResults,
+        yieldedMessages,
+      };
+      const postProcessingMs = Math.max(0, totalDuration - summary.totalMs);
+      log.info(
+        `[${summary.requestId}] window ${formatTime(streamStart)} -> ${formatTime(
+          streamEnd,
+        )} state=${requestFetchState} fetch=${summary.fetchMs.toFixed(
+          1,
+        )}ms decode=${summary.decodeMs.toFixed(1)}ms post=${postProcessingMs.toFixed(
+          1,
+        )}ms total=${summary.totalMs.toFixed(1)}ms blocks=${summary.yieldedBlocks} results=${
+          summary.yieldedResults
+        } messages=${summary.yieldedMessages}`,
+      );
 
       if (fetchCompleteTopicState === "complete") {
         fetchCompleteTopicState = "incremental";
@@ -252,26 +300,100 @@ export class DataPlatformIterableSource implements IIterableSource {
     let localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
 
     for (;;) {
+      const requestFetchState = fetchCompleteTopicState;
       const streamByParams: StreamParams = {
         start: localStart,
         end: localEnd,
+        requestId: `req-${Date.now().toString(36)}-${requestSequence++}`,
         id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
         fetchCompleteTopicState,
       };
 
+      const requestStart = performance.now();
+      let timingSummary: StreamTimingSummary | undefined;
       const stream = streamMessages({
         api: this.#consoleApi,
         parsedChannelsByTopic,
         params: streamByParams,
+        onSummary: (summary) => {
+          timingSummary = summary;
+        },
       });
 
+      let yieldedBlocks = 0;
+      let yieldedResults = 0;
+      let yieldedMessages = 0;
       for await (const messages of stream) {
+        yieldedBlocks++;
+        yieldedResults += messages.length;
         for (const message of messages) {
+          if (message.type === "message-event") {
+            yieldedMessages++;
+          }
           yield message;
         }
       }
+
+      const requestEnd = performance.now();
+      const totalDuration = requestEnd - requestStart;
+      const summary: StreamTimingSummary = timingSummary ?? {
+        requestId: streamByParams.requestId ?? "stream",
+        fetchMs: totalDuration,
+        decodeMs: 0,
+        totalMs: totalDuration,
+        yieldedBlocks,
+        yieldedResults,
+        yieldedMessages,
+      };
+      const postProcessingMs = Math.max(0, totalDuration - summary.totalMs);
+
+      // Format breakdown details if available
+      let breakdownStr = "";
+      if (summary.breakdown && summary.decodeMs > 10) {
+        const bd = summary.breakdown;
+        const formatBytes = (bytes: number) => {
+          if (bytes >= 1024 * 1024) {
+            return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+          }
+          if (bytes >= 1024) {
+            return `${(bytes / 1024).toFixed(1)}KB`;
+          }
+          return `${bytes}B`;
+        };
+
+        const waitPct = ((bd.chunkWaitMs / summary.decodeMs) * 100).toFixed(1);
+        const appendPct = ((bd.appendMs / summary.decodeMs) * 100).toFixed(1);
+        const parsePct = ((bd.parseMs / summary.decodeMs) * 100).toFixed(1);
+        const deserializePct = ((bd.deserializeMs / summary.decodeMs) * 100).toFixed(1);
+        const yieldPct = ((bd.yieldMs / summary.decodeMs) * 100).toFixed(1);
+
+        // key metrics
+        breakdownStr = ` breakdown(wait=${bd.chunkWaitMs.toFixed(
+          1,
+        )}ms/${waitPct}% append=${bd.appendMs.toFixed(
+          1,
+        )}ms/${appendPct}% parse=${bd.parseMs.toFixed(
+          1,
+        )}ms/${parsePct}% deserialize=${bd.deserializeMs.toFixed(
+          1,
+        )}ms/${deserializePct}% yield=${bd.yieldMs.toFixed(1)}ms/${yieldPct}% chunks=${
+          bd.totalChunks
+        } avgChunk=${formatBytes(bd.avgChunkBytes)} total=${formatBytes(bd.totalBytes)})`;
+      }
+
+      log.info(
+        `[${summary.requestId}] window ${formatTime(streamByParams.start)} -> ${formatTime(
+          streamByParams.end,
+        )} state=${requestFetchState} fetch=${summary.fetchMs.toFixed(
+          1,
+        )}ms decode=${summary.decodeMs.toFixed(1)}ms post=${postProcessingMs.toFixed(
+          1,
+        )}ms total=${summary.totalMs.toFixed(1)}ms blocks=${summary.yieldedBlocks} results=${
+          summary.yieldedResults
+        } messages=${summary.yieldedMessages}${breakdownStr}`,
+      );
 
       if (compare(localEnd, streamEnd) >= 0) {
         return;

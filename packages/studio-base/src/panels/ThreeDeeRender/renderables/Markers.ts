@@ -193,12 +193,32 @@ export class Markers extends SceneExtension<TopicMarkers> {
     const topic = messageEvent.topic;
     const markerArray = messageEvent.message;
     const receiveTime = toNanoSec(messageEvent.receiveTime);
+    const markers = markerArray.markers ?? [];
 
-    for (const markerMsg of markerArray.markers ?? []) {
+    if (markers.length === 0) {
+      return;
+    }
+
+    // Get or create TopicMarkers once for the whole array
+    const firstMarker = markers[0];
+    if (!firstMarker) {
+      return;
+    }
+    const normalizedFirst = normalizeMarker(firstMarker);
+    const topicMarkers = this.#getTopicMarkers(topic, normalizedFirst, receiveTime);
+    const prevNsCount = topicMarkers.namespaces.size;
+
+    // Batch process all markers
+    for (const markerMsg of markers) {
       if (markerMsg) {
         const marker = normalizeMarker(markerMsg);
-        this.#addMarker(topic, marker, receiveTime);
+        topicMarkers.addMarkerMessage(marker, receiveTime);
       }
+    }
+
+    // Only update settings tree once if namespaces changed
+    if (prevNsCount !== topicMarkers.namespaces.size) {
+      this.updateSettingsTree();
     }
   };
 
