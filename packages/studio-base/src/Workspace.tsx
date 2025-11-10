@@ -24,6 +24,7 @@ import {
   DataSourceDialog,
   DataSourceDialogItem,
 } from "@foxglove/studio-base/components/DataSourceDialog";
+import { DeepLinksSyncAdapter } from "@foxglove/studio-base/components/DeepLinksSyncAdapter";
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import { EventsList } from "@foxglove/studio-base/components/Events/EventsList";
 import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";
@@ -65,7 +66,6 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
-import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useCoSceneInitialDeepLinkState";
 import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDefaultWebLaunchPreference";
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
 import { useHandleFiles } from "@foxglove/studio-base/hooks/useHandleFiles";
@@ -102,8 +102,6 @@ type WorkspaceProps = CustomWindowControlsProps & {
   disablePersistenceForStorybook?: boolean;
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
 };
-
-const DEFAULT_DEEPLINKS = Object.freeze([]);
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
 const selectPlayerIsPresent = ({ playerState }: MessagePipelineContext) =>
@@ -156,9 +154,6 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const dataSource = useCoreData(selectDataSource);
 
   const paid = useSubscriptionEntitlement(selectPaid);
-
-  // Initialize deep link state - must be called inside WorkspaceContextProvider
-  useInitialDeepLinkState(props.deepLinks ?? DEFAULT_DEEPLINKS);
 
   // coScene set demo layout in demo mode
   const { dialogActions, sidebarActions } = useWorkspaceActions();
@@ -384,6 +379,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       {dataSourceDialog.open && <DataSourceDialog />}
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
+      <DeepLinksSyncAdapter deepLinks={props.deepLinks} />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
         {appBar}

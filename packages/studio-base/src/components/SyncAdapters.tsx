@@ -12,7 +12,6 @@ import { CoSceneCurrentUserSyncAdapter } from "@foxglove/studio-base/components/
 import { PlaylistSyncAdapter } from "@foxglove/studio-base/components/CoScenePlaylistSyncAdapter";
 import { CoreDataSyncAdapter } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import { EventsSyncAdapter } from "@foxglove/studio-base/components/Events/EventsSyncAdapter";
-import { SourceArgsSyncAdapter } from "@foxglove/studio-base/components/SourceArgsSyncAdapter";
 import { SubscriptionEntitlementSyncAdapter } from "@foxglove/studio-base/components/SubscriptionEntitlementSyncAdapter";
 import { TasksSyncAdapter } from "@foxglove/studio-base/components/Tasks/TasksSyncAdapter";
 import { URLStateSyncAdapter } from "@foxglove/studio-base/components/URLStateSyncAdapter";
@@ -37,7 +36,6 @@ export function SyncAdapters(): React.JSX.Element {
         <URLStateSyncAdapter />
         <CurrentLayoutSyncAdapter />
         <CoreDataSyncAdapter />
-        <SourceArgsSyncAdapter />
         <SubscriptionEntitlementSyncAdapter />
         {/* <UpdateChecker /> */}
       </>

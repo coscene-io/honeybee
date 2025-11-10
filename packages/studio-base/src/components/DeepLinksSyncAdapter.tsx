@@ -17,12 +17,12 @@ import {
   DataSourceArgs,
   usePlayerSelection,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { useSharedRootContext } from "@foxglove/studio-base/context/SharedRootContext";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useCoSceneInitialDeepLinkState";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
@@ -34,17 +34,25 @@ const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 
-export function SourceArgsSyncAdapter(): ReactNull {
+const DEFAULT_DEEPLINKS = Object.freeze([]);
+
+export function DeepLinksSyncAdapter({
+  deepLinks = DEFAULT_DEEPLINKS,
+}: {
+  deepLinks?: readonly string[];
+}): ReactNull {
   const { t } = useTranslation("workspace");
   const domainConfig = getDomainConfig();
 
-  const { deepLinks } = useSharedRootContext();
   const { selectSource } = usePlayerSelection();
   const currentUser = useCurrentUser(selectUser);
   const loginStatus = useCurrentUser(selectUserLoginStatus);
   const dataSourceDialog = useWorkspaceStore(selectWorkspaceDataSourceDialog);
   const { dialogActions } = useWorkspaceActions();
   const selectEvent = useEvents(selectSelectEvent);
+
+  // Initialize deep link state - must be called inside SourceArgsSyncAdapter
+  useInitialDeepLinkState(deepLinks);
 
   const targetUrlState = useMemo(() => {
     if (deepLinks[0] == undefined) {
