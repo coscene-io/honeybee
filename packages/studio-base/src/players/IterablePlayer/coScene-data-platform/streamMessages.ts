@@ -96,6 +96,12 @@ export async function* streamMessages({
 
   let totalMessages = 0;
   let results: IteratorResult[] = [];
+
+  // Limit batch size to avoid blocking consumer too long
+  const MAX_BATCH_SIZE = 500; // Yield every 500 messages
+  const MAX_BATCH_TIME_MS = 50; // Or every 50ms
+  let lastYieldTime = performance.now();
+
   const schemasById = new Map<number, McapTypes.TypedMcapRecords["Schema"]>();
   const channelInfoById = new Map<
     number,
@@ -278,12 +284,22 @@ export async function* streamMessages({
             break;
           }
           processRecord(record);
+
+          // 只检查数量，避免频繁调用 performance.now()
+          if (results.length >= MAX_BATCH_SIZE) {
+            yield results;
+            results = [];
+            lastYieldTime = performance.now();
+          }
         }
 
-        // 统一输出结果，保持时序
-        if (results.length > 0) {
+        // 处理完一个 chunk 后，检查时间或剩余数据
+        const now = performance.now();
+        const timeSinceLastYield = now - lastYieldTime;
+        if (results.length > 0 && timeSinceLastYield >= MAX_BATCH_TIME_MS) {
           yield results;
           results = [];
+          lastYieldTime = performance.now();
         }
 
         if (normalReturn) {
@@ -293,6 +309,13 @@ export async function* streamMessages({
       if (!reader.done()) {
         throw new Error("Incomplete mcap file");
       }
+
+      // Yield any remaining messages
+      if (results.length > 0) {
+        yield results;
+        results = [];
+      }
+
       normalReturn = true;
     } finally {
       if (!normalReturn) {
