@@ -751,7 +751,7 @@ export function AutoConnectToLan(): React.ReactElement {
         size="small"
         fullWidth
         exclusive
-        value={autoConnectToLan}
+        value={String(autoConnectToLan)}
         onChange={(_, value?: string) => {
           void setAutoConnectToLan(value === "true");
         }}

@@ -7,18 +7,17 @@
 
 import { ErrorCircle16Filled, LinkMultipleFilled } from "@fluentui/react-icons";
 import HelpIcon from "@mui/icons-material/HelpOutlined";
-import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import SignalCellularAltIcon from "@mui/icons-material/SignalCellularAlt";
 import {
   CircularProgress,
   IconButton,
   Link,
-  Breadcrumbs,
   Popover,
   Typography,
   Box,
   Paper,
   Tooltip,
+  Divider,
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,6 +35,7 @@ import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDa
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const ICON_SIZE = 18;
 
@@ -45,12 +45,12 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     fontSize: theme.typography.body2.fontSize,
     display: "flex",
     alignItems: "center",
-    gap: theme.spacing(0.5),
-    padding: theme.spacing(1.5),
+    gap: theme.spacing(1),
     paddingInlineEnd: theme.spacing(0.75),
     whiteSpace: "nowrap",
     maxHeight: "44px",
     minWidth: 0,
+    overflow: "hidden",
     color: theme.palette.appBar.text,
   },
   adornment: {
@@ -74,9 +74,15 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     bottom: 0,
     margin: "auto",
   },
-  textTruncate: {
-    maxWidth: "60vw",
+  ellipsis: {
     overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    minWidth: 0,
+    maxWidth: "240px",
+  },
+  uploadFileIcon: {
+    flexShrink: 0,
   },
   iconButton: {
     padding: 0,
@@ -87,13 +93,6 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     "svg:not(.MuiSvgIcon-root)": {
       fontSize: "1rem",
     },
-  },
-  breadcrumbs: {
-    display: "flex",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    color: theme.palette.appBar.text,
   },
   networkStatusPopover: {
     padding: theme.spacing(2),
@@ -124,28 +123,13 @@ const selectNetworkStatus = (ctx: MessagePipelineContext) =>
   ctx.playerState.activeData?.networkStatus;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
-const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectProject = (state: CoreDataStore) => state.project;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectRecord = (state: CoreDataStore) => state.record;
 const selectDevice = (state: CoreDataStore) => state.device;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
 const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectJobRun = (state: CoreDataStore) => state.jobRun;
-
-const UploadFileComponent = () => {
-  const playerPresence = useMessagePipeline(selectPlayerPresence);
-  const playerName = useMessagePipeline(selectPlayerName);
-
-  const initializing = playerPresence === PlayerPresence.INITIALIZING;
-  const playerDisplayName =
-    initializing && playerName == undefined ? "Initializing..." : playerName;
-
-  return (
-    <Stack direction="row" alignItems="center" gap={1}>
-      {playerDisplayName} <UploadFile />
-    </Stack>
-  );
-};
 
 const Adornment = () => {
   const { classes, cx } = useStyles();
@@ -345,59 +329,58 @@ const RealTimeVizDataSource = () => {
 
   const hostName = urlState?.parameters?.hostName;
 
-  const deviceLink = `${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`;
-
   const initializing = playerPresence === PlayerPresence.INITIALIZING;
 
   const playerDisplayName =
     initializing && playerName == undefined ? "Initializing..." : playerName;
 
+  const projectHref =
+    domainConfig.webDomain && organizationSlug && projectSlug
+      ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
+      : undefined;
+  const deviceHref =
+    projectHref && deviceId ? `${projectHref}/devices/project-devices/${deviceId}` : undefined;
+
   return (
     <>
       <RealTimeVizLinkState />
-      <div className={classes.textTruncate}>
-        <Stack direction="row" alignItems="center" gap={2}>
-          {projectDisplayName && (
-            <>
-              <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" />}
-                aria-label="breadcrumb"
-              >
-                <Link
-                  href={
-                    domainConfig.webDomain
-                      ? `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}`
-                      : "#"
-                  }
-                  target="_blank"
-                  underline="hover"
-                  key="1"
-                  color="inherit"
-                  className={classes.breadcrumbs}
-                >
-                  {projectDisplayName}
-                </Link>
-              </Breadcrumbs>
-
-              <span>/</span>
-            </>
-          )}
-          <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+      {projectDisplayName && !isDesktopApp() && (
+        <>
+          {projectHref ? (
             <Link
-              href={
-                domainConfig.webDomain ? `https://${domainConfig.webDomain}/${deviceLink}` : "#"
-              }
+              href={projectHref}
               target="_blank"
               underline="hover"
-              key="1"
               color="inherit"
-              className={classes.breadcrumbs}
+              className={classes.ellipsis}
+              title={project.value?.displayName}
             >
-              {hostName ?? playerDisplayName ?? t("unknown")}
+              {project.value?.displayName}
             </Link>
-          </Breadcrumbs>
-        </Stack>
-      </div>
+          ) : (
+            <div className={classes.ellipsis} title={project.value?.displayName}>
+              {project.value?.displayName}
+            </div>
+          )}
+          <Divider orientation="vertical" flexItem style={{ height: "16px" }} />
+        </>
+      )}
+      {deviceHref ? (
+        <Link
+          href={deviceHref}
+          target="_blank"
+          underline="hover"
+          color="inherit"
+          className={classes.ellipsis}
+          title={hostName ?? playerDisplayName ?? t("unknown")}
+        >
+          {hostName ?? playerDisplayName ?? t("unknown")}
+        </Link>
+      ) : (
+        <div className={classes.ellipsis} title={hostName ?? playerDisplayName ?? t("unknown")}>
+          {hostName ?? playerDisplayName ?? t("unknown")}
+        </div>
+      )}
     </>
   );
 };
@@ -409,7 +392,6 @@ const DataPlatformSource = () => {
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
-  const dataSource = useCoreData(selectDataSource);
   const jobRun = useCoreData(selectJobRun);
 
   const recordId = useMemo(() => record.value?.name.split("/").pop(), [record]);
@@ -417,54 +399,81 @@ const DataPlatformSource = () => {
   const projectSlug = useMemo(() => project.value?.slug, [project]);
   const jobRunDisplayName = useMemo(() => jobRun.value?.spec?.spec?.name, [jobRun]);
 
+  const organization = useCoreData(selectOrganization);
+  const organizationSlug = useMemo(() => organization.value?.slug, [organization]);
+
   const projectHref =
-    process.env.NODE_ENV === "development"
-      ? `https://dev.coscene.cn/${externalInitConfig?.organizationSlug}/${projectSlug}`
-      : `https://${domainConfig.webDomain}/${externalInitConfig?.organizationSlug}/${projectSlug}`;
+    domainConfig.webDomain &&
+    (externalInitConfig?.organizationSlug ?? organizationSlug) &&
+    organizationSlug
+      ? `https://${domainConfig.webDomain}/${
+          externalInitConfig?.organizationSlug ?? organizationSlug
+        }/${projectSlug}`
+      : undefined;
 
-  const secondaryHref = `${projectHref}/records/${recordId}`;
-
-  const breadcrumbs = [
-    <Link
-      href={projectHref}
-      target="_blank"
-      underline="hover"
-      key="1"
-      color="inherit"
-      className={classes.breadcrumbs}
-    >
-      {project.value?.displayName}
-    </Link>,
-    <Link
-      href={secondaryHref}
-      target="_blank"
-      underline="hover"
-      key="2"
-      color="inherit"
-      className={classes.breadcrumbs}
-    >
-      {jobRunDisplayName ?? recordDisplayName}
-    </Link>,
-  ];
+  const secondaryHref = projectHref && recordId ? `${projectHref}/records/${recordId}` : undefined;
 
   return (
-    <div className={classes.textTruncate}>
-      <Stack direction="row" alignItems="center" gap={2}>
-        <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
-          {projectSlug && dataSource?.id === "coscene-data-platform" ? breadcrumbs : ""}
-        </Breadcrumbs>
-      </Stack>
-    </div>
+    <>
+      {!isDesktopApp() && (
+        <>
+          {projectHref ? (
+            <Link
+              href={projectHref}
+              target="_blank"
+              underline="hover"
+              color="inherit"
+              className={classes.ellipsis}
+              title={project.value?.displayName}
+            >
+              {project.value?.displayName}
+            </Link>
+          ) : (
+            <div className={classes.ellipsis} title={project.value?.displayName}>
+              {project.value?.displayName}
+            </div>
+          )}
+          <Divider orientation="vertical" flexItem style={{ height: "16px" }} />
+        </>
+      )}
+      {secondaryHref ? (
+        <Link
+          href={secondaryHref}
+          target="_blank"
+          underline="hover"
+          color="inherit"
+          className={classes.ellipsis}
+          title={jobRunDisplayName ?? recordDisplayName}
+        >
+          {jobRunDisplayName ?? recordDisplayName}
+        </Link>
+      ) : (
+        <div className={classes.ellipsis} title={jobRunDisplayName ?? recordDisplayName}>
+          {jobRunDisplayName ?? recordDisplayName}
+        </div>
+      )}
+    </>
   );
 };
 
 const CommonDataSource = () => {
   const { classes } = useStyles();
+  const playerPresence = useMessagePipeline(selectPlayerPresence);
+  const playerName = useMessagePipeline(selectPlayerName);
+
+  const initializing = playerPresence === PlayerPresence.INITIALIZING;
+  const playerDisplayName =
+    initializing && playerName == undefined ? "Initializing..." : playerName;
 
   return (
-    <div className={classes.textTruncate}>
-      <UploadFileComponent />
-    </div>
+    <>
+      <span className={classes.ellipsis} title={playerDisplayName}>
+        {playerDisplayName}
+      </span>
+      <span className={classes.uploadFileIcon}>
+        <UploadFile />
+      </span>
+    </>
   );
 };
 

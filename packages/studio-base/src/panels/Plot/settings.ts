@@ -50,7 +50,7 @@ const makeSeriesNode = memoizeWeak(
         : [],
       label: plotPathDisplayName(path, index, t),
       visible: path.enabled,
-      expansionState: path.expansionState ?? "collapsed",
+      expansionState: path.expansionState ?? "expanded",
       fields: {
         value: {
           label: t("messagePath"),
@@ -116,7 +116,7 @@ const makeRootSeriesNode = memoizeWeak(
 
     const shouldShowDisableAll = hasEnabledSeries && !hasDisabledSeries;
 
-    const shouldCollapsedAll = paths.some((path) => path.expansionState === "expanded");
+    const shouldCollapsedAll = paths.some((path) => path.expansionState !== "collapsed");
 
     return {
       label: t("series"),
@@ -366,7 +366,7 @@ export function usePlotPanelSettings(
           saveConfig(
             produce<PlotConfig>((draft) => {
               const shouldCollapsedAll = draft.paths.some(
-                (path) => path.expansionState === "expanded",
+                (path) => path.expansionState !== "collapsed",
               );
 
               for (const path of draft.paths) {

@@ -7,6 +7,7 @@
 
 import { Star as StarIcon, StarOutline as StarOutlineIcon } from "@mui/icons-material";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsync } from "react-use";
 
@@ -14,20 +15,21 @@ import { ProjectVisibilityChip } from "@foxglove/studio-base/components/CoSceneL
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { MAX_PROJECTS_PAGE_SIZE } from "@foxglove/studio-base/panels/DataCollection/constants";
-import { BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene/cosel";
 
 interface ProjectSelectorProps {
   value: string;
   onChange: (value: string) => void;
   error?: boolean;
+  showLabel?: boolean;
 }
 
 export function ProjectSelector({
   error,
   value,
   onChange,
+  showLabel = true,
 }: ProjectSelectorProps): React.JSX.Element {
-  const { t } = useTranslation(["cosLayout", "cosProject", "general"]);
+  const { t } = useTranslation(["cosLayout", "cosProject"]);
   const consoleApi = useConsoleApi();
   const currentUser = useCurrentUser((store) => store.user);
   const userId = currentUser?.userId;
@@ -36,9 +38,6 @@ export function ProjectSelector({
     if (!userId) {
       return [];
     }
-
-    const filter = CosQuery.Companion.empty();
-    filter.setListField("id", BinaryOperator.EQ, [userId]);
 
     const response = await consoleApi.listUserProjects({
       userId,
@@ -56,8 +55,15 @@ export function ProjectSelector({
       .sort((a, _b) => (a.project.isStarred ? -1 : 1));
   }, [consoleApi, userId]);
 
+  const selectedValue = useMemo(() => {
+    return options.value?.find((option) => option.value === value);
+  }, [options.value, value]);
+
   return (
     <Autocomplete
+      size="small"
+      key={selectedValue ? "selected" : "unselected"}
+      disableClearable
       options={options.value ?? []}
       renderOption={(props, option) => (
         <li
@@ -78,22 +84,23 @@ export function ProjectSelector({
           </Box>
         </li>
       )}
-      value={options.value?.find((option) => option.value === value)}
+      value={selectedValue}
       groupBy={(option) =>
         option.project.isStarred
           ? t("starredProject", { ns: "cosProject" })
           : t("activeProject", { ns: "cosProject" })
       }
       onChange={(_event, value) => {
-        onChange(value?.value ?? "");
+        onChange(value.value);
       }}
       renderInput={(params) => (
         <TextField
           required
           {...params}
-          label={t("projectName")}
+          style={{ minWidth: "240px" }}
+          label={showLabel ? t("projectName") : undefined}
           error={error}
-          placeholder={t("pleaseSelect", { ns: "general" })}
+          placeholder={t("pleaseSelectProject")}
         />
       )}
     />

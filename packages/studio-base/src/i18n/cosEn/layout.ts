@@ -91,4 +91,5 @@ export const cosLayout = {
   discardChanges: "Discard changes",
   searchLayoutName: "Search layout name",
   copyLayoutSuccess: "Copy success, layout has been switched",
+  pleaseSelectProject: "Please select project",
 };

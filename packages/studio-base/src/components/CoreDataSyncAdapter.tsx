@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { useAsync, useAsyncFn } from "react-use";
 
 import Logger from "@foxglove/log";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
@@ -22,6 +23,7 @@ import {
   useSubscriptionEntitlement,
 } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { Configuration, DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
@@ -56,6 +58,51 @@ const selectSetFocusedTask = (state: TaskStore) => state.setFocusedTask;
 const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 const log = Logger.getLogger(__filename);
+
+export function useSetExternalInitConfig(): (
+  externalInitConfig: ExternalInitConfig,
+) => Promise<void> {
+  const consoleApi = useConsoleApi();
+  const setExternalInitConfig = useCoreData(selectSetExternalInitConfig);
+  const setFocusedTask = useTasks(selectSetFocusedTask);
+  const [, setLastExternalInitConfig] = useAppConfigurationValue<string>(
+    AppSetting.LAST_EXTERNAL_INIT_CONFIG,
+  );
+
+  return async (externalInitConfig: ExternalInitConfig) => {
+    void setLastExternalInitConfig(JSON.stringify(externalInitConfig));
+
+    // set base info and init user permission List
+    await consoleApi.setApiBaseInfo({
+      projectId: externalInitConfig.projectId,
+      warehouseId: externalInitConfig.warehouseId,
+      recordId: externalInitConfig.recordId,
+    });
+
+    setExternalInitConfig({ ...externalInitConfig, isInitialized: true });
+
+    if (externalInitConfig.taskId) {
+      const task = await consoleApi.getTask({
+        taskName: `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`,
+      });
+      setFocusedTask(task);
+    }
+  };
+}
+
+export function useSetShowtUrlKey(): (showtUrlKey: string) => Promise<void> {
+  const consoleApi = useConsoleApi();
+  const setShowtUrlKey = useCoreData(selectSetShowtUrlKey);
+  const setExternalInitConfig = useSetExternalInitConfig();
+
+  return async (showtUrlKey: string) => {
+    const externalInitConfig = await consoleApi.getExternalInitConfig(showtUrlKey);
+
+    await setExternalInitConfig(externalInitConfig);
+
+    setShowtUrlKey(showtUrlKey);
+  };
+}
 
 export function CoreDataSyncAdapter(): ReactNull {
   const externalInitConfig = useCoreData(selectExternalInitConfig);
@@ -336,45 +383,37 @@ export function CoreDataSyncAdapter(): ReactNull {
     setColinkApi(api);
   }, [coordinatorConfig, setColinkApi]);
 
-  return ReactNull;
-}
+  const [lastExternalInitConfig, setLastExternalInitConfig] = useAppConfigurationValue<string>(
+    AppSetting.LAST_EXTERNAL_INIT_CONFIG,
+  );
+  const setExternalhInitConfig = useSetExternalInitConfig();
 
-export function useSetExternalInitConfig(): (
-  externalInitConfig: ExternalInitConfig,
-) => Promise<void> {
-  const consoleApi = useConsoleApi();
-  const setExternalInitConfig = useCoreData(selectSetExternalInitConfig);
-  const setFocusedTask = useTasks(selectSetFocusedTask);
-
-  return async (externalInitConfig: ExternalInitConfig) => {
-    // set base info and init user permission List
-    await consoleApi.setApiBaseInfo({
-      projectId: externalInitConfig.projectId,
-      warehouseId: externalInitConfig.warehouseId,
-      recordId: externalInitConfig.recordId,
-    });
-
-    setExternalInitConfig(externalInitConfig);
-
-    if (externalInitConfig.taskId) {
-      const task = await consoleApi.getTask({
-        taskName: `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`,
-      });
-      setFocusedTask(task);
+  useAsync(async () => {
+    if (loginStatus !== "alreadyLogin") {
+      void setLastExternalInitConfig(undefined);
+      return;
     }
-  };
-}
 
-export function useSetShowtUrlKey(): (showtUrlKey: string) => Promise<void> {
-  const consoleApi = useConsoleApi();
-  const setShowtUrlKey = useCoreData(selectSetShowtUrlKey);
-  const setExternalInitConfig = useSetExternalInitConfig();
+    if (externalInitConfig?.projectId == undefined) {
+      try {
+        const externalInitConfig = JSON.parse(lastExternalInitConfig ?? "{}") as ExternalInitConfig;
+        if (
+          externalInitConfig.projectId != undefined &&
+          externalInitConfig.warehouseId != undefined
+        ) {
+          const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
+          const targetProject = await consoleApi.getProject({ projectName });
 
-  return async (showtUrlKey: string) => {
-    const externalInitConfig = await consoleApi.getExternalInitConfig(showtUrlKey);
+          if (targetProject.name) {
+            void setExternalhInitConfig(externalInitConfig);
+          }
+        }
+      } catch (error) {
+        log.debug("parse lastExternalInitConfig failed", error);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    await setExternalInitConfig(externalInitConfig);
-
-    setShowtUrlKey(showtUrlKey);
-  };
+  return ReactNull;
 }

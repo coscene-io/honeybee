@@ -20,7 +20,7 @@ export const plot: Partial<TypeOptions["resources"]["plot"]> = {
   headerStamp: "头时间戳",
   hidden: "隐藏",
   index: "索引",
-  label: "标签",
+  label: "图例名称",
   left: "左",
   legend: "图例",
   lineSize: "线宽",

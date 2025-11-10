@@ -18,7 +18,7 @@ export const plot = {
   headerStamp: "Header Stamp",
   hidden: "Hidden",
   index: "Index",
-  label: "Label",
+  label: "Series name",
   left: "Left",
   legend: "Legend",
   lineSize: "Line size",

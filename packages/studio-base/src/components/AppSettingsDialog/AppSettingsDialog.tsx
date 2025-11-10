@@ -253,7 +253,7 @@ export function AppSettingsDialog(
               <RequestWindow />
               <ReadAheadDuration />
               {showLanguageOptions && <LanguageSettings />}
-              <AutoConnectToLan />
+              {isDesktopApp() && <AutoConnectToLan />}
               {supportsAppUpdates && <AutoUpdate />}
 
               {/* CoScene */}

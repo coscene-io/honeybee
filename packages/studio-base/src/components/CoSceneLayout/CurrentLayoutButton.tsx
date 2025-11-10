@@ -16,7 +16,6 @@ import { makeStyles } from "tss-react/mui";
 
 import { APP_BAR_HEIGHT } from "@foxglove/studio-base/components/AppBar/constants";
 import Stack from "@foxglove/studio-base/components/Stack";
-import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTruncate";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
@@ -27,21 +26,25 @@ import {
 
 const useStyles = makeStyles()((theme) => ({
   textTruncate: {
-    maxWidth: "240px",
     overflow: "hidden",
     color: theme.palette.text.primary,
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    flex: 1,
+    minWidth: 0,
   },
   subIcon: {
     color: theme.palette.text.secondary,
+    flexShrink: 0,
   },
   layoutButton: {
     font: "inherit",
     height: APP_BAR_HEIGHT - 2,
     fontSize: theme.typography.body2.fontSize,
     justifyContent: "space-between",
-    minWidth: 120,
+    maxWidth: "240px",
     padding: theme.spacing(1.125, 1.5),
-    gap: theme.spacing(1.5),
+    gap: theme.spacing(0.5),
     borderRadius: 0,
 
     ":hover": {
@@ -50,6 +53,16 @@ const useStyles = makeStyles()((theme) => ({
     "&.Mui-selected": {
       backgroundColor: theme.palette.background.hover,
     },
+  },
+  button: {
+    flexShrink: 0,
+    minWidth: "auto",
+    padding: theme.spacing(0.5, 1),
+  },
+  leftContent: {
+    overflow: "hidden",
+    minWidth: 0,
+    flex: 1,
   },
 }));
 
@@ -161,14 +174,23 @@ export function CurrentLayoutButton({
       onClick={onClick}
       disabled={loading}
     >
-      <Stack direction="row" alignItems="center" gap={1}>
-        <div className={classes.subIcon}>{getSubIcon()}</div>
-        <div className={classes.textTruncate}>
-          <TextMiddleTruncate text={getDisplayText()} />
-        </div>
-      </Stack>
+      <div className={classes.leftContent}>
+        <Stack direction="row" alignItems="center" gap={1}>
+          <div className={classes.subIcon}>{getSubIcon()}</div>
+          <div className={classes.textTruncate} title={getDisplayText()}>
+            {getDisplayText()}
+          </div>
+        </Stack>
+      </div>
       {buttons.map((button) => (
-        <Button key={button.key} onClick={button.onClick} disabled={button.disabled}>
+        <Button
+          key={button.key}
+          size="small"
+          onClick={button.onClick}
+          disabled={button.disabled}
+          variant="outlined"
+          className={classes.button}
+        >
           {button.text}
         </Button>
       ))}

@@ -33,6 +33,7 @@ const makeSeriesNode = memoizeWeak(
   (
     index: number,
     { path, canDelete, isArray }: PathState & { canDelete: boolean },
+    t: TFunction<"stateTransitions">,
   ): SettingsTreeNode => {
     return {
       actions: canDelete
@@ -40,14 +41,14 @@ const makeSeriesNode = memoizeWeak(
             {
               type: "action",
               id: "insert-series",
-              label: "Insert series",
+              label: t("insertSeries"),
               display: "hover",
               icon: "Addchart",
             },
             {
               type: "action",
               id: "delete-series",
-              label: "Delete series",
+              label: t("deleteSeries"),
               display: "hover",
               icon: "Clear",
             },
@@ -56,33 +57,33 @@ const makeSeriesNode = memoizeWeak(
             {
               type: "action",
               id: "insert-series",
-              label: "Insert series",
+              label: t("insertSeries"),
               display: "hover",
               icon: "Addchart",
             },
           ],
-      label: stateTransitionPathDisplayName(path, index),
-      expansionState: path.expansionState ?? "collapsed",
+      label: stateTransitionPathDisplayName(path, index, t),
+      expansionState: path.expansionState ?? "expanded",
       fields: {
         value: {
-          label: "Message path",
+          label: t("messagePath"),
           input: "messagepath",
           value: path.value,
           validTypes: plotableRosTypes,
-          ...(isArray ? { error: "This path resolves to more than one value" } : {}),
+          ...(isArray ? { error: t("arrayError") } : {}),
         },
         label: {
           input: "string",
-          label: "Label",
+          label: t("label"),
           value: path.label,
         },
         timestampMethod: {
           input: "select",
-          label: "Timestamp",
+          label: t("timestamp"),
           value: path.timestampMethod,
           options: [
-            { label: "Receive Time", value: "receiveTime" },
-            { label: "Header Stamp", value: "headerStamp" },
+            { label: t("timestampReceiveTime"), value: "receiveTime" },
+            { label: t("timestampHeaderStamp"), value: "headerStamp" },
           ],
         },
       },
@@ -90,43 +91,49 @@ const makeSeriesNode = memoizeWeak(
   },
 );
 
-const makeRootSeriesNode = memoizeWeak((paths: PathState[]): SettingsTreeNode => {
-  const children = Object.fromEntries(
-    paths.length === 0
-      ? [["0", makeSeriesNode(0, { path: DEFAULT_PATH, isArray: false, canDelete: false })]]
-      : paths.map(({ path, isArray }, index) => [
-          `${index}`,
-          makeSeriesNode(index, {
-            path,
-            isArray,
-            canDelete: true,
-          }),
-        ]),
-  );
+const makeRootSeriesNode = memoizeWeak(
+  (paths: PathState[], t: TFunction<"stateTransitions">): SettingsTreeNode => {
+    const children = Object.fromEntries(
+      paths.length === 0
+        ? [["0", makeSeriesNode(0, { path: DEFAULT_PATH, isArray: false, canDelete: false }, t)]]
+        : paths.map(({ path, isArray }, index) => [
+            `${index}`,
+            makeSeriesNode(
+              index,
+              {
+                path,
+                isArray,
+                canDelete: true,
+              },
+              t,
+            ),
+          ]),
+    );
 
-  const shouldCollapsedAll = paths.some(({ path }) => path.expansionState === "expanded");
+    const shouldCollapsedAll = paths.some(({ path }) => path.expansionState !== "collapsed");
 
-  return {
-    label: "Series",
-    children,
-    actions: [
-      {
-        type: "action",
-        id: "add-series",
-        label: "Add series",
-        display: "inline",
-        icon: "Addchart",
-      },
-      {
-        type: "action",
-        id: "collapse-all-series",
-        label: shouldCollapsedAll ? "Collapse all series" : "Expand all series",
-        display: "inline",
-        icon: shouldCollapsedAll ? "KeyboardDoubleArrowUpIcon" : "KeyboardDoubleArrowDownIcon",
-      },
-    ],
-  };
-});
+    return {
+      label: t("series"),
+      children,
+      actions: [
+        {
+          type: "action",
+          id: "add-series",
+          label: t("addSeries"),
+          display: "inline",
+          icon: "Addchart",
+        },
+        {
+          type: "action",
+          id: "collapse-all-series",
+          label: shouldCollapsedAll ? t("collapseAllSeries") : t("expandAllSeries"),
+          display: "inline",
+          icon: shouldCollapsedAll ? "KeyboardDoubleArrowUpIcon" : "KeyboardDoubleArrowDownIcon",
+        },
+      ],
+    };
+  },
+);
 
 function buildSettingsTree(
   config: StateTransitionConfig,
@@ -142,14 +149,18 @@ function buildSettingsTree(
 
   return {
     general: {
-      label: "General",
+      label: t("general"),
       fields: {
-        isSynced: { label: "Sync with other plots", input: "boolean", value: config.isSynced },
+        isSynced: {
+          label: t("syncWithOtherPlots"),
+          input: "boolean",
+          value: config.isSynced,
+        },
         showPoints: {
-          label: "Show points",
+          label: t("showPoints"),
           input: "boolean",
           value: config.showPoints,
-          help: "Display a point for every state transition message",
+          help: t("showPointsHelp"),
         },
       },
     },
@@ -177,7 +188,7 @@ function buildSettingsTree(
         },
       },
     },
-    paths: makeRootSeriesNode(paths),
+    paths: makeRootSeriesNode(paths, t),
   };
 }
 
@@ -251,7 +262,7 @@ export function useStateTransitionsPanelSettings(
         } else if (action.payload.id === "collapse-all-series") {
           saveConfig(
             produce<StateTransitionConfig>((draft) => {
-              const shouldCollapsedAll = draft.paths.some((p) => p.expansionState === "expanded");
+              const shouldCollapsedAll = draft.paths.some((p) => p.expansionState !== "collapsed");
 
               for (const p of draft.paths) {
                 p.expansionState = shouldCollapsedAll ? "collapsed" : "expanded";

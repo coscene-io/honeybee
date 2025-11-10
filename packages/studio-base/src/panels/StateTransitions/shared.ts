@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { TFunction } from "i18next";
+
 import { StateTransitionPath } from "./types";
 
 export const DEFAULT_PATH: StateTransitionPath = Object.freeze({
@@ -23,6 +25,11 @@ function presence<T>(value: undefined | T): undefined | T {
 export function stateTransitionPathDisplayName(
   path: Readonly<StateTransitionPath>,
   index: number,
+  t?: TFunction<"stateTransitions">,
 ): string {
-  return presence(path.label) ?? presence(path.value) ?? `Series ${index + 1}`;
+  return (
+    presence(path.label) ??
+    presence(path.value) ??
+    (t != undefined ? t("seriesDefaultName", { index: index + 1 }) : `Series ${index + 1}`)
+  );
 }
