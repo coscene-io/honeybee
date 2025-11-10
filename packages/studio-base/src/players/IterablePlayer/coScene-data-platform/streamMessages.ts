@@ -318,6 +318,12 @@ export async function* streamMessages({
 
       normalReturn = true;
     } finally {
+      // Flush any remaining buffered messages before cleanup, even if aborted/errored
+      if (results.length > 0) {
+        yield results;
+        results = [];
+      }
+
       if (!normalReturn) {
         // If the caller called generator.return() in between body chunks, automatically cancel the request.
         log.debug("Automatic abort of streamMessages", params);
