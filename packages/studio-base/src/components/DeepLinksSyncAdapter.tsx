@@ -78,7 +78,13 @@ export function DeepLinksSyncAdapter({
   }, [deepLinks, t, domainConfig.webDomain, dialogActions.dataSource]);
 
   const [unappliedSourceArgs, setUnappliedSourceArgs] = useState(
-    targetUrlState ? { ds: targetUrlState.ds, dsParams: targetUrlState.dsParams } : undefined,
+    targetUrlState
+      ? {
+          ds: targetUrlState.ds,
+          dsParams: targetUrlState.dsParams,
+          layoutId: targetUrlState.layoutId,
+        }
+      : undefined,
   );
 
   // Ensure that the data source is initialised only once
@@ -140,7 +146,7 @@ export function DeepLinksSyncAdapter({
     selectSource(unappliedSourceArgs.ds, sourceParams);
 
     selectEvent(unappliedSourceArgs.dsParams?.eventId);
-    setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
+    setUnappliedSourceArgs({ ds: undefined, dsParams: undefined, layoutId: undefined });
   }, [
     currentUser,
     selectEvent,
