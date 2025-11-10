@@ -6,12 +6,17 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { useEffectOnce, useAsync } from "react-use";
 
 import Logger from "@foxglove/log";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { useSetExternalInitConfig } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { ExternalInitConfig } from "@foxglove/studio-base/context/CoreDataContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import {
   DataSourceArgs,
@@ -22,6 +27,7 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useCoSceneInitialDeepLinkState";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
@@ -53,6 +59,8 @@ export function DeepLinksSyncAdapter({
 
   // Initialize deep link state - must be called inside SourceArgsSyncAdapter
   useInitialDeepLinkState(deepLinks);
+
+  console.log("deepLinks", deepLinks);
 
   const targetUrlState = useMemo(() => {
     if (deepLinks[0] == undefined) {
@@ -106,6 +114,45 @@ export function DeepLinksSyncAdapter({
     }, 1000);
   }, [t, domainConfig.webDomain]);
 
+  const [lastExternalInitConfig, setLastExternalInitConfig] = useAppConfigurationValue<string>(
+    AppSetting.LAST_EXTERNAL_INIT_CONFIG,
+  );
+
+  const consoleApi = useConsoleApi();
+  const setExternalhInitConfig = useSetExternalInitConfig();
+
+  // const [lastExternalInitConfig, setLastExternalInitConfig] = useAppConfigurationValue<string>(
+  //   AppSetting.LAST_EXTERNAL_INIT_CONFIG,
+  // );
+  // const setExternalhInitConfig = useSetExternalInitConfig();
+
+  useAsync(async () => {
+    if (loginStatus !== "alreadyLogin") {
+      void setLastExternalInitConfig(undefined);
+      return;
+    }
+
+    // if (externalInitConfig?.projectId == undefined) {
+    try {
+      const externalInitConfig = JSON.parse(lastExternalInitConfig ?? "{}") as ExternalInitConfig;
+      if (
+        externalInitConfig.projectId != undefined &&
+        externalInitConfig.warehouseId != undefined
+      ) {
+        const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
+        const targetProject = await consoleApi.getProject({ projectName });
+
+        if (targetProject.name) {
+          void setExternalhInitConfig(externalInitConfig);
+        }
+      }
+    } catch (error) {
+      log.debug("parse lastExternalInitConfig failed", error);
+    }
+    // }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Load data source from URL.
   useEffect(() => {
     if (unappliedSourceArgs?.ds == undefined) {
@@ -146,7 +193,11 @@ export function DeepLinksSyncAdapter({
     selectSource(unappliedSourceArgs.ds, sourceParams);
 
     selectEvent(unappliedSourceArgs.dsParams?.eventId);
-    setUnappliedSourceArgs({ ds: undefined, dsParams: undefined, layoutId: undefined });
+    setUnappliedSourceArgs({
+      ds: undefined,
+      dsParams: undefined,
+      layoutId: undefined,
+    });
   }, [
     currentUser,
     selectEvent,
