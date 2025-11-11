@@ -126,7 +126,7 @@ export function DeepLinksSyncAdapter({
   );
 
   const consoleApi = useConsoleApi();
-  const setExternalhInitConfig = useSetExternalInitConfig();
+  const setExternalInitConfig = useSetExternalInitConfig();
 
   const loadLastExternalInitConfig = useCallback(async () => {
     if (lastExternalInitConfig) {
@@ -143,7 +143,7 @@ export function DeepLinksSyncAdapter({
             .getProject({ projectName })
             .then((targetProject) => {
               if (targetProject.name) {
-                void setExternalhInitConfig(parsedConfig);
+                void setExternalInitConfig(parsedConfig);
               }
             })
             .catch((error: unknown) => {
@@ -156,7 +156,7 @@ export function DeepLinksSyncAdapter({
         log.debug("parse lastExternalInitConfig failed", error);
       }
     }
-  }, [setExternalhInitConfig, lastExternalInitConfig, consoleApi, setLastExternalInitConfig]);
+  }, [setExternalInitConfig, lastExternalInitConfig, consoleApi, setLastExternalInitConfig]);
 
   // 处理数据源加载：如果有 ds 则通过 selectSource，否则通过 lastExternalInitConfig
   useEffect(() => {
@@ -167,7 +167,7 @@ export function DeepLinksSyncAdapter({
 
     // 如果登录状态不是已登录，等待登录
     if (loginStatus !== "alreadyLogin") {
-      // void setExternalhInitConfig({});
+      // void setExternalInitConfig({});
       // isSourceProcessed.current = true;
       return;
     }
