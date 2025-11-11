@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAsync } from "react-use";
 
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
@@ -32,16 +32,15 @@ export function useSyncLayoutFromUrl(
   const { layoutDrawer } = useWorkspaceActions();
   const layoutManager = useLayoutManager();
 
-  const [{ isInitialized, layoutId }, setUnappliedLayoutArgs] = useState(
+  const isLayoutIdProcessed = useRef(false);
+  const [{ layoutId }, setUnappliedLayoutArgs] = useState(
     targetUrlState
       ? {
-          isInitialized: false,
-          layoutId: targetUrlState.layoutId,
-        }
+        layoutId: targetUrlState.layoutId,
+      }
       : {
-          isInitialized: false,
-          layoutId: undefined,
-        },
+        layoutId: undefined,
+      },
   );
 
   useAsync(async () => {
@@ -51,7 +50,7 @@ export function useSyncLayoutFromUrl(
     }
 
     // 如果已经有 layout 或已经初始化过，不再处理
-    if (currentLayoutId || isInitialized) {
+    if (currentLayoutId || isLayoutIdProcessed.current) {
       return;
     }
 
@@ -60,10 +59,8 @@ export function useSyncLayoutFromUrl(
       const urlLayout = await layoutManager.getLayout({ id: layoutId });
       if (urlLayout) {
         setSelectedLayoutId(layoutId);
-        setUnappliedLayoutArgs({
-          isInitialized: true,
-          layoutId: undefined,
-        });
+        setUnappliedLayoutArgs({ layoutId: undefined });
+        isLayoutIdProcessed.current = true;
         return;
       }
     }
@@ -72,17 +69,18 @@ export function useSyncLayoutFromUrl(
     const layout = await layoutManager.getHistory();
     if (layout) {
       setSelectedLayoutId(layout.id);
-      setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined });
+      setUnappliedLayoutArgs({ layoutId: undefined });
+      isLayoutIdProcessed.current = true;
       return;
     }
 
     // 如果没有 layout，打开 layout drawer
     layoutDrawer.open();
-    setUnappliedLayoutArgs({ isInitialized: true, layoutId: undefined });
+    setUnappliedLayoutArgs({ layoutId: undefined });
+    isLayoutIdProcessed.current = true;
   }, [
     currentLayoutId,
     setSelectedLayoutId,
-    isInitialized,
     layoutId,
     layoutManager,
     layoutDrawer,
