@@ -77,6 +77,8 @@ export type CoreDataStore = {
    */
   externalInitConfig?: ExternalInitConfig;
 
+  isReadyForSyncLayout?: boolean;
+
   dataSource?: DataSource;
 
   organization: AsyncState<Organization>;

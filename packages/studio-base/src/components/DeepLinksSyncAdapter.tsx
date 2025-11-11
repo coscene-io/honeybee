@@ -45,6 +45,7 @@ const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
+// const selectSetExternalInitConfig = (state: CoreDataStore) => state.setExternalInitConfig;
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
 
@@ -63,6 +64,7 @@ export function DeepLinksSyncAdapter({
   const { dialogActions } = useWorkspaceActions();
   const selectEvent = useEvents(selectSelectEvent);
   const externalInitConfig = useCoreData(selectExternalInitConfig);
+  // const setExternalInitConfig2 = useCoreData(selectSetExternalInitConfig);
 
   const targetUrlState = useMemo(() => {
     if (deepLinks[0] == undefined) {
