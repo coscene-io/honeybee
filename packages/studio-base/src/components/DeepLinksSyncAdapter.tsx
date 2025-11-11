@@ -6,17 +6,21 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { useEffectOnce, useAsync } from "react-use";
+import { useAsync } from "react-use";
 
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { useSetExternalInitConfig } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { ExternalInitConfig } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  CoreDataStore,
+  ExternalInitConfig,
+  useCoreData,
+} from "@foxglove/studio-base/context/CoreDataContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import {
   DataSourceArgs,
@@ -28,7 +32,8 @@ import {
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
-import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useCoSceneInitialDeepLinkState";
+import { useSyncLayoutFromUrl } from "@foxglove/studio-base/hooks/useSyncLayoutFromUrl";
+import { useSyncTimeFromUrl } from "@foxglove/studio-base/hooks/useSyncTimeFromUrl";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
@@ -39,6 +44,7 @@ const selectUser = (store: UserStore) => store.user;
 const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
 
@@ -56,11 +62,7 @@ export function DeepLinksSyncAdapter({
   const dataSourceDialog = useWorkspaceStore(selectWorkspaceDataSourceDialog);
   const { dialogActions } = useWorkspaceActions();
   const selectEvent = useEvents(selectSelectEvent);
-
-  // Initialize deep link state - must be called inside SourceArgsSyncAdapter
-  useInitialDeepLinkState(deepLinks);
-
-  console.log("deepLinks", deepLinks);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   const targetUrlState = useMemo(() => {
     if (deepLinks[0] == undefined) {
@@ -85,7 +87,9 @@ export function DeepLinksSyncAdapter({
     return parsedUrl;
   }, [deepLinks, t, domainConfig.webDomain, dialogActions.dataSource]);
 
-  const [unappliedSourceArgs, setUnappliedSourceArgs] = useState(
+  // 初始化 unappliedSourceArgs，只在组件挂载时设置一次
+  // 使用函数初始化形式，确保只计算一次
+  const [unappliedSourceArgs, setUnappliedSourceArgs] = useState(() =>
     targetUrlState
       ? {
           ds: targetUrlState.ds,
@@ -94,6 +98,9 @@ export function DeepLinksSyncAdapter({
         }
       : undefined,
   );
+
+  // 标记是否已经处理过数据源
+  const isSourceProcessed = useRef(false);
 
   // Ensure that the data source is initialised only once
   const currentSource = useRef<(DataSourceArgs & { id: string }) | undefined>(undefined);
@@ -121,96 +128,105 @@ export function DeepLinksSyncAdapter({
   const consoleApi = useConsoleApi();
   const setExternalhInitConfig = useSetExternalInitConfig();
 
-  // const [lastExternalInitConfig, setLastExternalInitConfig] = useAppConfigurationValue<string>(
-  //   AppSetting.LAST_EXTERNAL_INIT_CONFIG,
-  // );
-  // const setExternalhInitConfig = useSetExternalInitConfig();
-
-  useAsync(async () => {
-    if (loginStatus !== "alreadyLogin") {
-      void setLastExternalInitConfig(undefined);
+  // 处理数据源加载：如果有 ds 则通过 selectSource，否则通过 lastExternalInitConfig
+  useEffect(() => {
+    // 如果已经处理过，不再处理
+    if (isSourceProcessed.current) {
       return;
     }
 
-    // if (externalInitConfig?.projectId == undefined) {
-    try {
-      const externalInitConfig = JSON.parse(lastExternalInitConfig ?? "{}") as ExternalInitConfig;
-      if (
-        externalInitConfig.projectId != undefined &&
-        externalInitConfig.warehouseId != undefined
-      ) {
-        const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
-        const targetProject = await consoleApi.getProject({ projectName });
+    // 如果登录状态不是已登录，等待登录
+    if (loginStatus !== "alreadyLogin") {
+      return;
+    }
 
-        if (targetProject.name) {
-          void setExternalhInitConfig(externalInitConfig);
+    // 如果有待应用的数据源参数
+    if (unappliedSourceArgs?.ds != undefined) {
+      if (dataSourceDialog.open) {
+        dialogActions.dataSource.close();
+      }
+
+      // sync user info need time, so in some case, loginStatus is alreadyLogin but currentUser is undefined
+      if (currentUser?.userId == undefined) {
+        return;
+      }
+
+      // Apply any available data source args
+      log.debug("Initialising source from url", unappliedSourceArgs);
+      const sourceParams: DataSourceArgs = {
+        type: "connection",
+        params: {
+          ...currentUser,
+          ...unappliedSourceArgs.dsParams,
+        },
+      };
+
+      if (_.isEqual({ id: unappliedSourceArgs.ds, ...sourceParams }, currentSource.current)) {
+        isSourceProcessed.current = true;
+        return;
+      }
+
+      currentSource.current = { id: unappliedSourceArgs.ds, ...sourceParams };
+
+      // selectSource 内部会通过 key 调用 setShowtUrlKey，从而设置 externalInitConfig
+      selectSource(unappliedSourceArgs.ds, sourceParams);
+
+      selectEvent(unappliedSourceArgs.dsParams?.eventId);
+      setUnappliedSourceArgs(undefined);
+      isSourceProcessed.current = true;
+    } else {
+      // 没有 ds 参数，尝试从 lastExternalInitConfig 恢复
+      if (lastExternalInitConfig) {
+        try {
+          const parsedConfig = JSON.parse(lastExternalInitConfig) as ExternalInitConfig;
+          if (parsedConfig.projectId != undefined && parsedConfig.warehouseId != undefined) {
+            const projectName = `warehouses/${parsedConfig.warehouseId}/projects/${parsedConfig.projectId}`;
+            consoleApi
+              .getProject({ projectName })
+              .then((targetProject) => {
+                if (targetProject.name) {
+                  void setExternalhInitConfig(parsedConfig);
+                }
+                isSourceProcessed.current = true;
+              })
+              .catch((error: unknown) => {
+                log.debug("Failed to restore from lastExternalInitConfig", error);
+                void setLastExternalInitConfig(undefined);
+                isSourceProcessed.current = true;
+              });
+            return;
+          }
+        } catch (error) {
+          log.debug("parse lastExternalInitConfig failed", error);
         }
       }
-    } catch (error) {
-      log.debug("parse lastExternalInitConfig failed", error);
+      isSourceProcessed.current = true;
     }
-    // }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Load data source from URL.
-  useEffect(() => {
-    if (unappliedSourceArgs?.ds == undefined) {
-      return;
-    }
-
-    if (dataSourceDialog.open) {
-      dialogActions.dataSource.close();
-    }
-
-    if (loginStatus === "notLogin" && unappliedSourceArgs.ds === "coscene-data-platform") {
-      debouncedPleaseLoginFirstToast();
-      setUnappliedSourceArgs(undefined);
-      return;
-    }
-
-    // sync user info need time, so in some case, loginStatus is alreadyLogin but currentUser is undefined
-    if (currentUser?.userId == undefined) {
-      return;
-    }
-
-    // Apply any available data source args
-    log.debug("Initialising source from url", unappliedSourceArgs);
-    const sourceParams: DataSourceArgs = {
-      type: "connection",
-      params: {
-        ...currentUser,
-        ...unappliedSourceArgs.dsParams,
-      },
-    };
-
-    if (_.isEqual({ id: unappliedSourceArgs.ds, ...sourceParams }, currentSource.current)) {
-      return;
-    }
-
-    currentSource.current = { id: unappliedSourceArgs.ds, ...sourceParams };
-
-    selectSource(unappliedSourceArgs.ds, sourceParams);
-
-    selectEvent(unappliedSourceArgs.dsParams?.eventId);
-    setUnappliedSourceArgs({
-      ds: undefined,
-      dsParams: undefined,
-      layoutId: undefined,
-    });
   }, [
     currentUser,
     selectEvent,
     selectSource,
     unappliedSourceArgs,
-    setUnappliedSourceArgs,
-    currentSource,
     loginStatus,
-    t,
-    dialogActions.dataSource,
     dataSourceDialog.open,
+    dialogActions.dataSource,
     debouncedPleaseLoginFirstToast,
+    lastExternalInitConfig,
+    consoleApi,
+    setExternalhInitConfig,
+    setLastExternalInitConfig,
   ]);
+
+  // 清理未登录时的 lastExternalInitConfig
+  useAsync(async () => {
+    if (loginStatus === "notLogin") {
+      void setLastExternalInitConfig(undefined);
+    }
+  }, [loginStatus, setLastExternalInitConfig]);
+
+  // 在 externalInitConfig 初始化后，同步 layout 和 time
+  useSyncLayoutFromUrl(targetUrlState, externalInitConfig);
+  useSyncTimeFromUrl(targetUrlState);
 
   return ReactNull;
 }
