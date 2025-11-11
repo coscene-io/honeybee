@@ -81,10 +81,12 @@ export function useSetExternalInitConfig(): (
 
     setExternalInitConfig({ ...externalInitConfig, isInitialized: true });
 
-    if (externalInitConfig.taskId) {
-      const task = await consoleApi.getTask({
-        taskName: `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`,
-      });
+    const taskName =
+      externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId
+        ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`
+        : undefined;
+    if (taskName) {
+      const task = await consoleApi.getTask({ taskName });
       setFocusedTask(task);
     }
   };
