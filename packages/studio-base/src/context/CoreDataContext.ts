@@ -20,8 +20,6 @@ import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext
 import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 
 export type ExternalInitConfig = {
-  isInitialized?: boolean;
-
   files?: Array<ParamsFile>;
   // must
   warehouseId?: string;

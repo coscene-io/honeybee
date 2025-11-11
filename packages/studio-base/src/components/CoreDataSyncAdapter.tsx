@@ -81,7 +81,7 @@ export function useSetExternalInitConfig(): (
       recordId: externalInitConfig.recordId,
     });
 
-    setExternalInitConfig({ ...externalInitConfig, isInitialized: true });
+    setExternalInitConfig(externalInitConfig);
 
     // 设置 isReadyForSyncLayout 标志，表示可以开始同步 layout
     setIsReadyForSyncLayout({ isReadyForSyncLayout: true });

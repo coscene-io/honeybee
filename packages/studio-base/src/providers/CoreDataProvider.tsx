@@ -64,8 +64,8 @@ function CreateCoreDataStore() {
     setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => {
       set({ externalInitConfig });
     },
-    setIsReadyForSyncLayout: ({ isReady }) => {
-      set({ isReadyForSyncLayout: isReady });
+    setIsReadyForSyncLayout: ({ isReadyForSyncLayout }) => {
+      set({ isReadyForSyncLayout });
     },
     setDataSource: (dataSource: DataSource | undefined) => {
       set({ dataSource });
