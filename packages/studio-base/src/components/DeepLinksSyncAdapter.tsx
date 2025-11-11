@@ -128,7 +128,7 @@ export function DeepLinksSyncAdapter({
   const consoleApi = useConsoleApi();
   const setExternalhInitConfig = useSetExternalInitConfig();
 
-  const loadLastExternalInitConfig = useCallback(() => {
+  const loadLastExternalInitConfig = useCallback(async () => {
     if (lastExternalInitConfig) {
       try {
         const parsedConfig = JSON.parse(lastExternalInitConfig) as ExternalInitConfig;
@@ -139,18 +139,16 @@ export function DeepLinksSyncAdapter({
 
         if (projectName) {
           // login 才能调用 consoleApi
-          consoleApi
+          await consoleApi
             .getProject({ projectName })
             .then((targetProject) => {
               if (targetProject.name) {
                 void setExternalhInitConfig(parsedConfig);
               }
-              isSourceProcessed.current = true;
             })
             .catch((error: unknown) => {
               log.debug("Failed to restore from lastExternalInitConfig", error);
               void setLastExternalInitConfig(undefined);
-              isSourceProcessed.current = true;
             });
           return;
         }
