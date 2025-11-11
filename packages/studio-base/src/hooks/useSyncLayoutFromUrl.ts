@@ -9,7 +9,7 @@ import { useRef, useState } from "react";
 import { useAsync } from "react-use";
 
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import { ExternalInitConfig } from "@foxglove/studio-base/context/CoreDataContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
   useCurrentLayoutActions,
@@ -19,29 +19,26 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import { AppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
+const selectIsReadyForSyncLayout = (state: CoreDataStore) => state.isReadyForSyncLayout;
 
 /**
- * Synchronizes the layout from URL state after externalInitConfig is initialized
+ * Synchronizes the layout from URL state after isReadyForSyncLayout is true
  */
-export function useSyncLayoutFromUrl(
-  targetUrlState: AppURLState | undefined,
-  externalInitConfig: ExternalInitConfig | undefined,
-): void {
+export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): void {
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
   const { setSelectedLayoutId } = useCurrentLayoutActions();
   const { layoutDrawer } = useWorkspaceActions();
   const layoutManager = useLayoutManager();
+  const isReadyForSyncLayout = useCoreData(selectIsReadyForSyncLayout);
 
   const isLayoutIdProcessed = useRef(false);
-  const [{ layoutId }, setUnappliedLayoutArgs] = useState(
-    () => {
-      return { layoutId: targetUrlState?.layoutId }
-    }
-  );
+  const [{ layoutId }, setUnappliedLayoutArgs] = useState(() => {
+    return { layoutId: targetUrlState?.layoutId };
+  });
 
   useAsync(async () => {
-    // 只有在 externalInitConfig 初始化完成后才处理 layout
-    if (externalInitConfig?.isInitialized !== true) {
+    // 只有在 isReadyForSyncLayout 为 true 时才处理 layout
+    if (isReadyForSyncLayout !== true) {
       return;
     }
 
@@ -80,6 +77,6 @@ export function useSyncLayoutFromUrl(
     layoutId,
     layoutManager,
     layoutDrawer,
-    externalInitConfig?.isInitialized,
+    isReadyForSyncLayout,
   ]);
 }

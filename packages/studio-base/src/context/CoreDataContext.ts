@@ -107,6 +107,7 @@ export type CoreDataStore = {
   // @deprecated don't use this function, use useSetExternalInitConfig in CoreDataSyncAdapter instead
   setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => void;
 
+  setIsReadyForSyncLayout: (options: { isReadyForSyncLayout: boolean }) => void;
   setDataSource: (dataSource: DataSource | undefined) => void;
   setRecord: (record: AsyncState<Record>) => void;
   setDevice: (device: AsyncState<Device>) => void;

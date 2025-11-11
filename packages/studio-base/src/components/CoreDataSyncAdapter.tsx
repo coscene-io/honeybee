@@ -32,6 +32,7 @@ const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectCoordinatorConfig = (state: CoreDataStore) => state.coordinatorConfig;
 
 const selectSetExternalInitConfig = (state: CoreDataStore) => state.setExternalInitConfig;
+const selectSetIsReadyForSyncLayout = (state: CoreDataStore) => state.setIsReadyForSyncLayout;
 const selectSetShowtUrlKey = (state: CoreDataStore) => state.setShowtUrlKey;
 const selectSetRecord = (state: CoreDataStore) => state.setRecord;
 const selectSetDevice = (state: CoreDataStore) => state.setDevice;
@@ -64,6 +65,7 @@ export function useSetExternalInitConfig(): (
 ) => Promise<void> {
   const consoleApi = useConsoleApi();
   const setExternalInitConfig = useCoreData(selectSetExternalInitConfig);
+  const setIsReadyForSyncLayout = useCoreData(selectSetIsReadyForSyncLayout);
   const setFocusedTask = useTasks(selectSetFocusedTask);
   const [, setLastExternalInitConfig] = useAppConfigurationValue<string>(
     AppSetting.LAST_EXTERNAL_INIT_CONFIG,
@@ -80,6 +82,9 @@ export function useSetExternalInitConfig(): (
     });
 
     setExternalInitConfig({ ...externalInitConfig, isInitialized: true });
+
+    // 设置 isReadyForSyncLayout 标志，表示可以开始同步 layout
+    setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
 
     const taskName =
       externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId

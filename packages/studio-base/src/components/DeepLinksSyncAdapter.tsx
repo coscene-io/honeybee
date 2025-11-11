@@ -16,11 +16,7 @@ import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { useSetExternalInitConfig } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import {
-  CoreDataStore,
-  ExternalInitConfig,
-  useCoreData,
-} from "@foxglove/studio-base/context/CoreDataContext";
+import { ExternalInitConfig } from "@foxglove/studio-base/context/CoreDataContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import {
   DataSourceArgs,
@@ -44,8 +40,6 @@ const selectUser = (store: UserStore) => store.user;
 const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
-const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
-// const selectSetExternalInitConfig = (state: CoreDataStore) => state.setExternalInitConfig;
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
 
@@ -63,8 +57,6 @@ export function DeepLinksSyncAdapter({
   const dataSourceDialog = useWorkspaceStore(selectWorkspaceDataSourceDialog);
   const { dialogActions } = useWorkspaceActions();
   const selectEvent = useEvents(selectSelectEvent);
-  const externalInitConfig = useCoreData(selectExternalInitConfig);
-  // const setExternalInitConfig2 = useCoreData(selectSetExternalInitConfig);
 
   const targetUrlState = useMemo(() => {
     if (deepLinks[0] == undefined) {
@@ -231,8 +223,8 @@ export function DeepLinksSyncAdapter({
     }
   }, [loginStatus, setLastExternalInitConfig]);
 
-  // 在 externalInitConfig 初始化后，同步 layout 和 time
-  useSyncLayoutFromUrl(targetUrlState, externalInitConfig);
+  // 在 isReadyForSyncLayout 为 true 后，同步 layout 和 time
+  useSyncLayoutFromUrl(targetUrlState);
   useSyncTimeFromUrl(targetUrlState);
 
   return ReactNull;

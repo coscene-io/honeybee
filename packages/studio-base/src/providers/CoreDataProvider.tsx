@@ -30,6 +30,7 @@ import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 const defaultCoreDataStore = {
   showtUrlKey: undefined,
   externalInitConfig: undefined,
+  isReadyForSyncLayout: undefined,
   dataSource: undefined,
 
   organization: { loading: true, value: undefined },
@@ -62,6 +63,9 @@ function CreateCoreDataStore() {
     },
     setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => {
       set({ externalInitConfig });
+    },
+    setIsReadyForSyncLayout: ({ isReady }) => {
+      set({ isReadyForSyncLayout: isReady });
     },
     setDataSource: (dataSource: DataSource | undefined) => {
       set({ dataSource });
