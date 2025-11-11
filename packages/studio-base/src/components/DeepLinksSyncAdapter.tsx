@@ -16,7 +16,11 @@ import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { useSetExternalInitConfig } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { ExternalInitConfig } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  CoreDataStore,
+  ExternalInitConfig,
+  useCoreData,
+} from "@foxglove/studio-base/context/CoreDataContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import {
   DataSourceArgs,
@@ -40,6 +44,7 @@ const selectUser = (store: UserStore) => store.user;
 const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
+const selectSetIsReadyForSyncLayout = (state: CoreDataStore) => state.setIsReadyForSyncLayout;
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
 
@@ -121,6 +126,7 @@ export function DeepLinksSyncAdapter({
 
   const consoleApi = useConsoleApi();
   const setExternalInitConfig = useSetExternalInitConfig();
+  const setIsReadyForSyncLayout = useCoreData(selectSetIsReadyForSyncLayout);
 
   const loadLastExternalInitConfig = useCallback(async () => {
     if (lastExternalInitConfig) {
@@ -150,7 +156,14 @@ export function DeepLinksSyncAdapter({
         log.debug("parse lastExternalInitConfig failed", error);
       }
     }
-  }, [setExternalInitConfig, lastExternalInitConfig, consoleApi, setLastExternalInitConfig]);
+    setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
+  }, [
+    setExternalInitConfig,
+    lastExternalInitConfig,
+    consoleApi,
+    setLastExternalInitConfig,
+    setIsReadyForSyncLayout,
+  ]);
 
   // 处理数据源加载：如果有 ds 则通过 selectSource，否则通过 lastExternalInitConfig
   useEffect(() => {
