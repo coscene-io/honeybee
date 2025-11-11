@@ -383,37 +383,5 @@ export function CoreDataSyncAdapter(): ReactNull {
     setColinkApi(api);
   }, [coordinatorConfig, setColinkApi]);
 
-  // const [lastExternalInitConfig, setLastExternalInitConfig] = useAppConfigurationValue<string>(
-  //   AppSetting.LAST_EXTERNAL_INIT_CONFIG,
-  // );
-  // const setExternalhInitConfig = useSetExternalInitConfig();
-
-  // useAsync(async () => {
-  //   if (loginStatus !== "alreadyLogin") {
-  //     void setLastExternalInitConfig(undefined);
-  //     return;
-  //   }
-
-  //   if (externalInitConfig?.projectId == undefined) {
-  //     try {
-  //       const externalInitConfig = JSON.parse(lastExternalInitConfig ?? "{}") as ExternalInitConfig;
-  //       if (
-  //         externalInitConfig.projectId != undefined &&
-  //         externalInitConfig.warehouseId != undefined
-  //       ) {
-  //         const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
-  //         const targetProject = await consoleApi.getProject({ projectName });
-
-  //         if (targetProject.name) {
-  //           void setExternalhInitConfig(externalInitConfig);
-  //         }
-  //       }
-  //     } catch (error) {
-  //       log.debug("parse lastExternalInitConfig failed", error);
-  //     }
-  //   }
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, []);
-
   return ReactNull;
 }
