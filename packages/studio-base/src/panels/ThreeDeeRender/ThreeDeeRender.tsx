@@ -178,13 +178,12 @@ export function ThreeDeeRender(props: {
     displayTemporaryError,
   ]);
 
+  // Combined effect for renderer setup operations
   useEffect(() => {
     if (renderer) {
       renderer.setAnalytics(analytics);
     }
-  }, [renderer, analytics]);
 
-  useEffect(() => {
     setMessagePathDropConfig(
       renderer
         ? {
@@ -193,7 +192,7 @@ export function ThreeDeeRender(props: {
           }
         : undefined,
     );
-  }, [setMessagePathDropConfig, renderer]);
+  }, [renderer, analytics, setMessagePathDropConfig]);
 
   const [colorScheme, setColorScheme] = useState<"dark" | "light" | undefined>();
   const [timezone, setTimezone] = useState<string | undefined>();
