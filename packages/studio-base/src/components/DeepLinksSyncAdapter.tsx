@@ -202,13 +202,12 @@ export function DeepLinksSyncAdapter({
 
       // selectSource 内部会通过 key 调用 setShowtUrlKey，从而设置 externalInitConfig
       selectSource(unappliedSourceArgs.ds, sourceParams);
-
       selectEvent(unappliedSourceArgs.dsParams?.eventId);
       setUnappliedSourceArgs(undefined);
       isSourceProcessed.current = true;
     } else {
       // 没有 ds 参数，尝试从 lastExternalInitConfig 恢复
-      loadLastExternalInitConfig();
+      void loadLastExternalInitConfig();
       isSourceProcessed.current = true;
     }
   }, [
