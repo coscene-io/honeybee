@@ -34,13 +34,9 @@ export function useSyncLayoutFromUrl(
 
   const isLayoutIdProcessed = useRef(false);
   const [{ layoutId }, setUnappliedLayoutArgs] = useState(
-    targetUrlState
-      ? {
-        layoutId: targetUrlState.layoutId,
-      }
-      : {
-        layoutId: undefined,
-      },
+    () => {
+      return { layoutId: targetUrlState?.layoutId }
+    }
   );
 
   useAsync(async () => {

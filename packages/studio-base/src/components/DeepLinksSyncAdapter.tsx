@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsync } from "react-use";
@@ -128,6 +128,38 @@ export function DeepLinksSyncAdapter({
   const consoleApi = useConsoleApi();
   const setExternalhInitConfig = useSetExternalInitConfig();
 
+  const loadLastExternalInitConfig = useCallback(() => {
+    if (lastExternalInitConfig) {
+      try {
+        const parsedConfig = JSON.parse(lastExternalInitConfig) as ExternalInitConfig;
+        const projectName =
+          parsedConfig.warehouseId && parsedConfig.projectId
+            ? `warehouses/${parsedConfig.warehouseId}/projects/${parsedConfig.projectId}`
+            : undefined;
+
+        if (projectName) {
+          // login 才能调用 consoleApi
+          consoleApi
+            .getProject({ projectName })
+            .then((targetProject) => {
+              if (targetProject.name) {
+                void setExternalhInitConfig(parsedConfig);
+              }
+              isSourceProcessed.current = true;
+            })
+            .catch((error: unknown) => {
+              log.debug("Failed to restore from lastExternalInitConfig", error);
+              void setLastExternalInitConfig(undefined);
+              isSourceProcessed.current = true;
+            });
+          return;
+        }
+      } catch (error) {
+        log.debug("parse lastExternalInitConfig failed", error);
+      }
+    }
+  }, [setExternalhInitConfig, lastExternalInitConfig, consoleApi, setLastExternalInitConfig]);
+
   // 处理数据源加载：如果有 ds 则通过 selectSource，否则通过 lastExternalInitConfig
   useEffect(() => {
     // 如果已经处理过，不再处理
@@ -137,6 +169,8 @@ export function DeepLinksSyncAdapter({
 
     // 如果登录状态不是已登录，等待登录
     if (loginStatus !== "alreadyLogin") {
+      // void setExternalhInitConfig({});
+      // isSourceProcessed.current = true;
       return;
     }
 
@@ -176,30 +210,7 @@ export function DeepLinksSyncAdapter({
       isSourceProcessed.current = true;
     } else {
       // 没有 ds 参数，尝试从 lastExternalInitConfig 恢复
-      if (lastExternalInitConfig) {
-        try {
-          const parsedConfig = JSON.parse(lastExternalInitConfig) as ExternalInitConfig;
-          if (parsedConfig.projectId != undefined && parsedConfig.warehouseId != undefined) {
-            const projectName = `warehouses/${parsedConfig.warehouseId}/projects/${parsedConfig.projectId}`;
-            consoleApi
-              .getProject({ projectName })
-              .then((targetProject) => {
-                if (targetProject.name) {
-                  void setExternalhInitConfig(parsedConfig);
-                }
-                isSourceProcessed.current = true;
-              })
-              .catch((error: unknown) => {
-                log.debug("Failed to restore from lastExternalInitConfig", error);
-                void setLastExternalInitConfig(undefined);
-                isSourceProcessed.current = true;
-              });
-            return;
-          }
-        } catch (error) {
-          log.debug("parse lastExternalInitConfig failed", error);
-        }
-      }
+      loadLastExternalInitConfig();
       isSourceProcessed.current = true;
     }
   }, [
@@ -211,10 +222,7 @@ export function DeepLinksSyncAdapter({
     dataSourceDialog.open,
     dialogActions.dataSource,
     debouncedPleaseLoginFirstToast,
-    lastExternalInitConfig,
-    consoleApi,
-    setExternalhInitConfig,
-    setLastExternalInitConfig,
+    loadLastExternalInitConfig,
   ]);
 
   // 清理未登录时的 lastExternalInitConfig
