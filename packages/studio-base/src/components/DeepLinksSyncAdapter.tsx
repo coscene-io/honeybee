@@ -223,7 +223,7 @@ export function DeepLinksSyncAdapter({
     }
 
     // 特殊情况：用户未登录但试图访问需要登录的数据源
-    if (loginStatus === "notLogin" && unappliedSourceArgs?.ds === "coscene-data-platform") {
+    if (loginStatus === "notLogin" && unappliedSourceArgs?.ds) {
       debouncedPleaseLoginFirstToast();
       setUnappliedSourceArgs(undefined);
       isSourceProcessed.current = true;
