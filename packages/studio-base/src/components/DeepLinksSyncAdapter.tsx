@@ -101,7 +101,6 @@ export function DeepLinksSyncAdapter({
 
   // 处理状态标记
   const isSourceProcessed = useRef(false);
-  const currentSource = useRef<(DataSourceArgs & { id: string }) | undefined>(undefined);
   const hasShownInvalidDomainToast = useRef(false);
 
   // ========== 工具函数 ==========
@@ -286,16 +285,8 @@ export function DeepLinksSyncAdapter({
         },
       };
 
-      // 避免重复初始化相同的数据源
-      if (_.isEqual({ id: unappliedSourceArgs.ds, ...sourceParams }, currentSource.current)) {
-        isSourceProcessed.current = true;
-        return;
-      }
-
       log.debug("Initialising source from URL", unappliedSourceArgs);
-
-      // 记录当前数据源
-      currentSource.current = { id: unappliedSourceArgs.ds, ...sourceParams };
+      isSourceProcessed.current = true;
 
       // 初始化数据源（selectSource 内部会通过 key 调用 setShowtUrlKey，从而设置 externalInitConfig）
       selectSource(unappliedSourceArgs.ds, sourceParams);
@@ -305,7 +296,6 @@ export function DeepLinksSyncAdapter({
 
       // 清理待应用的参数
       setUnappliedSourceArgs(undefined);
-      isSourceProcessed.current = true;
       return;
     }
 
