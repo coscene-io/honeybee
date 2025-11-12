@@ -20,8 +20,6 @@ import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext
 import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 
 export type ExternalInitConfig = {
-  isInitialized?: boolean;
-
   files?: Array<ParamsFile>;
   // must
   warehouseId?: string;
@@ -77,6 +75,8 @@ export type CoreDataStore = {
    */
   externalInitConfig?: ExternalInitConfig;
 
+  isReadyForSyncLayout?: boolean;
+
   dataSource?: DataSource;
 
   organization: AsyncState<Organization>;
@@ -105,6 +105,7 @@ export type CoreDataStore = {
   // @deprecated don't use this function, use useSetExternalInitConfig in CoreDataSyncAdapter instead
   setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => void;
 
+  setIsReadyForSyncLayout: (options: { isReadyForSyncLayout: boolean }) => void;
   setDataSource: (dataSource: DataSource | undefined) => void;
   setRecord: (record: AsyncState<Record>) => void;
   setDevice: (device: AsyncState<Device>) => void;
