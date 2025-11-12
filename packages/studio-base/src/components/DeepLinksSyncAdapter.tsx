@@ -84,21 +84,8 @@ export function DeepLinksSyncAdapter({
     const url = new URL(deepLinks[0]);
     const parsedUrl = parseAppURLState(url);
 
-    // 桌面应用的域名验证
-    if (
-      isDesktopApp() &&
-      parsedUrl?.ds === "coscene-data-platform" &&
-      url.hostname !== domainConfig.webDomain
-    ) {
-      dialogActions.dataSource.close();
-      setTimeout(() => {
-        toast.error(t("invalidDomain", { domain: domainConfig.webDomain }));
-      }, 1000);
-      return undefined;
-    }
-
     return parsedUrl;
-  }, [deepLinks, t, domainConfig.webDomain, dialogActions.dataSource]);
+  }, [deepLinks]);
 
   // ========== 状态管理 ==========
   // 待应用的数据源参数（只在组件挂载时从 URL 初始化一次）
@@ -115,6 +102,7 @@ export function DeepLinksSyncAdapter({
   // 处理状态标记
   const isSourceProcessed = useRef(false);
   const currentSource = useRef<(DataSourceArgs & { id: string }) | undefined>(undefined);
+  const hasShownInvalidDomainToast = useRef(false);
 
   // ========== 工具函数 ==========
   // 防抖的登录提示
@@ -194,6 +182,45 @@ export function DeepLinksSyncAdapter({
     setLastExternalInitConfig,
     setIsReadyForSyncLayout,
   ]);
+
+  // ========== 域名验证处理 ==========
+  /**
+   * 桌面应用的域名验证
+   *
+   * 检查 deepLinks 中的域名是否与配置的域名匹配
+   * 如果不匹配，显示错误提示并关闭数据源对话框
+   */
+  useEffect(() => {
+    // 确保只显示一次 toast
+    if (hasShownInvalidDomainToast.current) {
+      return;
+    }
+
+    if (!deepLinks[0] || !targetUrlState) {
+      return;
+    }
+
+    // 桌面应用的域名验证
+    if (isDesktopApp() && targetUrlState.ds === "coscene-data-platform") {
+      try {
+        const url = new URL(deepLinks[0]);
+        if (url.hostname !== domainConfig.webDomain) {
+          hasShownInvalidDomainToast.current = true;
+          dialogActions.dataSource.close();
+
+          // 延迟显示 toast，确保对话框已关闭
+          setTimeout(() => {
+            toast.error(t("invalidDomain", { domain: domainConfig.webDomain }));
+          }, 500);
+
+          // 清除无效的数据源参数
+          setUnappliedSourceArgs(undefined);
+        }
+      } catch (error) {
+        log.debug("Failed to parse deepLink URL", error);
+      }
+    }
+  }, [deepLinks, targetUrlState, domainConfig.webDomain, dialogActions.dataSource, t]);
 
   // ========== 处理数据源初始化的主逻辑 ==========
   /**
