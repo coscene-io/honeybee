@@ -568,11 +568,6 @@ function PanelExtensionAdapter(
           settings.actionHandler === stableSettingsActionHandler
             ? settings
             : { ...settings, actionHandler: stableSettingsActionHandler };
-        // const mergedTree = reuseWithPreviousSettingsTree(
-        //   lastSettingsTreeRef.current,
-        //   treeWithStableHandler,
-        // );
-        // lastSettingsTreeRef.current = mergedTree;
         updatePanelSettingsTree(treeWithStableHandler);
       },
 
