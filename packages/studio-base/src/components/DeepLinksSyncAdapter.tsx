@@ -224,14 +224,17 @@ export function DeepLinksSyncAdapter({
 
     // 特殊情况：用户未登录但试图访问需要登录的数据源
     if (loginStatus === "notLogin" && unappliedSourceArgs?.ds) {
+      isSourceProcessed.current = true;
       debouncedPleaseLoginFirstToast();
       setUnappliedSourceArgs(undefined);
-      isSourceProcessed.current = true;
       return;
     }
 
-    // 等待用户登录
+    // 用户未登录，不设置data source，直接设置isReadyForSyncLayout为true
     if (loginStatus !== "alreadyLogin") {
+      isSourceProcessed.current = true;
+      setUnappliedSourceArgs(undefined);
+      setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
       return;
     }
 
