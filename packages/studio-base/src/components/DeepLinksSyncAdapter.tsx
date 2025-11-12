@@ -158,9 +158,9 @@ export function DeepLinksSyncAdapter({
     }
     setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
   }, [
-    setExternalInitConfig,
-    lastExternalInitConfig,
     consoleApi,
+    lastExternalInitConfig,
+    setExternalInitConfig,
     setLastExternalInitConfig,
     setIsReadyForSyncLayout,
   ]);
