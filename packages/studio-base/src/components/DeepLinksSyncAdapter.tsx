@@ -295,6 +295,7 @@ export function DeepLinksSyncAdapter({
     dialogActions.dataSource,
     debouncedPleaseLoginFirstToast,
     loadLastExternalInitConfig,
+    setIsReadyForSyncLayout,
   ]);
 
   /**
