@@ -230,7 +230,7 @@ export function DeepLinksSyncAdapter({
       return;
     }
 
-    // 用户未登录，不设置data source，直接设置isReadyForSyncLayout为true
+    // 用户未登录，不设置data source，直接设置恢复layout的标志
     if (loginStatus !== "alreadyLogin") {
       isSourceProcessed.current = true;
       setUnappliedSourceArgs(undefined);
