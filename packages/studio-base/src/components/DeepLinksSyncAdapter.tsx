@@ -138,7 +138,7 @@ export function DeepLinksSyncAdapter({
             : undefined;
 
         if (projectName) {
-          // login 才能调用 consoleApi
+          // 登录后才能调用 consoleApi
           await consoleApi
             .getProject({ projectName })
             .then((targetProject) => {
