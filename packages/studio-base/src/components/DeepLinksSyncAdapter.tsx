@@ -142,7 +142,6 @@ export function DeepLinksSyncAdapter({
   const setExternalInitConfig = useSetExternalInitConfig();
   const setIsReadyForSyncLayout = useCoreData(selectSetIsReadyForSyncLayout);
 
-  // ========== 核心逻辑函数 ==========
   /**
    * 从 lastExternalInitConfig 恢复项目配置
    *
@@ -196,7 +195,7 @@ export function DeepLinksSyncAdapter({
     setIsReadyForSyncLayout,
   ]);
 
-  // ========== 副作用处理 ==========
+  // ========== 处理数据源初始化的主逻辑 ==========
   /**
    * 数据源初始化主逻辑
    *
