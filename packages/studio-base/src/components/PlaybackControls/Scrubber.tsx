@@ -58,8 +58,6 @@ const useStyles = makeStyles()((theme) => ({
 
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
-const selectRanges = (ctx: MessagePipelineContext) =>
-  ctx.playerState.progress.fullyLoadedFractionRanges;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
@@ -80,8 +78,6 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const presence = useMessagePipeline(selectPresence);
-  const ranges = useMessagePipeline(selectRanges);
-
   const enableList = useCoreData(selectEnableList);
   const paid = useSubscriptionEntitlement(selectPaid);
 
@@ -223,7 +219,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       >
         <div className={cx(classes.track, { [classes.trackDisabled]: !startTime })} />
         <Stack position="absolute" flex="auto" fullWidth style={{ height: 6 }}>
-          <ProgressPlot loading={loading} availableRanges={ranges} />
+          <ProgressPlot loading={loading} />
         </Stack>
         <Stack fullHeight fullWidth position="absolute" flex={1}>
           <Slider
