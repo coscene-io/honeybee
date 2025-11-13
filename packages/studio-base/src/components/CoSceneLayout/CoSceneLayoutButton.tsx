@@ -6,11 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useSnackbar } from "notistack";
-import { useCallback, useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
-import { useUnsavedChangesPrompt } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/CoSceneUnsavedChangesPrompt";
 import { useLayoutBrowserReducer } from "@foxglove/studio-base/components/CoSceneLayoutBrowser/coSceneReducer";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -58,7 +57,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const layoutManager = useLayoutManager();
   const { setSelectedLayoutId } = useCurrentLayoutActions();
-  const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
 
   const [state, dispatch] = useLayoutBrowserReducer({
     lastSelectedId: currentLayoutId,
@@ -138,68 +136,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     });
   }, [dispatch, enqueueSnackbar, layoutManager, state.multiAction]);
 
-  /**
-   * Don't allow the user to switch away from a personal layout if they have unsaved changes. This
-   * currently has a race condition because of the throttled save in CurrentLayoutProvider -- it's
-   * possible to make changes and switch layouts before they're sent to the layout manager.
-   * @returns true if the original action should continue, false otherwise
-   */
-  const promptForUnsavedChanges = useCallback(async () => {
-    const currentLayout =
-      currentLayoutId != undefined
-        ? await layoutManager.getLayout({ id: currentLayoutId })
-        : undefined;
-    if (
-      currentLayout != undefined &&
-      layoutIsProject(currentLayout) &&
-      currentLayout.working != undefined
-    ) {
-      const result = await openUnsavedChangesPrompt(currentLayout);
-      switch (result.type) {
-        case "cancel":
-          return false;
-        case "discard":
-          await layoutManager.revertLayout({ id: currentLayout.id });
-          void analytics.logEvent(AppEvent.LAYOUT_REVERT, {
-            permission: currentLayout.permission,
-            context: "UnsavedChangesPrompt",
-          });
-          return true;
-        case "overwrite":
-          await layoutManager.overwriteLayout({ id: currentLayout.id });
-          void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, {
-            permission: currentLayout.permission,
-            context: "UnsavedChangesPrompt",
-          });
-          return true;
-        case "makePersonal":
-          // We don't use onMakePersonalCopy() here because it might need to prompt for unsaved changes, and we don't want to select the newly created layout
-          await layoutManager.makePersonalCopy({
-            id: currentLayout.id,
-            name: result.name,
-          });
-          void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
-            permission: currentLayout.permission,
-            syncStatus: currentLayout.syncInfo?.status,
-            context: "UnsavedChangesPrompt",
-          });
-          return true;
-      }
-    }
-    return true;
-  }, [analytics, currentLayoutId, layoutManager, openUnsavedChangesPrompt]);
-
   const onSelectLayout = useCallbackWithToast(
     async (item: Layout) => {
-      if (!(await promptForUnsavedChanges())) {
-        return;
-      }
       void analytics.logEvent(AppEvent.LAYOUT_SELECT, { permission: item.permission });
       setSelectedLayoutId(item.id);
       dispatch({ type: "select-id", id: item.id });
       layoutDrawer.close();
     },
-    [analytics, dispatch, promptForUnsavedChanges, setSelectedLayoutId, layoutDrawer],
+    [analytics, dispatch, setSelectedLayoutId, layoutDrawer],
   );
 
   const onRenameLayout = useCallbackWithToast(
@@ -318,10 +262,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onCreateLayout = useCallbackWithToast(
     async (params: CreateLayoutParams) => {
-      if (!(await promptForUnsavedChanges())) {
-        return;
-      }
-
       const data = params.data ?? {
         configById: {},
         globalVariables: {},
@@ -338,7 +278,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
       void analytics.logEvent(AppEvent.LAYOUT_CREATE);
     },
-    [promptForUnsavedChanges, layoutManager, onSelectLayout, analytics],
+    [layoutManager, onSelectLayout, analytics],
   );
 
   return (
@@ -351,7 +291,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         onRevertLayout={onRevertLayout}
         onClick={layoutDrawer.open}
       />
-      {unsavedChangesPrompt}
       {open && (
         <CoSceneLayoutDrawer
           currentLayoutId={currentLayoutId}
