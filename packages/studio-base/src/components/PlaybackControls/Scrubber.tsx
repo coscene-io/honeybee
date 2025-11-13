@@ -38,20 +38,12 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import { BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
-import PlaybackBarHoverTicks from "./PlaybackBarHoverTicks";
+import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
 import { ProgressPlot } from "./ProgressPlot";
 import Slider, { HoverOverEvent } from "./Slider";
 
 const useStyles = makeStyles()((theme) => ({
-  marker: {
-    backgroundColor: theme.palette.text.primary,
-    position: "absolute",
-    height: 16,
-    borderRadius: 1,
-    width: 2,
-    transform: "translate(-50%, 0)",
-  },
   track: {
     position: "absolute",
     left: 0,
@@ -65,7 +57,6 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
-const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 const selectRanges = (ctx: MessagePipelineContext) =>
   ctx.playerState.progress.fullyLoadedFractionRanges;
@@ -87,7 +78,6 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const [cursor, setCursor] = useState("pointer");
 
   const startTime = useMessagePipeline(selectStartTime);
-  const currentTime = useMessagePipeline(selectCurrentTime);
   const endTime = useMessagePipeline(selectEndTime);
   const presence = useMessagePipeline(selectPresence);
   const ranges = useMessagePipeline(selectRanges);
@@ -150,28 +140,15 @@ export default function Scrubber(props: Props): React.JSX.Element {
   // Clean up the hover value when we are unmounted -- important for storybook.
   useEffect(() => onHoverOut, [onHoverOut]);
 
-  const renderSlider = useCallback(
-    (val?: number) => {
-      if (val == undefined) {
-        return undefined;
-      }
-      return <div className={classes.marker} style={{ left: `${val * 100}%` }} />;
-    },
-    [classes.marker],
-  );
-
-  const min = startTime && toSec(startTime);
-  const max = endTime && toSec(endTime);
-  const fraction =
-    currentTime && startTime && endTime
-      ? toSec(subtractTimes(currentTime, startTime)) / toSec(subtractTimes(endTime, startTime))
-      : undefined;
+  const min = useMemo(() => startTime && toSec(startTime), [startTime]);
+  const max = useMemo(() => endTime && toSec(endTime), [endTime]);
 
   const loading = presence === PlayerPresence.INITIALIZING || presence === PlayerPresence.BUFFERING;
 
   const popperRef = React.useRef<Instance>(ReactNull);
 
   const isHovered = hoverInfo != undefined;
+
   const popperProps: Partial<PopperProps> = useMemo(
     () => ({
       open: isHovered, // Keep the tooltip visible while dragging even when the mouse is outside the playback bar
@@ -251,11 +228,9 @@ export default function Scrubber(props: Props): React.JSX.Element {
         <Stack fullHeight fullWidth position="absolute" flex={1}>
           <Slider
             disabled={min == undefined || max == undefined}
-            fraction={fraction}
             onHoverOver={onHoverOver}
             onHoverOut={onHoverOut}
             onChange={onChange}
-            renderSlider={renderSlider}
             cursor={cursor}
           />
         </Stack>

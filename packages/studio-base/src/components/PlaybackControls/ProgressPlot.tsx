@@ -57,7 +57,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export function ProgressPlot(props: ProgressProps): React.JSX.Element {
+function UnmemoizedProgressPlot(props: ProgressProps): React.JSX.Element {
   const { availableRanges, loading } = props;
   const { classes } = useStyles();
 
@@ -104,3 +104,5 @@ export function ProgressPlot(props: ProgressProps): React.JSX.Element {
     </Stack>
   );
 }
+
+export const ProgressPlot = React.memo(UnmemoizedProgressPlot);
