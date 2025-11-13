@@ -128,6 +128,8 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
 
   public override dispose(): void {
     this.renderer.off("transformTreeUpdated", this.#handleTransformTreeUpdated);
+    // Cancel the throttled function to prevent memory leaks
+    this.#throttledUpdateSettingsTree.cancel();
     this.#lineMaterial.dispose();
     this.#linePickingMaterial.dispose();
     super.dispose();
