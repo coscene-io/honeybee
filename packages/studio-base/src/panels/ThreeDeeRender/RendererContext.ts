@@ -71,7 +71,12 @@ export function useRendererProperty<K extends keyof IRenderer>(
       return;
     }
     const onChange = () => {
-      setValue(() => renderer[key]);
+      // Only update if the value actually changed to avoid unnecessary re-renders
+      setValue((prev: IRenderer[K]) => {
+        const newValue = renderer[key];
+        // For Map/Set objects, compare references
+        return newValue === prev ? prev : newValue;
+      });
     };
     onChange();
 
