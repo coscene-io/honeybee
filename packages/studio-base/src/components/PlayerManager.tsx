@@ -304,6 +304,8 @@ export default function PlayerManager(
   const [selectedSource, setSelectedSource] = useState<IDataSourceFactory | undefined>();
 
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
+  const [requestWindow] = useAppConfigurationValue<number>(AppSetting.REQUEST_WINDOW);
+  const [readAheadDuration] = useAppConfigurationValue<number>(AppSetting.READ_AHEAD_DURATION);
   const [autoConnectToLan] = useAppConfigurationValue<boolean>(AppSetting.AUTO_CONNECT_LAN);
 
   const [currentSourceParams, setCurrentSourceParams] = useState<
@@ -390,6 +392,10 @@ export default function PlayerManager(
               consoleApi,
               sessionId,
               retentionWindowMs,
+              requestWindow:
+                requestWindow != undefined ? { sec: requestWindow, nsec: 0 } : undefined,
+              readAheadDuration:
+                readAheadDuration != undefined ? { sec: readAheadDuration, nsec: 0 } : undefined,
               autoConnectToLan,
             });
 
@@ -537,6 +543,8 @@ export default function PlayerManager(
       autoConnectToLan,
       addRecent,
       t,
+      requestWindow,
+      readAheadDuration,
       setCurrentFile,
       isMounted,
     ],

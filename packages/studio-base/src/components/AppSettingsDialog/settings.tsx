@@ -698,6 +698,38 @@ export function RetentionWindowMs(): React.ReactElement {
   );
 }
 
+export function RequestWindow(): React.ReactElement {
+  const [requestWindow, setRequestWindow] = useAppConfigurationValue<number>(
+    AppSetting.REQUEST_WINDOW,
+  );
+
+  return (
+    <TextField
+      fullWidth
+      label="单次请求的秒数:"
+      value={requestWindow ?? ""}
+      type="number"
+      onChange={(event) => void setRequestWindow(Number(event.target.value))}
+    />
+  );
+}
+
+export function ReadAheadDuration(): React.ReactElement {
+  const [readAheadDuration, setReadAheadDuration] = useAppConfigurationValue<number>(
+    AppSetting.READ_AHEAD_DURATION,
+  );
+
+  return (
+    <TextField
+      fullWidth
+      label="预读的秒数:"
+      value={readAheadDuration ?? ""}
+      type="number"
+      onChange={(event) => void setReadAheadDuration(Number(event.target.value))}
+    />
+  );
+}
+
 export function AutoConnectToLan(): React.ReactElement {
   const { t } = useTranslation("appSettings");
   const [autoConnectToLan = true, setAutoConnectToLan] = useAppConfigurationValue<boolean>(
