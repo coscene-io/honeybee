@@ -57,7 +57,7 @@ import {
   makePoseMessage,
 } from "./publish";
 import type { LayerSettingsTransform } from "./renderables/FrameAxes";
-import { PublishClickEventMap } from "./renderables/PublishClickTool";
+import { PublishClickEventMap, PublishClickType } from "./renderables/PublishClickTool";
 import { DEFAULT_PUBLISH_SETTINGS } from "./renderables/PublishSettings";
 import { InterfaceMode } from "./types";
 
@@ -870,6 +870,14 @@ export function ThreeDeeRender(props: {
     context.dataSourceProfile === "ros1" || context.dataSourceProfile === "ros2";
   const canPublish = context.publish != undefined && isRosDataSource;
 
+  const onChangePublishClickType = useCallback(
+    (type: PublishClickType) => {
+      renderer?.publishClickTool.setPublishClickType(type);
+      renderer?.publishClickTool.start();
+    },
+    [renderer],
+  );
+
   return (
     <ThemeProvider isDark={colorScheme === "dark"}>
       <div style={PANEL_STYLE} onKeyDown={onKeyDown}>
@@ -897,10 +905,7 @@ export function ThreeDeeRender(props: {
             onClickPublish={onClickPublish}
             onShowTopicSettings={onShowTopicSettings}
             publishClickType={renderer?.publishClickTool.publishClickType ?? "point"}
-            onChangePublishClickType={(type) => {
-              renderer?.publishClickTool.setPublishClickType(type);
-              renderer?.publishClickTool.start();
-            }}
+            onChangePublishClickType={onChangePublishClickType}
             timezone={timezone}
             onResetCamera={onResetCamera}
             onZoomIn={onZoomIn}

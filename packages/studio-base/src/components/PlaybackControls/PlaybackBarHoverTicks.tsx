@@ -58,7 +58,7 @@ type Props = {
   componentId: string;
 };
 
-export default function PlaybackBarHoverTicks(props: Props): React.JSX.Element {
+function UnmemoizedPlaybackBarHoverTicks(props: Props): React.JSX.Element {
   const { componentId } = props;
   const { classes } = useStyles();
 
@@ -132,3 +132,5 @@ export default function PlaybackBarHoverTicks(props: Props): React.JSX.Element {
     </Stack>
   );
 }
+
+export const PlaybackBarHoverTicks = React.memo(UnmemoizedPlaybackBarHoverTicks);
