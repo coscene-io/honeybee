@@ -193,6 +193,7 @@ export class IterablePlayer implements Player {
   #queueEmitState: ReturnType<typeof debouncePromise>;
 
   readonly #sourceId: string;
+  #urlState?: PlayerState["urlState"];
 
   #metadata: readonly Metadata[] = Object.freeze([]);
 
@@ -243,6 +244,18 @@ export class IterablePlayer implements Player {
     // Wrap emitStateImpl in a debouncePromise for our states to call. Since we can emit from states
     // or from block loading updates we use debouncePromise to guard against concurrent emits.
     this.#queueEmitState = debouncePromise(this.#emitStateImpl.bind(this));
+  }
+
+  #getUrlState(): PlayerState["urlState"] {
+    const nextUrlState: PlayerState["urlState"] = {
+      sourceId: this.#sourceId,
+      parameters: this.#urlParams,
+    };
+
+    if (!this.#urlState || !_.isEqual(this.#urlState, nextUrlState)) {
+      this.#urlState = nextUrlState;
+    }
+    return this.#urlState;
   }
 
   public setListener(listener: (playerState: PlayerState) => Promise<void>): void {
@@ -790,10 +803,7 @@ export class IterablePlayer implements Player {
         playerId: this.#id,
         activeData: undefined,
         problems: this.#problemManager.problems(),
-        urlState: {
-          sourceId: this.#sourceId,
-          parameters: this.#urlParams,
-        },
+        urlState: this.#getUrlState(),
       });
       return;
     }
@@ -832,10 +842,7 @@ export class IterablePlayer implements Player {
       playerId: this.#id,
       problems: this.#problemManager.problems(),
       activeData,
-      urlState: {
-        sourceId: this.#sourceId,
-        parameters: this.#urlParams,
-      },
+      urlState: this.#getUrlState(),
     };
 
     await this.#listener(data);

@@ -32,6 +32,7 @@ const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectCoordinatorConfig = (state: CoreDataStore) => state.coordinatorConfig;
 
 const selectSetExternalInitConfig = (state: CoreDataStore) => state.setExternalInitConfig;
+const selectSetIsReadyForSyncLayout = (state: CoreDataStore) => state.setIsReadyForSyncLayout;
 const selectSetShowtUrlKey = (state: CoreDataStore) => state.setShowtUrlKey;
 const selectSetRecord = (state: CoreDataStore) => state.setRecord;
 const selectSetDevice = (state: CoreDataStore) => state.setDevice;
@@ -64,6 +65,7 @@ export function useSetExternalInitConfig(): (
 ) => Promise<void> {
   const consoleApi = useConsoleApi();
   const setExternalInitConfig = useCoreData(selectSetExternalInitConfig);
+  const setIsReadyForSyncLayout = useCoreData(selectSetIsReadyForSyncLayout);
   const setFocusedTask = useTasks(selectSetFocusedTask);
   const [, setLastExternalInitConfig] = useAppConfigurationValue<string>(
     AppSetting.LAST_EXTERNAL_INIT_CONFIG,
@@ -79,12 +81,17 @@ export function useSetExternalInitConfig(): (
       recordId: externalInitConfig.recordId,
     });
 
-    setExternalInitConfig({ ...externalInitConfig, isInitialized: true });
+    setExternalInitConfig(externalInitConfig);
 
-    if (externalInitConfig.taskId) {
-      const task = await consoleApi.getTask({
-        taskName: `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`,
-      });
+    // 设置 isReadyForSyncLayout 标志，表示可以开始同步 layout
+    setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
+
+    const taskName =
+      externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId
+        ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`
+        : undefined;
+    if (taskName) {
+      const task = await consoleApi.getTask({ taskName });
       setFocusedTask(task);
     }
   };
@@ -382,38 +389,6 @@ export function CoreDataSyncAdapter(): ReactNull {
 
     setColinkApi(api);
   }, [coordinatorConfig, setColinkApi]);
-
-  const [lastExternalInitConfig, setLastExternalInitConfig] = useAppConfigurationValue<string>(
-    AppSetting.LAST_EXTERNAL_INIT_CONFIG,
-  );
-  const setExternalhInitConfig = useSetExternalInitConfig();
-
-  useAsync(async () => {
-    if (loginStatus !== "alreadyLogin") {
-      void setLastExternalInitConfig(undefined);
-      return;
-    }
-
-    if (externalInitConfig?.projectId == undefined) {
-      try {
-        const externalInitConfig = JSON.parse(lastExternalInitConfig ?? "{}") as ExternalInitConfig;
-        if (
-          externalInitConfig.projectId != undefined &&
-          externalInitConfig.warehouseId != undefined
-        ) {
-          const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
-          const targetProject = await consoleApi.getProject({ projectName });
-
-          if (targetProject.name) {
-            void setExternalhInitConfig(externalInitConfig);
-          }
-        }
-      } catch (error) {
-        log.debug("parse lastExternalInitConfig failed", error);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return ReactNull;
 }

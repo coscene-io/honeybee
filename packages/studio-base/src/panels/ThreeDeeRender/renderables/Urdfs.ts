@@ -461,6 +461,11 @@ export class Urdfs extends SceneExtension<UrdfRenderable> {
     return entries;
   }
 
+  public override dispose(): void {
+    this.renderer.off("parametersChange", this.#handleParametersChange);
+    super.dispose();
+  }
+
   public override removeAllRenderables(): void {
     // Re-add coordinate frames and transforms since the scene has been cleared
     this.#refreshTransforms();
