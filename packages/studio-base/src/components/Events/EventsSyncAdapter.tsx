@@ -6,8 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
-import { useEffect, useMemo, useState } from "react";
-import { useAsyncFn } from "react-use";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAsyncFn, useLatest } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
 import { scaleValue as scale } from "@foxglove/den/math";
@@ -328,26 +328,43 @@ export function EventsSyncAdapter(): React.JSX.Element {
     }
   }, [hoverValue, setEventsAtHoverValue, timeRange, events]);
 
-  const { keyDownHandlers } = useMemo(
-    () => ({
-      keyDownHandlers: {
-        Digit1: (e: KeyboardEvent) => {
-          if (e.altKey && currentTime && startTime && endTime && eventMarks.length < 2) {
-            // Pause playback when the second marker is added
-            if (eventMarks.length === 1 && pause) {
-              pause();
-            }
+  const currentTimeRef = useLatest(currentTime);
+  const startTimeRef = useLatest(startTime);
+  const endTimeRef = useLatest(endTime);
+  const eventMarksRef = useLatest(eventMarks);
+  const pauseRef = useLatest(pause);
 
-            setEventMarks(
-              [...eventMarks, positionEventMark({ currentTime, startTime, endTime })].sort(
-                (a, b) => a.position - b.position,
-              ),
-            );
-          }
-        },
-      },
+  const handleDigit1 = useCallback(
+    (e: KeyboardEvent) => {
+      const current = currentTimeRef.current;
+      const start = startTimeRef.current;
+      const end = endTimeRef.current;
+      const marks = eventMarksRef.current;
+
+      if (!e.altKey || !current || !start || !end || marks.length >= 2) {
+        return;
+      }
+
+      // Pause playback when the second marker is added
+      if (marks.length === 1) {
+        pauseRef.current?.();
+      }
+
+      const nextMarks = [
+        ...marks,
+        positionEventMark({ currentTime: current, startTime: start, endTime: end }),
+      ].sort((a, b) => a.position - b.position);
+
+      setEventMarks(nextMarks);
+    },
+    [currentTimeRef, endTimeRef, eventMarksRef, pauseRef, setEventMarks, startTimeRef],
+  );
+
+  const keyDownHandlers = useMemo(
+    () => ({
+      Digit1: handleDigit1,
     }),
-    [currentTime, endTime, eventMarks, pause, setEventMarks, startTime],
+    [handleDigit1],
   );
 
   return <KeyListener global keyDownHandlers={keyDownHandlers} />;
