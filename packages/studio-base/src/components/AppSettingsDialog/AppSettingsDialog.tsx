@@ -49,6 +49,7 @@ import {
   RetentionWindowMs,
   StudioRemoteConfigUrl,
   AutoConnectToLan,
+  IsRenderAllTabs,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -249,6 +250,7 @@ export function AppSettingsDialog(
               <RetentionWindowMs />
               <InactivityTimeout />
               {showLanguageOptions && <LanguageSettings />}
+              <IsRenderAllTabs />
               {isDesktopApp() && <AutoConnectToLan />}
               {supportsAppUpdates && <AutoUpdate />}
               {/* CoScene */}
