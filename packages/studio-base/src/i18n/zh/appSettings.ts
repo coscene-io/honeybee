@@ -55,4 +55,7 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   retentionWindowDescription: "缓存指定时间长度的数据，用于回放已播的实时数据",
   autoConnectToLan: "实时可视化自动连接局域网",
   autoConnectToLanDescription: "检测到与设备处于同一局域网时，自动连接局域网地址，无需手动确认",
+  isRenderAllTabs: "渲染所有标签",
+  isRenderAllTabsDescription:
+    "是否渲染所有标签，包括未打开的标签, 开启后会提升标签页打开速度，但是会占用更多内存",
 };
