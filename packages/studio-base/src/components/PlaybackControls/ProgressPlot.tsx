@@ -14,12 +14,14 @@ import { makeStyles } from "tss-react/mui";
 
 import { filterMap } from "@foxglove/den/collection";
 import { Immutable } from "@foxglove/studio";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { Range } from "@foxglove/studio-base/util/ranges";
 
 type ProgressProps = Immutable<{
   loading: boolean;
-  availableRanges?: Range[];
 }>;
 
 const STRIPE_WIDTH = 8;
@@ -57,8 +59,12 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export function ProgressPlot(props: ProgressProps): React.JSX.Element {
-  const { availableRanges, loading } = props;
+const selectRanges = (ctx: MessagePipelineContext) =>
+  ctx.playerState.progress.fullyLoadedFractionRanges;
+
+function UnmemoizedProgressPlot(props: ProgressProps): React.JSX.Element {
+  const { loading } = props;
+  const availableRanges = useMessagePipeline(selectRanges);
   const { classes } = useStyles();
 
   const clampedRanges = useMemo(() => {
@@ -104,3 +110,5 @@ export function ProgressPlot(props: ProgressProps): React.JSX.Element {
     </Stack>
   );
 }
+
+export const ProgressPlot = React.memo(UnmemoizedProgressPlot);

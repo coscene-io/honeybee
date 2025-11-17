@@ -69,7 +69,7 @@ function BagTick({ bag }: { bag: BagFileInfo }): React.JSX.Element {
 
 const MemoBagTick = React.memo(BagTick);
 
-export function BagsOverlay(): React.JSX.Element {
+function UnmemoizedBagsOverlay(): React.JSX.Element {
   const bags = usePlaylist(selectBags);
   const { classes } = useStyles();
 
@@ -83,3 +83,5 @@ export function BagsOverlay(): React.JSX.Element {
     </div>
   );
 }
+
+export const BagsOverlay = React.memo(UnmemoizedBagsOverlay);

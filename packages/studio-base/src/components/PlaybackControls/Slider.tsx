@@ -6,10 +6,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
-import { useCallback, useEffect, useRef, ReactNode, useState, useLayoutEffect } from "react";
+import { useCallback, useEffect, useRef, useState, useLayoutEffect, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
 import { scaleValue } from "@foxglove/den/math";
+import { toSec } from "@foxglove/rostime";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
+import { subtractTimes } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/userUtils/time";
 
 export type HoverOverEvent = {
   /** Hovered `fraction` value */
@@ -21,12 +27,10 @@ export type HoverOverEvent = {
 };
 
 type Props = {
-  fraction: number | undefined;
   disabled?: boolean;
   onChange: (value: number) => void;
   onHoverOver?: (event: HoverOverEvent) => void;
   onHoverOut?: () => void;
-  renderSlider?: (value?: number) => ReactNode;
   cursor: string;
 };
 
@@ -45,31 +49,43 @@ const useStyles = makeStyles<{ cursor: string }>()((theme, props) => ({
     cursor: "not-allowed",
     opacity: theme.palette.action.disabledOpacity,
   },
-  range: {
-    label: "Slider-range",
-    backgroundColor: theme.palette.action.active,
+}));
+
+const useRenderSliderStyles = makeStyles()((theme) => ({
+  marker: {
+    backgroundColor: theme.palette.text.primary,
     position: "absolute",
-    height: "100%",
+    height: 16,
+    borderRadius: 1,
+    width: 2,
+    transform: "translate(-50%, 0)",
   },
 }));
 
-function defaultRenderSlider(value: number | undefined, className: string): ReactNode {
-  if (value == undefined || isNaN(value)) {
-    return ReactNull;
-  }
-  return <div className={className} style={{ width: `${value * 100}%` }} />;
+const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
+const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
+
+function RenderSlider() {
+  const { classes } = useRenderSliderStyles();
+
+  const startTime = useMessagePipeline(selectStartTime);
+  const currentTime = useMessagePipeline(selectCurrentTime);
+  const endTime = useMessagePipeline(selectEndTime);
+
+  const fraction = useMemo(
+    () =>
+      currentTime && startTime && endTime
+        ? toSec(subtractTimes(currentTime, startTime)) / toSec(subtractTimes(endTime, startTime))
+        : 0,
+    [currentTime, startTime, endTime],
+  );
+
+  return <div className={classes.marker} style={{ left: `${fraction * 100}%` }} />;
 }
 
-export default function Slider(props: Props): React.JSX.Element {
-  const {
-    fraction,
-    disabled = false,
-    renderSlider = defaultRenderSlider,
-    onHoverOver,
-    onHoverOut,
-    onChange,
-    cursor,
-  } = props;
+function Slider(props: Props): React.JSX.Element {
+  const { disabled = false, onHoverOver, onHoverOut, onChange, cursor } = props;
   const { classes, cx } = useStyles({ cursor });
 
   const elRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
@@ -180,7 +196,9 @@ export default function Slider(props: Props): React.JSX.Element {
         [classes.rootDisabled]: disabled,
       })}
     >
-      {renderSlider(fraction, classes.range)}
+      <RenderSlider />
     </div>
   );
 }
+
+export default React.memo(Slider);
