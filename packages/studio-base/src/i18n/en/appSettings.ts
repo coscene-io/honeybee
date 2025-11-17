@@ -62,4 +62,7 @@ export const appSettings = {
   autoConnectToLan: "Real-time visualization auto connect to LAN",
   autoConnectToLanDescription:
     "When detected to be on the same LAN as the device, automatically connect to the LAN address, no need to manually confirm",
+  isRenderAllTabs: "Render all tabs",
+  isRenderAllTabsDescription:
+    "Whether to render all tabs, including unopened tabs, after enabling, the speed of opening the tab page will be improved, but more memory will be occupied",
 };

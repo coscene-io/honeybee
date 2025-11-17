@@ -734,3 +734,37 @@ export function AutoConnectToLan(): React.ReactElement {
     </Stack>
   );
 }
+
+export function IsRenderAllTabs(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [isRenderAllTabs = false, setIsRenderAllTabs] = useAppConfigurationValue<boolean>(
+    AppSetting.IS_RENDER_ALL_TABS,
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("isRenderAllTabs")} :
+        </Stack>
+      </FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={String(isRenderAllTabs)}
+        onChange={(_, value?: string) => {
+          void setIsRenderAllTabs(value === "true");
+        }}
+      >
+        <ToggleButton value="false" data-testid="timeformat-seconds">
+          {t("off")}
+        </ToggleButton>
+        <ToggleButton value="true" data-testid="timeformat-local">
+          {t("on")}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}
