@@ -737,7 +737,7 @@ export function AutoConnectToLan(): React.ReactElement {
 
 export function IsRenderAllTabs(): React.ReactElement {
   const { t } = useTranslation("appSettings");
-  const [isRenderAllTabs, setIsRenderAllTabs] = useAppConfigurationValue<boolean>(
+  const [isRenderAllTabs = false, setIsRenderAllTabs] = useAppConfigurationValue<boolean>(
     AppSetting.IS_RENDER_ALL_TABS,
   );
 
