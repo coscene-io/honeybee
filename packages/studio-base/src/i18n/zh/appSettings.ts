@@ -53,6 +53,14 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   noCache: "不缓存",
   retentionWindowNextEffectiveNotice: "设置已更新，将在下次连接时生效 <Link>立即重连</Link>",
   retentionWindowDescription: "缓存指定时间长度的数据，用于回放已播的实时数据",
+  requestWindow: "数据平台单次请求时长（秒）",
+  requestWindowDescription:
+    "控制每次从数据平台拉取的时间范围。值越大请求更少但跳转响应更慢，值越小相反。",
+  requestWindowNextEffectiveNotice: "设置已更新，将在下一次可视化时生效 <Link>立即刷新</Link>",
+  readAheadDuration: "预读缓存时长（秒）",
+  readAheadDurationDescription:
+    "设置播放器在当前播放位置前预加载的时长。值越大播放更平滑但占用更多内存，值越小则更省内存。",
+  readAheadDurationNextEffectiveNotice: "设置已更新，将在下一次可视化时生效 <Link>立即刷新</Link>",
   autoConnectToLan: "实时可视化自动连接局域网",
   autoConnectToLanDescription: "检测到与设备处于同一局域网时，自动连接局域网地址，无需手动确认",
   isRenderAllTabs: "渲染所有选项卡",

@@ -304,7 +304,14 @@ export default function PlayerManager(
   const [selectedSource, setSelectedSource] = useState<IDataSourceFactory | undefined>();
 
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
+  const [requestWindow] = useAppConfigurationValue<number>(AppSetting.REQUEST_WINDOW);
+  const [readAheadDuration] = useAppConfigurationValue<number>(AppSetting.READ_AHEAD_DURATION);
   const [autoConnectToLan] = useAppConfigurationValue<boolean>(AppSetting.AUTO_CONNECT_LAN);
+
+  const positiveRequestWindow =
+    requestWindow != undefined && requestWindow > 0 ? requestWindow : undefined;
+  const positiveReadAheadDuration =
+    readAheadDuration != undefined && readAheadDuration > 0 ? readAheadDuration : undefined;
 
   const [currentSourceParams, setCurrentSourceParams] = useState<
     { sourceId: string; args?: DataSourceArgs } | undefined
@@ -390,6 +397,14 @@ export default function PlayerManager(
               consoleApi,
               sessionId,
               retentionWindowMs,
+              requestWindow:
+                positiveRequestWindow != undefined
+                  ? { sec: positiveRequestWindow, nsec: 0 }
+                  : undefined,
+              readAheadDuration:
+                positiveReadAheadDuration != undefined
+                  ? { sec: positiveReadAheadDuration, nsec: 0 }
+                  : undefined,
               autoConnectToLan,
             });
 
@@ -537,6 +552,8 @@ export default function PlayerManager(
       autoConnectToLan,
       addRecent,
       t,
+      positiveRequestWindow,
+      positiveReadAheadDuration,
       setCurrentFile,
       isMounted,
     ],

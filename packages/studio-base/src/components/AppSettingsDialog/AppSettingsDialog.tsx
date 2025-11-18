@@ -47,6 +47,8 @@ import {
   RosPackagePath,
   InactivityTimeout,
   RetentionWindowMs,
+  RequestWindow,
+  ReadAheadDuration,
   StudioRemoteConfigUrl,
   AutoConnectToLan,
   IsRenderAllTabs,
@@ -249,10 +251,13 @@ export function AppSettingsDialog(
               <CompatibilityMode />
               <RetentionWindowMs />
               <InactivityTimeout />
+              <RequestWindow />
+              <ReadAheadDuration />
               {showLanguageOptions && <LanguageSettings />}
               <IsRenderAllTabs />
               {isDesktopApp() && <AutoConnectToLan />}
               {supportsAppUpdates && <AutoUpdate />}
+
               {/* CoScene */}
               {/* {!isDesktopApp() && <LaunchDefault />} */}
               {isDesktopApp() && <RosPackagePath />}

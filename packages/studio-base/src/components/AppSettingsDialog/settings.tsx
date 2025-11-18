@@ -32,7 +32,7 @@ import {
   Typography,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo, useRef, useState } from "react";
+import { ChangeEvent, MouseEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -40,6 +40,11 @@ import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import Stack from "@foxglove/studio-base/components/Stack";
+import {
+  READ_AHEAD_DURATION_DEFAULT_SECONDS,
+  READ_AHEAD_DURATION_MIN_SECONDS,
+  REQUEST_WINDOW_DEFAULT_SECONDS,
+} from "@foxglove/studio-base/constants/appSettingsDefaults";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
@@ -68,7 +73,6 @@ const RETENTION_WINDOW_MS = [
   5 * 60 * 1000,
 ];
 const PERSONAL_INFO_CONFIG_ID = "personalInfo";
-
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
     "&.MuiOutlinedInput-input": {
@@ -679,6 +683,145 @@ export function RetentionWindowMs(): React.ReactElement {
             <Trans
               t={t}
               i18nKey="retentionWindowNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+export function RequestWindow(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [requestWindow, setRequestWindow] = useAppConfigurationValue<number>(
+    AppSetting.REQUEST_WINDOW,
+  );
+
+  const dataSource = useCoreData(selectDataSource);
+  const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
+  const { reloadCurrentSource } = usePlayerSelection();
+  const { theme } = useStyles();
+  const [showTips, setShowTips] = useState(false);
+
+  const onChangeRequestWindow = useCallback(
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const rawValue = event.target.value;
+      if (rawValue === "") {
+        void setRequestWindow(undefined);
+      } else {
+        const nextValue = Number(rawValue);
+        if (Number.isFinite(nextValue) && nextValue > 0) {
+          void setRequestWindow(nextValue);
+        }
+      }
+      setShowTips(true);
+    },
+    [setRequestWindow],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("requestWindow")}:
+          <Tooltip title={t("requestWindowDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <TextField
+        fullWidth
+        value={requestWindow}
+        type="number"
+        placeholder={String(REQUEST_WINDOW_DEFAULT_SECONDS)}
+        onChange={onChangeRequestWindow}
+      />
+      {shouldShowReloadTip && showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="requestWindowNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+export function ReadAheadDuration(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [readAheadDuration, setReadAheadDuration] = useAppConfigurationValue<number>(
+    AppSetting.READ_AHEAD_DURATION,
+  );
+  const dataSource = useCoreData(selectDataSource);
+  const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
+  const { reloadCurrentSource } = usePlayerSelection();
+  const { theme } = useStyles();
+  const [showTips, setShowTips] = useState(false);
+
+  const onChangeReadAheadDuration = useCallback(
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const rawValue = event.target.value;
+      if (rawValue === "") {
+        void setReadAheadDuration(undefined);
+      } else {
+        const nextValue = Number(rawValue);
+        if (Number.isFinite(nextValue) && nextValue > 0) {
+          void setReadAheadDuration(Math.max(nextValue, READ_AHEAD_DURATION_MIN_SECONDS));
+        }
+      }
+      setShowTips(true);
+    },
+    [setReadAheadDuration],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("readAheadDuration")}:
+          <Tooltip title={t("readAheadDurationDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <TextField
+        fullWidth
+        value={readAheadDuration}
+        type="number"
+        placeholder={String(READ_AHEAD_DURATION_DEFAULT_SECONDS)}
+        onChange={onChangeReadAheadDuration}
+      />
+      {shouldShowReloadTip && showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="readAheadDurationNextEffectiveNotice"
               components={{
                 Link: (
                   <Link
