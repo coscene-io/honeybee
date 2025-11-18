@@ -211,7 +211,7 @@ export class IterablePlayer implements Player {
       name,
       enablePreload,
       sourceId,
-      readAheadDuration = { sec: 10, nsec: 0 },
+      readAheadDuration = { sec: 20, nsec: 0 },
     } = options;
 
     this.#iterableSource = source;

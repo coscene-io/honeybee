@@ -32,7 +32,7 @@ import {
   Typography,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo, useRef, useState } from "react";
+import { ChangeEvent, MouseEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -68,6 +68,8 @@ const RETENTION_WINDOW_MS = [
   5 * 60 * 1000,
 ];
 const PERSONAL_INFO_CONFIG_ID = "personalInfo";
+const DEFAULT_REQUEST_WINDOW = 10;
+const DEFAULT_READ_AHEAD_DURATION = 20;
 
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
@@ -699,34 +701,135 @@ export function RetentionWindowMs(): React.ReactElement {
 }
 
 export function RequestWindow(): React.ReactElement {
-  const [requestWindow, setRequestWindow] = useAppConfigurationValue<number>(
-    AppSetting.REQUEST_WINDOW,
+  const { t } = useTranslation("appSettings");
+  const [requestWindow = DEFAULT_REQUEST_WINDOW, setRequestWindow] =
+    useAppConfigurationValue<number>(AppSetting.REQUEST_WINDOW);
+
+  const dataSource = useCoreData(selectDataSource);
+  const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
+  const { reloadCurrentSource } = usePlayerSelection();
+  const { theme } = useStyles();
+  const [showTips, setShowTips] = useState(false);
+
+  const onChangeRequestWindow = useCallback(
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const nextValue = Number(event.target.value);
+      if (Number.isFinite(nextValue) && nextValue > 0) {
+        void setRequestWindow(nextValue);
+      } else {
+        void setRequestWindow(DEFAULT_REQUEST_WINDOW);
+      }
+      setShowTips(true);
+    },
+    [setRequestWindow],
   );
 
   return (
-    <TextField
-      fullWidth
-      label="单次请求的秒数:"
-      value={requestWindow ?? ""}
-      type="number"
-      onChange={(event) => void setRequestWindow(Number(event.target.value))}
-    />
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("requestWindow")}:
+          <Tooltip title={t("requestWindowDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <TextField
+        fullWidth
+        value={requestWindow}
+        type="number"
+        slotProps={{ htmlInput: { min: 1 } }}
+        placeholder={t("seconds")}
+        onChange={onChangeRequestWindow}
+      />
+      {shouldShowReloadTip && showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="requestWindowNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
   );
 }
 
 export function ReadAheadDuration(): React.ReactElement {
-  const [readAheadDuration, setReadAheadDuration] = useAppConfigurationValue<number>(
-    AppSetting.READ_AHEAD_DURATION,
+  const { t } = useTranslation("appSettings");
+  const [readAheadDuration = DEFAULT_READ_AHEAD_DURATION, setReadAheadDuration] =
+    useAppConfigurationValue<number>(AppSetting.READ_AHEAD_DURATION);
+  const dataSource = useCoreData(selectDataSource);
+  const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
+  const { reloadCurrentSource } = usePlayerSelection();
+  const { theme } = useStyles();
+  const [showTips, setShowTips] = useState(false);
+
+  const onChangeReadAheadDuration = useCallback(
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const nextValue = Number(event.target.value);
+      if (Number.isFinite(nextValue) && nextValue > 0) {
+        void setReadAheadDuration(nextValue);
+      } else {
+        void setReadAheadDuration(DEFAULT_READ_AHEAD_DURATION);
+      }
+      setShowTips(true);
+    },
+    [setReadAheadDuration],
   );
 
   return (
-    <TextField
-      fullWidth
-      label="预读的秒数:"
-      value={readAheadDuration ?? ""}
-      type="number"
-      onChange={(event) => void setReadAheadDuration(Number(event.target.value))}
-    />
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("readAheadDuration")}:
+          <Tooltip title={t("readAheadDurationDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <TextField
+        fullWidth
+        value={readAheadDuration}
+        type="number"
+        slotProps={{ htmlInput: { min: 1 } }}
+        placeholder={t("seconds")}
+        onChange={onChangeReadAheadDuration}
+      />
+      {shouldShowReloadTip && showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="readAheadDurationNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
   );
 }
 

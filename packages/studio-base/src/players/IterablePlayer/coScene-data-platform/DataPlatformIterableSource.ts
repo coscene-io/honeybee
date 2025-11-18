@@ -59,7 +59,7 @@ export class DataPlatformIterableSource implements IIterableSource {
   #start?: Time;
   #end?: Time;
 
-  #requestWindow: Time = { sec: 5, nsec: 0 };
+  #requestWindow: Time = { sec: 10, nsec: 0 };
 
   /**
    * Cached readers for each schema so we don't have to re-parse definitions on each stream request.
@@ -74,7 +74,7 @@ export class DataPlatformIterableSource implements IIterableSource {
     this.#consoleApi = options.api;
     this.#params = options.params;
 
-    this.#requestWindow = options.requestWindow ?? { sec: 5, nsec: 0 };
+    this.#requestWindow = options.requestWindow ?? { sec: 10, nsec: 0 };
   }
 
   public async initialize(): Promise<Initalization> {
