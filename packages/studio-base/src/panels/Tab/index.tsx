@@ -18,11 +18,13 @@ import { useCallback, useMemo, useState } from "react";
 import { MosaicNode } from "react-mosaic-component";
 import { makeStyles } from "tss-react/mui";
 
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { EmptyPanelLayout } from "@foxglove/studio-base/components/EmptyPanelLayout";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import { UnconnectedPanelLayout } from "@foxglove/studio-base/components/PanelLayout";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import {
   DraggingTabPanelState,
   TabDndContext,
@@ -73,6 +75,10 @@ function Tab({ config, saveConfig }: Props) {
   const { classes } = useStyles();
 
   const { tabs, activeTabIdx } = config;
+  const [isRenderAllTabs] = useAppConfigurationValue<boolean>(AppSetting.IS_RENDER_ALL_TABS);
+  const renderAllTabs = isRenderAllTabs === true;
+  const activeTab = tabs[activeTabIdx];
+  const activeLayout = activeTab?.layout;
 
   // Generate stable keys for each tab to prevent React component reuse issues
   // Use tab index as stable key since tabs are identified by their position
@@ -129,6 +135,7 @@ function Tab({ config, saveConfig }: Props) {
       }
     });
   }, [config, saveConfig, tabs]);
+  const activeTabLayoutChangeHandler = tabLayoutChangeHandlers[activeTabIdx];
   const actions = useMemo(
     () => ({ addTab, removeTab, selectTab, setTabTitle }),
     [addTab, removeTab, selectTab, setTabTitle],
@@ -158,7 +165,7 @@ function Tab({ config, saveConfig }: Props) {
         {/* Show EmptyPanelLayout when there are no tabs */}
         {tabs.length === 0 ? (
           <EmptyPanelLayout tabId={panelId} />
-        ) : (
+        ) : renderAllTabs ? (
           /* Render all tabs but control visibility with CSS */
           tabs.map((tab, tabIndex) => {
             const isActive = tabIndex === activeTabIdx;
@@ -186,6 +193,16 @@ function Tab({ config, saveConfig }: Props) {
               </div>
             );
           })
+        ) : activeLayout != undefined ? (
+          <TabDndContext.Provider value={{ preventTabDrop }}>
+            <UnconnectedPanelLayout
+              layout={activeLayout}
+              onChange={activeTabLayoutChangeHandler ?? (() => undefined)}
+              tabId={panelId}
+            />
+          </TabDndContext.Provider>
+        ) : (
+          <EmptyPanelLayout tabId={panelId} />
         )}
         {preventTabDrop && <div className={classes.panelCover} />}
       </Stack>

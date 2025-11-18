@@ -57,4 +57,7 @@ export enum AppSetting {
 
   // externalInitConfig
   LAST_EXTERNAL_INIT_CONFIG = "lastExternalInitConfig",
+
+  // Is Render All Tabs
+  IS_RENDER_ALL_TABS = "isRenderAllTabs",
 }

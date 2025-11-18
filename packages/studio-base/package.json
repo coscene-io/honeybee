@@ -56,7 +56,7 @@
     "@foxglove/wasm-lz4": "1.0.2",
     "@foxglove/ws-protocol": "workspace:*",
     "@growthbook/growthbook-react": "1.4.1",
-    "@mcap/core": "2.1.5",
+    "@mcap/core": "2.1.7",
     "@mui/icons-material": "7.2.0",
     "@mui/material": "7.2.0",
     "@mui/x-date-pickers": "8.8.0",

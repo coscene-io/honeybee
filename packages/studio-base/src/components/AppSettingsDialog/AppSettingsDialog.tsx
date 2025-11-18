@@ -51,6 +51,7 @@ import {
   ReadAheadDuration,
   StudioRemoteConfigUrl,
   AutoConnectToLan,
+  IsRenderAllTabs,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -253,6 +254,7 @@ export function AppSettingsDialog(
               <RequestWindow />
               <ReadAheadDuration />
               {showLanguageOptions && <LanguageSettings />}
+              <IsRenderAllTabs />
               {isDesktopApp() && <AutoConnectToLan />}
               {supportsAppUpdates && <AutoUpdate />}
 
