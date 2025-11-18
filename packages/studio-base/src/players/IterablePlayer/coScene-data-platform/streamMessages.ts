@@ -18,6 +18,9 @@ import { IteratorResult } from "../IIterableSource";
 
 const log = Logger.getLogger(__filename);
 
+let cumulativeDataConsumeTime = 0;
+let cumulativeDataConsumeCount = 0;
+
 /**
  * Information necessary to match a Channel & Schema record in the MCAP data to one that we received
  * from the /topics endpoint.
@@ -101,6 +104,7 @@ export async function* streamMessages({
   const MAX_BATCH_SIZE = 500; // Yield every 500 messages
   const MAX_BATCH_TIME_MS = 50; // Or every 50ms
   let lastYieldTime = performance.now();
+  let dataConsumeTime = 0;
 
   const schemasById = new Map<number, McapTypes.TypedMcapRecords["Schema"]>();
   const channelInfoById = new Map<
@@ -287,9 +291,12 @@ export async function* streamMessages({
 
           // 只检查数量，避免频繁调用 performance.now()
           if (results.length >= MAX_BATCH_SIZE) {
+            const consumeStart = performance.now();
             yield results;
             results = [];
-            lastYieldTime = performance.now();
+            const afterYield = performance.now();
+            dataConsumeTime += afterYield - consumeStart;
+            lastYieldTime = afterYield;
           }
         }
 
@@ -297,9 +304,12 @@ export async function* streamMessages({
         const now = performance.now();
         const timeSinceLastYield = now - lastYieldTime;
         if (results.length > 0 && timeSinceLastYield >= MAX_BATCH_TIME_MS) {
+          const consumeStart = performance.now();
           yield results;
           results = [];
-          lastYieldTime = performance.now();
+          const afterYield = performance.now();
+          dataConsumeTime += afterYield - consumeStart;
+          lastYieldTime = afterYield;
         }
 
         if (normalReturn) {
@@ -312,16 +322,20 @@ export async function* streamMessages({
 
       // Yield any remaining messages
       if (results.length > 0) {
+        const consumeStart = performance.now();
         yield results;
         results = [];
+        dataConsumeTime += performance.now() - consumeStart;
       }
 
       normalReturn = true;
     } finally {
       // Flush any remaining buffered messages before cleanup, even if aborted/errored
       if (results.length > 0) {
+        const consumeStart = performance.now();
         yield results;
         results = [];
+        dataConsumeTime += performance.now() - consumeStart;
       }
 
       if (!normalReturn) {
@@ -341,16 +355,39 @@ export async function* streamMessages({
 
   decodeEndTime = performance.now();
 
-  log.debug(
-    "message",
-    results,
-    "total message",
+  cumulativeDataConsumeCount++;
+
+  const totalDecodeDuration = decodeEndTime - fetchEndTime;
+  const dataConsumeRatio =
+    totalDecodeDuration > 0 ? (dataConsumeTime / totalDecodeDuration) * 100 : 0;
+
+  cumulativeDataConsumeTime += dataConsumeTime;
+
+  const averageDataConsumeTime =
+    cumulativeDataConsumeCount > 0 ? cumulativeDataConsumeTime / cumulativeDataConsumeCount : 0;
+
+  const seconds = (duration: number) => ({
+    value: Number((duration / 1000).toFixed(3)),
+    unit: "s",
+  });
+  const milliseconds = (duration: number) => ({
+    value: Number(duration.toFixed(2)),
+    unit: "ms",
+  });
+
+  const summary = {
     totalMessages,
-    "fetch time",
-    `${(fetchEndTime - fetchStartTime) / 1000}s`,
-    "decode time",
-    `${(decodeEndTime - fetchEndTime) / 1000}s`,
-    "total time",
-    `${(decodeEndTime - startTimer) / 1000}s`,
-  );
+    timings: {
+      fetch: seconds(fetchEndTime - fetchStartTime),
+      decode: seconds(totalDecodeDuration),
+      total: seconds(decodeEndTime - startTimer),
+    },
+    dataConsume: {
+      total: seconds(dataConsumeTime),
+      ratioPercent: Number(dataConsumeRatio.toFixed(2)),
+      avgPerRequest: milliseconds(averageDataConsumeTime),
+    },
+  };
+
+  log.debug("streamMessages summary", summary);
 }
