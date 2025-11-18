@@ -22,6 +22,7 @@ import {
   toRFC3339String,
 } from "@foxglove/rostime";
 import { Immutable, MessageEvent, Metadata, ParameterValue } from "@foxglove/studio";
+import { getReadAheadDurationDefaultTime } from "@foxglove/studio-base/constants/appSettingsDefaults";
 import { DeserializedSourceWrapper } from "@foxglove/studio-base/players/IterablePlayer/DeserializedSourceWrapper";
 import { freezeMetadata } from "@foxglove/studio-base/players/IterablePlayer/freezeMetadata";
 import NoopMetricsCollector from "@foxglove/studio-base/players/NoopMetricsCollector";
@@ -211,12 +212,14 @@ export class IterablePlayer implements Player {
       name,
       enablePreload,
       sourceId,
-      readAheadDuration = { sec: 10, nsec: 0 },
+      readAheadDuration = getReadAheadDurationDefaultTime(),
     } = options;
 
     this.#iterableSource = source;
     if (source.sourceType === "deserialized") {
-      this.#bufferImpl = new BufferedIterableSource(source);
+      this.#bufferImpl = new BufferedIterableSource(source, {
+        readAheadDuration,
+      });
       this.#bufferedSource = new DeserializedSourceWrapper(this.#bufferImpl);
     } else {
       const MEGABYTE_IN_BYTES = 1024 * 1024;

@@ -59,6 +59,16 @@ export const appSettings = {
     "Setting updated, will take effect on next connection <Link>Reconnect now</Link>",
   retentionWindowDescription:
     "Set the cache duration of the real-time visualization, for playback of real-time data",
+  requestWindow: "Data platform request window (s)",
+  requestWindowDescription:
+    "Controls how many seconds of data each data-platform request loads. Larger windows mean fewer API calls but slower seek response.",
+  requestWindowNextEffectiveNotice:
+    "Setting updated, will take effect the next time visualization starts. <Link>Refresh now</Link>",
+  readAheadDuration: "Read-ahead buffer (s)",
+  readAheadDurationDescription:
+    "Sets how many seconds of data the player preloads ahead of playback. Higher values smooth playback but use more memory.",
+  readAheadDurationNextEffectiveNotice:
+    "Setting updated, will take effect the next time visualization starts. <Link>Refresh now</Link>",
   autoConnectToLan: "Real-time visualization auto connect to LAN",
   autoConnectToLanDescription:
     "When detected to be on the same LAN as the device, automatically connect to the LAN address, no need to manually confirm",
