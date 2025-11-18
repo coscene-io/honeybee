@@ -11,6 +11,7 @@ import * as _ from "lodash-es";
 import Logger from "@foxglove/log";
 import { parseChannel } from "@foxglove/mcap-support";
 import { clampTime, fromRFC3339String, add as addTime, compare, Time } from "@foxglove/rostime";
+import { getRequestWindowDefaultTime } from "@foxglove/studio-base/constants/appSettingsDefaults";
 import {
   PlayerProblem,
   Topic,
@@ -59,7 +60,7 @@ export class DataPlatformIterableSource implements IIterableSource {
   #start?: Time;
   #end?: Time;
 
-  #requestWindow: Time = { sec: 10, nsec: 0 };
+  #requestWindow: Time = getRequestWindowDefaultTime();
 
   /**
    * Cached readers for each schema so we don't have to re-parse definitions on each stream request.
@@ -74,7 +75,7 @@ export class DataPlatformIterableSource implements IIterableSource {
     this.#consoleApi = options.api;
     this.#params = options.params;
 
-    this.#requestWindow = options.requestWindow ?? { sec: 10, nsec: 0 };
+    this.#requestWindow = options.requestWindow ?? getRequestWindowDefaultTime();
   }
 
   public async initialize(): Promise<Initalization> {

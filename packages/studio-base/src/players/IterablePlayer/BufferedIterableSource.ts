@@ -12,6 +12,10 @@ import { VecQueue } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
 import { add as addTime, compare, clampTime } from "@foxglove/rostime";
 import { Time, MessageEvent } from "@foxglove/studio";
+import {
+  getReadAheadDurationDefaultTime,
+  getReadAheadDurationMinTime,
+} from "@foxglove/studio-base/constants/appSettingsDefaults";
 import { Range } from "@foxglove/studio-base/util/ranges";
 
 import { CachingIterableSource } from "./CachingIterableSource";
@@ -25,8 +29,8 @@ import {
 
 const log = Log.getLogger(__filename);
 
-const DEFAULT_READ_AHEAD_DURATION = { sec: 20, nsec: 0 };
-const DEFAULT_MIN_READ_AHEAD_DURATION = { sec: 1, nsec: 0 };
+const DEFAULT_READ_AHEAD_DURATION = getReadAheadDurationDefaultTime();
+const DEFAULT_MIN_READ_AHEAD_DURATION = getReadAheadDurationMinTime();
 
 type Options = {
   // How far ahead to buffer

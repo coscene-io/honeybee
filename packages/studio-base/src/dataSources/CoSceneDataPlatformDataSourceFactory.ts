@@ -8,6 +8,10 @@
 import { t } from "i18next";
 
 import {
+  getReadAheadDurationDefaultTime,
+  getRequestWindowDefaultTime,
+} from "@foxglove/studio-base/constants/appSettingsDefaults";
+import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
@@ -69,8 +73,8 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const consoleApi = args.consoleApi;
-    const requestWindow = args.requestWindow ?? { sec: 10, nsec: 0 };
-    const readAheadDuration = args.readAheadDuration ?? { sec: 20, nsec: 0 };
+    const requestWindow = args.requestWindow ?? getRequestWindowDefaultTime();
+    const readAheadDuration = args.readAheadDuration ?? getReadAheadDurationDefaultTime();
 
     if (!consoleApi) {
       console.error("coscene-data-platform initialize: consoleApi is undefined");

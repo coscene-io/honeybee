@@ -40,6 +40,11 @@ import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import Stack from "@foxglove/studio-base/components/Stack";
+import {
+  READ_AHEAD_DURATION_DEFAULT_SECONDS,
+  READ_AHEAD_DURATION_MIN_SECONDS,
+  REQUEST_WINDOW_DEFAULT_SECONDS,
+} from "@foxglove/studio-base/constants/appSettingsDefaults";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
@@ -68,9 +73,6 @@ const RETENTION_WINDOW_MS = [
   5 * 60 * 1000,
 ];
 const PERSONAL_INFO_CONFIG_ID = "personalInfo";
-const DEFAULT_REQUEST_WINDOW = 10;
-const DEFAULT_READ_AHEAD_DURATION = 20;
-
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
     "&.MuiOutlinedInput-input": {
@@ -702,8 +704,9 @@ export function RetentionWindowMs(): React.ReactElement {
 
 export function RequestWindow(): React.ReactElement {
   const { t } = useTranslation("appSettings");
-  const [requestWindow = DEFAULT_REQUEST_WINDOW, setRequestWindow] =
-    useAppConfigurationValue<number>(AppSetting.REQUEST_WINDOW);
+  const [requestWindow, setRequestWindow] = useAppConfigurationValue<number>(
+    AppSetting.REQUEST_WINDOW,
+  );
 
   const dataSource = useCoreData(selectDataSource);
   const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
@@ -713,11 +716,14 @@ export function RequestWindow(): React.ReactElement {
 
   const onChangeRequestWindow = useCallback(
     (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const nextValue = Number(event.target.value);
-      if (Number.isFinite(nextValue) && nextValue > 0) {
-        void setRequestWindow(nextValue);
+      const rawValue = event.target.value;
+      if (rawValue === "") {
+        void setRequestWindow(undefined);
       } else {
-        void setRequestWindow(DEFAULT_REQUEST_WINDOW);
+        const nextValue = Number(rawValue);
+        if (Number.isFinite(nextValue) && nextValue > 0) {
+          void setRequestWindow(nextValue);
+        }
       }
       setShowTips(true);
     },
@@ -738,8 +744,7 @@ export function RequestWindow(): React.ReactElement {
         fullWidth
         value={requestWindow}
         type="number"
-        slotProps={{ htmlInput: { min: 1 } }}
-        placeholder={t("seconds")}
+        placeholder={String(REQUEST_WINDOW_DEFAULT_SECONDS)}
         onChange={onChangeRequestWindow}
       />
       {shouldShowReloadTip && showTips && (
@@ -769,8 +774,9 @@ export function RequestWindow(): React.ReactElement {
 
 export function ReadAheadDuration(): React.ReactElement {
   const { t } = useTranslation("appSettings");
-  const [readAheadDuration = DEFAULT_READ_AHEAD_DURATION, setReadAheadDuration] =
-    useAppConfigurationValue<number>(AppSetting.READ_AHEAD_DURATION);
+  const [readAheadDuration, setReadAheadDuration] = useAppConfigurationValue<number>(
+    AppSetting.READ_AHEAD_DURATION,
+  );
   const dataSource = useCoreData(selectDataSource);
   const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
   const { reloadCurrentSource } = usePlayerSelection();
@@ -779,11 +785,14 @@ export function ReadAheadDuration(): React.ReactElement {
 
   const onChangeReadAheadDuration = useCallback(
     (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const nextValue = Number(event.target.value);
-      if (Number.isFinite(nextValue) && nextValue > 0) {
-        void setReadAheadDuration(nextValue);
+      const rawValue = event.target.value;
+      if (rawValue === "") {
+        void setReadAheadDuration(undefined);
       } else {
-        void setReadAheadDuration(DEFAULT_READ_AHEAD_DURATION);
+        const nextValue = Number(rawValue);
+        if (Number.isFinite(nextValue) && nextValue > 0) {
+          void setReadAheadDuration(Math.max(nextValue, READ_AHEAD_DURATION_MIN_SECONDS));
+        }
       }
       setShowTips(true);
     },
@@ -804,8 +813,7 @@ export function ReadAheadDuration(): React.ReactElement {
         fullWidth
         value={readAheadDuration}
         type="number"
-        slotProps={{ htmlInput: { min: 1 } }}
-        placeholder={t("seconds")}
+        placeholder={String(READ_AHEAD_DURATION_DEFAULT_SECONDS)}
         onChange={onChangeReadAheadDuration}
       />
       {shouldShowReloadTip && showTips && (
