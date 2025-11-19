@@ -431,8 +431,9 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                     className={classes.avatar}
                     variant="rounded"
                   >
-                    {userInfo?.avatarUrl == undefined ||
-                      (userInfo.avatarUrl === "" && <PersonIcon color="secondary" />)}
+                    {(userInfo?.avatarUrl == undefined || userInfo.avatarUrl === "") && (
+                      <PersonIcon color="secondary" />
+                    )}
                   </Avatar>
                 </IconButton>
               </Tooltip>
