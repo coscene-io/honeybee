@@ -62,9 +62,6 @@ export class AmplitudeAnalytics implements IAnalytics {
       case AppEvent.PLAYER_INITIALIZING_TIME:
         posthog.capture(event, data);
         break;
-      case AppEvent.PLAYER_BUFFERING_TIME:
-        posthog.capture(event, data);
-        break;
       case AppEvent.PLAYER_SEEK_LATENCY:
         posthog.capture(event, data);
         break;
