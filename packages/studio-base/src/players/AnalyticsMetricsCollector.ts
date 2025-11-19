@@ -100,4 +100,18 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
   public pause(): void {
     this.#playing = false;
   }
+
+  public recordSeekLatency(latencyMs: number): void {
+    void this.#syncEventToAnalytics({
+      event: AppEvent.PLAYER_SEEK_LATENCY,
+      data: { latency_ms: latencyMs },
+    });
+  }
+
+  public recordStallDuration(durationMs: number): void {
+    void this.#syncEventToAnalytics({
+      event: AppEvent.PLAYER_STALL_DURATION,
+      data: { duration_ms: durationMs },
+    });
+  }
 }

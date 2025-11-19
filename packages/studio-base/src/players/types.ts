@@ -515,4 +515,6 @@ export interface PlayerMetricsCollectorInterface {
   recordPlaybackTime(time: Time, params: { stillLoadingData: boolean }): void;
   recordUncachedRangeRequest(): void;
   recordTimeToFirstMsgs(): void;
+  recordSeekLatency(latencyMs: number): void;
+  recordStallDuration(durationMs: number): void;
 }
