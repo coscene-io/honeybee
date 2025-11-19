@@ -67,11 +67,12 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
     const cursor = this.getMessageCursor(args);
     try {
       for (;;) {
-        // The fastest framerate that studio renders at is 60fps. So to render a frame studio needs
-        // at minimum ~16 milliseconds of messages before it will render a frame. Here we fetch
-        // batches of 17 milliseconds so that one batch fetch could result in one frame render.
-        // Fetching too much in a batch means we cannot render until the batch is returned.
-        const results = await cursor.nextBatch(17 /* milliseconds */);
+        // We previously used 17ms batches (roughly one 60fps frame) so each fetch could feed a frame,
+        // but profiling showed each Comlink round trip costs ~6-15ms regardless of payload size.
+        // Pulling ~100ms per batch trades a bit more latency for ~6x fewer worker round trips,
+        // significantly reducing time lost to cross-thread overhead while still returning data fast enough
+        // for playback and preloading consumers.
+        const results = await cursor.nextBatch(100 /* milliseconds */);
         if (!results || results.length === 0) {
           break;
         }
