@@ -166,6 +166,7 @@ export class IterablePlayer implements Player {
   #publishedTopics = new Map<string, Set<string>>();
   #seekTarget?: Time;
   #presence = PlayerPresence.INITIALIZING;
+  #seekStartTime?: number;
 
   // To keep reference equality for downstream user memoization cache the currentTime provided in the last activeData update
   // See additional comments below where _currentTime is set
@@ -361,6 +362,7 @@ export class IterablePlayer implements Player {
 
     this.#metricsCollector.seek(targetTime);
     this.#seekTarget = targetTime;
+    this.#seekStartTime = Date.now();
     this.#untilTime = undefined;
     this.#lastTickMillis = undefined;
     this.#lastRangeMillis = undefined;
@@ -769,6 +771,12 @@ export class IterablePlayer implements Player {
       this.#currentTime = targetTime;
       this.#lastSeekEmitTime = Date.now();
       this.#presence = PlayerPresence.PRESENT;
+
+      if (this.#seekStartTime != undefined) {
+        this.#metricsCollector.recordSeekLatency(Date.now() - this.#seekStartTime);
+        this.#seekStartTime = undefined;
+      }
+
       this.#queueEmitState();
       await this.#resetPlaybackIterator();
       this.#setState(this.#isPlaying ? "play" : "idle");
@@ -946,8 +954,10 @@ export class IterablePlayer implements Player {
     // If we take too long to read the tick data, we set the player into a BUFFERING presence. This
     // indicates that the player is waiting to load more data. When the tick finally finishes, we
     // clear this timeout.
+    let stallStartTime: number | undefined;
     const tickTimeout = setTimeout(() => {
       this.#presence = PlayerPresence.BUFFERING;
+      stallStartTime = Date.now();
       this.#queueEmitState();
     }, 500);
 
@@ -986,6 +996,9 @@ export class IterablePlayer implements Player {
       }
     } finally {
       clearTimeout(tickTimeout);
+      if (stallStartTime != undefined) {
+        this.#metricsCollector.recordStallDuration(Date.now() - stallStartTime);
+      }
     }
 
     // Set the presence back to PRESENT since we are no longer buffering
