@@ -65,4 +65,10 @@ export default class NoopMetricsCollector implements PlayerMetricsCollectorInter
   public recordDataProviderStall(): void {
     // no-op
   }
+  public recordSeekLatency(_latencyMs: number): void {
+    // no-op
+  }
+  public recordStallDuration(_durationMs: number): void {
+    // no-op
+  }
 }

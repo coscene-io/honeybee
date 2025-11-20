@@ -161,9 +161,6 @@ export function AppStateBar(): React.JSX.Element {
         setInitializingTime(0);
       }
       if (bufferingTime > 0) {
-        void analytics.logEvent(AppEvent.PLAYER_BUFFERING_TIME, {
-          buffering_time: Date.now() - bufferingTime,
-        });
         setBufferingTime(0);
       }
     }

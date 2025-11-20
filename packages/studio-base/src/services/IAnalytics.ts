@@ -85,7 +85,8 @@ enum AppEvent {
 
   // Player state events
   PLAYER_INITIALIZING_TIME = "player_initializing_time",
-  PLAYER_BUFFERING_TIME = "player_buffering_time",
+  PLAYER_SEEK_LATENCY = "player_seek_latency",
+  PLAYER_STALL_DURATION = "player_stall_duration",
 }
 
 interface IAnalytics {
