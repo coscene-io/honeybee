@@ -22,7 +22,6 @@ import {
   FormLabel,
   Link,
   MenuItem,
-  Select,
   SelectChangeEvent,
   TextField,
   ToggleButton,
@@ -39,6 +38,7 @@ import { makeStyles } from "tss-react/mui";
 import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
+import SmartSelect from "@foxglove/studio-base/components/SmartSelect";
 import Stack from "@foxglove/studio-base/components/Stack";
 import {
   READ_AHEAD_DURATION_DEFAULT_SECONDS,
@@ -500,13 +500,13 @@ export function LanguageSettings(): React.ReactElement {
   return (
     <Stack>
       <FormLabel>{t("language")}:</FormLabel>
-      <Select<Language> value={selectedLanguage} fullWidth onChange={onChangeLanguage}>
+      <SmartSelect<Language> value={selectedLanguage} fullWidth onChange={onChangeLanguage}>
         {options.map((option) => (
           <MenuItem key={option.key} value={option.key}>
             {option.text}
           </MenuItem>
         ))}
-      </Select>
+      </SmartSelect>
     </Stack>
   );
 }
@@ -586,7 +586,7 @@ export function InactivityTimeout(): React.ReactElement {
           </Tooltip>
         </Stack>
       </FormLabel>
-      <Select
+      <SmartSelect
         value={timeoutMinutes ?? 30}
         fullWidth
         onChange={(event) => void setTimeoutMinutes(event.target.value)}
@@ -596,7 +596,7 @@ export function InactivityTimeout(): React.ReactElement {
             {option.text}
           </MenuItem>
         ))}
-      </Select>
+      </SmartSelect>
     </Stack>
   );
 }
@@ -661,7 +661,7 @@ export function RetentionWindowMs(): React.ReactElement {
           </Tooltip>
         </Stack>
       </FormLabel>
-      <Select
+      <SmartSelect
         value={retentionWindowMs ?? 30 * 1000}
         fullWidth
         onChange={(event) => {
@@ -676,7 +676,7 @@ export function RetentionWindowMs(): React.ReactElement {
             {option.text}
           </MenuItem>
         ))}
-      </Select>
+      </SmartSelect>
       {showTips && (
         <Stack>
           <Typography color={theme.palette.warning.main}>
