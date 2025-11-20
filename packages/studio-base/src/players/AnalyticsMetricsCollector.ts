@@ -24,20 +24,37 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
   #analytics: IAnalytics;
   #sourceId: string | undefined;
   #metadata: EventData = {};
+  #intervalId: ReturnType<typeof setInterval> | undefined;
+  #lastTickTime: number | undefined;
 
   public constructor({ analytics }: { analytics: IAnalytics }) {
     log.debug("New AnalyticsMetricsCollector");
     this.#timeStatistics = 0;
     this.#analytics = analytics;
 
-    setInterval(async () => {
-      if (this.#playing) {
-        this.#timeStatistics += 0.1;
-        if (~~(this.#timeStatistics * 10) % 50 === 0) {
-          void this.#syncEventToAnalytics({
-            event: AppEvent.PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL,
-          });
-        }
+    this.#intervalId = setInterval(async () => {
+      if (!this.#playing) {
+        this.#lastTickTime = undefined;
+        return;
+      }
+
+      const now = performance.now();
+      if (this.#lastTickTime == undefined) {
+        this.#lastTickTime = now;
+        return;
+      }
+
+      const delta = (now - this.#lastTickTime) / 1000;
+      this.#lastTickTime = now;
+
+      const oldTime = this.#timeStatistics;
+      this.#timeStatistics += delta;
+
+      // Report every 5 seconds of playback
+      if (Math.floor(this.#timeStatistics / 5) > Math.floor(oldTime / 5)) {
+        void this.#syncEventToAnalytics({
+          event: AppEvent.PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL,
+        });
       }
     }, 100);
   }
@@ -70,6 +87,10 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     console.debug(`coScene setSpeed: ${speed}`);
   }
   public close(): void {
+    if (this.#intervalId != undefined) {
+      clearInterval(this.#intervalId);
+      this.#intervalId = undefined;
+    }
     console.debug(`coScene close`);
   }
   public setSubscriptions(subscriptions: SubscribePayload[]): void {
