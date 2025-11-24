@@ -412,7 +412,6 @@ export function ThreeDeeRender(props: {
     context.watch("didSeek");
     context.watch("parameters");
     context.watch("sharedPanelState");
-    // TODO: topics 的订阅会导致非常频繁的渲染，确实是否是正常现象
     context.watch("topics");
     context.watch("appSettings");
     context.subscribeAppSettings([AppSetting.TIMEZONE, AppSetting.TF_COMPATIBILITY_MODE]);
