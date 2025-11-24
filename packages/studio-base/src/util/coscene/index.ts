@@ -6,10 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // coScene custom tools
-import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
-import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { JsonObject, ServiceType, Struct } from "@bufbuild/protobuf";
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { JsonObject, DescService } from "@bufbuild/protobuf";
+import { createClient, Client, Interceptor } from "@connectrpc/connect";
+import { createGrpcWebTransport } from "@connectrpc/connect-web";
+import { File } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
@@ -94,8 +94,8 @@ const setLocaleInfoUnaryInterceptor: Interceptor = (next) => async (req) => {
   return await next(req);
 };
 
-export function getPromiseClient<T extends ServiceType>(service: T): PromiseClient<T> {
-  return createPromiseClient(
+export function getPromiseClient<T extends DescService>(service: T): Client<T> {
+  return createClient(
     service,
     createGrpcWebTransport({
       baseUrl: window.cosConfig?.VITE_APP_BASE_API_URL ?? "https://api.coscene.cn",
@@ -104,34 +104,67 @@ export function getPromiseClient<T extends ServiceType>(service: T): PromiseClie
   );
 }
 
-export function convertJsonToStruct(json: Record<string, unknown>): Struct {
-  // 递归函数，将所有 undefined 替换为 null
-  function replaceUndefinedWithNull(obj: unknown): unknown {
-    // eslint-disable-next-line
-    if (obj === undefined) {
-      // eslint-disable-next-line no-restricted-syntax
-      return null;
-    }
+export function convertJsonToJsonObject(json: Record<string, unknown>): JsonObject {
+  const normalized = normalizeJsonValue(json);
+  assertJsonObject(normalized);
+  return normalized;
+}
 
-    if (Array.isArray(obj)) {
-      return obj.map(replaceUndefinedWithNull);
-    }
-
-    // eslint-disable-next-line
-    if (typeof obj === "object" && obj !== null) {
-      const result: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(obj)) {
-        result[key] = replaceUndefinedWithNull(value);
-      }
-      return result;
-    }
-
-    return obj;
+const normalizeJsonValue = (value: unknown): unknown => {
+  if (value == undefined) {
+    // eslint-disable-next-line no-restricted-syntax -- Protobuf Struct 需要 null 来表示缺失字段
+    return null;
   }
 
-  // 先替换 undefined 为 null，然后转换为 Struct
-  const processedJson = replaceUndefinedWithNull(json) as JsonObject;
-  return Struct.fromJson(processedJson);
+  if (Array.isArray(value)) {
+    let mutated = false;
+    const normalized: unknown[] = [];
+
+    for (const item of value) {
+      const result = normalizeJsonValue(item);
+      normalized.push(result);
+      if (result !== item) {
+        mutated = true;
+      }
+    }
+
+    if (!mutated) {
+      return value;
+    }
+    return normalized;
+  }
+
+  if (isRecordLike(value)) {
+    let mutated = false;
+    const result: Record<string, unknown> = {};
+
+    for (const [key, inner] of Object.entries(value)) {
+      const normalized = normalizeJsonValue(inner);
+      result[key] = normalized;
+      mutated ||= normalized !== inner;
+    }
+
+    if (!mutated) {
+      return value;
+    }
+    return result;
+  }
+
+  return value;
+};
+
+function assertJsonObject(value: unknown): asserts value is JsonObject {
+  if (!isJsonObjectValue(value)) {
+    throw new Error("convertJsonToJsonObject expects a JSON object");
+  }
+}
+
+function isJsonObjectValue(value: unknown): value is JsonObject {
+  return value != undefined && typeof value === "object" && !Array.isArray(value);
+}
+
+function isRecordLike(value: unknown): value is Record<string, unknown> {
+  return value != undefined && typeof value === "object" && !Array.isArray(value);
 }
 
 export function replaceNullWithUndefined(obj: unknown): unknown {

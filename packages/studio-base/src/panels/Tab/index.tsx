@@ -167,7 +167,7 @@ function Tab({ config, saveConfig }: Props) {
           <EmptyPanelLayout tabId={panelId} />
         ) : renderAllTabs ? (
           /* Render all tabs but control visibility with CSS */
-          tabs.map((tab, tabIndex) => {
+          (tabs.map((tab, tabIndex) => {
             const isActive = tabIndex === activeTabIdx;
             const tabLayout = tab.layout;
             const stableKey = tabKeys[tabIndex];
@@ -192,7 +192,7 @@ function Tab({ config, saveConfig }: Props) {
                 )}
               </div>
             );
-          })
+          }))
         ) : activeLayout != undefined ? (
           <TabDndContext.Provider value={{ preventTabDrop }}>
             <UnconnectedPanelLayout

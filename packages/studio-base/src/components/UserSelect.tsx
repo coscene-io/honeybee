@@ -8,7 +8,7 @@
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
-import { User } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
+import { User } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
 import PersonIcon from "@mui/icons-material/Person";
 import { Autocomplete, Box, TextField, Chip, Avatar } from "@mui/material";
 import PinyinMatch from "pinyin-match";

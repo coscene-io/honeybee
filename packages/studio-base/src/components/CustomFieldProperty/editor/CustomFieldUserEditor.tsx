@@ -5,8 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { UserValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import type { CustomFieldValue } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { create } from "@bufbuild/protobuf";
+import { UserValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { useTranslation } from "react-i18next";
 
 import { UserSelect } from "@foxglove/studio-base/components/UserSelect";
@@ -64,7 +65,7 @@ export function CustomFieldUserEditor({
             });
             customFieldValue.value = {
               case: "user",
-              value: new UserValue({ ids: userIds }),
+              value: create(UserValueSchema, { ids: userIds }),
             };
           } else {
             customFieldValue.value = { case: undefined };
@@ -86,7 +87,7 @@ export function CustomFieldUserEditor({
         if (!Array.isArray(user)) {
           customFieldValue.value = {
             case: "user",
-            value: new UserValue({ ids: [user.name.split("/").pop() ?? ""] }),
+            value: create(UserValueSchema, { ids: [user.name.split("/").pop() ?? ""] }),
           };
           onChange(customFieldValue);
         }

@@ -8,8 +8,8 @@
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
-import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
-import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
+import { Label } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/label_pb";
+import { Task } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 
 export type ButtonType = "startCollection" | "endCollection" | "cancelCollection";
 

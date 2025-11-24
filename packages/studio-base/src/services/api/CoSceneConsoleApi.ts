@@ -5,145 +5,159 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { PartialMessage, Empty, FieldMask } from "@bufbuild/protobuf";
-import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
-import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import type { Role } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
-import { Policy_Effect } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
-import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
-import { LabelService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/label_connect";
+import { create, fromBinary, MessageInitShape } from "@bufbuild/protobuf";
+import { Empty, FieldMask } from "@bufbuild/protobuf/wkt";
+import type { Label } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/label_pb";
+import type { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import type { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import type { Role } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/role_pb";
+import { Policy_Effect } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/role_pb";
+import type { User as CoUser } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
 import {
-  CreateLabelRequest,
-  DeleteLabelRequest,
-  ListLabelsRequest,
-  ListLabelsResponse,
-  UpdateLabelRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/label_pb";
-import { OrganizationService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_connect";
-import { GetOrganizationRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/organization_pb";
-import { ProjectService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_connect";
+  LabelService,
+  CreateLabelRequestSchema,
+  DeleteLabelRequestSchema,
+  ListLabelsRequestSchema,
+  UpdateLabelRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/label_pb";
+import type { ListLabelsResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/label_pb";
 import {
-  GetProjectRequest,
-  ListUserProjectsRequest,
-  ListUserProjectsResponse,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
-import { RoleService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_connect";
+  OrganizationService,
+  GetOrganizationRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/organization_pb";
 import {
-  ListUserRolesResponse,
-  ListUserRolesRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/role_pb";
-import { SubscriptionService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/subscription_connect";
+  ProjectService,
+  GetProjectRequestSchema,
+  ListUserProjectsRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/project_pb";
+import type { ListUserProjectsResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/project_pb";
 import {
-  ListOrganizationSubscriptionsRequest,
-  ListOrganizationSubscriptionsResponse,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/subscription_pb";
-import { UserService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_connect";
+  RoleService,
+  ListUserRolesRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/role_pb";
+import type { ListUserRolesResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/role_pb";
 import {
-  GetUserRequest,
-  BatchGetUsersRequest,
-  BatchGetUsersResponse,
-  ListOrganizationUsersRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/user_pb";
-import { LayoutViewEnum_LayoutView } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_view_pb";
-import { ConfigMap } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/config_map_pb";
-import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
-import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
-import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
-import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
-import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { ConfigMapService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_connect";
+  SubscriptionService,
+  ListOrganizationSubscriptionsRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/subscription_pb";
+import type { ListOrganizationSubscriptionsResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/subscription_pb";
 import {
-  GetConfigMapRequest,
-  UpsertConfigMapRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/config_map_pb";
-import { DeviceService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_connect";
+  UserService,
+  GetUserRequestSchema,
+  BatchGetUsersRequestSchema,
+  ListOrganizationUsersRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/user_pb";
+import type { BatchGetUsersResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/user_pb";
+import { LayoutViewEnum_LayoutView } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/enums/layout_view_pb";
+import type { ConfigMap } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/config_map_pb";
+import type { Device } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/device_pb";
+import type { DiagnosisRule } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
+import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
+import type { Event } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
+import type { Layout } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import type { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
 import {
-  GetDeviceRequest,
-  ListProjectDevicesRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_pb";
-import { DiagnosisService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_connect";
-import { GetDiagnosisRuleRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/diagnosis_rule_pb";
-import { EventService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_connect";
+  ConfigMapService,
+  GetConfigMapRequestSchema,
+  UpsertConfigMapRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/config_map_pb";
 import {
-  CreateEventRequest,
-  DeleteEventRequest,
-  UpdateEventRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/event_pb";
-import { LayoutService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_connect";
+  DeviceService,
+  GetDeviceRequestSchema,
+  ListProjectDevicesRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/device_pb";
 import {
-  GetUserLayoutRequest,
-  GetProjectLayoutRequest,
-  CreateUserLayoutRequest,
-  CreateProjectLayoutRequest,
-  UpdateUserLayoutRequest,
-  UpdateProjectLayoutRequest,
-  DeleteUserLayoutRequest,
-  DeleteProjectLayoutRequest,
-  ListUserLayoutsRequest,
+  DiagnosisService,
+  GetDiagnosisRuleRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/diagnosis_rule_pb";
+import {
+  EventService,
+  CreateEventRequestSchema,
+  DeleteEventRequestSchema,
+  UpdateEventRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/event_pb";
+import {
+  LayoutService,
+  GetUserLayoutRequestSchema,
+  GetProjectLayoutRequestSchema,
+  CreateUserLayoutRequestSchema,
+  CreateProjectLayoutRequestSchema,
+  UpdateUserLayoutRequestSchema,
+  UpdateProjectLayoutRequestSchema,
+  DeleteUserLayoutRequestSchema,
+  DeleteProjectLayoutRequestSchema,
+  ListUserLayoutsRequestSchema,
+  ListProjectLayoutsRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/layout_pb";
+import type {
   ListUserLayoutsResponse,
-  ListProjectLayoutsRequest,
   ListProjectLayoutsResponse,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/layout_pb";
-import { RecordService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_connect";
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/layout_pb";
 import {
-  GetRecordRequest,
-  ListRecordsRequest,
-  ListRecordsResponse,
-  CreateRecordRequest,
-  UpdateRecordRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
-import { TicketSystemService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/ticket_system_connect";
+  RecordService,
+  GetRecordRequestSchema,
+  ListRecordsRequestSchema,
+  CreateRecordRequestSchema,
+  UpdateRecordRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
+import type { ListRecordsResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
 import {
-  GetTicketSystemMetadataRequest,
-  TicketSystemMetadata,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
-import {
+  TicketSystemService,
+  GetTicketSystemMetadataRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
+import type { TicketSystemMetadata } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
+import type {
   CustomFieldValue,
   CustomFieldSchema,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
-import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
-import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
-import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
-import { CustomFieldService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/custom_field_connect";
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_category_pb";
+import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_state_pb";
+import { FileSchema as File_esSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
+import type { File as File_es } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { TaskSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
+import type { Task } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 import {
-  GetRecordCustomFieldSchemaRequest,
-  GetMomentCustomFieldSchemaRequest,
-  GetDeviceCustomFieldSchemaRequest,
-  GetTaskCustomFieldSchemaRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/custom_field_pb";
-import { FileService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_connect";
+  CustomFieldService,
+  GetRecordCustomFieldSchemaRequestSchema,
+  GetMomentCustomFieldSchemaRequestSchema,
+  GetDeviceCustomFieldSchemaRequestSchema,
+  GetTaskCustomFieldSchemaRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/custom_field_pb";
 import {
-  ListFilesRequest,
+  FileService,
+  ListFilesRequestSchema,
+  DeleteFileRequestSchema,
+  GenerateFileDownloadUrlRequestSchema,
+  GenerateFileUploadUrlsRequestSchema,
+  GetFileRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
+import type {
   ListFilesResponse,
-  DeleteFileRequest,
-  GenerateFileDownloadUrlRequest,
   GenerateFileDownloadUrlResponse,
-  GenerateFileUploadUrlsRequest,
   GenerateFileUploadUrlsResponse,
-  GetFileRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
-import { TaskService } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_connect";
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
 import {
-  UpsertTaskRequest,
-  SyncTaskRequest,
-  CreateTaskRequest,
-  GetTaskRequest,
-  ListTasksResponse,
-  ListTasksRequest,
-  UpdateTaskRequest,
-  LinkTaskRequest,
-  UnlinkTaskRequest,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
-import { SecurityTokenService } from "@coscene-io/cosceneapis-es/coscene/datastorage/v1alpha1/services/security_token_connect";
+  TaskService,
+  UpsertTaskRequestSchema,
+  SyncTaskRequestSchema,
+  CreateTaskRequestSchema,
+  GetTaskRequestSchema,
+  ListTasksRequestSchema,
+  UpdateTaskRequestSchema,
+  LinkTaskRequestSchema,
+  UnlinkTaskRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/task_pb";
+import type { ListTasksResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/task_pb";
 import {
-  GenerateSecurityTokenRequest,
-  GenerateSecurityTokenResponse,
-} from "@coscene-io/cosceneapis-es/coscene/datastorage/v1alpha1/services/security_token_pb";
-import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resources/job_run_pb";
-import { JobRunService } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_connect";
-import { GetJobRunRequest } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/services/job_run_pb";
+  SecurityTokenService,
+  GenerateSecurityTokenRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/datastorage/v1alpha1/services/security_token_pb";
+import type { GenerateSecurityTokenResponse } from "@coscene-io/cosceneapis-es-v2/coscene/datastorage/v1alpha1/services/security_token_pb";
+import type { JobRun } from "@coscene-io/cosceneapis-es-v2/coscene/matrix/v1alpha1/resources/job_run_pb";
+import {
+  JobRunService,
+  GetJobRunRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/matrix/v1alpha1/services/job_run_pb";
 import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import toast from "react-hot-toast";
@@ -526,7 +540,7 @@ class CoSceneConsoleApi {
     parent: string;
     layout: Layout;
   }): Promise<Layout> {
-    const req = new CreateUserLayoutRequest({
+    const req = create(CreateUserLayoutRequestSchema, {
       parent,
       layout,
     });
@@ -534,7 +548,7 @@ class CoSceneConsoleApi {
   }
 
   public async getUserLayout({ name }: { name: string }): Promise<Layout> {
-    const req = new GetUserLayoutRequest({ name });
+    const req = create(GetUserLayoutRequestSchema, { name });
     return await getPromiseClient(LayoutService).getUserLayout(req);
   }
 
@@ -547,7 +561,7 @@ class CoSceneConsoleApi {
     filter?: string;
     view?: LayoutViewEnum_LayoutView;
   }): Promise<ListUserLayoutsResponse> {
-    const req = new ListUserLayoutsRequest({
+    const req = create(ListUserLayoutsRequestSchema, {
       parent,
       filter,
       view,
@@ -562,7 +576,7 @@ class CoSceneConsoleApi {
     layout: Layout;
     updateMask?: FieldMask;
   }): Promise<Layout> {
-    const req = new UpdateUserLayoutRequest({
+    const req = create(UpdateUserLayoutRequestSchema, {
       userLayout: layout,
       updateMask,
     });
@@ -570,13 +584,13 @@ class CoSceneConsoleApi {
   }
 
   public async deleteUserLayout({ name }: { name: string }): Promise<Empty> {
-    const req = new DeleteUserLayoutRequest({ name });
+    const req = create(DeleteUserLayoutRequestSchema, { name });
     return await getPromiseClient(LayoutService).deleteUserLayout(req);
   }
 
   public createProjectLayout = Object.assign(
     async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
-      const req = new CreateProjectLayoutRequest({
+      const req = create(CreateProjectLayoutRequestSchema, {
         parent,
         layout,
       });
@@ -594,7 +608,7 @@ class CoSceneConsoleApi {
 
   public getProjectLayout = Object.assign(
     async ({ name }: { name: string }): Promise<Layout> => {
-      const req = new GetProjectLayoutRequest({ name });
+      const req = create(GetProjectLayoutRequestSchema, { name });
       return await getPromiseClient(LayoutService).getProjectLayout(req);
     },
     {
@@ -617,7 +631,7 @@ class CoSceneConsoleApi {
       filter?: string;
       view?: LayoutViewEnum_LayoutView;
     }): Promise<ListProjectLayoutsResponse> => {
-      const req = new ListProjectLayoutsRequest({
+      const req = create(ListProjectLayoutsRequestSchema, {
         parent,
         filter,
         view,
@@ -636,7 +650,7 @@ class CoSceneConsoleApi {
 
   public updateProjectLayout = Object.assign(
     async ({ layout, updateMask }: { layout: Layout; updateMask?: FieldMask }): Promise<Layout> => {
-      const req = new UpdateProjectLayoutRequest({
+      const req = create(UpdateProjectLayoutRequestSchema, {
         projectLayout: layout,
         updateMask,
       });
@@ -654,7 +668,7 @@ class CoSceneConsoleApi {
 
   public deleteProjectLayout = Object.assign(
     async ({ name }: { name: string }): Promise<Empty> => {
-      const req = new DeleteProjectLayoutRequest({ name });
+      const req = create(DeleteProjectLayoutRequestSchema, { name });
       return await getPromiseClient(LayoutService).deleteProjectLayout(req);
     },
     {
@@ -884,7 +898,7 @@ class CoSceneConsoleApi {
       parent: string;
       recordName: string;
     }): Promise<Event> => {
-      const createEventRequest = new CreateEventRequest({
+      const createEventRequest = create(CreateEventRequestSchema, {
         parent,
         event,
         record: recordName,
@@ -915,7 +929,7 @@ class CoSceneConsoleApi {
         uint8Array[i] = binaryString.charCodeAt(i);
       }
       return {
-        event: Event.fromBinary(uint8Array),
+        event: fromBinary(EventSchema, uint8Array),
         projectDisplayName: event.projectDisplayName,
         recordDisplayName: event.recordDisplayName,
       };
@@ -923,7 +937,7 @@ class CoSceneConsoleApi {
   }
 
   public async deleteEvent({ eventName }: { eventName: string }): Promise<Empty> {
-    const deleteEventRequest = new DeleteEventRequest({
+    const deleteEventRequest = create(DeleteEventRequestSchema, {
       name: eventName,
     });
 
@@ -932,7 +946,7 @@ class CoSceneConsoleApi {
 
   public updateEvent = Object.assign(
     async ({ event, updateMask }: { event: Event; updateMask: FieldMask }): Promise<void> => {
-      const req = new UpdateEventRequest({
+      const req = create(UpdateEventRequestSchema, {
         event,
         updateMask,
       });
@@ -948,7 +962,7 @@ class CoSceneConsoleApi {
 
   // user detail info only for current user
   public async getUser(userName: string): Promise<CoUser> {
-    const request = new GetUserRequest({
+    const request = create(GetUserRequestSchema, {
       name: userName,
     });
     const result = await getPromiseClient(UserService).getUser(request);
@@ -957,14 +971,14 @@ class CoSceneConsoleApi {
 
   // no sensitive info, can get all users info
   public async batchGetUsers(userNames: string[]): Promise<BatchGetUsersResponse> {
-    const request = new BatchGetUsersRequest({
+    const request = create(BatchGetUsersRequestSchema, {
       names: userNames,
     });
     return await getPromiseClient(UserService).batchGetUsers(request);
   }
 
   public async getOrg(orgName: string): Promise<Organization> {
-    const request = new GetOrganizationRequest({ name: orgName });
+    const request = create(GetOrganizationRequestSchema, { name: orgName });
     return await getPromiseClient(OrganizationService).getOrganization(request);
   }
 
@@ -985,7 +999,7 @@ class CoSceneConsoleApi {
       event: Event;
     }): Promise<Task> => {
       const currentUser = await this.getUser("users/current");
-      const newTask = new Task({
+      const newTask = create(TaskSchema, {
         category: TaskCategoryEnum_TaskCategory.COMMON,
         title: task.title,
         description: task.description,
@@ -1004,7 +1018,7 @@ class CoSceneConsoleApi {
         customFieldValues: task.customFieldValues,
       });
 
-      const request = new UpsertTaskRequest({
+      const request = create(UpsertTaskRequestSchema, {
         parent,
         task: newTask,
       });
@@ -1020,7 +1034,7 @@ class CoSceneConsoleApi {
 
   public createTask_v2 = Object.assign(
     async ({ parent, task }: { parent: string; task: Task }): Promise<Task> => {
-      const request = new CreateTaskRequest({
+      const request = create(CreateTaskRequestSchema, {
         parent,
         task,
       });
@@ -1039,7 +1053,7 @@ class CoSceneConsoleApi {
   }: {
     parent: string;
   }): Promise<TicketSystemMetadata> {
-    const request = new GetTicketSystemMetadataRequest({
+    const request = create(GetTicketSystemMetadataRequestSchema, {
       name: parent,
     });
     const result = await getPromiseClient(TicketSystemService).getTicketSystemMetadata(request);
@@ -1047,7 +1061,7 @@ class CoSceneConsoleApi {
   }
 
   public async syncTask({ name }: { name: string }): Promise<void> {
-    const req = new SyncTaskRequest({
+    const req = create(SyncTaskRequestSchema, {
       name,
     });
 
@@ -1055,7 +1069,7 @@ class CoSceneConsoleApi {
   }
 
   public async listOrganizationUsers(): Promise<CoUser[]> {
-    const request = new ListOrganizationUsersRequest({
+    const request = create(ListOrganizationUsersRequestSchema, {
       parent: "organizations/current",
       pageSize: 100,
     });
@@ -1064,7 +1078,7 @@ class CoSceneConsoleApi {
   }
 
   public async getRecord({ recordName }: { recordName: string }): Promise<CoSceneRecord> {
-    const req = new GetRecordRequest({
+    const req = create(GetRecordRequestSchema, {
       name: recordName,
     });
 
@@ -1072,7 +1086,7 @@ class CoSceneConsoleApi {
   }
 
   public async getProject({ projectName }: { projectName: string }): Promise<Project> {
-    const req = new GetProjectRequest({
+    const req = create(GetProjectRequestSchema, {
       name: projectName,
     });
     return await getPromiseClient(ProjectService).getProject(req);
@@ -1089,7 +1103,7 @@ class CoSceneConsoleApi {
     filter?: string;
     currentPage: number;
   }): Promise<ListUserProjectsResponse> {
-    const req = new ListUserProjectsRequest({
+    const req = create(ListUserProjectsRequestSchema, {
       parent: `users/${userId}`,
       pageSize,
       skip: pageSize * currentPage,
@@ -1115,7 +1129,7 @@ class CoSceneConsoleApi {
     filter: string;
     currentPage: number;
   }): Promise<ListRecordsResponse> {
-    const req = new ListRecordsRequest({
+    const req = create(ListRecordsRequestSchema, {
       parent: projectName,
       filter,
       pageSize,
@@ -1138,7 +1152,7 @@ class CoSceneConsoleApi {
     filter?: string;
     currentPage: number;
   }): Promise<ListFilesResponse> {
-    const req = new ListFilesRequest({
+    const req = create(ListFilesRequestSchema, {
       parent,
       filter,
       pageSize,
@@ -1151,9 +1165,9 @@ class CoSceneConsoleApi {
   }
 
   public async generateFileUploadUrls(
-    payload: PartialMessage<GenerateFileUploadUrlsRequest>,
+    payload: MessageInitShape<typeof GenerateFileUploadUrlsRequestSchema>,
   ): Promise<GenerateFileUploadUrlsResponse> {
-    const req = new GenerateFileUploadUrlsRequest(payload);
+    const req = create(GenerateFileUploadUrlsRequestSchema, payload);
     return await getPromiseClient(FileService)
       .generateFileUploadUrls(req)
       .catch((err: unknown) => {
@@ -1177,7 +1191,7 @@ class CoSceneConsoleApi {
       targetDir: ".cos/moments",
     });
 
-    const Es_file = new File_es({
+    const Es_file = create(File_esSchema, {
       filename,
       name,
       size: BigInt(file.size),
@@ -1201,9 +1215,9 @@ class CoSceneConsoleApi {
   }
 
   public async generateFileDownloadUrl(
-    payload: PartialMessage<GenerateFileDownloadUrlRequest>,
+    payload: MessageInitShape<typeof GenerateFileDownloadUrlRequestSchema>,
   ): Promise<GenerateFileDownloadUrlResponse> {
-    const req = new GenerateFileDownloadUrlRequest(payload);
+    const req = create(GenerateFileDownloadUrlRequestSchema, payload);
     return await getPromiseClient(FileService)
       .generateFileDownloadUrl(req)
       .catch((err: unknown) => {
@@ -1215,7 +1229,7 @@ class CoSceneConsoleApi {
   public async getJobRun(jobRunName: string): Promise<JobRun> {
     const jobRunClient = getPromiseClient(JobRunService);
 
-    const req = new GetJobRunRequest({
+    const req = create(GetJobRunRequestSchema, {
       name: jobRunName,
     });
 
@@ -1242,8 +1256,10 @@ class CoSceneConsoleApi {
     return key.id;
   }
 
-  public async deleteFile(payload: PartialMessage<DeleteFileRequest>): Promise<void> {
-    const req = new DeleteFileRequest(payload);
+  public async deleteFile(
+    payload: MessageInitShape<typeof DeleteFileRequestSchema>,
+  ): Promise<void> {
+    const req = create(DeleteFileRequestSchema, payload);
     await getPromiseClient(FileService)
       .deleteFile(req)
       .catch((err: unknown) => {
@@ -1257,8 +1273,8 @@ class CoSceneConsoleApi {
   }
 
   public createRecord = Object.assign(
-    async (payload: PartialMessage<CreateRecordRequest>): Promise<CoSceneRecord> => {
-      const req = new CreateRecordRequest(payload);
+    async (payload: MessageInitShape<typeof CreateRecordRequestSchema>): Promise<CoSceneRecord> => {
+      const req = create(CreateRecordRequestSchema, payload);
       return await getPromiseClient(RecordService).createRecord(req);
     },
     {
@@ -1274,7 +1290,7 @@ class CoSceneConsoleApi {
 
     const name = `warehouses/${warehouseId}/projects/${projectId}/diagnosisRule`;
 
-    const req = new GetDiagnosisRuleRequest({
+    const req = create(GetDiagnosisRuleRequestSchema, {
       name,
     });
 
@@ -1294,7 +1310,7 @@ class CoSceneConsoleApi {
       ? `warehouses/${this.#baseInfo.warehouseId}/projects/${this.#baseInfo.projectId}`
       : undefined;
 
-    const req = new ListUserRolesRequest({ parent });
+    const req = create(ListUserRolesRequestSchema, { parent });
     return await getPromiseClient(RoleService).listUserRoles(req);
   }
 
@@ -1343,7 +1359,7 @@ class CoSceneConsoleApi {
       realFilter.mergeFrom(filter);
       const realFilterStr = realFilter.toQueryString(new SerializeOption(false));
 
-      const req = new ListProjectDevicesRequest({
+      const req = create(ListProjectDevicesRequestSchema, {
         orderBy: "create_time desc",
         parent: `warehouses/${warehouseId}/projects/${projectId}`,
         filter: realFilterStr,
@@ -1373,7 +1389,7 @@ class CoSceneConsoleApi {
       warehouseId: string;
       projectId: string;
     }): Promise<ListLabelsResponse> => {
-      const req = new ListLabelsRequest({
+      const req = create(ListLabelsRequestSchema, {
         parent: `warehouses/${warehouseId}/projects/${projectId}`,
         pageSize,
       });
@@ -1388,8 +1404,8 @@ class CoSceneConsoleApi {
   );
 
   public createLabel = Object.assign(
-    async (payload: PartialMessage<CreateLabelRequest>): Promise<Label> => {
-      const req = new CreateLabelRequest(payload);
+    async (payload: MessageInitShape<typeof CreateLabelRequestSchema>): Promise<Label> => {
+      const req = create(CreateLabelRequestSchema, payload);
       return await getPromiseClient(LabelService).createLabel(req);
     },
     {
@@ -1400,8 +1416,8 @@ class CoSceneConsoleApi {
   );
 
   public deleteLabel = Object.assign(
-    async (payload: PartialMessage<DeleteLabelRequest>): Promise<void> => {
-      const req = new DeleteLabelRequest(payload);
+    async (payload: MessageInitShape<typeof DeleteLabelRequestSchema>): Promise<void> => {
+      const req = create(DeleteLabelRequestSchema, payload);
       await getPromiseClient(LabelService).deleteLabel(req);
     },
     {
@@ -1412,8 +1428,8 @@ class CoSceneConsoleApi {
   );
 
   public updateLabel = Object.assign(
-    async (payload: PartialMessage<UpdateLabelRequest>): Promise<Label> => {
-      const req = new UpdateLabelRequest(payload);
+    async (payload: MessageInitShape<typeof UpdateLabelRequestSchema>): Promise<Label> => {
+      const req = create(UpdateLabelRequestSchema, payload);
       return await getPromiseClient(LabelService).updateLabel(req);
     },
     {
@@ -1424,8 +1440,8 @@ class CoSceneConsoleApi {
   );
 
   public updateRecord = Object.assign(
-    async (payload: PartialMessage<UpdateRecordRequest>): Promise<CoSceneRecord> => {
-      const req = new UpdateRecordRequest(payload);
+    async (payload: MessageInitShape<typeof UpdateRecordRequestSchema>): Promise<CoSceneRecord> => {
+      const req = create(UpdateRecordRequestSchema, payload);
       return await getPromiseClient(RecordService).updateRecord(req);
     },
     {
@@ -1437,7 +1453,7 @@ class CoSceneConsoleApi {
 
   public getDevice = Object.assign(
     async ({ deviceName }: { deviceName: string }): Promise<Device> => {
-      const req = new GetDeviceRequest({ name: deviceName });
+      const req = create(GetDeviceRequestSchema, { name: deviceName });
       return await getPromiseClient(DeviceService).getDevice(req);
     },
     {
@@ -1449,7 +1465,7 @@ class CoSceneConsoleApi {
 
   public getTask = Object.assign(
     async ({ taskName }: { taskName: string }): Promise<Task> => {
-      const req = new GetTaskRequest({ name: taskName });
+      const req = create(GetTaskRequestSchema, { name: taskName });
       return await getPromiseClient(TaskService).getTask(req);
     },
     {
@@ -1461,9 +1477,9 @@ class CoSceneConsoleApi {
 
   public listOrganizationSubscriptions = Object.assign(
     async (
-      payload: PartialMessage<ListOrganizationSubscriptionsRequest>,
+      payload: MessageInitShape<typeof ListOrganizationSubscriptionsRequestSchema>,
     ): Promise<ListOrganizationSubscriptionsResponse> => {
-      const req = new ListOrganizationSubscriptionsRequest(payload);
+      const req = create(ListOrganizationSubscriptionsRequestSchema, payload);
       return await getPromiseClient(SubscriptionService).listOrganizationSubscriptions(req);
     },
     {
@@ -1478,7 +1494,7 @@ class CoSceneConsoleApi {
 
   public getRecordCustomFieldSchema = Object.assign(
     async (project: string): Promise<CustomFieldSchema> => {
-      const req = new GetRecordCustomFieldSchemaRequest({ project });
+      const req = create(GetRecordCustomFieldSchemaRequestSchema, { project });
       return await getPromiseClient(CustomFieldService).getRecordCustomFieldSchema(req);
     },
     {
@@ -1493,7 +1509,7 @@ class CoSceneConsoleApi {
 
   public getMomentCustomFieldSchema = Object.assign(
     async (project: string): Promise<CustomFieldSchema> => {
-      const req = new GetMomentCustomFieldSchemaRequest({ project });
+      const req = create(GetMomentCustomFieldSchemaRequestSchema, { project });
       return await getPromiseClient(CustomFieldService).getMomentCustomFieldSchema(req);
     },
     {
@@ -1508,7 +1524,7 @@ class CoSceneConsoleApi {
 
   public getDeviceCustomFieldSchema = Object.assign(
     async (): Promise<CustomFieldSchema> => {
-      const req = new GetDeviceCustomFieldSchemaRequest();
+      const req = create(GetDeviceCustomFieldSchemaRequestSchema);
       return await getPromiseClient(CustomFieldService).getDeviceCustomFieldSchema(req);
     },
     {
@@ -1523,7 +1539,7 @@ class CoSceneConsoleApi {
 
   public getTaskCustomFieldSchema = Object.assign(
     async (project: string): Promise<CustomFieldSchema> => {
-      const req = new GetTaskCustomFieldSchemaRequest({ project });
+      const req = create(GetTaskCustomFieldSchemaRequestSchema, { project });
       return await getPromiseClient(CustomFieldService).getTaskCustomFieldSchema(req);
     },
     {
@@ -1537,8 +1553,8 @@ class CoSceneConsoleApi {
   );
 
   public getFile = Object.assign(
-    async (payload: PartialMessage<GetFileRequest>): Promise<File_es> => {
-      const req = new GetFileRequest(payload);
+    async (payload: MessageInitShape<typeof GetFileRequestSchema>): Promise<File_es> => {
+      const req = create(GetFileRequestSchema, payload);
       return await getPromiseClient(FileService).getFile(req);
     },
     {
@@ -1550,9 +1566,9 @@ class CoSceneConsoleApi {
 
   public generateSecurityToken = Object.assign(
     async (
-      payload: PartialMessage<GenerateSecurityTokenRequest>,
+      payload: MessageInitShape<typeof GenerateSecurityTokenRequestSchema>,
     ): Promise<GenerateSecurityTokenResponse> => {
-      const req = new GenerateSecurityTokenRequest(payload);
+      const req = create(GenerateSecurityTokenRequestSchema, payload);
       return await getPromiseClient(SecurityTokenService).generateSecurityToken(req);
     },
     {
@@ -1566,8 +1582,10 @@ class CoSceneConsoleApi {
   );
 
   public listTasks = Object.assign(
-    async (payload: PartialMessage<ListTasksRequest>): Promise<ListTasksResponse> => {
-      const req = new ListTasksRequest(payload);
+    async (
+      payload: MessageInitShape<typeof ListTasksRequestSchema>,
+    ): Promise<ListTasksResponse> => {
+      const req = create(ListTasksRequestSchema, payload);
       return await getPromiseClient(TaskService).listTasks(req);
     },
     {
@@ -1578,8 +1596,8 @@ class CoSceneConsoleApi {
   );
 
   public updateTask = Object.assign(
-    async (payload: PartialMessage<UpdateTaskRequest>): Promise<Task> => {
-      const req = new UpdateTaskRequest(payload);
+    async (payload: MessageInitShape<typeof UpdateTaskRequestSchema>): Promise<Task> => {
+      const req = create(UpdateTaskRequestSchema, payload);
       return await getPromiseClient(TaskService).updateTask(req);
     },
     {
@@ -1590,8 +1608,8 @@ class CoSceneConsoleApi {
   );
 
   public linkTasks = Object.assign(
-    async (payload: PartialMessage<LinkTaskRequest>): Promise<Empty> => {
-      const req = new LinkTaskRequest(payload);
+    async (payload: MessageInitShape<typeof LinkTaskRequestSchema>): Promise<Empty> => {
+      const req = create(LinkTaskRequestSchema, payload);
       return await getPromiseClient(TaskService).linkTask(req);
     },
     {
@@ -1602,8 +1620,8 @@ class CoSceneConsoleApi {
   );
 
   public unlinkTasks = Object.assign(
-    async (payload: PartialMessage<UnlinkTaskRequest>): Promise<Empty> => {
-      const req = new UnlinkTaskRequest(payload);
+    async (payload: MessageInitShape<typeof UnlinkTaskRequestSchema>): Promise<Empty> => {
+      const req = create(UnlinkTaskRequestSchema, payload);
       return await getPromiseClient(TaskService).unlinkTask(req);
     },
     {
@@ -1631,8 +1649,8 @@ class CoSceneConsoleApi {
   }
 
   public upsertOrgConfigMap = Object.assign(
-    async (payload: PartialMessage<UpsertConfigMapRequest>): Promise<void> => {
-      const req = new UpsertConfigMapRequest(payload);
+    async (payload: MessageInitShape<typeof UpsertConfigMapRequestSchema>): Promise<void> => {
+      const req = create(UpsertConfigMapRequestSchema, payload);
       await getPromiseClient(ConfigMapService).upsertConfigMap(req);
     },
     {
@@ -1643,8 +1661,8 @@ class CoSceneConsoleApi {
   );
 
   public getOrgConfigMap = Object.assign(
-    async (payload: PartialMessage<GetConfigMapRequest>): Promise<ConfigMap> => {
-      const req = new GetConfigMapRequest(payload);
+    async (payload: MessageInitShape<typeof GetConfigMapRequestSchema>): Promise<ConfigMap> => {
+      const req = create(GetConfigMapRequestSchema, payload);
       return await getPromiseClient(ConfigMapService).getConfigMap(req);
     },
     {

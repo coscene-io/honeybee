@@ -5,10 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { FieldMask, JsonObject } from "@bufbuild/protobuf";
-import { User as CoUser } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/user_pb";
-import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
-import { Layout } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import { create } from "@bufbuild/protobuf";
+import { FieldMaskSchema, timestampDate, TimestampSchema } from "@bufbuild/protobuf/wkt";
+import { User as CoUser } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
+import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
+import { LayoutSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import type { Layout } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import _uniq from "lodash/uniq";
 
 import Logger from "@foxglove/log";
@@ -19,7 +21,10 @@ import {
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
-import { convertJsonToStruct, replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
+import {
+  convertJsonToJsonObject,
+  replaceNullWithUndefined,
+} from "@foxglove/studio-base/util/coscene";
 
 import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 
@@ -40,7 +45,7 @@ function convertGrpcLayoutToRemoteLayout({
 
   let data: LayoutData;
   try {
-    data = replaceNullWithUndefined(layout.data.toJson() as JsonObject) as LayoutData;
+    data = replaceNullWithUndefined(layout.data) as LayoutData;
   } catch (err) {
     throw new Error(`Invalid layout data for ${layout.displayName}: ${err}`);
   }
@@ -75,8 +80,12 @@ function convertGrpcLayoutToRemoteLayout({
     name: layout.displayName,
     permission,
     data,
-    savedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
-    updatedAt: layout.modifyTime?.toDate().toISOString() as ISO8601Timestamp,
+    savedAt: timestampDate(
+      layout.modifyTime ?? create(TimestampSchema, { seconds: BigInt(0), nanos: 0 }),
+    ).toISOString() as ISO8601Timestamp,
+    updatedAt: timestampDate(
+      layout.updateTime ?? create(TimestampSchema, { seconds: BigInt(0), nanos: 0 }),
+    ).toISOString() as ISO8601Timestamp,
     modifier: layout.modifier,
     modifierNickname: modifier?.nickname,
   };
@@ -170,11 +179,11 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     data: LayoutData;
     permission: LayoutPermission;
   }): Promise<RemoteLayout> {
-    const layout = new Layout({
+    const layout = create(LayoutSchema, {
       name: id,
       displayName: name,
       folder,
-      data: convertJsonToStruct(data),
+      data: convertJsonToJsonObject(data),
       scope:
         permission === "PERSONAL_WRITE"
           ? LayoutScopeEnum_LayoutScope.PERSONAL
@@ -215,12 +224,12 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       }
 
       // Create updated layout
-      const updatedLayout = new Layout({
+      const updatedLayout = create(LayoutSchema, {
         name: id,
       });
 
       // Create update mask for the fields we're updating
-      const updateMask = new FieldMask();
+      const updateMask = create(FieldMaskSchema);
       const paths: string[] = [];
       updateMask.paths = paths;
 
@@ -233,7 +242,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         paths.push("folder");
       }
       if (data != undefined) {
-        updatedLayout.data = convertJsonToStruct(data);
+        updatedLayout.data = convertJsonToJsonObject(data);
         paths.push("data");
       }
 

@@ -6,7 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import type { JsonValue } from "@bufbuild/protobuf";
-import { Value } from "@bufbuild/protobuf";
+import { fromJson, toJson } from "@bufbuild/protobuf";
+import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import Brightness5Icon from "@mui/icons-material/Brightness5";
 import ComputerIcon from "@mui/icons-material/Computer";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
@@ -462,13 +463,15 @@ export function LanguageSettings(): React.ReactElement {
         });
 
         const settings = {
-          ...(userConfig.value?.toJson() as
-            | {
-                settings?: {
-                  language?: string;
-                };
-              }
-            | undefined),
+          ...(userConfig.value != undefined &&
+            (toJson(ValueSchema, userConfig.value) as
+              | {
+                  settings?: {
+                    language?: string;
+                  };
+                }
+              | undefined)),
+
           settings: {
             language: lang,
           },
@@ -478,7 +481,9 @@ export function LanguageSettings(): React.ReactElement {
           configMap: {
             name: configName,
             value:
-              Object.keys(settings).length > 0 ? Value.fromJson(settings as JsonValue) : undefined,
+              Object.keys(settings).length > 0
+                ? fromJson(ValueSchema, settings as JsonValue)
+                : undefined,
           },
         });
       }
