@@ -1815,10 +1815,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
         // foxglove 暂不支持 fox 格式 前端暂时放过当前的问题
         name !== "rcl_interfaces/ParameterDescriptor"
       ) {
-        // this.#problems.addProblem(`schema-changed-${name}`, {
-        //   message: `Definition of schema '${name}' has changed during the server's runtime`,
-        //   severity: "error",
-        // });
+        this.#problems.addProblem(`schema-changed-${name}`, {
+          message: `Definition of schema '${name}' has changed during the server's runtime`,
+          severity: "error",
+        });
       } else {
         if (updatedDatatypes == undefined) {
           updatedDatatypes = new Map(this.#datatypes);
