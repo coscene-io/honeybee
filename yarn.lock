@@ -6194,7 +6194,7 @@ __metadata:
     "@mui/x-date-pickers": 8.8.0
     "@popperjs/core": ^2.11.8
     "@protobufjs/base64": 1.1.2
-    "@sentry/core": 8.24.0
+    "@sentry/core": 10.27.0
     "@sentry/types": 8.24.0
     "@storybook/addon-actions": 8.2.8
     "@storybook/jest": 0.2.3
@@ -7896,6 +7896,13 @@ __metadata:
   bin:
     sentry-cli: bin/sentry-cli
   checksum: 92e88688b5148e5abed2cc253290008da89029c5816d7f1bdb5fbed035305c0bcfb5f49e4976ff8ced5fbb876d28e655eef838d32c7a388d3582654ff67d65e0
+  languageName: node
+  linkType: hard
+
+"@sentry/core@npm:10.27.0":
+  version: 10.27.0
+  resolution: "@sentry/core@npm:10.27.0"
+  checksum: 83216a5629b23bfcb47816805b21756ff44b889caae6994fac4b98d045ae303ae50c0424b8aadc21e37438078534bed63277a74cf1dc23a6b3b41703c433a305
   languageName: node
   linkType: hard
 
