@@ -410,16 +410,13 @@ export default function PlayerManager(
 
             constructPlayers(newPlayer);
 
-            let recentId = undefined;
-            if (args.params?.key) {
-              recentId = addRecent({
-                type: "connection",
-                sourceId: foundSource.id,
-                title: args.params.url ?? t("onlineData"),
-                label: foundSource.displayName,
-                extra: args.params,
-              });
-            }
+            const recentId = addRecent({
+              type: "connection",
+              sourceId: foundSource.id,
+              title: args.params?.url ?? t("onlineData"),
+              label: foundSource.displayName,
+              extra: args.params,
+            });
 
             setDataSource({
               id: sourceId,
