@@ -5,7 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Role } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
+import { create } from "@bufbuild/protobuf";
+import { RoleSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/role_pb";
 import { useEffect } from "react";
 import { useAsyncFn } from "react-use";
 
@@ -52,9 +53,9 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
 
       const orgRoles = await consoleApi.listUserRoles({ isProjectRole: false });
 
-      const projectRoleCode = projectRoles.userRoles[0] ?? new Role();
+      const projectRoleCode = projectRoles.userRoles[0] ?? create(RoleSchema);
 
-      const orgRolesCode = orgRoles.userRoles[0] ?? new Role();
+      const orgRolesCode = orgRoles.userRoles[0] ?? create(RoleSchema);
 
       setUserRole(
         OrganizationRoleWeight[orgRolesCode.code as OrganizationRoleEnum],

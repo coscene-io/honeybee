@@ -5,8 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { PartialMessage } from "@bufbuild/protobuf";
-import { UpdateRecordRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
+import { MessageInitShape } from "@bufbuild/protobuf";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { UpdateRecordRequestSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
 import { FormLabel, Link, Avatar, Typography } from "@mui/material";
 import dayjs from "dayjs";
 import { ReactElement, useCallback, useEffect, useMemo } from "react";
@@ -110,7 +111,7 @@ export default function RecordInfo(): ReactElement {
   }, [externalInitConfig?.warehouseId, externalInitConfig?.projectId, getLabels]);
 
   const updateRecord = useCallback(
-    async (payload: PartialMessage<UpdateRecordRequest>) => {
+    async (payload: MessageInitShape<typeof UpdateRecordRequestSchema>) => {
       await consoleApi.updateRecord(payload);
 
       refreshRecord();
@@ -214,7 +215,7 @@ export default function RecordInfo(): ReactElement {
               <FormLabel>{t("createTime")}</FormLabel>
 
               <Stack direction="row" alignItems="center" gap={1}>
-                {dayjs(record.value.createTime.toDate()).format("YYYY-MM-DD HH:mm:ss")}
+                {dayjs(timestampDate(record.value.createTime)).format("YYYY-MM-DD HH:mm:ss")}
               </Stack>
             </Stack>
           )}
@@ -224,7 +225,7 @@ export default function RecordInfo(): ReactElement {
               <FormLabel>{t("updateTime")}</FormLabel>
 
               <Stack direction="row" alignItems="center" gap={1}>
-                {dayjs(record.value.updateTime.toDate()).format("YYYY-MM-DD HH:mm:ss")}
+                {dayjs(timestampDate(record.value.updateTime)).format("YYYY-MM-DD HH:mm:ss")}
               </Stack>
             </Stack>
           )}

@@ -4,10 +4,11 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { File as File_es } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { create } from "@bufbuild/protobuf";
+import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { FileSchema as File_esSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { CloudUpload, Check, Clear } from "@mui/icons-material";
 import { Tooltip, IconButton, CircularProgress, Typography, Stack } from "@mui/material";
 import { useCallback, useState } from "react";
@@ -54,7 +55,7 @@ function useHandleUploadFile() {
         recordName: record.name,
       });
 
-      const Es_file = new File_es({
+      const Es_file = create(File_esSchema, {
         filename: file.name,
         name,
         size: BigInt(file.size),

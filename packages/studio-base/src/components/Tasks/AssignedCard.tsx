@@ -5,9 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
-import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_state_pb";
+import { Task } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { Box, Card, CardActionArea, Divider, Tooltip, Typography } from "@mui/material";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
@@ -106,7 +107,9 @@ export function AssignedCard({ task, project, onClick }: AssignedCardProps): Rea
     }
   };
 
-  const formattedDate = task.createTime ? dayjs(task.createTime.toDate()).format("YYYY-MM-DD") : "";
+  const formattedDate = task.createTime
+    ? dayjs(timestampDate(task.createTime)).format("YYYY-MM-DD")
+    : "";
 
   return (
     <Card className={classes.taskCard} elevation={0}>

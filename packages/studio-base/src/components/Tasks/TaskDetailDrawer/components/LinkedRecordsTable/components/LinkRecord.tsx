@@ -5,8 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ListRecordsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
-import { LinkTaskWrapper } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
+import { create } from "@bufbuild/protobuf";
+import {
+  ListRecordsResponseSchema,
+  ListRecordsResponse,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
+import {
+  LinkTaskWrapperSchema,
+  LinkTaskWrapper,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/task_pb";
 import { Button, Dialog, DialogTitle, DialogContent, DialogActions, Box } from "@mui/material";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "react-hot-toast";
@@ -63,7 +70,7 @@ export default function LinkRecord({
   // 获取记录列表
   const [listRecordsState, getRecords] = useAsyncFn(async () => {
     if (!project.value?.name) {
-      return new ListRecordsResponse();
+      return create(ListRecordsResponseSchema);
     }
 
     const response = await consoleApi.listRecord({
@@ -101,12 +108,11 @@ export default function LinkRecord({
   }, []);
 
   const handleConfirm = useCallback(async () => {
-    const linkTasks: LinkTaskWrapper[] = selectedRowIds.map(
-      (id) =>
-        new LinkTaskWrapper({
-          task: taskName,
-          target: { value: id, case: "record" },
-        }),
+    const linkTasks: LinkTaskWrapper[] = selectedRowIds.map((id) =>
+      create(LinkTaskWrapperSchema, {
+        task: taskName,
+        target: { value: id, case: "record" },
+      }),
     );
 
     try {
@@ -136,7 +142,6 @@ export default function LinkRecord({
       <Button variant="contained" color="primary" onClick={handleOpenDialog}>
         {t("addLink")}
       </Button>
-
       <Dialog
         open={addFileDialogOpen}
         onClose={handleCloseDialog}
@@ -153,7 +158,7 @@ export default function LinkRecord({
           <RecordTableFilter filter={filter} setFilter={setFilter} />
           <Box className={classes.tableContainer}>
             <RecordTable
-              listRecordsResponse={listRecordsState.value ?? new ListRecordsResponse()}
+              listRecordsResponse={listRecordsState.value ?? create(ListRecordsResponseSchema)}
               pageSize={pageSize}
               currentPage={currentPage}
               setPageSize={setPageSize}

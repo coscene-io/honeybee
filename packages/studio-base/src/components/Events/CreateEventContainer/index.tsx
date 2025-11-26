@@ -4,8 +4,13 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { Timestamp, FieldMask } from "@bufbuild/protobuf";
-import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+
+import { create } from "@bufbuild/protobuf";
+import { FieldMaskSchema, timestampFromDate } from "@bufbuild/protobuf/wkt";
+import {
+  EventSchema,
+  Event,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import EastIcon from "@mui/icons-material/East";
 import {
   Button,
@@ -246,10 +251,10 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         imageFiles = [`${recordName}/files/.cos/moments/${imgFileDisplayName}`];
       }
 
-      const newEvent = new Event({
+      const newEvent = create(EventSchema, {
         name: toModifyEvent?.name ?? "",
         displayName: event.eventName,
-        triggerTime: Timestamp.fromDate(event.startTime),
+        triggerTime: timestampFromDate(event.startTime),
         duration:
           event.durationUnit === "sec"
             ? secondsToDuration(event.duration)
@@ -273,7 +278,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
         await consoleApi.updateEvent({
           event: newEvent,
-          updateMask: new FieldMask({ paths: maskArray }),
+          updateMask: create(FieldMaskSchema, { paths: maskArray }),
         });
         toast.success(t("editMomentSuccess"));
       } else {

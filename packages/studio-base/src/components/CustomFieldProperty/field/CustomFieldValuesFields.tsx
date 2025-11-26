@@ -8,7 +8,7 @@
 import type {
   CustomFieldValue,
   Property,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import _debounce from "lodash/debounce";
 import { useMemo } from "react";
 

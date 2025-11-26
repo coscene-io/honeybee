@@ -14,7 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
+import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
 import { useSnackbar } from "notistack";
 import {
   PropsWithChildren,

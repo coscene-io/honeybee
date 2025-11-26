@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ProjectVisibilityEnum_ProjectVisibility } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/project_visibility_pb";
+import { ProjectVisibilityEnum_ProjectVisibility } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/enums/project_visibility_pb";
 import { Chip } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";

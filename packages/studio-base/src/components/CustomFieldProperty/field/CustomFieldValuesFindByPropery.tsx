@@ -5,8 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { Property } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { create } from "@bufbuild/protobuf";
+import type { Property } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import {
+  CustomFieldValueSchema,
+  CustomFieldValue,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 
 import { CustomFieldValueField } from "./CustomFieldValueField";
 
@@ -25,7 +29,7 @@ export function CustomFieldValuesFindByPropery({
 }): React.ReactNode {
   const customFieldValue =
     customFieldValues.find((value) => value.property?.id === property.id) ??
-    new CustomFieldValue({ property });
+    create(CustomFieldValueSchema, { property });
 
   return (
     <CustomFieldValueField
