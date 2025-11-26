@@ -72,8 +72,8 @@
  * ```
  */
 
-import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { create } from "@bufbuild/protobuf";
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { ListUserProjectsResponseSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/project_pb";
 import { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { ListRecordsResponseSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";

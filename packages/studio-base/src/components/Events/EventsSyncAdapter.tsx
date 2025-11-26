@@ -1,5 +1,12 @@
-import { FileSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 import { create } from "@bufbuild/protobuf";
+import { FileSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAsyncFn, useLatest } from "react-use";
 import { v4 as uuidv4 } from "uuid";
