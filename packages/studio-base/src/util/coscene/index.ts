@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // coScene custom tools
-import { JsonObject, DescService } from "@bufbuild/protobuf";
+import { DescService } from "@bufbuild/protobuf";
 import { createClient, Client, Interceptor } from "@connectrpc/connect";
 import { createGrpcWebTransport } from "@connectrpc/connect-web";
 import { File } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
