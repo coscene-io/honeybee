@@ -55,6 +55,11 @@ const defaultCoreDataStore = {
 };
 
 function CreateCoreDataStore() {
+  type EnableList = ReturnType<CoreDataStore["getEnableList"]>;
+
+  // Keep a cached enable list so selectors get a stable reference unless values change.
+  let cachedEnableList: EnableList | undefined;
+
   return createStore<CoreDataStore>((set, get) => ({
     ...defaultCoreDataStore,
 
@@ -127,7 +132,7 @@ function CreateCoreDataStore() {
     getEnableList: () => {
       const { dataSource, project, externalInitConfig } = get();
 
-      return {
+      const next: EnableList = {
         event:
           dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
             ? "ENABLE"
@@ -144,6 +149,20 @@ function CreateCoreDataStore() {
             ? "ENABLE"
             : "DISABLE",
       };
+
+      if (
+        cachedEnableList &&
+        cachedEnableList.event === next.event &&
+        cachedEnableList.playlist === next.playlist &&
+        cachedEnableList.task === next.task &&
+        cachedEnableList.layoutSync === next.layoutSync &&
+        cachedEnableList.recordInfo === next.recordInfo
+      ) {
+        return cachedEnableList;
+      }
+
+      cachedEnableList = next;
+      return next;
     },
   }));
 }
