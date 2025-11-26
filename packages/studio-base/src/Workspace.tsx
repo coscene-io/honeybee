@@ -13,6 +13,8 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { toJson } from "@bufbuild/protobuf";
+import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import { useEffect, useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -459,15 +461,15 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
       name: configName,
     });
 
-    const userLanguage = (
-      userConfig.value?.toJson() as
-        | {
+    const userLanguage = userConfig.value
+      ? (
+          toJson(ValueSchema, userConfig.value) as {
             settings?: {
               language?: string;
             };
           }
-        | undefined
-    )?.settings?.language;
+        ).settings?.language
+      : undefined;
 
     if (userLanguage != undefined && userLanguage !== i18n.language) {
       void i18n.changeLanguage(userLanguage);

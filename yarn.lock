@@ -4707,39 +4707,38 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@buf/googleapis_googleapis.bufbuild_es@npm:1.2.0-20230502210827-cc916c318597.1":
-  version: 1.2.0-20230502210827-cc916c318597.1
-  resolution: "@buf/googleapis_googleapis.bufbuild_es@npm:1.2.0-20230502210827-cc916c318597.1"
+"@buf/googleapis_googleapis.bufbuild_es@npm:2.6.3-20250411203938-61b203b9a916.1":
+  version: 2.6.3-20250411203938-61b203b9a916.1
+  resolution: "@buf/googleapis_googleapis.bufbuild_es@npm:2.6.3-20250411203938-61b203b9a916.1"
   peerDependencies:
-    "@bufbuild/protobuf": ^1.2.0
-  checksum: 890e2ffd4052b9d4f8f80b874f683b3382da16550dcea9e8ddafbcd476339f80c98e6041739b7e4a9f2b2b6e29ddf6a5d227d5eee82910eb0c1e2de234639a6d
+    "@bufbuild/protobuf": ^2.6.3
+  checksum: 3ef3f668e695638095404443688b8ef40cad7d45c4ed21e0fefc45a2d1130c5849005c68ba901dd23cb00109eaecd64943ff26b233bf00590a817d82099d3725
   languageName: node
   linkType: hard
 
-"@bufbuild/connect-web@npm:0.13.0":
-  version: 0.13.0
-  resolution: "@bufbuild/connect-web@npm:0.13.0"
-  dependencies:
-    "@bufbuild/connect": 0.13.0
-  peerDependencies:
-    "@bufbuild/protobuf": ^1.2.1
-  checksum: 617b55736ec6c846cf797b67278ff68b1f7fa2f8566ca7158f970348aa3e8584bc5d1ff80df615caed272b4a3965b7263999d0419d235eb4041033d5eb8b0911
+"@bufbuild/protobuf@npm:^2.2.2":
+  version: 2.10.1
+  resolution: "@bufbuild/protobuf@npm:2.10.1"
+  checksum: e6f665787d5d7c131dc3694794fad6db0ca37f998b844418e8ccdccdd378118e71b6b59836982ac7efe90371d7fb04431bf23b9435eb9d09ce2b2a7e8e637fab
   languageName: node
   linkType: hard
 
-"@bufbuild/connect@npm:0.13.0":
-  version: 0.13.0
-  resolution: "@bufbuild/connect@npm:0.13.0"
+"@connectrpc/connect-web@npm:^2.0.0":
+  version: 2.1.1
+  resolution: "@connectrpc/connect-web@npm:2.1.1"
   peerDependencies:
-    "@bufbuild/protobuf": ^1.2.1
-  checksum: be0b42ee4979761ce7faa1822c060409b1e56da73626a8afbdb7491ab624afda3ee057698bea3f4ccae7be82e2750faaf4c80d62f1505b52b343f70ec7dd6b3c
+    "@bufbuild/protobuf": ^2.7.0
+    "@connectrpc/connect": 2.1.1
+  checksum: 83e50b02c59c94672cb9e793ee3e278e583419a7bf3844164fd2a861035399cefb3a437d3709a8e8741962aea2672dce084c6200066209113c6055fb17ce5b7a
   languageName: node
   linkType: hard
 
-"@bufbuild/protobuf@npm:1.3.0":
-  version: 1.3.0
-  resolution: "@bufbuild/protobuf@npm:1.3.0"
-  checksum: a7286458776bf34e4c2709f221462330590f1078facdb6901d535890852acca6aa3496aff4aa9e17ac02e6969f5fdc5fa726706721946bbcecf299adf375f8ff
+"@connectrpc/connect@npm:^2.0.0":
+  version: 2.1.1
+  resolution: "@connectrpc/connect@npm:2.1.1"
+  peerDependencies:
+    "@bufbuild/protobuf": ^2.7.0
+  checksum: bf9f52ef1109d3808600a3294cee4f3b2f838e3a9414600bdd3117f49bfa2365433f9815409f490f503e701a777fd91945fbd5590369e849ba856f5ada5009ec
   languageName: node
   linkType: hard
 
@@ -4750,12 +4749,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis-es@npm:0.0.406":
-  version: 0.0.406
-  resolution: "@coscene-io/cosceneapis-es@npm:0.0.406::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es%2F0.0.406%2F5c915c64dbad4f3fef3304a00dd7d495ea5d3a2d"
+"@coscene-io/cosceneapis-es-v2@npm:0.0.427":
+  version: 0.0.427
+  resolution: "@coscene-io/cosceneapis-es-v2@npm:0.0.427::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es-v2%2F0.0.427%2F39e699cdd345d1847189382fee701a9c4ee2cf3c"
   dependencies:
-    "@buf/googleapis_googleapis.bufbuild_es": 1.2.0-20230502210827-cc916c318597.1
-  checksum: 9990b7f316469a5fddbade6e16a6f06f2817988c25879d91bee5cde6e750a4feb315c9b63288361c130c0e6dab1e08eec9c5a54ca00e693f407a77002789363c
+    "@buf/googleapis_googleapis.bufbuild_es": 2.6.3-20250411203938-61b203b9a916.1
+  checksum: e765dd1062b7ace46a2c593bf441837931fabd846e2629d97a58bfbb78cc2da5d869bd47a31b43fd919e4ab8aa3742637b73fd34ef794c211a371e08ff78a725
   languageName: node
   linkType: hard
 
@@ -6147,11 +6146,11 @@ __metadata:
   resolution: "@foxglove/studio-base@workspace:packages/studio-base"
   dependencies:
     "@aws-sdk/client-s3": 3.826.0
-    "@bufbuild/connect": 0.13.0
-    "@bufbuild/connect-web": 0.13.0
-    "@bufbuild/protobuf": 1.3.0
+    "@bufbuild/protobuf": ^2.2.2
+    "@connectrpc/connect": ^2.0.0
+    "@connectrpc/connect-web": ^2.0.0
     "@coscene-io/comlink": 4.4.1
-    "@coscene-io/cosceneapis-es": 0.0.406
+    "@coscene-io/cosceneapis-es-v2": 0.0.427
     "@coscene-io/cosel": 24.14.0
     "@emotion/cache": 11.14.0
     "@emotion/react": 11.14.0

@@ -5,8 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { EnumValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { create } from "@bufbuild/protobuf";
+import type { CustomFieldValue } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import {
+  EnumValueSchema,
+  EnumValue,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { Autocomplete, TextField, Chip } from "@mui/material";
 import _orderBy from "lodash/orderBy";
 import { useMemo } from "react";
@@ -61,7 +65,7 @@ export function CustomFieldEnumEditor({
         onChange={(_, newValue) => {
           customFieldValue.value = {
             case: "enums",
-            value: new EnumValue({ ids: newValue.map((v) => v.value) }),
+            value: create(EnumValueSchema, { ids: newValue.map((v) => v.value) }),
           };
           onChange(customFieldValue);
         }}
@@ -108,7 +112,10 @@ export function CustomFieldEnumEditor({
       disableClearable={allowClear === false}
       onChange={(_, newValue) => {
         if (newValue) {
-          customFieldValue.value = { case: "enums", value: new EnumValue({ id: newValue.value }) };
+          customFieldValue.value = {
+            case: "enums",
+            value: create(EnumValueSchema, { id: newValue.value }),
+          };
           onChange(customFieldValue);
         }
       }}

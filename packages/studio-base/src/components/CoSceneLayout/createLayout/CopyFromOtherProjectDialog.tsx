@@ -69,7 +69,7 @@ export function CopyFromOtherProjectDialog({
                   folder: "",
                   name: layout.displayName,
                   permission,
-                  data: layout.data?.toJson() as LayoutData,
+                  data: layout.data as LayoutData,
                 });
                 enqueueSnackbar(t("copyLayoutSuccess"), { variant: "success" });
                 onClose();

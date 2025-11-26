@@ -5,8 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { DiagnosisRule } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { create } from "@bufbuild/protobuf";
+import { timestampDate, TimestampSchema } from "@bufbuild/protobuf/wkt";
+import { DiagnosisRule } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
+import { DeleteFileRequestSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import EditIcon from "@mui/icons-material/EditOutlined";
 import RepeatOneOutlinedIcon from "@mui/icons-material/RepeatOneOutlined";
@@ -162,7 +164,9 @@ function EventViewComponent(params: {
   const [deletedEvent, deleteEvent] = useAsyncFn(async () => {
     if (event.event.files[0]) {
       try {
-        await consoleApi.deleteFile(new File({ name: event.event.files[0] }));
+        await consoleApi.deleteFile(
+          create(DeleteFileRequestSchema, { name: event.event.files[0] }),
+        );
       } catch (error) {
         console.error("Error deleting file", error);
       }
@@ -190,7 +194,13 @@ function EventViewComponent(params: {
   }, [confirm, deleteEvent, t]);
 
   const displayName = event.event.displayName;
-  const triggerTime = formatTime(fromDate(event.event.triggerTime?.toDate() ?? new Date()));
+  const triggerTime = formatTime(
+    fromDate(
+      timestampDate(
+        event.event.triggerTime ?? create(TimestampSchema, { seconds: BigInt(0), nanos: 0 }),
+      ),
+    ),
+  );
   const duration = `${durationToSeconds(event.event.duration).toFixed(3)} s`;
   const description = event.event.description;
   const metadataMap = Object.entries(event.event.customizedFields);
@@ -230,7 +240,13 @@ function EventViewComponent(params: {
     const copyLink = link.replace(
       /time=.+Z&|time=.+Z$/,
       `time=${encodeURIComponent(
-        toRFC3339String(fromDate(event.event.triggerTime?.toDate() ?? new Date())),
+        toRFC3339String(
+          fromDate(
+            timestampDate(
+              event.event.triggerTime ?? create(TimestampSchema, { seconds: BigInt(0), nanos: 0 }),
+            ),
+          ),
+        ),
       )}&`,
     );
 
@@ -243,7 +259,9 @@ function EventViewComponent(params: {
     onEdit({
       name: event.event.name,
       eventName: event.event.displayName,
-      startTime: event.event.triggerTime?.toDate() ?? new Date(),
+      startTime: timestampDate(
+        event.event.triggerTime ?? create(TimestampSchema, { seconds: BigInt(0), nanos: 0 }),
+      ),
       duration: durationToSeconds(event.event.duration),
       durationUnit: "sec",
       description: event.event.description,

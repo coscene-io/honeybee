@@ -5,9 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Timestamp } from "@bufbuild/protobuf";
-import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { TimeValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { create } from "@bufbuild/protobuf";
+import { timestampDate, timestampFromDate } from "@bufbuild/protobuf/wkt";
+import type { CustomFieldValue } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { TimeValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/zh-cn";
@@ -33,7 +34,10 @@ export function CustomFieldTimeEditor({
 
   let value: Dayjs | undefined;
   if (customFieldValue.value.case === "time") {
-    const dateValue = customFieldValue.value.value.value?.toDate();
+    const dateValue =
+      customFieldValue.value.value.value != undefined
+        ? timestampDate(customFieldValue.value.value.value)
+        : undefined;
     value = dateValue ? dayjs(dateValue) : undefined;
   }
 
@@ -47,7 +51,7 @@ export function CustomFieldTimeEditor({
         if (newValue) {
           customFieldValue.value = {
             case: "time",
-            value: new TimeValue({ value: Timestamp.fromDate(newValue.toDate()) }),
+            value: create(TimeValueSchema, { value: timestampFromDate(newValue.toDate()) }),
           };
         } else {
           customFieldValue.value = { case: undefined, value: undefined };

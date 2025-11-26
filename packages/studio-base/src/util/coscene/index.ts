@@ -6,10 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // coScene custom tools
-import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
-import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { JsonObject, ServiceType, Struct } from "@bufbuild/protobuf";
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { DescService } from "@bufbuild/protobuf";
+import { createClient, Client, Interceptor } from "@connectrpc/connect";
+import { createGrpcWebTransport } from "@connectrpc/connect-web";
+import { File } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { StatusCode } from "grpc-web";
 import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
@@ -94,65 +94,14 @@ const setLocaleInfoUnaryInterceptor: Interceptor = (next) => async (req) => {
   return await next(req);
 };
 
-export function getPromiseClient<T extends ServiceType>(service: T): PromiseClient<T> {
-  return createPromiseClient(
+export function getPromiseClient<T extends DescService>(service: T): Client<T> {
+  return createClient(
     service,
     createGrpcWebTransport({
       baseUrl: window.cosConfig?.VITE_APP_BASE_API_URL ?? "https://api.coscene.cn",
       interceptors: [setAuthorizationUnaryInterceptor, setLocaleInfoUnaryInterceptor],
     }),
   );
-}
-
-export function convertJsonToStruct(json: Record<string, unknown>): Struct {
-  // 递归函数，将所有 undefined 替换为 null
-  function replaceUndefinedWithNull(obj: unknown): unknown {
-    // eslint-disable-next-line
-    if (obj === undefined) {
-      // eslint-disable-next-line no-restricted-syntax
-      return null;
-    }
-
-    if (Array.isArray(obj)) {
-      return obj.map(replaceUndefinedWithNull);
-    }
-
-    // eslint-disable-next-line
-    if (typeof obj === "object" && obj !== null) {
-      const result: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(obj)) {
-        result[key] = replaceUndefinedWithNull(value);
-      }
-      return result;
-    }
-
-    return obj;
-  }
-
-  // 先替换 undefined 为 null，然后转换为 Struct
-  const processedJson = replaceUndefinedWithNull(json) as JsonObject;
-  return Struct.fromJson(processedJson);
-}
-
-export function replaceNullWithUndefined(obj: unknown): unknown {
-  // eslint-disable-next-line no-restricted-syntax
-  if (obj == null) {
-    return undefined;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(replaceNullWithUndefined);
-  }
-
-  if (typeof obj === "object") {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      result[key] = replaceNullWithUndefined(value);
-    }
-    return result;
-  }
-
-  return obj;
 }
 
 // 将任意字符串映射为一颜色
