@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { create } from "@bufbuild/protobuf";
+import { create, JsonObject } from "@bufbuild/protobuf";
 import { FieldMaskSchema, timestampDate, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { User as CoUser } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
 import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
@@ -21,10 +21,6 @@ import {
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
-import {
-  convertJsonToJsonObject,
-  replaceNullWithUndefined,
-} from "@foxglove/studio-base/util/coscene";
 
 import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 
@@ -43,12 +39,7 @@ function convertGrpcLayoutToRemoteLayout({
     throw new Error(`Missing data for server layout ${layout.displayName} (${layout.name})`);
   }
 
-  let data: LayoutData;
-  try {
-    data = replaceNullWithUndefined(layout.data) as LayoutData;
-  } catch (err) {
-    throw new Error(`Invalid layout data for ${layout.displayName}: ${err}`);
-  }
+  const data: LayoutData = layout.data as LayoutData;
 
   // Parse layout name to extract ID and parent
   const id = layout.name as LayoutID;
@@ -183,7 +174,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       name: id,
       displayName: name,
       folder,
-      data: convertJsonToJsonObject(data),
+      data: data as JsonObject,
       scope:
         permission === "PERSONAL_WRITE"
           ? LayoutScopeEnum_LayoutScope.PERSONAL
@@ -242,7 +233,7 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         paths.push("folder");
       }
       if (data != undefined) {
-        updatedLayout.data = convertJsonToJsonObject(data);
+        updatedLayout.data = data as JsonObject;
         paths.push("data");
       }
 
