@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { StrictMode, useEffect } from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import Logger from "@foxglove/log";
 import type { IDataSourceFactory } from "@foxglove/studio-base";
@@ -43,6 +43,8 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
     throw new Error("missing #root element");
   }
 
+  const root = createRoot(rootEl);
+
   const chromeMatch = navigator.userAgent.match(/Chrome\/(\d+)\./);
   const chromeVersion = chromeMatch ? parseInt(chromeMatch[1] ?? "", 10) : 0;
   const isChrome = chromeVersion !== 0;
@@ -53,14 +55,12 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
   );
 
   if (!canRender) {
-    // eslint-disable-next-line react/no-deprecated
-    ReactDOM.render(
+    root.render(
       <StrictMode>
         <LogAfterRender>
           <CssBaseline>{banner}</CssBaseline>
         </LogAfterRender>
       </StrictMode>,
-      rootEl,
     );
     return;
   }
@@ -82,14 +82,12 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
     <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources} />
   );
 
-  // eslint-disable-next-line react/no-deprecated
-  ReactDOM.render(
+  root.render(
     <StrictMode>
       <LogAfterRender>
         {banner}
         {rootElement}
       </LogAfterRender>
     </StrictMode>,
-    rootEl,
   );
 }
