@@ -355,6 +355,11 @@ function Chart(props: Props): React.JSX.Element {
     }
 
     updateChart(newUpdate).catch((err: unknown) => {
+      // Ignore "Rpc terminated" errors that occur during React Strict Mode's
+      // double-mount behavior in development mode
+      if (err instanceof Error && err.message === "Rpc terminated") {
+        return;
+      }
       if (isMounted()) {
         setUpdateError(err as Error);
       }
