@@ -366,7 +366,6 @@ function Chart(props: Props): React.JSX.Element {
     }
 
     updateChart(newUpdate).catch((err: unknown) => {
-      console.error(err);
       if (isMounted()) {
         setUpdateError(err as Error);
       }
