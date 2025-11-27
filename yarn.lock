@@ -6207,7 +6207,6 @@ __metadata:
     "@types/foxglove__roslibjs": "workspace:*"
     "@types/geojson": 7946.0.14
     "@types/gl-matrix": 3.2.0
-    "@types/google-protobuf": 3.15.6
     "@types/hammerjs": 2.0.45
     "@types/leaflet": 1.9.16
     "@types/memoize-weak": "workspace:*"
@@ -6252,8 +6251,6 @@ __metadata:
     fzf: 0.5.2
     geojson: 0.5.0
     gl-matrix: 3.4.3
-    google-protobuf: 3.21.2
-    grpc-web: 1.4.2
     hammerjs: 2.0.8
     i18next: 23.8.2
     i18next-browser-languagedetector: 8.0.2
@@ -6264,7 +6261,6 @@ __metadata:
     jest-canvas-mock: 2.5.2
     jszip: 3.10.1
     just-diff: 6.0.2
-    keyboardjs: 2.7.0
     leaflet: 1.9.4
     leaflet-ellipse: 0.9.1
     lodash-es: 4.17.21
@@ -6308,7 +6304,6 @@ __metadata:
     react-virtualized: 9.22.6
     react-window: 1.8.10
     readable-stream: 4.5.2
-    recoil: 0.7.6
     rehype-raw: 6.1.1
     reselect: 5.1.0
     sanitize-html: 2.11.0
@@ -6514,20 +6509,15 @@ __metadata:
   dependencies:
     "@foxglove/eslint-plugin": 2.0.0
     "@foxglove/tsconfig": 2.0.0
-    "@types/debug": ^4.1.9
     "@types/jest": ^29.5.14
     "@types/lodash": 4.17.15
     "@types/node": ^20.11.10
-    commander: 11.1.0
-    consumer-queue: 1.1.0
-    debug: ^4
     eslint: 9.16.0
     eventemitter3: ^5.0.1
     jest: 29.7.0
     prettier: 2.8.8
     ts-jest: 29.1.2
     ts-node: 10.9.2
-    tslib: ^2.8.1
     typescript: 5.6.2
   languageName: unknown
   linkType: soft
@@ -9865,7 +9855,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/debug@npm:^4.1.6, @types/debug@npm:^4.1.9":
+"@types/debug@npm:^4.1.6":
   version: 4.1.12
   resolution: "@types/debug@npm:4.1.12"
   dependencies:
@@ -10053,13 +10043,6 @@ __metadata:
     "@types/minimatch": "*"
     "@types/node": "*"
   checksum: 6ae717fedfdfdad25f3d5a568323926c64f52ef35897bcac8aca8e19bc50c0bd84630bbd063e5d52078b2137d8e7d3c26eabebd1a2f03ff350fff8a91e79fc19
-  languageName: node
-  linkType: hard
-
-"@types/google-protobuf@npm:3.15.6":
-  version: 3.15.6
-  resolution: "@types/google-protobuf@npm:3.15.6"
-  checksum: e8f7cd9d263093cd0a72eb10ff0bb8221e28aa8b9f601eddbe19b286932aae96fbc9ccb1f3a744525e7811fa87a6aeefd431858b6e2034f14a2dc68710a86d54
   languageName: node
   linkType: hard
 
@@ -13773,13 +13756,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"commander@npm:11.1.0":
-  version: 11.1.0
-  resolution: "commander@npm:11.1.0"
-  checksum: fd1a8557c6b5b622c89ecdfde703242ab7db3b628ea5d1755784c79b8e7cb0d74d65b4a262289b533359cd58e1bfc0bf50245dfbcd2954682a6f367c828b79ef
-  languageName: node
-  linkType: hard
-
 "commander@npm:^12.1.0":
   version: 12.1.0
   resolution: "commander@npm:12.1.0"
@@ -13902,13 +13878,6 @@ __metadata:
   version: 1.0.0
   resolution: "constants-browserify@npm:1.0.0"
   checksum: f7ac8c6d0b6e4e0c77340a1d47a3574e25abd580bfd99ad707b26ff7618596cf1a5e5ce9caf44715e9e01d4a5d12cb3b4edaf1176f34c19adb2874815a56e64f
-  languageName: node
-  linkType: hard
-
-"consumer-queue@npm:1.1.0":
-  version: 1.1.0
-  resolution: "consumer-queue@npm:1.1.0"
-  checksum: 5bfd2dc23830da81953641f171f7833e3ea6caa53358d2ca490310046c23d35b2e6e9b629c0a1f63713c8ee4ccd60188eac6fc5fd9f0e556f810e58e1200bd50
   languageName: node
   linkType: hard
 
@@ -14514,7 +14483,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"debug@npm:4, debug@npm:^4, debug@npm:^4.0.0, debug@npm:^4.1.0, debug@npm:^4.1.1, debug@npm:^4.3.1, debug@npm:^4.3.2, debug@npm:^4.3.4":
+"debug@npm:4, debug@npm:^4.0.0, debug@npm:^4.1.0, debug@npm:^4.1.1, debug@npm:^4.3.1, debug@npm:^4.3.2, debug@npm:^4.3.4":
   version: 4.3.4
   resolution: "debug@npm:4.3.4"
   dependencies:
@@ -17906,13 +17875,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"google-protobuf@npm:3.21.2":
-  version: 3.21.2
-  resolution: "google-protobuf@npm:3.21.2"
-  checksum: 3caa2e1e2654714cc1a201ac5e5faabcaa48f5fba3d8ff9b64ca66fe19e4e0506b94053f32eddc77bf3a7a47ac1660315c6744185c1e2bb27654fd76fe91b988
-  languageName: node
-  linkType: hard
-
 "gopd@npm:^1.0.1":
   version: 1.0.1
   resolution: "gopd@npm:1.0.1"
@@ -17978,24 +17940,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"grpc-web@npm:1.4.2":
-  version: 1.4.2
-  resolution: "grpc-web@npm:1.4.2"
-  checksum: 624bb14bb3a5bcd5354cce6b4873b90b574a32227abdc29f241b2dbc81363492f49dcbd257a47963bdd8e61a49b69303bd03087f42d939d48148b4764bf2a2e6
-  languageName: node
-  linkType: hard
-
 "hammerjs@npm:2.0.8, hammerjs@npm:^2.0.8":
   version: 2.0.8
   resolution: "hammerjs@npm:2.0.8"
   checksum: b092da7d1565a165d7edb53ef0ce212837a8b11f897aa3cf81a7818b66686b0ab3f4747fbce8fc8a41d1376594639ce3a054b0fd4889ca8b5b136a29ca500e27
-  languageName: node
-  linkType: hard
-
-"hamt_plus@npm:1.0.2":
-  version: 1.0.2
-  resolution: "hamt_plus@npm:1.0.2"
-  checksum: af26ea32db03009019cc83dfa9411521a2fa16079443de1a502c9be46d8b3c975acda8ed93fc5750ef08d3186d35901e2d8cfe717dd54bea67b358601fa74e4c
   languageName: node
   linkType: hard
 
@@ -20620,13 +20568,6 @@ __metadata:
   version: 6.0.2
   resolution: "just-diff@npm:6.0.2"
   checksum: 1a0c7524f640cb88ab013862733e710f840927834208fd3b85cbc5da2ced97acc75e7dcfe493268ac6a6514c51dd8624d2fd9d057050efba3c02b81a6dcb7ff9
-  languageName: node
-  linkType: hard
-
-"keyboardjs@npm:2.7.0":
-  version: 2.7.0
-  resolution: "keyboardjs@npm:2.7.0"
-  checksum: 1e349d07e43c7c76654f676acf33e04ac07642ae09102440faa75d9951bd6519295dfc3572b0786650bebd3a173274e76dfb67e40279716d62267d07f815d70a
   languageName: node
   linkType: hard
 
@@ -24422,22 +24363,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"recoil@npm:0.7.6":
-  version: 0.7.6
-  resolution: "recoil@npm:0.7.6"
-  dependencies:
-    hamt_plus: 1.0.2
-  peerDependencies:
-    react: ">=16.13.1"
-  peerDependenciesMeta:
-    react-dom:
-      optional: true
-    react-native:
-      optional: true
-  checksum: 2b31dd29a7e0b369bc986a16f7253006776845144684c9e38bb6760e4ea954c5d7dc682aaf88e815e69098b8dea3ff62b6fa4e6c156157a29d2d9cb824db1779
-  languageName: node
-  linkType: hard
-
 "redent@npm:^3.0.0":
   version: 3.0.0
   resolution: "redent@npm:3.0.0"
@@ -26996,7 +26921,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:2.8.1, tslib@npm:^2.8.1":
+"tslib@npm:2.8.1":
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: e4aba30e632b8c8902b47587fd13345e2827fa639e7c3121074d5ee0880723282411a8838f830b55100cbe4517672f84a2472667d355b81e8af165a55dc6203a

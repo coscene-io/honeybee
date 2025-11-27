@@ -7,10 +7,9 @@
 
 // coScene custom tools
 import { DescService } from "@bufbuild/protobuf";
-import { createClient, Client, Interceptor } from "@connectrpc/connect";
+import { createClient, Client, Interceptor, Code } from "@connectrpc/connect";
 import { createGrpcWebTransport } from "@connectrpc/connect-web";
 import { File } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
-import { StatusCode } from "grpc-web";
 import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
 
@@ -62,7 +61,7 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
   } catch (error: any) {
     // grpc error code-16 === http status code 401
     // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
-    if (error.code === StatusCode.UNAUTHENTICATED) {
+    if (error.code === Code.Unauthenticated) {
       if (window.location.pathname !== "/login") {
         if (isDesktopApp()) {
           authBridge?.logout();
