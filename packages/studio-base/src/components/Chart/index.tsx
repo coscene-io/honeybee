@@ -143,6 +143,10 @@ function Chart(props: Props): React.JSX.Element {
 
   useLayoutEffect(() => {
     log.info(`Register Chart ${id}`);
+    // Reset mountedRef to true on setup to survive React StrictMode's double-run.
+    // StrictMode runs setup -> cleanup -> setup, and we need isMounted() to return
+    // true after the second setup.
+    mountedRef.current = true;
     let rpc: Rpc;
     if (supportsOffscreenCanvas) {
       rpc = webWorkerManager.registerWorkerListener(id);
