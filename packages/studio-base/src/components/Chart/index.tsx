@@ -15,7 +15,6 @@ import { ChartOptions } from "chart.js";
 import Hammer from "hammerjs";
 import * as R from "ramda";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { useMountedState } from "react-use";
 import { assert } from "ts-essentials";
 import { v4 as uuidv4 } from "uuid";
 
@@ -106,7 +105,12 @@ function Chart(props: Props): React.JSX.Element {
   const initialized = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement>();
   const containerRef = useRef<HTMLDivElement>(ReactNull);
-  const isMounted = useMountedState();
+
+  // Track mounted state with a ref that we control directly in the RPC cleanup.
+  // We can't use useLayoutMountedState here because React cleanup runs in reverse order,
+  // and we need mountedRef to be false BEFORE rpc.terminate() is called.
+  const mountedRef = useRef(true);
+  const isMounted = useCallback(() => mountedRef.current, []);
 
   // to avoid changing useCallback deps for callbacks which access the scale value
   // at the time they are invoked
@@ -162,6 +166,9 @@ function Chart(props: Props): React.JSX.Element {
 
     return () => {
       log.info(`Unregister chart ${id}`);
+      // IMPORTANT: Set mountedRef to false BEFORE calling rpc.terminate().
+      // This ensures isMounted() returns false when pending RPC callbacks are rejected.
+      mountedRef.current = false;
       sendWrapper("destroy").catch(() => {}); // may fail if worker is torn down
       rpcSendRef.current = undefined;
       sendWrapperRef.current = undefined;
@@ -355,6 +362,7 @@ function Chart(props: Props): React.JSX.Element {
     }
 
     updateChart(newUpdate).catch((err: unknown) => {
+      console.error(err);
       if (isMounted()) {
         setUpdateError(err as Error);
       }
