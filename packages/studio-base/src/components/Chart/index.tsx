@@ -107,8 +107,9 @@ function Chart(props: Props): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(ReactNull);
 
   // Track mounted state with a ref that we control directly in the RPC cleanup.
-  // We can't use useLayoutMountedState here because React cleanup runs in reverse order,
-  // and we need mountedRef to be false BEFORE rpc.terminate() is called.
+  // We can't use useMountedState here because it uses useEffect which runs AFTER
+  // useLayoutEffect, causing isMounted() to return false during initialization.
+  // We need isMounted() to return true immediately so maybeUpdateScales works.
   const mountedRef = useRef(true);
   const isMounted = useCallback(() => mountedRef.current, []);
 
@@ -366,6 +367,11 @@ function Chart(props: Props): React.JSX.Element {
     }
 
     updateChart(newUpdate).catch((err: unknown) => {
+      // Ignore "Rpc terminated" errors that occur during React Strict Mode's
+      // double-mount behavior in development mode
+      if (err instanceof Error && err.message === "Rpc terminated") {
+        return;
+      }
       if (isMounted()) {
         setUpdateError(err as Error);
       }
