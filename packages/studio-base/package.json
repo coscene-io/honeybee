@@ -62,7 +62,7 @@
     "@mui/x-date-pickers": "8.8.0",
     "@popperjs/core": "^2.11.8",
     "@protobufjs/base64": "1.1.2",
-    "@sentry/core": "8.24.0",
+    "@sentry/core": "10.27.0",
     "@sentry/types": "8.24.0",
     "@storybook/addon-actions": "8.2.8",
     "@storybook/jest": "0.2.3",
