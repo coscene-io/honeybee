@@ -6295,7 +6295,7 @@ __metadata:
     react-json-tree: "patch:react-json-tree@npm:0.15.1#../../patches/react-json-tree.patch"
     react-markdown: 8.0.7
     react-monaco-editor: 0.54.0
-    react-mosaic-component: 6.1.0
+    react-mosaic-component: 6.1.1
     react-refresh-typescript: 2.0.9
     react-resizable-panels: 0.0.55
     react-resize-detector: 12.0.2
@@ -24044,9 +24044,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-mosaic-component@npm:6.1.0":
-  version: 6.1.0
-  resolution: "react-mosaic-component@npm:6.1.0"
+"react-mosaic-component@npm:6.1.1":
+  version: 6.1.1
+  resolution: "react-mosaic-component@npm:6.1.1"
   dependencies:
     classnames: ^2.3.2
     immutability-helper: ^3.1.1
@@ -24059,8 +24059,8 @@ __metadata:
     react-dnd-touch-backend: ^16.0.1
     uuid: ^9.0.0
   peerDependencies:
-    react: 16 - 18
-  checksum: dad82f19a66f5a49601c6097b191faa03086697800f8922d5ac3f667a8b6dd1e6c2ba68fed5947b3e4a20e27e092d8354cb4722f3959bd72b30f3409cea9b818
+    react: ">=16"
+  checksum: 11109097dccfaacc6f10353dd4b093096750cec7c18ad2f707ea3c7f98a276ec0f8aa8732bdf62f3ab7ae780e95ba3f24ec9e41469f304f0a5fed045c63625a9
   languageName: node
   linkType: hard
 
