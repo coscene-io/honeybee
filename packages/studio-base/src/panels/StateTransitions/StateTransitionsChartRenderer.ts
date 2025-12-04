@@ -74,6 +74,8 @@ export type Datum = ScatterDataPoint & {
   label?: string;
   labelColor?: string;
   constantName?: string;
+  /** States included in this downsampled segment (for compressed multi-state intervals) */
+  states?: string[];
 };
 
 export type Dataset = ChartDataset<"scatter", Datum[]>;

@@ -9,14 +9,22 @@ import EventEmitter from "eventemitter3";
 import stringHash from "string-hash";
 
 import { debouncePromise } from "@foxglove/den/async";
-import { parseMessagePath, MessagePath } from "@foxglove/message-path";
+import {
+  parseMessagePath,
+  MessagePath,
+  MessagePathStructureItemMessage,
+} from "@foxglove/message-path";
 import { toSec, subtract as subtractTime } from "@foxglove/rostime";
 import { Immutable, Time, MessageEvent } from "@foxglove/studio";
-import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
-import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
+import { messagePathStructures } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathsForDatatype";
+import {
+  fillInGlobalVariablesInPath,
+  getMessagePathDataItems,
+} from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import { MessageBlock, PlayerState } from "@foxglove/studio-base/players/types";
+import { MessageBlock, PlayerState, Topic } from "@foxglove/studio-base/players/types";
 import { Bounds, Bounds1D } from "@foxglove/studio-base/types/Bounds";
+import { enumValuesByDatatypeAndField } from "@foxglove/studio-base/util/enums";
 import { expandedLineColors } from "@foxglove/studio-base/util/plotColors";
 import { getTimestampForMessageEvent } from "@foxglove/studio-base/util/time";
 import { grey } from "@foxglove/studio-base/util/toolsColorScheme";
@@ -30,6 +38,7 @@ import {
   UpdateAction,
 } from "./StateTransitionsChartRenderer";
 import { StateTransitionsRenderer } from "./StateTransitionsRenderer";
+import { downsampleStates, MAX_POINTS, Viewport } from "./downsampleStates";
 import positiveModulo from "./positiveModulo";
 import { PathState } from "./settings";
 import { StateTransitionConfig, StateTransitionPath } from "./types";
@@ -81,6 +90,13 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
   #pendingDatasets?: Dataset[];
 
+  // Viewport for downsampling
+  #viewport: Viewport = {
+    width: 0,
+    height: 0,
+    bounds: { x: { min: 0, max: 1 }, y: { min: 0, max: 1 } },
+  };
+
   // Config and series management
   #config?: Immutable<StateTransitionConfig>;
   #series: SeriesItem[] = [];
@@ -99,6 +115,11 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
   // Track which series have detected array input (invalid for StateTransitions)
   #seriesIsArray = new Map<string, boolean>();
+
+  // Cached decoding helpers for enum constant names
+  #topicsByName?: Record<string, Topic> = {};
+  #structures?: Record<string, MessagePathStructureItemMessage>;
+  #enumValues?: ReturnType<typeof enumValuesByDatatypeAndField>;
 
   public constructor(renderer: StateTransitionsRenderer) {
     super();
@@ -187,7 +208,13 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       return;
     }
 
-    const { messages, lastSeekTime, currentTime, startTime, endTime } = activeData;
+    const { messages, lastSeekTime, currentTime, startTime, endTime, topics, datatypes } =
+      activeData;
+    this.#topicsByName = Object.fromEntries(topics.map((topic) => [topic.name, topic]));
+    this.#structures = messagePathStructures(datatypes);
+    this.#enumValues = enumValuesByDatatypeAndField(datatypes);
+
+    // console.log("this.#enumValues", this.#enumValues);
 
     // Calculate current time since start for follow mode
     this.#currentSeconds = toSec(subtractTime(currentTime, startTime));
@@ -215,6 +242,8 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
     // Build and update datasets
     this.#buildAndUpdateDatasets();
+
+    this.#queueDispatchRender();
   }
 
   /**
@@ -432,12 +461,19 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     startTime: Time,
   ): Datum | undefined {
     const timestamp = getTimestampForMessageEvent(msgEvent, series.path.timestampMethod);
-    if (!timestamp) {
+    if (!timestamp || !this.#topicsByName || !this.#structures || !this.#enumValues) {
       return undefined;
     }
 
-    const items = simpleGetMessagePathDataItems(msgEvent, series.parsed);
-    if (items.length === 0) {
+    const items = getMessagePathDataItems(
+      msgEvent,
+      series.parsed,
+      this.#topicsByName,
+      this.#structures,
+      this.#enumValues,
+    );
+
+    if (items == undefined || items.length === 0) {
       return undefined;
     }
 
@@ -492,7 +528,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   }
 
   /**
-   * Extract value and constantName from items returned by simpleGetMessagePathDataItems.
+   * Extract value and constantName from decoded items.
    *
    * Follows the original StateTransitions logic:
    * - Only accepts exactly ONE item (like the original queriedData.length !== 1 check)
@@ -705,6 +741,8 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     if (this.isDestroyed()) {
       return;
     }
+    this.#viewport.width = size.width;
+    this.#viewport.height = size.height;
     this.#updateAction.size = size;
     this.#queueDispatchRender();
   }
@@ -843,11 +881,95 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     const datasets = this.#pendingDatasets;
     this.#pendingDatasets = undefined;
 
-    this.#latestXScale = await this.#renderer.updateDatasets(datasets);
+    // Downsample datasets before sending to renderer
+    const downsampledDatasets = this.#downsampleDatasets(datasets);
+
+    this.#latestXScale = await this.#renderer.updateDatasets(downsampledDatasets);
     if (this.isDestroyed()) {
       return;
     }
 
     this.emit("xScaleChanged", this.#latestXScale);
+  }
+
+  /**
+   * Downsample datasets for rendering.
+   * When there are many state transitions in a small visual area,
+   * they are collapsed into a gray "[...]" segment.
+   */
+  #downsampleDatasets(datasets: Dataset[]): Dataset[] {
+    // Get current x bounds for the viewport
+    const xBounds = this.#getXBounds();
+    const yBounds = this.#configBounds.y;
+
+    // If we don't have valid bounds, return original datasets
+    if (
+      xBounds.min == undefined ||
+      xBounds.max == undefined ||
+      yBounds.min == undefined ||
+      yBounds.max == undefined ||
+      this.#viewport.width <= 0
+    ) {
+      return datasets;
+    }
+
+    // Update viewport bounds
+    this.#viewport.bounds = {
+      x: { min: xBounds.min, max: xBounds.max },
+      y: { min: yBounds.min, max: yBounds.max },
+    };
+
+    // Calculate max points per dataset
+    const numPoints = MAX_POINTS / Math.max(datasets.length, 1);
+
+    return datasets.map((dataset) => {
+      const data = dataset.data;
+      if (data.length === 0) {
+        return dataset;
+      }
+
+      // Get the y value from the first data point
+      const yValue = data[0]?.y ?? 0;
+
+      // Perform downsampling
+      const downsampled = downsampleStates(data, this.#viewport, numPoints);
+
+      // Resolve downsampled points back to actual data
+      const resolved = downsampled.map(({ x, index, states }) => {
+        if (index == undefined) {
+          // This is a compressed segment with multiple states
+          // Render as gray "[...]" to indicate hidden detail
+          return {
+            x,
+            y: yValue,
+            labelColor: grey,
+            label: "[...]",
+            states,
+            value: undefined,
+          };
+        }
+
+        // Get the original point
+        const point = data[index];
+        if (point == undefined) {
+          return { x: NaN, y: NaN, value: NaN };
+        }
+
+        return {
+          ...point,
+          x,
+        };
+      });
+
+      // NaN item values create gaps in the line
+      const cleanedData = resolved.map((item) => {
+        if (isNaN(item.x) || isNaN(item.y)) {
+          return { x: NaN, y: NaN, value: NaN };
+        }
+        return item;
+      });
+
+      return { ...dataset, data: cleanedData };
+    });
   }
 }
