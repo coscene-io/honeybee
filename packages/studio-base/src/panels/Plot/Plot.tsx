@@ -43,7 +43,6 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import TimeBasedChartTooltipContent, {
   TimeBasedChartTooltipData,
 } from "@foxglove/studio-base/components/TimeBasedChart/TimeBasedChartTooltipContent";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   TimelineInteractionStateStore,
@@ -56,6 +55,7 @@ import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { VerticalBars } from "@foxglove/studio-base/panels/Plot/VerticalBars";
 import { SubscribePayload } from "@foxglove/studio-base/players/types";
+import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
 import { getLineColor } from "@foxglove/studio-base/util/plotColors";

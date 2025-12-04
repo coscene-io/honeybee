@@ -15,11 +15,10 @@ import { Immutable, Time } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { stringifyMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/stringifyRosPath";
 import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { TimestampDatasetsBuilder } from "@foxglove/studio-base/panels/Plot/builders/TimestampDatasetsBuilder";
 import { MessageBlock, PlayerState } from "@foxglove/studio-base/players/types";
-import { Bounds } from "@foxglove/studio-base/types/Bounds";
+import { Bounds1D, Bounds } from "@foxglove/studio-base/types/Bounds";
 import delay from "@foxglove/studio-base/util/delay";
 import { getContrastColor, getLineColor } from "@foxglove/studio-base/util/plotColors";
 
