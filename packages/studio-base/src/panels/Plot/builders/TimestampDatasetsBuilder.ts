@@ -13,8 +13,8 @@ import { MessagePath } from "@foxglove/message-path";
 import { toSec, subtract as subtractTime } from "@foxglove/rostime";
 import { Immutable, MessageEvent, Time } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { MessageBlock, PlayerState } from "@foxglove/studio-base/players/types";
+import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { TimestampMethod, getTimestampForMessage } from "@foxglove/studio-base/util/time";
 
 import { BlockTopicCursor } from "./BlockTopicCursor";

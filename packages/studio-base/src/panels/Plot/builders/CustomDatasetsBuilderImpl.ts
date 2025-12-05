@@ -8,8 +8,7 @@
 import { compare } from "@foxglove/rostime";
 import { Immutable, Time } from "@foxglove/studio";
 import { downsampleScatter } from "@foxglove/studio-base/components/TimeBasedChart/downsample";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
-import { extendBounds1D } from "@foxglove/studio-base/types/Bounds";
+import { Bounds1D, extendBounds1D } from "@foxglove/studio-base/types/Bounds";
 
 import {
   CsvDataset,
