@@ -596,14 +596,24 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       // Process data to create state transition segments
       const processedData = this.#processDataForStateTransitions(data, y);
 
+      // Chart.js 在布局时会向上下左右预留 padding，避免首尾的点/线被裁掉。
+      // 这个 padding 来自各个 controller 的 getMaxOverflow()
+      // 对于折线（scatter/line），getMaxOverflow() 取 max(borderWidth, size(首点), size(尾点)) / 2。
+      // size() 是点的半径/hover 半径/边框宽度的组合。
+      // 我们的数据源因为降采后偶尔会导致没有可用过的点，
+      // 导致计算 padding 会从 10px（borderWidth）跳到 5px，再跳回去，chartArea 的 top/bottom 就在更新时上下抖。
+      // 如果我们添加隐藏的点，pading 就会用这个点计算，就不会有这个问题。
+      const baseRadius = this.#showPoints ? 1.25 : 0.001; // 足够小看不见，但不为 0
+      const baseHover = this.#showPoints ? 3 : 0;
+
       const dataset: Dataset = {
         borderWidth: 10,
         data: processedData,
         label: series.path.label ?? series.path.value,
         pointBackgroundColor: "rgba(0, 0, 0, 0.4)",
         pointBorderColor: "transparent",
-        pointHoverRadius: 3,
-        pointRadius: this.#showPoints ? 1.25 : 0,
+        pointHoverRadius: baseHover,
+        pointRadius: baseRadius,
         pointStyle: "circle",
         showLine: true,
       };

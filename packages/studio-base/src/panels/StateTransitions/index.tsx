@@ -61,7 +61,6 @@ const useStyles = makeStyles()((theme) => ({
   chartWrapper: {
     position: "relative",
     marginTop: theme.spacing(0.5),
-    height: "100%",
     width: "100%",
     overflow: "hidden",
   },
@@ -494,7 +493,7 @@ function StateTransitions(props: Props) {
     <Stack flexGrow={1} overflow="hidden" style={{ zIndex: 0 }}>
       <PanelToolbar />
       <Stack fullWidth fullHeight flex="auto" overflowX="hidden" overflowY="auto">
-        <div className={classes.chartWrapper} style={{ height }}>
+        <div className={classes.chartWrapper} style={{ minHeight: height }}>
           <div
             className={classes.canvasDiv}
             ref={setCanvasDiv}
