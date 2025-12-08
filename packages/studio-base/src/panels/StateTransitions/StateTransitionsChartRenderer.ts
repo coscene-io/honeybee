@@ -224,6 +224,17 @@ export class StateTransitionsChartRenderer {
       // responsive mode does not work properly with offscreen canvases and retina device pixel ratios
       // it results in a run-away canvas that keeps doubling in size!
       responsive: false,
+      // Disable top padding - StateTransitions data points are far below y max (-3),
+      // so no padding is needed at the top. This matches the original behavior.
+      layout: {
+        autoPadding: false,
+        padding: {
+          top: 0,
+          bottom: 5, // borderWidth / 2, to prevent bottom clipping
+          left: 5,
+          right: 5,
+        },
+      },
       scales: {
         x: {
           type: "linear",
