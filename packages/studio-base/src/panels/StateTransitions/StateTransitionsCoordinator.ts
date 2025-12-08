@@ -201,6 +201,19 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       y: {},
     };
 
+    // Emit pathStateChanged for all config.paths (including unparseable ones)
+    // This ensures settings panel reflects all paths immediately
+    const pathState: PathState[] = config.paths.map((path, index) => {
+      const series = newSeries.find((s) => s.configIndex === index);
+      const cursorKey = series ? `${series.configIndex}:${series.parsed.topicName}` : "";
+      return {
+        path,
+        isArray: this.#seriesIsArray.get(cursorKey) ?? false,
+      };
+    });
+
+    this.emit("pathStateChanged", pathState);
+
     this.#queueDispatchRender();
   }
 
@@ -578,7 +591,6 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     }
 
     const datasets: Dataset[] = [];
-    const pathState: PathState[] = [];
     let minY: number | undefined;
 
     for (const series of this.#series) {
@@ -589,14 +601,6 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
       // Merge fullData and currentData
       const data = this.#getMergedData(cursorKey);
-
-      // Check if this series has detected array input (tracked during message processing)
-      const isArray = this.#seriesIsArray.get(cursorKey) ?? false;
-
-      pathState.push({
-        path: series.path,
-        isArray,
-      });
 
       // Process data to create state transition segments
       const processedData = this.#processDataForStateTransitions(data, y);
@@ -632,6 +636,17 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
         max: this.#config.xAxisMaxValue ?? this.#datasetRange?.max,
       };
     }
+
+    // Build pathState from all config.paths (including unparseable ones)
+    // This ensures settings panel reflects all paths with updated isArray status
+    const pathState: PathState[] = this.#config.paths.map((path, index) => {
+      const series = this.#series.find((s) => s.configIndex === index);
+      const cursorKey = series ? `${series.configIndex}:${series.parsed.topicName}` : "";
+      return {
+        path,
+        isArray: this.#seriesIsArray.get(cursorKey) ?? false,
+      };
+    });
 
     this.emit("pathStateChanged", pathState);
     this.updateDatasets(datasets);

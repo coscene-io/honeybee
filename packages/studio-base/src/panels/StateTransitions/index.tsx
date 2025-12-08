@@ -220,7 +220,9 @@ function StateTransitions(props: Props) {
     setCoordinator(newCoordinator);
 
     newCoordinator.on("viewportChange", setCanReset);
-    newCoordinator.on("pathStateChanged", setPathState);
+    newCoordinator.on("pathStateChanged", (state) => {
+      setPathState(state);
+    });
 
     return () => {
       newCoordinator.off("viewportChange", setCanReset);
