@@ -12,9 +12,8 @@ import Logger from "@foxglove/log";
 import { MessagePath } from "@foxglove/message-path";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { PlayerState } from "@foxglove/studio-base/players/types";
-import { extendBounds1D, unionBounds1D } from "@foxglove/studio-base/types/Bounds";
+import { Bounds1D, extendBounds1D, unionBounds1D } from "@foxglove/studio-base/types/Bounds";
 
 import { BlockTopicCursor } from "./BlockTopicCursor";
 import {
