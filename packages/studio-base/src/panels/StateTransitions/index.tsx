@@ -24,9 +24,10 @@ import { v4 as uuidv4 } from "uuid";
 import { debouncePromise } from "@foxglove/den/async";
 import { filterMap } from "@foxglove/den/collection";
 import { useRethrow } from "@foxglove/hooks";
-import { parseMessagePath } from "@foxglove/message-path";
+import { parseMessagePath, MessagePathPart } from "@foxglove/message-path";
 import { add as addTimes, fromSec } from "@foxglove/rostime";
 import { Immutable } from "@foxglove/studio";
+import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -48,7 +49,6 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { PathLegend } from "@foxglove/studio-base/panels/StateTransitions/PathLegend";
-import { subscribePayloadFromMessagePath } from "@foxglove/studio-base/players/subscribePayloadFromMessagePath";
 import { SubscribePayload } from "@foxglove/studio-base/players/types";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
@@ -258,16 +258,31 @@ function StateTransitions(props: Props) {
         return;
       }
 
-      const payload = subscribePayloadFromMessagePath(path.value, "full");
+      // Fill in global variables before subscribing
+      const filledInPath = fillInGlobalVariablesInPath(parsed, globalVariables);
+
+      // Get the first field name from the message path for field-level subscription
+      type NamePart = MessagePathPart & { type: "name" };
+      const firstField = filledInPath.messagePath.find(
+        (element): element is NamePart => element.type === "name",
+      );
+
+      const fields: string[] = firstField ? [firstField.name] : [];
+
       // Include the header in case we are ordering by header stamp.
-      if (path.timestampMethod === "headerStamp" && payload?.fields != undefined) {
-        payload.fields.push("header");
+      if (path.timestampMethod === "headerStamp") {
+        fields.push("header");
       }
-      return payload;
+
+      return {
+        topic: filledInPath.topicName,
+        preloadType: "full",
+        fields: fields.length > 0 ? fields : undefined,
+      };
     });
 
     setSubscriptions(subscriberId, subscriptions);
-  }, [paths, setSubscriptions, subscriberId]);
+  }, [paths, setSubscriptions, subscriberId, globalVariables]);
 
   // Unsubscribe on unmount
   useEffect(() => {

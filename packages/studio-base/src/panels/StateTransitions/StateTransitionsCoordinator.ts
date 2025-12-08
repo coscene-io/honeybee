@@ -271,6 +271,8 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       if (needsReset) {
         this.#blockCursors.set(cursorKey, 0);
         this.#fullData.set(cursorKey, []);
+        // Also clear streaming data to avoid stale states when data source changes
+        this.#currentData.set(cursorKey, []);
         // Update first block reference on reset
         this.#firstBlockRefs.set(cursorKey, blocks[0]?.messagesByTopic[topicName]);
       }
