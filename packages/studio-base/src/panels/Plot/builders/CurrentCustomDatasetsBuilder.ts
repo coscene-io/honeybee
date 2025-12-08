@@ -12,8 +12,8 @@ import { filterMap } from "@foxglove/den/collection";
 import { MessagePath } from "@foxglove/message-path";
 import { Immutable, Time, MessageEvent } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { PlayerState } from "@foxglove/studio-base/players/types";
+import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 
 import {
   CsvDataset,
