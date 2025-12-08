@@ -109,6 +109,10 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   #blockCursors = new Map<string, number>();
   #latestBlocks?: Immutable<(MessageBlock | undefined)[]>;
 
+  // Block reference tracking for detecting data source changes (like BlockTopicCursor)
+  #firstBlockRefs = new Map<string, Immutable<MessageEvent[]> | undefined>();
+  #lastBlockRefs = new Map<string, Immutable<MessageEvent[]> | undefined>();
+
   // Separated data storage for proper deduplication
   #fullData = new Map<string, Datum[]>(); // Preloaded block data (complete history)
   #currentData = new Map<string, Datum[]>(); // Streaming data (real-time)
@@ -181,6 +185,8 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       this.#fullData.clear();
       this.#currentData.clear();
       this.#seriesIsArray.clear();
+      this.#firstBlockRefs.clear();
+      this.#lastBlockRefs.clear();
       this.#latestBlocks = undefined; // Force reprocessing of blocks
     }
 
@@ -256,12 +262,14 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       const cursorKey = `${series.configIndex}:${topicName}`;
 
       // Check if blocks have been reset (new data source, different blocks array)
-      // If the first block changed or blocks length decreased, we need to reset
-      const needsReset = this.#checkBlocksNeedReset(cursorKey, blocks);
+      // Uses reference comparison similar to BlockTopicCursor.nextWillReset()
+      const needsReset = this.#checkBlocksNeedReset(cursorKey, topicName, blocks);
 
       if (needsReset) {
         this.#blockCursors.set(cursorKey, 0);
         this.#fullData.set(cursorKey, []);
+        // Update first block reference on reset
+        this.#firstBlockRefs.set(cursorKey, blocks[0]?.messagesByTopic[topicName]);
       }
 
       let cursor = this.#blockCursors.get(cursorKey) ?? 0;
@@ -285,6 +293,8 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
           }
         }
 
+        // Update last block reference after processing each block
+        this.#lastBlockRefs.set(cursorKey, messagesForTopic);
         cursor = blockIdx + 1;
       }
 
@@ -298,32 +308,22 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
   /**
    * Check if blocks need to be reset (e.g., new data source loaded).
+   * Uses reference comparison similar to BlockTopicCursor.nextWillReset().
    */
   #checkBlocksNeedReset(
     cursorKey: string,
+    topicName: string,
     blocks: Immutable<(MessageBlock | undefined)[]>,
   ): boolean {
+    const firstBlockRef = blocks[0]?.messagesByTopic[topicName];
+    const storedFirstBlockRef = this.#firstBlockRefs.get(cursorKey);
+
     const cursor = this.#blockCursors.get(cursorKey) ?? 0;
+    const lastIdx = Math.max(0, cursor - 1);
+    const lastBlockRef = blocks[lastIdx]?.messagesByTopic[topicName];
+    const storedLastBlockRef = this.#lastBlockRefs.get(cursorKey);
 
-    // If cursor is beyond blocks length, we need to reset
-    if (cursor > blocks.length) {
-      return true;
-    }
-
-    // If we have processed blocks but now they're undefined/empty at earlier positions
-    // This indicates a new data source or reset
-    if (cursor > 0) {
-      const fullData = this.#fullData.get(cursorKey);
-      if (fullData && fullData.length > 0 && blocks.length > 0) {
-        // Check if the first block is now different (simple heuristic)
-        const firstBlock = blocks[0];
-        if (!firstBlock) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+    return firstBlockRef !== storedFirstBlockRef || lastBlockRef !== storedLastBlockRef;
   }
 
   /**
