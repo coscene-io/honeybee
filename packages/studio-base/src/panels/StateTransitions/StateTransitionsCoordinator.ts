@@ -195,10 +195,13 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     // Update config bounds
     const xMin = config.xAxisMinValue ?? 0;
     const xMax = config.xAxisMaxValue;
+
     this.#configBounds = {
       x: { min: xMin, max: xMax },
       y: {},
     };
+
+    this.#queueDispatchRender();
   }
 
   /**
