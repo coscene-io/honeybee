@@ -14,7 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Button } from "@mui/material";
+import { Button, Fade, Tooltip } from "@mui/material";
 import Hammer from "hammerjs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMountedState } from "react-use";
@@ -37,6 +37,9 @@ import Panel from "@foxglove/studio-base/components/Panel";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
+import TimeBasedChartTooltipContent, {
+  TimeBasedChartTooltipData,
+} from "@foxglove/studio-base/components/TimeBasedChart/TimeBasedChartTooltipContent";
 import {
   TimelineInteractionStateStore,
   useClearHoverValue,
@@ -86,6 +89,9 @@ const useStyles = makeStyles()((theme) => ({
       pointerEvents: "auto",
     },
   },
+  tooltip: {
+    maxWidth: "none",
+  },
 }));
 
 const selectGlobalBounds = (store: TimelineInteractionStateStore) => store.globalBounds;
@@ -112,6 +118,14 @@ function StateTransitions(props: Props) {
     undefined,
   );
   const [canReset, setCanReset] = useState(false);
+
+  // Tooltip state
+  const [activeTooltip, setActiveTooltip] = useState<{
+    x: number;
+    y: number;
+    data: TimeBasedChartTooltipData[];
+  }>();
+  const mouseYRef = useRef<number | undefined>(undefined);
 
   const isMounted = useMountedState();
   const draggingRef = useRef(false);
@@ -444,12 +458,14 @@ function StateTransitions(props: Props) {
   const setHoverValue = useSetHoverValue();
   const clearHoverValue = useClearHoverValue();
 
-  const buildTooltip = useMemo(() => {
-    return debouncePromise(async (canvasX: number) => {
+  const updateTooltip = useCallback(
+    async (canvasX: number, canvasY: number, boundingRect: DOMRect) => {
       if (!coordinator || !isMounted()) {
+        setActiveTooltip(undefined);
         return;
       }
 
+      // Update hover value for vertical bar
       const seconds = coordinator.getXValueAtPixel(canvasX);
       if (seconds >= 0) {
         setHoverValue({
@@ -458,19 +474,62 @@ function StateTransitions(props: Props) {
           type: "PLAYBACK_SECONDS",
         });
       }
-    });
-  }, [coordinator, isMounted, setHoverValue, subscriberId]);
+
+      // Get elements at pixel for tooltip
+      const elements = await coordinator.getElementsAtPixel({ x: canvasX, y: canvasY });
+
+      if (elements.length === 0 || mouseYRef.current == undefined) {
+        setActiveTooltip(undefined);
+        return;
+      }
+
+      const tooltipItems: TimeBasedChartTooltipData[] = [];
+
+      for (const element of elements) {
+        const { data: datum, configIndex } = element;
+        const { value, constantName, states } = datum;
+        if (value == undefined && states == undefined) {
+          continue;
+        }
+
+        tooltipItems.push({
+          configIndex,
+          value: value ?? (states ?? []).join(", "),
+          constantName,
+        });
+      }
+
+      if (tooltipItems.length === 0) {
+        setActiveTooltip(undefined);
+        return;
+      }
+
+      setActiveTooltip({
+        x: boundingRect.left + canvasX,
+        y: boundingRect.top + mouseYRef.current,
+        data: tooltipItems,
+      });
+    },
+    [coordinator, isMounted, setHoverValue, subscriberId],
+  );
+
+  const debouncedUpdateTooltip = useMemo(() => debouncePromise(updateTooltip), [updateTooltip]);
 
   const onMouseMove = useCallback(
     (event: React.MouseEvent<HTMLElement>) => {
       const boundingRect = event.currentTarget.getBoundingClientRect();
-      buildTooltip(event.clientX - boundingRect.left);
+      const canvasX = event.clientX - boundingRect.left;
+      const canvasY = event.clientY - boundingRect.top;
+      mouseYRef.current = canvasY;
+      debouncedUpdateTooltip(canvasX, canvasY, boundingRect);
     },
-    [buildTooltip],
+    [debouncedUpdateTooltip],
   );
 
   const onMouseOut = useCallback(() => {
     clearHoverValue(subscriberId);
+    setActiveTooltip(undefined);
+    mouseYRef.current = undefined;
   }, [clearHoverValue, subscriberId]);
 
   useStateTransitionsPanelSettings(config, saveConfig, pathState, focusedPath);
@@ -489,40 +548,79 @@ function StateTransitions(props: Props) {
     }
   }, [config.paths.length, saveConfig]);
 
+  // Labels for tooltip (path label or value for each config index)
+  const labelsByConfigIndex = useMemo(() => {
+    const labels: Record<string, string | undefined> = {};
+    paths.forEach((path, index) => {
+      labels[index] = path.label ?? path.value;
+    });
+    return labels;
+  }, [paths]);
+
+  // Tooltip content
+  const tooltipContent = useMemo(() => {
+    if (!activeTooltip) {
+      return undefined;
+    }
+    return (
+      <TimeBasedChartTooltipContent
+        content={activeTooltip.data}
+        multiDataset={paths.length > 1}
+        labelsByConfigIndex={labelsByConfigIndex}
+      />
+    );
+  }, [activeTooltip, paths.length, labelsByConfigIndex]);
+
   return (
     <Stack flexGrow={1} overflow="hidden" style={{ zIndex: 0 }}>
       <PanelToolbar />
       <Stack fullWidth fullHeight flex="auto" overflowX="hidden" overflowY="auto">
-        <div className={classes.chartWrapper} style={{ minHeight: height }}>
-          <div
-            className={classes.canvasDiv}
-            ref={setCanvasDiv}
-            onWheel={onWheel}
-            onMouseMove={onMouseMove}
-            onMouseOut={onMouseOut}
-            onClick={onClick}
-            onDoubleClick={onResetView}
-          />
-          <VerticalBars coordinator={coordinator} hoverComponentId={subscriberId} />
-          {canReset && (
-            <div className={classes.resetZoomButton}>
-              <Button
-                variant="contained"
-                color="inherit"
-                title="(shortcut: double-click)"
-                onClick={onResetView}
-              >
-                Reset view
-              </Button>
-            </div>
-          )}
-          <PathLegend
-            paths={paths}
-            heightPerTopic={heightPerTopic}
-            setFocusedPath={setFocusedPath}
-            saveConfig={saveConfig}
-          />
-        </div>
+        <Tooltip
+          arrow={false}
+          classes={{ tooltip: classes.tooltip }}
+          open={activeTooltip != undefined}
+          placement="right"
+          title={tooltipContent ?? <></>}
+          disableInteractive
+          followCursor
+          slots={{
+            transition: Fade,
+          }}
+          slotProps={{
+            transition: { timeout: 0 },
+          }}
+        >
+          <div className={classes.chartWrapper} style={{ minHeight: height }}>
+            <div
+              className={classes.canvasDiv}
+              ref={setCanvasDiv}
+              onWheel={onWheel}
+              onMouseMove={onMouseMove}
+              onMouseOut={onMouseOut}
+              onClick={onClick}
+              onDoubleClick={onResetView}
+            />
+            <VerticalBars coordinator={coordinator} hoverComponentId={subscriberId} />
+            {canReset && (
+              <div className={classes.resetZoomButton}>
+                <Button
+                  variant="contained"
+                  color="inherit"
+                  title="(shortcut: double-click)"
+                  onClick={onResetView}
+                >
+                  Reset view
+                </Button>
+              </div>
+            )}
+            <PathLegend
+              paths={paths}
+              heightPerTopic={heightPerTopic}
+              setFocusedPath={setFocusedPath}
+              saveConfig={saveConfig}
+            />
+          </div>
+        </Tooltip>
       </Stack>
     </Stack>
   );
