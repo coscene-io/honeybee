@@ -239,7 +239,7 @@ function FieldInput({
         <Tooltip
           arrow
           placement="right"
-          title={<Typography variant="subtitle2">{field.help}</Typography>}
+          title={field.help && <Typography variant="subtitle2">{field.help}</Typography>}
         >
           <ToggleButtonGroup
             className={classes.styledToggleButtonGroup}
@@ -332,7 +332,7 @@ function FieldInput({
       }
 
       const hasError = !selectedOption && (!isEmpty || field.value != undefined);
-      return (
+      const selectElement = (
         <Select
           className={cx({ [classes.error]: hasError })}
           size="small"
@@ -390,6 +390,18 @@ function FieldInput({
             <MenuItem style={{ display: "none" }} value={INVALID_SENTINEL_VALUE} />
           )}
         </Select>
+      );
+
+      return field.help ? (
+        <Tooltip
+          arrow
+          placement="right"
+          title={<Typography variant="subtitle2">{field.help}</Typography>}
+        >
+          <div>{selectElement}</div>
+        </Tooltip>
+      ) : (
+        selectElement
       );
     }
 

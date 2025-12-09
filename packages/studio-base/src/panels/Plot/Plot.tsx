@@ -74,7 +74,7 @@ import { DEFAULT_PATH, usePlotPanelSettings } from "./settings";
 import { pathToSubscribePayload } from "./subscription";
 
 export const defaultSidebarDimension = 240;
-const MAX_CURRENT_DATUMS_PER_SERIES = 50_000;
+const MAX_CURRENT_DATUMS_PER_SERIES = 5000;
 
 const useStyles = makeStyles()((theme) => ({
   tooltip: {
@@ -145,6 +145,7 @@ export function Plot(props: Props): React.JSX.Element {
   const draggingRef = useRef(false);
 
   const [hasTooManyMessages, setHasTooManyMessages] = useState(false);
+  const [isDisabledFullTimestamp, setIsDisabledFullTimestamp] = useState(false);
 
   useEffect(() => {
     setMessagePathDropConfig({
@@ -187,7 +188,12 @@ export function Plot(props: Props): React.JSX.Element {
     data: TimeBasedChartTooltipData[];
   }>();
 
-  usePlotPanelSettings(config, saveConfig, focusedPath);
+  usePlotPanelSettings(
+    config,
+    saveConfig,
+    focusedPath,
+    isDisabledFullTimestamp ? "disabled" : "enabled",
+  );
 
   useEffect(() => {
     if (config.paths.length === 0) {
@@ -660,13 +666,23 @@ export function Plot(props: Props): React.JSX.Element {
         maxMessageCount = Math.max(maxMessageCount, targetTopic.messageCount ?? 0);
       }
 
-      // if the number of messages in the topic is greater than the max, set the xAxis to partialTimestamp
+      // 当任一系列消息数量超过阈值，先切换 x 轴模式再返回，避免发送全量订阅请求
       if (maxMessageCount > MAX_CURRENT_DATUMS_PER_SERIES) {
-        // notify the user that the xAxis has been set to partialTimestamp
-        setHasTooManyMessages(true);
-      } else {
-        setHasTooManyMessages(false);
+        if (xAxisMode !== "partialTimestamp") {
+          setHasTooManyMessages(true);
+          saveConfig((prevConfig) => ({
+            ...prevConfig,
+            xAxisVal: "partialTimestamp",
+          }));
+          setIsDisabledFullTimestamp(true);
+        } else {
+          setHasTooManyMessages(true);
+          setIsDisabledFullTimestamp(false);
+        }
+        return;
       }
+
+      setHasTooManyMessages(false);
     } else {
       setHasTooManyMessages(false);
     }
