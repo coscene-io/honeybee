@@ -1,9 +1,13 @@
 {
   "extends": "@foxglove/tsconfig/base",
-  "include": ["**/*"],
+  "include": [
+    "**/*"
+  ],
   "compilerOptions": {
     "jsx": "react-jsx",
-    "lib": ["ESNext.Disposable"],
+    "lib": [
+      "ESNext.Disposable"
+    ],
     "module": "commonjs",
     "noEmit": true,
     "experimentalDecorators": true
