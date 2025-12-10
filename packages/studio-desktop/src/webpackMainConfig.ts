@@ -5,10 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ESBuildMinifyPlugin } from "esbuild-loader";
-import ForkTsCheckerWebpackPlugin from "fork-ts-checker-webpack-plugin";
+import { rspack, type Configuration, type ResolveOptions } from "@rspack/core";
 import path from "path";
-import { Configuration, DefinePlugin, ResolveOptions } from "webpack";
+import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
 import { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 
@@ -44,7 +43,9 @@ export const webpackMainConfig =
       context: params.mainContext,
       entry: params.mainEntrypoint,
       target: "electron-main",
-      devtool: isDev ? "eval-cheap-module-source-map" : params.prodSourceMap,
+      devtool: isDev
+        ? "eval-cheap-module-source-map"
+        : (params.prodSourceMap as Configuration["devtool"]),
 
       output: {
         publicPath: "",
@@ -57,13 +58,26 @@ export const webpackMainConfig =
             test: /\.tsx?$/,
             exclude: /node_modules/,
             use: {
-              loader: "ts-loader",
+              loader: "builtin:swc-loader",
               options: {
-                transpileOnly: true,
-                // https://github.com/TypeStrong/ts-loader#onlycompilebundledfiles
-                // avoid looking at files which are not part of the bundle
-                onlyCompileBundledFiles: true,
-                projectReferences: true,
+                jsc: {
+                  parser: {
+                    syntax: "typescript",
+                    tsx: true,
+                  },
+                  transform: {
+                    react: {
+                      runtime: "automatic",
+                      development: isDev,
+                    },
+                  },
+                  externalHelpers: false,
+                },
+                env: {
+                  targets: {
+                    node: "20",
+                  },
+                },
               },
             },
           },
@@ -72,22 +86,19 @@ export const webpackMainConfig =
 
       optimization: {
         removeAvailableModules: true,
-        minimizer: [
-          new ESBuildMinifyPlugin({
-            target: "es2022",
-            minify: true,
-          }),
-        ],
       },
 
       plugins: [
-        new DefinePlugin({
+        new rspack.ProvidePlugin({
+          React: "react",
+        }),
+        new rspack.DefinePlugin({
           MAIN_WINDOW_WEBPACK_ENTRY: rendererEntry,
           COSCENE_PRODUCT_NAME: JSON.stringify(params.packageJson.productName),
           COSCENE_PRODUCT_VERSION: JSON.stringify(params.packageJson.version),
           COSCENE_PRODUCT_HOMEPAGE: JSON.stringify(params.packageJson.homepage),
         }),
-        new ForkTsCheckerWebpackPlugin({
+        new TsCheckerRspackPlugin({
           typescript: {
             memoryLimit: 4096, // 增加内存限制到 4GB
           },

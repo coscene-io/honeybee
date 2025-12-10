@@ -5,25 +5,41 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import ReactRefreshPlugin from "@pmmmwh/react-refresh-webpack-plugin";
+import { rspack, type Configuration, type RspackPluginInstance } from "@rspack/core";
+import ReactRefreshPlugin from "@rspack/plugin-react-refresh";
 import { sentryWebpackPlugin } from "@sentry/webpack-plugin";
-import { CleanWebpackPlugin } from "clean-webpack-plugin";
-import CopyPlugin from "copy-webpack-plugin";
-import HtmlWebpackPlugin from "html-webpack-plugin";
 import path from "path";
-import { Configuration, WebpackPluginInstance, DefinePlugin } from "webpack";
-import type {
-  ConnectHistoryApiFallbackOptions,
-  Configuration as WebpackDevServerConfiguration,
-} from "webpack-dev-server";
+import type { ConnectHistoryApiFallbackOptions } from "webpack-dev-server";
 
 import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 import { makeConfig } from "@foxglove/studio-base/webpack";
 import * as palette from "@foxglove/theme/src/palette";
 
-export interface WebpackConfiguration extends Configuration {
-  devServer?: WebpackDevServerConfiguration;
+export interface RspackConfiguration extends Configuration {
+  devServer?: {
+    static?: {
+      directory?: string;
+    };
+    historyApiFallback?: ConnectHistoryApiFallbackOptions;
+    hot?: boolean;
+    allowedHosts?: string | string[];
+    proxy?: Array<{
+      context: string[];
+      target: string;
+      secure?: boolean;
+      changeOrigin?: boolean;
+    }>;
+    headers?: Record<string, string>;
+    client?: {
+      overlay?: {
+        runtimeErrors?: (error: Error) => boolean;
+      };
+    };
+  };
 }
+
+// Keep the old export name for compatibility
+export type WebpackConfiguration = RspackConfiguration;
 
 export type ConfigParams = {
   /** Directory to find `entrypoint` and `tsconfig.json`. */
@@ -38,17 +54,29 @@ export type ConfigParams = {
   /** Needs to be overridden for react-router */
   historyApiFallback?: ConnectHistoryApiFallbackOptions;
   /** Customizations to index.html */
-  indexHtmlOptions?: Partial<HtmlWebpackPlugin.Options>;
+  indexHtmlOptions?: Partial<{
+    title?: string;
+    filename?: string;
+    template?: string;
+    templateContent?: string;
+    inject?: boolean | "head" | "body";
+    publicPath?: string;
+    scriptLoading?: "blocking" | "defer" | "module";
+    chunks?: string[];
+    excludeChunks?: string[];
+    meta?: Record<string, string | Record<string, string>>;
+  }>;
 };
 
-export const devServerConfig = (params: ConfigParams): WebpackConfiguration => ({
-  // Use empty entry to avoid webpack default fallback to /src
+export const devServerConfig = (params: ConfigParams): RspackConfiguration => ({
+  // Use empty entry to avoid rspack default fallback to /src
   entry: {},
 
-  // Output path must be specified here for HtmlWebpackPlugin within render config to work
+  // Output path must be specified here for HtmlRspackPlugin within render config to work
   output: {
     publicPath: params.publicPath ?? "",
     path: params.outputPath,
+    clean: true,
   },
 
   devServer: {
@@ -92,7 +120,7 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
           // browser. These appear in the devtools network tab as "(cancelled)" and bubble up to the
           // parent page as errors which trigger `window.onerror`.
           //
-          // webpack devserver attaches to the window error handler surface unhandled errors sent to
+          // rspack devserver attaches to the window error handler surface unhandled errors sent to
           // the page. However this kind of error is a false-positive for a worker that is
           // terminated because we do not care that its network requests were cancelled since the
           // worker itself is gone.
@@ -122,7 +150,7 @@ export const devServerConfig = (params: ConfigParams): WebpackConfiguration => (
     },
   },
 
-  plugins: [new CleanWebpackPlugin()],
+  plugins: [],
 });
 
 export const mainConfig =
@@ -133,11 +161,11 @@ export const mainConfig =
 
     const allowUnusedVariables = isDev;
 
-    // 在webpack配置阶段生成构建时间，确保HTML模板和DefinePlugin使用相同的值
+    // 在rspack配置阶段生成构建时间，确保HTML模板和DefinePlugin使用相同的值
     const buildTime = new Date().toISOString();
 
-    const plugins: WebpackPluginInstance[] = [
-      new DefinePlugin({
+    const plugins: RspackPluginInstance[] = [
+      new rspack.DefinePlugin({
         "process.env.LAST_BUILD_TIME": JSON.stringify(buildTime),
         "process.env.IMAGE_TAG": JSON.stringify(process.env.IMAGE_TAG),
         "process.env.GITHUB_SHA": JSON.stringify(process.env.GITHUB_SHA),
@@ -168,11 +196,11 @@ export const mainConfig =
           errorHandler: (err) => {
             console.warn(err);
           },
-        }) as WebpackPluginInstance,
+        }) as RspackPluginInstance,
       );
     }
 
-    const appWebpackConfig = makeConfig(env, argv, {
+    const appRspackConfig = makeConfig(env, argv, {
       allowUnusedVariables,
       version: params.version,
     });
@@ -180,12 +208,14 @@ export const mainConfig =
     const config: Configuration = {
       name: "main",
 
-      ...appWebpackConfig,
+      ...appRspackConfig,
 
       target: "web",
       context: params.contextPath,
       entry: params.entrypoint,
-      devtool: isDev ? "eval-cheap-module-source-map" : params.prodSourceMap,
+      devtool: isDev
+        ? "eval-cheap-module-source-map"
+        : (params.prodSourceMap as Configuration["devtool"]),
 
       output: {
         publicPath: isServe ? "auto" : "/viz/",
@@ -194,15 +224,16 @@ export const mainConfig =
         filename: isDev ? "[name].js" : "[name].[contenthash].js",
 
         path: params.outputPath,
+        clean: true,
       },
 
       plugins: [
         ...plugins,
-        ...(appWebpackConfig.plugins ?? []),
-        new CopyPlugin({
+        ...(appRspackConfig.plugins ?? []),
+        new rspack.CopyRspackPlugin({
           patterns: [{ from: path.resolve(__dirname, "..", "public") }],
         }),
-        new HtmlWebpackPlugin({
+        new rspack.HtmlRspackPlugin({
           templateContent: `
           <!doctype html>
           <html>
@@ -233,10 +264,10 @@ export const mainConfig =
                 }
               </style>
             </head>
+            <body>
             <script>
               global = globalThis;
             </script>
-            <body>
               <div id="root"></div>
             </body>
           </html>
