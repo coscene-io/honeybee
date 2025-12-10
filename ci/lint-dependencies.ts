@@ -123,7 +123,7 @@ async function getAllWorkspacePackages(roots: string[]) {
     for (const pattern of patterns) {
       const cwd = path.resolve(process.cwd(), workspaceRoot);
       for await (const packagePath of globIterate(pattern, { cwd, withFileTypes: false })) {
-        workspacePackages.push(packagePath as string);
+        workspacePackages.push(packagePath);
       }
     }
   }
