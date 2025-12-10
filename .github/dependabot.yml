@@ -26,11 +26,10 @@ updates:
           - "jest-*"
           - "babel-jest"
           - "@types/jest"
-      webpack:
+      rspack:
         patterns:
-          - "webpack"
-          - "webpack-cli"
-          - "webpack-dev-server"
+          - "@rspack/cli"
+          - "@rspack/core"
       babel:
         patterns:
           - "@babel/*"

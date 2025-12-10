@@ -5,16 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ESBuildMinifyPlugin } from "esbuild-loader";
-import ForkTsCheckerWebpackPlugin from "fork-ts-checker-webpack-plugin";
+import { rspack, type Configuration } from "@rspack/core";
 import monacoPkg from "monaco-editor/package.json";
 import MonacoWebpackPlugin from "monaco-editor-webpack-plugin";
 import path from "path";
-import ReactRefreshTypescript from "react-refresh-typescript";
-import ts from "typescript";
-import webpack, { Configuration } from "webpack";
-
-import { createTssReactNameTransformer } from "@foxglove/typescript-transformers";
+import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
 import { WebpackArgv } from "./WebpackArgv";
 
@@ -38,12 +33,12 @@ type Options = {
   allowUnusedVariables?: boolean;
   /** Specify the app version. */
   version: string;
-  /** Specify the path to the tsconfig.json file for ForkTsCheckerWebpackPlugin. If unset, the plugin defaults to finding the config file in the webpack `context` directory. */
+  /** Specify the path to the tsconfig.json file for TsCheckerRspackPlugin. If unset, the plugin defaults to finding the config file in the rspack `context` directory. */
   tsconfigPath?: string;
 };
 
-// Create a partial webpack configuration required to build app using webpack.
-// Returns a webpack configuration containing resolve, module, plugins, and node fields.
+// Create a partial rspack configuration required to build app using rspack.
+// Returns a rspack configuration containing resolve, module, plugins, and node fields.
 export function makeConfig(
   _: unknown,
   argv: WebpackArgv,
@@ -108,28 +103,31 @@ export function makeConfig(
           resourceQuery: { not: [/raw/] },
           use: [
             {
-              loader: "ts-loader", // foxglove-depcheck-used: ts-loader
+              loader: "builtin:swc-loader",
               options: {
-                transpileOnly: true,
-                // https://github.com/TypeStrong/ts-loader#onlycompilebundledfiles
-                // avoid looking at files which are not part of the bundle
-                onlyCompileBundledFiles: true,
-                projectReferences: true,
-                // Note: configFile should not be overridden, it needs to differ between web,
-                // desktop, etc. so that files specific to each build (not just shared files) are
-                // also type-checked. The default behavior is to find it from the webpack `context`
-                // directory.
-                compilerOptions: {
-                  sourceMap: true,
-                  jsx: isDev ? "react-jsxdev" : "react-jsx",
+                jsc: {
+                  parser: {
+                    syntax: "typescript",
+                    tsx: true,
+                    decorators: true,
+                  },
+                  transform: {
+                    react: {
+                      runtime: "automatic",
+                      development: isDev,
+                      refresh: isServe,
+                    },
+                  },
+                  externalHelpers: false,
                 },
-                getCustomTransformers: (program: ts.Program) => ({
-                  before: [
-                    // only include refresh plugin when using webpack server
-                    isServe && ReactRefreshTypescript(),
-                    isDev && createTssReactNameTransformer(program),
-                  ].filter(Boolean),
-                }),
+                env: {
+                  targets: {
+                    chrome: "87",
+                    firefox: "78",
+                    safari: "14",
+                    edge: "88",
+                  },
+                },
               },
             },
           ],
@@ -162,18 +160,14 @@ export function makeConfig(
         },
         {
           test: /\.css$/,
-          loader: "style-loader", // foxglove-depcheck-used: style-loader
-          sideEffects: true,
-        },
-        {
-          test: /\.css$/,
-          loader: "css-loader", // foxglove-depcheck-used: css-loader
-          options: { sourceMap: true },
-        },
-        {
-          test: /\.css$/,
-          loader: "esbuild-loader", // foxglove-depcheck-used: esbuild-loader
-          options: { loader: "css", minify: !isDev },
+          use: [
+            { loader: "style-loader" }, // foxglove-depcheck-used: style-loader
+            {
+              loader: "css-loader", // foxglove-depcheck-used: css-loader
+              options: { sourceMap: true },
+            },
+          ],
+          type: "javascript/auto",
         },
         { test: /\.woff2?$/, type: "asset/inline" },
         { test: /\.(glb|bag|ttf|bin)$/, type: "asset/resource" },
@@ -242,16 +236,9 @@ export function makeConfig(
     },
     optimization: {
       removeAvailableModules: true,
-
-      minimizer: [
-        new ESBuildMinifyPlugin({
-          target: "es2022",
-          minify: true,
-        }),
-      ],
     },
     plugins: [
-      new webpack.ProvidePlugin({
+      new rspack.ProvidePlugin({
         // since we avoid "import React from 'react'" we shim here when used globally
         React: "react",
         // the buffer module exposes the Buffer class as a property
@@ -259,13 +246,13 @@ export function makeConfig(
         process: ["@foxglove/studio-base/util/process", "default"],
         setImmediate: ["@foxglove/studio-base/util/setImmediate", "default"],
       }),
-      new webpack.DefinePlugin({
+      new rspack.DefinePlugin({
         // Should match webpack-defines.d.ts
-        ReactNull: null, // eslint-disable-line no-restricted-syntax
+        ReactNull: "null",
         FOXGLOVE_STUDIO_VERSION: JSON.stringify(version),
       }),
       // https://webpack.js.org/plugins/ignore-plugin/#example-of-ignoring-moment-locales
-      new webpack.IgnorePlugin({
+      new rspack.IgnorePlugin({
         resourceRegExp: /^\.[\\/]locale$/,
         contextRegExp: /moment$/,
       }),
@@ -277,7 +264,7 @@ export function makeConfig(
         // downstream users of the studio-base package.
         filename: "[name].worker.[contenthash].js",
       }),
-      new ForkTsCheckerWebpackPlugin({
+      new TsCheckerRspackPlugin({
         typescript: {
           configFile: tsconfigPath,
           configOverwrite: {
