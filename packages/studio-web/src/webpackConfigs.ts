@@ -213,7 +213,9 @@ export const mainConfig =
       target: "web",
       context: params.contextPath,
       entry: params.entrypoint,
-      devtool: isDev ? "eval-cheap-module-source-map" : (params.prodSourceMap as Configuration["devtool"]),
+      devtool: isDev
+        ? "eval-cheap-module-source-map"
+        : (params.prodSourceMap as Configuration["devtool"]),
 
       output: {
         publicPath: isServe ? "auto" : "/viz/",

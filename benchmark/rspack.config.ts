@@ -92,10 +92,10 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
       <meta charset="utf-8">
       <title>coScene Studio Benchmark</title>
     </head>
-    <script>
-      global = globalThis;
-    </script>
     <body>
+      <script>
+        global = globalThis;
+      </script>
       <div id="root"></div>
     </body>
   </html>
