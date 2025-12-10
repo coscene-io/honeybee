@@ -107,4 +107,16 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
   return config;
 };
 
-export default [devServerConfig, mainConfig];
+export default (env: unknown, argv: WebpackArgv): Configuration[] => {
+  // Ensure both configs share the same lifecycle args, and avoid relying on the
+  // CLI to invoke nested config factories.
+  const main = mainConfig(env, argv);
+
+  return [
+    {
+      name: "devServer",
+      ...devServerConfig,
+    },
+    main,
+  ];
+};
