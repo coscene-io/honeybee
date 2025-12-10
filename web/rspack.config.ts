@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { MultiRspackOptions } from "@rspack/core";
 import path from "path";
 
 import { ConfigParams, devServerConfig, mainConfig } from "@foxglove/studio-web/src/webpackConfigs";
@@ -19,5 +20,18 @@ const params: ConfigParams = {
   version: packageJson.version,
 };
 
-// foxglove-depcheck-used: webpack-dev-server
-export default [devServerConfig(params), mainConfig(params)];
+// foxglove-depcheck-used: @rspack/cli
+export default (
+  env: Record<string, string> | undefined,
+  argv: { mode?: "development" | "production" },
+): MultiRspackOptions => {
+  const webpackArgv = {
+    mode: argv.mode ?? "development",
+    env: env ?? {},
+  };
+
+  const devConfig = devServerConfig(params);
+  const mainConfigResult = mainConfig(params)(env, webpackArgv);
+
+  return [devConfig, mainConfigResult] as MultiRspackOptions;
+};

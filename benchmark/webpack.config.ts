@@ -5,28 +5,22 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import ReactRefreshPlugin from "@pmmmwh/react-refresh-webpack-plugin";
-import { CleanWebpackPlugin } from "clean-webpack-plugin";
-import HtmlWebpackPlugin from "html-webpack-plugin";
+import { rspack, type Configuration, type RspackPluginInstance } from "@rspack/core";
+import ReactRefreshPlugin from "@rspack/plugin-react-refresh";
 import path from "path";
-import { Configuration, WebpackPluginInstance } from "webpack";
-import type { Configuration as WebpackDevServerConfiguration } from "webpack-dev-server";
 
 import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 import { makeConfig } from "@foxglove/studio-base/webpack";
 
-interface WebpackConfiguration extends Configuration {
-  devServer?: WebpackDevServerConfiguration;
-}
-
-const devServerConfig: WebpackConfiguration = {
+const devServerConfig: Configuration = {
   // Use empty entry to avoid webpack default fallback to /src
   entry: {},
 
-  // Output path must be specified here for HtmlWebpackPlugin within render config to work
+  // Output path must be specified here for HtmlRspackPlugin within render config to work
   output: {
     publicPath: "",
     path: path.resolve(__dirname, ".webpack"),
+    clean: true,
   },
 
   devServer: {
@@ -47,7 +41,7 @@ const devServerConfig: WebpackConfiguration = {
     },
   },
 
-  plugins: [new CleanWebpackPlugin()],
+  plugins: [],
 };
 
 const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
@@ -56,7 +50,7 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
 
   const allowUnusedVariables = isDev;
 
-  const plugins: WebpackPluginInstance[] = [];
+  const plugins: RspackPluginInstance[] = [];
 
   if (isServe) {
     plugins.push(new ReactRefreshPlugin());
@@ -84,12 +78,13 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
       filename: isDev ? "[name].js" : "[name].[contenthash].js",
 
       path: path.resolve(__dirname, ".webpack"),
+      clean: true,
     },
 
     plugins: [
       ...plugins,
       ...(appWebpackConfig.plugins ?? []),
-      new HtmlWebpackPlugin({
+      new rspack.HtmlRspackPlugin({
         templateContent: `
   <!doctype html>
   <html>
