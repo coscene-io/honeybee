@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import ErrorIcon from "@mui/icons-material/Error";
 import { Button, Tooltip, Fade, buttonClasses, useTheme } from "@mui/material";
 import Hammer from "hammerjs";
 import * as _ from "lodash-es";
@@ -35,22 +34,17 @@ import {
   PanelContextMenu,
   PanelContextMenuItem,
 } from "@foxglove/studio-base/components/PanelContextMenu";
-import PanelToolbar, {
-  PANEL_TOOLBAR_MIN_HEIGHT,
-} from "@foxglove/studio-base/components/PanelToolbar";
-import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
+import { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TimeBasedChartTooltipContent, {
   TimeBasedChartTooltipData,
 } from "@foxglove/studio-base/components/TimeBasedChart/TimeBasedChartTooltipContent";
-import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   TimelineInteractionStateStore,
   useClearHoverValue,
   useSetHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { VerticalBars } from "@foxglove/studio-base/panels/Plot/VerticalBars";
@@ -132,9 +126,6 @@ export function Plot(props: Props): React.JSX.Element {
     [PANEL_TITLE_CONFIG_KEY]: customTitle,
   } = config;
 
-  const { openPanelSettings } = useWorkspaceActions();
-  const { id: panelId } = usePanelContext();
-  const { setSelectedPanelIds } = useSelectedPanels();
   const { topics } = useDataSourceInfo();
 
   const { classes } = useStyles();
@@ -144,7 +135,7 @@ export function Plot(props: Props): React.JSX.Element {
   const { setMessagePathDropConfig } = usePanelContext();
   const draggingRef = useRef(false);
 
-  const [hasTooManyMessages, setHasTooManyMessages] = useState(false);
+  const [isDisabledFullTimestamp, setIsDisabledFullTimestamp] = useState(false);
 
   useEffect(() => {
     setMessagePathDropConfig({
@@ -187,7 +178,12 @@ export function Plot(props: Props): React.JSX.Element {
     data: TimeBasedChartTooltipData[];
   }>();
 
-  usePlotPanelSettings(config, saveConfig, focusedPath);
+  usePlotPanelSettings(
+    config,
+    saveConfig,
+    focusedPath,
+    isDisabledFullTimestamp ? "disabled" : "enabled",
+  );
 
   useEffect(() => {
     if (config.paths.length === 0) {
@@ -637,38 +633,40 @@ export function Plot(props: Props): React.JSX.Element {
         ? "partial"
         : "full";
 
-    if (preloadType === "full") {
-      let maxMessageCount = 0;
+    let maxMessageCount = 0;
 
-      for (const item of series) {
-        if (isReferenceLinePlotPathType(item)) {
-          return;
-        }
-
-        const parsed = parseMessagePath(item.value);
-        if (!parsed) {
-          return;
-        }
-
-        const variablesInPath = fillInGlobalVariablesInPath(parsed, globalVariables);
-
-        const targetTopic = topics.find((topic) => topic.name === variablesInPath.topicName);
-        if (!targetTopic) {
-          return;
-        }
-
-        maxMessageCount = Math.max(maxMessageCount, targetTopic.messageCount ?? 0);
+    for (const item of series) {
+      if (isReferenceLinePlotPathType(item)) {
+        continue;
       }
 
-      // if the number of messages in the topic is greater than the max, set the xAxis to partialTimestamp
-      if (maxMessageCount > MAX_CURRENT_DATUMS_PER_SERIES) {
-        // notify the user that the xAxis has been set to partialTimestamp
-        setHasTooManyMessages(true);
-      } else {
-        setHasTooManyMessages(false);
+      const parsed = parseMessagePath(item.value);
+      if (!parsed) {
+        continue;
+      }
+
+      const variablesInPath = fillInGlobalVariablesInPath(parsed, globalVariables);
+
+      const targetTopic = topics.find((topic) => topic.name === variablesInPath.topicName);
+      if (!targetTopic) {
+        continue;
+      }
+
+      maxMessageCount += targetTopic.messageCount ?? 0;
+    }
+
+    // 消息数量超过阈值，先切换 x 轴模式再返回，避免发送全量订阅请求
+    if (maxMessageCount > MAX_CURRENT_DATUMS_PER_SERIES) {
+      setIsDisabledFullTimestamp(true);
+      if (xAxisMode === "timestamp") {
+        saveConfig((prevConfig) => ({
+          ...prevConfig,
+          xAxisVal: "partialTimestamp",
+        }));
+        return;
       }
     } else {
-      setHasTooManyMessages(false);
+      setIsDisabledFullTimestamp(false);
     }
 
     const subscriptions = filterMap(series, (item): SubscribePayload | undefined => {
@@ -805,42 +803,6 @@ export function Plot(props: Props): React.JSX.Element {
     };
   }, [coordinator]);
 
-  const additionalIcons = (
-    <Tooltip
-      placement="left"
-      title={
-        <span>
-          {t("tooManyMessages")}
-          <Button
-            variant="text"
-            color="info"
-            size="small"
-            onClick={() => {
-              saveConfig({
-                ...config,
-                xAxisVal: "partialTimestamp",
-              });
-            }}
-          >
-            {t("switchImmediately")}
-          </Button>
-        </span>
-      }
-    >
-      <ToolbarIconButton>
-        <ErrorIcon
-          fontSize="inherit"
-          color="error"
-          onClick={() => {
-            setSelectedPanelIds([panelId]);
-            openPanelSettings();
-            setFocusedPath(["xAxis"]);
-          }}
-        />
-      </ToolbarIconButton>
-    </Tooltip>
-  );
-
   return (
     <Stack
       flex="auto"
@@ -849,7 +811,6 @@ export function Plot(props: Props): React.JSX.Element {
       overflow="hidden"
       position="relative"
     >
-      <PanelToolbar additionalIcons={hasTooManyMessages ? additionalIcons : undefined} />
       <Stack
         direction={legendDisplay === "top" ? "column" : "row"}
         flex="auto"
