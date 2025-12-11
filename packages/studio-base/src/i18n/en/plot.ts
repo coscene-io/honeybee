@@ -44,7 +44,7 @@ export const plot = {
   fullTimestamp: "Timestamp (full)",
   partialTimestamp: "Timestamp (current)",
   tooManyMessages:
-    "The current number of messages on the panel is too large, which may lead to unexpected crashes. It is recommended to switch to playback by the current timestamp in 'Panel Settings - X Axis - Value'.",
+    "The current number of messages on the panel is too large, already automatically switched to playback by the current timestamp",
   switchImmediately: "Switch immediately",
   enableAllSeries: "Enable all",
   disableAllSeries: "Disable all",
