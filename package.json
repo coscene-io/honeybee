@@ -76,6 +76,7 @@
     "@babel/core": "7.26.7",
     "@babel/plugin-proposal-explicit-resource-management": "7.25.9",
     "@babel/preset-env": "7.26.7",
+    "@babel/preset-react": "7.28.5",
     "@babel/preset-typescript": "7.26.0",
     "@foxglove/eslint-plugin": "2.0.0",
     "@foxglove/eslint-plugin-studio": "workspace:*",
