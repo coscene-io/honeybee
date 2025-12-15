@@ -96,6 +96,7 @@
     "@types/text-metrics": "workspace:*",
     "@types/three": "0.166.0",
     "@types/tinycolor2": "1.4.6",
+    "@types/use-sync-external-store": "^1",
     "@types/uuid": "9.0.7",
     "@types/wicg-file-system-access": "2020.9.6",
     "@uiw/react-textarea-code-editor": "3.0.2",
@@ -191,6 +192,7 @@
     "use-immer": "0.9.0",
     "uuid": "11.0.5",
     "webpack": "5.97.1",
-    "zustand": "5.0.8"
+    "zustand": "5.0.8",
+    "use-sync-external-store": "1.6.0"
   }
 }
