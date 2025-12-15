@@ -6272,6 +6272,7 @@ __metadata:
     "@mcap/core": 2.1.7
     "@mui/icons-material": 7.2.0
     "@mui/material": 7.2.0
+    "@mui/x-data-grid": 7.25.0
     "@mui/x-date-pickers": 8.8.0
     "@popperjs/core": ^2.11.8
     "@protobufjs/base64": 1.1.2
@@ -6505,7 +6506,7 @@ __metadata:
     "@mui/material": 7.2.0
     "@mui/x-data-grid": 7.25.0
     "@storybook/react": 8.2.8
-    "@types/react": 18.2.23
+    "@types/react": 18.3.27
     lodash-es: 4.17.21
     react: 18.3.1
   languageName: unknown
@@ -10940,17 +10941,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:*, @types/react@npm:18.2.23":
-  version: 18.2.23
-  resolution: "@types/react@npm:18.2.23"
-  dependencies:
-    "@types/prop-types": "*"
-    "@types/scheduler": "*"
-    csstype: ^3.0.2
-  checksum: efb9d1ed1940c0e7ba08a21ffba5e266d8dbbb8fe618cfb97bc902dfc96385fdd8189e3f7f64b4aa13134f8e61947d60560deb23be151253c3a97b0d070897ca
-  languageName: node
-  linkType: hard
-
 "@types/react@npm:18.3.27":
   version: 18.3.27
   resolution: "@types/react@npm:18.3.27"
@@ -10958,16 +10948,6 @@ __metadata:
     "@types/prop-types": "*"
     csstype: ^3.2.2
   checksum: c74d0ab5155226998a52b568f6280536205f8fe4317f77bd5d5258bc131cc9134a2db68dc818cb8e8402a2f229843c4a5bde339faf7e64d441630e569a9e5421
-  languageName: node
-  linkType: hard
-
-"@types/react@npm:^16.8.0 || ^17.0.0 || ^18.0.0":
-  version: 18.3.11
-  resolution: "@types/react@npm:18.3.11"
-  dependencies:
-    "@types/prop-types": "*"
-    csstype: ^3.0.2
-  checksum: 6cbf36673b64e758dd61b16c24139d015f58530e0d476777de26ba83f24b55e142fbf64e3b8f6b3c7b05ed9ba548551b2a62d9ffb0f95743d0a368646a619163
   languageName: node
   linkType: hard
 
@@ -11000,13 +10980,6 @@ __metadata:
   dependencies:
     htmlparser2: ^8.0.0
   checksum: 882a39ec767e0c5fd4402108db4b8e4f85ff555cf490ad8c7340d9c58c57c3ffefa33c0d248d5e67047df6f744ca60e125da5485efc18ac450783f3900178373
-  languageName: node
-  linkType: hard
-
-"@types/scheduler@npm:*":
-  version: 0.16.2
-  resolution: "@types/scheduler@npm:0.16.2"
-  checksum: b6b4dcfeae6deba2e06a70941860fb1435730576d3689225a421280b7742318d1548b3d22c1f66ab68e414f346a9542f29240bc955b6332c5b11e561077583bc
   languageName: node
   linkType: hard
 
@@ -13080,7 +13053,7 @@ __metadata:
     "@rspack/cli": 1.6.7
     "@rspack/core": 1.6.7
     "@rspack/plugin-react-refresh": 1.5.3
-    "@types/react": 18.2.23
+    "@types/react": 18.3.27
     "@types/react-dom": 18.2.7
     mathjs: 11.11.1
     react: 18.3.1

@@ -14,7 +14,7 @@
     "@rspack/cli": "1.6.7",
     "@rspack/core": "1.6.7",
     "@rspack/plugin-react-refresh": "1.5.3",
-    "@types/react": "18.2.23",
+    "@types/react": "18.3.27",
     "@types/react-dom": "18.2.7",
     "mathjs": "11.11.1",
     "react": "18.3.1",

@@ -44,7 +44,7 @@ import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDa
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
-// 扩展Footer组件的props接口
+// Extend Footer component props interface
 declare module "@mui/x-data-grid" {
   interface FooterPropsOverrides {
     onButtonClick?: (selectedRows: string[]) => void;
