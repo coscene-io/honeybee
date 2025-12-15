@@ -6309,6 +6309,7 @@ __metadata:
     "@types/text-metrics": "workspace:*"
     "@types/three": 0.166.0
     "@types/tinycolor2": 1.4.6
+    "@types/use-sync-external-store": ^1
     "@types/uuid": 9.0.7
     "@types/wicg-file-system-access": 2020.9.6
     "@uiw/react-textarea-code-editor": 3.0.2
@@ -6402,6 +6403,7 @@ __metadata:
     typescript: 5.3.3
     use-debounce: 10.0.0
     use-immer: 0.9.0
+    use-sync-external-store: 1.6.0
     uuid: 11.0.5
     webpack: 5.97.1
     zustand: 5.0.8
@@ -11189,6 +11191,13 @@ __metadata:
   version: 3.0.2
   resolution: "@types/unist@npm:3.0.2"
   checksum: 3d04d0be69316e5f14599a0d993a208606c12818cf631fd399243d1dc7a9bd8a3917d6066baa6abc290814afbd744621484756803c80cba892c39cd4b4a85616
+  languageName: node
+  linkType: hard
+
+"@types/use-sync-external-store@npm:^1":
+  version: 1.5.0
+  resolution: "@types/use-sync-external-store@npm:1.5.0"
+  checksum: 39e5be8dc2cca080b490f2f79fed4381ae7eebee3f981208e359856733eafb2479d229db07a552f6c99fe0b5c09b3e46a3e6a870e00a88b50f3e690e73d2649b
   languageName: node
   linkType: hard
 
@@ -27947,6 +27956,15 @@ __metadata:
     immer: ">=2.0.0"
     react: ^16.8.0 || ^17.0.1 || ^18.0.0
   checksum: 3f02e31d38f354125e6cffaaed0a08d9bf122b9df261aa7b38a25246813b3bd8b22bf97b192099d4e84adcfbbb07e69e14ba29520e0ac8d93f3991ef3a3652b4
+  languageName: node
+  linkType: hard
+
+"use-sync-external-store@npm:1.6.0":
+  version: 1.6.0
+  resolution: "use-sync-external-store@npm:1.6.0"
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 61a62e910713adfaf91bdb72ff2cd30e5ba83687accaf3b6e75a903b45bf635f5722e3694af30d83a03e92cb533c0a5c699298d2fef639a03ffc86b469f4eee2
   languageName: node
   linkType: hard
 
