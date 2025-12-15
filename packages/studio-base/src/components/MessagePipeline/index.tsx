@@ -16,6 +16,7 @@ import {
   useRef,
 } from "react";
 import { StoreApi, useStore } from "zustand";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Immutable } from "@foxglove/studio";
@@ -64,9 +65,9 @@ export function useMessagePipelineGetter(): () => MessagePipelineContext {
 
 export function useMessagePipeline<T>(selector: (arg0: MessagePipelineContext) => T): T {
   const store = useGuaranteedContext(ContextInternal);
-  return useStore(
+  return useStoreWithEqualityFn(
     store,
-    useCallback((state) => selector(state.public), [selector]),
+    useCallback((state: MessagePipelineInternalState) => selector(state.public), [selector]),
   );
 }
 
