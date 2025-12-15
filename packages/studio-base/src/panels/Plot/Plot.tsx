@@ -34,7 +34,7 @@ import {
   PanelContextMenu,
   PanelContextMenuItem,
 } from "@foxglove/studio-base/components/PanelContextMenu";
-import { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";
+import PanelToolbar, { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TimeBasedChartTooltipContent, {
   TimeBasedChartTooltipData,
@@ -811,6 +811,7 @@ export function Plot(props: Props): React.JSX.Element {
       overflow="hidden"
       position="relative"
     >
+      <PanelToolbar />
       <Stack
         direction={legendDisplay === "top" ? "column" : "row"}
         flex="auto"
