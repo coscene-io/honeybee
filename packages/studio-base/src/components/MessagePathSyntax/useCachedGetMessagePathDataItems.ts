@@ -290,7 +290,13 @@ export function getMessagePathDataItems(
           // See if `arrayElement` has a property that we typically filter on. If so, show that.
           const name = TypicalFilterNames.find((id) => id in arrayElement);
           if (name != undefined) {
-            newPath = `${path}[:]{${name}==${arrayElement[name]}}`;
+            const filterValue = arrayElement[name];
+            // Use JSON.stringify for string values to ensure proper quoting in the path
+            const formattedValue =
+              typeof filterValue === "bigint"
+                ? filterValue.toString()
+                : JSON.stringify(filterValue) ?? "";
+            newPath = `${path}[:]{${name}==${formattedValue}}`;
           } else {
             // Use `i` here instead of `index`, since it's only different when `i` is negative,
             // and in that case it's probably more useful to show to the user how many elements
