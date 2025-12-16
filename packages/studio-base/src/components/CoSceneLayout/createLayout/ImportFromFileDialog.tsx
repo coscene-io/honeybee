@@ -124,7 +124,7 @@ export function ImportFromFileDialog({
       return;
     }
 
-    const data = replaceNullWithUndefined(parsedState as JsonObject) as LayoutData;
+    const data = replaceNullWithUndefined(parsedState) as LayoutData;
 
     form.setValue("selectedFile", file.name);
     form.setValue("name", layoutName);
