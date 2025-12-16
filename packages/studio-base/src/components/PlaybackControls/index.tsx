@@ -34,7 +34,7 @@ import { useCallback, useMemo, useEffect, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { Time, clampTime, compare } from "@foxglove/rostime";
+import { Time, areEqual, clampTime, compare } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
@@ -229,6 +229,10 @@ export default function PlaybackControls(props: {
       // missing markers altogther.
       const targetTime = jumpSeek(DIRECTION.FORWARD, currentTime, ev, effectiveSeekMs);
       const clampedTargetTime = clampTime(targetTime, start, end);
+
+      if (areEqual(clampedTargetTime, currentTime)) {
+        return;
+      }
 
       if (playUntil) {
         playUntil(clampedTargetTime);
