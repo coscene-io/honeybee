@@ -30,6 +30,7 @@ import {
   CreateLayoutParams,
   CreateLayoutForm,
 } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import { replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { SelectFolder } from "./SelectFolder";
 
@@ -122,7 +123,7 @@ export function ImportFromFileDialog({
       return;
     }
 
-    const data = parsedState as LayoutData;
+    const data = replaceNullWithUndefined(parsedState) as LayoutData;
 
     form.setValue("selectedFile", file.name);
     form.setValue("name", layoutName);
