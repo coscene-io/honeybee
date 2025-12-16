@@ -227,6 +227,7 @@ export default function PlaybackControls(props: {
       //
       // i.e. Skipping coordinate frame messages may result in incorrectly rendered markers or
       // missing markers altogther.
+      // clampTime
       const targetTime = jumpSeek(DIRECTION.FORWARD, currentTime, ev, effectiveSeekMs);
       const clampedTargetTime = clampTime(targetTime, start, end);
 
