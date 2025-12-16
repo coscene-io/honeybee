@@ -34,7 +34,7 @@ import { useCallback, useMemo, useEffect, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { Time, compare } from "@foxglove/rostime";
+import { Time, clampTime, compare } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
@@ -213,8 +213,8 @@ export default function PlaybackControls(props: {
 
   const seekForwardAction = useCallback(
     (ev?: KeyboardEvent) => {
-      const { currentTime } = getTimeInfo();
-      if (!currentTime) {
+      const { currentTime, startTime: start, endTime: end } = getTimeInfo();
+      if (!currentTime || !start || !end) {
         return;
       }
 
@@ -227,12 +227,14 @@ export default function PlaybackControls(props: {
       //
       // i.e. Skipping coordinate frame messages may result in incorrectly rendered markers or
       // missing markers altogther.
+      // clampTime
       const targetTime = jumpSeek(DIRECTION.FORWARD, currentTime, ev, effectiveSeekMs);
+      const clampedTargetTime = clampTime(targetTime, start, end);
 
       if (playUntil) {
-        playUntil(targetTime);
+        playUntil(clampedTargetTime);
       } else {
-        seek(targetTime);
+        seek(clampedTargetTime);
       }
     },
     [getTimeInfo, playUntil, seek, effectiveSeekMs],
