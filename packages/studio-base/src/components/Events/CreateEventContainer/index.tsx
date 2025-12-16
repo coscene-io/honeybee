@@ -132,59 +132,13 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   const handleCreateTask = async (event: Event) => {
     const task = taskForm.getValues();
 
-    const description: string =
-      JSON.stringify({
-        root: {
-          children: [
-            {
-              children: [
-                {
-                  sourceName: event.name,
-                  sourceType: "moment",
-                  type: "source",
-                  version: 1,
-                },
-              ],
-              direction: "ltr",
-              format: "",
-              indent: 0,
-              type: "paragraph",
-              version: 1,
-            },
-            ...task.description.split("\n").map((text) => ({
-              children: [
-                {
-                  detail: 0,
-                  format: 0,
-                  mode: "normal",
-                  style: "",
-                  text,
-                  type: "text",
-                  version: 1,
-                },
-              ],
-              direction: "ltr",
-              format: "",
-              indent: 0,
-              type: "paragraph",
-              version: 1,
-            })),
-          ],
-          direction: "ltr",
-          format: "",
-          indent: 0,
-          type: "root",
-          version: 1,
-        },
-      }) ?? task.description;
-
     try {
       const newTask = await consoleApi.createTask({
         parent: projectName,
         task: {
           ...task,
           customFieldValues: convertCustomFieldValuesMapToArray(task.customFieldValues ?? {}),
-          description,
+          description: task.description,
         },
         event,
       });
