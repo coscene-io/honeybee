@@ -103,6 +103,27 @@ export function getPromiseClient<T extends DescService>(service: T): Client<T> {
   );
 }
 
+export function replaceNullWithUndefined(obj: unknown): unknown {
+  // eslint-disable-next-line no-restricted-syntax
+  if (obj == null) {
+    return undefined;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(replaceNullWithUndefined);
+  }
+
+  if (typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = replaceNullWithUndefined(value);
+    }
+    return result;
+  }
+
+  return obj;
+}
+
 // 将任意字符串映射为一颜色
 export function stringToColor(str: string): string {
   let hash = 0;

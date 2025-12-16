@@ -34,7 +34,9 @@ import {
   PanelContextMenu,
   PanelContextMenuItem,
 } from "@foxglove/studio-base/components/PanelContextMenu";
-import PanelToolbar, { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";
+import PanelToolbar, {
+  PANEL_TOOLBAR_MIN_HEIGHT,
+} from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TimeBasedChartTooltipContent, {
   TimeBasedChartTooltipData,
