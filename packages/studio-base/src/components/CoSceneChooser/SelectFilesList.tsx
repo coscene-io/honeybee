@@ -10,7 +10,6 @@ import FolderIcon from "@mui/icons-material/Folder";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import { List, ListItem, ListItemButton, Checkbox, ListItemText } from "@mui/material";
 import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { checkBagFileSupported } from "@foxglove/studio-base/util/coscene";
@@ -34,8 +33,6 @@ export function SelectFilesList({
   currentFolderPath = [],
   onNavigateToFolder,
 }: FileNavigationPanelProps): React.JSX.Element {
-  const { t } = useTranslation("cosPlaylist");
-
   const navigateToFolder = useCallback(
     (folderName: string) => {
       onNavigateToFolder([...currentFolderPath, folderName]);
