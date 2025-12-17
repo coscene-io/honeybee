@@ -239,7 +239,6 @@ function BagViewComponent(params: {
 
       newFiles.push({
         filename: file.name,
-        sha256: file.sha256,
       });
     });
 
