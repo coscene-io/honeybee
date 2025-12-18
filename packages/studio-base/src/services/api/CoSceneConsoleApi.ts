@@ -317,7 +317,6 @@ export type FileList = {
   recordName: string;
   ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
   mediaStatus: MediaStatus;
-  sha256: string;
 };
 
 export type getPlaylistResponse = {
