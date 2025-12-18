@@ -117,6 +117,7 @@ export class BlockLoader {
     }
 
     this.#topics = topics;
+    this.#removeUnusedBlockTopics();
   }
 
   /**
