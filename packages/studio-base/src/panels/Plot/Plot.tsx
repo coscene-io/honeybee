@@ -70,7 +70,6 @@ import { DEFAULT_PATH, usePlotPanelSettings } from "./settings";
 import { pathToSubscribePayload } from "./subscription";
 
 export const defaultSidebarDimension = 240;
-const MAX_CURRENT_DATUMS_PER_SERIES = 50_000;
 
 const useStyles = makeStyles()((theme) => ({
   tooltip: {
@@ -137,8 +136,6 @@ export function Plot(props: Props): React.JSX.Element {
   const { setMessagePathDropConfig } = usePanelContext();
   const draggingRef = useRef(false);
 
-  const [isDisabledFullTimestamp, setIsDisabledFullTimestamp] = useState(false);
-
   useEffect(() => {
     setMessagePathDropConfig({
       getDropStatus(paths) {
@@ -180,12 +177,7 @@ export function Plot(props: Props): React.JSX.Element {
     data: TimeBasedChartTooltipData[];
   }>();
 
-  usePlotPanelSettings(
-    config,
-    saveConfig,
-    focusedPath,
-    isDisabledFullTimestamp ? "disabled" : "enabled",
-  );
+  usePlotPanelSettings(config, saveConfig, focusedPath);
 
   useEffect(() => {
     if (config.paths.length === 0) {
@@ -635,8 +627,6 @@ export function Plot(props: Props): React.JSX.Element {
         ? "partial"
         : "full";
 
-    let maxMessageCount = 0;
-
     for (const item of series) {
       if (isReferenceLinePlotPathType(item)) {
         continue;
@@ -653,22 +643,6 @@ export function Plot(props: Props): React.JSX.Element {
       if (!targetTopic) {
         continue;
       }
-
-      maxMessageCount += targetTopic.messageCount ?? 0;
-    }
-
-    // 消息数量超过阈值，先切换 x 轴模式再返回，避免发送全量订阅请求
-    if (maxMessageCount > MAX_CURRENT_DATUMS_PER_SERIES) {
-      setIsDisabledFullTimestamp(true);
-      if (xAxisMode === "timestamp") {
-        saveConfig((prevConfig) => ({
-          ...prevConfig,
-          xAxisVal: "partialTimestamp",
-        }));
-        return;
-      }
-    } else {
-      setIsDisabledFullTimestamp(false);
     }
 
     const subscriptions = filterMap(series, (item): SubscribePayload | undefined => {
