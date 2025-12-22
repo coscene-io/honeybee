@@ -605,13 +605,14 @@ export class IterablePlayer implements Player {
       if (this.#enablePreload) {
         // --- setup block loader which loads messages for _full_ subscriptions in the "background"
         try {
-          let blockLoaderSource;
+          let blockLoaderSource: IDeserializedIterableSource;
           if (this.#iterableSource.sourceType === "deserialized") {
-            blockLoaderSource = this.#iterableSource;
+            // Wrap the source with DeserializedSourceWrapper to support field slicing
+            blockLoaderSource = new DeserializedSourceWrapper(this.#iterableSource);
           } else {
             blockLoaderSource = new DeserializingIterableSource(this.#iterableSource);
             // We must not call initialize() here, as the #iterableSource was already initialized above.
-            blockLoaderSource.initializeDeserializers(initResult);
+            blockLoaderSource.initializeDeserializers?.(initResult);
           }
 
           this.#blockLoader = new BlockLoader({
