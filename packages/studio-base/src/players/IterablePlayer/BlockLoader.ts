@@ -65,6 +65,7 @@ export class BlockLoader {
   #stopped: boolean = false;
   #activeChangeCondvar: Condvar = new Condvar();
   #abortController: AbortController;
+  #progressCallback?: (progress: Progress) => void;
 
   public constructor(args: BlockLoaderArgs) {
     this.#source = args.source;
@@ -117,6 +118,9 @@ export class BlockLoader {
     }
 
     this.#topics = topics;
+
+    this.#removeUnusedBlockTopics();
+    this.#progressCallback?.(this.#calculateProgress(topics, this.#cacheSize()));
   }
 
   /**
@@ -189,6 +193,7 @@ export class BlockLoader {
   }
 
   async #load(args: { progress: LoadArgs["progress"] }): Promise<void> {
+    this.#progressCallback = args.progress;
     const topics = new Map(this.#topics);
 
     // Ignore changing the blocks if the topic list is empty
