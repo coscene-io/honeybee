@@ -218,19 +218,19 @@ export class IterablePlayer implements Player {
 
     this.#iterableSource = source;
     if (source.sourceType === "deserialized") {
-      this.#bufferImpl = new BufferedIterableSource(source, {
+      const slicingSource = new DeserializedSourceWrapper(source);
+      this.#bufferImpl = new BufferedIterableSource(slicingSource, {
         readAheadDuration,
       });
-      this.#bufferedSource = new DeserializedSourceWrapper(this.#bufferImpl);
     } else {
       const MEGABYTE_IN_BYTES = 1024 * 1024;
-      const bufferInterface = new BufferedIterableSource(source, {
+      const deserializingSource = new DeserializingIterableSource(source);
+      this.#bufferImpl = new BufferedIterableSource(deserializingSource, {
         readAheadDuration,
         maxCacheSizeBytes: 600 * MEGABYTE_IN_BYTES,
       });
-      this.#bufferImpl = bufferInterface;
-      this.#bufferedSource = new DeserializingIterableSource(bufferInterface);
     }
+    this.#bufferedSource = this.#bufferImpl;
 
     this.#name = name;
     this.#urlParams = urlParams;

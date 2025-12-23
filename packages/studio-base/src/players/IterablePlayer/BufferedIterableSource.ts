@@ -22,6 +22,7 @@ import { CachingIterableSource } from "./CachingIterableSource";
 import {
   GetBackfillMessagesArgs,
   IIterableSource,
+  IDeserializedIterableSource,
   Initalization,
   IteratorResult,
   MessageIteratorArgs,
@@ -56,8 +57,9 @@ interface EventTypes {
  */
 class BufferedIterableSource<MessageType = unknown>
   extends EventEmitter<EventTypes>
-  implements IIterableSource<MessageType>
+  implements IDeserializedIterableSource
 {
+  public readonly sourceType = "deserialized";
   #source: CachingIterableSource<MessageType>;
 
   #readDone = false;
