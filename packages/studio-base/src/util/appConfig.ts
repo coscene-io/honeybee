@@ -110,7 +110,7 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
 
     COORDINATOR_URL: cosConfig.COORDINATOR_URL ?? "https://coordinator.dev.coscene.cn",
 
-    S3_REGION: cosConfig.S3_REGION ?? "dev-cn-shanghai",
+    S3_REGION: cosConfig.S3_REGION ?? "cn-shanghai",
   };
 
   if (
