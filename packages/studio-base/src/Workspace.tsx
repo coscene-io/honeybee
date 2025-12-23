@@ -29,7 +29,9 @@ import {
 import { DeepLinksSyncAdapter } from "@foxglove/studio-base/components/DeepLinksSyncAdapter";
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import { EventsList } from "@foxglove/studio-base/components/Events/EventsList";
-import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";
+import ExtensionsSettings, {
+  ExtensionsSettingsMore,
+} from "@foxglove/studio-base/components/ExtensionsSettings";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -306,8 +308,14 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;
 
   function ExtensionsSidebar() {
+    const { t } = useTranslation("workspace");
+
     return (
-      <SidebarContent title="Extensions" disablePadding>
+      <SidebarContent
+        title={t("extensions")}
+        disablePadding
+        trailingItems={[<ExtensionsSettingsMore key="extensions-settings-more" />]}
+      >
         <ExtensionsSettings />
       </SidebarContent>
     );
