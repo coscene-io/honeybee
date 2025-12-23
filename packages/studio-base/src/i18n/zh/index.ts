@@ -31,3 +31,4 @@ export * from "./task";
 export * from "./rawMessages";
 export * from "./table";
 export * from "./userScriptEditor";
+export * from "./extensions";

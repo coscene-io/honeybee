@@ -19,10 +19,10 @@ import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Immutable } from "@foxglove/studio";
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CurrentLayoutContext, {
   LayoutState,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useS3FileService } from "@foxglove/studio-base/context/S3FileServiceContext";
 import { useUrdfStorage } from "@foxglove/studio-base/context/UrdfStorageContext";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import {
@@ -103,7 +103,7 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
 
   const urdfStorage = useUrdfStorage();
 
-  const consoleApi = useConsoleApi();
+  const s3FileService = useS3FileService();
 
   // We make a new store when the player changes. This throws away any state from the previous store
   // and re-creates the pipeline functions and references. We make a new store to avoid holding onto
@@ -117,9 +117,9 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
       promisesToWaitForRef,
       initialPlayer: player,
       urdfStorage,
-      consoleApi,
+      s3FileService,
     });
-  }, [player, urdfStorage, consoleApi]);
+  }, [player, urdfStorage, s3FileService]);
 
   const subscriptions = useStore(store, selectSubscriptions);
 
