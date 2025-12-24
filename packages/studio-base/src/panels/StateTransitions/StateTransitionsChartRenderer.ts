@@ -25,6 +25,9 @@ import { unwrap } from "@foxglove/den/monads";
 import { Immutable } from "@foxglove/studio";
 import { Bounds, Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
+import { grey } from "@foxglove/studio-base/util/toolsColorScheme";
+
+import { downsampleStates, MAX_POINTS, Viewport } from "./downsampleStates";
 
 // Define fontMonospace locally to avoid importing @foxglove/theme which includes React dependencies
 // that cannot be loaded in a Worker context
@@ -417,65 +420,87 @@ export class StateTransitionsChartRenderer {
     };
   }
 
-  public getElementsAtPixel(pixel: { x: number; y: number }): HoverElement[] {
-    const x = pixel.x;
-    const y = pixel.y;
+  public updateDatasets(datasets: Dataset[], viewport?: Viewport): Scale | undefined {
+    // Downsample datasets before rendering (if viewport is provided)
+    const processedDatasets = viewport ? this.#downsampleDatasets(datasets, viewport) : datasets;
 
-    const ev = {
-      native: true,
-      x,
-      y,
-    };
-
-    // ev is cast to any because the typings for getElementsAtEventForMode are wrong
-    const elements = this.#chartInstance.getElementsAtEventForMode(
-      ev as unknown as Event,
-      this.#chartInstance.options.interaction?.mode ?? "lastX",
-      this.#chartInstance.options.interaction ?? {},
-      false,
-    );
-
-    const out: HoverElement[] = [];
-
-    // sort elements by proximity to the cursor so the closer items are earlier in the list
-    elements.sort((a, b) => {
-      const dxA = pixel.x - a.element.x;
-      const dyA = pixel.y - a.element.y;
-      const dxB = pixel.x - b.element.x;
-      const dyB = pixel.y - b.element.y;
-      const distSquaredA = dxA * dxA + dyA * dyA;
-      const distSquaredB = dxB * dxB + dyB * dyB;
-      return distSquaredA - distSquaredB;
-    });
-
-    for (const element of elements) {
-      const data = this.#chartInstance.data.datasets[element.datasetIndex]?.data[element.index];
-      if (data == undefined || typeof data === "number") {
-        continue;
-      }
-
-      out.push({
-        data,
-        configIndex: element.datasetIndex,
-      });
-    }
-
-    return out;
-  }
-
-  public updateDatasets(datasets: Dataset[]): Scale | undefined {
     // Apply a line segment coloring function
-    for (const ds of datasets) {
+    for (const ds of processedDatasets) {
       ds.segment = {
         borderColor: lineSegmentLabelColor,
       };
     }
 
-    this.#chartInstance.data.datasets = datasets;
+    this.#chartInstance.data.datasets = processedDatasets;
 
     // NOTE: "none" disables animations
     this.#chartInstance.update("none");
     return this.#getXScale();
+  }
+
+  /**
+   * Downsample datasets for rendering.
+   * When there are many state transitions in a small visual area,
+   * they are collapsed into a gray "[...]" segment.
+   */
+  #downsampleDatasets(datasets: Dataset[], viewport: Viewport): Dataset[] {
+    // If we don't have valid bounds, return original datasets
+    if (viewport.width <= 0) {
+      return datasets;
+    }
+
+    // Calculate max points per dataset
+    const numPoints = MAX_POINTS / Math.max(datasets.length, 1);
+
+    return datasets.map((dataset) => {
+      const data = dataset.data;
+      if (data.length === 0) {
+        return dataset;
+      }
+
+      // Get the y value from the first data point
+      const yValue = data[0]?.y ?? 0;
+
+      // Perform downsampling
+      const downsampled = downsampleStates(data, viewport, numPoints);
+
+      // Resolve downsampled points back to actual data
+      const resolved = downsampled.map(({ x, index, states }) => {
+        if (index == undefined) {
+          // This is a compressed segment with multiple states
+          // Render as gray "[...]" to indicate hidden detail
+          return {
+            x,
+            y: yValue,
+            labelColor: grey,
+            label: "[...]",
+            states,
+            value: undefined,
+          };
+        }
+
+        // Get the original point
+        const point = data[index];
+        if (point == undefined) {
+          return { x: NaN, y: NaN, value: NaN };
+        }
+
+        return {
+          ...point,
+          x,
+        };
+      });
+
+      // NaN item values create gaps in the line
+      const cleanedData = resolved.map((item) => {
+        if (isNaN(item.x) || isNaN(item.y)) {
+          return { x: NaN, y: NaN, value: NaN };
+        }
+        return item;
+      });
+
+      return { ...dataset, data: cleanedData };
+    });
   }
 
   public getDatalabelAtEvent(pixel: { x: number; y: number }): Datum | undefined {

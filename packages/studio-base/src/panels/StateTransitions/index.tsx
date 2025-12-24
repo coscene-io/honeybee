@@ -493,7 +493,7 @@ function StateTransitions(props: Props) {
       }
 
       // Get elements at pixel for tooltip
-      const elements = await coordinator.getElementsAtPixel({ x: canvasX, y: canvasY });
+      const elements = coordinator.getElementsAtPixelSync({ x: canvasX, y: canvasY });
 
       if (elements.length === 0 || mouseYRef.current == undefined) {
         setActiveTooltip(undefined);
