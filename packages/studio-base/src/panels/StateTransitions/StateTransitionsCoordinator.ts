@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import EventEmitter from "eventemitter3";
+import { throttle } from "lodash-es";
 import stringHash from "string-hash";
 
 import { debouncePromise } from "@foxglove/den/async";
@@ -38,7 +39,7 @@ import {
   UpdateAction,
 } from "./StateTransitionsChartRenderer";
 import { StateTransitionsRenderer } from "./StateTransitionsRenderer";
-import { downsampleStates, MAX_POINTS, Viewport } from "./downsampleStates";
+import { Viewport } from "./downsampleStates";
 import positiveModulo from "./positiveModulo";
 import { PathState } from "./settings";
 import { StateTransitionConfig, StateTransitionPath } from "./types";
@@ -88,6 +89,16 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   #queueDispatchRender = debouncePromise(this.#dispatchRender.bind(this));
   #queueDispatchDatasets = debouncePromise(this.#dispatchDatasets.bind(this));
 
+  // Throttle buildAndUpdateDatasets to avoid excessive computation on frequent playerState updates
+  // Using 100ms throttle with trailing edge to ensure final state is always rendered
+  #throttledBuildAndUpdateDatasets = throttle(
+    () => {
+      this.#buildAndUpdateDatasetsImpl();
+    },
+    100,
+    { leading: true, trailing: true },
+  );
+
   #pendingDatasets?: Dataset[];
 
   // Viewport for downsampling
@@ -117,6 +128,12 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   #fullData = new Map<string, Datum[]>(); // Preloaded block data (complete history)
   #currentData = new Map<string, Datum[]>(); // Streaming data (real-time)
 
+  // Cache for processed data to avoid reprocessing unchanged data
+  #processedDataCache = new Map<string, { data: Datum[]; inputLength: number; y: number }>();
+
+  // Cache latest datasets for synchronous hover lookup (avoids Worker communication)
+  #latestDatasets: Dataset[] = [];
+
   // Track which series have detected array input (invalid for StateTransitions)
   #seriesIsArray = new Map<string, boolean>();
 
@@ -133,6 +150,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   /** Stop the coordinator from sending any future updates to the renderer. */
   public destroy(): void {
     this.#destroyed = true;
+    this.#throttledBuildAndUpdateDatasets.cancel();
   }
 
   public isDestroyed(): boolean {
@@ -184,6 +202,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       this.#blockCursors.clear();
       this.#fullData.clear();
       this.#currentData.clear();
+      this.#processedDataCache.clear();
       this.#seriesIsArray.clear();
       this.#firstBlockRefs.clear();
       this.#lastBlockRefs.clear();
@@ -250,6 +269,8 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       this.#lastSeekTime = lastSeekTime;
       // Only clear streaming data, preserve fullData from blocks
       this.#currentData.clear();
+      // Clear processed cache since merged data will change
+      this.#processedDataCache.clear();
     }
 
     // Process blocks (preloaded data)
@@ -286,6 +307,8 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
         this.#fullData.set(cursorKey, []);
         // Also clear streaming data to avoid stale states when data source changes
         this.#currentData.set(cursorKey, []);
+        // Clear processed cache for this series
+        this.#processedDataCache.delete(cursorKey);
         // Update first block reference on reset
         this.#firstBlockRefs.set(cursorKey, blocks[0]?.messagesByTopic[topicName]);
       }
@@ -582,11 +605,19 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   }
 
   /**
-   * Build datasets from accumulated data and update the renderer.
+   * Build datasets from accumulated data and update the renderer (throttled).
    * Merges fullData (blocks) and currentData (streaming) for each series.
    */
   #buildAndUpdateDatasets(): void {
-    if (!this.#config) {
+    this.#throttledBuildAndUpdateDatasets();
+  }
+
+  /**
+   * Implementation of buildAndUpdateDatasets.
+   * Called by the throttled wrapper.
+   */
+  #buildAndUpdateDatasetsImpl(): void {
+    if (this.isDestroyed() || !this.#config) {
       return;
     }
 
@@ -602,8 +633,8 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       // Merge fullData and currentData
       const data = this.#getMergedData(cursorKey);
 
-      // Process data to create state transition segments
-      const processedData = this.#processDataForStateTransitions(data, y);
+      // Process data to create state transition segments (with caching)
+      const processedData = this.#processDataForStateTransitions(data, y, cursorKey);
 
       const dataset: Dataset = {
         borderWidth: 10,
@@ -654,14 +685,28 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
   /**
    * Process raw data into state transition format (only show state changes).
+   * Uses caching to avoid reprocessing unchanged data.
    */
-  #processDataForStateTransitions(data: Datum[], y: number): Datum[] {
+  #processDataForStateTransitions(data: Datum[], y: number, cacheKey: string): Datum[] {
     if (data.length === 0) {
       return [];
     }
 
-    // Sort by x (time)
-    const sorted = [...data].sort((a, b) => a.x - b.x);
+    // Check cache - if data length and y are the same, reuse cached result
+    const cached = this.#processedDataCache.get(cacheKey);
+    if (cached && cached.inputLength === data.length && cached.y === y) {
+      return cached.data;
+    }
+
+    // Data is typically already sorted by time from the source.
+    // Only sort if we detect it's not sorted (check first few elements).
+    let sorted = data;
+    if (data.length > 1) {
+      const needsSort = data[0]!.x > data[1]!.x || (data.length > 2 && data[1]!.x > data[2]!.x);
+      if (needsSort) {
+        sorted = [...data].sort((a, b) => a.x - b.x);
+      }
+    }
 
     const result: Datum[] = [];
     let lastValue: unknown = undefined;
@@ -671,22 +716,38 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       const isNewSegment = lastValue !== datum.value;
 
       lastValue = datum.value;
-      lastDatum = {
-        ...datum,
-        y,
-        label: isNewSegment ? datum.label : undefined,
-      };
 
+      // Reuse datum object when possible, only create new object when necessary
       if (isNewSegment || this.#showPoints) {
-        result.push(lastDatum);
+        result.push({
+          x: datum.x,
+          y,
+          value: datum.value,
+          label: isNewSegment ? datum.label : undefined,
+          labelColor: datum.labelColor,
+          constantName: datum.constantName,
+        });
         lastDatum = undefined;
+      } else {
+        // Track last datum for potential final push
+        lastDatum = datum;
       }
     }
 
     // Add the last datum if not already added
     if (lastDatum != undefined) {
-      result.push(lastDatum);
+      result.push({
+        x: lastDatum.x,
+        y,
+        value: lastDatum.value,
+        label: undefined,
+        labelColor: lastDatum.labelColor,
+        constantName: lastDatum.constantName,
+      });
     }
+
+    // Cache the result
+    this.#processedDataCache.set(cacheKey, { data: result, inputLength: data.length, y });
 
     return result;
   }
@@ -714,6 +775,8 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     if (this.isDestroyed()) {
       return;
     }
+    // Cache datasets for synchronous hover lookup
+    this.#latestDatasets = datasets;
     this.#pendingDatasets = datasets;
     this.#queueDispatchDatasets();
   }
@@ -803,13 +866,67 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   }
 
   /**
-   * Get hover elements at pixel position.
+   * Get hover elements at pixel position (synchronous, main thread).
+   * Uses cached datasets to avoid Worker communication during data loading.
    */
-  public async getElementsAtPixel(pixel: { x: number; y: number }): Promise<HoverElement[]> {
-    if (this.isDestroyed()) {
+  public getElementsAtPixelSync(pixel: { x: number; y: number }): HoverElement[] {
+    if (this.isDestroyed() || !this.#latestXScale) {
       return [];
     }
-    return await this.#renderer.getElementsAtPixel(pixel);
+
+    const xValue = this.getXValueAtPixel(pixel.x);
+    if (xValue < 0) {
+      return [];
+    }
+
+    const results: HoverElement[] = [];
+
+    // Find the element at the given x position for each dataset
+    for (let datasetIndex = 0; datasetIndex < this.#latestDatasets.length; datasetIndex++) {
+      const dataset = this.#latestDatasets[datasetIndex];
+      if (!dataset) {
+        continue;
+      }
+
+      const data = dataset.data;
+      if (data.length === 0) {
+        continue;
+      }
+
+      // Binary search to find the element at or before the x position
+      let low = 0;
+      let high = data.length - 1;
+      let foundIndex = -1;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const datum = data[mid];
+        if (!datum || isNaN(datum.x)) {
+          // Skip NaN values
+          high = mid - 1;
+          continue;
+        }
+
+        if (datum.x <= xValue) {
+          foundIndex = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      if (foundIndex >= 0) {
+        const datum = data[foundIndex];
+        if (datum && !isNaN(datum.x) && !isNaN(datum.y)) {
+          results.push({
+            data: datum,
+            configIndex: datasetIndex,
+          });
+        }
+      }
+    }
+
+    return results;
   }
 
   /**
@@ -901,95 +1018,34 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     const datasets = this.#pendingDatasets;
     this.#pendingDatasets = undefined;
 
-    // Downsample datasets before sending to renderer
-    const downsampledDatasets = this.#downsampleDatasets(datasets);
+    // Build viewport for downsampling in worker
+    const xBounds = this.#getXBounds();
+    const yBounds = this.#configBounds.y;
 
-    this.#latestXScale = await this.#renderer.updateDatasets(downsampledDatasets);
+    let viewport: Viewport | undefined;
+    if (
+      xBounds.min != undefined &&
+      xBounds.max != undefined &&
+      yBounds.min != undefined &&
+      yBounds.max != undefined &&
+      this.#viewport.width > 0
+    ) {
+      viewport = {
+        width: this.#viewport.width,
+        height: this.#viewport.height,
+        bounds: {
+          x: { min: xBounds.min, max: xBounds.max },
+          y: { min: yBounds.min, max: yBounds.max },
+        },
+      };
+    }
+
+    // Pass viewport to renderer for downsampling in worker
+    this.#latestXScale = await this.#renderer.updateDatasets(datasets, viewport);
     if (this.isDestroyed()) {
       return;
     }
 
     this.emit("xScaleChanged", this.#latestXScale);
-  }
-
-  /**
-   * Downsample datasets for rendering.
-   * When there are many state transitions in a small visual area,
-   * they are collapsed into a gray "[...]" segment.
-   */
-  #downsampleDatasets(datasets: Dataset[]): Dataset[] {
-    // Get current x bounds for the viewport
-    const xBounds = this.#getXBounds();
-    const yBounds = this.#configBounds.y;
-
-    // If we don't have valid bounds, return original datasets
-    if (
-      xBounds.min == undefined ||
-      xBounds.max == undefined ||
-      yBounds.min == undefined ||
-      yBounds.max == undefined ||
-      this.#viewport.width <= 0
-    ) {
-      return datasets;
-    }
-
-    // Update viewport bounds
-    this.#viewport.bounds = {
-      x: { min: xBounds.min, max: xBounds.max },
-      y: { min: yBounds.min, max: yBounds.max },
-    };
-
-    // Calculate max points per dataset
-    const numPoints = MAX_POINTS / Math.max(datasets.length, 1);
-
-    return datasets.map((dataset) => {
-      const data = dataset.data;
-      if (data.length === 0) {
-        return dataset;
-      }
-
-      // Get the y value from the first data point
-      const yValue = data[0]?.y ?? 0;
-
-      // Perform downsampling
-      const downsampled = downsampleStates(data, this.#viewport, numPoints);
-
-      // Resolve downsampled points back to actual data
-      const resolved = downsampled.map(({ x, index, states }) => {
-        if (index == undefined) {
-          // This is a compressed segment with multiple states
-          // Render as gray "[...]" to indicate hidden detail
-          return {
-            x,
-            y: yValue,
-            labelColor: grey,
-            label: "[...]",
-            states,
-            value: undefined,
-          };
-        }
-
-        // Get the original point
-        const point = data[index];
-        if (point == undefined) {
-          return { x: NaN, y: NaN, value: NaN };
-        }
-
-        return {
-          ...point,
-          x,
-        };
-      });
-
-      // NaN item values create gaps in the line
-      const cleanedData = resolved.map((item) => {
-        if (isNaN(item.x) || isNaN(item.y)) {
-          return { x: NaN, y: NaN, value: NaN };
-        }
-        return item;
-      });
-
-      return { ...dataset, data: cleanedData };
-    });
   }
 }
