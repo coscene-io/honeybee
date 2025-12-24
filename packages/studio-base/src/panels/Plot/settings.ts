@@ -148,7 +148,11 @@ const makeRootSeriesNode = memoizeWeak(
   },
 );
 
-function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTreeNodes {
+function buildSettingsTree(
+  config: PlotConfig,
+  t: TFunction<"plot">,
+  fullTimestampStatus: "disabled" | "enabled" = "enabled",
+): SettingsTreeNodes {
   const maxYError =
     _.isNumber(config.minYValue) &&
     _.isNumber(config.maxYValue) &&
@@ -231,12 +235,14 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
             {
               label: t("fullTimestamp"),
               value: "timestamp",
+              disabled: fullTimestampStatus === "disabled",
             },
             { label: t("partialTimestamp"), value: "partialTimestamp" },
             { label: t("index"), value: "index" },
             { label: t("currentPath"), value: "currentCustom" },
             { label: t("accumulatedPath"), value: "custom" },
           ],
+          help: fullTimestampStatus === "disabled" ? t("tooManyMessages") : undefined,
         },
         xAxisPath:
           config.xAxisVal === "currentCustom" || config.xAxisVal === "custom"
@@ -287,6 +293,7 @@ export function usePlotPanelSettings(
   config: PlotConfig,
   saveConfig: SaveConfig<PlotConfig>,
   focusedPath?: readonly string[],
+  fullTimestampStatus: "disabled" | "enabled" = "enabled",
 ): void {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const { t } = useTranslation("plot");
@@ -387,7 +394,7 @@ export function usePlotPanelSettings(
     updatePanelSettingsTree({
       actionHandler,
       focusedPath,
-      nodes: buildSettingsTree(config, t),
+      nodes: buildSettingsTree(config, t, fullTimestampStatus),
     });
   }, [actionHandler, config, focusedPath, updatePanelSettingsTree, t]);
 }
