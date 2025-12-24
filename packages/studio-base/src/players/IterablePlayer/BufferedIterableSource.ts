@@ -22,7 +22,6 @@ import { CachingIterableSource } from "./CachingIterableSource";
 import {
   GetBackfillMessagesArgs,
   IIterableSource,
-  IDeserializedIterableSource,
   Initalization,
   IteratorResult,
   MessageIteratorArgs,
@@ -57,9 +56,9 @@ interface EventTypes {
  */
 class BufferedIterableSource<MessageType = unknown>
   extends EventEmitter<EventTypes>
-  implements IDeserializedIterableSource
+  implements IIterableSource<MessageType>
 {
-  public readonly sourceType = "deserialized";
+  public readonly sourceType: "serialized" | "deserialized";
   #source: CachingIterableSource<MessageType>;
 
   #readDone = false;
@@ -89,9 +88,13 @@ class BufferedIterableSource<MessageType = unknown>
   // The minimum duration to buffer before playback resumes
   #minReadAheadDuration: Time;
 
-  public constructor(source: IIterableSource<MessageType>, opt?: Options) {
+  public constructor(
+    source: IIterableSource<MessageType> & { sourceType: "serialized" | "deserialized" },
+    opt?: Options,
+  ) {
     super();
 
+    this.sourceType = source.sourceType;
     this.#readAheadDuration = opt?.readAheadDuration ?? DEFAULT_READ_AHEAD_DURATION;
     this.#minReadAheadDuration = opt?.minReadAheadDuration ?? DEFAULT_MIN_READ_AHEAD_DURATION;
     this.#source = new CachingIterableSource<MessageType>(source, {

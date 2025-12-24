@@ -51,6 +51,7 @@ import { BufferedIterableSource } from "./BufferedIterableSource";
 import { DeserializingIterableSource } from "./DeserializingIterableSource";
 import {
   IDeserializedIterableSource,
+  IIterableSource,
   ISerializedIterableSource,
   IteratorResult,
 } from "./IIterableSource";
@@ -178,7 +179,7 @@ export class IterablePlayer implements Player {
   #iterableSource: IDeserializedIterableSource | ISerializedIterableSource;
 
   // Buffered source used for playback.
-  #bufferedSource: IDeserializedIterableSource;
+  #bufferedSource: IIterableSource & { sourceType: "serialized" | "deserialized" };
 
   // Buffering source implementation. We store a reference to it here so we can access buffer information such as loaded ranges & memory size.
   #bufferImpl: BufferedIterableSource;
@@ -1150,8 +1151,9 @@ export class IterablePlayer implements Player {
     this.#isPlaying = false;
     await this.#blockLoader?.stopLoading();
     await this.#blockLoadingProcess;
+    // Note: #bufferedSource and #bufferImpl are the same object now,
+    // so we only need to terminate once
     await this.#bufferImpl.terminate();
-    await this.#bufferedSource.terminate?.();
     await this.#playbackIterator?.return?.();
     this.#playbackIterator = undefined;
     await this.#iterableSource.terminate?.();
