@@ -89,12 +89,12 @@ class BufferedIterableSource<MessageType = unknown>
   #minReadAheadDuration: Time;
 
   public constructor(
-    source: IIterableSource<MessageType> & { sourceType: "serialized" | "deserialized" },
+    source: IIterableSource<MessageType> & { sourceType?: "serialized" | "deserialized" },
     opt?: Options,
   ) {
     super();
 
-    this.sourceType = source.sourceType;
+    this.sourceType = source.sourceType ?? "deserialized";
     this.#readAheadDuration = opt?.readAheadDuration ?? DEFAULT_READ_AHEAD_DURATION;
     this.#minReadAheadDuration = opt?.minReadAheadDuration ?? DEFAULT_MIN_READ_AHEAD_DURATION;
     this.#source = new CachingIterableSource<MessageType>(source, {

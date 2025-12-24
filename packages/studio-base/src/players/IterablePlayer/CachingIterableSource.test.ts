@@ -18,8 +18,6 @@ import {
 } from "./IIterableSource";
 
 class TestSource implements IIterableSource {
-  public readonly sourceType = "deserialized";
-
   public async initialize(): Promise<Initalization> {
     return {
       start: { sec: 0, nsec: 0 },
