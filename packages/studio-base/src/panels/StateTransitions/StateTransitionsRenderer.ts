@@ -16,12 +16,12 @@ import { Bounds } from "@foxglove/studio-base/types/Bounds";
 import type { Service } from "./StateTransitionsChart.worker";
 import {
   Dataset,
-  Datum,
   Scale,
   StateTransitionsChartRenderer,
   UpdateAction,
 } from "./StateTransitionsChartRenderer";
 import { Viewport } from "./downsampleStates";
+import { Datum } from "./types";
 
 const log = Logger.getLogger(__filename);
 

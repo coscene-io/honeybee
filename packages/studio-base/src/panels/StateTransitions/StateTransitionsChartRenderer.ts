@@ -12,7 +12,6 @@ import {
   Interaction,
   InteractionItem,
   InteractionModeFunction,
-  ScatterDataPoint,
   Ticks,
 } from "chart.js";
 import { getRelativePosition } from "chart.js/helpers";
@@ -28,6 +27,7 @@ import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
 import { grey } from "@foxglove/studio-base/util/toolsColorScheme";
 
 import { downsampleStates, MAX_POINTS, Viewport } from "./downsampleStates";
+import { Datum } from "./types";
 
 // Define fontMonospace locally to avoid importing @foxglove/theme which includes React dependencies
 // that cannot be loaded in a Worker context
@@ -71,15 +71,6 @@ export type InteractionEvent =
   | PanStartInteractionEvent
   | PanMoveInteractionEvent
   | PanEndInteractionEvent;
-
-export type Datum = ScatterDataPoint & {
-  value?: string | number | bigint | boolean;
-  label?: string;
-  labelColor?: string;
-  constantName?: string;
-  /** States included in this downsampled segment (for compressed multi-state intervals) */
-  states?: string[];
-};
 
 export type Dataset = ChartDataset<"scatter", Datum[]>;
 
