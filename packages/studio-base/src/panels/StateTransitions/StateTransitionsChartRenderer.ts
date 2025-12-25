@@ -411,6 +411,52 @@ export class StateTransitionsChartRenderer {
     };
   }
 
+  public getElementsAtPixel(pixel: { x: number; y: number }): HoverElement[] {
+    const x = pixel.x;
+    const y = pixel.y;
+
+    const ev = {
+      native: true,
+      x,
+      y,
+    };
+
+    // ev is cast to any because the typings for getElementsAtEventForMode are wrong
+    const elements = this.#chartInstance.getElementsAtEventForMode(
+      ev as unknown as Event,
+      this.#chartInstance.options.interaction?.mode ?? "lastX",
+      this.#chartInstance.options.interaction ?? {},
+      false,
+    );
+
+    const out: HoverElement[] = [];
+
+    // sort elements by proximity to the cursor so the closer items are earlier in the list
+    elements.sort((a, b) => {
+      const dxA = pixel.x - a.element.x;
+      const dyA = pixel.y - a.element.y;
+      const dxB = pixel.x - b.element.x;
+      const dyB = pixel.y - b.element.y;
+      const distSquaredA = dxA * dxA + dyA * dyA;
+      const distSquaredB = dxB * dxB + dyB * dyB;
+      return distSquaredA - distSquaredB;
+    });
+
+    for (const element of elements) {
+      const data = this.#chartInstance.data.datasets[element.datasetIndex]?.data[element.index];
+      if (data == undefined || typeof data === "number") {
+        continue;
+      }
+
+      out.push({
+        data,
+        configIndex: element.datasetIndex,
+      });
+    }
+
+    return out;
+  }
+
   public updateDatasets(datasets: Dataset[], viewport?: Viewport): Scale | undefined {
     // Downsample datasets before rendering (if viewport is provided)
     const processedDatasets = viewport ? this.#downsampleDatasets(datasets, viewport) : datasets;
