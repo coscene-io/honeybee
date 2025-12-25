@@ -32,7 +32,6 @@ import { grey } from "@foxglove/studio-base/util/toolsColorScheme";
 
 import {
   Dataset,
-  Datum,
   HoverElement,
   InteractionEvent,
   Scale,
@@ -42,7 +41,7 @@ import { StateTransitionsRenderer } from "./StateTransitionsRenderer";
 import { Viewport } from "./downsampleStates";
 import positiveModulo from "./positiveModulo";
 import { PathState } from "./settings";
-import { StateTransitionConfig, StateTransitionPath } from "./types";
+import { StateTransitionConfig, StateTransitionPath, Datum } from "./types";
 
 type EventTypes = {
   /** X scale changed. */
