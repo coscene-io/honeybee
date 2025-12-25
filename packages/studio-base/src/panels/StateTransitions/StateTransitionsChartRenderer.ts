@@ -12,7 +12,6 @@ import {
   Interaction,
   InteractionItem,
   InteractionModeFunction,
-  ScatterDataPoint,
   Ticks,
 } from "chart.js";
 import { getRelativePosition } from "chart.js/helpers";
@@ -25,6 +24,10 @@ import { unwrap } from "@foxglove/den/monads";
 import { Immutable } from "@foxglove/studio";
 import { Bounds, Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
+import { grey } from "@foxglove/studio-base/util/toolsColorScheme";
+
+import { downsampleStates, MAX_POINTS, Viewport } from "./downsampleStates";
+import { Datum } from "./types";
 
 // Define fontMonospace locally to avoid importing @foxglove/theme which includes React dependencies
 // that cannot be loaded in a Worker context
@@ -68,15 +71,6 @@ export type InteractionEvent =
   | PanStartInteractionEvent
   | PanMoveInteractionEvent
   | PanEndInteractionEvent;
-
-export type Datum = ScatterDataPoint & {
-  value?: string | number | bigint | boolean;
-  label?: string;
-  labelColor?: string;
-  constantName?: string;
-  /** States included in this downsampled segment (for compressed multi-state intervals) */
-  states?: string[];
-};
 
 export type Dataset = ChartDataset<"scatter", Datum[]>;
 
@@ -463,19 +457,87 @@ export class StateTransitionsChartRenderer {
     return out;
   }
 
-  public updateDatasets(datasets: Dataset[]): Scale | undefined {
+  public updateDatasets(datasets: Dataset[], viewport?: Viewport): Scale | undefined {
+    // Downsample datasets before rendering (if viewport is provided)
+    const processedDatasets = viewport ? this.#downsampleDatasets(datasets, viewport) : datasets;
+
     // Apply a line segment coloring function
-    for (const ds of datasets) {
+    for (const ds of processedDatasets) {
       ds.segment = {
         borderColor: lineSegmentLabelColor,
       };
     }
 
-    this.#chartInstance.data.datasets = datasets;
+    this.#chartInstance.data.datasets = processedDatasets;
 
     // NOTE: "none" disables animations
     this.#chartInstance.update("none");
     return this.#getXScale();
+  }
+
+  /**
+   * Downsample datasets for rendering.
+   * When there are many state transitions in a small visual area,
+   * they are collapsed into a gray "[...]" segment.
+   */
+  #downsampleDatasets(datasets: Dataset[], viewport: Viewport): Dataset[] {
+    // If we don't have valid bounds, return original datasets
+    if (viewport.width <= 0) {
+      return datasets;
+    }
+
+    // Calculate max points per dataset
+    const numPoints = MAX_POINTS / Math.max(datasets.length, 1);
+
+    return datasets.map((dataset) => {
+      const data = dataset.data;
+      if (data.length === 0) {
+        return dataset;
+      }
+
+      // Get the y value from the first data point
+      const yValue = data[0]?.y ?? 0;
+
+      // Perform downsampling
+      const downsampled = downsampleStates(data, viewport, numPoints);
+
+      // Resolve downsampled points back to actual data
+      const resolved = downsampled.map(({ x, index, states }) => {
+        if (index == undefined) {
+          // This is a compressed segment with multiple states
+          // Render as gray "[...]" to indicate hidden detail
+          return {
+            x,
+            y: yValue,
+            labelColor: grey,
+            label: "[...]",
+            states,
+            value: undefined,
+          };
+        }
+
+        // Get the original point
+        const point = data[index];
+        if (point == undefined) {
+          return { x: NaN, y: NaN, value: NaN };
+        }
+
+        return {
+          ...point,
+          x,
+        };
+      });
+
+      // NaN item values create gaps in the line
+      const cleanedData = resolved.map((item) => {
+        if (isNaN(item.x) || isNaN(item.y)) {
+          return { x: NaN, y: NaN, value: NaN };
+        }
+        return item;
+      });
+
+      return { ...dataset, data: cleanedData };
+    });
   }
 
   public getDatalabelAtEvent(pixel: { x: number; y: number }): Datum | undefined {

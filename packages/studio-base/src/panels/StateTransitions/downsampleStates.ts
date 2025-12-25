@@ -9,7 +9,7 @@ import * as R from "ramda";
 
 import { Immutable } from "@foxglove/studio";
 
-import { Datum } from "./StateTransitionsChartRenderer";
+import { Datum } from "./types";
 
 // Points that appear within this threshold are visually indistinguishable
 const MINIMUM_PIXEL_DISTANCE = 3;
