@@ -193,6 +193,10 @@ export class DeserializingIterableSource implements IDeserializedIterableSource 
     return deserializedMsgs;
   }
 
+  public async terminate(): Promise<void> {
+    await this.#source.terminate?.();
+  }
+
   #deserializeMessage(
     rawMessageEvent: MessageEvent<Uint8Array>,
     subscription: SubscribePayload & { subscriptionHash: string },
