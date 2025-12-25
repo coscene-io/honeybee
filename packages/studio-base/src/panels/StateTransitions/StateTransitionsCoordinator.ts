@@ -130,9 +130,6 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   // Cache for processed data to avoid reprocessing unchanged data
   #processedDataCache = new Map<string, { data: Datum[]; inputLength: number; y: number }>();
 
-  // Cache latest datasets for synchronous hover lookup (avoids Worker communication)
-  #latestDatasets: Dataset[] = [];
-
   // Track which series have detected array input (invalid for StateTransitions)
   #seriesIsArray = new Map<string, boolean>();
 
@@ -782,8 +779,6 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     if (this.isDestroyed()) {
       return;
     }
-    // Cache datasets for synchronous hover lookup
-    this.#latestDatasets = datasets;
     this.#pendingDatasets = datasets;
     this.#queueDispatchDatasets();
   }
@@ -873,67 +868,13 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   }
 
   /**
-   * Get hover elements at pixel position (synchronous, main thread).
-   * Uses cached datasets to avoid Worker communication during data loading.
+   * Get hover elements at pixel position.
    */
-  public getElementsAtPixelSync(pixel: { x: number; y: number }): HoverElement[] {
-    if (this.isDestroyed() || !this.#latestXScale) {
+  public async getElementsAtPixel(pixel: { x: number; y: number }): Promise<HoverElement[]> {
+    if (this.isDestroyed()) {
       return [];
     }
-
-    const xValue = this.getXValueAtPixel(pixel.x);
-    if (xValue < 0) {
-      return [];
-    }
-
-    const results: HoverElement[] = [];
-
-    // Find the element at the given x position for each dataset
-    for (let datasetIndex = 0; datasetIndex < this.#latestDatasets.length; datasetIndex++) {
-      const dataset = this.#latestDatasets[datasetIndex];
-      if (!dataset) {
-        continue;
-      }
-
-      const data = dataset.data;
-      if (data.length === 0) {
-        continue;
-      }
-
-      // Binary search to find the element at or before the x position
-      let low = 0;
-      let high = data.length - 1;
-      let foundIndex = -1;
-
-      while (low <= high) {
-        const mid = Math.floor((low + high) / 2);
-        const datum = data[mid];
-        if (!datum || isNaN(datum.x)) {
-          // Skip NaN values
-          high = mid - 1;
-          continue;
-        }
-
-        if (datum.x <= xValue) {
-          foundIndex = mid;
-          low = mid + 1;
-        } else {
-          high = mid - 1;
-        }
-      }
-
-      if (foundIndex >= 0) {
-        const datum = data[foundIndex];
-        if (datum && !isNaN(datum.x) && !isNaN(datum.y)) {
-          results.push({
-            data: datum,
-            configIndex: datasetIndex,
-          });
-        }
-      }
-    }
-
-    return results;
+    return await this.#renderer.getElementsAtPixel(pixel);
   }
 
   /**

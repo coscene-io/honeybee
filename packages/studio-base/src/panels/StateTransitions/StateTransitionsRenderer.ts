@@ -16,6 +16,7 @@ import { Bounds } from "@foxglove/studio-base/types/Bounds";
 import type { Service } from "./StateTransitionsChart.worker";
 import {
   Dataset,
+  HoverElement,
   Scale,
   StateTransitionsChartRenderer,
   UpdateAction,
@@ -90,6 +91,13 @@ export class StateTransitionsRenderer {
       return undefined;
     }
     return await (await this.#remote).update(action);
+  }
+
+  public async getElementsAtPixel(pixel: { x: number; y: number }): Promise<HoverElement[]> {
+    if (this.#destroyed) {
+      return [];
+    }
+    return await (await this.#remote).getElementsAtPixel(pixel);
   }
 
   public async updateDatasets(
