@@ -168,6 +168,9 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     }
 
     this.#config = config;
+
+    // Detect showPoints change - need to invalidate processed data cache
+    const showPointsChanged = this.#showPoints !== (config.showPoints === true);
     this.#showPoints = config.showPoints === true;
     this.#followRange = config.xAxisRange;
 
@@ -206,6 +209,11 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       this.#firstBlockRefs.clear();
       this.#lastBlockRefs.clear();
       this.#latestBlocks = undefined; // Force reprocessing of blocks
+    } else if (showPointsChanged) {
+      // showPoints affects how data is processed: when true, all points are emitted;
+      // when false, only state-change points are emitted. Invalidate the processed
+      // cache to ensure the UI reflects the new setting immediately.
+      this.#processedDataCache.clear();
     }
 
     this.#series = newSeries;
