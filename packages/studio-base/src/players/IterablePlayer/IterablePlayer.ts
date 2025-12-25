@@ -51,6 +51,7 @@ import { BufferedIterableSource } from "./BufferedIterableSource";
 import { DeserializingIterableSource } from "./DeserializingIterableSource";
 import {
   IDeserializedIterableSource,
+  IIterableSource,
   ISerializedIterableSource,
   IteratorResult,
 } from "./IIterableSource";
@@ -178,7 +179,7 @@ export class IterablePlayer implements Player {
   #iterableSource: IDeserializedIterableSource | ISerializedIterableSource;
 
   // Buffered source used for playback.
-  #bufferedSource: IDeserializedIterableSource;
+  #bufferedSource: IIterableSource & { sourceType: "serialized" | "deserialized" };
 
   // Buffering source implementation. We store a reference to it here so we can access buffer information such as loaded ranges & memory size.
   #bufferImpl: BufferedIterableSource;
@@ -218,19 +219,19 @@ export class IterablePlayer implements Player {
 
     this.#iterableSource = source;
     if (source.sourceType === "deserialized") {
-      this.#bufferImpl = new BufferedIterableSource(source, {
+      const slicingSource = new DeserializedSourceWrapper(source);
+      this.#bufferImpl = new BufferedIterableSource(slicingSource, {
         readAheadDuration,
       });
-      this.#bufferedSource = new DeserializedSourceWrapper(this.#bufferImpl);
     } else {
       const MEGABYTE_IN_BYTES = 1024 * 1024;
-      const bufferInterface = new BufferedIterableSource(source, {
+      const deserializingSource = new DeserializingIterableSource(source);
+      this.#bufferImpl = new BufferedIterableSource(deserializingSource, {
         readAheadDuration,
         maxCacheSizeBytes: 600 * MEGABYTE_IN_BYTES,
       });
-      this.#bufferImpl = bufferInterface;
-      this.#bufferedSource = new DeserializingIterableSource(bufferInterface);
     }
+    this.#bufferedSource = this.#bufferImpl;
 
     this.#name = name;
     this.#urlParams = urlParams;
@@ -1150,8 +1151,9 @@ export class IterablePlayer implements Player {
     this.#isPlaying = false;
     await this.#blockLoader?.stopLoading();
     await this.#blockLoadingProcess;
+    // Note: #bufferedSource and #bufferImpl are the same object now,
+    // so we only need to terminate once
     await this.#bufferImpl.terminate();
-    await this.#bufferedSource.terminate?.();
     await this.#playbackIterator?.return?.();
     this.#playbackIterator = undefined;
     await this.#iterableSource.terminate?.();
