@@ -45,6 +45,7 @@ export interface BaseChooserProps {
   defaultRecordDisplayName?: string;
   defaultProject?: Project;
   createRecordConfirmText?: string;
+  disableProjectSelect?: boolean;
 }
 
 // Base dialog properties
@@ -66,9 +67,15 @@ export type ChooserDialogProps = BaseDialogProps & {
         maxFilesNumber?: undefined;
       }
     | {
-        mode: "select-files-from-record" | "select-files-from-project";
+        mode: "select-files-from-project";
         onConfirm: (files: SelectedFile[]) => void;
         maxFilesNumber?: number;
+      }
+    | {
+        mode: "select-files-from-record";
+        onConfirm: (files: SelectedFile[]) => void;
+        maxFilesNumber?: number;
+        disableProjectSelect?: boolean;
       }
   );
 
@@ -84,4 +91,5 @@ export interface CustomBreadcrumbsProps {
   currentFolderPath?: readonly string[];
   onNavigateToFolder?: (path: readonly string[]) => void;
   listType: ListType;
+  disableProjectSelect?: boolean;
 }

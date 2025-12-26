@@ -403,6 +403,7 @@ export function Playlist(): React.JSX.Element {
           handleAddFiles(fileNames);
         }}
         mode="select-files-from-record"
+        disableProjectSelect
       />
     </Stack>
   );

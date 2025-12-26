@@ -53,6 +53,9 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
     defaultProject,
   } = props;
 
+  const disableProjectSelect =
+    mode === "select-files-from-record" ? props.disableProjectSelect : undefined;
+
   const { classes } = useStyles();
   const { t } = useTranslation("cosPlaylist");
 
@@ -172,6 +175,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
             mode={mode}
             checkFileSupportedFunc={checkFileSupportedFunc ?? checkBagFileSupported}
             defaultProject={defaultProject}
+            disableProjectSelect={disableProjectSelect}
           />
           {showFilesList && <FilesList files={selectedFiles} setFiles={setSelectedFiles} />}
         </Stack>
