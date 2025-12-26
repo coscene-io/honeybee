@@ -7,8 +7,6 @@
 
 import * as R from "ramda";
 
-import { Immutable } from "@foxglove/studio";
-
 import { Datum } from "./types";
 
 // Points that appear within this threshold are visually indistinguishable
@@ -49,13 +47,11 @@ type Label = {
  * Add a Label to a list of Labels, but not if the top of the new Label's value
  * matches the value of the Label at the top of the stack.
  */
-function addLabel(label: Label, labels: Immutable<Label[]>): Immutable<Label[]> {
+function addLabel(label: Label, labels: Label[]): void {
   const last = labels.at(-1);
-  if (last != undefined && label.value === last.value) {
-    return labels;
+  if (last == undefined || label.value !== last.value) {
+    labels.push(label);
   }
-
-  return [...labels, label];
 }
 
 // Contains all of the state we need to keep track of for each interval.
@@ -67,7 +63,7 @@ type Interval = {
   // The x coordinate of the end of the interval
   endX: number;
   // All of the labels that appeared in this interval
-  labels: Immutable<Label[]>;
+  labels: Label[];
   // The index of the point that started the interval
   index: number;
 };
@@ -237,7 +233,7 @@ export function downsampleStates(data: Datum[], view: Viewport, maxPoints?: numb
     }
 
     // If we haven't yet moved on, add this point's label
-    interval.labels = addLabel(
+    addLabel(
       {
         index,
         value: label,
