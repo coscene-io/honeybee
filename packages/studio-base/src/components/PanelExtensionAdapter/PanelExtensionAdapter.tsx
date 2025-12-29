@@ -7,15 +7,7 @@
 
 import { useTheme } from "@mui/material";
 import { produce } from "immer";
-import {
-  CSSProperties,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLatest } from "react-use";
 import { v4 as uuid } from "uuid";
 
@@ -315,8 +307,25 @@ function PanelExtensionAdapter(
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
 
   const extensionsSettings = useExtensionCatalog(getExtensionPanelSettings);
-  const extensionSettingsActionHandler = useCallback(
-    (action: SettingsTreeAction) => {
+
+  // Use refs to store values that change frequently, avoiding dependency chain issues
+  const latestPanelSettingsActionHandlerRef = useRef<SettingsTree["actionHandler"]>();
+  const extensionsSettingsRef = useRef(extensionsSettings);
+  const panelNameRef = useRef(panelName);
+
+  // Keep refs up to date
+  useEffect(() => {
+    extensionsSettingsRef.current = extensionsSettings;
+    panelNameRef.current = panelName;
+  }, [extensionsSettings, panelName]);
+
+  // Stable action handler - reference never changes, accesses latest values via refs
+  const stableSettingsActionHandler = useMemo(
+    () => (action: SettingsTreeAction) => {
+      // Call panel's action handler
+      latestPanelSettingsActionHandlerRef.current?.(action);
+
+      // Call extension settings handler
       const {
         payload: { path },
       } = action;
@@ -325,27 +334,19 @@ function PanelExtensionAdapter(
         produce<{ topics: Record<string, unknown> }>((draft) => {
           const [category, topicName] = path;
           if (category === "topics" && topicName != undefined) {
-            extensionsSettings[panelName]?.[topicName]?.handler(action, draft.topics[topicName]);
+            extensionsSettingsRef.current[panelNameRef.current]?.[topicName]?.handler(
+              action,
+              draft.topics[topicName],
+            );
           }
         }),
       );
     },
-    [extensionsSettings, panelName, saveConfig],
-  );
-
-  const latestSettingsActionHandlerRef = useRef<SettingsTree["actionHandler"]>();
-  const lastSettingsTreeRef = useRef<SettingsTree | undefined>();
-  const stableSettingsActionHandler = useCallback(
-    (action: SettingsTreeAction) => {
-      latestSettingsActionHandlerRef.current?.(action);
-      extensionSettingsActionHandler(action);
-    },
-    [extensionSettingsActionHandler],
+    [saveConfig],
   );
 
   useEffect(() => {
-    latestSettingsActionHandlerRef.current = undefined;
-    lastSettingsTreeRef.current = undefined;
+    latestPanelSettingsActionHandlerRef.current = undefined;
   }, [panelId]);
 
   type PartialPanelExtensionContext = Omit<BuiltinPanelExtensionContext, "panelElement">;
@@ -563,12 +564,10 @@ function PanelExtensionAdapter(
         if (!isMounted()) {
           return;
         }
-        latestSettingsActionHandlerRef.current = settings.actionHandler;
-        const treeWithStableHandler =
-          settings.actionHandler === stableSettingsActionHandler
-            ? settings
-            : { ...settings, actionHandler: stableSettingsActionHandler };
-        updatePanelSettingsTree(treeWithStableHandler);
+        // Store the panel's action handler in ref for stable wrapper to call
+        latestPanelSettingsActionHandlerRef.current = settings.actionHandler;
+        // Use stable action handler to prevent unnecessary re-renders of settings tree
+        updatePanelSettingsTree({ ...settings, actionHandler: stableSettingsActionHandler });
       },
 
       setDefaultPanelTitle: (title: string) => {
@@ -593,7 +592,6 @@ function PanelExtensionAdapter(
     isMounted,
     openSiblingPanel,
     saveConfig,
-    extensionSettingsActionHandler,
     stableSettingsActionHandler,
     getMessagePipelineContext,
     setGlobalVariables,

@@ -114,7 +114,7 @@ function ErrorDisplay(props: ErrorDisplayProps): React.JSX.Element {
           <>
             <Typography fontWeight="bold">Component stack:</Typography>
             <ErrorStacktrace
-              stack={errorInfo.componentStack}
+              stack={errorInfo.componentStack ?? ""}
               hideSourceLocations={hideErrorSourceLocations}
             />
           </>

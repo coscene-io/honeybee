@@ -85,6 +85,8 @@ export type MockMessagePipelineProps = {
   playerId?: string;
   progress?: Progress;
   urlState?: PlayerURLState;
+  close?: () => void;
+  reOpen?: () => void;
 };
 type MockMessagePipelineState = MessagePipelineInternalState & {
   mockProps: MockMessagePipelineProps;
@@ -193,6 +195,9 @@ function getPublicState(
           condvar.notifyAll();
         };
       },
+
+    reOpen: props.reOpen ?? noop,
+    close: props.close ?? noop,
   };
 }
 
