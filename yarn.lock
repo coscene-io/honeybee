@@ -4749,12 +4749,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@coscene-io/cosceneapis-es-v2@npm:0.0.427":
-  version: 0.0.427
-  resolution: "@coscene-io/cosceneapis-es-v2@npm:0.0.427::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es-v2%2F0.0.427%2F39e699cdd345d1847189382fee701a9c4ee2cf3c"
+"@coscene-io/cosceneapis-es-v2@npm:0.0.433":
+  version: 0.0.433
+  resolution: "@coscene-io/cosceneapis-es-v2@npm:0.0.433::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40coscene-io%2Fcosceneapis-es-v2%2F0.0.433%2F9aee1defd8669562e7a25f32dd9856360437ad78"
   dependencies:
     "@buf/googleapis_googleapis.bufbuild_es": 2.6.3-20250411203938-61b203b9a916.1
-  checksum: e765dd1062b7ace46a2c593bf441837931fabd846e2629d97a58bfbb78cc2da5d869bd47a31b43fd919e4ab8aa3742637b73fd34ef794c211a371e08ff78a725
+  checksum: 18dbd822826d90b984d111d5e99a7275e8ee57b501163d9b662195fc2dc1bbc2fe4f5a6f742f5f3f04bbcbe231ab194befee4adeb7e07d263244be742b70bbde
   languageName: node
   linkType: hard
 
@@ -6031,7 +6031,7 @@ __metadata:
     "@connectrpc/connect": ^2.0.0
     "@connectrpc/connect-web": ^2.0.0
     "@coscene-io/comlink": 4.4.1
-    "@coscene-io/cosceneapis-es-v2": 0.0.427
+    "@coscene-io/cosceneapis-es-v2": 0.0.433
     "@coscene-io/cosel": 24.14.0
     "@emotion/cache": 11.14.0
     "@emotion/react": 11.14.0
