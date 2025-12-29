@@ -102,6 +102,9 @@ function CreateCoreDataStore() {
     setColinkApi: (colinkApi: ReturnType<typeof DevicesApiFactory>) => {
       set({ colinkApi });
     },
+    setBaseUrl: (baseUrl: string) => {
+      set({ baseUrl });
+    },
 
     refreshOrganization: () => {
       set({ reloadOrganizationTrigger: get().reloadOrganizationTrigger + 1 });

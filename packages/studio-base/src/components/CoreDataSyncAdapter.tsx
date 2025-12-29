@@ -43,6 +43,7 @@ const selectSetDeviceCustomFieldSchema = (state: CoreDataStore) => state.setDevi
 const selectSetCoordinatorConfig = (state: CoreDataStore) => state.setCoordinatorConfig;
 const selectSetColinkApi = (state: CoreDataStore) => state.setColinkApi;
 const selectSetOrganization = (state: CoreDataStore) => state.setOrganization;
+const selectSetBaseUrl = (state: CoreDataStore) => state.setBaseUrl;
 
 const selectReloadRecordTrigger = (state: CoreDataStore) => state.reloadRecordTrigger;
 const selectReloadProjectTrigger = (state: CoreDataStore) => state.reloadProjectTrigger;
@@ -90,6 +91,7 @@ export function useSetExternalInitConfig(): (
       externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId
         ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`
         : undefined;
+
     if (taskName) {
       const task = await consoleApi.getTask({ taskName });
       setFocusedTask(task);
@@ -125,6 +127,7 @@ export function CoreDataSyncAdapter(): ReactNull {
   const setDeviceCustomFieldSchema = useCoreData(selectSetDeviceCustomFieldSchema);
   const setCoordinatorConfig = useCoreData(selectSetCoordinatorConfig);
   const setColinkApi = useCoreData(selectSetColinkApi);
+  const setBaseUrl = useCoreData(selectSetBaseUrl);
 
   const reloadRecordTrigger = useCoreData(selectReloadRecordTrigger);
   const reloadProjectTrigger = useCoreData(selectReloadProjectTrigger);
@@ -171,7 +174,18 @@ export function CoreDataSyncAdapter(): ReactNull {
     const targetProject = await consoleApi.getProject({ projectName });
 
     setProject({ loading: false, value: targetProject });
-  }, [externalInitConfig, setProject, consoleApi]);
+
+    const storageClusterId = targetProject.storageCluster;
+
+    const storageCluster = await consoleApi.getStorageCluster({ name: storageClusterId });
+
+    const honeybeeAddress = storageCluster.endpoints[0]?.honeybeeAddress;
+
+    if (honeybeeAddress) {
+      setBaseUrl(honeybeeAddress);
+      consoleApi.setBaseUrl(honeybeeAddress);
+    }
+  }, [externalInitConfig, setProject, consoleApi, setBaseUrl]);
 
   useEffect(() => {
     if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {

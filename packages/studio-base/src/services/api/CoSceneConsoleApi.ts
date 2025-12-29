@@ -137,6 +137,11 @@ import type {
   GenerateFileUploadUrlsResponse,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
 import {
+  GetStorageClusterRequestSchema,
+  StorageCluster,
+  StorageClusterService,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/storage_cluster_pb";
+import {
   TaskService,
   UpsertTaskRequestSchema,
   SyncTaskRequestSchema,
@@ -447,6 +452,10 @@ class CoSceneConsoleApi {
 
   public getBaseUrl(): string {
     return this.#baseUrl;
+  }
+
+  public setBaseUrl(baseUrl: string): void {
+    this.#baseUrl = baseUrl;
   }
 
   public getBffUrl(): string {
@@ -1667,6 +1676,20 @@ class CoSceneConsoleApi {
     {
       permission: () => {
         return checkUserPermission(Endpoint.GetOrgConfigMap, this.#permissionList);
+      },
+    },
+  );
+
+  public getStorageCluster = Object.assign(
+    async (
+      payload: MessageInitShape<typeof GetStorageClusterRequestSchema>,
+    ): Promise<StorageCluster> => {
+      const req = create(GetStorageClusterRequestSchema, payload);
+      return await getPromiseClient(StorageClusterService).getStorageCluster(req);
+    },
+    {
+      permission: () => {
+        return true;
       },
     },
   );
