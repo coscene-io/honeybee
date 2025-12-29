@@ -5,8 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { useEffect } from "react";
 import { useAsync, useAsyncFn } from "react-use";
+import { AsyncState } from "react-use/lib/useAsync";
 
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
@@ -30,6 +32,7 @@ import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectCoordinatorConfig = (state: CoreDataStore) => state.coordinatorConfig;
+const selectProject = (state: CoreDataStore) => state.project;
 
 const selectSetExternalInitConfig = (state: CoreDataStore) => state.setExternalInitConfig;
 const selectSetIsReadyForSyncLayout = (state: CoreDataStore) => state.setIsReadyForSyncLayout;
@@ -61,12 +64,51 @@ const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 const log = Logger.getLogger(__filename);
 
+async function ensureProjectAndBaseUrl({
+  consoleApi,
+  project,
+  externalInitConfig,
+  setProject,
+  setBaseUrl,
+}: {
+  consoleApi: ReturnType<typeof useConsoleApi>;
+  project: AsyncState<Project>;
+  externalInitConfig: ExternalInitConfig;
+  setProject: CoreDataStore["setProject"];
+  setBaseUrl: CoreDataStore["setBaseUrl"];
+}): Promise<void> {
+  const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
+
+  const baseReady = project.value?.name === projectName && !!consoleApi.getBaseUrl();
+  if (baseReady) {
+    return;
+  }
+
+  setProject({ loading: false, value: undefined });
+
+  const targetProject = await consoleApi.getProject({ projectName });
+
+  setProject({ loading: false, value: targetProject });
+
+  const storageClusterId = targetProject.storageCluster;
+  const storageCluster = await consoleApi.getStorageCluster({ name: storageClusterId });
+  const honeybeeAddress = storageCluster.endpoints[0]?.honeybeeAddress;
+
+  if (honeybeeAddress) {
+    setBaseUrl(honeybeeAddress);
+    consoleApi.setBaseUrl(honeybeeAddress);
+  }
+}
+
 export function useSetExternalInitConfig(): (
   externalInitConfig: ExternalInitConfig,
 ) => Promise<void> {
   const consoleApi = useConsoleApi();
+  const project = useCoreData(selectProject);
   const setExternalInitConfig = useCoreData(selectSetExternalInitConfig);
   const setIsReadyForSyncLayout = useCoreData(selectSetIsReadyForSyncLayout);
+  const setProject = useCoreData(selectSetProject);
+  const setBaseUrl = useCoreData(selectSetBaseUrl);
   const setFocusedTask = useTasks(selectSetFocusedTask);
   const [, setLastExternalInitConfig] = useAppConfigurationValue<string>(
     AppSetting.LAST_EXTERNAL_INIT_CONFIG,
@@ -86,6 +128,14 @@ export function useSetExternalInitConfig(): (
 
     // 设置 isReadyForSyncLayout 标志，表示可以开始同步 layout
     setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
+
+    await ensureProjectAndBaseUrl({
+      consoleApi,
+      project,
+      externalInitConfig,
+      setProject,
+      setBaseUrl,
+    });
 
     const taskName =
       externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId
@@ -117,6 +167,7 @@ export function CoreDataSyncAdapter(): ReactNull {
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const organization = useCoreData(selectOrganization);
   const coordinatorConfig = useCoreData(selectCoordinatorConfig);
+  const project = useCoreData(selectProject);
 
   const setOrganization = useCoreData(selectSetOrganization);
   const setRecord = useCoreData(selectSetRecord);
@@ -168,24 +219,14 @@ export function CoreDataSyncAdapter(): ReactNull {
       return;
     }
 
-    setProject({ loading: false, value: undefined });
-
-    const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
-    const targetProject = await consoleApi.getProject({ projectName });
-
-    setProject({ loading: false, value: targetProject });
-
-    const storageClusterId = targetProject.storageCluster;
-
-    const storageCluster = await consoleApi.getStorageCluster({ name: storageClusterId });
-
-    const honeybeeAddress = storageCluster.endpoints[0]?.honeybeeAddress;
-
-    if (honeybeeAddress) {
-      setBaseUrl(honeybeeAddress);
-      consoleApi.setBaseUrl(honeybeeAddress);
-    }
-  }, [externalInitConfig, setProject, consoleApi, setBaseUrl]);
+    await ensureProjectAndBaseUrl({
+      consoleApi,
+      project,
+      externalInitConfig,
+      setProject,
+      setBaseUrl,
+    });
+  }, [externalInitConfig, project, setProject, consoleApi, setBaseUrl]);
 
   useEffect(() => {
     if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
@@ -193,12 +234,11 @@ export function CoreDataSyncAdapter(): ReactNull {
         log.error(error);
       });
     }
-  }, [
-    syncProjects,
-    reloadProjectTrigger,
-    externalInitConfig?.warehouseId,
-    externalInitConfig?.projectId,
-  ]);
+    /** don't listen externalInitConfig, useSetExternalInitConfig will ensure project is initialized
+     *  here only as reloadProjectTrigger trigger
+     */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadProjectTrigger]);
 
   // Record
   const [, syncRecord] = useAsyncFn(async () => {
