@@ -5,12 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
-import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
+import { create } from "@bufbuild/protobuf";
 import {
-  Task,
-  UploadTaskDetail,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
+  LabelSchema,
+  Label,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/label_pb";
+import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_category_pb";
+import {
+  TaskSchema,
+  UploadTaskDetailSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 
 import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { CosQuery } from "@foxglove/studio-base/util/coscene/cosel";
@@ -38,7 +42,7 @@ export class MockCoSceneClient implements CoSceneClient {
     };
     const tagNames = map[projectId] ?? [];
     // Convert string[] to Label[] for mock data
-    return tagNames.map((name) => new Label({ name, displayName: name }));
+    return tagNames.map((name) => create(LabelSchema, { name, displayName: name }));
   }
 
   public async upload(
@@ -204,13 +208,13 @@ export class RealCoSceneClient implements CoSceneClient {
               return fileWithPath.originalPath ?? file.name;
             });
 
-            const newTask = new Task({
+            const newTask = create(TaskSchema, {
               assigner: `users/${currentUser.name.split("/").pop()}`,
               category: TaskCategoryEnum_TaskCategory.UPLOAD,
               description: `Files uploaded containing ${files.length} file(s)`,
               detail: {
                 case: "uploadTaskDetail",
-                value: new UploadTaskDetail({
+                value: create(UploadTaskDetailSchema, {
                   device: deviceName,
                   additionalFiles: filePaths, // 使用additionalFiles传递文件路径
                   labels: labelStrings,

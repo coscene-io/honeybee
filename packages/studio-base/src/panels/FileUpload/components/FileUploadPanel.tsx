@@ -5,14 +5,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
 import React, { useCallback, useEffect, useState, useRef, useMemo } from "react";
 
 import { PanelExtensionContext } from "@foxglove/studio";
 // import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { ProjectAndTagPicker } from "./ProjectAndTagPicker";
 import type { Config } from "../config/types";
@@ -627,6 +627,8 @@ export function FileUploadPanel({
 
   // Modified upload function to include project and tag information
   const onUploadFiles = useCallback(async () => {
+    const appConfig = getAppConfig();
+
     if (selectedPaths.size === 0) {
       log("error", "请选择要上传的文件");
       return;
@@ -688,7 +690,7 @@ export function FileUploadPanel({
         if (uploadResult.success) {
           if (uploadResult.taskName) {
             // Generate task URL directly
-            const webDomain = APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? "dev.coscene.cn";
+            const webDomain = appConfig.DOMAIN_CONFIG?.default?.webDomain ?? "dev.coscene.cn";
             const taskId = uploadResult.taskName.split("/").pop();
 
             // Try to get organization and project info from API if not available
